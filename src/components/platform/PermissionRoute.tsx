@@ -1,0 +1,105 @@
+import { LockKeyhole } from "lucide-react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { usePlatformData } from "@/hooks/usePlatformData";
+import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { can } from "@/lib/platform";
+import type { Permission } from "@/lib/platform";
+
+export function PermissionRoute({
+  permission,
+  children,
+}: {
+  permission: Permission;
+  children: React.ReactNode;
+}) {
+  const navigate = useNavigate();
+  const { isAuthenticated, signOut, authenticatedEmail, authenticatedUserId } = useAuthGateway();
+  const { sessionUsers } = usePlatformData();
+  const { session } = usePlatformSession();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/acesso" replace />;
+  }
+
+  const authenticatedUser =
+    sessionUsers.find((item) => item.id === authenticatedUserId) ??
+    sessionUsers.find((item) => item.email.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase());
+  const isActuallyBlocked =
+    authenticatedUser?.accountStatus === "blocked" || authenticatedUser?.accountStatus === "inactive";
+
+  if (!isActuallyBlocked && can(session, permission)) {
+    return <>{children}</>;
+  }
+
+  const fallbackPath = resolveAllowedArea(session);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <Card className="max-w-xl rounded-[28px] border-slate-200">
+        <CardContent className="p-8">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <LockKeyhole className="h-6 w-6" />
+          </div>
+          <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
+            {isActuallyBlocked ? "Conta bloqueada administrativamente" : "Área indisponível para este perfil"}
+          </h1>
+          {isActuallyBlocked ? (
+            <p className="mt-3 text-sm text-slate-600">
+              Esta conta foi marcada como{" "}
+              {authenticatedUser?.accountStatus === "inactive" ? "inativa" : "bloqueada"} por um administrador.
+              {authenticatedUser?.blockReason ? ` Motivo registrado: ${authenticatedUser.blockReason}.` : ""}
+            </p>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-slate-600">
+                Esta área exige um perfil diferente do seu acesso atual. Isso não significa bloqueio da conta.
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Se você quiser entrar com outra conta, acesse novamente para trocar de usuário.
+              </p>
+            </>
+          )}
+          <div className="mt-6 flex gap-3">
+            <Button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                navigate("/acesso", { replace: true });
+              }}
+            >
+              Entrar com outra conta
+            </Button>
+            <Button asChild variant="outline">
+              <Link to={fallbackPath}>{isActuallyBlocked ? "Voltar ao acesso" : "Ir para uma área permitida"}</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function resolveAllowedArea(session: { role: string }) {
+  switch (session.role) {
+    case "master_admin":
+    case "master_ops":
+      return "/master";
+    case "prefeitura_admin":
+      return "/prefeitura";
+    case "prefeitura_supervisor":
+    case "analista":
+    case "fiscal":
+    case "setor_intersetorial":
+      return "/prefeitura/analise";
+    case "financeiro":
+      return "/prefeitura/financeiro";
+    case "profissional_externo":
+    case "proprietario_consulta":
+      return "/externo";
+    default:
+      return "/perfil";
+  }
+}
