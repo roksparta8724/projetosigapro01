@@ -1,5 +1,6 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
+import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -66,6 +67,7 @@ function resolveBrandingErrorMessage(error: unknown, fallback: string) {
 }
 
 export function ConfiguracoesPage() {
+  const navigate = useNavigate();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
@@ -577,7 +579,7 @@ export function ConfiguracoesPage() {
         <div className="mb-4 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
             <p className="sig-label">Painel inicial</p>
-            <p className="sig-truncate sig-value mt-2" title={preferences.dashboardStart}>
+            <p className="sig-fit-title sig-value mt-2" title={preferences.dashboardStart}>
               {preferences.dashboardStart === "protocolos" ? "Protocolos e processos" : "Resumo geral"}
             </p>
             <p className="sig-field-help mt-1">Define a prioridade de abertura do sistema.</p>
@@ -836,7 +838,7 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Instituição</p>
-                <p className="mt-2 truncate text-base font-semibold leading-tight text-slate-900">
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
                   {tenantForm.name || "SIGAPRO"}
                 </p>
               </div>
@@ -848,11 +850,11 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Canal oficial</p>
-                <p className="mt-2 truncate text-base font-semibold leading-tight text-slate-900">
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
                   {settingsForm.email || "E-mail não informado"}
                 </p>
               </div>
-              <p className="truncate text-sm text-slate-500">
+              <p className="sig-fit-copy text-sm leading-6 text-slate-500">
                 {settingsForm.telefone || "Telefone não informado"}
               </p>
             </div>
@@ -860,7 +862,7 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Protocolo</p>
-                <p className="mt-2 truncate text-base font-semibold leading-tight text-slate-900">
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
                   {(settingsForm.protocoloPrefixo || "SIG")} / {(settingsForm.guiaPrefixo || "DAM")}
                 </p>
               </div>
@@ -870,7 +872,7 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Portal institucional</p>
-                <p className="mt-2 truncate text-base font-semibold leading-tight text-slate-900">
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
                   {tenantForm.subdomain || settingsForm.linkPortalCliente || "Não configurado"}
                 </p>
               </div>
@@ -891,32 +893,32 @@ export function ConfiguracoesPage() {
           <div className="grid gap-3">
             <button type="button" onClick={() => setActiveSettingsView("branding")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">Branding e identidade</p>
-                <p className="truncate text-sm text-slate-500">Logo, ativos e paleta.</p>
+                <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Branding e identidade</p>
+                <p className="sig-fit-copy text-sm leading-6 text-slate-500">Logo, ativos e paleta.</p>
               </div>
               <Palette className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
             <button type="button" onClick={() => setActiveSettingsView("institutional")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">Dados institucionais</p>
-                <p className="truncate text-sm text-slate-500">Prefeitura e base cadastral.</p>
+                <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Dados institucionais</p>
+                <p className="sig-fit-copy text-sm leading-6 text-slate-500">Prefeitura e base cadastral.</p>
               </div>
               <ShieldPlus className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
             <button type="button" onClick={() => setActiveSettingsView("communication")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">Comunicação oficial</p>
-                <p className="truncate text-sm text-slate-500">E-mail, site e canais.</p>
+                <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Comunicação oficial</p>
+                <p className="sig-fit-copy text-sm leading-6 text-slate-500">E-mail, site e canais.</p>
               </div>
               <Bell className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
             <button type="button" onClick={() => setActiveSettingsView("protocol")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">Protocolo e prefixos</p>
-                <p className="truncate text-sm text-slate-500">Numeração e taxas.</p>
+                <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Protocolo e prefixos</p>
+                <p className="sig-fit-copy text-sm leading-6 text-slate-500">Numeração e taxas.</p>
               </div>
               <ScrollText className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
@@ -942,13 +944,13 @@ export function ConfiguracoesPage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="sig-label">Plano comercial</p>
-            <p className="mt-2 truncate text-sm font-medium text-slate-900">
+            <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {tenantForm.plan || "Plano institucional"}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="sig-label">Arrecadação</p>
-            <p className="mt-2 truncate text-sm font-medium text-slate-900">
+            <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {settingsForm.beneficiarioArrecadacao || "Beneficiário não informado"}
             </p>
           </div>
@@ -998,10 +1000,10 @@ export function ConfiguracoesPage() {
         className="rounded-[30px] p-5 md:p-6 lg:p-7"
       />
       <PageStatsRow>
-        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Base institucional vinculada" icon={Building2} tone="default" valueClassName="max-w-[24ch] truncate text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Exibição principal do cabeçalho" icon={Flag} tone="default" valueClassName="max-w-[22ch] truncate text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Numeração oficial ativa" icon={ScrollText} tone="default" valueClassName="max-w-[18ch] truncate text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Canal institucional" value={settingsForm.email || "Não informado"} description="Contato público principal" icon={Bell} tone="default" valueClassName="max-w-[22ch] truncate text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Base institucional vinculada" icon={Building2} tone="default" valueClassName="max-w-[24ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Exibição principal do cabeçalho" icon={Flag} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Numeração oficial ativa" icon={ScrollText} tone="default" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Canal institucional" value={settingsForm.email || "Não informado"} description="Contato público principal" icon={Bell} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
       </PageStatsRow>
       <InternalSectionNav
         items={[
@@ -1297,7 +1299,7 @@ export function ConfiguracoesPage() {
                         className={`rounded-2xl px-4 py-3 text-sm ${
                           headerLogoStatusIsSuccess
                             ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700"
-                            : "border border-rose-200 bg-rose-50/90 text-rose-700"
+                            : "border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
                         }`}
                       >
                         {headerLogoStatus}
@@ -1348,7 +1350,7 @@ export function ConfiguracoesPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-2xl text-rose-700"
+                        className="rounded-2xl text-red-600 dark:text-red-400"
                         onClick={() => {
                           setDraftLogoFiles([]);
                           setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
@@ -1366,7 +1368,7 @@ export function ConfiguracoesPage() {
                         className={`rounded-2xl px-4 py-3 text-sm ${
                           footerLogoStatusIsSuccess
                             ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700"
-                            : "border border-rose-200 bg-rose-50/90 text-rose-700"
+                            : "border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
                         }`}
                       >
                         {footerLogoStatus}
@@ -1443,7 +1445,7 @@ export function ConfiguracoesPage() {
         </PageMainContent> : null}
 
         {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="xl:col-span-12">
-        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3">
+        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
                 <>
@@ -1546,7 +1548,7 @@ export function ConfiguracoesPage() {
                       <p className="sig-label">{item.label}</p>
                       <item.icon className="h-4 w-4 text-slate-500" />
                     </div>
-                    <p className="mt-2 truncate text-lg font-semibold leading-tight text-slate-900" title={item.value}>
+                    <p className="mt-2 sig-fit-title text-lg font-semibold leading-tight text-slate-900" title={item.value}>
                       {item.value}
                     </p>
                     <p className="mt-1 text-sm leading-6 text-slate-500">{item.helper}</p>
@@ -1554,7 +1556,7 @@ export function ConfiguracoesPage() {
                 ))}
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
                   <p className="sig-label">Simulação de referência</p>
-                  <p className="mt-2 truncate text-lg font-semibold leading-tight text-slate-900">
+                  <p className="mt-2 sig-fit-title text-lg font-semibold leading-tight text-slate-900">
                     {formatCurrency(protocolSimulationTotal)}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">

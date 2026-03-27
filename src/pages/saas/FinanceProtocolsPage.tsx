@@ -335,7 +335,7 @@ export function FinanceProtocolsPage() {
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0 flex-1">
                             <p
-                              className="truncate text-base font-medium text-slate-900"
+                              className="sig-fit-title text-base font-medium leading-6 text-slate-900"
                               title={process.protocol}
                             >
                               {process.protocol}
@@ -351,7 +351,7 @@ export function FinanceProtocolsPage() {
                                 {guide.label}
                               </p>
                               <p
-                                className="truncate text-xs font-normal text-slate-500"
+                                className="sig-fit-copy text-xs font-normal leading-5 text-slate-500"
                                 title={guide.code}
                               >
                                 {guide.code}
@@ -363,7 +363,7 @@ export function FinanceProtocolsPage() {
                             className={
                               guide.status === "compensada"
                                 ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                                : "rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
                             }
                           >
                             {guide.status === "compensada" ? "Paga" : "Pendente"}

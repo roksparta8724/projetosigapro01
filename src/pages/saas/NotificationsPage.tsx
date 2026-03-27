@@ -77,7 +77,7 @@ export function NotificationsPage() {
                         <notification.icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-950" title={notification.title}>
+                        <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={notification.title}>
                           {notification.title}
                         </p>
                         <p className="mt-1 line-clamp-2 text-sm text-slate-600" title={notification.detail}>

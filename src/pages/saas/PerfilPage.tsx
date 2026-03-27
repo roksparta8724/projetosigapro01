@@ -28,6 +28,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { saveRemoteProfile, uploadFileToStorage } from "@/integrations/supabase/platform";
+import { formatCep, lookupCepAddress } from "@/lib/cep";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
 
@@ -50,12 +51,14 @@ export function PerfilPage() {
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
   const [status, setStatus] = useState("");
+  const [cepStatus, setCepStatus] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const lastAvatarSourceRef = useRef("");
   const hydratedDraftRef = useRef(false);
+  const lastCepLookupRef = useRef("");
   const [form, setForm] = useState({
     fullName: session.name,
     email: session.email,
@@ -208,6 +211,42 @@ export function PerfilPage() {
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  useEffect(() => {
+    const cep = form.zipCode.replace(/\D/g, "");
+    if (cep.length !== 8 || cep === lastCepLookupRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const address = await lookupCepAddress(cep);
+          lastCepLookupRef.current = cep;
+
+          if (!address) {
+            setCepStatus("CEP não encontrado. Confira o número informado.");
+            return;
+          }
+
+          setForm((current) => ({
+            ...current,
+            zipCode: formatCep(cep),
+            addressLine: current.addressLine || address.street,
+            neighborhood: current.neighborhood || address.neighborhood,
+            city: current.city || address.city,
+            state: current.state || address.state,
+            addressComplement: current.addressComplement || address.complement,
+          }));
+          setCepStatus("Endereço preenchido automaticamente pelo CEP.");
+        } catch (lookupError) {
+          setCepStatus(lookupError instanceof Error ? lookupError.message : "Não foi possível consultar o CEP agora.");
+        }
+      })();
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
     setForm((current) => ({
@@ -471,10 +510,10 @@ export function PerfilPage() {
                     {profileSummary.map((item) => (
                       <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                         <p className="sig-label">{item.label}</p>
-                        <p className="mt-2 truncate text-base font-semibold text-slate-950" title={item.value}>
+                        <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={item.value}>
                           {item.value}
                         </p>
-                        <p className="mt-1 truncate text-sm text-slate-500" title={item.helper}>
+                        <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={item.helper}>
                           {item.helper}
                         </p>
                       </div>
@@ -509,13 +548,13 @@ export function PerfilPage() {
                     <div className="grid gap-3">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">E-mail da conta</p>
-                        <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={accountForm.currentEmail || session.email}>
+                        <p className="sig-fit-copy mt-2 text-sm font-semibold leading-6 text-slate-950" title={accountForm.currentEmail || session.email}>
                           {accountForm.currentEmail || session.email}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">Prefeitura</p>
-                        <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
+                        <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
                           {municipalityName || tenant?.name || "Não vinculada"}
                         </p>
                       </div>
@@ -591,9 +630,21 @@ export function PerfilPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>CEP</Label>
-                  <Input value={form.zipCode} onChange={(event) => setField("zipCode", event.target.value)} />
+                  <Input
+                    value={form.zipCode}
+                    onChange={(event) => {
+                      lastCepLookupRef.current = "";
+                      setCepStatus("");
+                      setField("zipCode", formatCep(event.target.value));
+                    }}
+                  />
                 </div>
               </div>
+              {cepStatus ? (
+                <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
+                  {cepStatus}
+                </div>
+              ) : null}
               {statusMessage}
               <Button type="submit" className="h-11 rounded-2xl bg-slate-950 px-6 hover:bg-slate-900" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar dados pessoais"}
@@ -684,14 +735,14 @@ export function PerfilPage() {
               <div className="grid gap-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Conta do usuário</p>
-                  <p className="sig-email sig-truncate mt-2 text-sm text-slate-900" title={accountForm.currentEmail || "E-mail não informado"}>
+                  <p className="sig-fit-copy mt-2 text-sm leading-6 text-slate-900" title={accountForm.currentEmail || "E-mail não informado"}>
                     {accountForm.currentEmail || "E-mail não informado"}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">Canal principal para autenticação e notificações.</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Nome vinculado</p>
-                  <p className="mt-2 truncate text-base font-semibold text-slate-950" title={form.fullName || session.name}>
+                  <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={form.fullName || session.name}>
                     {form.fullName || session.name}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">{form.professionalType || "Profissão não informada"}</p>
@@ -744,11 +795,11 @@ export function PerfilPage() {
               </div>
 
               <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
-                <div className="mb-2 flex items-center gap-2 text-rose-700">
+                <div className="mb-2 flex items-center gap-2 text-red-600 dark:text-red-400">
                   <AlertTriangle className="h-4 w-4" />
                   <p className="text-sm font-semibold">Solicitar exclusão da conta</p>
                 </div>
-                <p className="text-sm leading-6 text-rose-700/90">
+                <p className="text-sm leading-6 text-red-600 dark:text-red-400">
                   A exclusão definitiva da autenticação exige validação administrativa. Em ambiente produtivo, a solicitação deve ser concluída pelo suporte ou pelo administrador master.
                 </p>
               </div>
@@ -767,7 +818,7 @@ export function PerfilPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Prefeitura vinculada</p>
-                <p className="mt-2 truncate text-base font-semibold text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
                   {municipalityName || tenant?.name || "Não vinculada"}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
@@ -778,7 +829,7 @@ export function PerfilPage() {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Secretaria</p>
-                <p className="mt-2 truncate text-base font-semibold text-slate-950" title={tenantSettings?.secretariaResponsavel || "Não informada"}>
+                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.secretariaResponsavel || "Não informada"}>
                   {tenantSettings?.secretariaResponsavel || "Não informada"}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Área institucional associada a este acesso.</p>
@@ -790,7 +841,7 @@ export function PerfilPage() {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Contato institucional</p>
-                <p className="mt-2 truncate text-base font-semibold text-slate-950" title={tenantSettings?.emailContato || "Não informado"}>
+                <p className="sig-fit-copy mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.emailContato || "Não informado"}>
                   {tenantSettings?.emailContato || "Não informado"}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Canal principal da comunicação oficial.</p>

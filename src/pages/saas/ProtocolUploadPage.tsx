@@ -206,7 +206,7 @@ export function ProtocolUploadPage() {
                               {itemStatus === "enviado" ? (
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                               ) : itemStatus === "pendente" ? (
-                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                               ) : (
                                 <CircleDashed className="h-4 w-4 text-slate-400" />
                               )}
@@ -219,7 +219,7 @@ export function ProtocolUploadPage() {
                               itemStatus === "enviado"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : itemStatus === "pendente"
-                                  ? "bg-amber-50 text-amber-700"
+                                  ? "bg-amber-50 text-amber-600 dark:text-amber-400"
                                   : "bg-slate-100 text-slate-500"
                             }`}
                           >

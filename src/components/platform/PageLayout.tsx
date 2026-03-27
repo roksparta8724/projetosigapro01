@@ -11,7 +11,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1480px] flex-col gap-6 px-1 pb-4 2xl:max-w-[1540px]",
+        "mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-2 pb-6 2xl:max-w-[1500px]",
       className,
     )}
   >
@@ -40,17 +40,17 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        "sig-page-header relative overflow-hidden rounded-[28px] border border-slate-200/90 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.08),transparent_28%),linear-gradient(135deg,#ffffff_0%,#fbfcfe_46%,#f2f7fb_100%)] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)] md:p-6",
+        "sig-page-header relative overflow-hidden rounded-[28px] border border-slate-200/90 bg-[radial-gradient(circle_at_top_left,rgba(15,118,110,0.08),transparent_28%),linear-gradient(135deg,#ffffff_0%,#fbfcfe_54%,#f4f8fb_100%)] p-5 shadow-[0_8px_22px_rgba(15,23,42,0.04)] md:p-6",
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-[30%] bg-[radial-gradient(circle_at_top_right,rgba(15,23,42,0.05),transparent_60%)]" />
-      <div className="relative flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[32%] bg-[radial-gradient(circle_at_top_right,rgba(30,64,175,0.045),transparent_64%)]" />
+      <div className="relative flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-white/95 text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-white/95 text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.05)] backdrop-blur-sm">
                 <Icon className="h-4.5 w-4.5" />
               </div>
             ) : null}
@@ -60,7 +60,7 @@ export function PageHeader({
                 {title}
               </h1>
               {description ? (
-                <p className="sig-subtitle mt-2 line-clamp-2 max-w-[62ch] text-[#6b7280]" title={description}>
+                <p className="sig-subtitle mt-2 line-clamp-2 max-w-[64ch] text-[#64748b]" title={description}>
                   {description}
                 </p>
               ) : null}
@@ -114,7 +114,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "sig-section-card flex h-full flex-col rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition duration-200 md:p-6",
+        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.045)] transition duration-200 md:p-6",
         className,
       )}
     >
@@ -122,7 +122,7 @@ export function SectionCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
                 <Icon className="h-4 w-4" />
               </div>
             ) : null}
@@ -149,7 +149,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.95fr)] xl:items-start",
+        "grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.9fr)] xl:items-start",
         className,
       )}
     >
@@ -165,7 +165,7 @@ export function MainContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("min-w-0 flex flex-col gap-6", className)}>{children}</div>;
+  return <div className={cn("min-w-0 flex flex-col gap-5", className)}>{children}</div>;
 }
 
 export function SideContent({
@@ -175,7 +175,7 @@ export function SideContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <aside className={cn("min-w-0 flex flex-col gap-6 xl:self-start", className)}>{children}</aside>;
+  return <aside className={cn("min-w-0 flex flex-col gap-5 xl:self-start", className)}>{children}</aside>;
 }
 
 export function InternalSectionNav({
@@ -192,11 +192,11 @@ export function InternalSectionNav({
   return (
     <section
       className={cn(
-        "sig-section-nav rounded-[24px] border border-slate-200/90 bg-white p-2 shadow-[0_8px_24px_rgba(15,23,42,0.04)]",
+        "sig-section-nav rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]",
       className,
     )}
   >
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
         {items.map((item) => {
           const active = item.value === value;
           return (
@@ -204,17 +204,18 @@ export function InternalSectionNav({
               key={item.value}
               type="button"
               onClick={() => onChange(item.value)}
+              data-nav-active={active ? "true" : "false"}
               className={cn(
-                "flex min-w-0 min-h-[76px] flex-col items-start justify-center rounded-[18px] border px-4 py-3 text-left transition",
+                "sig-nav-item flex min-w-0 min-h-[74px] flex-col items-start justify-center rounded-[18px] border px-4 py-3.5 text-left transition duration-200",
                 active
-                  ? "border-slate-300 bg-slate-950 text-white shadow-[0_8px_20px_rgba(15,23,42,0.12)]"
-                  : "border-transparent bg-slate-50 text-slate-700 hover:border-slate-200 hover:bg-white",
+                  ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
+                  : "border-transparent bg-slate-50/90 text-slate-700 hover:border-slate-200 hover:bg-white/95",
               )}
             >
               <span
                 className={cn(
-                  "line-clamp-1 text-sm font-medium",
-                  active ? "text-white" : "text-slate-900",
+                  "sig-nav-item-label sig-fit-title text-sm font-medium",
+                  active ? "!text-white" : "text-slate-900",
                 )}
                 title={item.label}
               >
@@ -223,8 +224,8 @@ export function InternalSectionNav({
               {item.helper ? (
                 <span
                   className={cn(
-                    "mt-1 line-clamp-1 text-xs",
-                    active ? "text-white/72" : "text-slate-500",
+                    "sig-nav-item-helper mt-1 sig-fit-copy text-[11px]",
+                    active ? "!text-sky-100" : "text-slate-500",
                   )}
                   title={item.helper}
                 >

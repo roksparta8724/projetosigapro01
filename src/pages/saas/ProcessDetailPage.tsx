@@ -179,11 +179,11 @@ export function ProcessDetailPage() {
       <PortalFrame eyebrow="Controle de Acesso" title="Conteúdo Protegido">
         <Card className="rounded-[28px] border-rose-200 bg-rose-50">
           <CardContent className="p-8">
-            <div className="flex items-center gap-3 text-rose-800">
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
               <ShieldAlert className="h-5 w-5" />
               <p className="font-semibold">Este perfil não pode visualizar documentos nem dados processuais desta prefeitura.</p>
             </div>
-            <p className="mt-3 text-sm text-rose-700">
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">
               O administrador geral consegue testar os acessos, mas o conteudo sigiloso permanece bloqueado.
             </p>
           </CardContent>
@@ -590,9 +590,9 @@ export function ProcessDetailPage() {
         <Card className={`${cardShell} xl:col-span-3`}>
           <CardContent className="p-5">
             <p className="sig-label">Guia</p>
-            <p className="sig-truncate mt-3 text-lg font-medium leading-7 text-slate-900" title={protocolGuide?.code || "Sem guia"}>{protocolGuide?.code || "Sem guia"}</p>
+            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={protocolGuide?.code || "Sem guia"}>{protocolGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{formatCurrency(protocolGuide?.amount || 0)}</p>
-            <p className="sig-field-help sig-truncate mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
           </CardContent>
         </Card>
         <Card className={`${cardShell} xl:col-span-2`}>
@@ -628,7 +628,7 @@ export function ProcessDetailPage() {
               <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3 xl:min-w-[320px]">
                 <div>
                   <p className="sig-label">Unidade atual</p>
-                  <p className="mt-2 truncate text-sm font-medium text-slate-900" title={currentFolder}>{currentFolder}</p>
+                  <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={currentFolder}>{currentFolder}</p>
                 </div>
                 <div>
                   <p className="sig-label">Trâmites</p>
@@ -636,7 +636,7 @@ export function ProcessDetailPage() {
                 </div>
                 <div>
                   <p className="sig-label">Último destino</p>
-                  <p className="mt-2 truncate text-sm font-medium text-slate-900" title={process.dispatches[0]?.to || currentFolder}>{process.dispatches[0]?.to || currentFolder}</p>
+                  <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={process.dispatches[0]?.to || currentFolder}>{process.dispatches[0]?.to || currentFolder}</p>
                 </div>
               </div>
             </div>
@@ -692,15 +692,15 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Proprietário: ${process.ownerName}`}>Proprietário: <span className="block truncate text-slate-800">{process.ownerName}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Documento mascarado: ${process.ownerDocument}`}>Documento mascarado: <span className="block truncate text-slate-800">{process.ownerDocument}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Responsável Técnico: ${process.technicalLead}`}>Responsável Técnico: <span className="block truncate text-slate-800">{process.technicalLead}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">IPTU: <span className="block truncate text-slate-800">{process.property.iptu}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Matrícula: <span className="block truncate text-slate-800">{process.property.registration}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Lote/Quadra: <span className="block truncate text-slate-800">{process.property.lot} / {process.property.block}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Área: <span className="block truncate text-slate-800">{process.property.area} m²</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Uso: ${process.property.usage}`}>Uso: <span className="block truncate text-slate-800">{process.property.usage}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Padrão construtivo: ${constructionStandardLabel}`}>Padrão construtivo: <span className="block truncate text-slate-800">{constructionStandardLabel}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Proprietário: ${process.ownerName}`}>Proprietário: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerName}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Documento mascarado: ${process.ownerDocument}`}>Documento mascarado: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerDocument}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Responsável Técnico: ${process.technicalLead}`}>Responsável Técnico: <span className="sig-fit-copy mt-1 block text-slate-800">{process.technicalLead}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">IPTU: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.iptu}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Matrícula: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.registration}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Lote/Quadra: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.lot} / {process.property.block}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Área: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.area} m²</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Uso: ${process.property.usage}`}>Uso: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.usage}</span></div>
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Padrão construtivo: ${constructionStandardLabel}`}>Padrão construtivo: <span className="sig-fit-copy mt-1 block text-slate-800">{constructionStandardLabel}</span></div>
             </CardContent>
           </Card>
           )}
@@ -739,8 +739,8 @@ export function ProcessDetailPage() {
                           document.reviewStatus === "aprovado"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : document.reviewStatus === "rejeitado"
-                              ? "border-rose-200 bg-rose-50 text-rose-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
+                              ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+                              : "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
                         }`}
                       >
                         {document.reviewStatus || "pendente"}
@@ -793,7 +793,7 @@ export function ProcessDetailPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-full border-rose-200 text-rose-700"
+                        className="rounded-full border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
                         onClick={() => reviewProcessDocument(process.id, document.id, "rejeitado", session.name)}
                       >
                         Rejeitar documento
@@ -802,7 +802,7 @@ export function ProcessDetailPage() {
                         <div className="self-center">
                           <div className="flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
                             <UserAvatar name={document.reviewedBy} imageUrl={getProfileByName(document.reviewedBy)?.avatarUrl} size="sm" />
-                            <span className="sig-truncate" title={`Ultima revisao por ${document.reviewedBy}`}>Ultima revisao por {document.reviewedBy}</span>
+                            <span className="sig-fit-copy" title={`Ultima revisao por ${document.reviewedBy}`}>Ultima revisao por {document.reviewedBy}</span>
                           </div>
                         </div>
                       ) : null}
@@ -832,7 +832,7 @@ export function ProcessDetailPage() {
                   <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
                   <div className="mt-2 flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
                     <UserAvatar name={entry.actor} imageUrl={getProfileByName(entry.actor)?.avatarUrl} size="sm" />
-                    <span className="sig-truncate" title={entry.actor}>{entry.actor}</span>
+                    <span className="sig-fit-title" title={entry.actor}>{entry.actor}</span>
                   </div>
                 </div>
               ))}
@@ -890,7 +890,7 @@ export function ProcessDetailPage() {
                       <p className="mt-2 text-sm text-slate-600">{item.description}</p>
                       <div className="mt-2 flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
                         <UserAvatar name={item.createdBy} imageUrl={getProfileByName(item.createdBy)?.avatarUrl} size="sm" />
-                        <span className="sig-truncate" title={`Prazo ${item.dueDate} - criado por ${item.createdBy}`}>Prazo {item.dueDate} - criado por {item.createdBy}</span>
+                        <span className="sig-fit-copy" title={`Prazo ${item.dueDate} - criado por ${item.createdBy}`}>Prazo {item.dueDate} - criado por {item.createdBy}</span>
                       </div>
                       {item.response ? <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{item.response}</div> : null}
 
@@ -993,7 +993,7 @@ export function ProcessDetailPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <UserAvatar name={item.senderName} imageUrl={getProfileByName(item.senderName)?.avatarUrl} size="sm" />
-                        <p className="sig-truncate font-semibold text-slate-950" title={`${item.senderName} - ${item.senderRole}`}>
+                        <p className="sig-fit-copy font-semibold text-slate-950" title={`${item.senderName} - ${item.senderRole}`}>
                           {item.senderName} - {item.senderRole}
                         </p>
                       </div>
@@ -1066,7 +1066,7 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                   <div className="mt-4 rounded-2xl border border-[#d8e4f1] bg-white p-4">
-                    <p className={`text-xs font-medium uppercase tracking-[0.1em] ${protocolGuide?.status === "compensada" ? "text-emerald-600" : "text-amber-600"}`}>
+                    <p className={`text-xs font-medium uppercase tracking-[0.1em] ${protocolGuide?.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
                       {protocolGuide?.status === "compensada" ? "Pagamento Confirmado" : "Pagamento Pendente"}
                     </p>
                     <p className="mt-2 text-sm text-slate-500">A impressão sai em formato DAM municipal A4 com os dados da prefeitura e do protocolo.</p>
@@ -1270,10 +1270,10 @@ export function ProcessDetailPage() {
               {process.reopenHistory.length > 0 ? (
                 <div className="space-y-3">
                   {process.reopenHistory.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+                    <div key={entry.id} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
                       <p className="font-medium">Reabertura registrada</p>
                       <p className="mt-2">{entry.reason}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">{entry.actor} - {entry.at}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-600 dark:text-amber-400">{entry.actor} - {entry.at}</p>
                     </div>
                   ))}
                 </div>

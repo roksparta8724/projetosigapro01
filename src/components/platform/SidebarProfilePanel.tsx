@@ -33,14 +33,14 @@ export function SidebarProfilePanel({
         />
         <div className="min-w-0 flex-1">
           <p className={cn("text-[10px] uppercase tracking-[0.14em]", darkSurface ? "text-white/65" : "text-slate-600")}>Conta</p>
-          <p className={cn("mt-1 truncate text-sm font-semibold leading-tight", darkSurface ? "text-white" : "text-slate-950")} title={name}>
+          <p className={cn("mt-1 sig-fit-title text-sm font-semibold leading-tight", darkSurface ? "text-white" : "text-slate-950")} title={name}>
             {name}
           </p>
-          <p className={cn("mt-0.5 truncate text-[11px] font-medium", darkSurface ? "text-white" : "text-slate-700")} title={role}>
+          <p className={cn("mt-0.5 sig-fit-copy text-[11px] font-medium", darkSurface ? "text-white" : "text-slate-700")} title={role}>
             {role}
           </p>
           {email ? (
-            <p className={cn("mt-0.5 truncate text-[11px]", darkSurface ? "text-white" : "text-slate-600")} title={email}>
+            <p className={cn("mt-0.5 sig-fit-copy text-[11px]", darkSurface ? "text-white" : "text-slate-600")} title={email}>
               {email}
             </p>
           ) : null}
@@ -49,7 +49,7 @@ export function SidebarProfilePanel({
 
       {(statusLabel || onClick) ? (
         <div className={cn("mt-2 flex items-center justify-between gap-2 pt-2", darkSurface ? "border-t border-white/8" : "border-t border-slate-200")}>
-          <p className={cn("truncate text-[10px] uppercase tracking-[0.1em]", darkSurface ? "text-white/65" : "text-slate-500")}>
+          <p className={cn("sig-fit-title text-[10px] uppercase tracking-[0.1em]", darkSurface ? "text-white/65" : "text-slate-500")}>
             {statusLabel || ""}
           </p>
           {onClick ? <span className={cn("text-[11px] transition", darkSurface ? "text-white/80 group-hover:text-white" : "text-slate-500 group-hover:text-slate-800")}>Perfil</span> : null}

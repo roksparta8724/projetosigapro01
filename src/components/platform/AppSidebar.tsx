@@ -61,6 +61,7 @@ export function AppSidebar({
                       <Link
                         key={item.to}
                         to={item.to}
+                        data-sidebar-active={active ? "true" : "false"}
                         className={cn(
                           "group flex items-center gap-2.5 rounded-[14px] px-2.5 py-2 text-sm leading-5 transition-all duration-200 ease-out",
                           active
@@ -91,7 +92,7 @@ export function AppSidebar({
                         </span>
                         <span
                           className={cn(
-                            "min-w-0 flex-1 truncate text-[13.5px] leading-5 tracking-[0.003em]",
+                            "min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
                             active ? "font-semibold text-slate-950" : darkSurface ? "font-medium text-slate-200" : "font-medium text-slate-800",
                           )}
                           title={item.label}

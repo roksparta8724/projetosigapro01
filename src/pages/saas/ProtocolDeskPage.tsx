@@ -204,7 +204,7 @@ export function ProtocolDeskPage() {
   ) => (
     <div className="space-y-4">
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-sm text-slate-500">
+        <div className="sig-inverse-panel rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-sm text-slate-500">
           {emptyMessage}
         </div>
       ) : (
@@ -216,26 +216,26 @@ export function ProtocolDeskPage() {
           const isDeskFlow = deskProtocolIds.has(process.id);
 
           return (
-            <div key={process.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+            <div key={process.id} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-base font-semibold text-slate-950" title={process.protocol}>
+                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={process.protocol}>
                       {process.protocol}
                     </p>
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
                     </Badge>
-                    <Badge variant="outline" className="border-slate-200 bg-white text-slate-700">
+                    <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700">
                       {isDeskFlow ? "Balcão" : "Online"}
                     </Badge>
                     {isUrgent ? (
-                      <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                      <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
                         ⏱ SLA crítico
                       </Badge>
                     ) : null}
                     {missingRequired > 0 ? (
-                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
                         ⚠ {missingRequired} documento(s)
                       </Badge>
                     ) : null}
@@ -249,7 +249,7 @@ export function ProtocolDeskPage() {
                       imageUrl={getUserProfile(process.createdBy)?.avatarUrl}
                       size="sm"
                     />
-                    <p className="sig-truncate text-sm text-slate-600" title={`${process.ownerName} - ${process.address}`}>
+                    <p className="sig-fit-copy text-sm leading-6 text-slate-600" title={`${process.ownerName} - ${process.address}`}>
                       {process.ownerName} - {process.address}
                     </p>
                   </div>
@@ -263,37 +263,37 @@ export function ProtocolDeskPage() {
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <p className="sig-label">Abertura</p>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={getOpeningDate(process)}>{getOpeningDate(process)}</p>
+                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={getOpeningDate(process)}>{getOpeningDate(process)}</p>
                   <p className="mt-1 text-xs text-slate-500">Entrada no protocolo</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <p className="sig-label">Guia principal</p>
                   <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-slate-950" title={protocolGuide?.code || "Não emitida"}>
                     {protocolGuide?.code || "Não emitida"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <p className="sig-label">Pagamento</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
                     {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Vencimento {protocolGuide?.dueDate || "-"}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <p className="sig-label">Responsável</p>
                   <div className="mt-2 flex min-w-0 items-center gap-2">
                     <UserAvatar name={process.technicalLead} size="sm" />
-                    <span className="sig-truncate text-sm font-semibold text-slate-950" title={process.technicalLead}>
+                    <span className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.technicalLead}>
                       {process.technicalLead}
                     </span>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <p className="sig-label">Fluxo atual</p>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={process.dispatches[0]?.to || "Fluxo interno"}>
+                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.dispatches[0]?.to || "Fluxo interno"}>
                     {process.dispatches[0]?.to || "Fluxo interno"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">{process.sla.hoursRemaining}h para o SLA</p>
@@ -374,7 +374,7 @@ export function ProtocolDeskPage() {
         </div>
 
         {matchedProcess ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+          <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="sig-label">Protocolo</p>
@@ -382,7 +382,7 @@ export function ProtocolDeskPage() {
               </div>
               <div>
                 <p className="sig-label">Guia principal</p>
-                <p className="mt-2 truncate text-sm font-semibold text-slate-950">
+                <p className="mt-2 sig-fit-title text-sm font-semibold text-slate-950">
                   {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.code}
                 </p>
               </div>
@@ -404,18 +404,18 @@ export function ProtocolDeskPage() {
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               {getProcessPaymentGuides(matchedProcess, tenantSettings).map((guide) => (
-                <div key={guide.kind} className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="truncate text-sm font-semibold text-slate-950" title={guide.label}>
+                <div key={guide.kind} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="sig-fit-title text-sm font-semibold text-slate-950" title={guide.label}>
                     {guide.label}
                   </p>
-                  <p className="mt-2 truncate text-sm text-slate-700" title={guide.code}>
+                  <p className="mt-2 sig-fit-copy text-sm text-slate-700" title={guide.code}>
                     {guide.code}
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-950">{formatCurrency(guide.amount)}</p>
                   <p className="mt-1 text-xs text-slate-500">Vencimento {guide.dueDate}</p>
                   <p
                     className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${
-                      guide.status === "compensada" ? "text-emerald-700" : "text-amber-700"
+                      guide.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"
                     }`}
                   >
                     {guide.status === "compensada" ? "Confirmado" : "Pendente"}
@@ -425,17 +425,17 @@ export function ProtocolDeskPage() {
             </div>
 
             {manualGuideRegistered === matchedProcess.id ? (
-              <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-600 dark:text-amber-400">
                 Guia manual registrada com os dados preenchidos automaticamente pelo protocolo.
               </div>
             ) : null}
           </div>
         ) : protocolQuery.trim() ? (
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
             Nenhum protocolo localizado com este número.
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-sm text-slate-500">
+          <div className="sig-inverse-panel rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-sm text-slate-500">
             {hint}
           </div>
         )}
@@ -497,7 +497,7 @@ export function ProtocolDeskPage() {
               <SectionCard title="Movimentos recentes" description="Últimas alterações registradas na operação de protocolo.">
                 <div className="space-y-3">
                   {latestActivity.slice(0, 5).map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div key={entry.id} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
@@ -513,40 +513,61 @@ export function ProtocolDeskPage() {
               </PageMainContent>
 
               <PageSideContent>
-                <SectionCard title="Painel de apoio" description="Prioridades, canais e atalhos em uma leitura curta.">
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      <AlertCard
-                        title="⏱ SLA crítico"
-                        description={
-                          urgentProtocols.length > 0
-                            ? `${urgentProtocols.length} protocolo(s) com prazo curto ou vencido.`
-                            : "Nenhum protocolo em situação crítica no momento."
-                        }
-                        tone={urgentProtocols.length > 0 ? "danger" : "success"}
-                        icon={Clock3}
-                      />
-                      <AlertCard
-                        title="📄 Pendência documental"
-                        description={
-                          pendingDocuments.length > 0
-                            ? `${pendingDocuments.length} entrada(s) aguardam documento obrigatório.`
-                            : "Checklist documental em dia na fila atual."
-                        }
-                        tone={pendingDocuments.length > 0 ? "warning" : "success"}
-                        icon={FileWarning}
-                      />
-                    </div>
+                <SectionCard title="Prioridades do protocolo" description="SLA, exigências e despachos que pedem reação imediata.">
+                  <div className="space-y-3">
+                    <AlertCard
+                      title="⏱ SLA crítico"
+                      description={
+                        urgentProtocols.length > 0
+                          ? `${urgentProtocols.length} protocolo(s) com prazo curto ou vencido.`
+                          : "Nenhum protocolo em situação crítica no momento."
+                      }
+                      tone={urgentProtocols.length > 0 ? "danger" : "success"}
+                      icon={Clock3}
+                    />
+                    <AlertCard
+                      title="📄 Pendência documental"
+                      description={
+                        pendingDocuments.length > 0
+                          ? `${pendingDocuments.length} entrada(s) aguardam documento obrigatório.`
+                          : "Checklist documental em dia na fila atual."
+                      }
+                      tone={pendingDocuments.length > 0 ? "warning" : "success"}
+                      icon={FileWarning}
+                    />
+                    {criticalDispatches.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        Nenhum despacho crítico para o protocolo no momento.
+                      </div>
+                    ) : (
+                      criticalDispatches.slice(0, 2).map((item) => (
+                        <div key={item.id} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
+                              {item.priority}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 sig-fit-copy text-sm text-slate-500">{item.subject}</p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
+                          <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </SectionCard>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <SectionCard title="Canais e ações" description="Leitura curta do atendimento e atalhos da rotina municipal.">
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                      <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold text-slate-900">🏛 Balcão</p>
                           <span className="text-lg font-semibold text-slate-950">{deskProtocols.length}</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-500">Atendimento presencial e protocolo assistido.</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold text-slate-900">🌐 Online</p>
                           <span className="text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</span>
@@ -569,7 +590,11 @@ export function ProtocolDeskPage() {
                         </Link>
                       </Button>
                     </div>
+                  </div>
+                </SectionCard>
 
+                <SectionCard title="Resumo da unidade" description="Caixa atual, despachos emitidos e visibilidade do fluxo.">
+                  <div className="space-y-3">
                     <div className="grid gap-3">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="sig-label">Recebidos</p>
@@ -587,37 +612,16 @@ export function ProtocolDeskPage() {
                         <p className="mt-1 text-sm text-slate-500">Processos com trâmites internos ocultos.</p>
                       </div>
                     </div>
-
-                    <div className="space-y-3">
-                      {criticalDispatches.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                          Nenhum despacho crítico para o protocolo no momento.
-                        </div>
-                      ) : (
-                        criticalDispatches.slice(0, 3).map((item) => (
-                          <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="truncate text-sm font-semibold text-slate-950">{item.protocol}</p>
-                              <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                                {item.priority}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 truncate text-sm text-slate-500">{item.subject}</p>
-                            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                            <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
+                    {assignedAtProtocol.length > 0 ? (
+                      <div className="space-y-3">
+                        {assignedAtProtocol.slice(0, 2).map((item) => (
+                          <div key={item.id} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <p className="mt-1 text-sm text-slate-500">{item.assignedTo}</p>
                           </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      {assignedAtProtocol.length === 0 ? null : assignedAtProtocol.slice(0, 2).map((item) => (
-                        <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="truncate text-sm font-semibold text-slate-950">{item.protocol}</p>
-                          <p className="mt-1 text-sm text-slate-500">{item.assignedTo}</p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </SectionCard>
               </PageSideContent>
@@ -663,9 +667,9 @@ export function ProtocolDeskPage() {
               icon={ClipboardList}
             >
               <div className="grid gap-6 xl:grid-cols-2">
-                <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+                <div className="sig-inverse-panel rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700">
+                    <div className="sig-inverse-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700">
                       <Store className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -685,9 +689,9 @@ export function ProtocolDeskPage() {
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+                <div className="sig-inverse-panel rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700">
+                    <div className="sig-inverse-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700">
                       <Globe2 className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -711,17 +715,17 @@ export function ProtocolDeskPage() {
 
             <SectionCard title="Leitura da recepção" description="Distribuição rápida das entradas atuais e situação operacional do setor.">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-5">
                   <p className="sig-label">Balcão</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{deskProtocols.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Fluxo com atendimento assistido.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-5">
                   <p className="sig-label">Online</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Recepção digital do sistema.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-5">
                   <p className="sig-label">Novos registros</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{newProtocols.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Protocolos ainda na etapa inicial.</p>
@@ -812,7 +816,7 @@ export function ProtocolDeskPage() {
               <TableCard title="Histórico operacional" description="Últimos registros de recepção, conferência, despacho e andamento do protocolo." icon={ClipboardList}>
                 <div className="space-y-3">
                   {latestActivity.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div key={entry.id} className="sig-inverse-panel rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>

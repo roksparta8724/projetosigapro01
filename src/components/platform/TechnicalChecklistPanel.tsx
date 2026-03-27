@@ -14,9 +14,9 @@ function badgeForDecision(decision: TechnicalChecklistResultItem["decision"]) {
     case "de_acordo":
       return <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">De acordo</Badge>;
     case "apresentar":
-      return <Badge className="rounded-full bg-amber-100 text-amber-700 hover:bg-amber-100">Apresentar</Badge>;
+      return <Badge className="rounded-full bg-amber-100 text-amber-600 dark:text-amber-400 hover:bg-amber-100">Apresentar</Badge>;
     case "corrigir":
-      return <Badge className="rounded-full bg-rose-100 text-rose-700 hover:bg-rose-100">Corrigir</Badge>;
+      return <Badge className="rounded-full border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/10">Corrigir</Badge>;
     default:
       return (
         <Badge variant="outline" className="rounded-full border-slate-300 text-slate-600">
@@ -40,10 +40,10 @@ export function TechnicalChecklistPanel({
   return (
     <Card className="rounded-[28px] border-slate-200">
       <CardHeader className="space-y-2">
-        <CardTitle className="max-w-[34ch] line-clamp-2 text-base font-semibold leading-tight text-slate-900">
+        <CardTitle className="sig-fit-title max-w-[34ch] text-base font-semibold leading-tight text-slate-900">
           {title}
         </CardTitle>
-        <p className="line-clamp-2 max-w-[62ch] text-sm leading-6 text-slate-500">{subtitle}</p>
+        <p className="sig-fit-copy max-w-[62ch] text-sm leading-6 text-slate-500">{subtitle}</p>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -53,12 +53,12 @@ export function TechnicalChecklistPanel({
             <p className="mt-2 text-lg font-semibold leading-tight text-emerald-800">{summary.ok}</p>
           </div>
           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-amber-700">Itens a apresentar</p>
-            <p className="mt-2 text-lg font-semibold leading-tight text-amber-800">{summary.present}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Itens a apresentar</p>
+            <p className="mt-2 text-lg font-semibold leading-tight text-amber-600 dark:text-amber-400">{summary.present}</p>
           </div>
           <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-rose-700">Itens a corrigir</p>
-            <p className="mt-2 text-lg font-semibold leading-tight text-rose-800">{summary.fix}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-red-600 dark:text-red-400">Itens a corrigir</p>
+            <p className="mt-2 text-lg font-semibold leading-tight text-red-600 dark:text-red-400">{summary.fix}</p>
           </div>
         </div>
 
@@ -67,16 +67,16 @@ export function TechnicalChecklistPanel({
             <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-base font-semibold leading-tight text-slate-900" title={item.title}>
+                  <p className="sig-fit-title text-base font-semibold leading-tight text-slate-900" title={item.title}>
                     {item.title}
                   </p>
                   {item.guidance ? (
-                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500" title={item.guidance}>
+                    <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={item.guidance}>
                       {item.guidance}
                     </p>
                   ) : null}
                   {item.reference ? (
-                    <p className="mt-1 truncate text-sm text-slate-500" title={`Referência: ${item.reference}`}>
+                    <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={`Referência: ${item.reference}`}>
                       Referência: {item.reference}
                     </p>
                   ) : null}

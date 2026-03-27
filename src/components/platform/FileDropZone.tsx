@@ -169,7 +169,7 @@ export function FileDropZone({
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     Substituir
                   </Button>
-                  <Button type="button" variant="outline" className="rounded-full text-rose-700" onClick={() => removeFile(file.id)}>
+                  <Button type="button" variant="outline" className="rounded-full text-red-600 dark:text-red-400" onClick={() => removeFile(file.id)}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Excluir
                   </Button>

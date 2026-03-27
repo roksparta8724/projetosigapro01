@@ -60,8 +60,8 @@ function downloadCsv(filename: string, rows: string[][]) {
 }
 
 function getPriorityBadge(process: { sla: { breached: boolean; hoursRemaining: number } }) {
-  if (process.sla.breached) return "border-rose-200 bg-rose-50 text-rose-700";
-  if (process.sla.hoursRemaining <= 12) return "border-amber-200 bg-amber-50 text-amber-700";
+  if (process.sla.breached) return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
+  if (process.sla.hoursRemaining <= 12) return "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400";
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
@@ -227,7 +227,7 @@ export function AnalystDeskPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-base font-semibold text-slate-950" title={process.protocol}>
+                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={process.protocol}>
                       {process.protocol}
                     </p>
                     <Badge variant="outline" className={statusTone(process.status)}>
@@ -244,7 +244,7 @@ export function AnalystDeskPage() {
                   </div>
 
                   <p className="mt-2 text-sm font-medium text-slate-900">{process.title}</p>
-                  <p className="mt-1 truncate text-sm text-slate-500" title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}>
+                  <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}>
                     {process.address} • IPTU {process.property.iptu} • Matrícula {process.property.registration}
                   </p>
                 </div>
@@ -260,14 +260,14 @@ export function AnalystDeskPage() {
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Responsável</p>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={process.technicalLead}>
+                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.technicalLead}>
                     {process.technicalLead}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Analista atual</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Etapa atual</p>
-                  <p className="mt-2 truncate text-sm font-semibold text-slate-950" title={process.sla.currentStage}>
+                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.sla.currentStage}>
                     {process.sla.currentStage}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Status operacional</p>
@@ -280,7 +280,7 @@ export function AnalystDeskPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Pendências</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">{pendingRequirements.length}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500" title={pendingRequirements[0]?.title || "Sem exigências abertas"}>
+                  <p className="mt-1 sig-fit-copy text-xs text-slate-500" title={pendingRequirements[0]?.title || "Sem exigências abertas"}>
                     {pendingRequirements[0]?.title || "Sem exigências abertas"}
                   </p>
                 </div>
@@ -289,7 +289,7 @@ export function AnalystDeskPage() {
                   <p className="mt-2 text-sm font-semibold text-slate-950">
                     {checklist?.items.length || process.documents.length} itens
                   </p>
-                  <p className="mt-1 truncate text-xs text-slate-500" title={process.checklistType}>
+                  <p className="mt-1 sig-fit-copy text-xs text-slate-500" title={process.checklistType}>
                     {process.checklistType}
                   </p>
                 </div>
@@ -401,8 +401,7 @@ export function AnalystDeskPage() {
           actions={
             <Button
               type="button"
-              variant="outline"
-              className="rounded-full"
+              className="rounded-full bg-slate-950 hover:bg-slate-900"
               onClick={() =>
                 downloadCsv("relatorio-analise.csv", [
                   ["Protocolo", "Projeto", "Status", "SLA", "Pendências", "Responsável"],
@@ -462,53 +461,52 @@ export function AnalystDeskPage() {
             </PageMainContent>
 
             <PageSideContent>
-              <SectionCard title="Painel técnico" description="Alertas, prioridade imediata e atalhos da mesa técnica.">
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <AlertCard
-                      title="⏱ SLA crítico"
-                      description={
-                        slaCritical.length > 0
-                          ? `${slaCritical.length} protocolo(s) exigem ação imediata.`
-                          : "Nenhum prazo crítico no momento."
-                      }
-                      tone={slaCritical.length > 0 ? "danger" : "success"}
-                      icon={Clock3}
-                    />
-                    <AlertCard
-                      title="⚠ Pendências formais"
-                      description={
-                        requirementsOpen > 0
-                          ? `${requirementsOpen} exigência(s) abertas ou respondidas.`
-                          : "Nenhuma exigência técnica aberta agora."
-                      }
-                      tone={requirementsOpen > 0 ? "warning" : "success"}
-                      icon={FileText}
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    {urgentProtocols.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Nenhum protocolo prioritário agora.
-                      </div>
-                    ) : (
-                      urgentProtocols.slice(0, 3).map((process) => (
-                        <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-950">{process.protocol}</p>
-                              <p className="mt-1 truncate text-sm text-slate-500">{process.title}</p>
-                            </div>
-                            <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
-                              {process.sla.breached ? "Crítico" : process.sla.hoursRemaining <= 12 ? "Urgente" : "Normal"}
-                            </Badge>
+              <SectionCard title="Prioridades da análise" description="Prazos críticos, exigências abertas e processos sob atenção imediata.">
+                <div className="space-y-3">
+                  <AlertCard
+                    title="⏱ SLA crítico"
+                    description={
+                      slaCritical.length > 0
+                        ? `${slaCritical.length} protocolo(s) exigem ação imediata.`
+                        : "Nenhum prazo crítico no momento."
+                    }
+                    tone={slaCritical.length > 0 ? "danger" : "success"}
+                    icon={Clock3}
+                  />
+                  <AlertCard
+                    title="⚠ Pendências formais"
+                    description={
+                      requirementsOpen > 0
+                        ? `${requirementsOpen} exigência(s) abertas ou respondidas.`
+                        : "Nenhuma exigência técnica aberta agora."
+                    }
+                    tone={requirementsOpen > 0 ? "warning" : "success"}
+                    icon={FileText}
+                  />
+                  {urgentProtocols.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                      Nenhum protocolo prioritário agora.
+                    </div>
+                  ) : (
+                    urgentProtocols.slice(0, 2).map((process) => (
+                      <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
+                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{process.title}</p>
                           </div>
+                          <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
+                            {process.sla.breached ? "Crítico" : process.sla.hoursRemaining <= 12 ? "Urgente" : "Normal"}
+                          </Badge>
                         </div>
-                      ))
-                    )}
-                  </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </SectionCard>
 
+              <SectionCard title="Ações e contexto" description="Atalhos da mesa técnica e leitura curta da carga atual.">
+                <div className="space-y-4">
                   <div className="space-y-3">
                     <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
                       <Link to="/prefeitura/financeiro">
@@ -541,28 +539,30 @@ export function AnalystDeskPage() {
                       <p className="mt-1 text-sm text-slate-500">Trâmites internos ocultos ao acesso externo.</p>
                     </div>
                   </div>
+                </div>
+              </SectionCard>
 
-                  <div className="space-y-3">
-                    {criticalDispatches.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Nenhum despacho crítico na mesa técnica.
-                      </div>
-                    ) : (
-                      criticalDispatches.map((item) => (
-                        <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="truncate text-sm font-semibold text-slate-950">{item.protocol}</p>
-                            <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                              {item.priority}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 truncate text-sm text-slate-500">{item.subject}</p>
-                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                          <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
+              <SectionCard title="Despachos da mesa" description="Itens críticos e circulação atual entre as unidades.">
+                <div className="space-y-3">
+                  {criticalDispatches.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                      Nenhum despacho crítico na mesa técnica.
+                    </div>
+                  ) : (
+                    criticalDispatches.slice(0, 3).map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                          <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
+                            {item.priority}
+                          </Badge>
                         </div>
-                      ))
-                    )}
-                  </div>
+                        <p className="mt-1 sig-fit-copy text-sm text-slate-500">{item.subject}</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
+                        <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </SectionCard>
             </PageSideContent>
@@ -745,8 +745,8 @@ export function AnalystDeskPage() {
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 truncate text-sm text-slate-500">{process.title}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
+                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{process.title}</p>
                           </div>
                           <Badge variant="outline" className={statusTone(process.status)}>
                             {statusLabel(process.status)}

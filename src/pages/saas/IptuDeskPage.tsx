@@ -212,7 +212,7 @@ export function IptuDeskPage() {
                               className={
                                 guide.status === "compensada"
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                                  : "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
                               }
                             >
                               {guide.status === "compensada" ? "✅ Validado" : "⚠ Pendente"}
@@ -220,7 +220,7 @@ export function IptuDeskPage() {
                             {isCritical ? (
                               <Badge
                                 variant="outline"
-                                className="border-rose-200 bg-rose-50 text-rose-700"
+                                className="border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
                               >
                                 ⏱ Crítico
                               </Badge>
@@ -228,7 +228,7 @@ export function IptuDeskPage() {
                             {hasMissingFiscalData ? (
                               <Badge
                                 variant="outline"
-                                className="border-amber-200 bg-amber-50 text-amber-700"
+                                className="border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
                               >
                                 Dados fiscais incompletos
                               </Badge>
@@ -242,7 +242,7 @@ export function IptuDeskPage() {
                             {process.title}
                           </p>
                           <p
-                            className="mt-1 truncate text-sm text-slate-500"
+                            className="mt-1 sig-fit-copy text-sm text-slate-500"
                             title={process.address}
                           >
                             {process.address}
@@ -260,7 +260,7 @@ export function IptuDeskPage() {
                             Guia
                           </p>
                           <p
-                            className="mt-2 truncate text-sm font-semibold text-slate-950"
+                            className="mt-2 sig-fit-title text-sm font-semibold text-slate-950"
                             title={guide.code}
                           >
                             {guide.code}

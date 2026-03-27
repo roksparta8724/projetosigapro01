@@ -291,8 +291,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               <SigaproLogo bare compact showInternalWordmark={false} />
             </div>
             <div className="min-w-0">
-              <p className={cn("truncate text-xs font-normal uppercase tracking-[0.08em]", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
-              <p className={cn("truncate text-xs font-normal leading-5", darkTopbar ? "text-white/70" : "text-slate-600")}>
+              <p className={cn("sig-fit-title text-xs font-normal uppercase tracking-[0.08em]", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
+              <p className={cn("sig-fit-copy text-xs font-normal leading-5", darkTopbar ? "text-white/70" : "text-slate-600")}>
                 Plataforma institucional de projetos
               </p>
             </div>
@@ -376,7 +376,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                       <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
                       <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: preset.background || '#f6f8fb' }} />
                     </span>
-                    <span className="flex-1 truncate">{preset.label}</span>
+                    <span className="flex-1 sig-fit-title">{preset.label}</span>
                     {activeThemePresetId === preset.id ? (
                       <span className="rounded-full bg-white px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-500">
                         Ativo
@@ -411,7 +411,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <div className="flex items-start gap-3">
                     <UserAvatar name={displayUserName} imageUrl={userProfile?.avatarUrl} size="md" />
                     <div className="min-w-0">
-                      <p className="sig-truncate text-sm font-semibold text-slate-900" title={displayUserName}>
+                      <p className="sig-fit-title text-sm font-semibold text-slate-900" title={displayUserName}>
                         {displayUserName}
                       </p>
                       <p className="mt-1 text-xs font-normal text-slate-500">{roleLabel}</p>
@@ -452,7 +452,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                         onClick={() => setActiveSession(item.id)}
                       >
                         <UserRound className="mr-2 h-4 w-4" />
-                        <span className="sig-truncate" title={getSessionDisplayLabel(item)}>
+                        <span className="sig-fit-title" title={getSessionDisplayLabel(item)}>
                           {getSessionDisplayLabel(item)}
                         </span>
                       </DropdownMenuItem>
@@ -461,7 +461,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-[12px] px-3 py-2.5 text-[13px] text-rose-700 focus:text-rose-700"
+                  className="rounded-[12px] px-3 py-2.5 text-[13px] text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                   onClick={async () => {
                     await signOut();
                     navigate("/acesso", { replace: true });
@@ -526,8 +526,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <div className="mb-4 sig-strong-card rounded-[22px] p-3 shadow-sm lg:hidden">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="sig-label truncate">{eyebrow}</p>
-                  <p className={cn("truncate text-xl font-medium leading-tight text-slate-900", inverseMainTheme && "text-white")}>{title}</p>
+                  <p className="sig-label sig-fit-title">{eyebrow}</p>
+                  <p className={cn("sig-fit-title text-xl font-medium leading-tight text-slate-900", inverseMainTheme && "text-white")}>{title}</p>
                 </div>
                 <Button
                   type="button"
@@ -559,7 +559,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </div>
                     <div className="min-w-0">
                     <p className="text-[11px] font-normal uppercase tracking-[0.1em] text-[#D8E9F5]">{eyebrow}</p>
-                    <h1 className="mt-1 max-w-[56ch] truncate whitespace-nowrap text-lg font-medium leading-tight text-[#FFFFFF] md:text-[1.0625rem] lg:text-[1.125rem]" title={title}>{title}</h1>
+                    <h1 className="mt-1 sig-fit-title max-w-[56ch] text-lg font-medium leading-tight text-[#FFFFFF] md:text-[1.0625rem] lg:text-[1.125rem]" title={title}>{title}</h1>
                   </div>
                 </div>
                 </div>
@@ -576,7 +576,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="max-w-[64ch] truncate text-base font-medium leading-tight text-[#FFFFFF] drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-[1.02rem] lg:text-[1.08rem]" title={institutionDisplayName}>
+                      <p className="sig-fit-title max-w-[64ch] text-base font-medium leading-tight text-[#FFFFFF] drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-[1.02rem] lg:text-[1.08rem]" title={institutionDisplayName}>
                         {institutionDisplayName}
                       </p>
                       <p className="mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm">
@@ -595,7 +595,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                             className="border-white/16 bg-white/12"
                             fallbackClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(225,235,245,0.96)_100%)] text-[#16324a]"
                           />
-                          <span className="sig-truncate max-w-[28ch] text-sm font-normal leading-5" title={`${displayUserName} - ${roleLabel}`}>
+                          <span className="sig-fit-copy max-w-[28ch] text-sm font-normal leading-5" title={`${displayUserName} - ${roleLabel}`}>
                             {displayUserName} - {roleLabel}
                           </span>
                         </div>
@@ -620,7 +620,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     <p className="text-sm font-medium text-white">{tenantSettings?.diretoriaResponsavel || "Diretoria do processo"}</p>
                     {tenantSettings?.diretoriaTelefone ? <p className="text-sm font-normal text-white/82">{tenantSettings.diretoriaTelefone}</p> : null}
                     {tenantSettings?.diretoriaEmail ? (
-                      <p className="sig-email sig-truncate max-w-[28ch] text-white/82" title={tenantSettings.diretoriaEmail}>
+                      <p className="sig-fit-copy max-w-[28ch] text-white/82" title={tenantSettings.diretoriaEmail}>
                         {tenantSettings.diretoriaEmail}
                       </p>
                     ) : null}
@@ -701,7 +701,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   </p>
                   <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
                     <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-email sig-truncate block text-[#D6E7F4]" title={tenantSettings?.email || "E-mail não informado"}>
+                    <span className="sig-fit-copy block text-[#D6E7F4]" title={tenantSettings?.email || "E-mail não informado"}>
                       {tenantSettings?.email || "E-mail não informado"}
                     </span>
                   </div>

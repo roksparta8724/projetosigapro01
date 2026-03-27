@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, IdCard, UserPlus } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { registerRemoteExternalAccount, saveRemoteProfile } from "@/integrations/supabase/platform";
+import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { getInstitutionClientSlug, roleLabels, type UserRole } from "@/lib/platform";
 
-const accountRoles: UserRole[] = ["profissional_externo"];
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
 
 function isValidPassword(password: string) {
@@ -23,12 +23,18 @@ export function CriarContaPage() {
   const navigate = useNavigate();
   const { institutions, createTenantUser, saveUserProfile } = usePlatformData();
   const [searchParams] = useSearchParams();
-  const availableInstitutions = useMemo(() => institutions.filter((institution) => institution.status !== "suspenso"), [institutions]);
+  const availableInstitutions = useMemo(
+    () => institutions.filter((institution) => institution.status !== "suspenso"),
+    [institutions],
+  );
   const tenantSlug = searchParams.get("tenant");
-  const tenantFromLink = availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
+  const tenantFromLink =
+    availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [cepStatus, setCepStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const lastCepLookupRef = useRef("");
   const [form, setForm] = useState({
     tenantId: tenantFromLink || availableInstitutions[0]?.id || "",
     role: "profissional_externo" as UserRole,
@@ -58,13 +64,51 @@ export function CriarContaPage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  useEffect(() => {
+    const cep = form.zipCode.replace(/\D/g, "");
+    if (cep.length !== 8 || cep === lastCepLookupRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const address = await lookupCepAddress(cep);
+          lastCepLookupRef.current = cep;
+
+          if (!address) {
+            setCepStatus("CEP não encontrado. Confira o número informado.");
+            return;
+          }
+
+          setForm((current) => ({
+            ...current,
+            zipCode: formatCep(cep),
+            addressLine: current.addressLine || address.street,
+            neighborhood: current.neighborhood || address.neighborhood,
+            city: current.city || address.city,
+            state: current.state || address.state,
+            addressComplement: current.addressComplement || address.complement,
+          }));
+          setCepStatus("Endereço preenchido automaticamente pelo CEP.");
+        } catch (lookupError) {
+          setCepStatus(
+            lookupError instanceof Error ? lookupError.message : "Não foi possível consultar o CEP agora.",
+          );
+        }
+      })();
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [form.zipCode]);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
     setStatus("");
 
     if (!form.tenantId || !form.fullName || !form.email) {
-      setError("Preencha prefeitura, nome e e-mail.");
+      setError("Preencha Prefeitura, nome e e-mail.");
       return;
     }
 
@@ -74,12 +118,14 @@ export function CriarContaPage() {
     }
 
     if (!isValidPassword(form.password)) {
-      setError("A senha deve conter no minimo 8 caracteres, com letra maiuscula, letra minuscula, numero e caractere especial.");
+      setError(
+        "A senha deve conter no mínimo 8 caracteres, com letra maiúscula, letra minúscula, número e caractere especial.",
+      );
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      setError("A Confirmação da Senha Não Confere.");
+      setError("A confirmação da senha não confere.");
       return;
     }
 
@@ -109,10 +155,17 @@ export function CriarContaPage() {
       useAvatarInHeader: false,
       bio: form.bio,
     };
-    const existingDraftsRaw = typeof window !== "undefined" ? window.localStorage.getItem(SIGNUP_DRAFTS_KEY) : null;
-    const existingDrafts = existingDraftsRaw ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>) : {};
+
+    const existingDraftsRaw =
+      typeof window !== "undefined" ? window.localStorage.getItem(SIGNUP_DRAFTS_KEY) : null;
+    const existingDrafts = existingDraftsRaw
+      ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>)
+      : {};
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(SIGNUP_DRAFTS_KEY, JSON.stringify({ ...existingDrafts, [normalizedEmail]: draftProfile }));
+      window.localStorage.setItem(
+        SIGNUP_DRAFTS_KEY,
+        JSON.stringify({ ...existingDrafts, [normalizedEmail]: draftProfile }),
+      );
     }
 
     if (hasSupabaseEnv && supabase) {
@@ -151,7 +204,7 @@ export function CriarContaPage() {
 
       if (!data.user) {
         setSubmitting(false);
-        setError("Não Foi Possível Concluir o Cadastro no Supabase.");
+        setError("Não foi possível concluir o cadastro no Supabase.");
         return;
       }
 
@@ -173,10 +226,14 @@ export function CriarContaPage() {
             userId: data.user.id,
             ...draftProfile,
           });
-          setStatus("Conta Criada com Sucesso. Você Já Pode Entrar no Portal da Prefeitura.");
+          setStatus("Conta criada com sucesso. Você já pode entrar no portal da Prefeitura.");
           setTimeout(() => navigate(`/acesso?tenant=${tenantSlug || ""}`), 1200);
         } catch (registrationError) {
-          setError(registrationError instanceof Error ? registrationError.message : "Falha ao Vincular o Profissional à Prefeitura.");
+          setError(
+            registrationError instanceof Error
+              ? registrationError.message
+              : "Falha ao vincular o profissional à Prefeitura.",
+          );
         } finally {
           setSubmitting(false);
         }
@@ -184,7 +241,7 @@ export function CriarContaPage() {
       }
 
       setSubmitting(false);
-      setStatus("Conta Criada. Verifique Seu E-mail Para Confirmar o Acesso e Concluir o Primeiro Login.");
+      setStatus("Conta criada. Verifique seu e-mail para confirmar o acesso e concluir o primeiro login.");
       return;
     }
 
@@ -196,6 +253,7 @@ export function CriarContaPage() {
       title: form.title || form.professionalType || roleLabels[form.role],
       accessLevel: 1,
     });
+
     saveUserProfile({
       userId: user.id,
       fullName: form.fullName,
@@ -221,9 +279,9 @@ export function CriarContaPage() {
       useAvatarInHeader: false,
       bio: form.bio,
     });
-    setStatus("Conta de Profissional Externo Criada com Sucesso. Senha Inicial: Acesso@2026");
-    setSubmitting(false);
 
+    setStatus("Conta de profissional externo criada com sucesso. Senha inicial: Acesso@2026");
+    setSubmitting(false);
     setForm((current) => ({
       ...current,
       fullName: "",
@@ -247,199 +305,288 @@ export function CriarContaPage() {
       password: "",
       confirmPassword: "",
     }));
+    setCepStatus("");
+    lastCepLookupRef.current = "";
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#09111a_0%,#0f2338_42%,#eef4f8_42%,#f8fafc_100%)] px-4 py-8">
-      <div className="mx-auto max-w-[1080px]">
-        <Card className="rounded-[32px] border-slate-200">
-          <CardHeader className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                <UserPlus className="h-6 w-6" />
+    <div className="min-h-screen bg-[#07111b] px-4 py-8 text-slate-100">
+      <div className="relative mx-auto max-w-[1240px] overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(135deg,rgba(4,10,18,0.95)_0%,rgba(6,18,31,0.91)_34%,rgba(245,248,252,0.98)_34%,rgba(255,255,255,1)_100%)] px-5 py-5 shadow-[0_30px_84px_rgba(2,6,23,0.24)] md:px-7 md:py-7">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.10),transparent_22%),linear-gradient(180deg,rgba(2,6,12,0.08),rgba(2,6,12,0.14))]" />
+
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.34fr)] lg:gap-12">
+          <div className="hidden flex-col justify-between rounded-[30px] border border-white/12 bg-white/[0.03] p-8 backdrop-blur-sm lg:flex">
+            <div className="space-y-7">
+              <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/18 bg-white/[0.04] px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
+                Cadastro profissional
               </div>
-              <Button asChild type="button" variant="outline" className="rounded-full">
-                <Link to="/acesso">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar ao Login
-                </Link>
-              </Button>
+              <div className="space-y-4">
+                <h1 className="max-w-[11ch] text-[clamp(34px,3.1vw,48px)] font-semibold leading-[0.95] tracking-[-0.06em] text-white">
+                  Crie seu acesso profissional no SIGAPRO.
+                </h1>
+                <p className="max-w-[50ch] text-[15px] leading-7 text-slate-100/92">
+                  Autoatendimento exclusivo para profissionais externos. Usuários internos da
+                  Prefeitura são criados pelo administrador municipal.
+                </p>
+              </div>
             </div>
-            <CardTitle className="max-w-sm text-xl font-semibold leading-tight text-slate-900">Criar conta</CardTitle>
-            <p className="max-w-2xl text-sm leading-6 text-slate-500">Cadastre o profissional externo com dados pessoais e vínculo à prefeitura selecionada.</p>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Prefeitura cadastrada no SIGAPRO</Label>
-                  <Select value={form.tenantId} onValueChange={(value) => setField("tenantId", value)}>
-                    <SelectTrigger className="h-12 rounded-2xl">
-                      <SelectValue placeholder="Escolha a prefeitura" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {availableInstitutions.map((institution) => (
-                      <SelectItem key={institution.id} value={institution.id}>
-                        {institution.name}
-                      </SelectItem>
-                    ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo de acesso</Label>
-                  <Select value={form.role} onValueChange={(value) => setField("role", value)}>
-                    <SelectTrigger className="h-12 rounded-2xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accountRoles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {roleLabels[role]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Nome Completo</Label>
-                  <Input value={form.fullName} onChange={(event) => setField("fullName", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>E-mail</Label>
-                  <Input value={form.email} onChange={(event) => setField("email", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Senha</Label>
-                  <Input type="password" value={form.password} onChange={(event) => setField("password", event.target.value)} />
-                  <p className="max-w-md text-xs leading-5 text-slate-500">
-                    A senha deve conter no minimo 8 caracteres, com letra maiuscula, letra minuscula, numero e caractere especial.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Confirmar Senha</Label>
-                  <Input type="password" value={form.confirmPassword} onChange={(event) => setField("confirmPassword", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={form.phone} onChange={(event) => setField("phone", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CPF ou CNPJ</Label>
-                  <Input value={form.cpfCnpj} onChange={(event) => setField("cpfCnpj", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>RG</Label>
-                  <Input value={form.rg} onChange={(event) => setField("rg", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data de Nascimento</Label>
-                  <Input type="date" value={form.birthDate} onChange={(event) => setField("birthDate", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Tipo Profissional</Label>
-                  <Input value={form.professionalType} onChange={(event) => setField("professionalType", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Registro Profissional</Label>
-                  <Input value={form.registrationNumber} onChange={(event) => setField("registrationNumber", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Empresa, Órgão ou Setor</Label>
-                  <Input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cargo ou Função</Label>
-                  <Input value={form.title} onChange={(event) => setField("title", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-[1.35fr,0.65fr]">
-                <div className="space-y-2">
-                  <Label>Endereço</Label>
-                  <Input value={form.addressLine} onChange={(event) => setField("addressLine", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Numero</Label>
-                  <Input value={form.addressNumber} onChange={(event) => setField("addressNumber", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Complemento</Label>
-                  <Input value={form.addressComplement} onChange={(event) => setField("addressComplement", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Bairro</Label>
-                  <Input value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-[1fr,0.4fr,0.7fr]">
-                <div className="space-y-2">
-                  <Label>Cidade</Label>
-                  <Input value={form.city} onChange={(event) => setField("city", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>UF</Label>
-                  <Input value={form.state} onChange={(event) => setField("state", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CEP</Label>
-                  <Input value={form.zipCode} onChange={(event) => setField("zipCode", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Resumo Profissional</Label>
-                <Textarea rows={4} value={form.bio} onChange={(event) => setField("bio", event.target.value)} />
-              </div>
-
-              {error ? <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error}</div> : null}
-              {status ? <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">{status}</div> : null}
-
-              <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900" disabled={submitting}>
-                {submitting ? "Criando Conta..." : "Finalizar Cadastro"}
-              </Button>
-            </form>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
+            <div className="grid gap-4">
+              <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,33,53,0.94)_0%,rgba(13,30,48,0.88)_100%)] p-5 text-sm text-slate-100 shadow-[0_18px_40px_rgba(4,12,20,0.18)]">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
                   <Building2 className="h-4 w-4" />
-                  Fluxo por Prefeitura
+                  Vinculação à Prefeitura
                 </div>
-                O Usuário Escolhe Primeiro a Prefeitura Cadastrada no SIGAPRO e Depois Informa os Dados Pessoais e Profissionais.
+                <p>
+                  O profissional externo escolhe a Prefeitura cadastrada no SIGAPRO e já vincula sua
+                  conta ao ambiente correto.
+                </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
+              <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,33,53,0.94)_0%,rgba(13,30,48,0.88)_100%)] p-5 text-sm text-slate-100 shadow-[0_18px_40px_rgba(4,12,20,0.18)]">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
                   <IdCard className="h-4 w-4" />
-                  Validação Interna
+                  Cadastro interno
                 </div>
-                O Auto Cadastro é Exclusivo do Profissional Externo. Analistas, Fiscais e Demais Usuários Internos São Criados Somente Pelo Administrador da Prefeitura.
+                <p>
+                  Usuários internos da Prefeitura são criados pelo administrador municipal, com
+                  perfil, cargo e nível já vinculados ao órgão.
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <Card className="rounded-[32px] border-slate-200/90 bg-white shadow-[0_40px_100px_rgba(15,23,42,0.16)]">
+            <CardHeader className="space-y-4 px-8 pb-0 pt-8">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                  <UserPlus className="h-6 w-6" />
+                </div>
+                <Button asChild type="button" variant="outline" className="rounded-full">
+                  <Link to="/acesso">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar ao login
+                  </Link>
+                </Button>
+              </div>
+
+              <CardTitle className="max-w-sm text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-slate-900">
+                Criar conta profissional
+              </CardTitle>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura
+                são criados pelo administrador municipal.
+              </p>
+            </CardHeader>
+
+            <CardContent className="px-8 pb-8 pt-6">
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Prefeitura cadastrada no SIGAPRO</Label>
+                    <Select value={form.tenantId} onValueChange={(value) => setField("tenantId", value)}>
+                      <SelectTrigger className="h-12 rounded-2xl">
+                        <SelectValue placeholder="Escolha a Prefeitura" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableInstitutions.map((institution) => (
+                          <SelectItem key={institution.id} value={institution.id}>
+                            {institution.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo de acesso</Label>
+                    <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
+                      {roleLabels[form.role]}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Nome completo</Label>
+                    <Input value={form.fullName} onChange={(event) => setField("fullName", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-mail</Label>
+                    <Input value={form.email} onChange={(event) => setField("email", event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Senha</Label>
+                    <Input
+                      type="password"
+                      value={form.password}
+                      onChange={(event) => setField("password", event.target.value)}
+                    />
+                    <p className="max-w-md text-xs leading-5 text-slate-500">
+                      Use no mínimo 8 caracteres, com letra maiúscula, letra minúscula, número e
+                      caractere especial.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirmar senha</Label>
+                    <Input
+                      type="password"
+                      value={form.confirmPassword}
+                      onChange={(event) => setField("confirmPassword", event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Telefone</Label>
+                    <Input value={form.phone} onChange={(event) => setField("phone", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CPF ou CNPJ</Label>
+                    <Input value={form.cpfCnpj} onChange={(event) => setField("cpfCnpj", event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>RG</Label>
+                    <Input value={form.rg} onChange={(event) => setField("rg", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de nascimento</Label>
+                    <Input
+                      type="date"
+                      value={form.birthDate}
+                      onChange={(event) => setField("birthDate", event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Tipo profissional</Label>
+                    <Input
+                      value={form.professionalType}
+                      onChange={(event) => setField("professionalType", event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Registro profissional</Label>
+                    <Input
+                      value={form.registrationNumber}
+                      onChange={(event) => setField("registrationNumber", event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Empresa, órgão ou escritório</Label>
+                    <Input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cargo ou função</Label>
+                    <Input value={form.title} onChange={(event) => setField("title", event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-[1.35fr,0.65fr]">
+                  <div className="space-y-2">
+                    <Label>Endereço</Label>
+                    <Input value={form.addressLine} onChange={(event) => setField("addressLine", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Número</Label>
+                    <Input value={form.addressNumber} onChange={(event) => setField("addressNumber", event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Complemento</Label>
+                    <Input
+                      value={form.addressComplement}
+                      onChange={(event) => setField("addressComplement", event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bairro</Label>
+                    <Input value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-[1fr,0.4fr,0.7fr]">
+                  <div className="space-y-2">
+                    <Label>Cidade</Label>
+                    <Input value={form.city} onChange={(event) => setField("city", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>UF</Label>
+                    <Input value={form.state} onChange={(event) => setField("state", event.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CEP</Label>
+                    <Input
+                      value={form.zipCode}
+                      onChange={(event) => {
+                        lastCepLookupRef.current = "";
+                        setCepStatus("");
+                        setField("zipCode", formatCep(event.target.value));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {cepStatus ? (
+                  <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-700">
+                    {cepStatus}
+                  </div>
+                ) : null}
+
+                <div className="space-y-2">
+                  <Label>Resumo profissional</Label>
+                  <Textarea rows={4} value={form.bio} onChange={(event) => setField("bio", event.target.value)} />
+                </div>
+
+                {error ? (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600">
+                    {error}
+                  </div>
+                ) : null}
+                {status ? (
+                  <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">{status}</div>
+                ) : null}
+
+                <Button
+                  type="submit"
+                  className="h-[56px] w-full rounded-[18px] bg-[linear-gradient(135deg,#0f172a_0%,#16365a_55%,#1a4269_100%)] text-white hover:brightness-[1.03]"
+                  disabled={submitting}
+                >
+                  {submitting ? "Criando conta..." : "Finalizar cadastro"}
+                </Button>
+              </form>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2 lg:hidden">
+                <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)] p-4 text-sm text-slate-600">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <Building2 className="h-4 w-4" />
+                    Vinculação à Prefeitura
+                  </div>
+                  O profissional externo escolhe a Prefeitura cadastrada no SIGAPRO e já vincula sua conta ao ambiente correto.
+                </div>
+                <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)] p-4 text-sm text-slate-600">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <IdCard className="h-4 w-4" />
+                    Cadastro interno
+                  </div>
+                  Usuários internos da Prefeitura são criados pelo administrador municipal, com perfil, cargo e nível já vinculados ao órgão.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

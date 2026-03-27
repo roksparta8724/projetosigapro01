@@ -19,7 +19,7 @@ export function TableCard({
   return (
     <section
       className={cn(
-        "flex h-full flex-col rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] md:p-6",
+        "flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)] md:p-6",
         className,
       )}
     >
@@ -27,7 +27,7 @@ export function TableCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-slate-700">
+              <div className="sig-section-icon flex h-9 w-9 items-center justify-center rounded-[12px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
                 <Icon className="h-4 w-4" />
               </div>
             ) : null}

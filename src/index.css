@@ -56,6 +56,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  #root {
+    min-height: 100vh;
+  }
+
   h1,
   h2,
   h3,
@@ -151,7 +155,7 @@
   .sig-section-title {
     display: block;
     min-width: 0;
-    font-size: 1rem;
+    font-size: 0.975rem;
     line-height: 1.25;
     font-weight: 500;
     color: #1f2937;
@@ -161,7 +165,7 @@
 
   .sig-subtitle {
     font-size: 0.875rem;
-    line-height: 1.5;
+    line-height: 1.45;
     font-weight: 400;
     color: #6b7280;
     max-width: 68ch;
@@ -178,14 +182,14 @@
 
   .sig-body {
     font-size: 0.875rem;
-    line-height: 1.5;
+    line-height: 1.45;
     font-weight: 400;
     color: #374151;
   }
 
   .sig-body-strong {
     font-size: 0.9375rem;
-    line-height: 1.4;
+    line-height: 1.35;
     font-weight: 500;
     color: #111827;
   }
@@ -210,6 +214,57 @@
     font-weight: 400;
   }
 
+  .sig-nav-item-active,
+  .sig-section-nav [data-nav-active="true"] {
+    background: linear-gradient(135deg, #0f3d68 0%, #24639a 100%) !important;
+    border-color: rgba(147, 197, 253, 0.34) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 12px 24px rgba(15, 23, 42, 0.24) !important;
+  }
+
+  .sig-nav-item-active .sig-nav-item-label,
+  .sig-section-nav [data-nav-active="true"] .sig-nav-item-label {
+    color: #f8fafc !important;
+    font-weight: 700;
+  }
+
+  .sig-nav-item-active .sig-nav-item-helper,
+  .sig-section-nav [data-nav-active="true"] .sig-nav-item-helper {
+    color: #dbeafe !important;
+  }
+
+  [data-sidebar-active="true"] {
+    background: linear-gradient(135deg, #183553 0%, #2a5785 100%);
+    border-color: rgba(156, 198, 255, 0.22) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22);
+  }
+
+  [data-sidebar-active="true"] span,
+  [data-sidebar-active="true"] .text-slate-950,
+  [data-sidebar-active="true"] .text-slate-900,
+  [data-sidebar-active="true"] .text-slate-800 {
+    color: #f8fafc !important;
+  }
+
+  [data-sidebar-active="true"] .rounded-\[9px\] {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #f8fafc !important;
+  }
+
+  [role="tab"][data-state="active"] {
+    background: linear-gradient(135deg, #183553 0%, #2a5785 100%);
+    border-color: rgba(156, 198, 255, 0.22) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22);
+  }
+
+  [role="tab"][data-state="active"] * {
+    color: #f8fafc !important;
+  }
+
   .sig-field-help {
     font-size: 0.875rem;
     line-height: 1.45;
@@ -219,7 +274,7 @@
 
   .sig-value {
     font-size: 1.125rem;
-    line-height: 1.25;
+    line-height: 1.2;
     font-weight: 500;
     color: #111827;
     min-width: 0;
@@ -231,8 +286,8 @@
   .sig-text-wrap {
     min-width: 0;
     overflow: hidden;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .sig-truncate {
@@ -240,6 +295,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .sig-fit-title {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .sig-fit-copy {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
 
   .sig-soft-card {
@@ -264,7 +339,7 @@
 
   .sig-page-shell {
     display: grid;
-    gap: 1.5rem;
+    gap: 1.25rem;
     width: 100%;
     max-width: 1680px;
     margin: 0 auto;
@@ -273,7 +348,52 @@
 
   .sig-support-grid {
     display: grid;
-    gap: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .sig-section-card > * {
+    min-width: 0;
+  }
+
+  .sig-section-card button,
+  .sig-section-card a,
+  .sig-section-card input,
+  .sig-section-card textarea,
+  .sig-section-card [role="button"] {
+    min-width: 0;
+  }
+
+  .sig-section-card .rounded-2xl,
+  .sig-section-card .rounded-\[20px\],
+  .sig-section-card .rounded-\[24px\],
+  .sig-section-card .rounded-\[28px\] {
+    min-width: 0;
+  }
+
+  .sig-section-card .grid > *,
+  .sig-section-card .flex > * {
+    min-width: 0;
+  }
+
+  .sig-section-card [title],
+  .sig-section-card p,
+  .sig-section-card span {
+    max-width: 100%;
+  }
+
+  .sig-empty-state {
+    display: flex;
+    min-height: 120px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    border: 1px dashed rgba(203, 213, 225, 0.9);
+    background: rgba(248, 250, 252, 0.9);
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #64748b;
   }
 
   .sig-highlight-panel {
@@ -309,8 +429,7 @@
   [data-layout-mode="inverse-main"] .sig-stat-card,
   [data-layout-mode="inverse-main"] .sig-metric-card {
     background:
-      radial-gradient(circle at top left, var(--sig-inverse-accent-soft) 0%, transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.014) 100%);
     border-color: var(--sig-inverse-border);
     box-shadow: 0 16px 36px rgba(2, 6, 23, 0.22);
   }
@@ -324,8 +443,20 @@
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-950,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-900,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-800,
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-\[\#111827\] {
-    color: #f8fafc !important;
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-black,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-\[\#111827\],
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-\[\#1f2937\],
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-\[\#334155\] {
+    color: #e8eef9 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-page-header p,
@@ -336,17 +467,94 @@
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-700,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-600,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-500,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-gray-500,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-zinc-500,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-neutral-500,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-subtitle,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-label,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-label,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-meta {
-    color: #cbd5e1 !important;
+    color: #cdd8ea !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-black {
+    color: #dbe7fb !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .bg-white,
   [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-\[\#F8FAFC\],
   [data-layout-mode="inverse-main"] .sig-main-shell .bg-\[\#FBFDFF\] {
-    background: linear-gradient(180deg, var(--sig-inverse-accent-soft) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.025) 100%) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#fcfdff"],
+  [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#fafcff"],
+  [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#ffffff"] {
+    background:
+      radial-gradient(circle at top left, var(--sig-inverse-accent-soft) 0%, transparent 24%),
+      linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%) !important;
+    border-color: var(--sig-inverse-border) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.rounded-full:not(.sig-page-footer *),
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.rounded-2xl:not(.sig-page-footer *) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+    color: #e8eef9 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"] {
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"] .text-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"] .text-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"] .text-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"] span {
+    color: inherit !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]) svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]) svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"] svg {
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-header-icon,
+  [data-layout-mode="inverse-main"] .sig-section-icon,
+  [data-layout-mode="inverse-main"] .sig-stat-icon {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: var(--sig-inverse-icon) !important;
+    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.2) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .shadow-sm,
+  [data-layout-mode="inverse-main"] .sig-main-shell .shadow-\[0_6px_16px_rgba\(15\,23\,42\,0\.05\)\],
+  [data-layout-mode="inverse-main"] .sig-main-shell .shadow-\[0_8px_18px_rgba\(15\,42\,68\,0\.05\)\] {
+    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18) !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .border-slate-200,
@@ -356,10 +564,18 @@
     border-color: rgba(255, 255, 255, 0.08) !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-950,
-  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:bg-slate-900:hover {
-    background: #ffffff !important;
-    color: #0f172a !important;
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-950:not(button):not(a),
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="status"].bg-slate-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-slate-950:not(button):not(a) {
+    background: linear-gradient(135deg, #183553 0%, #23496f 100%) !important;
+    color: #f8fafc !important;
+    border-color: rgba(156, 198, 255, 0.22) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tablist"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-muted {
+    background: rgba(255, 255, 255, 0.045) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   [data-layout-mode="inverse-main"] .sig-page-footer .text-white,
@@ -447,15 +663,82 @@
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-slate-950"],
-  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-primary"] {
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-slate-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"][class*="bg-slate-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-primary"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-primary"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"][class*="bg-primary"] {
+    background: linear-gradient(135deg, #183553 0%, #2a5785 100%) !important;
+    color: #f8fafc !important;
+    border-color: rgba(156, 198, 255, 0.26) !important;
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28);
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-slate-950"] svg,
-  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-primary"] svg {
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-slate-950"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"][class*="bg-slate-950"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-primary"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-primary"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"][class*="bg-primary"] svg {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-slate-950"] span,
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-primary"] span,
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-slate-950"] .text-white,
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-primary"] .text-white,
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-slate-950"] .text-white\/72,
+  [data-layout-mode="inverse-main"] .sig-section-nav button[class*="bg-primary"] .text-white\/72 {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-nav-item-active,
+  [data-layout-mode="inverse-main"] .sig-section-nav [data-nav-active="true"] {
+    background: linear-gradient(135deg, #0f4a7a 0%, #2f6ea8 100%) !important;
+    border-color: rgba(147, 197, 253, 0.34) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 14px 28px rgba(2, 6, 23, 0.26) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-nav-item-active .sig-nav-item-label,
+  [data-layout-mode="inverse-main"] .sig-section-nav [data-nav-active="true"] .sig-nav-item-label {
+    color: #f8fafc !important;
+    font-weight: 700 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-nav-item-active .sig-nav-item-helper,
+  [data-layout-mode="inverse-main"] .sig-section-nav [data-nav-active="true"] .sig-nav-item-helper {
+    color: #dbeafe !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] {
+    background: linear-gradient(135deg, #dcecff 0%, #9cc6ff 100%) !important;
+    border-color: rgba(156, 198, 255, 0.45) !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18) !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] span,
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .text-slate-950,
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .text-slate-900 {
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .rounded-\[9px\] {
+    background: rgba(255, 255, 255, 0.7) !important;
+    border-color: rgba(15, 23, 42, 0.14) !important;
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"] {
+    background: linear-gradient(135deg, #dcecff 0%, #9cc6ff 100%) !important;
+    border-color: rgba(156, 198, 255, 0.42) !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"] * {
     color: #0f172a !important;
   }
 
@@ -463,8 +746,81 @@
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"],
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-background"] {
     background: rgba(255, 255, 255, 0.04) !important;
-    color: #f8fafc !important;
+    color: #e8eef9 !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"]:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"]:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="border-input"]:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="border-input"]:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #eef4ff !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-950 {
+    color: #9cc6ff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"] {
+    color: #dbe7f8 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"]:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"]:hover {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell a:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([class*="text-red"]):not([class*="text-green"]):not([class*="text-amber"]) {
+    color: #60a5fa !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell a:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([class*="text-red"]):not([class*="text-green"]):not([class*="text-amber"]):hover {
+    color: #93c5fd !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([data-state="active"]):not([data-nav-active="true"]):not([data-sidebar-active="true"]):not(:disabled),
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([data-state="active"]):not([data-nav-active="true"]):not([data-sidebar-active="true"]):not([aria-disabled="true"]) {
+    color: #e2e8f0 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([data-state="active"]):not([data-nav-active="true"]):not([data-sidebar-active="true"]):not(:disabled):hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]):not([data-state="active"]):not([data-nav-active="true"]):not([data-sidebar-active="true"]):not([aria-disabled="true"]):hover {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button:disabled,
+  [data-layout-mode="inverse-main"] .sig-main-shell [aria-disabled="true"] {
+    color: #94a3b8 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="button"] svg {
+    color: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-slate-950:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-slate-900:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-slate-800:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-gray-950:hover,
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-gray-900:hover {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-primary,
+  [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-primary:hover {
+    color: #60a5fa !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell input,
@@ -472,13 +828,50 @@
   [data-layout-mode="inverse-main"] .sig-main-shell [data-radix-select-trigger],
   [data-layout-mode="inverse-main"] .sig-main-shell button[role="combobox"] {
     background: rgba(255, 255, 255, 0.04) !important;
-    color: #f8fafc !important;
+    color: #e8eef9 !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
+    caret-color: #f8fafc;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="date"] {
+    color-scheme: dark;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell input::placeholder,
   [data-layout-mode="inverse-main"] .sig-main-shell textarea::placeholder {
     color: #94a3b8 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.92) brightness(1.2);
+    opacity: 0.9;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="date"]::-webkit-clear-button,
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="date"]::-webkit-inner-spin-button {
+    filter: invert(0.92) brightness(1.15);
+    opacity: 0.88;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [data-radix-select-trigger] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[role="combobox"] svg {
+    color: #dbe7f8 !important;
+    opacity: 0.95 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-400 svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-400,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-400 {
+    color: #b8c7dc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="checkbox"],
+  [data-layout-mode="inverse-main"] .sig-main-shell input[type="radio"] {
+    accent-color: #93c5fd;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-slate-100,
@@ -490,13 +883,19 @@
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-600,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-500,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-muted-foreground {
-    color: #cbd5e1 !important;
+    color: #cdd8ea !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell table,
   [data-layout-mode="inverse-main"] .sig-main-shell thead,
   [data-layout-mode="inverse-main"] .sig-main-shell tbody {
-    color: #f8fafc !important;
+    color: #e8eef9 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell thead,
+  [data-layout-mode="inverse-main"] .sig-main-shell tr[class*="bg-\[\#F8FAFC\]"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-\[\#F8FAFC\] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.035) 100%) !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell th {
@@ -504,7 +903,48 @@
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell td {
-    color: #e2e8f0 !important;
+    color: #dce6f5 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-white\/72,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-white\/80,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-white\/84,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-white\/90 {
+    color: #e8eef9 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-rose-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .dark\:text-red-400 {
+    color: #f87171 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .dark\:text-amber-400 {
+    color: #fbbf24 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-emerald-700 {
+    color: #86efac !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-green-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .dark\:text-green-400 {
+    color: #4ade80 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-sky-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-blue-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-blue-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .dark\:text-blue-400,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-\[\#2F5D8A\] {
+    color: #93c5fd !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell tr {
@@ -515,9 +955,30 @@
     background: rgba(255, 255, 255, 0.04) !important;
   }
 
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [data-radix-select-content],
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [role="listbox"],
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [data-side] {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--sig-inverse-shell-top) 88%, #0f172a 12%) 0%, color-mix(in srgb, var(--sig-inverse-shell-bottom) 92%, #020617 8%) 100%) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [role="option"],
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [data-radix-select-item] {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [data-highlighted],
+  [data-layout-mode="inverse-main"] [data-radix-popper-content-wrapper] [role="option"][data-highlighted] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-emerald-50"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-amber-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-amber-500/10"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-rose-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-red-500/10"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-sky-50"] {
     background: rgba(255, 255, 255, 0.04) !important;
   }
@@ -525,6 +986,8 @@
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-emerald-"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-amber-"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-rose-"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-red-500/20"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-amber-500/20"],
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="border-sky-"] {
     border-color: rgba(255, 255, 255, 0.14) !important;
   }
@@ -533,16 +996,27 @@
     color: #86efac !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-amber-700"] {
-    color: #fcd34d !important;
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-amber-600"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-amber-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-amber-800"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-amber-900"] {
+    color: #fbbf24 !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-rose-700"] {
-    color: #fda4af !important;
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-rose-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-red-600"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-red-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-red-800"] {
+    color: #f87171 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-green-600"] {
+    color: #4ade80 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-\\[\\#2F5D8A\\]"],
-  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-sky-"] {
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-sky-"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-blue-600"] {
     color: var(--sig-inverse-icon) !important;
   }
 
@@ -555,10 +1029,16 @@
   [data-layout-mode="inverse-main"] .sig-main-shell .rounded-\[24px\].border,
   [data-layout-mode="inverse-main"] .sig-main-shell .rounded-\[28px\].border {
     background:
-      radial-gradient(circle at top left, var(--sig-inverse-accent-soft) 0%, transparent 26%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.015) 100%) !important;
+      linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, rgba(255, 255, 255, 0.016) 100%) !important;
     border-color: var(--sig-inverse-border) !important;
     box-shadow: 0 12px 28px rgba(2, 6, 23, 0.18) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white/10"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white/12"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white/14"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white/16"] {
+    background: rgba(255, 255, 255, 0.055) !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .rounded-\[20px\].border .bg-slate-100,
@@ -582,10 +1062,196 @@
     color: color-mix(in srgb, var(--sig-inverse-icon) 62%, #dbeafe 38%) !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-emerald-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-emerald-700 {
+    color: #86efac !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-green-600 {
+    color: #4ade80 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-600,
   [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-900 {
+    color: #fbbf24 !important;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell .text-rose-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-red-800 {
+    color: #f87171 !important;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell .text-sky-700 {
-    color: var(--sig-inverse-icon) !important;
+    color: #93c5fd !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-blue-600 {
+    color: #93c5fd !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-rose-50.text-rose-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-rose-200.text-rose-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-red-500\/10.text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-red-500\/20.text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-amber-50.text-amber-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-amber-200.text-amber-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-amber-500\/10.text-amber-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-amber-500\/20.text-amber-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-green-50.text-green-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-green-200.text-green-600 {
+    font-weight: 600 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-amber-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-amber-200,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-amber-500\/10,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-amber-500\/20 {
+    background: rgba(245, 158, 11, 0.18) !important;
+    border-color: rgba(251, 191, 36, 0.36) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-green-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-green-200 {
+    background: rgba(22, 163, 74, 0.18) !important;
+    border-color: rgba(74, 222, 128, 0.36) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-amber-900 {
+    color: #fde68a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-emerald-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-emerald-100,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-emerald-100,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-emerald-200 {
+    background: rgba(16, 185, 129, 0.22) !important;
+    border-color: rgba(74, 222, 128, 0.46) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-emerald-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-emerald-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-green-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-green-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .dark\:text-green-400 {
+    color: #dcfce7 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-sky-100,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-sky-100,
+  [data-layout-mode="inverse-main"] .sig-main-shell .border-sky-200 {
+    background: rgba(125, 211, 252, 0.16) !important;
+    border-color: rgba(125, 211, 252, 0.32) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-sky-800,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-sky-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-blue-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .text-blue-600 {
+    color: #bae6fd !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.font-medium.text-slate-700.rounded-full,
+  [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-white.text-slate-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-white.text-slate-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-white.text-slate-500 {
+    background: rgba(248, 250, 252, 0.96) !important;
+    border-color: rgba(203, 213, 225, 0.88) !important;
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .rounded-full.bg-white {
+    background: rgba(248, 250, 252, 0.96) !important;
+    border-color: rgba(203, 213, 225, 0.88) !important;
+    color: #0f172a !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.028) 100%) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e8eef9 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-800 {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel .text-slate-500 {
+    color: #c7d6ea !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel svg {
+    color: #dbeafe !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel {
+    background: linear-gradient(180deg, rgba(12, 24, 40, 0.88) 0%, rgba(10, 21, 35, 0.82) 100%) !important;
+    border-color: rgba(125, 211, 252, 0.18) !important;
+    color: #e8eef9 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 34px rgba(2, 6, 23, 0.18) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-950,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-900,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-800 {
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-700,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-500 {
+    color: #c7d6ea !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel svg {
+    color: #dbeafe !important;
+  }
+
+  .sig-premium-admin-form label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .sig-premium-admin-form .sig-admin-input {
+    height: 48px;
+    border-radius: 18px;
+    padding-inline: 14px;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .sig-premium-admin-form input.sig-admin-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .sig-premium-admin-form [data-radix-select-trigger].sig-admin-input,
+  .sig-premium-admin-form button[role="combobox"].sig-admin-input {
+    padding-inline: 14px;
+  }
+
+  .sig-premium-admin-form input[type="date"].sig-admin-input {
+    padding-right: 40px;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-premium-admin-form .sig-admin-input {
+    background: rgba(15, 23, 42, 0.18) !important;
+    border-color: rgba(90, 170, 196, 0.24) !important;
+    color: #f8fafc !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  [data-layout-mode="inverse-main"] .sig-premium-admin-form .sig-admin-input::placeholder {
+    color: rgba(191, 219, 254, 0.62) !important;
   }
 }

@@ -167,30 +167,30 @@ export function ExternalPortalPage() {
                     <div className="flex flex-col gap-5">
                       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.7fr_0.7fr_0.8fr_0.8fr_0.65fr] xl:items-start">
                         <div className="min-w-0">
-                          <p className="truncate text-lg font-semibold leading-7 text-slate-950" title={process.protocol}>{process.protocol}</p>
+                          <p className="sig-fit-title text-lg font-semibold leading-7 text-slate-950" title={process.protocol}>{process.protocol}</p>
                           <p className="mt-1 line-clamp-2 text-base font-semibold leading-7 text-slate-900" title={process.title}>{process.title}</p>
-                          <p className="mt-1 truncate text-sm leading-6 text-slate-500">{process.type}</p>
-                          <p className="mt-1 truncate text-sm leading-6 text-slate-500">{process.address}</p>
+                          <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{process.type}</p>
+                          <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{process.address}</p>
                         </div>
 
                         <div className="min-w-0 space-y-2">
                           <Badge variant="outline" className="inline-flex max-w-full rounded-full capitalize">
-                            <span className="truncate">{statusLabel(process.status)}</span>
+                            <span className="sig-fit-title">{statusLabel(process.status)}</span>
                           </Badge>
                           {openRequirements.length > 0 ? (
-                            <Badge variant="outline" className="inline-flex max-w-full border-amber-200 bg-amber-50 text-amber-700">
-                              <span className="truncate">Exigência aberta</span>
+                            <Badge variant="outline" className="inline-flex max-w-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
+                              <span className="sig-fit-title">Exigência aberta</span>
                             </Badge>
                           ) : null}
                           {pendingGuide ? (
-                            <Badge variant="outline" className="inline-flex max-w-full border-rose-200 bg-rose-50 text-rose-700">
-                              <span className="truncate">Pagamento pendente</span>
+                            <Badge variant="outline" className="inline-flex max-w-full border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
+                              <span className="sig-fit-title">Pagamento pendente</span>
                             </Badge>
                           ) : null}
                         </div>
 
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold leading-6 text-slate-900">{statusLabel(process.status)}</p>
+                          <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-900">{statusLabel(process.status)}</p>
                           <p className="mt-1 text-sm leading-6 text-slate-500">Etapa atual</p>
                         </div>
 
@@ -200,7 +200,7 @@ export function ExternalPortalPage() {
                         </div>
 
                         <div className="min-w-0">
-                          <p className="sig-truncate text-sm font-semibold leading-6 text-slate-900" title={process.technicalLead}>
+                          <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-900" title={process.technicalLead}>
                             {process.technicalLead}
                           </p>
                           <p className="mt-1 text-sm leading-6 text-slate-500">Responsável técnico</p>
@@ -221,14 +221,14 @@ export function ExternalPortalPage() {
                         </div>
                         <div className="flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
                           <p className="sig-label">Guia inicial</p>
-                          <p className="sig-truncate mt-2 text-base font-semibold leading-7 text-slate-950" title={guides[0]?.code || "Sem guia"}>
+                          <p className="sig-fit-title mt-2 text-base font-semibold leading-7 text-slate-950" title={guides[0]?.code || "Sem guia"}>
                             {guides[0]?.code || "Sem guia emitida"}
                           </p>
                           <p className="sig-field-help mt-1">{guides[0]?.status === "compensada" ? "Pagamento confirmado" : "Pagamento pendente"}</p>
                         </div>
                         <div className="flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
                           <p className="sig-label">Financeiro em etapas</p>
-                          <p className="mt-2 truncate text-lg font-semibold text-slate-950" title={formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}>{formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}</p>
+                          <p className="sig-fit-title mt-2 text-lg font-semibold leading-7 text-slate-950" title={formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}>{formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}</p>
                           <p className="mt-1 text-[15px] leading-6 text-slate-500">Protocolo, ISSQN e aprovação final</p>
                         </div>
                       </div>
@@ -243,7 +243,7 @@ export function ExternalPortalPage() {
                               className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
                               style={{ backgroundColor: `${parseMarker(tag).color}18`, color: parseMarker(tag).color }}
                             >
-                              <span className="truncate">{parseMarker(tag).label}</span>
+                              <span className="sig-fit-title">{parseMarker(tag).label}</span>
                               <button
                                 type="button"
                                 className="shrink-0 rounded-full p-0.5 transition hover:bg-black/10"
@@ -308,7 +308,7 @@ export function ExternalPortalPage() {
                                 className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
                                 style={{ backgroundColor: `${parseMarker(tag).color}18`, color: parseMarker(tag).color }}
                               >
-                                <span className="truncate">{parseMarker(tag).label}</span>
+                                <span className="sig-fit-title">{parseMarker(tag).label}</span>
                                 <button
                                   type="button"
                                   className="shrink-0 rounded-full p-0.5 transition hover:bg-black/10"
@@ -330,7 +330,7 @@ export function ExternalPortalPage() {
                             {openRequirements.map((item) => (
                               <div key={item.id} className="rounded-[8px] bg-white/85 p-4 shadow-sm">
                                 <p className="line-clamp-2 font-medium">{item.title}</p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-700">Prazo {item.dueDate}</p>
+                                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Prazo {item.dueDate}</p>
                               </div>
                             ))}
                           </div>
@@ -348,7 +348,7 @@ export function ExternalPortalPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-[8px] border border-rose-100 bg-rose-50 p-5 text-sm text-rose-900 shadow-sm">
+              <div className="rounded-[8px] border border-amber-500/20 bg-amber-500/10 p-5 text-sm text-amber-600 dark:text-amber-400 shadow-sm">
                 <div className="flex items-center gap-3 font-semibold">
                   <ShieldAlert className="h-4 w-4" />
                   Proteção de dados ativa
@@ -376,13 +376,13 @@ export function ExternalPortalPage() {
               <div className="min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-slate-900" />
-                  <p className="truncate text-base font-semibold text-slate-950">Ações rápidas</p>
+                  <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950">Ações rápidas</p>
                 </div>
                 <div className="mt-4 grid gap-3">
                   <Button asChild variant="outline" className="w-full min-w-0 justify-start overflow-hidden rounded-2xl px-4">
                     <Link to="/perfil">
                       <FolderKanban className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">Atualizar dados profissionais</span>
+                      <span className="sig-fit-title">Atualizar dados profissionais</span>
                     </Link>
                   </Button>
                 </div>
@@ -391,7 +391,7 @@ export function ExternalPortalPage() {
               <div className="min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <History className="h-4 w-4 text-slate-900" />
-                  <p className="truncate text-base font-semibold text-slate-950">Histórico recente</p>
+                  <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950">Histórico recente</p>
                 </div>
                 <div className="mt-4 space-y-3">
                   {recentActivity.length === 0 ? (

@@ -324,7 +324,7 @@ export function ProtocolReviewPage() {
         </div>
 
         {status ? (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-600 dark:text-amber-400">
             {status}
           </div>
         ) : null}

@@ -27,10 +27,10 @@ export function WorkflowStageBoard({
   return (
     <Card className="rounded-[28px] border-slate-200">
       <CardHeader>
-        <CardTitle className="max-w-[34ch] line-clamp-2 text-base font-semibold leading-tight text-slate-950">
+        <CardTitle className="sig-fit-title max-w-[34ch] text-base font-semibold leading-tight text-slate-950">
           {title}
         </CardTitle>
-        <p className="line-clamp-2 max-w-[62ch] text-sm leading-6 text-slate-600">{description}</p>
+        <p className="sig-fit-copy max-w-[62ch] text-sm leading-6 text-slate-600">{description}</p>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -39,7 +39,7 @@ export function WorkflowStageBoard({
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-500">Etapa atual</p>
               <p
-                className="max-w-[26ch] truncate text-lg font-semibold text-slate-950"
+                className="sig-fit-title max-w-[26ch] text-lg font-semibold leading-7 text-slate-950"
                 title={snapshot.current?.label ?? "Não definida"}
               >
                 {snapshot.current?.label ?? "Não definida"}
@@ -71,7 +71,7 @@ export function WorkflowStageBoard({
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="max-w-[30ch] truncate text-base font-semibold text-slate-950" title={stage.label}>
+                      <p className="sig-fit-title max-w-[30ch] text-base font-semibold leading-6 text-slate-950" title={stage.label}>
                         {stage.label}
                       </p>
                       {isCurrent ? (
@@ -89,8 +89,8 @@ export function WorkflowStageBoard({
                     </p>
 
                     <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-500">
-                      <span className="truncate">Fila: {stage.queueCode}</span>
-                      <span className="truncate">Tipo: {stage.stageType}</span>
+                      <span className="sig-fit-title">Fila: {stage.queueCode}</span>
+                      <span className="sig-fit-title">Tipo: {stage.stageType}</span>
                     </div>
                   </div>
 

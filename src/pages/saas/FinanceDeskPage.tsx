@@ -374,51 +374,55 @@ export function FinanceDeskPage() {
               </PageMainContent>
 
               <PageSideContent>
-                <SectionCard title="Painel financeiro" description="Alertas, conciliação e leitura rápida do setor.">
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      <AlertCard
-                        title="⚠ Divergências"
-                        description={
-                          inconsistencyCount > 0
-                            ? `${inconsistencyCount} guia(s) pendente(s) em processos já encerrados ou deferidos.`
-                            : "Nenhuma divergência financeira relevante encontrada."
-                        }
-                        tone={inconsistencyCount > 0 ? "danger" : "success"}
-                      />
-                      <AlertCard
-                        title="⏱ Pendências críticas"
-                        description={
-                          criticalPending.length > 0
-                            ? `${criticalPending.length} guia(s) exigem acompanhamento de baixa.`
-                            : "Não há fila crítica de baixa financeira."
-                        }
-                        tone={criticalPending.length > 0 ? "warning" : "success"}
-                      />
-                    </div>
+                <SectionCard title="Alertas financeiros" description="Divergências, baixas críticas e atenção imediata do setor.">
+                  <div className="space-y-3">
+                    <AlertCard
+                      title="⚠ Divergências"
+                      description={
+                        inconsistencyCount > 0
+                          ? `${inconsistencyCount} guia(s) pendente(s) em processos já encerrados ou deferidos.`
+                          : "Nenhuma divergência financeira relevante encontrada."
+                      }
+                      tone={inconsistencyCount > 0 ? "danger" : "success"}
+                    />
+                    <AlertCard
+                      title="⏱ Pendências críticas"
+                      description={
+                        criticalPending.length > 0
+                          ? `${criticalPending.length} guia(s) exigem acompanhamento de baixa.`
+                          : "Não há fila crítica de baixa financeira."
+                      }
+                      tone={criticalPending.length > 0 ? "warning" : "success"}
+                    />
+                    {criticalDispatches.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        Nenhum despacho crítico para o financeiro.
+                      </div>
+                    ) : (
+                      criticalDispatches.slice(0, 2).map((item) => (
+                        <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950">{item.protocol}</p>
+                            <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
+                              {item.priority}
+                            </Badge>
+                          </div>
+                          <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{item.subject}</p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
+                          <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </SectionCard>
 
+                <SectionCard title="Conciliação e convênio" description="Perfil bancário e resumo do fluxo operacional do setor.">
+                  <div className="space-y-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Convênio</p>
                       <p className="mt-2 text-sm font-semibold text-slate-950">{bankProfile.bankName}</p>
                       <p className="mt-1 text-sm text-slate-600">{bankProfile.agreementCode}</p>
                       <p className="mt-1 text-sm text-slate-500">{bankProfile.settlementMode}</p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {recentFinancialEvents.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                          Nenhum evento financeiro recente encontrado.
-                        </div>
-                      ) : (
-                        recentFinancialEvents.slice(0, 2).map((event) => (
-                          <div key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
-                            <p className="mt-1 text-sm text-slate-800">{event.title}</p>
-                            <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
-                            <p className="mt-2 text-xs text-slate-500">{event.actor} • {event.at}</p>
-                          </div>
-                        ))
-                      )}
                     </div>
 
                     <div className="grid gap-3">
@@ -438,28 +442,25 @@ export function FinanceDeskPage() {
                         <p className="mt-1 text-sm text-slate-500">Processos com tramitação interna protegida.</p>
                       </div>
                     </div>
+                  </div>
+                </SectionCard>
 
-                    <div className="space-y-3">
-                      {criticalDispatches.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                          Nenhum despacho crítico para o financeiro.
+                <SectionCard title="Eventos recentes" description="Últimos registros de arrecadação e conferência do setor.">
+                  <div className="space-y-3">
+                    {recentFinancialEvents.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        Nenhum evento financeiro recente encontrado.
+                      </div>
+                    ) : (
+                      recentFinancialEvents.slice(0, 3).map((event) => (
+                        <div key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
+                          <p className="mt-1 text-sm text-slate-800">{event.title}</p>
+                          <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
+                          <p className="mt-2 text-xs text-slate-500">{event.actor} • {event.at}</p>
                         </div>
-                      ) : (
-                        criticalDispatches.slice(0, 3).map((item) => (
-                          <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="truncate text-sm font-semibold text-slate-950">{item.protocol}</p>
-                              <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                                {item.priority}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 truncate text-sm text-slate-500">{item.subject}</p>
-                            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                            <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                      ))
+                    )}
                   </div>
                 </SectionCard>
               </PageSideContent>
@@ -480,14 +481,14 @@ export function FinanceDeskPage() {
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-semibold text-slate-950" title={guide.code}>{guide.code}</p>
+                          <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={guide.code}>{guide.code}</p>
                           <Badge variant="outline" className="rounded-full">{guide.label}</Badge>
-                          <Badge variant="outline" className={guide.status === "compensada" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                          <Badge variant="outline" className={guide.status === "compensada" ? "border-green-200 bg-green-50 text-green-600 dark:text-green-400" : "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"}>
                             {guide.status === "compensada" ? "Confirmada" : "Pendente"}
                           </Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${process.protocol} • ${process.ownerName}`}>{process.protocol} • {process.ownerName}</p>
-                        <p className="mt-1 truncate text-sm text-slate-500" title={process.title}>{process.title}</p>
+                        <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{process.title}</p>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
                         <div className="rounded-xl bg-slate-50 px-3 py-2">Emissão: {guide.dueDate}</div>
@@ -522,13 +523,13 @@ export function FinanceDeskPage() {
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-semibold text-slate-950" title={process.protocol}>{process.protocol}</p>
-                              <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
+                              <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.protocol}>{process.protocol}</p>
+                              <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
                                 {guide.label}
                               </Badge>
                             </div>
-                            <p className="mt-1 truncate text-sm text-slate-800" title={process.ownerName}>{process.ownerName}</p>
-                            <p className="mt-1 truncate text-sm text-slate-500" title={guide.code}>{guide.code}</p>
+                            <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-800" title={process.ownerName}>{process.ownerName}</p>
+                            <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
                           <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
                             <div className="rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
@@ -609,7 +610,7 @@ export function FinanceDeskPage() {
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
                             <p className="mt-1 text-sm text-slate-800">{guide.label}</p>
-                            <p className="mt-1 truncate text-sm text-slate-500" title={guide.code}>{guide.code}</p>
+                            <p className="mt-1 sig-fit-copy text-sm text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
                           <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-3">
                             <div className="rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
