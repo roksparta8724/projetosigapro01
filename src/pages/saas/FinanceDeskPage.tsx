@@ -55,10 +55,11 @@ type FinanceSection =
 
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings } = usePlatformData();
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses);
-  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [section, setSection] = useState<FinanceSection>("visao-geral");
   const [feeStatus, setFeeStatus] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
@@ -155,7 +156,7 @@ export function FinanceDeskPage() {
 
   const feeTable: MunicipalFeeTable = {
     id: `fee-table-${scopeId ?? "platform"}`,
-    tenantId: municipalityId ?? scopeId ?? session.tenantId ?? "platform",
+    tenantId: municipalityId ?? effectiveScopeId ?? session.tenantId ?? "platform",
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:

@@ -65,15 +65,19 @@ export function ProtocolUploadPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { scopeId } = useMunicipality();
+  const { municipality, scopeId } = useMunicipality();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const basePath = getProtocolFlowBasePath(location.pathname);
   const [status, setStatus] = useState("");
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
 
-  const draft = useMemo(() => readProtocolDraft(session.id, scopeId, session.tenantId), [scopeId, session.id, session.tenantId]);
+  const draft = useMemo(
+    () => readProtocolDraft(session.id, effectiveScopeId, session.tenantId),
+    [effectiveScopeId, session.id, session.tenantId],
+  );
   const checklistTemplate = useMemo(
-    () => getChecklistTemplate(draft?.form.tipo || "", scopeId),
-    [draft?.form.tipo, scopeId],
+    () => getChecklistTemplate(draft?.form.tipo || "", effectiveScopeId),
+    [draft?.form.tipo, effectiveScopeId],
   );
 
   const documentItems = useMemo<UploadDocumentItem[]>(() => {
@@ -138,7 +142,7 @@ export function ProtocolUploadPage() {
 
   const persistDraft = () => {
     if (!draft) return;
-    saveProtocolDraft(session.id, scopeId, {
+    saveProtocolDraft(session.id, effectiveScopeId, {
       ...draft,
       files: toStoredUploadedFiles(files),
       updatedAt: new Date().toISOString(),

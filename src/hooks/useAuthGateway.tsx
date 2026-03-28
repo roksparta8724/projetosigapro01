@@ -17,11 +17,11 @@ interface AuthGatewayContextValue {
 
 const demoCredentials: Record<string, { password: string; userId: string; role: string }> = {
   "roksparta02@gmail.com": { password: "Sigapro@2026", userId: "u-master", role: "master_admin" },
-  "camila@jardimdaserra.sp.gov.br": { password: "Prefeitura@2026", userId: "u-admin-jd", role: "prefeitura_admin" },
-  "marcelo@jardimdaserra.sp.gov.br": { password: "Analise@2026", userId: "u-analyst-jd", role: "analista" },
-  "fernanda@jardimdaserra.sp.gov.br": { password: "Financeiro@2026", userId: "u-fin-jd", role: "financeiro" },
+  "camila@campolimpopaulista.sp.gov.br": { password: "Prefeitura@2026", userId: "u-admin-clp", role: "prefeitura_admin" },
+  "marcelo@campolimpopaulista.sp.gov.br": { password: "Analise@2026", userId: "u-analyst-clp", role: "analista" },
+  "fernanda@campolimpopaulista.sp.gov.br": { password: "Financeiro@2026", userId: "u-fin-clp", role: "financeiro" },
   "patricia@estudiomoraes.com.br": { password: "Profissional@2026", userId: "u-ext-1", role: "profissional_externo" },
-  "sergio@dominio.com": { password: "Consulta@2026", userId: "u-owner-1", role: "proprietario_consulta" },
+  "sergio@dominio.com": { password: "Consulta@2026", userId: "u-owner-1", role: "property_owner" },
 };
 
 const STORAGE_KEY = "sigapro-auth";
@@ -334,3 +334,4 @@ export function useAuthGateway() {
   const context = useContext(AuthGatewayContext);
   return context ?? authGatewayFallback;
 }
+

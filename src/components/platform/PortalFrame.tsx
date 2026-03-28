@@ -126,7 +126,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
   const { source, loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
-  const activeInstitutionId = scopeId ?? session.tenantId;
+  const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(activeInstitutionId);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
@@ -231,7 +231,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     { title: "Apoio", items: visibleSupportItems },
   ];
 
-  const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(scopeId, process));
+  const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(activeInstitutionId, process));
   const notificationCount = visibleTenantProcesses.reduce(
     (count, process) => count + (process.messages?.length ?? 0) + (process.dispatches?.length ?? 0),
     0,
@@ -343,15 +343,15 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-            <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[10px] border border-slate-200 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
-              <SigaproLogo bare compact showInternalWordmark={false} />
-            </div>
-            <div className="min-w-0">
-              <p className={cn("sig-fit-title text-xs font-normal uppercase tracking-[0.08em]", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
-              <p className={cn("sig-fit-copy text-[11px] font-normal leading-4", darkTopbar ? "text-white/70" : "text-slate-600")}>
-                Plataforma institucional de projetos
-              </p>
-            </div>
+              <div className="flex h-[36px] w-[36px] items-center justify-center rounded-[11px] border border-slate-200 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
+                <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.78]" />
+              </div>
+              <div className="min-w-0">
+                <p className={cn("sig-fit-title text-xs font-semibold uppercase tracking-[0.08em] leading-none", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
+                <p className={cn("sig-fit-copy mt-0.5 text-[11px] font-normal leading-[1.15]", darkTopbar ? "text-white/72" : "text-slate-600")}>
+                  Plataforma institucional de projetos
+                </p>
+              </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:hidden">

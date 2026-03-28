@@ -6,6 +6,7 @@ import {
   FilePlus2,
   FolderKanban,
   History,
+  MessageSquare,
   Search,
   ShieldAlert,
   Signature,
@@ -24,6 +25,9 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
   formatCurrency,
+  getOwnerLinksForProfessional,
+  getOwnerMessagesForLink,
+  getOwnerRequestsForProfessional,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   parseMarker,
@@ -42,15 +46,28 @@ const quickMarkers = [
 
 export function ExternalPortalPage() {
   const { session } = usePlatformSession();
-  const { processes: allProcesses, addProcessMarkerWithColor, removeProcessMarker, getInstitutionSettings, getUserProfile } = usePlatformData();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
+  const {
+    processes: allProcesses,
+    ownerRequests,
+    ownerLinks,
+    ownerMessages,
+    addProcessMarkerWithColor,
+    removeProcessMarker,
+    getInstitutionSettings,
+    getUserProfile,
+    respondOwnerRequest,
+    setOwnerChatEnabled,
+    sendOwnerMessage,
+  } = usePlatformData();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const [markerDrafts, setMarkerDrafts] = useState<Record<string, string>>({});
   const [markerColors, setMarkerColors] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState("todos");
   const [search, setSearch] = useState("");
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses);
-  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const profile = getUserProfile(session.id, session.email);
 
   const pendingRequirements = processes.reduce(
@@ -83,6 +100,25 @@ export function ExternalPortalPage() {
         .slice(0, 4),
     [processes],
   );
+
+  const ownerRequestsForProfessional = useMemo(
+    () => getOwnerRequestsForProfessional(session.id, ownerRequests),
+    [ownerRequests, session.id],
+  );
+  const ownerLinksForProfessional = useMemo(
+    () => getOwnerLinksForProfessional(session.id, ownerLinks),
+    [ownerLinks, session.id],
+  );
+  const [selectedOwnerLinkId, setSelectedOwnerLinkId] = useState<string | null>(null);
+  const [ownerMessageDraft, setOwnerMessageDraft] = useState("");
+  const selectedOwnerLink =
+    ownerLinksForProfessional.find((link) => link.id === selectedOwnerLinkId) ?? ownerLinksForProfessional[0] ?? null;
+  const selectedOwnerMessages = selectedOwnerLink
+    ? getOwnerMessagesForLink(selectedOwnerLink, ownerMessages)
+    : [];
+  const selectedOwnerProcess = selectedOwnerLink
+    ? processes.find((process) => process.id === selectedOwnerLink.projectId)
+    : null;
 
   return (
     <PortalFrame eyebrow="Acesso do profissional" title="Acompanhamento de protocolos, exigências, pagamentos e andamento">
@@ -361,6 +397,194 @@ export function ExternalPortalPage() {
           </MainContent>
         </MainGrid>
 
+        <MainGrid className="mt-6">
+          <MainContent className="xl:col-span-7">
+            <SectionPanel
+              title="Solicitações de acompanhamento"
+              description="Proprietários solicitando acesso ao acompanhamento. O contato é feito somente com o profissional."
+              contentClassName="space-y-4"
+            >
+              {ownerRequestsForProfessional.length === 0 ? (
+                <div className="sig-dark-panel rounded-[8px] border border-dashed border-slate-300 p-5 text-sm text-slate-600">
+                  Nenhuma solicitação pendente no momento.
+                </div>
+              ) : (
+                ownerRequestsForProfessional.map((request) => {
+                  const process = processes.find((item) => item.id === request.projectId);
+                  const ownerProfile = getUserProfile(request.ownerUserId);
+                  return (
+                    <div key={request.id} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-slate-500">Protocolo</p>
+                          <p className="text-base font-semibold text-slate-900">{process?.protocol ?? "Processo"}</p>
+                          <p className="mt-1 text-sm text-slate-600">{process?.title ?? "Solicitação de acompanhamento"}</p>
+                          <p className="mt-2 text-sm text-slate-500">
+                            Proprietário: {ownerProfile?.fullName ?? "Não informado"}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full capitalize">
+                          {request.status === "approved"
+                            ? "Aprovado"
+                            : request.status === "rejected"
+                              ? "Recusado"
+                              : "Pendente"}
+                        </Badge>
+                      </div>
+                      {request.status === "pending" ? (
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Button
+                            className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                            onClick={() =>
+                              void respondOwnerRequest({
+                                requestId: request.id,
+                                status: "approved",
+                                professionalUserId: session.id,
+                              })
+                            }
+                          >
+                            Aprovar acesso
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() =>
+                              void respondOwnerRequest({
+                                requestId: request.id,
+                                status: "rejected",
+                                professionalUserId: session.id,
+                              })
+                            }
+                          >
+                            Recusar
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </SectionPanel>
+          </MainContent>
+
+          <div className="space-y-6 xl:col-span-5">
+            <SectionPanel
+              title="Proprietários vinculados"
+              description="Controle o acesso e converse diretamente com o proprietário. A Prefeitura não participa desse canal."
+              contentClassName="space-y-4"
+            >
+              {ownerLinksForProfessional.length === 0 ? (
+                <div className="sig-dark-panel rounded-[8px] border border-dashed border-slate-300 p-5 text-sm text-slate-600">
+                  Nenhum proprietário aprovado ainda.
+                </div>
+              ) : (
+                ownerLinksForProfessional.map((link) => {
+                  const process = processes.find((item) => item.id === link.projectId);
+                  const ownerProfile = getUserProfile(link.ownerUserId);
+                  return (
+                    <div key={link.id} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-slate-500">Protocolo</p>
+                          <p className="text-base font-semibold text-slate-900">{process?.protocol ?? "Processo"}</p>
+                          <p className="mt-1 text-sm text-slate-600">{ownerProfile?.fullName ?? "Proprietário"}</p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full">
+                          {link.chatEnabled ? "Chat ativo" : "Chat desativado"}
+                        </Badge>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Button
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => {
+                            setSelectedOwnerLinkId(link.id);
+                          }}
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          Ver mensagens
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() =>
+                            void setOwnerChatEnabled({
+                              linkId: link.id,
+                              enabled: !link.chatEnabled,
+                              actor: session.id,
+                            })
+                          }
+                        >
+                          {link.chatEnabled ? "Desativar chat" : "Ativar chat"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </SectionPanel>
+
+            {selectedOwnerLink && selectedOwnerProcess ? (
+              <SectionPanel
+                title="Mensagens com proprietário"
+                description="Conversa privada vinculada ao protocolo. Use este canal apenas para orientações técnicas."
+                contentClassName="space-y-4"
+              >
+                <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-3">
+                  <p className="text-sm text-slate-500">Protocolo</p>
+                  <p className="text-base font-semibold text-slate-900">{selectedOwnerProcess.protocol}</p>
+                </div>
+                <div className="space-y-3">
+                  {selectedOwnerMessages.length === 0 ? (
+                    <div className="sig-dark-panel rounded-[8px] border border-dashed border-slate-300 p-4 text-sm text-slate-600">
+                      Nenhuma mensagem enviada ainda.
+                    </div>
+                  ) : (
+                    selectedOwnerMessages.map((message) => (
+                      <div key={message.id} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 text-sm text-slate-700">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                          {message.senderUserId === session.id ? "Você" : "Proprietário"}
+                        </p>
+                        <p className="mt-2 leading-6 text-slate-800">{message.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {selectedOwnerLink.chatEnabled ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={ownerMessageDraft}
+                      onChange={(event) => setOwnerMessageDraft(event.target.value)}
+                      placeholder="Escreva uma mensagem ao proprietário"
+                      className="h-11 rounded-2xl"
+                    />
+                    <Button
+                      className="rounded-full bg-slate-950 hover:bg-slate-900"
+                      onClick={() => {
+                        if (!selectedOwnerLink || !ownerMessageDraft.trim()) return;
+                        void sendOwnerMessage({
+                          projectId: selectedOwnerLink.projectId,
+                          ownerUserId: selectedOwnerLink.ownerUserId,
+                          professionalUserId: selectedOwnerLink.professionalUserId,
+                          senderUserId: session.id,
+                          message: ownerMessageDraft,
+                        });
+                        setOwnerMessageDraft("");
+                      }}
+                    >
+                      Enviar mensagem
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-50 p-3 text-sm text-amber-700">
+                    O chat está desativado para este proprietário.
+                  </div>
+                )}
+              </SectionPanel>
+            ) : null}
+          </div>
+        </MainGrid>
+
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
           <SectionPanel title="Painel do profissional" description="Contexto do perfil, ações rápidas e histórico recente." contentClassName="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -426,3 +650,5 @@ export function ExternalPortalPage() {
     </PortalFrame>
   );
 }
+
+

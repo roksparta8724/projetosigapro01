@@ -8,7 +8,12 @@ import {
   cmsSections as seedCmsSections,
   documentTemplates as seedDocumentTemplates,
   getMasterMetrics,
+  matchesOwnerDocument,
+  normalizeOwnerDocument,
   planCatalog as seedPlanCatalog,
+  ownerLinks as seedOwnerLinks,
+  ownerMessages as seedOwnerMessages,
+  ownerRequests as seedOwnerRequests,
   processRecords as seedProcessRecords,
   registrationRequests as seedRegistrationRequests,
   sessionUsers as seedSessionUsers,
@@ -19,6 +24,10 @@ import {
   type FormalRequirement,
   type Institution,
   type InstitutionSettings,
+  type OwnerProfessionalMessage,
+  type OwnerProjectLink,
+  type OwnerProjectRequest,
+  type OwnerRequestStatus,
   type ProcessDocument,
   type ProcessRecord,
   type ProcessStatus,
@@ -35,7 +44,13 @@ import {
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { loadRemotePlatformStore } from "@/integrations/supabase/platform";
+import {
+  createRemoteOwnerMessage,
+  createRemoteOwnerRequest,
+  loadRemotePlatformStore,
+  respondRemoteOwnerRequest,
+  setRemoteOwnerChatEnabled,
+} from "@/integrations/supabase/platform";
 
 type CmsSection = (typeof seedCmsSections)[number];
 type DocumentTemplate = (typeof seedDocumentTemplates)[number];
@@ -52,6 +67,9 @@ interface PlatformDataState {
   sessionUsers: SessionUser[];
   userProfiles: UserProfile[];
   registrationRequests: RegistrationRequest[];
+  ownerRequests: OwnerProjectRequest[];
+  ownerLinks: OwnerProjectLink[];
+  ownerMessages: OwnerProfessionalMessage[];
   processes: ProcessRecord[];
   plans: PlanItem[];
   cmsSections: CmsSection[];
@@ -76,6 +94,27 @@ interface PlatformDataState {
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
+  createOwnerRequest: (input: {
+    processId: string;
+    ownerUserId: string;
+    ownerDocument: string;
+    notes?: string;
+  }) => Promise<{ request: OwnerProjectRequest | null; error?: string }>;
+  respondOwnerRequest: (input: {
+    requestId: string;
+    status: OwnerRequestStatus;
+    professionalUserId: string;
+    notes?: string;
+  }) => Promise<OwnerProjectRequest | null>;
+  setOwnerChatEnabled: (input: { linkId: string; enabled: boolean; actor: string }) => Promise<OwnerProjectLink | null>;
+  sendOwnerMessage: (input: {
+    projectId: string;
+    ownerUserId: string;
+    professionalUserId: string;
+    senderUserId: string;
+    message: string;
+    isSystemMessage?: boolean;
+  }) => Promise<OwnerProfessionalMessage | null>;
   upsertTenant: (input: {
     tenantId?: string;
     name: string;
@@ -134,6 +173,9 @@ interface PlatformStore {
   sessionUsers: SessionUser[];
   userProfiles: UserProfile[];
   registrationRequests: RegistrationRequest[];
+  ownerRequests: OwnerProjectRequest[];
+  ownerLinks: OwnerProjectLink[];
+  ownerMessages: OwnerProfessionalMessage[];
   processes: ProcessRecord[];
   plans: PlanItem[];
   cmsSections: CmsSection[];
@@ -205,6 +247,46 @@ function mergeUserProfiles(localProfiles: UserProfile[], remoteProfiles: UserPro
   return merged;
 }
 
+function mergeRecordsById<T extends { id: string }>(
+  localRecords: T[],
+  remoteRecords: T[],
+  preferRemote = true,
+) {
+  const merged = new Map<string, T>();
+
+  localRecords.forEach((record) => {
+    merged.set(record.id, record);
+  });
+
+  remoteRecords.forEach((record) => {
+    if (!merged.has(record.id) || preferRemote) {
+      merged.set(record.id, record);
+    }
+  });
+
+  return Array.from(merged.values());
+}
+
+function mergeRecordsByTenantId<T extends { tenantId: string }>(
+  localRecords: T[],
+  remoteRecords: T[],
+  preferRemote = true,
+) {
+  const merged = new Map<string, T>();
+
+  localRecords.forEach((record) => {
+    merged.set(record.tenantId, record);
+  });
+
+  remoteRecords.forEach((record) => {
+    if (!merged.has(record.tenantId) || preferRemote) {
+      merged.set(record.tenantId, record);
+    }
+  });
+
+  return Array.from(merged.values());
+}
+
 function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, email?: string | null | undefined) {
   if (!userId && !email) return undefined;
   const normalizedEmail = normalizeEmail(email);
@@ -220,6 +302,11 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 
 const STORAGE_KEY = "sigapro-platform-store";
 const AUTH_STORAGE_KEY = "sigapro-demo-credentials";
+const LEGACY_DEMO_TENANT_NAMES = new Set([
+  "prefeitura de jardim da serra",
+  "prefeitura de ribeira nova",
+  "sigapro plataforma",
+]);
 
 const defaultStore: PlatformStore = {
   tenants: seedTenants,
@@ -227,6 +314,9 @@ const defaultStore: PlatformStore = {
   sessionUsers: seedSessionUsers,
   userProfiles: seedUserProfiles,
   registrationRequests: seedRegistrationRequests,
+  ownerRequests: seedOwnerRequests,
+  ownerLinks: seedOwnerLinks,
+  ownerMessages: seedOwnerMessages,
   processes: seedProcessRecords,
   plans: seedPlanCatalog,
   cmsSections: seedCmsSections,
@@ -249,6 +339,10 @@ const demoState: PlatformDataState = {
   removeInstitution: () => undefined,
   createInstitutionUser: () => defaultStore.sessionUsers[0],
   createInstitutionProcess: () => defaultStore.processes[0],
+  createOwnerRequest: async () => ({ request: null, error: "Operacao indisponivel." }),
+  respondOwnerRequest: async () => null,
+  setOwnerChatEnabled: async () => null,
+  sendOwnerMessage: async () => null,
   upsertTenant: () => defaultStore.tenants[0],
   saveTenantSettings: () => undefined,
   removeTenant: () => undefined,
@@ -287,6 +381,65 @@ const demoState: PlatformDataState = {
 
 const PlatformDataContext = createContext<PlatformDataState>(demoState);
 
+function normalizeTenantLabel(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLegacyDemoTenantName(name: string | null | undefined) {
+  const normalized = normalizeTenantLabel(name);
+  return (
+    LEGACY_DEMO_TENANT_NAMES.has(normalized) ||
+    normalized.startsWith("sigapro plataforma")
+  );
+}
+
+function buildSanitizedStore(rawStore: Partial<PlatformStore>): PlatformStore {
+  const sourceTenants = rawStore.tenants ?? defaultStore.tenants;
+  const legacyDemoIds = new Set(
+    sourceTenants
+      .filter((tenant) => isLegacyDemoTenantName(tenant.name))
+      .map((tenant) => tenant.id),
+  );
+
+  const tenants = sourceTenants.filter((tenant) => !legacyDemoIds.has(tenant.id));
+  const processes = (rawStore.processes ?? defaultStore.processes).filter(
+    (process) => !legacyDemoIds.has(process.tenantId) && !legacyDemoIds.has(process.municipalityId ?? ""),
+  );
+  const validProcessIds = new Set(processes.map((process) => process.id));
+
+  return {
+    tenants: tenants.length > 0 ? tenants : defaultStore.tenants,
+    tenantSettings: (rawStore.tenantSettings ?? defaultStore.tenantSettings)
+      .filter((item) => !legacyDemoIds.has(item.tenantId)),
+    sessionUsers: (rawStore.sessionUsers ?? defaultStore.sessionUsers).filter(
+      (user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""),
+    ),
+    userProfiles: rawStore.userProfiles ?? defaultStore.userProfiles,
+    registrationRequests: (rawStore.registrationRequests ?? defaultStore.registrationRequests).filter(
+      (request) => !legacyDemoIds.has(request.tenantId) && !legacyDemoIds.has(request.municipalityId ?? ""),
+    ),
+    ownerRequests: (rawStore.ownerRequests ?? defaultStore.ownerRequests).filter((request) =>
+      validProcessIds.has(request.projectId),
+    ),
+    ownerLinks: (rawStore.ownerLinks ?? defaultStore.ownerLinks).filter((link) =>
+      validProcessIds.has(link.projectId),
+    ),
+    ownerMessages: (rawStore.ownerMessages ?? defaultStore.ownerMessages).filter((message) =>
+      validProcessIds.has(message.projectId),
+    ),
+    processes,
+    plans: rawStore.plans ?? defaultStore.plans,
+    cmsSections: rawStore.cmsSections ?? defaultStore.cmsSections,
+    checklistTemplates: rawStore.checklistTemplates ?? defaultStore.checklistTemplates,
+    documentTemplates: rawStore.documentTemplates ?? defaultStore.documentTemplates,
+  };
+}
+
 function readStore(): PlatformStore {
   if (typeof window === "undefined") {
     return defaultStore;
@@ -299,18 +452,7 @@ function readStore(): PlatformStore {
 
   try {
     const parsed = JSON.parse(raw) as Partial<PlatformStore>;
-    return {
-      tenants: parsed.tenants ?? defaultStore.tenants,
-      tenantSettings: parsed.tenantSettings ?? defaultStore.tenantSettings,
-      sessionUsers: parsed.sessionUsers ?? defaultStore.sessionUsers,
-      userProfiles: parsed.userProfiles ?? defaultStore.userProfiles,
-      registrationRequests: parsed.registrationRequests ?? defaultStore.registrationRequests,
-      processes: parsed.processes ?? defaultStore.processes,
-      plans: parsed.plans ?? defaultStore.plans,
-      cmsSections: parsed.cmsSections ?? defaultStore.cmsSections,
-      checklistTemplates: parsed.checklistTemplates ?? defaultStore.checklistTemplates,
-      documentTemplates: parsed.documentTemplates ?? defaultStore.documentTemplates,
-    };
+    return buildSanitizedStore(parsed);
   } catch {
     return defaultStore;
   }
@@ -423,15 +565,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setStore((current) => {
           const next = {
             ...current,
-            tenants: remote.tenants.length > 0 ? remote.tenants : current.tenants,
-            tenantSettings: remote.tenantSettings.length > 0 ? remote.tenantSettings : current.tenantSettings,
-            sessionUsers: remote.sessionUsers.length > 0 ? remote.sessionUsers : current.sessionUsers,
-            userProfiles: remote.userProfiles.length > 0 ? mergeUserProfiles(current.userProfiles, remote.userProfiles) : current.userProfiles,
-            processes: remote.processes.length > 0 ? remote.processes : current.processes,
+            tenants:
+              remote.tenants.length > 0
+                ? mergeRecordsById(current.tenants, remote.tenants)
+                : current.tenants,
+            tenantSettings:
+              remote.tenantSettings.length > 0
+                ? mergeRecordsByTenantId(current.tenantSettings, remote.tenantSettings)
+                : current.tenantSettings,
+            sessionUsers:
+              remote.sessionUsers.length > 0
+                ? mergeRecordsById(current.sessionUsers, remote.sessionUsers)
+                : current.sessionUsers,
+            userProfiles:
+              remote.userProfiles.length > 0
+                ? mergeUserProfiles(current.userProfiles, remote.userProfiles)
+                : current.userProfiles,
+            ownerRequests:
+              remote.ownerRequests.length > 0
+                ? mergeRecordsById(current.ownerRequests, remote.ownerRequests)
+                : current.ownerRequests,
+            ownerLinks:
+              remote.ownerLinks.length > 0
+                ? mergeRecordsById(current.ownerLinks, remote.ownerLinks)
+                : current.ownerLinks,
+            ownerMessages:
+              remote.ownerMessages.length > 0
+                ? mergeRecordsById(current.ownerMessages, remote.ownerMessages)
+                : current.ownerMessages,
+            processes:
+              remote.processes.length > 0
+                ? mergeRecordsById(current.processes, remote.processes)
+                : current.processes,
           };
-          syncStore(next);
-          syncAuthUsers(next.sessionUsers);
-          return next;
+          const sanitized = buildSanitizedStore(next);
+          syncStore(sanitized);
+          syncAuthUsers(sanitized.sessionUsers);
+          return sanitized;
         });
         setSource("remote");
       })
@@ -607,18 +777,27 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       });
     };
     const removeInstitution: PlatformDataState["removeInstitution"] = (tenantId) => {
-      updateStore((current) => ({
-        ...current,
-        tenants: current.tenants.filter((item) => item.id !== tenantId),
-        tenantSettings: current.tenantSettings.filter((item) => item.tenantId !== tenantId),
-        sessionUsers: current.sessionUsers.filter((item) => item.tenantId !== tenantId),
-        userProfiles: current.userProfiles.filter((item) => {
-          const user = current.sessionUsers.find((sessionUser) => sessionUser.id === item.userId);
-          return user?.tenantId !== tenantId;
-        }),
-        registrationRequests: current.registrationRequests.filter((item) => item.tenantId !== tenantId),
-        processes: current.processes.filter((item) => item.tenantId !== tenantId),
-      }));
+      updateStore((current) => {
+        const removedProcessIds = new Set(
+          current.processes.filter((item) => item.tenantId === tenantId).map((item) => item.id),
+        );
+
+        return {
+          ...current,
+          tenants: current.tenants.filter((item) => item.id !== tenantId),
+          tenantSettings: current.tenantSettings.filter((item) => item.tenantId !== tenantId),
+          sessionUsers: current.sessionUsers.filter((item) => item.tenantId !== tenantId),
+          userProfiles: current.userProfiles.filter((item) => {
+            const user = current.sessionUsers.find((sessionUser) => sessionUser.id === item.userId);
+            return user?.tenantId !== tenantId;
+          }),
+          registrationRequests: current.registrationRequests.filter((item) => item.tenantId !== tenantId),
+          ownerRequests: current.ownerRequests.filter((item) => !removedProcessIds.has(item.projectId)),
+          ownerLinks: current.ownerLinks.filter((item) => !removedProcessIds.has(item.projectId)),
+          ownerMessages: current.ownerMessages.filter((item) => !removedProcessIds.has(item.projectId)),
+          processes: current.processes.filter((item) => item.tenantId !== tenantId),
+        };
+      });
     };
     const setInstitutionStatus: PlatformDataState["setInstitutionStatus"] = (tenantId, status) => {
       updateStore((current) => ({
@@ -638,7 +817,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         title: input.title,
         email: input.email,
         accountStatus: "active",
-        userType: input.role === "profissional_externo" || input.role === "proprietario_consulta" ? "Externo" : "Interno",
+        userType:
+          input.role === "profissional_externo" ||
+          input.role === "proprietario_consulta" ||
+          input.role === "property_owner"
+            ? "Externo"
+            : "Interno",
         department: input.title,
         createdAt: new Date().toLocaleString("pt-BR"),
         lastAccessAt: "",
@@ -869,6 +1053,326 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return createdProcess;
     };
 
+    const resolveProfessionalId = (process: ProcessRecord) => {
+      const normalize = (value: string) => value.trim().toLowerCase();
+      const candidates = [process.createdBy, process.technicalLead].filter(Boolean) as string[];
+      const normalizedCandidates = candidates.map(normalize);
+
+      const matchById = store.sessionUsers.find(
+        (user) => user.role === "profissional_externo" && candidates.includes(user.id),
+      );
+      if (matchById) return matchById.id;
+
+      const matchByName = store.sessionUsers.find(
+        (user) =>
+          user.role === "profissional_externo" &&
+          normalizedCandidates.includes(normalize(user.name)),
+      );
+
+      if (matchByName) return matchByName.id;
+
+      const matchByProfile = store.userProfiles.find(
+        (profile) =>
+          profile.email &&
+          candidates.some((candidate) => normalize(profile.email) === normalize(candidate)),
+      );
+
+      if (matchByProfile) {
+        const user = store.sessionUsers.find((sessionUser) => sessionUser.id === matchByProfile.userId);
+        return user?.id ?? null;
+      }
+
+      return null;
+    };
+
+    const createOwnerRequest: PlatformDataState["createOwnerRequest"] = async (input) => {
+      const normalizedDocument = normalizeOwnerDocument(input.ownerDocument);
+      if (!normalizedDocument) {
+        return { request: null, error: "Informe o CPF/CNPJ para solicitar acompanhamento." };
+      }
+
+      const process = store.processes.find((item) => item.id === input.processId);
+      if (!process) {
+        return { request: null, error: "Processo nao encontrado." };
+      }
+
+      const normalizedStoredDocument = normalizeOwnerDocument(process.ownerDocument ?? "");
+      if (normalizedStoredDocument && !matchesOwnerDocument(normalizedDocument, normalizedStoredDocument)) {
+        return { request: null, error: "Documento nao confere com o cadastro do processo." };
+      }
+
+      if (!normalizedStoredDocument && !normalizedDocument) {
+        return { request: null, error: "Processo sem documento valido para validacao." };
+      }
+
+      const professionalId = resolveProfessionalId(process);
+      if (!professionalId) {
+        return { request: null, error: "Processo sem profissional responsavel." };
+      }
+
+      const hasLink = store.ownerLinks.some(
+        (link) =>
+          link.projectId === process.id &&
+          link.ownerUserId === input.ownerUserId &&
+          link.professionalUserId === professionalId,
+      );
+      if (hasLink) {
+        return { request: null, error: "Acompanhamento ja aprovado para este processo." };
+      }
+
+      const existing = store.ownerRequests.find(
+        (request) =>
+          request.projectId === process.id &&
+          request.ownerUserId === input.ownerUserId &&
+          request.status === "pending",
+      );
+      if (existing) {
+        return { request: null, error: "Sua solicitacao ja esta em analise." };
+      }
+
+      if (hasSupabaseEnv) {
+        try {
+          const remoteRequest = await createRemoteOwnerRequest({
+            processId: process.id,
+            ownerUserId: input.ownerUserId,
+            professionalUserId: professionalId,
+            ownerDocument: normalizedDocument,
+            notes: input.notes?.trim() || undefined,
+          });
+
+          updateStore((current) => ({
+            ...current,
+            ownerRequests: [remoteRequest, ...current.ownerRequests.filter((item) => item.id !== remoteRequest.id)],
+          }));
+
+          return { request: remoteRequest };
+        } catch (remoteError) {
+          return {
+            request: null,
+            error:
+              remoteError instanceof Error
+                ? remoteError.message
+                : "Nao foi possivel enviar a solicitacao agora.",
+          };
+        }
+      }
+
+      const request: OwnerProjectRequest = {
+        id: `owner-request-${crypto.randomUUID()}`,
+        projectId: process.id,
+        ownerUserId: input.ownerUserId,
+        professionalUserId: professionalId,
+        status: "pending",
+        requestedAt: new Date().toISOString(),
+        respondedAt: null,
+        respondedBy: null,
+        notes: input.notes?.trim() || undefined,
+      };
+
+      updateStore((current) => ({
+        ...current,
+        ownerRequests: [request, ...current.ownerRequests],
+      }));
+
+      return { request };
+    };
+
+    const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
+      const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
+      if (!existingRequest) {
+        return null;
+      }
+
+      if (hasSupabaseEnv) {
+        try {
+          const { request: remoteRequest, link: remoteLink } = await respondRemoteOwnerRequest({
+            requestId: input.requestId,
+            status: input.status,
+            professionalUserId: input.professionalUserId,
+            notes: input.notes,
+          });
+
+          updateStore((current) => {
+            const ownerRequests = current.ownerRequests.map((item) =>
+              item.id === input.requestId ? remoteRequest : item,
+            );
+            const ownerLinks =
+              remoteLink && input.status === "approved"
+                ? [remoteLink, ...current.ownerLinks.filter((item) => item.id !== remoteLink.id)]
+                : current.ownerLinks;
+
+            return { ...current, ownerRequests, ownerLinks };
+          });
+
+          return remoteRequest;
+        } catch {
+          return null;
+        }
+      }
+
+      let updated: OwnerProjectRequest | null = null;
+
+      updateStore((current) => {
+        const request = current.ownerRequests.find((item) => item.id === input.requestId);
+        if (!request) {
+          updated = null;
+          return current;
+        }
+
+        const nextRequest: OwnerProjectRequest = {
+          ...request,
+          status: input.status,
+          respondedAt: new Date().toISOString(),
+          respondedBy: input.professionalUserId,
+          notes: input.notes?.trim() || request.notes,
+        };
+
+        const ownerRequests = current.ownerRequests.map((item) =>
+          item.id === input.requestId ? nextRequest : item,
+        );
+
+        let ownerLinks = current.ownerLinks;
+        if (input.status === "approved") {
+          const existing = current.ownerLinks.find(
+            (link) =>
+              link.projectId === request.projectId &&
+              link.ownerUserId === request.ownerUserId &&
+              link.professionalUserId === request.professionalUserId,
+          );
+
+          if (!existing) {
+            const link: OwnerProjectLink = {
+              id: `owner-link-${crypto.randomUUID()}`,
+              projectId: request.projectId,
+              ownerUserId: request.ownerUserId,
+              professionalUserId: request.professionalUserId,
+              chatEnabled: true,
+              linkedAt: new Date().toISOString(),
+              linkedBy: input.professionalUserId,
+            };
+            ownerLinks = [link, ...current.ownerLinks];
+          }
+        }
+
+        updated = nextRequest;
+        return { ...current, ownerRequests, ownerLinks };
+      });
+
+      return updated;
+    };
+
+    const setOwnerChatEnabled: PlatformDataState["setOwnerChatEnabled"] = async (input) => {
+      if (hasSupabaseEnv) {
+        try {
+          const updated = await setRemoteOwnerChatEnabled({
+            linkId: input.linkId,
+            enabled: input.enabled,
+            actor: input.actor,
+          });
+
+          updateStore((current) => ({
+            ...current,
+            ownerLinks: current.ownerLinks.map((link) => (link.id === updated.id ? updated : link)),
+          }));
+
+          return updated;
+        } catch {
+          return null;
+        }
+      }
+
+      let updated: OwnerProjectLink | null = null;
+
+      updateStore((current) => {
+        const ownerLinks = current.ownerLinks.map((link) => {
+          if (link.id !== input.linkId) return link;
+          updated = { ...link, chatEnabled: input.enabled };
+          return updated;
+        });
+
+        return { ...current, ownerLinks };
+      });
+
+      return updated;
+    };
+
+    const sendOwnerMessage: PlatformDataState["sendOwnerMessage"] = async (input) => {
+      const normalized = input.message.trim();
+      if (!normalized) return null;
+
+      const linkSnapshot = store.ownerLinks.find(
+        (item) =>
+          item.projectId === input.projectId &&
+          item.ownerUserId === input.ownerUserId &&
+          item.professionalUserId === input.professionalUserId,
+      );
+
+      if (!linkSnapshot) return null;
+      if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) {
+        return null;
+      }
+
+      if (hasSupabaseEnv) {
+        try {
+          const message = await createRemoteOwnerMessage({
+            projectId: input.projectId,
+            ownerUserId: input.ownerUserId,
+            professionalUserId: input.professionalUserId,
+            senderUserId: input.senderUserId,
+            message: normalized,
+            isSystemMessage: input.isSystemMessage ?? false,
+          });
+
+          updateStore((current) => ({
+            ...current,
+            ownerMessages: [message, ...current.ownerMessages.filter((item) => item.id !== message.id)],
+          }));
+
+          return message;
+        } catch {
+          return null;
+        }
+      }
+
+      let created: OwnerProfessionalMessage | null = null;
+
+      updateStore((current) => {
+        const link = current.ownerLinks.find(
+          (item) =>
+            item.projectId === input.projectId &&
+            item.ownerUserId === input.ownerUserId &&
+            item.professionalUserId === input.professionalUserId,
+        );
+
+        if (!link) {
+          created = null;
+          return current;
+        }
+
+        if (input.senderUserId === input.ownerUserId && !link.chatEnabled) {
+          created = null;
+          return current;
+        }
+
+        const message: OwnerProfessionalMessage = {
+          id: `owner-message-${crypto.randomUUID()}`,
+          projectId: input.projectId,
+          ownerUserId: input.ownerUserId,
+          professionalUserId: input.professionalUserId,
+          senderUserId: input.senderUserId,
+          message: normalized,
+          createdAt: new Date().toISOString(),
+          readAt: null,
+          isSystemMessage: input.isSystemMessage ?? false,
+        };
+
+        created = message;
+        return { ...current, ownerMessages: [message, ...current.ownerMessages] };
+      });
+
+      return created;
+    };
+
     return {
       source,
       loading,
@@ -884,6 +1388,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       removeInstitution,
       createInstitutionUser,
       createInstitutionProcess,
+      createOwnerRequest,
+      respondOwnerRequest,
+      setOwnerChatEnabled,
+      sendOwnerMessage,
       upsertTenant: (input) =>
         upsertInstitution({
           institutionId: input.tenantId,
@@ -1815,3 +2323,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 export function usePlatformData() {
   return useContext(PlatformDataContext);
 }
+
+
+
+
+
+
+

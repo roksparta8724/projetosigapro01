@@ -54,10 +54,11 @@ export function TenantAdminPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, registrationRequests, approveRegistrationRequest, processes, getUserProfile } = usePlatformData();
-  const activeInstitution = municipality ?? institutions.find((item) => item.id === (scopeId ?? session.tenantId)) ?? null;
-  const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(scopeId, user)), [scopeId, sessionUsers]);
-  const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(scopeId, process)), [processes, scopeId]);
-  const pendingRequests = useMemo(() => registrationRequests.filter((request) => request.status === "pendente" && matchesOperationalScope(scopeId, request)), [registrationRequests, scopeId]);
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
+  const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
+  const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
+  const pendingRequests = useMemo(() => registrationRequests.filter((request) => request.status === "pendente" && matchesOperationalScope(effectiveScopeId, request)), [effectiveScopeId, registrationRequests]);
   const currentUnit = activeInstitution?.secretariaResponsavel || session.department || session.title || "Administração da Prefeitura";
   const availablePositionOptions = useMemo(
     () =>
@@ -116,7 +117,7 @@ export function TenantAdminPage() {
   const startEdit = (user: SessionUser) => { setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, title: user.title, accessLevel: String(user.accessLevel), department: user.department || user.title, userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
   const handleCreateUser = (event: FormEvent) => {
     event.preventDefault();
-    if (!scopeId) return;
+    if (!effectiveScopeId) return;
 
     const normalizedName = form.fullName.trim();
     const normalizedEmail = form.email.trim().toLowerCase();
@@ -128,7 +129,7 @@ export function TenantAdminPage() {
     }
 
     const user = createTenantUser({
-      tenantId: scopeId,
+      tenantId: effectiveScopeId,
       fullName: normalizedName,
       email: normalizedEmail,
       role: form.role,

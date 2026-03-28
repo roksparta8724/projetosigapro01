@@ -30,11 +30,12 @@ type LawItem = {
 
 export function LegislationPage() {
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { getInstitutionSettings } = usePlatformData();
   const [view, setView] = useState<LegislationView>("visao-geral");
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  const settings = institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+  const settings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
   const items = useMemo<LawItem[]>(
     () => [

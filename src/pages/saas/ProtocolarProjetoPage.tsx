@@ -87,10 +87,11 @@ const groupMeta = {
 export function ProtocolarProjetoPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { createProcess, getInstitutionSettings, getUserProfile } = usePlatformData();
   const profile = getUserProfile(session.id);
-  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
@@ -104,7 +105,7 @@ export function ProtocolarProjetoPage() {
   });
 
   useEffect(() => {
-    const draft = readProtocolDraft(session.id, scopeId, session.tenantId);
+    const draft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
     if (draft) {
       setDraftNumber(draft.draftNumber);
       setFiles(toStoredUploadedFiles(draft.files));
@@ -126,9 +127,9 @@ export function ProtocolarProjetoPage() {
       telefone: profile?.phone ?? "",
       email: profile?.email ?? session.email,
     }));
-  }, [profile, scopeId, session.email, session.id, session.name, session.tenantId]);
+  }, [effectiveScopeId, profile, session.email, session.id, session.name, session.tenantId]);
 
-  const checklistTemplate = useMemo(() => getChecklistTemplate(form.tipo, scopeId), [form.tipo, scopeId]);
+  const checklistTemplate = useMemo(() => getChecklistTemplate(form.tipo, effectiveScopeId), [form.tipo, effectiveScopeId]);
   const documentItems = useMemo<UploadDocumentItem[]>(
     () =>
       checklistTemplate?.items.map((item) => ({
@@ -192,7 +193,7 @@ export function ProtocolarProjetoPage() {
   };
 
   const persistDraft = () => {
-    saveProtocolDraft(session.id, scopeId, {
+    saveProtocolDraft(session.id, effectiveScopeId, {
       draftNumber,
       form,
       files: toStoredUploadedFiles(files),
@@ -212,7 +213,7 @@ export function ProtocolarProjetoPage() {
     event.preventDefault();
     setStatus("");
 
-    if (!scopeId) {
+    if (!effectiveScopeId) {
       setStatus("O perfil atual não está vinculado a uma Prefeitura.");
       return;
     }
@@ -265,7 +266,7 @@ export function ProtocolarProjetoPage() {
             if (!originalFile) return document;
             const uploaded = await uploadFileToStorage({
               bucket: "process-documents",
-              tenantId: scopeId,
+              tenantId: effectiveScopeId,
               userId: session.id,
               file: originalFile,
               folder: "protocolos",
@@ -276,7 +277,7 @@ export function ProtocolarProjetoPage() {
         );
 
         const remoteProcess = await createRemoteExternalProcess({
-          tenantId: scopeId,
+          tenantId: effectiveScopeId,
           createdBy: session.id,
           title: form.titulo,
           type: form.tipo,
@@ -315,7 +316,7 @@ export function ProtocolarProjetoPage() {
     }
 
     const process = createProcess({
-      tenantId: scopeId,
+      tenantId: effectiveScopeId,
       createdBy: session.id,
       title: form.titulo,
       type: form.tipo,

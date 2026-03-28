@@ -37,13 +37,14 @@ export function ProtocolReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { createProcess, getInstitutionSettings } = usePlatformData();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings =
-    institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+    institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const draft = useMemo(
-    () => readProtocolDraft(session.id, scopeId, session.tenantId),
-    [scopeId, session.id, session.tenantId],
+    () => readProtocolDraft(session.id, effectiveScopeId, session.tenantId),
+    [effectiveScopeId, session.id, session.tenantId],
   );
   const basePath = getProtocolFlowBasePath(location.pathname);
   const [status, setStatus] = useState("");
@@ -71,7 +72,7 @@ export function ProtocolReviewPage() {
       return;
     }
 
-    if (!scopeId) {
+    if (!effectiveScopeId) {
       setStatus("O perfil atual não está vinculado a uma Prefeitura.");
       return;
     }
@@ -119,7 +120,7 @@ export function ProtocolReviewPage() {
 
             const uploaded = await uploadFileToStorage({
               bucket: "process-documents",
-              tenantId: scopeId,
+              tenantId: effectiveScopeId,
               userId: session.id,
               file: sourceFile,
               folder: "protocolos",
@@ -134,7 +135,7 @@ export function ProtocolReviewPage() {
         );
 
         const remoteProcess = await createRemoteExternalProcess({
-          tenantId: scopeId,
+          tenantId: effectiveScopeId,
           createdBy: session.id,
           title: draft.form.titulo,
           type: draft.form.tipo,
@@ -180,7 +181,7 @@ export function ProtocolReviewPage() {
     }
 
     const process = createProcess({
-      tenantId: scopeId,
+      tenantId: effectiveScopeId,
       createdBy: session.id,
       title: draft.form.titulo,
       type: draft.form.tipo,
@@ -206,7 +207,7 @@ export function ProtocolReviewPage() {
       remote: remoteSeed,
     });
 
-    clearProtocolDraft(session.id, scopeId, session.tenantId);
+    clearProtocolDraft(session.id, effectiveScopeId, session.tenantId);
     setSubmitting(false);
     navigate(`/processos/${process.id}?aba=financeiro`);
   };
@@ -345,7 +346,7 @@ export function ProtocolReviewPage() {
               className="rounded-full"
               onClick={() => {
                 if (!draft) return;
-                saveProtocolDraft(session.id, scopeId, {
+                saveProtocolDraft(session.id, effectiveScopeId, {
                   ...draft,
                   updatedAt: new Date().toISOString(),
                 });

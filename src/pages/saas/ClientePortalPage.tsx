@@ -2,13 +2,15 @@ import { ArrowRight, BadgeCheck, Building2, FilePlus2, Landmark, ShieldCheck } f
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { buildInstitutionClientLink, getInstitutionClientSlug } from "@/lib/platform";
+import { buildInstitutionClientLink, getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 
 export function ClientePortalPage() {
   const { tenantSlug } = useParams();
   const { institutions, getInstitutionSettings } = usePlatformData();
-  const match = institutions.find((institution) => getInstitutionClientSlug(institution, getInstitutionSettings(institution.id)) === tenantSlug);
+  const match = institutions
+    .filter((institution) => isInstitutionPubliclyAvailable(institution))
+    .find((institution) => getInstitutionClientSlug(institution, getInstitutionSettings(institution.id)) === tenantSlug);
 
   if (!match) {
     return (

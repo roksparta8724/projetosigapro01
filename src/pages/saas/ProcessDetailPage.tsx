@@ -135,8 +135,9 @@ export function ProcessDetailPage() {
   const { processId } = useParams();
   const [searchParams] = useSearchParams();
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, addProcessMarkerWithColor, removeProcessMarker, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid } = usePlatformData();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [marker, setMarker] = useState("");
   const [markerColor, setMarkerColor] = useState("#1d4ed8");
   const [message, setMessage] = useState("");
@@ -174,7 +175,7 @@ export function ProcessDetailPage() {
     );
   }
 
-  if (!canAccessProcess(session, process, scopeId)) {
+  if (!canAccessProcess(session, process, effectiveScopeId)) {
     return (
       <PortalFrame eyebrow="Controle de Acesso" title="Conteúdo Protegido">
         <Card className="rounded-[28px] border-rose-200 bg-rose-50">
@@ -216,7 +217,7 @@ export function ProcessDetailPage() {
     [process.status, protocolGuide?.status, uploadedCount],
   );
   const externalRecipientName = process.technicalLead || process.ownerName;
-  const internalRecipients = sessionUsers.filter((user) => matchesOperationalScope(scopeId, user) && isInternalRole(user.role));
+  const internalRecipients = sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user) && isInternalRole(user.role));
   const processTransitVisibility = process.processControl?.externalTransitView ?? "completo";
   const canViewCompleteTransit = isInternalRole(session.role) || processTransitVisibility === "completo";
   const sectorOptions = Array.from(

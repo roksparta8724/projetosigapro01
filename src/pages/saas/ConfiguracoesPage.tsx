@@ -124,6 +124,28 @@ export function ConfiguracoesPage() {
     mobileThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor) ??
     mobileThemePresets[0];
 
+  useEffect(() => {
+    if (availableInstitutions.length === 0) {
+      if (selectedTenantId) setSelectedTenantId("");
+      return;
+    }
+
+    const stillExists = availableInstitutions.some((item) => item.id === selectedTenantId);
+    if (stillExists) return;
+
+    const nextPreferred =
+      availableInstitutions.find((item) => item.id === scopeId)?.id ??
+      availableInstitutions.find((item) => item.id === session.tenantId)?.id ??
+      availableInstitutions.find((item) => item.status === "ativo")?.id ??
+      availableInstitutions.find((item) => item.status === "implantacao")?.id ??
+      availableInstitutions[0]?.id ??
+      "";
+
+    if (nextPreferred !== selectedTenantId) {
+      setSelectedTenantId(nextPreferred);
+    }
+  }, [availableInstitutions, scopeId, selectedTenantId, session.tenantId]);
+
   const [settingsForm, setSettingsForm] = useState({
     cnpj: settings?.cnpj ?? "",
     endereco: settings?.endereco ?? "",

@@ -26,13 +26,14 @@ type NotificationView = "visao-geral" | "notificacoes" | "mensagens" | "tramites
 
 export function NotificationsPage() {
   const { session } = usePlatformSession();
-  const { scopeId } = useMunicipality();
+  const { municipality, scopeId } = useMunicipality();
   const { processes: allProcesses } = usePlatformData();
   const [view, setView] = useState<NotificationView>("visao-geral");
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
   const processes = useMemo(
-    () => getVisibleProcessesByScope(session, scopeId, allProcesses),
-    [allProcesses, scopeId, session],
+    () => getVisibleProcessesByScope(session, effectiveScopeId, allProcesses),
+    [allProcesses, effectiveScopeId, session],
   );
 
   const messageItems = useMemo<ActivityItem[]>(

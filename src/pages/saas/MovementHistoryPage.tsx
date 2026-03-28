@@ -22,7 +22,7 @@ type DispatchPriority = "baixa" | "media" | "alta" | "critica";
 
 export function MovementHistoryPage() {
   const { session } = usePlatformSession();
-  const { scopeId } = useMunicipality();
+  const { municipality, scopeId } = useMunicipality();
   const { processes: allProcesses, sessionUsers, documentTemplates, dispatchProcess, acknowledgeDispatchReceipt, completeDispatches, returnDispatches, setProcessCheckpoint, setProcessOnHold } = usePlatformData();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<ControlTab>("visao-geral");
@@ -41,7 +41,8 @@ export function MovementHistoryPage() {
   const [markerFilter, setMarkerFilter] = useState("todos");
 
   const currentUnit = session.department || session.title || "Unidade atual";
-  const processes = useMemo(() => getVisibleProcessesByScope(session, scopeId, allProcesses), [allProcesses, scopeId, session]);
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const processes = useMemo(() => getVisibleProcessesByScope(session, effectiveScopeId, allProcesses), [allProcesses, effectiveScopeId, session]);
 
   const sectorOptions = useMemo(() => Array.from(new Set([currentUnit, ...processes.flatMap((process) => [process.processControl?.currentFolder, ...process.dispatches.flatMap((dispatch) => [dispatch.from, dispatch.to])])].filter(Boolean) as string[])), [currentUnit, processes]);
 

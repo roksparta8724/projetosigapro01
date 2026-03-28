@@ -1,4 +1,4 @@
-Ôªøexport type UserRole =
+export type UserRole =
   | "master_admin"
   | "master_ops"
   | "prefeitura_admin"
@@ -8,6 +8,7 @@
   | "setor_intersetorial"
   | "fiscal"
   | "profissional_externo"
+  | "property_owner"
   | "proprietario_consulta";
 
 export type AccountStatus = "active" | "blocked" | "inactive";
@@ -100,7 +101,41 @@ export interface UserProfile {
   useAvatarInHeader?: boolean;
   bio: string;
 }
+export type OwnerRequestStatus = "pending" | "approved" | "rejected";
 
+export interface OwnerProjectRequest {
+  id: string;
+  projectId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  status: OwnerRequestStatus;
+  requestedAt: string;
+  respondedAt?: string | null;
+  respondedBy?: string | null;
+  notes?: string | null;
+}
+
+export interface OwnerProjectLink {
+  id: string;
+  projectId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  chatEnabled: boolean;
+  linkedAt: string;
+  linkedBy: string;
+}
+
+export interface OwnerProfessionalMessage {
+  id: string;
+  projectId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  senderUserId: string;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+  isSystemMessage?: boolean;
+}
 export interface RegistrationRequest {
   id: string;
   tenantId: string;
@@ -486,7 +521,7 @@ export function getGuideLabel(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Guia de Recolhimento de ISSQN da Obra";
     case "aprovacao_final":
-      return "Guia Final de Aprova√ß√£o / Habite-se";
+      return "Guia Final de AprovaÁ„o / Habite-se";
   }
 }
 
@@ -495,20 +530,20 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "protocolo":
       return "Taxa de protocolo administrativo";
     case "iss_obra":
-      return "ISSQN incidente sobre a metragem da constru√ß√£o";
+      return "ISSQN incidente sobre a metragem da construÁ„o";
     case "aprovacao_final":
-      return "Taxa final de aprova√ß√£o e emiss√£o de habite-se";
+      return "Taxa final de aprovaÁ„o e emiss„o de habite-se";
   }
 }
 
 export function getGuideObservation(kind: PaymentGuideKind) {
   switch (kind) {
     case "protocolo":
-      return "Documento de arrecada√ß√£o municipal vinculado √† abertura do protocolo administrativo.";
+      return "Documento de arrecadaÁ„o municipal vinculado ‡ abertura do protocolo administrativo.";
     case "iss_obra":
-      return "Documento de arrecada√ß√£o municipal destinado ao recolhimento do ISSQN calculado pela metragem da constru√ß√£o.";
+      return "Documento de arrecadaÁ„o municipal destinado ao recolhimento do ISSQN calculado pela metragem da construÁ„o.";
     case "aprovacao_final":
-      return "Documento de arrecada√ß√£o municipal vinculado √† etapa final de aprova√ß√£o e emiss√£o do habite-se.";
+      return "Documento de arrecadaÁ„o municipal vinculado ‡ etapa final de aprovaÁ„o e emiss„o do habite-se.";
   }
 }
 
@@ -522,13 +557,13 @@ export const defaultIssRateProfiles: MunicipalIssRateProfile[] = [
   {
     id: "comercial-mista",
     label: "Comercial e mista",
-    aliases: ["comercial", "comercial e mista", "mista", "escritorio", "escrit√≥rio"],
+    aliases: ["comercial", "comercial e mista", "mista", "escritorio", "escritÛrio"],
     rate: 1.43,
   },
   {
     id: "industrial",
     label: "Industrial",
-    aliases: ["industrial", "galpao", "galp√£o", "fabrica", "f√°brica"],
+    aliases: ["industrial", "galpao", "galp„o", "fabrica", "f·brica"],
     rate: 1.71,
   },
   {
@@ -540,24 +575,24 @@ export const defaultIssRateProfiles: MunicipalIssRateProfile[] = [
 ];
 
 export const defaultApprovalRateProfiles: MunicipalApprovalRateProfile[] = [
-  { id: "residencial-luxo", label: "Residencial ‚Ä¢ Luxo", usage: "Residencial", standard: "luxo", rate: 547.2 },
-  { id: "residencial-primeira", label: "Residencial ‚Ä¢ Primeira", usage: "Residencial", standard: "primeira", rate: 444.6 },
-  { id: "residencial-medio", label: "Residencial ‚Ä¢ M√©dio", usage: "Residencial", standard: "medio", rate: 342 },
-  { id: "residencial-economico", label: "Residencial ‚Ä¢ Econ√¥mico", usage: "Residencial", standard: "economico", rate: 239.4 },
-  { id: "apartamento-luxo", label: "Apartamento ‚Ä¢ Luxo", usage: "Apartamento", standard: "luxo", rate: 444.6 },
-  { id: "apartamento-primeira", label: "Apartamento ‚Ä¢ Primeira", usage: "Apartamento", standard: "primeira", rate: 376.2 },
-  { id: "apartamento-medio", label: "Apartamento ‚Ä¢ M√©dio", usage: "Apartamento", standard: "medio", rate: 307.8 },
-  { id: "escritorio-luxo", label: "Escrit√≥rio ‚Ä¢ Luxo", usage: "Escrit√≥rio", standard: "luxo", rate: 410.4 },
-  { id: "escritorio-primeira", label: "Escrit√≥rio ‚Ä¢ Primeira", usage: "Escrit√≥rio", standard: "primeira", rate: 342 },
-  { id: "escritorio-medio", label: "Escrit√≥rio ‚Ä¢ M√©dio", usage: "Escrit√≥rio", standard: "medio", rate: 307.8 },
-  { id: "comercial-luxo", label: "Comercial ‚Ä¢ Luxo", usage: "Comercial", standard: "luxo", rate: 342 },
-  { id: "comercial-primeira", label: "Comercial ‚Ä¢ Primeira", usage: "Comercial", standard: "primeira", rate: 307.8 },
-  { id: "comercial-medio", label: "Comercial ‚Ä¢ M√©dio", usage: "Comercial", standard: "medio", rate: 307.8 },
-  { id: "comercial-economico", label: "Comercial ‚Ä¢ Econ√¥mico", usage: "Comercial", standard: "economico", rate: 273.6 },
-  { id: "industrial-luxo", label: "Industrial ‚Ä¢ Luxo", usage: "Industrial", standard: "luxo", rate: 342 },
-  { id: "industrial-primeira", label: "Industrial ‚Ä¢ Primeira", usage: "Industrial", standard: "primeira", rate: 307.8 },
-  { id: "industrial-medio", label: "Industrial ‚Ä¢ M√©dio", usage: "Industrial", standard: "medio", rate: 273.6 },
-  { id: "industrial-economico", label: "Industrial ‚Ä¢ Econ√¥mico", usage: "Industrial", standard: "economico", rate: 239.4 },
+  { id: "residencial-luxo", label: "Residencial ï Luxo", usage: "Residencial", standard: "luxo", rate: 547.2 },
+  { id: "residencial-primeira", label: "Residencial ï Primeira", usage: "Residencial", standard: "primeira", rate: 444.6 },
+  { id: "residencial-medio", label: "Residencial ï MÈdio", usage: "Residencial", standard: "medio", rate: 342 },
+  { id: "residencial-economico", label: "Residencial ï EconÙmico", usage: "Residencial", standard: "economico", rate: 239.4 },
+  { id: "apartamento-luxo", label: "Apartamento ï Luxo", usage: "Apartamento", standard: "luxo", rate: 444.6 },
+  { id: "apartamento-primeira", label: "Apartamento ï Primeira", usage: "Apartamento", standard: "primeira", rate: 376.2 },
+  { id: "apartamento-medio", label: "Apartamento ï MÈdio", usage: "Apartamento", standard: "medio", rate: 307.8 },
+  { id: "escritorio-luxo", label: "EscritÛrio ï Luxo", usage: "EscritÛrio", standard: "luxo", rate: 410.4 },
+  { id: "escritorio-primeira", label: "EscritÛrio ï Primeira", usage: "EscritÛrio", standard: "primeira", rate: 342 },
+  { id: "escritorio-medio", label: "EscritÛrio ï MÈdio", usage: "EscritÛrio", standard: "medio", rate: 307.8 },
+  { id: "comercial-luxo", label: "Comercial ï Luxo", usage: "Comercial", standard: "luxo", rate: 342 },
+  { id: "comercial-primeira", label: "Comercial ï Primeira", usage: "Comercial", standard: "primeira", rate: 307.8 },
+  { id: "comercial-medio", label: "Comercial ï MÈdio", usage: "Comercial", standard: "medio", rate: 307.8 },
+  { id: "comercial-economico", label: "Comercial ï EconÙmico", usage: "Comercial", standard: "economico", rate: 273.6 },
+  { id: "industrial-luxo", label: "Industrial ï Luxo", usage: "Industrial", standard: "luxo", rate: 342 },
+  { id: "industrial-primeira", label: "Industrial ï Primeira", usage: "Industrial", standard: "primeira", rate: 307.8 },
+  { id: "industrial-medio", label: "Industrial ï MÈdio", usage: "Industrial", standard: "medio", rate: 273.6 },
+  { id: "industrial-economico", label: "Industrial ï EconÙmico", usage: "Industrial", standard: "economico", rate: 239.4 },
 ];
 
 function normalizeUsageLabel(value: string | null | undefined) {
@@ -699,15 +734,16 @@ export function parseMarker(tag: string) {
 
 export const roleLabels: Record<UserRole, string> = {
   master_admin: "Administrador Geral",
-  master_ops: "Opera√ß√£o Geral",
+  master_ops: "OperaÁ„o Geral",
   prefeitura_admin: "Administrador da Prefeitura",
   prefeitura_supervisor: "Supervisor da Prefeitura",
   analista: "Analista",
   financeiro: "Financeiro",
   setor_intersetorial: "Setor Intersetorial",
-  fiscal: "Fiscaliza√ß√£o e Postura",
+  fiscal: "FiscalizaÁ„o e Postura",
   profissional_externo: "Profissional Externo",
-  proprietario_consulta: "Propriet√°rio",
+  property_owner: "Propriet·rio do ImÛvel",
+  proprietario_consulta: "Propriet·rio",
 };
 
 export const institutionPermissionAliases: Record<InstitutionManagementPermission, Permission> = {
@@ -717,22 +753,23 @@ export const institutionPermissionAliases: Record<InstitutionManagementPermissio
 };
 
 export const accessLevelLabels: Record<1 | 2 | 3, string> = {
-  1: "N√≠vel 1",
-  2: "N√≠vel 2",
-  3: "N√≠vel 3",
+  1: "NÌvel 1",
+  2: "NÌvel 2",
+  3: "NÌvel 3",
 };
 
 export const roleSuggestedTitles: Record<UserRole, string> = {
   master_admin: "Administrador Geral da Plataforma",
-  master_ops: "Opera√ß√£o Geral da Plataforma",
+  master_ops: "OperaÁ„o Geral da Plataforma",
   prefeitura_admin: "Administrador da Prefeitura",
   prefeitura_supervisor: "Supervisor da Prefeitura",
-  analista: "Analista T√©cnico",
+  analista: "Analista TÈcnico",
   financeiro: "Financeiro Municipal",
   setor_intersetorial: "Setor Intersetorial",
-  fiscal: "Fiscaliza√ß√£o e Postura",
+  fiscal: "FiscalizaÁ„o e Postura",
   profissional_externo: "Profissional Externo",
-  proprietario_consulta: "Propriet√°rio do Im√≥vel",
+  property_owner: "Propriet·rio do ImÛvel",
+  proprietario_consulta: "Propriet·rio do ImÛvel",
 };
 
 const rolePermissions: Record<UserRole, Permission[]> = {
@@ -753,6 +790,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   setor_intersetorial: ["dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
   fiscal: ["review_processes", "manage_own_profile", "view_own_processes"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
+  property_owner: ["view_own_processes", "manage_own_profile"],
   proprietario_consulta: ["view_own_processes", "manage_own_profile"],
 };
 
@@ -770,49 +808,53 @@ export const sessionUsers: SessionUser[] = [
     department: "Plataforma",
   },
   {
-    id: "u-admin-jd",
+    id: "u-admin-clp",
     name: "Camila Andrade",
     role: "prefeitura_admin",
     accessLevel: 3,
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
     title: "Administrador da Prefeitura",
-    email: "camila@jardimdaserra.sp.gov.br",
+    email: "camila@campolimpopaulista.sp.gov.br",
     accountStatus: "active",
     userType: "Administrador",
     department: "Administracao Municipal",
   },
   {
-    id: "u-analyst-jd",
+    id: "u-analyst-clp",
     name: "Marcelo Teixeira",
     role: "analista",
     accessLevel: 2,
-    tenantId: "tenant-jardim",
-    title: "Analista urban√≠stico",
-    email: "marcelo@jardimdaserra.sp.gov.br",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
+    title: "Analista urbanÌstico",
+    email: "marcelo@campolimpopaulista.sp.gov.br",
     accountStatus: "active",
     userType: "Interno",
     department: "Analise",
   },
   {
-    id: "u-fin-jd",
+    id: "u-fin-clp",
     name: "Fernanda Souza",
     role: "financeiro",
     accessLevel: 2,
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
     title: "Financeiro Municipal",
-    email: "fernanda@jardimdaserra.sp.gov.br",
+    email: "fernanda@campolimpopaulista.sp.gov.br",
     accountStatus: "active",
     userType: "Interno",
     department: "Financeiro",
   },
   {
-    id: "u-fiscal-jd",
+    id: "u-fiscal-clp",
     name: "Luciana Prado",
     role: "fiscal",
     accessLevel: 2,
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
     title: "Fiscalizacao e Postura",
-    email: "luciana@jardimdaserra.sp.gov.br",
+    email: "luciana@campolimpopaulista.sp.gov.br",
     accountStatus: "active",
     userType: "Interno",
     department: "Fiscalizacao",
@@ -822,8 +864,9 @@ export const sessionUsers: SessionUser[] = [
     name: "Patricia Moraes",
     role: "profissional_externo",
     accessLevel: 1,
-    tenantId: "tenant-jardim",
-    title: "Arquiteta respons√°vel",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
+    title: "Arquiteta respons·vel",
     email: "patricia@estudiomoraes.com.br",
     accountStatus: "active",
     userType: "Profissional externo",
@@ -834,7 +877,8 @@ export const sessionUsers: SessionUser[] = [
     name: "Arturerfarm2",
     role: "profissional_externo",
     accessLevel: 1,
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
     title: "Profissional Externo",
     email: "arturerfarm2@gmail.com",
     accountStatus: "active",
@@ -844,13 +888,14 @@ export const sessionUsers: SessionUser[] = [
   {
     id: "u-owner-1",
     name: "Sergio Matos",
-    role: "proprietario_consulta",
+    role: "property_owner",
     accessLevel: 1,
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
+    municipalityId: "tenant-campo",
     title: "Proprietario do Imovel",
     email: "sergio@dominio.com",
     accountStatus: "active",
-    userType: "Usu√°rio externo",
+    userType: "Usu·rio externo",
     department: "Consulta",
   },
 ];
@@ -875,87 +920,87 @@ export const userProfiles: UserProfile[] = [
     state: "",
     zipCode: "",
     avatarUrl: "",
-    bio: "Respons√°vel pela opera√ß√£o geral da plataforma.",
+    bio: "Respons·vel pela operaÁ„o geral da plataforma.",
   },
   {
-    userId: "u-admin-jd",
+    userId: "u-admin-clp",
     fullName: "Camila Andrade",
-    email: "camila@jardimdaserra.sp.gov.br",
+    email: "camila@campolimpopaulista.sp.gov.br",
     phone: "(11) 4000-1234",
     cpfCnpj: "111.222.333-44",
     rg: "",
     birthDate: "",
     professionalType: "Gestora Publica",
     registrationNumber: "",
-    companyName: "Prefeitura de Jardim da Serra",
+    companyName: "Prefeitura de Campo Limpo Paulista",
     addressLine: "",
     addressNumber: "",
     addressComplement: "",
     neighborhood: "",
-    city: "Jardim da Serra",
+    city: "Campo Limpo Paulista",
     state: "SP",
     zipCode: "",
     avatarUrl: "",
     bio: "Administracao da Secretaria de Planejamento.",
   },
   {
-    userId: "u-analyst-jd",
+    userId: "u-analyst-clp",
     fullName: "Marcelo Teixeira",
-    email: "marcelo@jardimdaserra.sp.gov.br",
+    email: "marcelo@campolimpopaulista.sp.gov.br",
     phone: "(11) 4000-2222",
     cpfCnpj: "222.333.444-55",
     rg: "",
     birthDate: "",
     professionalType: "Engenheiro Civil",
     registrationNumber: "CREA 123456-SP",
-    companyName: "Prefeitura de Jardim da Serra",
+    companyName: "Prefeitura de Campo Limpo Paulista",
     addressLine: "",
     addressNumber: "",
     addressComplement: "",
     neighborhood: "",
-    city: "Jardim da Serra",
+    city: "Campo Limpo Paulista",
     state: "SP",
     zipCode: "",
     avatarUrl: "",
-    bio: "Analista respons√°vel por aprova√ß√£o urban√≠stica.",
+    bio: "Analista respons·vel por aprovaÁ„o urbanÌstica.",
   },
   {
-    userId: "u-fin-jd",
+    userId: "u-fin-clp",
     fullName: "Fernanda Souza",
-    email: "fernanda@jardimdaserra.sp.gov.br",
+    email: "fernanda@campolimpopaulista.sp.gov.br",
     phone: "(11) 4000-3333",
     cpfCnpj: "333.444.555-66",
     rg: "",
     birthDate: "",
     professionalType: "Gestora Financeira",
     registrationNumber: "",
-    companyName: "Prefeitura de Jardim da Serra",
+    companyName: "Prefeitura de Campo Limpo Paulista",
     addressLine: "",
     addressNumber: "",
     addressComplement: "",
     neighborhood: "",
-    city: "Jardim da Serra",
+    city: "Campo Limpo Paulista",
     state: "SP",
     zipCode: "",
     avatarUrl: "",
-    bio: "Gest√£o de guias e arrecada√ß√£o.",
+    bio: "Gest„o de guias e arrecadaÁ„o.",
   },
   {
-    userId: "u-fiscal-jd",
+    userId: "u-fiscal-clp",
     fullName: "Luciana Prado",
-    email: "luciana@jardimdaserra.sp.gov.br",
+    email: "luciana@campolimpopaulista.sp.gov.br",
     phone: "(11) 4000-4444",
     cpfCnpj: "444.555.666-00",
     rg: "",
     birthDate: "",
     professionalType: "Fiscal Municipal",
     registrationNumber: "",
-    companyName: "Prefeitura de Jardim da Serra",
+    companyName: "Prefeitura de Campo Limpo Paulista",
     addressLine: "",
     addressNumber: "",
     addressComplement: "",
     neighborhood: "",
-    city: "Jardim da Serra",
+    city: "Campo Limpo Paulista",
     state: "SP",
     zipCode: "",
     avatarUrl: "",
@@ -980,7 +1025,7 @@ export const userProfiles: UserProfile[] = [
     state: "",
     zipCode: "",
     avatarUrl: "",
-    bio: "Respons√°vel por projetos residenciais e comerciais.",
+    bio: "Respons·vel por projetos residenciais e comerciais.",
   },
   {
     userId: "u-ext-arturer",
@@ -997,7 +1042,7 @@ export const userProfiles: UserProfile[] = [
     addressNumber: "",
     addressComplement: "",
     neighborhood: "",
-    city: "Jardim da Serra",
+    city: "Campo Limpo Paulista",
     state: "SP",
     zipCode: "",
     avatarUrl: "",
@@ -1027,51 +1072,40 @@ export const userProfiles: UserProfile[] = [
   },
 ];
 
+export const ownerRequests: OwnerProjectRequest[] = [];
+export const ownerLinks: OwnerProjectLink[] = [];
+export const ownerMessages: OwnerProfessionalMessage[] = [];
 export const registrationRequests: RegistrationRequest[] = [];
 
 export const tenants: Tenant[] = [
   {
-    id: "tenant-jardim",
-    name: "Prefeitura de Jardim da Serra",
-    city: "Jardim da Serra",
+    id: "tenant-campo",
+    name: "Prefeitura de Campo Limpo Paulista",
+    city: "Campo Limpo Paulista",
     state: "SP",
     status: "ativo",
     plan: "Plano institucional",
-    activeModules: ["Protocolo", "An√°lise", "Financeiro", "Assinatura", "Despacho", "Configura√ß√µes"],
+    activeModules: ["Protocolo", "An·lise", "Financeiro", "Assinatura", "Despacho", "ConfiguraÁıes"],
     users: 6,
-    processes: 2,
-    revenue: 148200,
-    subdomain: "jardimdaserra.sigapro.com.br",
+    processes: 3,
+    revenue: 186800,
+    subdomain: "campolimpopaulista.sigapro.com.br",
     theme: { primary: "#0f3557", accent: "#178f78" },
-  },
-  {
-    id: "tenant-ribeira",
-    name: "Prefeitura de Ribeira Nova",
-    city: "Ribeira Nova",
-    state: "SP",
-    status: "implantacao",
-    plan: "Plano institucional",
-    activeModules: ["Protocolo", "Analise", "Acesso externo"],
-    users: 0,
-    processes: 1,
-    revenue: 38600,
-    subdomain: "ribeiranova.sigapro.com.br",
-    theme: { primary: "#203f6b", accent: "#c58d2a" },
   },
 ];
 
 export const tenantSettings: TenantSettings[] = [
   {
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
     cnpj: "12.345.678/0001-90",
-    endereco: "Av. Central, 100 - Centro - Jardim da Serra/SP",
+    endereco: "Av. Adherbal da Costa Moreira, 255 - Centro - Campo Limpo Paulista/SP",
     telefone: "(11) 4000-1000",
-    email: "planejamento@jardimdaserra.sp.gov.br",
-    site: "https://jardimdaserra.sp.gov.br",
+    email: "planejamento@campolimpopaulista.sp.gov.br",
+    site: "https://campolimpopaulista.sp.gov.br",
     secretariaResponsavel: "Secretaria de Planejamento e Obras",
-    diretoriaResponsavel: "Diretoria de Aprova√ß√£o de Projetos",
+    diretoriaResponsavel: "Diretoria de AprovaÁ„o de Projetos",
     diretoriaTelefone: "(11) 4000-1010",
-    diretoriaEmail: "diretoria.aprovacao@jardimdaserra.sp.gov.br",
+    diretoriaEmail: "diretoria.aprovacao@campolimpopaulista.sp.gov.br",
     horarioAtendimento: "Segunda a sexta, das 8h as 17h",
     brasaoUrl: "",
     bandeiraUrl: "",
@@ -1080,11 +1114,11 @@ export const tenantSettings: TenantSettings[] = [
     resumoPlanoDiretor: "Plano diretor com foco em adensamento controlado, sustentabilidade e qualificacao dos eixos urbanos.",
     resumoUsoSolo: "Uso e ocupacao do solo com parametros para zona mista, residencial, comercial e de protecao ambiental.",
     leisComplementares: "Lei complementar 120/2024, codigo de obras municipal e normas de acessibilidade.",
-    linkPortalCliente: "https://sigapro.com.br/jardimdaserra",
-    protocoloPrefixo: "PMJS",
-    guiaPrefixo: "DAM-JS",
-    chavePix: "pix@jardimdaserra.sp.gov.br",
-    beneficiarioArrecadacao: "Prefeitura de Jardim da Serra",
+    linkPortalCliente: "https://sigapro.com.br/campolimpopaulista",
+    protocoloPrefixo: "PMCLP",
+    guiaPrefixo: "DAM-CLP",
+    chavePix: "pix@campolimpopaulista.sp.gov.br",
+    beneficiarioArrecadacao: "Prefeitura de Campo Limpo Paulista",
     taxaProtocolo: 35.24,
     taxaIssPorMetroQuadrado: 12.5,
     taxaAprovacaoFinal: 180,
@@ -1095,7 +1129,7 @@ export const tenantSettings: TenantSettings[] = [
     monthlyFee: 1290,
     setupFee: 3500,
     signatureMode: "eletronica",
-    clientDeliveryLink: "https://jardimdaserra.sigapro.com.br",
+    clientDeliveryLink: "https://campolimpopaulista.sigapro.com.br",
     logoScale: 1,
     logoOffsetX: 0,
     logoOffsetY: 0,
@@ -1105,67 +1139,7 @@ export const tenantSettings: TenantSettings[] = [
     footerLogoScale: 1,
     footerLogoOffsetX: 0,
     footerLogoOffsetY: 0,
-    logoAlt: "Logo institucional da Prefeitura de Jardim da Serra",
-    logoUpdatedAt: "",
-    logoUpdatedBy: "",
-    logoFrameMode: "soft-square",
-    logoFitMode: "contain",
-    headerLogoFrameMode: "soft-square",
-    headerLogoFitMode: "contain",
-    footerLogoFrameMode: "soft-square",
-    footerLogoFitMode: "contain",
-    planoDiretorArquivoNome: "",
-    planoDiretorArquivoUrl: "",
-    usoSoloArquivoNome: "",
-    usoSoloArquivoUrl: "",
-    leisArquivoNome: "",
-    leisArquivoUrl: "",
-  },
-  {
-    tenantId: "tenant-ribeira",
-    cnpj: "98.765.432/0001-10",
-    endereco: "Rua das Flores, 80 - Centro - Ribeira Nova/SP",
-    telefone: "(11) 4000-2000",
-    email: "urbanismo@ribeiranova.sp.gov.br",
-    site: "https://ribeiranova.sp.gov.br",
-    secretariaResponsavel: "Secretaria de Urbanismo",
-    diretoriaResponsavel: "Diretoria de Controle Urbano",
-    diretoriaTelefone: "(11) 4000-2015",
-    diretoriaEmail: "diretoria.urbana@ribeiranova.sp.gov.br",
-    horarioAtendimento: "Segunda a sexta, das 9h as 16h",
-    brasaoUrl: "",
-    bandeiraUrl: "",
-    logoUrl: "",
-    imagemHeroUrl: "",
-    resumoPlanoDiretor: "Diretrizes iniciais em implanta√ß√£o.",
-    resumoUsoSolo: "Parametros urbanisticos em configuracao.",
-    leisComplementares: "Normas municipais em consolidacao.",
-    linkPortalCliente: "https://sigapro.com.br/ribeiranova",
-    protocoloPrefixo: "PMRN",
-    guiaPrefixo: "DAM-RN",
-    chavePix: "pix@ribeiranova.sp.gov.br",
-    beneficiarioArrecadacao: "Prefeitura de Ribeira Nova",
-    taxaProtocolo: 35.24,
-    taxaIssPorMetroQuadrado: 10,
-    taxaAprovacaoFinal: 150,
-    registroProfissionalObrigatorio: true,
-    contractNumber: "CT-2026-002",
-    contractStart: "2026-03-10",
-    contractEnd: "2027-03-09",
-    monthlyFee: 980,
-    setupFee: 2500,
-    signatureMode: "manual",
-    clientDeliveryLink: "https://ribeiranova.sigapro.com.br",
-    logoScale: 1,
-    logoOffsetX: 0,
-    logoOffsetY: 0,
-    headerLogoScale: 1,
-    headerLogoOffsetX: 0,
-    headerLogoOffsetY: 0,
-    footerLogoScale: 1,
-    footerLogoOffsetX: 0,
-    footerLogoOffsetY: 0,
-    logoAlt: "Logo institucional da Prefeitura de Ribeira Nova",
+    logoAlt: "Logo institucional da Prefeitura de Campo Limpo Paulista",
     logoUpdatedAt: "",
     logoUpdatedBy: "",
     logoFrameMode: "soft-square",
@@ -1188,14 +1162,14 @@ export const platformModules = [
   { name: "Analise tecnica", description: "Fila de analise, despacho, exigencias e decisao do processo." },
   { name: "Financeiro", description: "Guias vinculadas ao IPTU, acompanhamento de arrecadacao e baixa." },
   { name: "Assinatura", description: "Blocos de assinatura e trilha de evidencias." },
-  { name: "Configura√ß√µes", description: "Cadastro da Prefeitura, plano diretor, uso do solo e identidade institucional." },
+  { name: "ConfiguraÁıes", description: "Cadastro da Prefeitura, plano diretor, uso do solo e identidade institucional." },
   { name: "Acesso externo", description: "Protocolos por profissionais externos com isolamento entre usuarios." },
 ];
 
 export const planCatalog = [
-  { name: "Institucional", enabled: false, seats: "Usu√°rios conforme contrato", description: "Plano-base do sistema para entrega a prefeituras." },
+  { name: "Institucional", enabled: false, seats: "Usu·rios conforme contrato", description: "Plano-base do sistema para entrega a prefeituras." },
   { name: "Expansao", enabled: false, seats: "Multi secretaria", description: "Fluxos completos com modulos adicionais e integracoes." },
-  { name: "Premium", enabled: false, seats: "Ilimitado", description: "Opera√ß√£o completa com personaliza√ß√£o institucional ampliada." },
+  { name: "Premium", enabled: false, seats: "Ilimitado", description: "OperaÁ„o completa com personalizaÁ„o institucional ampliada." },
 ];
 
 export const mobileThemePresets: ThemePreset[] = [
@@ -1211,7 +1185,7 @@ export const mobileThemePresets: ThemePreset[] = [
   {
     id: "claro-neutro",
     label: "Claro neutro",
-    description: "Base neutra com cinza ard√≥sia e visual s√≥brio.",
+    description: "Base neutra com cinza ardÛsia e visual sÛbrio.",
     primary: "#334155",
     accent: "#64748b",
     background: "#f4f6f8",
@@ -1220,7 +1194,7 @@ export const mobileThemePresets: ThemePreset[] = [
   {
     id: "escuro-institucional",
     label: "Escuro institucional",
-    description: "Azul profundo com sensa√ß√£o premium de govtech municipal.",
+    description: "Azul profundo com sensaÁ„o premium de govtech municipal.",
     primary: "#0f2a44",
     accent: "#67e8f9",
     background: "#081421",
@@ -1241,8 +1215,8 @@ export const desktopThemePresets: ThemePreset[] = [
   ...mobileThemePresets,
   {
     id: "claro-civico",
-    label: "Claro c√≠vico",
-    description: "Base clara com azul petr√≥leo e sensa√ß√£o institucional refinada.",
+    label: "Claro cÌvico",
+    description: "Base clara com azul petrÛleo e sensaÁ„o institucional refinada.",
     primary: "#1d4f6f",
     accent: "#38bdf8",
     background: "#f3f7fb",
@@ -1250,8 +1224,8 @@ export const desktopThemePresets: ThemePreset[] = [
   },
   {
     id: "claro-ardosia",
-    label: "Claro ard√≥sia",
-    description: "Cinza nobre com acento s√≥brio e leitura corporativa.",
+    label: "Claro ardÛsia",
+    description: "Cinza nobre com acento sÛbrio e leitura corporativa.",
     primary: "#475569",
     accent: "#94a3b8",
     background: "#f5f7fa",
@@ -1260,7 +1234,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-vinho",
     label: "Claro vinho",
-    description: "Base clara com vinho institucional e presen√ßa mais executiva.",
+    description: "Base clara com vinho institucional e presenÁa mais executiva.",
     primary: "#7c2d3a",
     accent: "#be445d",
     background: "#fbf5f7",
@@ -1269,7 +1243,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-rosa",
     label: "Claro rosa",
-    description: "Rosa sofisticado com leitura leve e apar√™ncia premium.",
+    description: "Rosa sofisticado com leitura leve e aparÍncia premium.",
     primary: "#9d4b74",
     accent: "#ec4899",
     background: "#fcf6fa",
@@ -1278,7 +1252,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-verde",
     label: "Claro verde",
-    description: "Verde administrativo com sensa√ß√£o est√°vel e confi√°vel.",
+    description: "Verde administrativo com sensaÁ„o est·vel e confi·vel.",
     primary: "#1f5d4d",
     accent: "#22c55e",
     background: "#f3faf7",
@@ -1304,8 +1278,8 @@ export const desktopThemePresets: ThemePreset[] = [
   },
   {
     id: "escuro-petroleo",
-    label: "Escuro petr√≥leo",
-    description: "Base petr√≥leo elegante com contraste est√°vel para opera√ß√£o.",
+    label: "Escuro petrÛleo",
+    description: "Base petrÛleo elegante com contraste est·vel para operaÁ„o.",
     primary: "#16343f",
     accent: "#60a5fa",
     background: "#0c1920",
@@ -1314,7 +1288,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "escuro-vinho",
     label: "Escuro vinho",
-    description: "Vinho profundo com eleg√¢ncia corporativa e contraste s√≥brio.",
+    description: "Vinho profundo com eleg‚ncia corporativa e contraste sÛbrio.",
     primary: "#4f1f2d",
     accent: "#fb7185",
     background: "#170d12",
@@ -1323,7 +1297,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "escuro-floresta",
     label: "Escuro floresta",
-    description: "Verde fechado com presen√ßa institucional forte e serena.",
+    description: "Verde fechado com presenÁa institucional forte e serena.",
     primary: "#17372d",
     accent: "#4ade80",
     background: "#0c1713",
@@ -1343,10 +1317,10 @@ export const desktopThemePresets: ThemePreset[] = [
 export const themePresets: ThemePreset[] = desktopThemePresets;
 
 export const processTypeCatalog = [
-  "Aprova√ß√£o de Projeto Residencial",
-  "Aprova√ß√£o de Projeto Comercial",
-  "Aprova√ß√£o de Projeto Industrial",
-  "Aprova√ß√£o de Projeto Institucional",
+  "AprovaÁ„o de Projeto Residencial",
+  "AprovaÁ„o de Projeto Comercial",
+  "AprovaÁ„o de Projeto Industrial",
+  "AprovaÁ„o de Projeto Institucional",
   "Projeto Multifamiliar",
   "Projeto de Reforma",
   "Projeto de Ampliacao",
@@ -1371,10 +1345,10 @@ export const processTypeCatalog = [
   "Licenciamento de Fachada",
   "Licenciamento de Muro e Fechamento",
   "Licenciamento de Tapume",
-  "Aprova√ß√£o de Projeto de Acessibilidade",
-  "Aprova√ß√£o de Projeto de Combate a Inc√™ndio",
-  "Aprova√ß√£o de Projeto de Infraestrutura",
-  "Aprova√ß√£o de Projeto de Condom√≠nio",
+  "AprovaÁ„o de Projeto de Acessibilidade",
+  "AprovaÁ„o de Projeto de Combate a IncÍndio",
+  "AprovaÁ„o de Projeto de Infraestrutura",
+  "AprovaÁ„o de Projeto de CondomÌnio",
 ];
 
 const checklistPadraoProjeto = [
@@ -1407,7 +1381,7 @@ export const checklistTemplates: ChecklistTemplate[] = [
   {
     id: "check-residencial",
     tenantId: null,
-    processType: "Aprova√ß√£o de projeto residencial",
+    processType: "AprovaÁ„o de projeto residencial",
     items: [
       { id: "res-1", label: "RG ou CNH do proprietario", required: true },
       { id: "res-2", label: "CPF do proprietario", required: true },
@@ -1433,19 +1407,19 @@ export const checklistTemplates: ChecklistTemplate[] = [
   {
     id: "check-comercial",
     tenantId: null,
-    processType: "Aprova√ß√£o de Projeto Comercial",
+    processType: "AprovaÁ„o de Projeto Comercial",
     items: checklistPadraoProjeto,
   },
   {
     id: "check-industrial",
     tenantId: null,
-    processType: "Aprova√ß√£o de Projeto Industrial",
+    processType: "AprovaÁ„o de Projeto Industrial",
     items: [...checklistPadraoProjeto, { id: "ind-1", label: "Licencas complementares", required: false }],
   },
   {
     id: "check-institucional",
     tenantId: null,
-    processType: "Aprova√ß√£o de Projeto Institucional",
+    processType: "AprovaÁ„o de Projeto Institucional",
     items: checklistPadraoProjeto,
   },
   {
@@ -1564,8 +1538,8 @@ export const checklistTemplates: ChecklistTemplate[] = [
 export const documentTemplates = [
   { id: "tpl-despacho-1", type: "despacho", title: "Despacho para setor financeiro", body: "Encaminho o processo para validacao da arrecadacao e conferencia da guia municipal." },
   { id: "tpl-despacho-2", type: "despacho", title: "Despacho para setor intersetorial", body: "Encaminho para manifestacao tecnica complementar dentro do prazo estabelecido." },
-  { id: "tpl-parecer-1", type: "parecer", title: "Parecer favor√°vel com ressalvas", body: "An√°lise favor√°vel, condicionada ao atendimento das exig√™ncias descritas no processo." },
-  { id: "tpl-parecer-2", type: "parecer", title: "Parecer desfavor√°vel", body: "An√°lise desfavor√°vel em raz√£o de inconformidade com a legisla√ß√£o urban√≠stica vigente." },
+  { id: "tpl-parecer-1", type: "parecer", title: "Parecer favor·vel com ressalvas", body: "An·lise favor·vel, condicionada ao atendimento das exigÍncias descritas no processo." },
+  { id: "tpl-parecer-2", type: "parecer", title: "Parecer desfavor·vel", body: "An·lise desfavor·vel em raz„o de inconformidade com a legislaÁ„o urbanÌstica vigente." },
   { id: "tpl-decisao-1", type: "decisao", title: "Decisao de deferimento", body: "Fica deferido o processo, observadas as condicionantes registradas." },
   { id: "tpl-decisao-2", type: "decisao", title: "Decisao de indeferimento", body: "Fica indeferido o processo em razao das inconsistencias registradas." },
 ];
@@ -1579,11 +1553,11 @@ export const cmsSections = [
 export const processRecords: ProcessRecord[] = [
   {
     id: "proc-001",
-    tenantId: "tenant-jardim",
+    tenantId: "tenant-campo",
     protocol: "SIG-2026-0001",
-    externalProtocol: "PMJS-2026-23109",
+    externalProtocol: "PMCLP-2026-23109",
     title: "Residencial Santa Cruz",
-    type: "Aprova√ß√£o de projeto residencial",
+    type: "AprovaÁ„o de projeto residencial",
     status: "pagamento_pendente",
     ownerName: "Sergio Matos",
     ownerDocument: "***.401.218-**",
@@ -1606,7 +1580,7 @@ export const processRecords: ProcessRecord[] = [
       assignedTo: "Camila Andrade",
       notes: "Triagem documental inicial concluida com envio para pagamento.",
     },
-    checklistType: "Aprova√ß√£o de projeto residencial",
+    checklistType: "AprovaÁ„o de projeto residencial",
     sla: {
       currentStage: "Pagamento e distribuicao",
       dueDate: "20/03/2026",
@@ -1682,12 +1656,12 @@ export const processRecords: ProcessRecord[] = [
         senderName: "Marcelo Teixeira",
         senderRole: "Analista",
         audience: "externo",
-        message: "Favor acompanhar a compensa√ß√£o da guia para continuidade da an√°lise.",
+        message: "Favor acompanhar a compensaÁ„o da guia para continuidade da an·lise.",
         at: "18/03/2026 14:12",
       },
     ],
     payment: {
-      guideNumber: "DAM-JS-2026-9914",
+      guideNumber: "DAM-CLP-2026-9914",
       amount: 35.24,
       status: "pendente",
       dueDate: "20/03/2026",
@@ -1697,19 +1671,19 @@ export const processRecords: ProcessRecord[] = [
   },
   {
     id: "proc-002",
-    tenantId: "tenant-ribeira",
+    tenantId: "tenant-campo",
     protocol: "SIG-2026-0002",
-    externalProtocol: "PMRN-2026-4501",
+    externalProtocol: "PMCLP-2026-4501",
     title: "Condominio Bosque do Sol",
     type: "Projeto multifamiliar",
     status: "triagem",
     ownerName: "Aline Nogueira",
     ownerDocument: "***.877.115-**",
     technicalLead: "Estudio Vertice",
-    createdBy: "u-ext-rn",
-    tags: ["implantacao", "piloto"],
+    createdBy: "u-ext-1",
+    tags: ["multifamiliar", "piloto"],
     address: "Estrada da Serra, 2400 - Vale Verde",
-    notes: "Prefeitura em implanta√ß√£o com par√¢metros urban√≠sticos iniciais.",
+    notes: "Protocolo multifamiliar em triagem documental com par‚metros institucionais ativos.",
     property: {
       registration: "99.102.221",
       iptu: "03.11.702.0001.000",
@@ -1743,7 +1717,7 @@ export const processRecords: ProcessRecord[] = [
         { id: "doc-31", label: "Projeto arquitetonico", required: true, uploaded: true, signed: true, reviewStatus: "pendente", version: 1, source: "profissional", fileName: "torre-a.pdf", mimeType: "application/pdf", sizeLabel: "2.1 MB" },
         { id: "doc-32", label: "Matricula do imovel", required: true, uploaded: false, signed: false, reviewStatus: "pendente", version: 0, source: "profissional" },
       ],
-    timeline: [{ id: "t31", title: "Triagem inicial", detail: "Tenant em implanta√ß√£o utilizando checklist piloto.", actor: "Sistema", at: "17/03/2026 16:10" }],
+    timeline: [{ id: "t31", title: "Triagem inicial", detail: "Triagem inicial com checklist institucional da Prefeitura.", actor: "Sistema", at: "17/03/2026 16:10" }],
     requirements: [],
     auditTrail: [
       {
@@ -1760,7 +1734,7 @@ export const processRecords: ProcessRecord[] = [
     dispatches: [],
     messages: [],
     payment: {
-      guideNumber: "DAM-RN-2026-8501",
+      guideNumber: "DAM-CLP-2026-8501",
       amount: 35.24,
       status: "pendente",
       dueDate: "19/03/2026",
@@ -1801,7 +1775,7 @@ export function canInstitution(
 }
 
 export function isInternalRole(role: UserRole) {
-  return role !== "master_admin" && role !== "master_ops" && role !== "profissional_externo" && role !== "proprietario_consulta";
+  return role !== "master_admin" && role !== "master_ops" && role !== "profissional_externo" && role !== "property_owner" && role !== "proprietario_consulta";
 }
 
 export function getOperationalScopeId(input: { municipalityId?: string | null; tenantId?: string | null }) {
@@ -1864,6 +1838,44 @@ export function getVisibleProcessesByScope(
 
 export function getProcessById(processId: string, records: ProcessRecord[] = processRecords) {
   return records.find((process) => process.id === processId);
+}
+export function normalizeOwnerDocument(value: string) {
+  return (value || "").replace(/\D/g, "");
+}
+
+export function matchesOwnerDocument(input: string, stored: string) {
+  const normalizedInput = normalizeOwnerDocument(input);
+  const normalizedStored = normalizeOwnerDocument(stored);
+  if (!normalizedInput || !normalizedStored) return false;
+  return normalizedInput === normalizedStored;
+}
+
+export function getOwnerLinksForOwner(ownerId: string, links: OwnerProjectLink[] = ownerLinks) {
+  return links.filter((item) => item.ownerUserId === ownerId);
+}
+
+export function getOwnerLinksForProfessional(professionalUserId: string, links: OwnerProjectLink[] = ownerLinks) {
+  return links.filter((item) => item.professionalUserId === professionalUserId);
+}
+
+export function getOwnerRequestsForOwner(ownerId: string, requests: OwnerProjectRequest[] = ownerRequests) {
+  return requests.filter((item) => item.ownerUserId === ownerId);
+}
+
+export function getOwnerRequestsForProfessional(professionalUserId: string, requests: OwnerProjectRequest[] = ownerRequests) {
+  return requests.filter((item) => item.professionalUserId === professionalUserId);
+}
+
+export function getOwnerMessagesForLink(
+  link: OwnerProjectLink,
+  messages: OwnerProfessionalMessage[] = ownerMessages,
+) {
+  return messages.filter(
+    (item) =>
+      item.projectId === link.projectId &&
+      item.ownerUserId === link.ownerUserId &&
+      item.professionalUserId === link.professionalUserId,
+  );
 }
 
 export function getMasterMetrics(records: ProcessRecord[] = processRecords, items: Tenant[] = tenants) {
@@ -1972,6 +1984,10 @@ export const buildInstitutionClientLink = buildTenantClientLink;
 export const institutions = tenants;
 export const institutionSettings = tenantSettings;
 
+export function isInstitutionPubliclyAvailable(institution: Institution | Tenant) {
+  return institution.status === "ativo";
+}
+
 export function getChecklistTemplate(processType: string, tenantId?: string | null, institutionId?: string | null) {
   const normalizedType = processType.trim().toLowerCase();
   const activeScopeId = institutionId || tenantId || null;
@@ -2019,5 +2035,16 @@ export function buildProcessDocuments(
 
   return [...fromTemplate, ...extras];
 }
+
+
+
+
+
+
+
+
+
+
+
 
 

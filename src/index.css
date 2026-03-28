@@ -500,6 +500,59 @@
     opacity: 0.92;
   }
 
+  .sig-main-shell .sig-page-header,
+  .sig-main-shell .sig-section-card,
+  .sig-main-shell .sig-section-nav,
+  .sig-main-shell .sig-ui-card,
+  .sig-main-shell .sig-stat-card,
+  .sig-main-shell .sig-metric-card {
+    background: linear-gradient(180deg, #f9fbfd 0%, #edf3f8 100%);
+    border-color: rgba(148, 163, 184, 0.3);
+    box-shadow:
+      0 14px 30px rgba(15, 23, 42, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .sig-main-shell .sig-dark-panel,
+  .sig-main-shell .sig-inverse-panel {
+    background: linear-gradient(180deg, #f5f8fc 0%, #e8eff6 100%);
+    border-color: rgba(148, 163, 184, 0.3);
+    box-shadow:
+      0 12px 26px rgba(15, 23, 42, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .sig-main-shell :is(div, section, article, li).rounded-2xl.border[class*="bg-white"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[20px\].border[class*="bg-white"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[24px\].border[class*="bg-white"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[28px\].border[class*="bg-white"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-2xl.border[class*="bg-slate-50"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[20px\].border[class*="bg-slate-50"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[24px\].border[class*="bg-slate-50"]:not([role="button"]),
+  .sig-main-shell :is(div, section, article, li).rounded-\[28px\].border[class*="bg-slate-50"]:not([role="button"]) {
+    background: linear-gradient(180deg, #f8fbfe 0%, #edf3f8 100%);
+    border-color: rgba(148, 163, 184, 0.3);
+    box-shadow:
+      0 10px 24px rgba(15, 23, 42, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .sig-main-shell .border-slate-200,
+  .sig-main-shell .border-slate-200\/90,
+  .sig-main-shell .border-slate-200\/80,
+  .sig-main-shell .border-slate-100 {
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  .sig-main-shell .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(148, 163, 184, 0.16);
+  }
+
+  .sig-main-shell .ring-1.ring-white\/70,
+  .sig-main-shell .ring-1.ring-white\/60 {
+    --tw-ring-color: rgba(255, 255, 255, 0.64);
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell {
     background:
       radial-gradient(circle at top left, var(--sig-inverse-accent-soft) 0%, transparent 24%),

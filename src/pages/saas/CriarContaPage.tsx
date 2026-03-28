@@ -9,11 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
-import { registerRemoteExternalAccount, saveRemoteProfile } from "@/integrations/supabase/platform";
+import { registerRemoteExternalAccount, registerRemoteOwnerAccount, saveRemoteProfile } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
-import { getInstitutionClientSlug, roleLabels, type UserRole } from "@/lib/platform";
+import { getInstitutionClientSlug, isInstitutionPubliclyAvailable, roleLabels, type UserRole } from "@/lib/platform";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
+
+function normalizeInstitutionFingerprint(name: string, city?: string | null) {
+  const base = `${name} ${city ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bprefeitura municipal de\b/g, "")
+    .replace(/\bprefeitura de\b/g, "")
+    .replace(/\bprefeitura\b/g, "")
+    .replace(/\bmunicipal\b/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return base;
+}
 
 function isValidPassword(password: string) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(password);
@@ -23,10 +39,32 @@ export function CriarContaPage() {
   const navigate = useNavigate();
   const { institutions, createTenantUser, saveUserProfile } = usePlatformData();
   const [searchParams] = useSearchParams();
-  const availableInstitutions = useMemo(
-    () => institutions.filter((institution) => institution.status !== "suspenso"),
-    [institutions],
-  );
+  const availableInstitutions = useMemo(() => {
+    const uniqueInstitutions = new Map<string, (typeof institutions)[number]>();
+
+    institutions
+      .filter((institution) => isInstitutionPubliclyAvailable(institution))
+      .forEach((institution) => {
+        const fingerprint = normalizeInstitutionFingerprint(institution.name, institution.city);
+        const current = uniqueInstitutions.get(fingerprint);
+
+        if (!current) {
+          uniqueInstitutions.set(fingerprint, institution);
+          return;
+        }
+
+        const currentUsers = current.users ?? 0;
+        const nextUsers = institution.users ?? 0;
+        const currentProcesses = current.processes ?? 0;
+        const nextProcesses = institution.processes ?? 0;
+
+        if (nextUsers > currentUsers || nextProcesses > currentProcesses) {
+          uniqueInstitutions.set(fingerprint, institution);
+        }
+      });
+
+    return Array.from(uniqueInstitutions.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+  }, [institutions]);
   const tenantSlug = searchParams.get("tenant");
   const tenantFromLink =
     availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
@@ -59,6 +97,21 @@ export function CriarContaPage() {
     password: "",
     confirmPassword: "",
   });
+  const isOwnerSignup = form.role === "property_owner";
+
+  useEffect(() => {
+    setForm((current) => {
+      const nextTenantId = availableInstitutions.some((institution) => institution.id === current.tenantId)
+        ? current.tenantId
+        : tenantFromLink || availableInstitutions[0]?.id || "";
+
+      if (nextTenantId === current.tenantId) {
+        return current;
+      }
+
+      return { ...current, tenantId: nextTenantId };
+    });
+  }, [availableInstitutions, tenantFromLink]);
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -210,23 +263,39 @@ export function CriarContaPage() {
 
       if (data.session) {
         try {
-          await registerRemoteExternalAccount({
-            tenantId: form.tenantId,
-            fullName: form.fullName,
-            email: normalizedEmail,
-            cpfCnpj: form.cpfCnpj,
-            phone: form.phone,
-            professionalType: form.professionalType,
-            registrationNumber: form.registrationNumber,
-            companyName: form.companyName,
-            title: form.title || form.professionalType || roleLabels[form.role],
-            bio: form.bio,
-          });
+          if (form.role === "property_owner") {
+            await registerRemoteOwnerAccount({
+              tenantId: form.tenantId,
+              fullName: form.fullName,
+              email: normalizedEmail,
+              cpfCnpj: form.cpfCnpj,
+              phone: form.phone,
+              title: form.title || roleLabels[form.role],
+              bio: form.bio,
+            });
+          } else {
+            await registerRemoteExternalAccount({
+              tenantId: form.tenantId,
+              fullName: form.fullName,
+              email: normalizedEmail,
+              cpfCnpj: form.cpfCnpj,
+              phone: form.phone,
+              professionalType: form.professionalType,
+              registrationNumber: form.registrationNumber,
+              companyName: form.companyName,
+              title: form.title || form.professionalType || roleLabels[form.role],
+              bio: form.bio,
+            });
+          }
           await saveRemoteProfile({
             userId: data.user.id,
             ...draftProfile,
           });
-          setStatus("Conta criada com sucesso. Você já pode entrar no portal da Prefeitura.");
+          setStatus(
+            form.role === "property_owner"
+              ? "Conta criada com sucesso. Você já pode solicitar acompanhamento do seu projeto."
+              : "Conta criada com sucesso. Você já pode entrar no portal da Prefeitura.",
+          );
           setTimeout(() => navigate(`/acesso?tenant=${tenantSlug || ""}`), 1200);
         } catch (registrationError) {
           setError(
@@ -280,7 +349,11 @@ export function CriarContaPage() {
       bio: form.bio,
     });
 
-    setStatus("Conta de profissional externo criada com sucesso. Senha inicial: Acesso@2026");
+    setStatus(
+      form.role === "property_owner"
+        ? "Conta de proprietário criada com sucesso. Senha inicial: Acesso@2026"
+        : "Conta de profissional externo criada com sucesso. Senha inicial: Acesso@2026",
+    );
     setSubmitting(false);
     setForm((current) => ({
       ...current,
@@ -370,11 +443,12 @@ export function CriarContaPage() {
               </div>
 
               <CardTitle className="max-w-sm text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-slate-900">
-                Criar conta profissional
+                {isOwnerSignup ? "Criar conta de proprietário" : "Criar conta profissional"}
               </CardTitle>
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura
-                são criados pelo administrador municipal.
+                {isOwnerSignup
+                  ? "Acompanhe o processo do seu imóvel após aprovação do profissional responsável."
+                  : "Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura são criados pelo administrador municipal."}
               </p>
             </CardHeader>
 
@@ -398,9 +472,18 @@ export function CriarContaPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo de acesso</Label>
-                    <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
-                      {roleLabels[form.role]}
-                    </div>
+                    <Select value={form.role} onValueChange={(value) => setField("role", value)}>
+                      <SelectTrigger className="h-12 rounded-2xl">
+                        <SelectValue placeholder="Selecione o perfil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="profissional_externo">Profissional externo</SelectItem>
+                        <SelectItem value="property_owner">Proprietário do imóvel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-slate-500">
+                      O proprietário acompanha o processo, mas não atua tecnicamente nem fala direto com a Prefeitura.
+                    </p>
                   </div>
                 </div>
 

@@ -99,7 +99,10 @@ function resolveAllowedArea(session: { role: string }) {
     case "profissional_externo":
     case "proprietario_consulta":
       return "/externo";
+    case "property_owner":
+      return "/proprietario";
     default:
       return "/perfil";
   }
 }
+

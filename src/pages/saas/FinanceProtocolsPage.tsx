@@ -185,11 +185,12 @@ function FinanceSectionNav() {
 
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } = usePlatformData();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings =
-    institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses);
+    institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const [copiedPayload, setCopiedPayload] = useState("");
 
   const paymentGuides = processes.flatMap((process) =>

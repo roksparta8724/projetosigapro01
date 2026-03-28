@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+﻿import { FormEvent, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { getInstitutionClientSlug } from "@/lib/platform";
+import { getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
 const institutionalHighlights = [
@@ -50,7 +50,7 @@ export function AcessoPage() {
   const [searchParams] = useSearchParams();
   const tenantSlug = searchParams.get("tenant");
   const selectedInstitution =
-    institutions.find(
+    institutions.filter((institution) => isInstitutionPubliclyAvailable(institution)).find(
       (institution) =>
         getInstitutionClientSlug(institution, getInstitutionSettings(institution.id)) === tenantSlug,
     ) ?? null;
@@ -191,23 +191,23 @@ export function AcessoPage() {
                   </CardHeader>
 
                   <CardContent className="px-9 pb-9 pt-7">
-                    <form className="space-y-5.5" onSubmit={handleSubmit}>
-                      <div className="space-y-2.5">
-                        <Label htmlFor="email" className="text-[13px] font-semibold text-slate-800">
-                          E-MAIL
+                    <form className="w-full space-y-6" onSubmit={handleSubmit}>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-sm font-medium text-slate-500">
+                          E-mail
                         </Label>
                         <Input
                           id="email"
                           type="email"
                           value={email}
                           onChange={(event) => setEmail(event.target.value)}
-                          className="h-[56px] rounded-[18px] border-slate-200 bg-slate-50 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]"
+                          className="w-full rounded-lg border px-4 py-3"
                         />
                       </div>
 
-                      <div className="space-y-2.5">
-                        <Label htmlFor="senha" className="text-[13px] font-semibold text-slate-800">
-                          SENHA
+                      <div className="space-y-2">
+                        <Label htmlFor="senha" className="text-sm font-medium text-slate-500">
+                          Senha
                         </Label>
                         <div className="relative">
                           <Input
@@ -215,35 +215,32 @@ export function AcessoPage() {
                             type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
-                            className="h-[56px] rounded-[18px] border-slate-200 bg-slate-50 pr-12 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]"
+                            className="w-full rounded-lg border px-4 py-3 pr-11"
                           />
                           <button
                             type="button"
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
                             onClick={() => setShowPassword((value) => !value)}
                           >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
-                        <div className="flex justify-end">
-                          <Link
-                            to={`/recuperar-senha${tenantSlug ? `?tenant=${tenantSlug}` : ""}`}
-                            className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
-                          >
+                        <div className="text-right text-sm text-muted-foreground">
+                          <Link to={`/recuperar-senha${tenantSlug ? `?tenant=${tenantSlug}` : ""}`}>
                             Esqueceu a senha?
                           </Link>
                         </div>
                       </div>
 
                       {error ? (
-                        <div className="rounded-[18px] border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                        <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                           {error}
                         </div>
                       ) : null}
 
                       <Button
                         type="submit"
-                        className="h-[58px] w-full rounded-[18px] bg-[linear-gradient(135deg,#0f172a_0%,#16365a_55%,#1a4269_100%)] text-[15px] font-semibold text-white"
+                        className="h-12 w-full rounded-lg bg-slate-900 text-white"
                         disabled={submitting}
                       >
                         {submitting ? "Validando acesso..." : "Acessar ambiente"}
@@ -253,35 +250,26 @@ export function AcessoPage() {
                         asChild
                         type="button"
                         variant="outline"
-                        className="h-[58px] w-full rounded-[18px] border-slate-200 bg-white text-[15px] font-medium text-slate-900"
+                        className="h-12 w-full rounded-lg border"
                       >
                         <Link to={`/criar-conta${tenantSlug ? `?tenant=${tenantSlug}` : ""}`}>
-                          Criar conta profissional
+                          Criar conta
                         </Link>
                       </Button>
 
-                      <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.98)_0%,rgba(241,245,249,0.92)_100%)] p-[22px] text-sm text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                          <UserRound className="h-4 w-4" />
-                          Acesso inicial
-                        </div>
-                        <p>Profissionais externos podem criar a própria conta.</p>
-                        <p className="mt-1.5">
+                      <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
+                        <p className="text-sm font-medium">Acesso inicial</p>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Profissionais externos podem criar a própria conta.
                           Usuários internos da Prefeitura são cadastrados pelo administrador municipal.
                         </p>
                       </div>
-                    </form>
 
-                    <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-2">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
-                        Ambiente institucional protegido
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-                        SIGAPRO
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
+                      <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Ambiente institucional protegido</span>
+                        <span className="font-medium">SIGAPRO →</span>
+                      </div>
+                    </form>
                   </CardContent>
                 </Card>
                 </div>
@@ -305,7 +293,13 @@ function resolveRedirect(role: string | null) {
     case "profissional_externo":
     case "proprietario_consulta":
       return "/externo";
+    case "property_owner":
+      return "/proprietario";
     default:
       return "/master";
   }
 }
+
+
+
+

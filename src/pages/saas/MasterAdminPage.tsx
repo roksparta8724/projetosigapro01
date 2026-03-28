@@ -55,7 +55,19 @@ export function MasterAdminPage() {
 
   useEffect(() => { let active = true; if (!hasSupabaseEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
 
-  const institutionCatalog = remoteInstitutions.length > 0 ? remoteInstitutions : institutions;
+  const institutionCatalog = useMemo(() => {
+    const merged = new Map<string, Institution>();
+
+    institutions.forEach((institution) => {
+      merged.set(institution.id, institution);
+    });
+
+    remoteInstitutions.forEach((institution) => {
+      merged.set(institution.id, institution);
+    });
+
+    return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+  }, [institutions, remoteInstitutions]);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const knownAdministrativeUsers = useMemo(() => sessionUsers.filter((user) => ["prefeitura_admin", "master_admin", "master_ops", "prefeitura_supervisor"].includes(user.role)), [sessionUsers]);
   const availableAdminEmails = useMemo(() => { const map = new Map<string, SessionUser>(); knownAdministrativeUsers.forEach((user) => map.set(user.email.trim().toLowerCase(), user)); return [...map.values()]; }, [knownAdministrativeUsers]);
@@ -67,6 +79,26 @@ export function MasterAdminPage() {
   const activeInstitutionCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").length, [institutionCatalog]);
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
+  useEffect(() => {
+    if (institutionCatalog.length === 0) {
+      if (selectedTenantId) setSelectedTenantId("");
+      return;
+    }
+
+    const stillExists = institutionCatalog.some((item) => item.id === selectedTenantId);
+    if (stillExists) return;
+
+    const nextPreferred =
+      institutionCatalog.find((item) => item.status === "ativo")?.id ??
+      institutionCatalog.find((item) => item.status === "implantacao")?.id ??
+      institutionCatalog[0]?.id ??
+      "";
+
+    if (nextPreferred !== selectedTenantId) {
+      setSelectedTenantId(nextPreferred);
+    }
+  }, [institutionCatalog, selectedTenantId]);
+
   useEffect(() => {
     if (!activeTenant) { setForm(emptyTenantForm); setAdmins([createAdminDraft()]); return; }
     const settings = getInstitutionSettings(activeTenant.id);

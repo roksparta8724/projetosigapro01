@@ -47,7 +47,7 @@ export function PerfilPage() {
   const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
   const profile = getUserProfile(session.id);
-  const activeInstitutionId = scopeId ?? session.tenantId;
+  const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
   const [status, setStatus] = useState("");
@@ -339,7 +339,7 @@ export function PerfilPage() {
       try {
         const uploaded = await uploadFileToStorage({
           bucket: "profile-assets",
-          tenantId: scopeId ?? session.tenantId,
+          tenantId: activeInstitutionId,
           userId: session.id,
           file: avatarFiles[0].file,
           folder: "avatars",

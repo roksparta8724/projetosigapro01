@@ -69,10 +69,11 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
   } = usePlatformData();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses);
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings =
-    institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+    institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
   const [protocolQuery, setProtocolQuery] = useState("");
   const [manualGuideRegistered, setManualGuideRegistered] = useState<string | null>(null);

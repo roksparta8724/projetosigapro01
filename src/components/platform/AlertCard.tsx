@@ -17,8 +17,8 @@ export function AlertCard({
   return (
     <div
       className={cn(
-        "sig-ui-card h-full min-w-0 overflow-hidden rounded-[22px] border bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_8px_16px_rgba(15,23,42,0.032)]",
-        tone === "default" && "border-slate-200",
+        "sig-ui-card h-full min-w-0 overflow-hidden rounded-[22px] border bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_10px_22px_rgba(15,23,42,0.04)] ring-1 ring-white/70",
+        tone === "default" && "border-slate-300/90",
         tone === "warning" && "border-amber-200/90",
         tone === "danger" && "border-rose-200/90",
         tone === "success" && "border-emerald-200/90",
@@ -28,8 +28,8 @@ export function AlertCard({
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "sig-section-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
-            tone === "default" && "border-slate-200 bg-slate-50 text-[#2563eb]",
+            "sig-section-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-[0_8px_18px_rgba(15,23,42,0.055)]",
+            tone === "default" && "border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#f4f8fc_100%)] text-[#2563eb]",
             tone === "warning" && "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-300",
             tone === "danger" && "border-rose-200 bg-rose-50 text-rose-600 dark:text-rose-300",
             tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-300",

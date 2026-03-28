@@ -1,5 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
-import { buildProcessDocuments, type CreateProcessInput, type ProcessRecord, type SessionUser, type Tenant, type TenantSettings, type UserProfile } from "@/lib/platform";
+import {
+  buildProcessDocuments,
+  type CreateProcessInput,
+  type OwnerProfessionalMessage,
+  type OwnerProjectLink,
+  type OwnerProjectRequest,
+  type ProcessRecord,
+  type SessionUser,
+  type Tenant,
+  type TenantSettings,
+  type UserProfile,
+} from "@/lib/platform";
 
 function isMissingRelationError(error: unknown, relationName: string) {
   if (!error || typeof error !== "object") return false;
@@ -85,6 +96,9 @@ export async function loadRemotePlatformStore() {
     auditResult,
     reopenResult,
     movementsResult,
+    ownerRequestsResult,
+    ownerLinksResult,
+    ownerMessagesResult,
   ] = await Promise.all([
     supabase.from("tenants").select("*").order("created_at", { ascending: false }),
     supabase.from("tenant_branding").select("*"),
@@ -104,6 +118,9 @@ export async function loadRemotePlatformStore() {
     supabase.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
     supabase.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
     supabase.from("process_movements").select("*").order("created_at", { ascending: false }),
+    supabase.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
+    supabase.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
+    supabase.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
   ]);
 
   const errors = [
@@ -125,6 +142,11 @@ export async function loadRemotePlatformStore() {
     auditResult.error,
     reopenResult.error,
     movementsResult.error,
+    isMissingRelationError(ownerRequestsResult.error, "public.project_owner_requests") ? null : ownerRequestsResult.error,
+    isMissingRelationError(ownerLinksResult.error, "public.project_owner_links") ? null : ownerLinksResult.error,
+    isMissingRelationError(ownerMessagesResult.error, "public.owner_professional_messages")
+      ? null
+      : ownerMessagesResult.error,
   ].filter(Boolean);
 
   if (errors.length > 0) {
@@ -182,6 +204,40 @@ export async function loadRemotePlatformStore() {
     list.push(item);
     movementsByProcess.set(item.process_id, list);
   }
+
+  const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    status: row.status ?? "pending",
+    requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
+    respondedAt: row.responded_at ?? null,
+    respondedBy: row.responded_by ?? null,
+    notes: row.notes ?? undefined,
+  }));
+
+  const ownerLinks: OwnerProjectLink[] = (ownerLinksResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    chatEnabled: row.chat_enabled ?? true,
+    linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
+    linkedBy: row.linked_by ?? null,
+  }));
+
+  const ownerMessages: OwnerProfessionalMessage[] = (ownerMessagesResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    senderUserId: row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
+  }));
 
   const mappedTenantsFromLegacy: Tenant[] = tenantRows.map((tenant) => {
     const branding = brandingByTenant.get(tenant.id);
@@ -456,7 +512,13 @@ export async function loadRemotePlatformStore() {
       title: membership.department || membership.queue_name || membership.level_name || role?.label || "",
       email: profile?.email ?? "",
       accountStatus,
-      userType: membership.user_type ?? (roleCode === "profissional_externo" || roleCode === "proprietario_consulta" ? "Externo" : "Interno"),
+      userType:
+        membership.user_type ??
+        (roleCode === "profissional_externo" ||
+        roleCode === "proprietario_consulta" ||
+        roleCode === "property_owner"
+          ? "Externo"
+          : "Interno"),
       department: membership.department || membership.queue_name || membership.level_name || "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: membership.last_access_at ? new Date(membership.last_access_at).toLocaleString("pt-BR") : "",
@@ -590,6 +652,9 @@ export async function loadRemotePlatformStore() {
     tenantSettings,
     sessionUsers,
     userProfiles,
+    ownerRequests,
+    ownerLinks,
+    ownerMessages,
     processes,
   };
 }
@@ -635,6 +700,232 @@ export async function registerRemoteExternalAccount(input: RegisterExternalAccou
   }
 
   return data;
+}
+
+export async function registerRemoteOwnerAccount(input: {
+  tenantId: string;
+  fullName: string;
+  email: string;
+  cpfCnpj: string;
+  phone: string;
+  title?: string;
+  bio?: string;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Prefeitura invalida para cadastro externo.");
+  }
+
+  const { data, error } = await supabase.rpc("register_property_owner_account", {
+    _tenant_id: scopeId,
+    _full_name: input.fullName,
+    _email: input.email,
+    _cpf_cnpj: input.cpfCnpj || null,
+    _phone: input.phone || null,
+    _title: input.title || null,
+    _bio: input.bio || null,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createRemoteOwnerRequest(input: {
+  processId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  ownerDocument: string;
+  notes?: string;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const { data, error } = await supabase
+    .from("project_owner_requests")
+    .insert({
+      process_id: input.processId,
+      owner_user_id: input.ownerUserId,
+      professional_user_id: input.professionalUserId,
+      status: "pending",
+      requested_at: new Date().toISOString(),
+      notes: input.notes || null,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    projectId: data.process_id,
+    ownerUserId: data.owner_user_id,
+    professionalUserId: data.professional_user_id,
+    status: data.status ?? "pending",
+    requestedAt: data.requested_at ?? data.created_at ?? new Date().toISOString(),
+    respondedAt: data.responded_at ?? null,
+    respondedBy: data.responded_by ?? null,
+    notes: data.notes ?? undefined,
+  };
+}
+
+export async function respondRemoteOwnerRequest(input: {
+  requestId: string;
+  status: "pending" | "approved" | "rejected";
+  professionalUserId: string;
+  notes?: string;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const { data: requestData, error: requestError } = await supabase
+    .from("project_owner_requests")
+    .update({
+      status: input.status,
+      responded_at: new Date().toISOString(),
+      responded_by: input.professionalUserId,
+      notes: input.notes || null,
+    })
+    .eq("id", input.requestId)
+    .select("*")
+    .single();
+
+  if (requestError) {
+    throw requestError;
+  }
+
+  let linkData: any | null = null;
+
+  if (input.status === "approved") {
+    const { data, error } = await supabase
+      .from("project_owner_links")
+      .insert({
+        project_id: requestData.process_id,
+        owner_user_id: requestData.owner_user_id,
+        professional_user_id: requestData.professional_user_id,
+        chat_enabled: true,
+        linked_at: new Date().toISOString(),
+        linked_by: input.professionalUserId,
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    linkData = data;
+  }
+
+  const request = {
+    id: requestData.id,
+    projectId: requestData.process_id,
+    ownerUserId: requestData.owner_user_id,
+    professionalUserId: requestData.professional_user_id,
+    status: requestData.status ?? "pending",
+    requestedAt: requestData.requested_at ?? requestData.created_at ?? new Date().toISOString(),
+    respondedAt: requestData.responded_at ?? null,
+    respondedBy: requestData.responded_by ?? null,
+    notes: requestData.notes ?? undefined,
+  };
+
+  const link = linkData
+    ? {
+        id: linkData.id,
+        projectId: linkData.project_id,
+        ownerUserId: linkData.owner_user_id,
+        professionalUserId: linkData.professional_user_id,
+        chatEnabled: linkData.chat_enabled ?? true,
+        linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
+        linkedBy: linkData.linked_by ?? null,
+      }
+    : null;
+
+  return { request, link };
+}
+
+export async function setRemoteOwnerChatEnabled(input: {
+  linkId: string;
+  enabled: boolean;
+  actor: string;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const { data, error } = await supabase
+    .from("project_owner_links")
+    .update({ chat_enabled: input.enabled })
+    .eq("id", input.linkId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    projectId: data.project_id,
+    ownerUserId: data.owner_user_id,
+    professionalUserId: data.professional_user_id,
+    chatEnabled: data.chat_enabled ?? true,
+    linkedAt: data.linked_at ?? data.created_at ?? new Date().toISOString(),
+    linkedBy: data.linked_by ?? null,
+  };
+}
+
+export async function createRemoteOwnerMessage(input: {
+  projectId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  senderUserId: string;
+  message: string;
+  isSystemMessage?: boolean;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const { data, error } = await supabase
+    .from("owner_professional_messages")
+    .insert({
+      project_id: input.projectId,
+      owner_user_id: input.ownerUserId,
+      professional_user_id: input.professionalUserId,
+      sender_user_id: input.senderUserId,
+      message: input.message,
+      is_system_message: input.isSystemMessage ?? false,
+      created_at: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    projectId: data.project_id,
+    ownerUserId: data.owner_user_id,
+    professionalUserId: data.professional_user_id,
+    senderUserId: data.sender_user_id,
+    message: data.message,
+    createdAt: data.created_at ?? new Date().toISOString(),
+    readAt: data.read_at ?? null,
+    isSystemMessage: data.is_system_message ?? false,
+  };
 }
 
 export async function createRemoteExternalProcess(

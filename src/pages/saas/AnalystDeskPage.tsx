@@ -79,7 +79,7 @@ function getOpenRequirements(process: ProcessRecord) {
 
 export function AnalystDeskPage() {
   const { session } = usePlatformSession();
-  const { scopeId } = useMunicipality();
+  const { municipality, scopeId } = useMunicipality();
   const {
     processes: allProcesses,
     updateProcessStatus,
@@ -87,11 +87,12 @@ export function AnalystDeskPage() {
     createRequirement,
     documentTemplates,
   } = usePlatformData();
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [search, setSearch] = useState("");
   const [section, setSection] = useState<AnalystSection>("visao-geral");
   const currentUnit = session.department || session.title || "Análise Técnica";
 
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses).filter((item) => {
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter((item) => {
     const haystack = `${item.protocol} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });

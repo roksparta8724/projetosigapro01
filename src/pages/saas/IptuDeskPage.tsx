@@ -34,11 +34,12 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 
 export function IptuDeskPage() {
   const { session } = usePlatformSession();
-  const { scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
-  const processes = getVisibleProcessesByScope(session, scopeId, allProcesses);
+  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings =
-    institutionSettingsCompat ?? getInstitutionSettings(scopeId ?? session.tenantId);
+    institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
 
   const issGuides = processes
     .map((process) => ({
