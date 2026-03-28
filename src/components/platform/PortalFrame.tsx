@@ -38,7 +38,7 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { can, matchesOperationalScope, roleLabels, themePresets, type Permission } from "@/lib/platform";
+import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
@@ -110,6 +110,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [topSearch, setTopSearch] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -151,10 +152,49 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     };
   }, []);
 
-  const primaryColor = themeOverride?.primary || municipalityTheme.primary || ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) || "#0F2A44";
-  const accentColor = themeOverride?.accent || municipalityTheme.accent || ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) || "#5ee8d9";
-  const inverseThemeHint = !!themeOverride?.inverseMain;
-  const pageBackground = inverseThemeHint ? "#f8fafc" : themeOverride?.background || "#f6f8fb";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsMobileViewport(media.matches);
+
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    return () => media.removeEventListener("change", syncViewport);
+  }, []);
+
+  const availableThemePresets = isMobileViewport ? mobileThemePresets : desktopThemePresets;
+
+  const appliedTheme = themeOverride ?? null;
+  const resolvedThemePreset =
+    desktopThemePresets.find(
+      (preset) =>
+        preset.primary === appliedTheme?.primary &&
+        preset.accent === appliedTheme?.accent &&
+        preset.background === appliedTheme?.background &&
+        !!preset.inverseMain === !!appliedTheme?.inverseMain,
+    ) ??
+    desktopThemePresets.find(
+      (preset) =>
+        preset.primary === municipalityTheme.primary &&
+        preset.accent === municipalityTheme.accent &&
+        (!!preset.inverseMain ? preset.background === municipalityTheme.background : true),
+    ) ??
+    desktopThemePresets[0];
+  const primaryColor =
+    appliedTheme?.primary ||
+    municipalityTheme.primary ||
+    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) ||
+    resolvedThemePreset.primary ||
+    "#163b63";
+  const accentColor =
+    appliedTheme?.accent ||
+    municipalityTheme.accent ||
+    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) ||
+    resolvedThemePreset.accent ||
+    "#3b82f6";
+  const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
+  const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f5f8fc";
   const sidebarBase = primaryColor;
   const sidebarBottom = darken(sidebarBase, 8);
   const sidebarFill = darken(primaryColor, 10);
@@ -205,13 +245,21 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const institutionFooterSignature =
     officialFooterText || "SIGAPRO — Plataforma institucional para aprovação de projetos";
   const activeThemePreset =
-    themePresets.find(
+    availableThemePresets.find(
       (preset) =>
         preset.primary === primaryColor &&
         preset.accent === accentColor &&
-        (preset.background || "#f6f8fb") === pageBackground &&
-        !!preset.inverseMain === !!themeOverride?.inverseMain,
-    ) ?? null;
+        (preset.background || "#f5f8fc") === pageBackground &&
+        !!preset.inverseMain === !!inverseThemeHint,
+    ) ??
+    desktopThemePresets.find(
+      (preset) =>
+        preset.primary === primaryColor &&
+        preset.accent === accentColor &&
+        (preset.background || "#f5f8fc") === pageBackground &&
+        !!preset.inverseMain === !!inverseThemeHint,
+    ) ??
+    resolvedThemePreset;
   const activeThemePresetId = activeThemePreset?.id ?? null;
   const inverseMainTheme = inverseThemeHint || !!activeThemePreset?.inverseMain;
 
@@ -260,14 +308,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
   return (
     <div
-      className="min-h-screen text-[#1A1A1A]"
+      className="sig-app-frame min-h-screen text-[#1A1A1A]"
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
       style={
         {
           backgroundColor: pageBackground,
-          backgroundImage: sidebarExpanded
-            ? `linear-gradient(90deg, var(--sig-sidebar-fill) 0px, var(--sig-sidebar-fill) 244px, ${pageBackground} 244px, ${pageBackground} 100%)`
-            : "none",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "244px" : "0px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -276,32 +322,33 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           "--sig-inverse-icon": accentColor,
           "--sig-inverse-shell-top": darken(primaryColor, 4),
           "--sig-inverse-shell-bottom": darken(primaryColor, -2),
+          "--sig-page-background": pageBackground,
         } as React.CSSProperties
       }
     >
       <div
-        className="fixed inset-x-0 top-0 z-50 h-[66px] shadow-[0_10px_26px_rgba(15,23,42,0.08)]"
+        className="fixed inset-x-0 top-0 z-50 h-[50px] shadow-[0_10px_26px_rgba(15,23,42,0.08)] lg:h-[56px]"
         style={{
           borderBottom: `1px solid ${withAlpha(darken(primaryColor, 10), "0.36")}`,
           background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 52%, ${bannerMid} 100%)`,
         }}
       >
-        <div className="flex h-full items-center justify-between gap-4 px-4 lg:px-6 xl:px-8">
+        <div className="flex h-full items-center justify-between gap-2 px-2.5 lg:gap-4 lg:px-6 xl:px-8">
           <div className="flex min-w-0 items-center gap-4">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-slate-200 bg-white p-1.5 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
+            <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[10px] border border-slate-200 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
               <SigaproLogo bare compact showInternalWordmark={false} />
             </div>
             <div className="min-w-0">
               <p className={cn("sig-fit-title text-xs font-normal uppercase tracking-[0.08em]", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
-              <p className={cn("sig-fit-copy text-xs font-normal leading-5", darkTopbar ? "text-white/70" : "text-slate-600")}>
+              <p className={cn("sig-fit-copy text-[11px] font-normal leading-4", darkTopbar ? "text-white/70" : "text-slate-600")}>
                 Plataforma institucional de projetos
               </p>
             </div>
@@ -311,7 +358,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <button
               type="button"
               onClick={() => navigate("/notificacoes")}
-              className="inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border border-white/14 bg-white/10 text-white shadow-sm transition hover:bg-white/16"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-full border border-white/14 bg-white/10 text-white shadow-sm transition hover:bg-white/16"
               aria-label="Notificações"
             >
               <Bell className="h-4 w-4 text-[#facc15]" />
@@ -319,7 +366,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="flex h-[40px] items-center rounded-full border border-white/14 bg-white/10 px-2.5 text-white shadow-sm transition hover:bg-white/16"
+              className="flex h-[32px] items-center rounded-full border border-white/14 bg-white/10 px-1.5 text-white shadow-sm transition hover:bg-white/16"
               aria-label="Meu perfil"
             >
               <UserAvatar
@@ -373,22 +420,22 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   aria-label="Selecionar tema"
                   title={activeThemePreset?.label || "Tema"}
                 >
-                  <Palette className="h-4 w-4 text-rose-400" aria-hidden="true" />
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-3 w-3 rounded-full border border-white/30" style={{ backgroundColor: primaryColor }} />
-                    <span className="h-3 w-3 rounded-full border border-white/30" style={{ backgroundColor: accentColor }} />
-                    <span className="h-3 w-3 rounded-full border border-white/30" style={{ backgroundColor: pageBackground }} />
+                  <Palette className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                  <span className="sig-fit-title max-w-[138px] text-[13px] font-medium">
+                    {activeThemePreset?.label || "Tema do layout"}
                   </span>
                   <ChevronDown className="h-4 w-4 text-slate-500" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
-                <DropdownMenuLabel className="px-3 py-2.5">
+              <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[272px] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
+                <DropdownMenuLabel className="px-3 py-2">
                   <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Tema do layout</p>
-                  <p className="mt-1 text-sm font-normal text-slate-500">Escolha uma paleta rápida.</p>
+                  <p className="mt-1 text-[13px] font-normal leading-5 text-slate-500">
+                    {isMobileViewport ? "Escolha entre 4 temas premium do sistema." : "Escolha um tema premium do sistema."}
+                  </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {themePresets.map((preset) => (
+                {availableThemePresets.map((preset) => (
                   <DropdownMenuItem
                     key={preset.id}
                     className={cn(
@@ -404,12 +451,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                       })
                     }
                   >
-                    <span className="mr-3 flex items-center gap-1.5">
-                      <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
-                      <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
-                      <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: preset.background || '#f6f8fb' }} />
+                    <span className="mr-3 flex h-9 w-11 shrink-0 overflow-hidden rounded-[11px] border border-slate-200">
+                      <span className="h-full w-[34%]" style={{ backgroundColor: darken(preset.primary, 10) }} />
+                      <span className="h-full w-[38%]" style={{ backgroundColor: preset.primary }} />
+                      <span className="h-full w-[28%]" style={{ backgroundColor: preset.background || "#f5f8fc" }} />
                     </span>
-                    <span className="flex-1 sig-fit-title">{preset.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="sig-fit-title block text-[13px] font-medium">{preset.label}</span>
+                      <span className={cn("sig-fit-copy mt-0.5 block text-[11px] leading-5 text-slate-500", isMobileViewport && "line-clamp-2")}>
+                        {preset.description}
+                      </span>
+                    </span>
                     {activeThemePresetId === preset.id ? (
                       <span className="rounded-full bg-white px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-500">
                         Ativo
@@ -417,10 +469,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     ) : null}
                   </DropdownMenuItem>
                 ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="rounded-[14px] px-3 py-2.5 text-[14px] text-slate-700" onClick={() => applyLayoutTheme(null)}>
-                  Restaurar cores da Prefeitura
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -509,7 +557,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         </div>
       </div>
 
-      <div className="flex min-h-screen pt-[66px]">
+      <div className="flex min-h-screen pt-[50px] lg:pt-[56px]">
         <AppSidebar
           pathname={location.pathname}
           groups={sidebarGroups}
@@ -519,7 +567,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           inverseMain={inverseMainTheme}
           darkSurface={darkSidebar}
           footer={
-            <>
+            <div className="space-y-3">
               <SidebarProfilePanel
                 name={displayUserName}
                 role={roleLabel}
@@ -534,20 +582,20 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 type="button"
                 variant="outline"
                 className={cn(
-                  "mt-2 h-9 w-full rounded-[14px] bg-transparent px-3 text-[12px] font-medium shadow-none",
+                  "h-10 w-full rounded-[14px] px-3 text-[12px] font-semibold shadow-sm transition-all duration-200",
                   darkSidebar
-                    ? "border-white/18 text-white/90 hover:bg-white/[0.08] hover:text-white"
-                    : "border-slate-300/80 text-slate-700 hover:bg-black/[0.04] hover:text-slate-950",
+                    ? "border-rose-400/20 bg-[linear-gradient(180deg,rgba(127,29,29,0.88)_0%,rgba(136,19,55,0.82)_100%)] text-rose-50 hover:bg-[linear-gradient(180deg,rgba(153,27,27,0.92)_0%,rgba(157,23,77,0.88)_100%)] hover:text-white"
+                    : "border-slate-900/85 bg-slate-900 text-white hover:bg-slate-800 hover:text-white",
                 )}
                 onClick={async () => {
                   await signOut();
                   navigate("/acesso", { replace: true });
                 }}
               >
-                <LogOut className={cn("mr-2 h-[13px] w-[13px]", darkSidebar ? "!text-white/80" : "!text-slate-500")} />
+                <LogOut className={cn("mr-2 h-[13px] w-[13px]", darkSidebar ? "!text-rose-50" : "!text-white/90")} />
                 Sair
               </Button>
-            </>
+            </div>
           }
         />
 

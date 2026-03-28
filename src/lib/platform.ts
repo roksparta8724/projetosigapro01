@@ -145,6 +145,7 @@ export type InstitutionStatus = Tenant["status"];
 export interface ThemePreset {
   id: string;
   label: string;
+  description?: string;
   primary: string;
   accent: string;
   background?: string;
@@ -1197,26 +1198,149 @@ export const planCatalog = [
   { name: "Premium", enabled: false, seats: "Ilimitado", description: "Operação completa com personalização institucional ampliada." },
 ];
 
-export const themePresets: ThemePreset[] = [
-  { id: "azul-institucional", label: "Azul institucional", primary: "#16324a", accent: "#5bc0be" },
-  { id: "verde-institucional", label: "Verde institucional", primary: "#184e43", accent: "#88c98c" },
-  { id: "rosa-institucional", label: "Rosa institucional", primary: "#7a284f", accent: "#f0b6ca" },
-  { id: "preto-verde", label: "Preto e verde", primary: "#1f6b3a", accent: "#9fe3b5", background: "#050705" },
-  { id: "preto-turquesa", label: "Preto e azul-turquesa", primary: "#0f6a78", accent: "#6fe6e8", background: "#040607" },
-  { id: "menu-invertido-turquesa", label: "Menu invertido turquesa", primary: "#0f2a33", accent: "#57d8df", background: "#f8fbfc", inverseMain: true },
-  { id: "menu-invertido-verde", label: "Menu invertido verde", primary: "#11281d", accent: "#6fd3a2", background: "#f7fbf8", inverseMain: true },
-  { id: "menu-invertido-vinho", label: "Menu invertido vinho", primary: "#2a1520", accent: "#d6a5b4", background: "#fcf8fa", inverseMain: true },
-  { id: "menu-invertido-grafite", label: "Menu invertido grafite", primary: "#1b2230", accent: "#a8b5c7", background: "#f8fafc", inverseMain: true },
-  { id: "grafite", label: "Grafite", primary: "#232b38", accent: "#d7b56d" },
-  { id: "ardosia", label: "Cinza ardosia", primary: "#334155", accent: "#94a3b8" },
-  { id: "petroleo", label: "Azul petroleo", primary: "#123a58", accent: "#65c7d0" },
-  { id: "esmeralda", label: "Esmeralda", primary: "#155e52", accent: "#7dd3a7" },
-  { id: "ambar", label: "Ambar suave", primary: "#6b4f1d", accent: "#e8c27a" },
-  { id: "vinho", label: "Vinho sobrio", primary: "#5a2230", accent: "#d8a6ab" },
-  { id: "indigo", label: "Indigo", primary: "#3730a3", accent: "#a5b4fc" },
-  { id: "areia", label: "Areia clara", primary: "#6b6255", accent: "#d8ccb8" },
-  { id: "oceano", label: "Oceano", primary: "#0d5f73", accent: "#8ee3ef" },
+export const mobileThemePresets: ThemePreset[] = [
+  {
+    id: "claro-institucional",
+    label: "Claro institucional",
+    description: "Base clara com azul institucional e leitura municipal.",
+    primary: "#163b63",
+    accent: "#3b82f6",
+    background: "#f5f8fc",
+    inverseMain: false,
+  },
+  {
+    id: "claro-neutro",
+    label: "Claro neutro",
+    description: "Base neutra com cinza ardósia e visual sóbrio.",
+    primary: "#334155",
+    accent: "#64748b",
+    background: "#f4f6f8",
+    inverseMain: false,
+  },
+  {
+    id: "escuro-institucional",
+    label: "Escuro institucional",
+    description: "Azul profundo com sensação premium de govtech municipal.",
+    primary: "#0f2a44",
+    accent: "#67e8f9",
+    background: "#081421",
+    inverseMain: true,
+  },
+  {
+    id: "escuro-grafite",
+    label: "Escuro grafite",
+    description: "Grafite elegante com acento azul contido.",
+    primary: "#1f2937",
+    accent: "#93c5fd",
+    background: "#111827",
+    inverseMain: true,
+  },
 ];
+
+export const desktopThemePresets: ThemePreset[] = [
+  ...mobileThemePresets,
+  {
+    id: "claro-civico",
+    label: "Claro cívico",
+    description: "Base clara com azul petróleo e sensação institucional refinada.",
+    primary: "#1d4f6f",
+    accent: "#38bdf8",
+    background: "#f3f7fb",
+    inverseMain: false,
+  },
+  {
+    id: "claro-ardosia",
+    label: "Claro ardósia",
+    description: "Cinza nobre com acento sóbrio e leitura corporativa.",
+    primary: "#475569",
+    accent: "#94a3b8",
+    background: "#f5f7fa",
+    inverseMain: false,
+  },
+  {
+    id: "claro-vinho",
+    label: "Claro vinho",
+    description: "Base clara com vinho institucional e presença mais executiva.",
+    primary: "#7c2d3a",
+    accent: "#be445d",
+    background: "#fbf5f7",
+    inverseMain: false,
+  },
+  {
+    id: "claro-rosa",
+    label: "Claro rosa",
+    description: "Rosa sofisticado com leitura leve e aparência premium.",
+    primary: "#9d4b74",
+    accent: "#ec4899",
+    background: "#fcf6fa",
+    inverseMain: false,
+  },
+  {
+    id: "claro-verde",
+    label: "Claro verde",
+    description: "Verde administrativo com sensação estável e confiável.",
+    primary: "#1f5d4d",
+    accent: "#22c55e",
+    background: "#f3faf7",
+    inverseMain: false,
+  },
+  {
+    id: "claro-marrom",
+    label: "Claro marrom",
+    description: "Marrom tabaco com tom executivo e mais calor institucional.",
+    primary: "#6b4f3b",
+    accent: "#c08457",
+    background: "#f8f5f2",
+    inverseMain: false,
+  },
+  {
+    id: "escuro-oceano",
+    label: "Escuro oceano",
+    description: "Azul profundo com acento aqua para um visual premium.",
+    primary: "#10293f",
+    accent: "#22d3ee",
+    background: "#091723",
+    inverseMain: true,
+  },
+  {
+    id: "escuro-petroleo",
+    label: "Escuro petróleo",
+    description: "Base petróleo elegante com contraste estável para operação.",
+    primary: "#16343f",
+    accent: "#60a5fa",
+    background: "#0c1920",
+    inverseMain: true,
+  },
+  {
+    id: "escuro-vinho",
+    label: "Escuro vinho",
+    description: "Vinho profundo com elegância corporativa e contraste sóbrio.",
+    primary: "#4f1f2d",
+    accent: "#fb7185",
+    background: "#170d12",
+    inverseMain: true,
+  },
+  {
+    id: "escuro-floresta",
+    label: "Escuro floresta",
+    description: "Verde fechado com presença institucional forte e serena.",
+    primary: "#17372d",
+    accent: "#4ade80",
+    background: "#0c1713",
+    inverseMain: true,
+  },
+  {
+    id: "escuro-cacau",
+    label: "Escuro cacau",
+    description: "Marrom escuro elegante para uma leitura enterprise menos fria.",
+    primary: "#3f2d21",
+    accent: "#d4a373",
+    background: "#17120f",
+    inverseMain: true,
+  },
+];
+
+export const themePresets: ThemePreset[] = desktopThemePresets;
 
 export const processTypeCatalog = [
   "Aprovação de Projeto Residencial",

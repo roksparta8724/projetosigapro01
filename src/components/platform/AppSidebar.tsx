@@ -33,7 +33,7 @@ function SidebarInner({
   onClose,
 }: SidebarInnerProps) {
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,rgba(255,255,255,0.012)_34%,rgba(255,255,255,0)_100%)]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--sig-sidebar-fill,#0d1526)]">
       {showClose ? (
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <div>
@@ -90,7 +90,7 @@ function SidebarInner({
                         "group flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-sm leading-5 transition-all duration-200 ease-out",
                         active
                           ? darkSurface
-                            ? "border border-white/20 bg-white/[0.9] text-slate-950"
+                            ? "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(32,78,125,0.98)_0%,rgba(59,130,246,0.92)_100%)] text-white"
                             : "border border-slate-300 bg-white text-slate-950"
                           : darkSurface
                             ? "border border-transparent text-slate-300 hover:border-white/30 hover:bg-white/[0.04] hover:text-white"
@@ -106,7 +106,9 @@ function SidebarInner({
                         className={cn(
                           "sig-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
                           active
-                            ? "border-slate-300 bg-slate-50 text-slate-950"
+                            ? darkSurface
+                              ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                              : "border-slate-300 bg-slate-50 text-slate-950"
                             : darkSurface
                               ? "border-white/8 bg-white/[0.025] text-slate-300 group-hover:border-white/10 group-hover:bg-white/[0.05] group-hover:text-white"
                               : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
@@ -118,7 +120,9 @@ function SidebarInner({
                         className={cn(
                           "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
                           active
-                            ? "font-semibold text-slate-950"
+                            ? darkSurface
+                              ? "font-semibold text-white"
+                              : "font-semibold text-slate-950"
                             : darkSurface
                               ? "font-medium text-slate-200"
                               : "font-medium text-slate-800",
@@ -136,7 +140,7 @@ function SidebarInner({
         </nav>
       </div>
 
-      {footer ? <div className="shrink-0 border-t border-white/8 px-3 pb-3 pt-2.5">{footer}</div> : null}
+      {footer ? <div className="mt-auto shrink-0 px-3 pb-5 pt-6">{footer}</div> : null}
     </div>
   );
 }
@@ -164,13 +168,13 @@ export function AppSidebar({
 }) {
   return (
     <>
-      <aside
-        className={cn(
-          "relative hidden min-h-[calc(100vh-66px)] shrink-0 self-stretch transition-[width] duration-200 lg:sticky lg:top-[66px] lg:flex lg:flex-col",
-          expanded
-            ? "w-[244px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
-            : "w-0 overflow-hidden after:hidden",
-          className,
+        <aside
+          className={cn(
+            "relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch transition-[width] duration-200 lg:sticky lg:top-[56px] lg:flex lg:flex-col",
+            expanded
+              ? "w-[244px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
+              : "w-0 overflow-hidden after:hidden",
+            className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
         style={{ background: "var(--sig-sidebar-fill, #0d1526)" }}

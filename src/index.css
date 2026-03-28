@@ -60,6 +60,23 @@
     min-height: 100vh;
   }
 
+  .sig-app-frame {
+    background-color: var(--sig-page-background, hsl(var(--background)));
+  }
+
+  @media (min-width: 1024px) {
+    .sig-app-frame {
+      background-image: linear-gradient(
+        90deg,
+        var(--sig-sidebar-fill) 0px,
+        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 244px),
+        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 244px),
+        var(--sig-page-background, hsl(var(--background))) 100%
+      );
+      background-repeat: no-repeat;
+    }
+  }
+
   h1,
   h2,
   h3,
@@ -773,22 +790,30 @@
   }
 
   [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] {
-    background: linear-gradient(135deg, #dcecff 0%, #9cc6ff 100%) !important;
-    border-color: rgba(156, 198, 255, 0.45) !important;
-    color: #0f172a !important;
-    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18) !important;
+    background: linear-gradient(135deg, #204e7d 0%, #3b82f6 100%) !important;
+    border-color: rgba(156, 198, 255, 0.24) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28) !important;
   }
 
   [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] span,
   [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .text-slate-950,
   [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .text-slate-900 {
-    color: #0f172a !important;
+    color: #f8fafc !important;
   }
 
-  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .rounded-\[9px\] {
-    background: rgba(255, 255, 255, 0.7) !important;
-    border-color: rgba(15, 23, 42, 0.14) !important;
-    color: #0f172a !important;
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .sig-sidebar-icon,
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] > span:first-child {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    color: #eff6ff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  }
+
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] .sig-sidebar-icon svg,
+  [data-layout-mode="inverse-main"] [data-sidebar-mode="inverse-main"] [data-sidebar-active="true"] > span:first-child svg {
+    color: #eff6ff !important;
+    stroke: currentColor !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"] {

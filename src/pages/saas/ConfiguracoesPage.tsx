@@ -26,7 +26,7 @@ import { loadMunicipalityBundleById } from "@/integrations/supabase/municipality
 import { saveRemoteInstitutionSettings, uploadInstitutionalBrandingAsset } from "@/integrations/supabase/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
-import { can, themePresets } from "@/lib/platform";
+import { can, desktopThemePresets, mobileThemePresets } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
   return url
@@ -117,6 +117,12 @@ export function ConfiguracoesPage() {
     primaryColor: tenant?.theme.primary ?? "#0f3557",
     accentColor: tenant?.theme.accent ?? "#178f78",
   });
+  const activeTenantDesktopThemePreset =
+    desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor) ??
+    desktopThemePresets[0];
+  const activeTenantMobileThemePreset =
+    mobileThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor) ??
+    mobileThemePresets[0];
 
   const [settingsForm, setSettingsForm] = useState({
     cnpj: settings?.cnpj ?? "",
@@ -1156,10 +1162,10 @@ export function ConfiguracoesPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Variedade de cores do layout</Label>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {themePresets.map((preset) => {
+            <div className="space-y-2 md:hidden">
+              <Label>Tema visual institucional</Label>
+              <div className="grid gap-3">
+                {mobileThemePresets.map((preset) => {
                   const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
                   return (
                     <button
@@ -1178,9 +1184,107 @@ export function ConfiguracoesPage() {
                     >
                       <div className="overflow-hidden rounded-[14px] border border-slate-200">
                         <div style={{ height: 10, background: darken(preset.primary, 28) }} />
-                        <div style={{ height: 42, background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)` }} />
+                        <div
+                          style={{
+                            height: 42,
+                            background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
+                          }}
+                        />
                       </div>
                       <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
+                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
+                      </div>
+                      {active ? (
+                        <span className="mt-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-white md:hidden">
+                          Tema ativo
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <Select
+                value={activeTenantMobileThemePreset.id}
+                onValueChange={(value) => {
+                  const preset = mobileThemePresets.find((item) => item.id === value);
+                  if (!preset) return;
+                  setTenantForm((current) => ({
+                    ...current,
+                    primaryColor: preset.primary,
+                    accentColor: preset.accent,
+                  }));
+                }}
+              >
+                <SelectTrigger className="h-12 rounded-2xl">
+                  <SelectValue placeholder="Selecione um dos 4 temas oficiais" />
+                </SelectTrigger>
+                <SelectContent>
+                  {themePresets.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Tema selecionado</p>
+                <div className="mt-3 flex items-center gap-4">
+                  <span
+                    className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-slate-200 shadow-sm"
+                    style={{
+                      background: `linear-gradient(135deg, ${activeTenantMobileThemePreset.primary} 0%, ${darken(activeTenantMobileThemePreset.primary, -8)} 100%)`,
+                    }}
+                  >
+                    <Palette className="h-4 w-4 text-white" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900">{activeTenantMobileThemePreset.label}</p>
+                    <p className="text-sm leading-6 text-slate-500">{activeTenantMobileThemePreset.description}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.primary }} />
+                  <span className="text-xs text-slate-500">Base institucional</span>
+                  <span className="ml-3 h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.accent }} />
+                  <span className="text-xs text-slate-500">Acento visual</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden space-y-2 md:block">
+              <Label>Variedade de cores do layout</Label>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {desktopThemePresets.map((preset) => {
+                  const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() =>
+                        setTenantForm((current) => ({
+                          ...current,
+                          primaryColor: preset.primary,
+                          accentColor: preset.accent,
+                        }))
+                      }
+                      className={`rounded-[20px] border p-3 text-left transition ${
+                        active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="overflow-hidden rounded-[14px] border border-slate-200">
+                        <div style={{ height: 10, background: darken(preset.primary, 28) }} />
+                        <div
+                          style={{
+                            height: 42,
+                            background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
                         <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
@@ -1190,9 +1294,10 @@ export function ConfiguracoesPage() {
                 })}
               </div>
               <Select
-                value={themePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor)?.id ?? "personalizado"}
+                value={desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor)?.id ?? "personalizado"}
                 onValueChange={(value) => {
-                  const preset = themePresets.find((item) => item.id === value);
+                  if (value === "personalizado") return;
+                  const preset = desktopThemePresets.find((item) => item.id === value);
                   if (!preset) return;
                   setTenantForm((current) => ({
                     ...current,
@@ -1206,7 +1311,7 @@ export function ConfiguracoesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="personalizado">Personalizado atual</SelectItem>
-                  {themePresets.map((preset) => (
+                  {desktopThemePresets.map((preset) => (
                     <SelectItem key={preset.id} value={preset.id}>
                       {preset.label}
                     </SelectItem>
@@ -1215,7 +1320,7 @@ export function ConfiguracoesPage() {
               </Select>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="hidden grid-cols-2 gap-4 md:grid">
               <div className="space-y-2">
                 <Label>Cor principal</Label>
                 <Input type="color" value={tenantForm.primaryColor} onChange={(event) => setTenantField("primaryColor", event.target.value)} className="h-12 rounded-2xl" />
