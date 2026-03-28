@@ -157,13 +157,16 @@ function FinanceSectionNav() {
         <Button
           type="button"
           variant="outline"
-          className="rounded-full border-[#cfe0ee] bg-white font-medium text-[#123a58]"
+          className="sig-dark-ghost-btn rounded-full border font-medium text-slate-100"
         >
           Visão geral
         </Button>
       </Link>
       <Link to="/prefeitura/financeiro/protocolos">
-        <Button type="button" className="rounded-full bg-[#123a58] hover:bg-[#0f314d]">
+        <Button
+          type="button"
+          className="rounded-full border border-sky-300/30 bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)] hover:brightness-105"
+        >
           Guias e recolhimento
         </Button>
       </Link>
@@ -171,7 +174,7 @@ function FinanceSectionNav() {
         <Button
           type="button"
           variant="outline"
-          className="rounded-full border-[#cfe0ee] bg-white font-medium text-[#123a58]"
+          className="sig-dark-ghost-btn rounded-full border font-medium text-slate-100"
         >
           IPTU e ISSQN
         </Button>

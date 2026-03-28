@@ -317,6 +317,14 @@
     -webkit-box-orient: vertical;
   }
 
+  .sig-dark-action-btn {
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
   .sig-soft-card {
     background: #ffffff;
     border: 1px solid rgba(226, 232, 240, 0.92);
@@ -496,13 +504,6 @@
     color: #dbe7fb !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white,
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50,
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-\[\#F8FAFC\],
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-\[\#FBFDFF\] {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.025) 100%) !important;
-  }
-
   [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#fcfdff"],
   [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#fafcff"],
   [data-layout-mode="inverse-main"] .sig-main-shell section[class*="linear-gradient(135deg,#ffffff"] {
@@ -515,8 +516,7 @@
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
   [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
   [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"],
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.rounded-full:not(.sig-page-footer *),
-  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.rounded-2xl:not(.sig-page-footer *) {
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white.rounded-full:not(.sig-page-footer *) {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
     color: #e8eef9 !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
@@ -743,10 +743,12 @@
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="border-input"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="border-input"],
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"],
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-background"] {
     background: rgba(255, 255, 255, 0.04) !important;
-    color: #e8eef9 !important;
+    color: #dbeafe !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
   }
 
@@ -755,8 +757,17 @@
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="border-input"]:hover,
   [data-layout-mode="inverse-main"] .sig-main-shell a[class*="border-input"]:hover {
     background: rgba(255, 255, 255, 0.08) !important;
-    color: #eef4ff !important;
+    color: #f8fbff !important;
     border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="border-input"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="border-input"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-background"] span,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-background"] span {
+    color: inherit !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-700,
@@ -800,14 +811,96 @@
 
   [data-layout-mode="inverse-main"] .sig-main-shell button:disabled,
   [data-layout-mode="inverse-main"] .sig-main-shell [aria-disabled="true"] {
-    color: #94a3b8 !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #a8bdd8 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    opacity: 0.78 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button:disabled svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [aria-disabled="true"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button:disabled span,
+  [data-layout-mode="inverse-main"] .sig-main-shell [aria-disabled="true"] span {
+    color: #a8bdd8 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell button svg,
   [data-layout-mode="inverse-main"] .sig-main-shell a svg,
   [data-layout-mode="inverse-main"] .sig-main-shell [role="button"] svg {
     color: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-page-header svg,
+  [data-layout-mode="inverse-main"] .sig-section-card svg,
+  [data-layout-mode="inverse-main"] .sig-ui-card svg,
+  [data-layout-mode="inverse-main"] .sig-stat-card svg,
+  [data-layout-mode="inverse-main"] .sig-metric-card svg {
+    color: var(--sig-inverse-icon) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="border-input"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="border-input"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="variant-outline"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="variant-outline"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-background"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-background"] svg {
+    color: #8fd3ff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn span,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn svg {
+    color: #d9ecff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn svg *,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn [class*="lucide"] {
+    color: #d9ecff !important;
+    stroke: #d9ecff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn {
+    border-color: color-mix(in srgb, var(--sig-inverse-border) 82%, #93c5fd 18%) !important;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sig-inverse-surface) 92%, #0f172a 8%) 0%,
+      color-mix(in srgb, var(--sig-inverse-surface-soft) 94%, #020617 6%) 100%
+    ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 8px 18px rgba(2, 6, 23, 0.16) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover {
+    border-color: color-mix(in srgb, #93c5fd 42%, var(--sig-inverse-border) 58%) !important;
+    background: linear-gradient(180deg, rgba(41, 72, 104, 0.94) 0%, rgba(30, 55, 82, 0.96) 100%) !important;
+    color: #f8fbff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover span,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover svg {
+    color: #f8fbff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover svg *,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn:hover [class*="lucide"] {
+    color: #f8fbff !important;
+    stroke: #f8fbff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell [data-slot="select-trigger"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="combobox"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-admin-input svg {
+    color: #93c5fd !important;
+    stroke: #93c5fd !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card .text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card .text-red-600,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-red-600 {
+    color: #fca5a5 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .hover\:text-slate-950:hover,
@@ -1214,6 +1307,75 @@
 
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel svg {
     color: #dbeafe !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel.bg-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel.bg-slate-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel.bg-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-inverse-panel.bg-slate-50 {
+    background: inherit !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel div[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel section[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel article[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel li[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel div[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel section[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel article[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel li[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card div[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card section[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card article[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card li[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card div[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card section[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card article[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-card li[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card div[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card section[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card article[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card li[class*="bg-white"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card div[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card section[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card article[class*="bg-slate-50"],
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-ui-card li[class*="bg-slate-50"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.024) 100%) !important;
+    border-color: rgba(125, 211, 252, 0.14) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-ghost-btn {
+    background: rgba(9, 20, 34, 0.72) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e8eef9 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 8px 18px rgba(2, 6, 23, 0.18) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-ghost-btn:hover {
+    background: rgba(14, 28, 46, 0.9) !important;
+    color: #f8fafc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-2xl.border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[20px\].border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[24px\].border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[28px\].border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-3xl.border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell section.rounded-2xl.border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell article.rounded-2xl.border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell li.rounded-2xl.border[class*="bg-white"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-2xl.border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[20px\].border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[24px\].border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-\[28px\].border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell div.rounded-3xl.border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell section.rounded-2xl.border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell article.rounded-2xl.border[class*="bg-slate-50"]:not([role]),
+  [data-layout-mode="inverse-main"] .sig-main-shell li.rounded-2xl.border[class*="bg-slate-50"]:not([role]) {
+    background: linear-gradient(180deg, rgba(12, 24, 40, 0.88) 0%, rgba(10, 21, 35, 0.82) 100%) !important;
+    border-color: rgba(125, 211, 252, 0.14) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 34px rgba(2, 6, 23, 0.16) !important;
   }
 
   .sig-premium-admin-form label {

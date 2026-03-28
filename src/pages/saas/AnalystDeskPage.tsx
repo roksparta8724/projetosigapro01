@@ -13,9 +13,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
-import { PageHero } from "@/components/platform/PageHero";
+import { InternalTabs } from "@/components/platform/InternalTabs";
+import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { InternalSectionNav } from "@/components/platform/PageLayout";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
@@ -393,7 +393,7 @@ export function AnalystDeskPage() {
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões">
       <PageShell>
-        <PageHero
+        <PageHeader
           eyebrow="Análise técnica"
           title="Fila técnica, prioridade e decisão"
           description="Conduza a análise diária com foco em prazo, pendências e decisão técnica."
@@ -422,7 +422,7 @@ export function AnalystDeskPage() {
           }
         />
 
-        <InternalSectionNav
+        <InternalTabs
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as AnalystSection)}

@@ -127,7 +127,7 @@ export function ExternalPortalPage() {
                     />
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-11 rounded-2xl bg-white">
+                    <SelectTrigger className="h-11 rounded-2xl sig-dark-panel">
                       <SelectValue placeholder="Filtrar por status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -163,7 +163,7 @@ export function ExternalPortalPage() {
                 const pendingGuide = guides.find((guide) => guide.status !== "compensada");
 
                 return (
-                  <div key={process.id} className="rounded-[8px] border border-[#E5E7EB] bg-white p-5 shadow-sm">
+                  <div key={process.id} className="sig-dark-panel rounded-[8px] border border-[#E5E7EB] p-5 shadow-sm">
                     <div className="flex flex-col gap-5">
                       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.7fr_0.7fr_0.8fr_0.8fr_0.65fr] xl:items-start">
                         <div className="min-w-0">
@@ -214,26 +214,26 @@ export function ExternalPortalPage() {
                       </div>
 
                       <div className="grid gap-4 xl:grid-cols-3">
-                        <div className="flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
+                        <div className="sig-dark-panel flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                           <p className="sig-label">Etapa atual</p>
                           <p className="mt-2 line-clamp-2 text-lg font-semibold text-slate-950" title={statusLabel(process.status)}>{statusLabel(process.status)}</p>
                           <p className="sig-field-help mt-1">Andamento do protocolo</p>
                         </div>
-                        <div className="flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
+                        <div className="sig-dark-panel flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                           <p className="sig-label">Guia inicial</p>
                           <p className="sig-fit-title mt-2 text-base font-semibold leading-7 text-slate-950" title={guides[0]?.code || "Sem guia"}>
                             {guides[0]?.code || "Sem guia emitida"}
                           </p>
                           <p className="sig-field-help mt-1">{guides[0]?.status === "compensada" ? "Pagamento confirmado" : "Pagamento pendente"}</p>
                         </div>
-                        <div className="flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
+                        <div className="sig-dark-panel flex min-h-[112px] flex-col justify-between rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                           <p className="sig-label">Financeiro em etapas</p>
                           <p className="sig-fit-title mt-2 text-lg font-semibold leading-7 text-slate-950" title={formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}>{formatCurrency(guides.reduce((sum, guide) => sum + guide.amount, 0))}</p>
                           <p className="mt-1 text-[15px] leading-6 text-slate-500">Protocolo, ISSQN e aprovação final</p>
                         </div>
                       </div>
 
-                      <div className="rounded-[8px] border border-[#E5E7EB] bg-[#FBFDFF] p-4 shadow-sm">
+                      <div className="sig-dark-panel rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                         <p className="sig-label">Marcadores do processo</p>
 
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -290,7 +290,7 @@ export function ExternalPortalPage() {
                               addProcessMarkerWithColor(process.id, chosen.label, chosen.color, session.name);
                             }}
                           >
-                            <SelectTrigger className="rounded-2xl bg-white">
+                            <SelectTrigger className="rounded-2xl sig-dark-panel">
                               <SelectValue placeholder="Aplicar marcador rápido" />
                             </SelectTrigger>
                             <SelectContent>
@@ -328,7 +328,7 @@ export function ExternalPortalPage() {
                           <p className="font-semibold">Pendências formais</p>
                           <div className="mt-3 grid gap-3 md:grid-cols-2">
                             {openRequirements.map((item) => (
-                              <div key={item.id} className="rounded-[8px] bg-white/85 p-4 shadow-sm">
+                              <div key={item.id} className="sig-dark-panel rounded-[8px] p-4 shadow-sm">
                                 <p className="line-clamp-2 font-medium">{item.title}</p>
                                 <p className="mt-1 text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Prazo {item.dueDate}</p>
                               </div>
@@ -342,7 +342,7 @@ export function ExternalPortalPage() {
               })}
 
               {filteredProcesses.length === 0 ? (
-                <div className="rounded-[8px] border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <div className="sig-dark-panel rounded-[8px] border border-dashed border-slate-300 p-8 text-center">
                   <p className="text-lg font-semibold text-slate-900">Nenhum protocolo encontrado para este filtro.</p>
                   <p className="mt-2 text-[15px] leading-6 text-slate-600">Ajuste os filtros ou abra um novo protocolo para iniciar o fluxo.</p>
                 </div>
@@ -364,7 +364,7 @@ export function ExternalPortalPage() {
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
           <SectionPanel title="Painel do profissional" description="Contexto do perfil, ações rápidas e histórico recente." contentClassName="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-              <div className="min-w-0 rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] p-4 shadow-sm">
+              <div className="sig-dark-panel min-w-0 rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                 <p className="sig-label">Resumo do acesso</p>
                 <div className="mt-3 space-y-2">
                   <p className="text-[15px] font-medium leading-6 text-slate-800">Responsável técnico: {profile?.fullName || session.name}</p>
@@ -373,7 +373,7 @@ export function ExternalPortalPage() {
                 </div>
               </div>
 
-              <div className="min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
+              <div className="sig-dark-panel min-w-0 rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-slate-900" />
                   <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950">Ações rápidas</p>
@@ -388,7 +388,7 @@ export function ExternalPortalPage() {
                 </div>
               </div>
 
-              <div className="min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
+              <div className="sig-dark-panel min-w-0 rounded-[8px] border border-[#E5E7EB] p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <History className="h-4 w-4 text-slate-900" />
                   <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950">Histórico recente</p>
@@ -398,7 +398,7 @@ export function ExternalPortalPage() {
                     <p className="text-[15px] leading-6 text-slate-600">Nenhuma movimentação recente encontrada para este perfil.</p>
                   ) : (
                     recentActivity.slice(0, 2).map((process) => (
-                      <div key={`history-${process.id}`} className="rounded-[8px] border border-[#E5E7EB] bg-[#FBFDFF] p-4">
+                      <div key={`history-${process.id}`} className="sig-dark-panel rounded-[8px] border border-[#E5E7EB] p-4">
                         <p className="text-[15px] font-medium leading-6 text-slate-900">{process.protocol}</p>
                         <p className="mt-1 line-clamp-2 text-[15px] leading-6 text-slate-600">{process.title}</p>
                         <p className="mt-1 text-sm leading-6 text-slate-500">Etapa atual: {statusLabel(process.status)}</p>
@@ -416,7 +416,7 @@ export function ExternalPortalPage() {
               "2. Acompanhe aqui as exigências, guias e a situação de cada processo.",
               "3. Use a tela de novo protocolo como área principal de cadastro e envio.",
             ].map((step) => (
-              <div key={step} className="rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-[15px] leading-6 text-slate-700">
+              <div key={step} className="sig-dark-panel rounded-[8px] border border-[#E5E7EB] px-4 py-3 text-[15px] leading-6 text-slate-700">
                 {step}
               </div>
             ))}

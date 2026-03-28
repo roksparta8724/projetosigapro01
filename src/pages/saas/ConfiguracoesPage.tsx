@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
-import { PageHero } from "@/components/platform/PageHero";
+import { InternalTabs } from "@/components/platform/InternalTabs";
+import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { InternalSectionNav } from "@/components/platform/PageLayout";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
@@ -992,7 +992,7 @@ export function ConfiguracoesPage() {
   return (
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
       <PageShell>
-      <PageHero
+      <PageHeader
         eyebrow="Branding institucional"
         title="Identidade e operação institucional"
         description="Organize branding, contatos oficiais, prefixos e preferências da Prefeitura."
@@ -1005,7 +1005,7 @@ export function ConfiguracoesPage() {
         <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Numeração oficial ativa" icon={ScrollText} tone="default" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
         <StatCard label="Canal institucional" value={settingsForm.email || "Não informado"} description="Contato público principal" icon={Bell} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
       </PageStatsRow>
-      <InternalSectionNav
+      <InternalTabs
         items={[
           { value: "overview", label: "Visão geral", helper: "Resumo institucional" },
           { value: "branding", label: "Branding", helper: "Logo e identidade" },

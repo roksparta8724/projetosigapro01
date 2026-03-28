@@ -17,21 +17,21 @@ export function AlertCard({
   return (
     <div
       className={cn(
-        "h-full min-w-0 overflow-hidden rounded-[22px] border p-5 shadow-[0_8px_16px_rgba(15,23,42,0.032)]",
-        tone === "default" && "border-slate-200 bg-white",
-        tone === "warning" && "border-amber-200/90 bg-white",
-        tone === "danger" && "border-rose-200/90 bg-white",
-        tone === "success" && "border-emerald-200/90 bg-white",
+        "sig-ui-card h-full min-w-0 overflow-hidden rounded-[22px] border bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_8px_16px_rgba(15,23,42,0.032)]",
+        tone === "default" && "border-slate-200",
+        tone === "warning" && "border-amber-200/90",
+        tone === "danger" && "border-rose-200/90",
+        tone === "success" && "border-emerald-200/90",
         className,
       )}
     >
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+            "sig-section-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
             tone === "default" && "border-slate-200 bg-slate-50 text-slate-700",
             tone === "warning" && "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400",
-            tone === "danger" && "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400",
+            tone === "danger" && "border-rose-200 bg-rose-50 text-rose-600 dark:text-amber-400",
             tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-700",
           )}
         >

@@ -8,13 +8,13 @@
   Scale,
   Wallet,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { FeeTableManager } from "@/components/platform/FeeTableManager";
-import { PageHero } from "@/components/platform/PageHero";
+import { InternalTabs } from "@/components/platform/InternalTabs";
+import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { InternalSectionNav } from "@/components/platform/PageLayout";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { WorkflowStageBoard } from "@/components/platform/WorkflowStageBoard";
@@ -52,28 +52,6 @@ type FinanceSection =
   | "tabelas"
   | "workflow"
   | "historico";
-
-function FinanceSectionNav() {
-  return (
-    <div className="flex flex-wrap gap-3">
-      <Link to="/prefeitura/financeiro">
-        <Button type="button" variant="outline" className="rounded-full border-slate-200 bg-white font-medium text-slate-700">
-          Visão geral
-        </Button>
-      </Link>
-      <Link to="/prefeitura/financeiro/protocolos">
-        <Button type="button" variant="outline" className="rounded-full border-slate-200 bg-white font-medium text-slate-700">
-          Protocolos e recolhimento
-        </Button>
-      </Link>
-      <Link to="/prefeitura/financeiro/iptu">
-        <Button type="button" variant="outline" className="rounded-full border-slate-200 bg-white font-medium text-slate-700">
-          IPTU e ISSQN
-        </Button>
-      </Link>
-    </div>
-  );
-}
 
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
@@ -259,15 +237,14 @@ export function FinanceDeskPage() {
   return (
     <PortalFrame eyebrow="FINANCEIRO MUNICIPAL" title="Controle financeiro, guias e arrecadação">
       <PageShell>
-        <PageHero
+        <PageHeader
           eyebrow="Operação financeira"
           title="Guias, pagamentos e conciliação"
           description="Organize a arrecadação municipal com visão executiva e operação financeira clara."
           icon={Wallet}
-          actions={<FinanceSectionNav />}
         />
 
-        <InternalSectionNav
+        <InternalTabs
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as FinanceSection)}
@@ -298,17 +275,17 @@ export function FinanceDeskPage() {
                 }
               >
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">Guias de protocolo</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{protocolGuides.length}</p>
                     <p className="mt-2 text-sm text-slate-500">Emissão inicial e arrecadação de entrada.</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">ISSQN da obra</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{issGuides.length}</p>
                     <p className="mt-2 text-sm text-slate-500">Cálculo complementar por metragem da obra.</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">Aprovação final</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{approvalGuides.length}</p>
                     <p className="mt-2 text-sm text-slate-500">Encerramento financeiro e habite-se.</p>
@@ -316,7 +293,7 @@ export function FinanceDeskPage() {
                 </div>
 
                 <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-slate-950">Situação dos pagamentos</p>
@@ -330,12 +307,12 @@ export function FinanceDeskPage() {
                       </Button>
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">Pendentes</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{pendingGuides.length}</p>
                         <p className="mt-1 text-sm text-slate-500">Guias aguardando baixa.</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">Confirmados</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{settledGuides.length}</p>
                         <p className="mt-1 text-sm text-slate-500">Baixas confirmadas.</p>
@@ -343,7 +320,7 @@ export function FinanceDeskPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-slate-950">Conciliação e controle</p>
@@ -357,12 +334,12 @@ export function FinanceDeskPage() {
                       </Button>
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">Valor sob gestão</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{formatCurrency(totalValue)}</p>
                         <p className="mt-1 text-sm text-slate-500">Volume sob gestão.</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="sig-label">Divergências</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{inconsistencyCount}</p>
                         <p className="mt-1 text-sm text-slate-500">Ocorrências sob revisão.</p>
@@ -395,12 +372,12 @@ export function FinanceDeskPage() {
                       tone={criticalPending.length > 0 ? "warning" : "success"}
                     />
                     {criticalDispatches.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                      <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                         Nenhum despacho crítico para o financeiro.
                       </div>
                     ) : (
                       criticalDispatches.slice(0, 2).map((item) => (
-                        <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                           <div className="flex items-center justify-between gap-3">
                             <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950">{item.protocol}</p>
                             <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
@@ -418,7 +395,7 @@ export function FinanceDeskPage() {
 
                 <SectionCard title="Conciliação e convênio" description="Perfil bancário e resumo do fluxo operacional do setor.">
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Convênio</p>
                       <p className="mt-2 text-sm font-semibold text-slate-950">{bankProfile.bankName}</p>
                       <p className="mt-1 text-sm text-slate-600">{bankProfile.agreementCode}</p>
@@ -426,17 +403,17 @@ export function FinanceDeskPage() {
                     </div>
 
                     <div className="grid gap-3">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="sig-label">Recebidos</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{receivedAtFinance.length}</p>
                         <p className="mt-1 text-sm text-slate-500">Caixa atual do financeiro.</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="sig-label">Gerados</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{generatedByFinance.length}</p>
                         <p className="mt-1 text-sm text-slate-500">Despachos e retornos emitidos.</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="sig-label">Fluxo restrito</p>
                         <p className="mt-2 text-lg font-semibold text-slate-950">{restrictedTransitCount}</p>
                         <p className="mt-1 text-sm text-slate-500">Processos com tramitação interna protegida.</p>
@@ -448,12 +425,12 @@ export function FinanceDeskPage() {
                 <SectionCard title="Eventos recentes" description="Últimos registros de arrecadação e conferência do setor.">
                   <div className="space-y-3">
                     {recentFinancialEvents.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                      <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                         Nenhum evento financeiro recente encontrado.
                       </div>
                     ) : (
                       recentFinancialEvents.slice(0, 3).map((event) => (
-                        <div key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                           <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
                           <p className="mt-1 text-sm text-slate-800">{event.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
@@ -472,12 +449,12 @@ export function FinanceDeskPage() {
           <TableCard title="Guias emitidas" description="Emissões do fluxo financeiro municipal, com leitura clara por protocolo, vencimento e valor." icon={ReceiptText}>
             <div className="space-y-3">
               {guidesByIssueDate.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                   Nenhuma guia emitida encontrada.
                 </div>
               ) : (
                 guidesByIssueDate.map(({ process, guide }) => (
-                  <div key={`${process.id}-${guide.kind}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -491,10 +468,10 @@ export function FinanceDeskPage() {
                         <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{process.title}</p>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">Emissão: {guide.dueDate}</div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">
+                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Emissão: {guide.dueDate}</div>
+                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
+                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
+                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
                           <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
                             Abrir processo
                           </Link>
@@ -514,12 +491,12 @@ export function FinanceDeskPage() {
               <TableCard title="Pagamentos" description="Situação de baixa, confirmação e acompanhamento das guias emitidas." icon={Banknote}>
                 <div className="space-y-3">
                   {pendingGuides.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                    <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                       Nenhuma guia pendente de pagamento no momento.
                     </div>
                   ) : (
                     pendingGuides.map(({ process, guide }) => (
-                      <div key={`${process.id}-${guide.kind}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -532,10 +509,10 @@ export function FinanceDeskPage() {
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
                           <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
                               <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
                                 Conferir
                               </Link>
@@ -578,7 +555,7 @@ export function FinanceDeskPage() {
             <PageMainContent>
               <TableCard title="Conciliação bancária" description="Retorno bancário, divergências e tarefas manuais de confirmação do setor." icon={Scale}>
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">Perfil bancário</p>
                     <p className="mt-2 text-base font-semibold text-slate-950">{bankProfile.bankName}</p>
                     <div className="mt-3 space-y-2 text-sm text-slate-600">
@@ -587,25 +564,25 @@ export function FinanceDeskPage() {
                       <p>Beneficiário: {bankProfile.beneficiary}</p>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">Controle da conciliação</p>
                     <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                      <div className="rounded-xl bg-slate-50 p-3">Baixas pendentes: {pendingGuides.length}</div>
-                      <div className="rounded-xl bg-slate-50 p-3">Pagamentos sem vínculo claro: {unmatchedPayments.length}</div>
-                      <div className="rounded-xl bg-slate-50 p-3">Confirmações manuais: {manualConfirmationTasks.length}</div>
-                      <div className="rounded-xl bg-slate-50 p-3">Divergências: {inconsistencyCount}</div>
+                      <div className="sig-dark-panel rounded-xl bg-slate-50 p-3">Baixas pendentes: {pendingGuides.length}</div>
+                      <div className="sig-dark-panel rounded-xl bg-slate-50 p-3">Pagamentos sem vínculo claro: {unmatchedPayments.length}</div>
+                      <div className="sig-dark-panel rounded-xl bg-slate-50 p-3">Confirmações manuais: {manualConfirmationTasks.length}</div>
+                      <div className="sig-dark-panel rounded-xl bg-slate-50 p-3">Divergências: {inconsistencyCount}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-6 space-y-3">
                   {criticalPending.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                    <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                       Nenhuma tarefa de conciliação pendente no momento.
                     </div>
                   ) : (
                     criticalPending.map(({ process, guide }) => (
-                      <div key={`${process.id}-${guide.kind}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
@@ -613,9 +590,9 @@ export function FinanceDeskPage() {
                             <p className="mt-1 sig-fit-copy text-sm text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
                           <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-3">
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">Situação: Pendente</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
+                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Situação: Pendente</div>
                           </div>
                         </div>
                       </div>
@@ -698,12 +675,12 @@ export function FinanceDeskPage() {
           <TableCard title="Histórico financeiro" description="Últimos registros de emissão, conferência, retorno bancário e arrecadação." icon={FileSpreadsheet}>
             <div className="space-y-3">
               {recentFinancialEvents.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                   Nenhum evento financeiro recente encontrado.
                 </div>
               ) : (
                 recentFinancialEvents.map((event) => (
-                  <div key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                     <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
                     <p className="mt-1 text-sm text-slate-800">{event.title}</p>
                     <p className="mt-1 text-sm text-slate-500">{event.detail}</p>

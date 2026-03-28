@@ -111,7 +111,7 @@ export function IptuDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full border-slate-200 bg-white"
+                  className="sig-dark-ghost-btn rounded-full border text-slate-100"
                 >
                   Visão geral
                 </Button>
@@ -120,13 +120,16 @@ export function IptuDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full border-slate-200 bg-white"
+                  className="sig-dark-ghost-btn rounded-full border text-slate-100"
                 >
                   Protocolos e recolhimento
                 </Button>
               </Link>
               <Link to="/prefeitura/financeiro/iptu">
-                <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900">
+                <Button
+                  type="button"
+                  className="rounded-full border border-sky-300/30 bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)] hover:brightness-105"
+                >
                   Fiscal e ISSQN
                 </Button>
               </Link>
