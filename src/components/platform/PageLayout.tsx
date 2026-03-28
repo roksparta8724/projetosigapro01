@@ -11,7 +11,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-3 pb-8 xl:px-4 2xl:max-w-[1640px]",
+        "mx-auto flex w-full max-w-[1560px] flex-col gap-4 px-0 pb-6 sm:gap-5 md:gap-6 xl:px-2 2xl:max-w-[1640px]",
       className,
     )}
   >
@@ -66,7 +66,7 @@ export function PageHeader({
             </div>
           </div>
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">{actions}</div> : null}
+        {actions ? <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end [&>*]:w-full sm:[&>*]:w-auto">{actions}</div> : null}
       </div>
     </section>
   );
@@ -82,7 +82,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
+        "grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -131,7 +131,11 @@ export function SectionCard({
             </div>
           </div>
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+            {actions}
+          </div>
+        ) : null}
       </div>
       <div className={cn("min-w-0 flex-1 pt-5", contentClassName)}>{children}</div>
     </section>
@@ -191,11 +195,11 @@ export function InternalSectionNav({
   return (
     <section
       className={cn(
-        "sig-section-nav rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]",
+        "sig-section-nav rounded-[20px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2 shadow-[0_8px_20px_rgba(15,23,42,0.04)] sm:rounded-[24px] sm:p-2.5",
       className,
     )}
   >
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-5">
         {items.map((item) => {
           const active = item.value === value;
           return (
@@ -205,7 +209,7 @@ export function InternalSectionNav({
               onClick={() => onChange(item.value)}
               data-nav-active={active ? "true" : "false"}
               className={cn(
-                "sig-nav-item flex min-w-0 min-h-[74px] flex-col items-start justify-center rounded-[18px] border px-4 py-3.5 text-left transition duration-200",
+                "sig-nav-item flex min-h-[72px] min-w-[220px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left transition duration-200 md:min-w-0 md:rounded-[18px] md:py-3.5",
                 active
                   ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
                   : "border-transparent bg-slate-50/90 text-slate-700 hover:border-slate-200 hover:bg-white/95",

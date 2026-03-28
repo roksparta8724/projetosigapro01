@@ -251,7 +251,7 @@ export function AnalystDeskPage() {
 
                 <Link
                   to={`/processos/${process.id}`}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white sm:w-auto"
                 >
                   Abrir processo
                 </Link>
@@ -311,11 +311,11 @@ export function AnalystDeskPage() {
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   variant="outline"
-                  className="sig-dark-action-btn rounded-full text-slate-50"
+                  className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                   onClick={() =>
                     updateProcessStatus({
                       processId: process.id,
@@ -331,7 +331,7 @@ export function AnalystDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="sig-dark-action-btn rounded-full text-slate-50"
+                  className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                   onClick={() =>
                     createRequirement({
                       processId: process.id,
@@ -350,7 +350,7 @@ export function AnalystDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="sig-dark-action-btn rounded-full text-slate-50"
+                  className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                   onClick={() =>
                     dispatchProcess({
                       processId: process.id,
@@ -368,7 +368,7 @@ export function AnalystDeskPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="rounded-full bg-emerald-700 hover:bg-emerald-800"
+                  className="h-11 w-full rounded-full bg-emerald-700 hover:bg-emerald-800 sm:w-auto"
                   onClick={() =>
                     updateProcessStatus({
                       processId: process.id,
@@ -445,7 +445,7 @@ export function AnalystDeskPage() {
                 description="Itens com maior urgência, leitura rápida e ação imediata da mesa técnica."
                 icon={ListTodo}
                 actions={
-                  <div className="relative w-full min-w-[280px] max-w-xl">
+                  <div className="relative w-full max-w-xl">
                     <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
                       value={search}
@@ -575,7 +575,7 @@ export function AnalystDeskPage() {
             description="Leitura completa da fila técnica, com prioridade, prazo, responsável e ação."
             icon={ListTodo}
             actions={
-              <div className="relative w-full min-w-[280px] max-w-xl">
+              <div className="relative w-full max-w-xl">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   value={search}

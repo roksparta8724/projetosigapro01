@@ -109,6 +109,7 @@ function isDarkSurface(hex: string) {
 export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [topSearch, setTopSearch] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -287,6 +288,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       >
         <div className="flex h-full items-center justify-between gap-4 px-4 lg:px-6 xl:px-8">
           <div className="flex min-w-0 items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
+              aria-label="Abrir menu"
+            >
+              <Menu className="h-4.5 w-4.5" />
+            </button>
             <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-slate-200 bg-white p-1.5 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
               <SigaproLogo bare compact showInternalWordmark={false} />
             </div>
@@ -296,6 +305,30 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 Plataforma institucional de projetos
               </p>
             </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => navigate("/notificacoes")}
+              className="inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border border-white/14 bg-white/10 text-white shadow-sm transition hover:bg-white/16"
+              aria-label="Notificações"
+            >
+              <Bell className="h-4 w-4 text-[#facc15]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/perfil")}
+              className="flex h-[40px] items-center rounded-full border border-white/14 bg-white/10 px-2.5 text-white shadow-sm transition hover:bg-white/16"
+              aria-label="Meu perfil"
+            >
+              <UserAvatar
+                name={displayUserName}
+                imageUrl={userProfile?.avatarUrl}
+                size="sm"
+                className="border-white/14 bg-white/12"
+              />
+            </button>
           </div>
 
           <div className="hidden shrink-0 items-center gap-2.5 lg:flex">
@@ -481,6 +514,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           pathname={location.pathname}
           groups={sidebarGroups}
           expanded={sidebarExpanded}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
           inverseMain={inverseMainTheme}
           darkSurface={darkSidebar}
           footer={
@@ -516,14 +551,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           }
         />
 
-        <main className="min-w-0 flex-1 px-4 py-4 lg:px-6 lg:py-5 2xl:px-8">
+        <main className="min-w-0 flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 2xl:px-8">
           <div
             className={cn(
-              "sig-main-shell rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-4 shadow-sm md:p-5 lg:p-6",
+              "sig-main-shell rounded-[20px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-3 shadow-sm sm:rounded-[24px] sm:p-4 md:p-5 lg:p-6",
               inverseMainTheme && "border-white/10 shadow-[0_18px_36px_rgba(2,6,23,0.32)]",
             )}
           >
-            <div className="mb-4 sig-strong-card rounded-[22px] p-3 shadow-sm lg:hidden">
+            <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="sig-label sig-fit-title">{eyebrow}</p>
@@ -532,10 +567,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full border-[#E5E7EB]"
-                  onClick={() => setSidebarExpanded((current) => !current)}
+                  className="sig-dark-action-btn rounded-full border-[#E5E7EB] text-slate-50"
+                  onClick={() => setMobileSidebarOpen(true)}
                 >
-                  <Menu className="mr-2 h-4 w-4" />
+                  <Menu className="mr-2 h-4 w-4 text-sky-200" />
                   Menu
                 </Button>
               </div>

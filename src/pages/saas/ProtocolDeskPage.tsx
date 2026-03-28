@@ -255,8 +255,8 @@ export function ProtocolDeskPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" className="sig-dark-action-btn rounded-full text-slate-50">
+                <div className="flex w-full flex-wrap gap-2 xl:w-auto">
+                  <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto">
                     <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                   </Button>
                 </div>
