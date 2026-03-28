@@ -44,7 +44,6 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-[30%] bg-[linear-gradient(180deg,rgba(59,130,246,0.045)_0%,rgba(59,130,246,0.01)_100%)]" />
       <div className="relative flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}

@@ -253,10 +253,10 @@ export function FinanceDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow>
-              <StatCard label="🧾 Guias emitidas" value={String(guides.length)} description="Emissão total vinculada aos processos" icon={ReceiptText} tone="blue" />
-              <StatCard label="💰 Pagamentos pendentes" value={String(pendingGuides.length)} description="Guias ainda aguardando baixa" icon={FileSpreadsheet} tone="amber" />
-              <StatCard label="✅ Confirmados" value={String(settledGuides.length)} description="Baixas já compensadas no fluxo" icon={Building2} tone="emerald" />
-              <StatCard label="📈 Arrecadação" value={formatCurrency(settledValue)} description="Valor total confirmado no período" icon={Landmark} tone="default" />
+              <StatCard label="Guias emitidas" value={String(guides.length)} description="Emissão total vinculada aos processos" icon={ReceiptText} tone="blue" />
+              <StatCard label="Pagamentos pendentes" value={String(pendingGuides.length)} description="Guias ainda aguardando baixa" icon={FileSpreadsheet} tone="amber" />
+              <StatCard label="Confirmados" value={String(settledGuides.length)} description="Baixas já compensadas no fluxo" icon={Building2} tone="emerald" />
+              <StatCard label="Arrecadação" value={formatCurrency(settledValue)} description="Valor total confirmado no período" icon={Landmark} tone="default" />
             </PageStatsRow>
 
             <PageMainGrid>
@@ -354,7 +354,7 @@ export function FinanceDeskPage() {
                 <SectionCard title="Alertas financeiros" description="Divergências, baixas críticas e atenção imediata do setor.">
                   <div className="space-y-3">
                     <AlertCard
-                      title="⚠ Divergências"
+                      title="Divergências"
                       description={
                         inconsistencyCount > 0
                           ? `${inconsistencyCount} guia(s) pendente(s) em processos já encerrados ou deferidos.`
@@ -363,7 +363,7 @@ export function FinanceDeskPage() {
                       tone={inconsistencyCount > 0 ? "danger" : "success"}
                     />
                     <AlertCard
-                      title="⏱ Pendências críticas"
+                      title="Pendências críticas"
                       description={
                         criticalPending.length > 0
                           ? `${criticalPending.length} guia(s) exigem acompanhamento de baixa.`
@@ -530,17 +530,17 @@ export function FinanceDeskPage() {
               <SectionCard title="Resumo de baixa" description="Leitura curta da confirmação de pagamentos.">
                 <div className="space-y-3">
                   <AlertCard
-                    title="💰 Pendentes"
+                    title="Pendentes"
                     description={`${pendingGuides.length} guia(s) aguardam confirmação.`}
                     tone={pendingGuides.length > 0 ? "warning" : "success"}
                   />
                   <AlertCard
-                    title="✅ Confirmados"
+                    title="Confirmados"
                     description={`${settledGuides.length} guia(s) já foram compensadas.`}
                     tone={settledGuides.length > 0 ? "success" : "default"}
                   />
                   <AlertCard
-                    title="📈 Valor arrecadado"
+                    title="Valor arrecadado"
                     description={formatCurrency(settledValue)}
                     tone="default"
                   />
@@ -606,17 +606,17 @@ export function FinanceDeskPage() {
               <SectionCard title="Alertas da conciliação" description="Pontos que exigem acompanhamento próximo do setor.">
                 <div className="space-y-3">
                   <AlertCard
-                    title="🏦 Baixas em aberto"
+                    title="Baixas em aberto"
                     description={`${pendingGuides.length} guia(s) ainda não compensada(s).`}
                     tone={pendingGuides.length > 0 ? "warning" : "success"}
                   />
                   <AlertCard
-                    title="⚠ Divergências"
+                    title="Divergências"
                     description={`${inconsistencyCount} ocorrência(s) com potencial divergência.`}
                     tone={inconsistencyCount > 0 ? "danger" : "success"}
                   />
                   <AlertCard
-                    title="📌 Tarefa manual"
+                    title="Tarefa manual"
                     description={`${manualConfirmationTasks.length} item(ns) dependem de conferência manual do setor.`}
                     tone={manualConfirmationTasks.length > 0 ? "warning" : "success"}
                   />

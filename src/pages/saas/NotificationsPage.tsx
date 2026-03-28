@@ -48,7 +48,7 @@ export function NotificationsPage() {
           action: (
             <Link
               to={`/processos/${process.id}`}
-              className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+              className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Abrir
             </Link>
@@ -64,14 +64,14 @@ export function NotificationsPage() {
         process.dispatches.map((dispatch) => ({
           id: dispatch.id,
           title: `${process.protocol} · ${dispatch.subject}`,
-          description: `${dispatch.from} → ${dispatch.to}`,
-          meta: `Tramitação · prazo ${dispatch.dueDate}`,
+          description: `${dispatch.from} -> ${dispatch.to}`,
+          meta: `Trâmite · prazo ${dispatch.dueDate}`,
           badge: dispatch.status,
           icon: Send,
           action: (
             <Link
               to={`/processos/${process.id}`}
-              className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+              className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Ver fluxo
             </Link>
@@ -96,7 +96,7 @@ export function NotificationsPage() {
             action: (
               <Link
                 to={`/processos/${process.id}`}
-                className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
               >
                 Tratar
               </Link>
@@ -118,7 +118,7 @@ export function NotificationsPage() {
         action: (
           <Link
             to={`/processos/${process.id}`}
-            className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+            className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
           >
             Abrir
           </Link>
@@ -150,8 +150,9 @@ export function NotificationsPage() {
         title={emptyTitle}
         description={emptyDescription}
         icon={BellRing}
+        className="sig-dark-panel border-slate-200 bg-transparent"
         action={
-          <EmptyStateAction asChild>
+          <EmptyStateAction asChild className="sig-dark-action-btn text-slate-50">
             <Link to="/prefeitura/protocolos">Abrir protocolos</Link>
           </EmptyStateAction>
         }
@@ -215,7 +216,11 @@ export function NotificationsPage() {
                 description="Eventos recentes com prioridade de leitura institucional."
                 icon={BellRing}
               >
-                {renderFeed(mainFeed, "Nenhuma notificação recente", "Quando houver atividade relevante, ela aparecerá aqui de forma consolidada.")}
+                {renderFeed(
+                  mainFeed,
+                  "Nenhuma notificação recente",
+                  "Quando houver atividade relevante, ela aparecerá aqui de forma consolidada.",
+                )}
               </TableContainer>
 
               <div className="grid gap-5 xl:grid-cols-2">
@@ -262,7 +267,7 @@ export function NotificationsPage() {
                 icon={Send}
               >
                 <div className="space-y-3">
-                  <div className="sig-dark-panel rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="sig-dark-panel rounded-[18px] border border-slate-200 p-4">
                     <p className="sig-label">Maior volume</p>
                     <p className="mt-2 text-sm font-semibold text-slate-950">
                       {messageItems.length >= dispatchItems.length ? "Mensagens" : "Trâmites"}
@@ -273,7 +278,7 @@ export function NotificationsPage() {
                         : `${dispatchItems.length} movimentação(ões) registradas`}
                     </p>
                   </div>
-                  <div className="sig-dark-panel rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                  <div className="sig-dark-panel rounded-[18px] border border-slate-200 p-4">
                     <p className="sig-label">Atenção imediata</p>
                     <p className="mt-2 text-sm font-semibold text-slate-950">
                       {requirementItems.length > 0 ? `${requirementItems.length} item(ns)` : "Nenhum item crítico"}

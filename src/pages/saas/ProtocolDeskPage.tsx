@@ -256,7 +256,7 @@ export function ProtocolDeskPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" className="rounded-full">
+                  <Button asChild variant="outline" className="sig-dark-action-btn rounded-full text-slate-50">
                     <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                   </Button>
                 </div>
@@ -454,7 +454,7 @@ export function ProtocolDeskPage() {
           actions={
             <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
               <Link to="/prefeitura/protocolos/novo">
-                <FilePlus2 className="mr-2 h-4 w-4" />
+                <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
                 Protocolar no balcão
               </Link>
             </Button>
@@ -483,9 +483,9 @@ export function ProtocolDeskPage() {
                 description="Protocolos com maior urgência, leitura rápida por prioridade e ação imediata."
                 icon={Layers3}
                 actions={
-                  <Button asChild variant="outline" className="rounded-full">
+                  <Button asChild variant="outline" className="sig-dark-action-btn rounded-full text-slate-50">
                     <Link to="/prefeitura/protocolos/novo">
-                      <FilePlus2 className="mr-2 h-4 w-4" />
+                      <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
                       Novo protocolo
                     </Link>
                   </Button>
@@ -577,15 +577,15 @@ export function ProtocolDeskPage() {
                     </div>
 
                     <div className="space-y-3">
-                      <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                      <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                         <Link to="/prefeitura/protocolos/novo">
-                          <FilePlus2 className="mr-2 h-4 w-4" />
+                          <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
                           Novo protocolo assistido
                         </Link>
                       </Button>
-                      <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                      <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                         <Link to="/prefeitura">
-                          <Building2 className="mr-2 h-4 w-4" />
+                          <Building2 className="mr-2 h-4 w-4 text-sky-200" />
                           Voltar ao painel municipal
                         </Link>
                       </Button>
@@ -639,21 +639,21 @@ export function ProtocolDeskPage() {
           <>
             <PageStatsRow className="xl:grid-cols-3">
               <StatCard
-                label="🏛 Balcão"
+                label="Balcão"
                 value={String(deskProtocols.length)}
                 description="Entradas com atendimento presencial"
                 icon={Store}
                 tone="blue"
               />
               <StatCard
-                label="🌐 Online"
+                label="Online"
                 value={String(onlineProtocolItems.length)}
                 description="Recepção digital disponível"
                 icon={Globe2}
                 tone="emerald"
               />
               <StatCard
-                label="📁 Novos registros"
+                label="Novos registros"
                 value={String(newProtocols.length)}
                 description="Protocolos ainda na etapa inicial"
                 icon={ClipboardList}
@@ -669,8 +669,8 @@ export function ProtocolDeskPage() {
               <div className="grid gap-6 xl:grid-cols-2">
                 <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-700">
-                      <Store className="h-4 w-4" />
+                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
+                      <Store className="h-4 w-4 text-sky-200" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -691,8 +691,8 @@ export function ProtocolDeskPage() {
 
                 <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-700">
-                      <Globe2 className="h-4 w-4" />
+                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
+                      <Globe2 className="h-4 w-4 text-sky-200" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -747,19 +747,19 @@ export function ProtocolDeskPage() {
               <SectionCard title="Situação da regularização" description="Leitura curta das principais travas documentais.">
                 <div className="space-y-3">
                   <AlertCard
-                    title="📄 Documentação obrigatória"
+                    title="Documentação obrigatória"
                     description={`${pendingDocuments.length} processo(s) aguardam envio ou conferência de documento obrigatório.`}
                     tone={pendingDocuments.length > 0 ? "warning" : "success"}
                     icon={FileWarning}
                   />
                   <AlertCard
-                    title="⏱ SLA sob atenção"
+                    title="SLA sob atenção"
                     description={`${urgentProtocols.filter((item) => getMissingRequiredDocuments(item) > 0).length} protocolo(s) com pendência documental e prazo curto.`}
                     tone={urgentProtocols.some((item) => getMissingRequiredDocuments(item) > 0) ? "danger" : "default"}
                     icon={Clock3}
                   />
                   <AlertCard
-                    title="📌 Comunicação"
+                    title="Comunicação"
                     description={
                       incompleteProtocols.length > 0
                         ? "Há protocolos que exigem retorno institucional ao requerente."
@@ -834,15 +834,15 @@ export function ProtocolDeskPage() {
             <PageSideContent>
               <SectionCard title="Atalhos do protocolo" description="Ações recorrentes da rotina municipal.">
                 <div className="space-y-3">
-                  <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                  <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                     <Link to="/prefeitura/protocolos/novo">
-                      <FilePlus2 className="mr-2 h-4 w-4" />
+                      <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
                       Novo protocolo assistido
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                  <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                     <Link to="/prefeitura">
-                      <Building2 className="mr-2 h-4 w-4" />
+                      <Building2 className="mr-2 h-4 w-4 text-sky-200" />
                       Voltar ao painel municipal
                     </Link>
                   </Button>

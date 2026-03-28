@@ -25,15 +25,15 @@ export function QuickActionsCard({
         {actions.map((action) => {
           const Icon = action.icon;
           return action.href ? (
-            <Button key={action.id} asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+            <Button key={action.id} asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
               <a href={action.href}>
-                <Icon className="mr-2 h-4 w-4" />
+                <Icon className="mr-2 h-4 w-4 text-sky-200" />
                 {action.label}
               </a>
             </Button>
           ) : (
-            <Button key={action.id} type="button" variant="outline" className="h-11 w-full justify-start rounded-2xl" onClick={action.onClick}>
-              <Icon className="mr-2 h-4 w-4" />
+            <Button key={action.id} type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={action.onClick}>
+              <Icon className="mr-2 h-4 w-4 text-sky-200" />
               {action.label}
             </Button>
           );

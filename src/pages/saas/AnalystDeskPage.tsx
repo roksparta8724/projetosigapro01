@@ -315,7 +315,7 @@ export function AnalystDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="sig-dark-action-btn rounded-full text-slate-50"
                   onClick={() =>
                     updateProcessStatus({
                       processId: process.id,
@@ -331,7 +331,7 @@ export function AnalystDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="sig-dark-action-btn rounded-full text-slate-50"
                   onClick={() =>
                     createRequirement({
                       processId: process.id,
@@ -350,7 +350,7 @@ export function AnalystDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="sig-dark-action-btn rounded-full text-slate-50"
                   onClick={() =>
                     dispatchProcess({
                       processId: process.id,
@@ -363,7 +363,7 @@ export function AnalystDeskPage() {
                     })
                   }
                 >
-                  <Send className="mr-2 h-4 w-4" />
+                  <Send className="mr-2 h-4 w-4 text-sky-200" />
                   Tramitar
                 </Button>
                 <Button
@@ -416,7 +416,7 @@ export function AnalystDeskPage() {
                 ])
               }
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Download className="mr-2 h-4 w-4 text-sky-200" />
               Exportar fila
             </Button>
           }
@@ -430,10 +430,10 @@ export function AnalystDeskPage() {
 
         {section === "visao-geral" && (
           <PageStatsRow>
-            <StatCard label="🧠 Em análise" value={String(inReview.length)} description="Pareceres técnicos em andamento" icon={Stamp} tone="blue" />
-            <StatCard label="⚠ Pendências formais" value={String(requirementsOpen)} description="Exigências abertas ou respondidas" icon={Clock3} tone="amber" />
-            <StatCard label="⏱ SLA crítico" value={String(slaCritical.length)} description="Prazos curtos ou vencidos" icon={TimerReset} tone="rose" />
-            <StatCard label="✅ Concluídos" value={String(completed.length)} description="Deferimentos finalizados" icon={CheckCircle2} tone="emerald" />
+            <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres técnicos em andamento" icon={Stamp} tone="blue" />
+            <StatCard label="Pendências formais" value={String(requirementsOpen)} description="Exigências abertas ou respondidas" icon={Clock3} tone="amber" />
+            <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazos curtos ou vencidos" icon={TimerReset} tone="rose" />
+            <StatCard label="Concluídos" value={String(completed.length)} description="Deferimentos finalizados" icon={CheckCircle2} tone="emerald" />
           </PageStatsRow>
         )}
 
@@ -464,7 +464,7 @@ export function AnalystDeskPage() {
               <SectionCard title="Prioridades da análise" description="Prazos críticos, exigências abertas e processos sob atenção imediata.">
                 <div className="space-y-3">
                   <AlertCard
-                    title="⏱ SLA crítico"
+                    title="SLA crítico"
                     description={
                       slaCritical.length > 0
                         ? `${slaCritical.length} protocolo(s) exigem ação imediata.`
@@ -474,7 +474,7 @@ export function AnalystDeskPage() {
                     icon={Clock3}
                   />
                   <AlertCard
-                    title="⚠ Pendências formais"
+                    title="Pendências formais"
                     description={
                       requirementsOpen > 0
                         ? `${requirementsOpen} exigência(s) abertas ou respondidas.`
@@ -508,15 +508,15 @@ export function AnalystDeskPage() {
               <SectionCard title="Ações e contexto" description="Atalhos da mesa técnica e leitura curta da carga atual.">
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                    <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                       <Link to="/prefeitura/financeiro">
-                        <Send className="mr-2 h-4 w-4" />
+                        <Send className="mr-2 h-4 w-4 text-sky-200" />
                         Ir para o financeiro
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="h-11 w-full justify-start rounded-2xl">
+                    <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
                       <Link to="/prefeitura">
-                        <ListTodo className="mr-2 h-4 w-4" />
+                        <ListTodo className="mr-2 h-4 w-4 text-sky-200" />
                         Voltar ao painel municipal
                       </Link>
                     </Button>
@@ -614,7 +614,7 @@ export function AnalystDeskPage() {
               <SectionCard title="Situação das pendências" description="Leitura rápida do que está travando a mesa técnica.">
                 <div className="space-y-3">
                   <AlertCard
-                    title="📄 Documentação"
+                    title="Documentação"
                     description={`${blockedItems.filter((item) => item.status === "pendencia_documental").length} processo(s) com bloqueio documental.`}
                     tone={blockedItems.some((item) => item.status === "pendencia_documental") ? "warning" : "success"}
                     icon={FileText}
