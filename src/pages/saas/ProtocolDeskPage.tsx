@@ -262,7 +262,7 @@ export function ProtocolDeskPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
                   <p className="sig-label">Abertura</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={getOpeningDate(process)}>{getOpeningDate(process)}</p>
@@ -329,7 +329,7 @@ export function ProtocolDeskPage() {
           </div>
 
           {matchedProcess ? (
-            <div className="flex flex-col gap-3 md:flex-row">
+            <div className="flex flex-col gap-3 lg:flex-row">
               <Button
                 type="button"
                 className="rounded-full bg-[#143b63] hover:bg-[#123554]"
@@ -375,7 +375,7 @@ export function ProtocolDeskPage() {
 
         {matchedProcess ? (
           <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="sig-label">Protocolo</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">{matchedProcess.protocol}</p>
@@ -402,7 +402,7 @@ export function ProtocolDeskPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
               {getProcessPaymentGuides(matchedProcess, tenantSettings).map((guide) => (
                 <div key={guide.kind} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                   <p className="sig-fit-title text-sm font-semibold text-slate-950" title={guide.label}>
@@ -714,7 +714,7 @@ export function ProtocolDeskPage() {
             </TableCard>
 
             <SectionCard title="Leitura da recepção" description="Distribuição rápida das entradas atuais e situação operacional do setor.">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-3">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
                   <p className="sig-label">Balcão</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{deskProtocols.length}</p>

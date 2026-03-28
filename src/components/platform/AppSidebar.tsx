@@ -104,7 +104,7 @@ function SidebarInner({
                     >
                       <span
                         className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
+                          "sig-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
                           active
                             ? "border-slate-300 bg-slate-50 text-slate-950"
                             : darkSurface
@@ -116,7 +116,7 @@ function SidebarInner({
                       </span>
                       <span
                         className={cn(
-                          "min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
+                          "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
                           active
                             ? "font-semibold text-slate-950"
                             : darkSurface

@@ -49,7 +49,7 @@ export function PageHeader({
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-white/95 text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-white/95 text-[#2563eb] shadow-[0_6px_16px_rgba(15,23,42,0.05)] backdrop-blur-sm">
                 <Icon className="h-4.5 w-4.5" />
               </div>
             ) : null}
@@ -121,7 +121,7 @@ export function SectionCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] text-[#14532d] shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] text-[#2563eb] shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
                 <Icon className="h-4 w-4" />
               </div>
             ) : null}
