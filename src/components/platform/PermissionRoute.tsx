@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useTenant } from "@/hooks/useTenant";
 import { can } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
 
@@ -19,6 +20,7 @@ export function PermissionRoute({
   const { isAuthenticated, signOut, authenticatedEmail, authenticatedUserId } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const { session } = usePlatformSession();
+  const tenant = useTenant();
 
   if (!isAuthenticated) {
     return <Navigate to="/acesso" replace />;
@@ -29,6 +31,75 @@ export function PermissionRoute({
     sessionUsers.find((item) => item.email.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase());
   const isActuallyBlocked =
     authenticatedUser?.accountStatus === "blocked" || authenticatedUser?.accountStatus === "inactive";
+
+  const isMaster = session.role === "master_admin" || session.role === "master_ops";
+  const sessionScopeId = session.municipalityId ?? session.tenantId ?? null;
+  const isTenantMismatch =
+    tenant.mode === "tenant" &&
+    !tenant.loading &&
+    Boolean(tenant.municipalityId) &&
+    !isMaster &&
+    (!sessionScopeId || sessionScopeId !== tenant.municipalityId);
+
+  if (tenant.mode === "tenant" && tenant.inactive) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+        <Card className="max-w-xl rounded-[28px] border-slate-200">
+          <CardContent className="p-8">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <LockKeyhole className="h-6 w-6" />
+            </div>
+            <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
+              Prefeitura temporariamente indisponível
+            </h1>
+            <p className="mt-3 text-sm text-slate-600">
+              O acesso a esta Prefeitura está suspenso ou em implantação. Aguarde a liberação oficial para continuar.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button asChild variant="outline">
+                <Link to="/acesso">Voltar ao acesso</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isTenantMismatch) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+        <Card className="max-w-xl rounded-[28px] border-slate-200">
+          <CardContent className="p-8">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <LockKeyhole className="h-6 w-6" />
+            </div>
+            <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
+              Acesso restrito à Prefeitura vinculada
+            </h1>
+            <p className="mt-3 text-sm text-slate-600">
+              Esta conta não está vinculada à Prefeitura deste subdomínio. Entre com uma conta autorizada ou volte para
+              o acesso principal.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  navigate("/acesso", { replace: true });
+                }}
+              >
+                Entrar com outra conta
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/acesso">Voltar ao acesso</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!isActuallyBlocked && can(session, permission)) {
     return <>{children}</>;

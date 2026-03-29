@@ -304,7 +304,10 @@ const STORAGE_KEY = "sigapro-platform-store";
 const AUTH_STORAGE_KEY = "sigapro-demo-credentials";
 const LEGACY_DEMO_TENANT_NAMES = new Set([
   "prefeitura de jardim da serra",
+  "prefeitura jardim da serra",
+  "prefeitura municipal de jardim da serra",
   "prefeitura de ribeira nova",
+  "prefeitura municipal de ribeira nova",
   "sigapro plataforma",
 ]);
 
@@ -398,13 +401,15 @@ function isLegacyDemoTenantName(name: string | null | undefined) {
   );
 }
 
-function buildSanitizedStore(rawStore: Partial<PlatformStore>): PlatformStore {
+function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault = true): PlatformStore {
   const sourceTenants = rawStore.tenants ?? defaultStore.tenants;
   const legacyDemoIds = new Set(
     sourceTenants
       .filter((tenant) => isLegacyDemoTenantName(tenant.name))
       .map((tenant) => tenant.id),
   );
+  const masterEmail = "roksparta02@gmail.com";
+  const masterName = "Jonatas Rodrigues";
 
   const tenants = sourceTenants.filter((tenant) => !legacyDemoIds.has(tenant.id));
   const processes = (rawStore.processes ?? defaultStore.processes).filter(
@@ -412,14 +417,26 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>): PlatformStore {
   );
   const validProcessIds = new Set(processes.map((process) => process.id));
 
+  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers)
+    .filter((user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""))
+    .map((user) =>
+      normalizeEmail(user.email) === masterEmail
+        ? { ...user, name: masterName, email: masterEmail }
+        : user,
+    );
+  const normalizedUserProfiles = (rawStore.userProfiles ?? (fallbackToDefault ? defaultStore.userProfiles : [])).map(
+    (profile) =>
+      normalizeEmail(profile.email) === masterEmail
+        ? { ...profile, fullName: masterName, email: masterEmail }
+        : profile,
+  );
+
   return {
-    tenants: tenants.length > 0 ? tenants : defaultStore.tenants,
+    tenants: tenants.length > 0 || !fallbackToDefault ? tenants : defaultStore.tenants,
     tenantSettings: (rawStore.tenantSettings ?? defaultStore.tenantSettings)
       .filter((item) => !legacyDemoIds.has(item.tenantId)),
-    sessionUsers: (rawStore.sessionUsers ?? defaultStore.sessionUsers).filter(
-      (user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""),
-    ),
-    userProfiles: rawStore.userProfiles ?? defaultStore.userProfiles,
+    sessionUsers: normalizedSessionUsers,
+    userProfiles: normalizedUserProfiles,
     registrationRequests: (rawStore.registrationRequests ?? defaultStore.registrationRequests).filter(
       (request) => !legacyDemoIds.has(request.tenantId) && !legacyDemoIds.has(request.municipalityId ?? ""),
     ),
@@ -433,10 +450,10 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>): PlatformStore {
       validProcessIds.has(message.projectId),
     ),
     processes,
-    plans: rawStore.plans ?? defaultStore.plans,
-    cmsSections: rawStore.cmsSections ?? defaultStore.cmsSections,
-    checklistTemplates: rawStore.checklistTemplates ?? defaultStore.checklistTemplates,
-    documentTemplates: rawStore.documentTemplates ?? defaultStore.documentTemplates,
+    plans: rawStore.plans ?? (fallbackToDefault ? defaultStore.plans : []),
+    cmsSections: rawStore.cmsSections ?? (fallbackToDefault ? defaultStore.cmsSections : []),
+    checklistTemplates: rawStore.checklistTemplates ?? (fallbackToDefault ? defaultStore.checklistTemplates : []),
+    documentTemplates: rawStore.documentTemplates ?? (fallbackToDefault ? defaultStore.documentTemplates : []),
   };
 }
 
@@ -531,83 +548,65 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const [source, setSource] = useState<DataSource>("demo");
 
   useEffect(() => {
-    const nextStore = readStore();
-    setStore(nextStore);
-    syncAuthUsers(nextStore.sessionUsers);
-    setSource(nextStore === defaultStore ? "demo" : "local");
-    setLoading(false);
+    let active = true;
 
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== STORAGE_KEY || !event.newValue) {
-        return;
-      }
-      try {
-        const parsed = JSON.parse(event.newValue) as PlatformStore;
-        setStore(parsed);
-      } catch {
-        return;
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  useEffect(() => {
-    if (!hasSupabaseEnv) return;
-
-    loadRemotePlatformStore()
-      .then((remote) => {
-        if (remote.tenants.length === 0 && remote.sessionUsers.length === 0 && remote.processes.length === 0) {
-          return;
-        }
-
-        setStore((current) => {
-          const next = {
-            ...current,
-            tenants:
-              remote.tenants.length > 0
-                ? mergeRecordsById(current.tenants, remote.tenants)
-                : current.tenants,
-            tenantSettings:
-              remote.tenantSettings.length > 0
-                ? mergeRecordsByTenantId(current.tenantSettings, remote.tenantSettings)
-                : current.tenantSettings,
-            sessionUsers:
-              remote.sessionUsers.length > 0
-                ? mergeRecordsById(current.sessionUsers, remote.sessionUsers)
-                : current.sessionUsers,
-            userProfiles:
-              remote.userProfiles.length > 0
-                ? mergeUserProfiles(current.userProfiles, remote.userProfiles)
-                : current.userProfiles,
-            ownerRequests:
-              remote.ownerRequests.length > 0
-                ? mergeRecordsById(current.ownerRequests, remote.ownerRequests)
-                : current.ownerRequests,
-            ownerLinks:
-              remote.ownerLinks.length > 0
-                ? mergeRecordsById(current.ownerLinks, remote.ownerLinks)
-                : current.ownerLinks,
-            ownerMessages:
-              remote.ownerMessages.length > 0
-                ? mergeRecordsById(current.ownerMessages, remote.ownerMessages)
-                : current.ownerMessages,
-            processes:
-              remote.processes.length > 0
-                ? mergeRecordsById(current.processes, remote.processes)
-                : current.processes,
-          };
-          const sanitized = buildSanitizedStore(next);
+    const bootstrap = async () => {
+      if (hasSupabaseEnv) {
+        setLoading(true);
+        try {
+          const remote = await loadRemotePlatformStore();
+          const sanitized = buildSanitizedStore(remote, false);
+          if (!active) return;
+          setStore(sanitized);
           syncStore(sanitized);
           syncAuthUsers(sanitized.sessionUsers);
-          return sanitized;
-        });
-        setSource("remote");
-      })
-      .catch(() => {
-        return;
-      });
+          setSource("remote");
+          setLoading(false);
+          return;
+        } catch {
+          if (!active) return;
+          const emptyRemote = buildSanitizedStore({}, false);
+          setStore(emptyRemote);
+          syncStore(emptyRemote);
+          setSource("remote");
+          setLoading(false);
+          return;
+        }
+      }
+
+      const nextStore = readStore();
+      if (!active) return;
+      setStore(nextStore);
+      syncAuthUsers(nextStore.sessionUsers);
+      setSource(nextStore === defaultStore ? "demo" : "local");
+      setLoading(false);
+    };
+
+    void bootstrap();
+
+    if (!hasSupabaseEnv) {
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key !== STORAGE_KEY || !event.newValue) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(event.newValue) as PlatformStore;
+          setStore(parsed);
+        } catch {
+          return;
+        }
+      };
+
+      window.addEventListener("storage", handleStorage);
+      return () => {
+        active = false;
+        window.removeEventListener("storage", handleStorage);
+      };
+    }
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {

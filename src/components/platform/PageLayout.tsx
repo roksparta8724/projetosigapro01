@@ -66,7 +66,11 @@ export function PageHeader({
             </div>
           </div>
         </div>
-        {actions ? <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end [&>*]:w-full sm:[&>*]:w-auto">{actions}</div> : null}
+        {actions ? (
+          <div className="sig-header-actions flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+            {actions}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -82,7 +86,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -132,7 +136,7 @@ export function SectionCard({
           </div>
         </div>
         {actions ? (
-          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div className="sig-section-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
             {actions}
           </div>
         ) : null}
@@ -152,7 +156,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,8fr)_minmax(320px,4fr)] xl:items-start",
+        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,8fr)_minmax(320px,4fr)] xl:items-start",
         className,
       )}
     >
@@ -168,7 +172,7 @@ export function MainContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("min-w-0 flex flex-col gap-5", className)}>{children}</div>;
+  return <div className={cn("sig-main-content min-w-0 flex flex-col gap-5", className)}>{children}</div>;
 }
 
 export function SideContent({
@@ -178,7 +182,7 @@ export function SideContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <aside className={cn("min-w-0 flex flex-col gap-5 xl:self-start", className)}>{children}</aside>;
+  return <aside className={cn("sig-side-content min-w-0 flex flex-col gap-5 xl:self-start", className)}>{children}</aside>;
 }
 
 export function InternalSectionNav({

@@ -1581,6 +1581,170 @@
     padding-right: 40px;
   }
 
+  @media (max-width: 767px) {
+    [data-viewport="mobile"] .sig-main-shell {
+      padding: 12px !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-stats-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-main-grid {
+      gap: 16px !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-main-content {
+      order: 1;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-side-content {
+      order: 2;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-nav,
+    [data-viewport="mobile"] .sig-main-shell [role="tablist"] {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-nav > *,
+    [data-viewport="mobile"] .sig-main-shell [role="tablist"] > * {
+      flex: 0 0 auto;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-nav .sig-nav-item {
+      min-width: 180px;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-premium-admin-form .grid,
+    [data-viewport="mobile"] .sig-main-shell form .grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-premium-admin-form [class*="col-span"],
+    [data-viewport="mobile"] .sig-main-shell form [class*="col-span"] {
+      grid-column: auto / span 1 !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-premium-admin-form .sig-admin-input,
+    [data-viewport="mobile"] .sig-main-shell .sig-admin-input {
+      width: 100%;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell button,
+    [data-viewport="mobile"] .sig-main-shell a[role="button"],
+    [data-viewport="mobile"] .sig-main-shell [role="button"] {
+      min-height: 44px;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell input,
+    [data-viewport="mobile"] .sig-main-shell textarea,
+    [data-viewport="mobile"] .sig-main-shell [role="combobox"] {
+      height: 44px;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-strong-card,
+    [data-viewport="mobile"] .sig-main-shell .sig-section-card,
+    [data-viewport="mobile"] .sig-main-shell .sig-ui-card,
+    [data-viewport="mobile"] .sig-main-shell .sig-page-header {
+      padding: 16px !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-table-content {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-title,
+    [data-viewport="mobile"] .sig-main-shell .sig-page-title {
+      line-height: 1.25;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-subtitle {
+      line-height: 1.5;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-card-title,
+    [data-viewport="mobile"] .sig-main-shell .sig-fit-title {
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-fit-copy {
+      line-height: 1.45;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-title,
+    [data-viewport="mobile"] .sig-main-shell .sig-page-title,
+    [data-viewport="mobile"] .sig-main-shell .sig-card-title {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-subtitle,
+    [data-viewport="mobile"] .sig-main-shell .sig-fit-copy,
+    [data-viewport="mobile"] .sig-main-shell .sig-nav-item-helper {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell input[type="text"],
+    [data-viewport="mobile"] .sig-main-shell input[type="email"],
+    [data-viewport="mobile"] .sig-main-shell input[type="tel"],
+    [data-viewport="mobile"] .sig-main-shell input[type="url"],
+    [data-viewport="mobile"] .sig-main-shell input[type="search"],
+    [data-viewport="mobile"] .sig-main-shell input[type="number"],
+    [data-viewport="mobile"] .sig-main-shell textarea,
+    [data-viewport="mobile"] .sig-main-shell [data-radix-select-trigger],
+    [data-viewport="mobile"] .sig-main-shell [role="combobox"] {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell textarea {
+      min-height: 120px;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-admin-input,
+    [data-viewport="mobile"] .sig-main-shell .sig-premium-admin-form .sig-admin-input {
+      height: 44px;
+      padding-left: 14px;
+      padding-right: 14px;
+      font-size: 14px;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell [class*="min-w-[560px]"],
+    [data-viewport="mobile"] .sig-main-shell [class*="min-w-[520px]"],
+    [data-viewport="mobile"] .sig-main-shell [class*="min-w-[480px]"] {
+      min-width: 0 !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-table-content [class*="xl:min-w-"] {
+      min-width: 0 !important;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-section-card .sig-section-actions,
+    [data-viewport="mobile"] .sig-main-shell .sig-ui-card .sig-section-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    [data-viewport="mobile"] .sig-main-shell .sig-header-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
   [data-layout-mode="inverse-main"] .sig-premium-admin-form .sig-admin-input {
     background: rgba(15, 23, 42, 0.18) !important;
     border-color: rgba(90, 170, 196, 0.24) !important;

@@ -310,6 +310,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     <div
       className="sig-app-frame min-h-screen text-[#1A1A1A]"
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+      data-viewport={isMobileViewport ? "mobile" : "desktop"}
       style={
         {
           backgroundColor: pageBackground,
@@ -347,8 +348,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.78]" />
               </div>
               <div className="min-w-0">
-                <p className={cn("sig-fit-title text-xs font-semibold uppercase tracking-[0.08em] leading-none", darkTopbar ? "text-white/90" : "text-slate-900")}>SIGAPRO</p>
-                <p className={cn("sig-fit-copy mt-0.5 text-[11px] font-normal leading-[1.15]", darkTopbar ? "text-white/72" : "text-slate-600")}>
+                <p className={cn("sig-fit-title text-xs font-semibold uppercase tracking-[0.08em] leading-none", darkTopbar ? "text-white" : "text-slate-900")}>
+                  SIGAPRO
+                </p>
+                <p className={cn("sig-fit-copy mt-0.5 text-[11px] font-medium leading-[1.15]", darkTopbar ? "text-white/90" : "text-slate-700")}>
                   Plataforma institucional de projetos
                 </p>
               </div>
@@ -390,11 +393,29 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             </Button>
 
             <div className="relative w-[280px]">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <button
+                type="button"
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200/80 bg-slate-50/90 p-1 text-slate-600 shadow-sm transition hover:text-slate-800"
+                aria-label="Pesquisar no sistema"
+                onClick={() => {
+                  const term = topSearch.trim();
+                  if (!term) return;
+                  navigate(`/buscar?query=${encodeURIComponent(term)}`);
+                }}
+              >
+                <Search className="h-4 w-4 text-slate-600" />
+              </button>
               <Input
                 value={topSearch}
                 onChange={(event) => setTopSearch(event.target.value)}
-                placeholder="Pesquisa rapida"
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  const term = topSearch.trim();
+                  if (!term) return;
+                  navigate(`/buscar?query=${encodeURIComponent(term)}`);
+                }}
+                placeholder="Busca rápida"
                 className="h-[40px] rounded-[14px] border border-slate-200 bg-slate-50 pl-11 text-[13px] text-slate-700 shadow-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-300"
               />
             </div>
@@ -476,7 +497,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-[40px] items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 pr-3 text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  className="flex h-[40px] items-center gap-2 rounded-full !border-slate-200 !bg-white px-2.5 pr-3 !text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-[1px] hover:!bg-slate-50"
                 >
                   <UserAvatar
                     name={displayUserName}
@@ -484,7 +505,21 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     size="md"
                     className="border-slate-200 bg-white"
                   />
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <div className="flex min-w-0 flex-col items-start">
+                    <span
+                      className="sig-fit-title text-[12px] font-semibold leading-none"
+                      style={{ color: "#0f172a" }}
+                    >
+                      {displayUserName}
+                    </span>
+                    <span
+                      className="sig-fit-copy mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                      style={{ color: "#475569" }}
+                    >
+                      {roleLabel}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 !text-slate-600" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
@@ -666,23 +701,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                         {institutionDisplaySubtitle}
                       </p>
 
-                      <div className="mt-3 flex flex-wrap gap-2.5">
-                        <div
-                          className="sig-chip inline-flex min-w-0 items-center gap-2 rounded-full border border-white/12 px-3.5 py-2 text-[11px] font-semibold text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]"
-                          style={{ background: `linear-gradient(180deg, ${withAlpha(accentColor, "0.18")} 0%, rgba(255,255,255,0.11) 100%)` }}
-                        >
-                          <UserAvatar
-                            name={displayUserName}
-                            imageUrl={userProfile?.useAvatarInHeader ? userProfile?.avatarUrl : undefined}
-                            size="sm"
-                            className="border-white/16 bg-white/12"
-                            fallbackClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(225,235,245,0.96)_100%)] text-[#16324a]"
-                          />
-                          <span className="sig-fit-copy max-w-[28ch] text-sm font-normal leading-5" title={`${displayUserName} - ${roleLabel}`}>
-                            {displayUserName} - {roleLabel}
-                          </span>
-                        </div>
-                      </div>
+                      {/* chip do usuario removido conforme solicitado */}
                     </div>
                   </div>
                 </div>

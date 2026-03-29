@@ -41,10 +41,11 @@ export function getInstitutionBranding(
   variant: InstitutionalLogoConfigVariant = "header",
 ): InstitutionalBranding {
   const selected = pickVariantSettings(settings, variant);
+  const fallbackLogo = settings?.brasaoUrl || settings?.bandeiraUrl || "";
 
   return {
     tenantId: settings?.tenantId ?? "",
-    logoUrl: settings?.logoUrl ?? "",
+    logoUrl: settings?.logoUrl || fallbackLogo,
     logoScale: selected.scale ?? 1,
     logoOffsetX: selected.offsetX ?? 0,
     logoOffsetY: selected.offsetY ?? 0,

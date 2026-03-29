@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { registerRemoteExternalAccount, registerRemoteOwnerAccount, saveRemoteProfile } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
@@ -38,8 +39,29 @@ function isValidPassword(password: string) {
 export function CriarContaPage() {
   const navigate = useNavigate();
   const { institutions, createTenantUser, saveUserProfile } = usePlatformData();
+  const tenant = useTenant();
   const [searchParams] = useSearchParams();
+  const tenantSlug = searchParams.get("tenant");
   const availableInstitutions = useMemo(() => {
+    if (tenant.mode === "tenant" && tenant.municipalityId) {
+      return [
+        {
+          id: tenant.municipalityId,
+          name: tenant.municipalityName || "Prefeitura",
+          city: "",
+          state: "",
+          users: 0,
+          processes: 0,
+          subdomain: tenant.subdomain || "",
+          status: "ativo",
+          plan: "Institucional",
+          theme: { primary: "#0F2A44", accent: "#5ee8d9" },
+          revenue: 0,
+          activeModules: [],
+        },
+      ];
+    }
+
     const uniqueInstitutions = new Map<string, (typeof institutions)[number]>();
 
     institutions
@@ -63,9 +85,16 @@ export function CriarContaPage() {
         }
       });
 
-    return Array.from(uniqueInstitutions.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
-  }, [institutions]);
-  const tenantSlug = searchParams.get("tenant");
+    const sorted = Array.from(uniqueInstitutions.values()).sort((left, right) =>
+      left.name.localeCompare(right.name, "pt-BR"),
+    );
+
+    if (!tenantSlug) {
+      return sorted;
+    }
+
+    return sorted.filter((institution) => getInstitutionClientSlug(institution) === tenantSlug);
+  }, [institutions, tenantSlug, tenant.mode, tenant.municipalityId]);
   const tenantFromLink =
     availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
   const [status, setStatus] = useState("");
@@ -74,7 +103,7 @@ export function CriarContaPage() {
   const [submitting, setSubmitting] = useState(false);
   const lastCepLookupRef = useRef("");
   const [form, setForm] = useState({
-    tenantId: tenantFromLink || availableInstitutions[0]?.id || "",
+    tenantId: tenant.municipalityId || tenantFromLink || availableInstitutions[0]?.id || "",
     role: "profissional_externo" as UserRole,
     fullName: "",
     email: "",
@@ -98,9 +127,18 @@ export function CriarContaPage() {
     confirmPassword: "",
   });
   const isOwnerSignup = form.role === "property_owner";
+  const tenantLocked = tenant.mode === "tenant" && Boolean(tenant.municipalityId);
+  const lockedInstitution = availableInstitutions.find((item) => item.id === form.tenantId) ?? availableInstitutions[0];
 
   useEffect(() => {
     setForm((current) => {
+      if (tenant.mode === "tenant" && tenant.municipalityId) {
+        if (current.tenantId === tenant.municipalityId) {
+          return current;
+        }
+        return { ...current, tenantId: tenant.municipalityId };
+      }
+
       const nextTenantId = availableInstitutions.some((institution) => institution.id === current.tenantId)
         ? current.tenantId
         : tenantFromLink || availableInstitutions[0]?.id || "";
@@ -111,7 +149,7 @@ export function CriarContaPage() {
 
       return { ...current, tenantId: nextTenantId };
     });
-  }, [availableInstitutions, tenantFromLink]);
+  }, [availableInstitutions, tenant.mode, tenant.municipalityId, tenantFromLink]);
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -296,7 +334,9 @@ export function CriarContaPage() {
               ? "Conta criada com sucesso. Você já pode solicitar acompanhamento do seu projeto."
               : "Conta criada com sucesso. Você já pode entrar no portal da Prefeitura.",
           );
-          setTimeout(() => navigate(`/acesso?tenant=${tenantSlug || ""}`), 1200);
+          const accessRedirect =
+            tenant.mode === "tenant" ? "/acesso" : `/acesso?tenant=${tenantSlug || ""}`;
+          setTimeout(() => navigate(accessRedirect), 1200);
         } catch (registrationError) {
           setError(
             registrationError instanceof Error
@@ -457,18 +497,24 @@ export function CriarContaPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Prefeitura cadastrada no SIGAPRO</Label>
-                    <Select value={form.tenantId} onValueChange={(value) => setField("tenantId", value)}>
-                      <SelectTrigger className="h-12 rounded-2xl">
-                        <SelectValue placeholder="Escolha a Prefeitura" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableInstitutions.map((institution) => (
-                          <SelectItem key={institution.id} value={institution.id}>
-                            {institution.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {tenantLocked ? (
+                      <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
+                        {lockedInstitution?.name || "Prefeitura selecionada"}
+                      </div>
+                    ) : (
+                      <Select value={form.tenantId} onValueChange={(value) => setField("tenantId", value)}>
+                        <SelectTrigger className="h-12 rounded-2xl">
+                          <SelectValue placeholder="Escolha a Prefeitura" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableInstitutions.map((institution) => (
+                            <SelectItem key={institution.id} value={institution.id}>
+                              {institution.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo de acesso</Label>

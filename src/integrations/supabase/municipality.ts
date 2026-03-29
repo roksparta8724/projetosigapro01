@@ -176,6 +176,110 @@ export async function loadMunicipalityBundleById(
   };
 }
 
+export async function loadMunicipalityBundleBySubdomain(
+  subdomain: string | null | undefined,
+): Promise<MunicipalityBundle | null> {
+  if (!hasSupabaseEnv || !supabase || !subdomain) {
+    return null;
+  }
+
+  const normalized = subdomain.trim().toLowerCase();
+
+  const municipalityResult = await supabase
+    .from("municipalities")
+    .select("*")
+    .or(`subdomain.ilike.${normalized},slug.ilike.${normalized}`)
+    .maybeSingle();
+
+  if (municipalityResult.error) {
+    if (isMissingRelationError(municipalityResult.error, "public.municipalities")) {
+      return null;
+    }
+    throw municipalityResult.error;
+  }
+
+  const municipality = municipalityResult.data ? mapMunicipality(municipalityResult.data) : null;
+  if (!municipality?.id) {
+    return null;
+  }
+
+  const [brandingResult, settingsResult] = await Promise.all([
+    supabase.from("municipality_branding").select("*").eq("municipality_id", municipality.id).maybeSingle(),
+    supabase.from("municipality_settings").select("*").eq("municipality_id", municipality.id).maybeSingle(),
+  ]);
+
+  const errors = [
+    isMissingRelationError(brandingResult.error, "public.municipality_branding")
+      ? null
+      : brandingResult.error,
+    isMissingRelationError(settingsResult.error, "public.municipality_settings")
+      ? null
+      : settingsResult.error,
+  ].filter(Boolean);
+
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+
+  return {
+    municipality,
+    branding: brandingResult.data ? mapMunicipalityBranding(brandingResult.data) : null,
+    settings: settingsResult.data ? mapMunicipalitySettings(settingsResult.data) : null,
+  };
+}
+
+export async function loadMunicipalityBundleByHostname(
+  hostname: string | null | undefined,
+): Promise<MunicipalityBundle | null> {
+  if (!hasSupabaseEnv || !supabase || !hostname) {
+    return null;
+  }
+
+  const normalized = hostname.trim().toLowerCase();
+
+  const municipalityResult = await supabase
+    .from("municipalities")
+    .select("*")
+    .or(`custom_domain.ilike.${normalized},subdomain.ilike.${normalized}`)
+    .maybeSingle();
+
+  if (municipalityResult.error) {
+    if (isMissingRelationError(municipalityResult.error, "public.municipalities")) {
+      return null;
+    }
+    throw municipalityResult.error;
+  }
+
+  const municipality = municipalityResult.data ? mapMunicipality(municipalityResult.data) : null;
+  if (!municipality?.id) {
+    return null;
+  }
+
+  const [brandingResult, settingsResult] = await Promise.all([
+    supabase.from("municipality_branding").select("*").eq("municipality_id", municipality.id).maybeSingle(),
+    supabase.from("municipality_settings").select("*").eq("municipality_id", municipality.id).maybeSingle(),
+  ]);
+
+  const errors = [
+    isMissingRelationError(brandingResult.error, "public.municipality_branding")
+      ? null
+      : brandingResult.error,
+    isMissingRelationError(settingsResult.error, "public.municipality_settings")
+      ? null
+      : settingsResult.error,
+  ].filter(Boolean);
+
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+
+  return {
+    municipality,
+    branding: brandingResult.data ? mapMunicipalityBranding(brandingResult.data) : null,
+    settings: settingsResult.data ? mapMunicipalitySettings(settingsResult.data) : null,
+  };
+}
+
 export async function loadMunicipalityCatalog(): Promise<MunicipalityBundle[]> {
   if (!hasSupabaseEnv || !supabase) {
     return [];

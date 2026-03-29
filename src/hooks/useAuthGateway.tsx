@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { sessionUsers, type AccountStatus, type SessionUser } from "@/lib/platform";
 
@@ -24,6 +24,9 @@ const demoCredentials: Record<string, { password: string; userId: string; role: 
   "sergio@dominio.com": { password: "Consulta@2026", userId: "u-owner-1", role: "property_owner" },
 };
 
+const MASTER_EMAIL = "roksparta02@gmail.com";
+const MASTER_NAME = "Jonatas Rodrigues";
+
 const STORAGE_KEY = "sigapro-auth";
 const DYNAMIC_CREDENTIALS_KEY = "sigapro-demo-credentials";
 const PLATFORM_STORE_KEY = "sigapro-platform-store";
@@ -35,10 +38,10 @@ const authGatewayFallback: AuthGatewayContextValue = {
   authenticatedUserId: null,
   authenticatedRole: null,
   authenticatedEmail: null,
-  signIn: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
-  resetPassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
-  updateEmail: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
-  updatePassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
+  signIn: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
+  resetPassword: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
+  updateEmail: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
+  updatePassword: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
   signOut: async () => {},
 };
 
@@ -81,6 +84,25 @@ function blockedAccountMessage(status: AccountStatus | undefined) {
     : "Esta conta esta bloqueada administrativamente. Entre em contato com a gestao do sistema.";
 }
 
+async function ensureMasterProfile(userId: string | null | undefined, email?: string | null) {
+  if (!supabase || !userId) return;
+  if (normalizeEmail(email) !== MASTER_EMAIL) return;
+
+  try {
+    await supabase.from("profiles").upsert(
+      {
+        user_id: userId,
+        full_name: MASTER_NAME,
+        email: MASTER_EMAIL,
+        role: "master_admin",
+      },
+      { onConflict: "user_id" },
+    );
+  } catch {
+    // noop: perfil segue carregando pelas regras atuais
+  }
+}
+
 export function AuthGatewayProvider({ children }: { children: React.ReactNode }) {
   const persisted = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
   const parsed = persisted ? JSON.parse(persisted) : null;
@@ -98,9 +120,22 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
       return fallbackRole || fallbackProfile?.role || "profissional_externo";
     };
 
-    supabase.auth.getSession().then(({ data }) => {
+    const resolveProfileRole = async (userId: string, email?: string | null) => {
+      if (!supabase) return resolveRole(email, null);
+      try {
+        const { data } = await supabase.from("profiles").select("role").eq("user_id", userId).maybeSingle();
+        return (data?.role as string | null) ?? resolveRole(email, null);
+      } catch {
+        return resolveRole(email, null);
+      }
+    };
+
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session?.user) return;
-      const role = resolveRole(data.session.user.email, (data.session.user.app_metadata?.role as string | undefined) ?? null);
+      const role =
+        (data.session.user.app_metadata?.role as string | undefined) ??
+        (await resolveProfileRole(data.session.user.id, data.session.user.email));
+      await ensureMasterProfile(data.session.user.id, data.session.user.email);
       const payload = { userId: data.session.user.id, role, email: data.session.user.email?.trim().toLowerCase() ?? null };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       setAuthenticatedUserId(payload.userId);
@@ -108,7 +143,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
       setAuthenticatedEmail(payload.email);
     });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {
         localStorage.removeItem(STORAGE_KEY);
         setAuthenticatedUserId(null);
@@ -117,7 +152,10 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      const role = resolveRole(session.user.email, (session.user.app_metadata?.role as string | undefined) ?? null);
+      const role =
+        (session.user.app_metadata?.role as string | undefined) ??
+        (await resolveProfileRole(session.user.id, session.user.email));
+      await ensureMasterProfile(session.user.id, session.user.email);
       const payload = { userId: session.user.id, role, email: session.user.email?.trim().toLowerCase() ?? null };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       setAuthenticatedUserId(payload.userId);
@@ -142,6 +180,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password });
           if (!error && data.user) {
+            await ensureMasterProfile(data.user.id, data.user.email);
             const fallbackProfile = resolveStoredUser(normalized, data.user.id);
             if (isAdministrativeBlocked(fallbackProfile?.accountStatus)) {
               await supabase.auth.signOut();
@@ -164,7 +203,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
 
           return {
             ok: false,
-            message: error?.message || "Não foi possível autenticar no Supabase.",
+            message: error?.message || "NÃ£o foi possÃ­vel autenticar no Supabase.",
           };
         }
 
@@ -219,7 +258,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
           : {};
         const existing = existingDynamic[normalized] ?? demoCredentials[normalized];
         if (!existing) {
-          return { ok: false, message: "Não encontramos esse e-mail na base de teste." };
+          return { ok: false, message: "NÃ£o encontramos esse e-mail na base de teste." };
         }
 
         const nextDynamic = {
@@ -242,7 +281,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { error } = await supabase.auth.updateUser({ email: normalized });
           if (error) {
-            return { ok: false, message: error.message || "Não foi possível atualizar o e-mail." };
+            return { ok: false, message: error.message || "NÃ£o foi possÃ­vel atualizar o e-mail." };
           }
 
           const nextPayload = {
@@ -265,7 +304,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         const currentEmail = authenticatedEmail?.trim().toLowerCase() ?? "";
         const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
         if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "Não foi possível localizar a conta atual." };
+          return { ok: false, message: "NÃ£o foi possÃ­vel localizar a conta atual." };
         }
 
         const nextDynamic = { ...existingDynamic };
@@ -287,7 +326,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { error } = await supabase.auth.updateUser({ password });
           if (error) {
-            return { ok: false, message: error.message || "Não foi possível atualizar a senha." };
+            return { ok: false, message: error.message || "NÃ£o foi possÃ­vel atualizar a senha." };
           }
           return { ok: true, message: "Senha atualizada com sucesso." };
         }
@@ -299,7 +338,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
           : {};
         const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
         if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "Não foi possível localizar a conta atual." };
+          return { ok: false, message: "NÃ£o foi possÃ­vel localizar a conta atual." };
         }
 
         localStorage.setItem(

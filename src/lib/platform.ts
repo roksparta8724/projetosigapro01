@@ -1,4 +1,4 @@
-export type UserRole =
+Ôªøexport type UserRole =
   | "master_admin"
   | "master_ops"
   | "prefeitura_admin"
@@ -521,7 +521,7 @@ export function getGuideLabel(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Guia de Recolhimento de ISSQN da Obra";
     case "aprovacao_final":
-      return "Guia Final de AprovaÁ„o / Habite-se";
+      return "Guia Final de Aprova√ß√£o / Habite-se";
   }
 }
 
@@ -530,20 +530,20 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "protocolo":
       return "Taxa de protocolo administrativo";
     case "iss_obra":
-      return "ISSQN incidente sobre a metragem da construÁ„o";
+      return "ISSQN incidente sobre a metragem da constru√ß√£o";
     case "aprovacao_final":
-      return "Taxa final de aprovaÁ„o e emiss„o de habite-se";
+      return "Taxa final de aprova√ß√£o e emiss√£o de habite-se";
   }
 }
 
 export function getGuideObservation(kind: PaymentGuideKind) {
   switch (kind) {
     case "protocolo":
-      return "Documento de arrecadaÁ„o municipal vinculado ‡ abertura do protocolo administrativo.";
+      return "Documento de arrecada√ß√£o municipal vinculado √† abertura do protocolo administrativo.";
     case "iss_obra":
-      return "Documento de arrecadaÁ„o municipal destinado ao recolhimento do ISSQN calculado pela metragem da construÁ„o.";
+      return "Documento de arrecada√ß√£o municipal destinado ao recolhimento do ISSQN calculado pela metragem da constru√ß√£o.";
     case "aprovacao_final":
-      return "Documento de arrecadaÁ„o municipal vinculado ‡ etapa final de aprovaÁ„o e emiss„o do habite-se.";
+      return "Documento de arrecada√ß√£o municipal vinculado √† etapa final de aprova√ß√£o e emiss√£o do habite-se.";
   }
 }
 
@@ -557,13 +557,13 @@ export const defaultIssRateProfiles: MunicipalIssRateProfile[] = [
   {
     id: "comercial-mista",
     label: "Comercial e mista",
-    aliases: ["comercial", "comercial e mista", "mista", "escritorio", "escritÛrio"],
+    aliases: ["comercial", "comercial e mista", "mista", "escritorio", "escrit√≥rio"],
     rate: 1.43,
   },
   {
     id: "industrial",
     label: "Industrial",
-    aliases: ["industrial", "galpao", "galp„o", "fabrica", "f·brica"],
+    aliases: ["industrial", "galpao", "galp√£o", "fabrica", "f√°brica"],
     rate: 1.71,
   },
   {
@@ -575,24 +575,24 @@ export const defaultIssRateProfiles: MunicipalIssRateProfile[] = [
 ];
 
 export const defaultApprovalRateProfiles: MunicipalApprovalRateProfile[] = [
-  { id: "residencial-luxo", label: "Residencial ï Luxo", usage: "Residencial", standard: "luxo", rate: 547.2 },
-  { id: "residencial-primeira", label: "Residencial ï Primeira", usage: "Residencial", standard: "primeira", rate: 444.6 },
-  { id: "residencial-medio", label: "Residencial ï MÈdio", usage: "Residencial", standard: "medio", rate: 342 },
-  { id: "residencial-economico", label: "Residencial ï EconÙmico", usage: "Residencial", standard: "economico", rate: 239.4 },
-  { id: "apartamento-luxo", label: "Apartamento ï Luxo", usage: "Apartamento", standard: "luxo", rate: 444.6 },
-  { id: "apartamento-primeira", label: "Apartamento ï Primeira", usage: "Apartamento", standard: "primeira", rate: 376.2 },
-  { id: "apartamento-medio", label: "Apartamento ï MÈdio", usage: "Apartamento", standard: "medio", rate: 307.8 },
-  { id: "escritorio-luxo", label: "EscritÛrio ï Luxo", usage: "EscritÛrio", standard: "luxo", rate: 410.4 },
-  { id: "escritorio-primeira", label: "EscritÛrio ï Primeira", usage: "EscritÛrio", standard: "primeira", rate: 342 },
-  { id: "escritorio-medio", label: "EscritÛrio ï MÈdio", usage: "EscritÛrio", standard: "medio", rate: 307.8 },
-  { id: "comercial-luxo", label: "Comercial ï Luxo", usage: "Comercial", standard: "luxo", rate: 342 },
-  { id: "comercial-primeira", label: "Comercial ï Primeira", usage: "Comercial", standard: "primeira", rate: 307.8 },
-  { id: "comercial-medio", label: "Comercial ï MÈdio", usage: "Comercial", standard: "medio", rate: 307.8 },
-  { id: "comercial-economico", label: "Comercial ï EconÙmico", usage: "Comercial", standard: "economico", rate: 273.6 },
-  { id: "industrial-luxo", label: "Industrial ï Luxo", usage: "Industrial", standard: "luxo", rate: 342 },
-  { id: "industrial-primeira", label: "Industrial ï Primeira", usage: "Industrial", standard: "primeira", rate: 307.8 },
-  { id: "industrial-medio", label: "Industrial ï MÈdio", usage: "Industrial", standard: "medio", rate: 273.6 },
-  { id: "industrial-economico", label: "Industrial ï EconÙmico", usage: "Industrial", standard: "economico", rate: 239.4 },
+  { id: "residencial-luxo", label: "Residencial ‚Ä¢ Luxo", usage: "Residencial", standard: "luxo", rate: 547.2 },
+  { id: "residencial-primeira", label: "Residencial ‚Ä¢ Primeira", usage: "Residencial", standard: "primeira", rate: 444.6 },
+  { id: "residencial-medio", label: "Residencial ‚Ä¢ M√©dio", usage: "Residencial", standard: "medio", rate: 342 },
+  { id: "residencial-economico", label: "Residencial ‚Ä¢ Econ√¥mico", usage: "Residencial", standard: "economico", rate: 239.4 },
+  { id: "apartamento-luxo", label: "Apartamento ‚Ä¢ Luxo", usage: "Apartamento", standard: "luxo", rate: 444.6 },
+  { id: "apartamento-primeira", label: "Apartamento ‚Ä¢ Primeira", usage: "Apartamento", standard: "primeira", rate: 376.2 },
+  { id: "apartamento-medio", label: "Apartamento ‚Ä¢ M√©dio", usage: "Apartamento", standard: "medio", rate: 307.8 },
+  { id: "escritorio-luxo", label: "Escrit√≥rio ‚Ä¢ Luxo", usage: "Escrit√≥rio", standard: "luxo", rate: 410.4 },
+  { id: "escritorio-primeira", label: "Escrit√≥rio ‚Ä¢ Primeira", usage: "Escrit√≥rio", standard: "primeira", rate: 342 },
+  { id: "escritorio-medio", label: "Escrit√≥rio ‚Ä¢ M√©dio", usage: "Escrit√≥rio", standard: "medio", rate: 307.8 },
+  { id: "comercial-luxo", label: "Comercial ‚Ä¢ Luxo", usage: "Comercial", standard: "luxo", rate: 342 },
+  { id: "comercial-primeira", label: "Comercial ‚Ä¢ Primeira", usage: "Comercial", standard: "primeira", rate: 307.8 },
+  { id: "comercial-medio", label: "Comercial ‚Ä¢ M√©dio", usage: "Comercial", standard: "medio", rate: 307.8 },
+  { id: "comercial-economico", label: "Comercial ‚Ä¢ Econ√¥mico", usage: "Comercial", standard: "economico", rate: 273.6 },
+  { id: "industrial-luxo", label: "Industrial ‚Ä¢ Luxo", usage: "Industrial", standard: "luxo", rate: 342 },
+  { id: "industrial-primeira", label: "Industrial ‚Ä¢ Primeira", usage: "Industrial", standard: "primeira", rate: 307.8 },
+  { id: "industrial-medio", label: "Industrial ‚Ä¢ M√©dio", usage: "Industrial", standard: "medio", rate: 273.6 },
+  { id: "industrial-economico", label: "Industrial ‚Ä¢ Econ√¥mico", usage: "Industrial", standard: "economico", rate: 239.4 },
 ];
 
 function normalizeUsageLabel(value: string | null | undefined) {
@@ -734,16 +734,16 @@ export function parseMarker(tag: string) {
 
 export const roleLabels: Record<UserRole, string> = {
   master_admin: "Administrador Geral",
-  master_ops: "OperaÁ„o Geral",
+  master_ops: "Opera√ß√£o Geral",
   prefeitura_admin: "Administrador da Prefeitura",
   prefeitura_supervisor: "Supervisor da Prefeitura",
   analista: "Analista",
   financeiro: "Financeiro",
   setor_intersetorial: "Setor Intersetorial",
-  fiscal: "FiscalizaÁ„o e Postura",
+  fiscal: "Fiscaliza√ß√£o e Postura",
   profissional_externo: "Profissional Externo",
-  property_owner: "Propriet·rio do ImÛvel",
-  proprietario_consulta: "Propriet·rio",
+  property_owner: "Propriet√°rio do Im√≥vel",
+  proprietario_consulta: "Propriet√°rio",
 };
 
 export const institutionPermissionAliases: Record<InstitutionManagementPermission, Permission> = {
@@ -753,23 +753,23 @@ export const institutionPermissionAliases: Record<InstitutionManagementPermissio
 };
 
 export const accessLevelLabels: Record<1 | 2 | 3, string> = {
-  1: "NÌvel 1",
-  2: "NÌvel 2",
-  3: "NÌvel 3",
+  1: "N√≠vel 1",
+  2: "N√≠vel 2",
+  3: "N√≠vel 3",
 };
 
 export const roleSuggestedTitles: Record<UserRole, string> = {
   master_admin: "Administrador Geral da Plataforma",
-  master_ops: "OperaÁ„o Geral da Plataforma",
+  master_ops: "Opera√ß√£o Geral da Plataforma",
   prefeitura_admin: "Administrador da Prefeitura",
   prefeitura_supervisor: "Supervisor da Prefeitura",
-  analista: "Analista TÈcnico",
+  analista: "Analista T√©cnico",
   financeiro: "Financeiro Municipal",
   setor_intersetorial: "Setor Intersetorial",
-  fiscal: "FiscalizaÁ„o e Postura",
+  fiscal: "Fiscaliza√ß√£o e Postura",
   profissional_externo: "Profissional Externo",
-  property_owner: "Propriet·rio do ImÛvel",
-  proprietario_consulta: "Propriet·rio do ImÛvel",
+  property_owner: "Propriet√°rio do Im√≥vel",
+  proprietario_consulta: "Propriet√°rio do Im√≥vel",
 };
 
 const rolePermissions: Record<UserRole, Permission[]> = {
@@ -797,7 +797,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
 export const sessionUsers: SessionUser[] = [
   {
     id: "u-master",
-    name: "Rafael Monteiro",
+    name: "Jonatas Rodrigues",
     role: "master_admin",
     accessLevel: 3,
     tenantId: null,
@@ -827,7 +827,7 @@ export const sessionUsers: SessionUser[] = [
     accessLevel: 2,
     tenantId: "tenant-campo",
     municipalityId: "tenant-campo",
-    title: "Analista urbanÌstico",
+    title: "Analista urban√≠stico",
     email: "marcelo@campolimpopaulista.sp.gov.br",
     accountStatus: "active",
     userType: "Interno",
@@ -866,7 +866,7 @@ export const sessionUsers: SessionUser[] = [
     accessLevel: 1,
     tenantId: "tenant-campo",
     municipalityId: "tenant-campo",
-    title: "Arquiteta respons·vel",
+    title: "Arquiteta respons√°vel",
     email: "patricia@estudiomoraes.com.br",
     accountStatus: "active",
     userType: "Profissional externo",
@@ -895,7 +895,7 @@ export const sessionUsers: SessionUser[] = [
     title: "Proprietario do Imovel",
     email: "sergio@dominio.com",
     accountStatus: "active",
-    userType: "Usu·rio externo",
+    userType: "Usu√°rio externo",
     department: "Consulta",
   },
 ];
@@ -903,7 +903,7 @@ export const sessionUsers: SessionUser[] = [
 export const userProfiles: UserProfile[] = [
   {
     userId: "u-master",
-    fullName: "Rafael Monteiro",
+    fullName: "Jonatas Rodrigues",
     email: "roksparta02@gmail.com",
     phone: "(11) 98888-1000",
     cpfCnpj: "000.000.000-00",
@@ -920,7 +920,7 @@ export const userProfiles: UserProfile[] = [
     state: "",
     zipCode: "",
     avatarUrl: "",
-    bio: "Respons·vel pela operaÁ„o geral da plataforma.",
+    bio: "Respons√°vel pela opera√ß√£o geral da plataforma.",
   },
   {
     userId: "u-admin-clp",
@@ -962,7 +962,7 @@ export const userProfiles: UserProfile[] = [
     state: "SP",
     zipCode: "",
     avatarUrl: "",
-    bio: "Analista respons·vel por aprovaÁ„o urbanÌstica.",
+    bio: "Analista respons√°vel por aprova√ß√£o urban√≠stica.",
   },
   {
     userId: "u-fin-clp",
@@ -983,7 +983,7 @@ export const userProfiles: UserProfile[] = [
     state: "SP",
     zipCode: "",
     avatarUrl: "",
-    bio: "Gest„o de guias e arrecadaÁ„o.",
+    bio: "Gest√£o de guias e arrecada√ß√£o.",
   },
   {
     userId: "u-fiscal-clp",
@@ -1025,7 +1025,7 @@ export const userProfiles: UserProfile[] = [
     state: "",
     zipCode: "",
     avatarUrl: "",
-    bio: "Respons·vel por projetos residenciais e comerciais.",
+    bio: "Respons√°vel por projetos residenciais e comerciais.",
   },
   {
     userId: "u-ext-arturer",
@@ -1085,7 +1085,7 @@ export const tenants: Tenant[] = [
     state: "SP",
     status: "ativo",
     plan: "Plano institucional",
-    activeModules: ["Protocolo", "An·lise", "Financeiro", "Assinatura", "Despacho", "ConfiguraÁıes"],
+    activeModules: ["Protocolo", "An√°lise", "Financeiro", "Assinatura", "Despacho", "Configura√ß√µes"],
     users: 6,
     processes: 3,
     revenue: 186800,
@@ -1103,7 +1103,7 @@ export const tenantSettings: TenantSettings[] = [
     email: "planejamento@campolimpopaulista.sp.gov.br",
     site: "https://campolimpopaulista.sp.gov.br",
     secretariaResponsavel: "Secretaria de Planejamento e Obras",
-    diretoriaResponsavel: "Diretoria de AprovaÁ„o de Projetos",
+    diretoriaResponsavel: "Diretoria de Aprova√ß√£o de Projetos",
     diretoriaTelefone: "(11) 4000-1010",
     diretoriaEmail: "diretoria.aprovacao@campolimpopaulista.sp.gov.br",
     horarioAtendimento: "Segunda a sexta, das 8h as 17h",
@@ -1162,14 +1162,14 @@ export const platformModules = [
   { name: "Analise tecnica", description: "Fila de analise, despacho, exigencias e decisao do processo." },
   { name: "Financeiro", description: "Guias vinculadas ao IPTU, acompanhamento de arrecadacao e baixa." },
   { name: "Assinatura", description: "Blocos de assinatura e trilha de evidencias." },
-  { name: "ConfiguraÁıes", description: "Cadastro da Prefeitura, plano diretor, uso do solo e identidade institucional." },
+  { name: "Configura√ß√µes", description: "Cadastro da Prefeitura, plano diretor, uso do solo e identidade institucional." },
   { name: "Acesso externo", description: "Protocolos por profissionais externos com isolamento entre usuarios." },
 ];
 
 export const planCatalog = [
-  { name: "Institucional", enabled: false, seats: "Usu·rios conforme contrato", description: "Plano-base do sistema para entrega a prefeituras." },
+  { name: "Institucional", enabled: false, seats: "Usu√°rios conforme contrato", description: "Plano-base do sistema para entrega a prefeituras." },
   { name: "Expansao", enabled: false, seats: "Multi secretaria", description: "Fluxos completos com modulos adicionais e integracoes." },
-  { name: "Premium", enabled: false, seats: "Ilimitado", description: "OperaÁ„o completa com personalizaÁ„o institucional ampliada." },
+  { name: "Premium", enabled: false, seats: "Ilimitado", description: "Opera√ß√£o completa com personaliza√ß√£o institucional ampliada." },
 ];
 
 export const mobileThemePresets: ThemePreset[] = [
@@ -1185,7 +1185,7 @@ export const mobileThemePresets: ThemePreset[] = [
   {
     id: "claro-neutro",
     label: "Claro neutro",
-    description: "Base neutra com cinza ardÛsia e visual sÛbrio.",
+    description: "Base neutra com cinza ard√≥sia e visual s√≥brio.",
     primary: "#334155",
     accent: "#64748b",
     background: "#f4f6f8",
@@ -1194,7 +1194,7 @@ export const mobileThemePresets: ThemePreset[] = [
   {
     id: "escuro-institucional",
     label: "Escuro institucional",
-    description: "Azul profundo com sensaÁ„o premium de govtech municipal.",
+    description: "Azul profundo com sensa√ß√£o premium de govtech municipal.",
     primary: "#0f2a44",
     accent: "#67e8f9",
     background: "#081421",
@@ -1215,8 +1215,8 @@ export const desktopThemePresets: ThemePreset[] = [
   ...mobileThemePresets,
   {
     id: "claro-civico",
-    label: "Claro cÌvico",
-    description: "Base clara com azul petrÛleo e sensaÁ„o institucional refinada.",
+    label: "Claro c√≠vico",
+    description: "Base clara com azul petr√≥leo e sensa√ß√£o institucional refinada.",
     primary: "#1d4f6f",
     accent: "#38bdf8",
     background: "#f3f7fb",
@@ -1224,8 +1224,8 @@ export const desktopThemePresets: ThemePreset[] = [
   },
   {
     id: "claro-ardosia",
-    label: "Claro ardÛsia",
-    description: "Cinza nobre com acento sÛbrio e leitura corporativa.",
+    label: "Claro ard√≥sia",
+    description: "Cinza nobre com acento s√≥brio e leitura corporativa.",
     primary: "#475569",
     accent: "#94a3b8",
     background: "#f5f7fa",
@@ -1234,7 +1234,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-vinho",
     label: "Claro vinho",
-    description: "Base clara com vinho institucional e presenÁa mais executiva.",
+    description: "Base clara com vinho institucional e presen√ßa mais executiva.",
     primary: "#7c2d3a",
     accent: "#be445d",
     background: "#fbf5f7",
@@ -1243,7 +1243,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-rosa",
     label: "Claro rosa",
-    description: "Rosa sofisticado com leitura leve e aparÍncia premium.",
+    description: "Rosa sofisticado com leitura leve e apar√™ncia premium.",
     primary: "#9d4b74",
     accent: "#ec4899",
     background: "#fcf6fa",
@@ -1252,7 +1252,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "claro-verde",
     label: "Claro verde",
-    description: "Verde administrativo com sensaÁ„o est·vel e confi·vel.",
+    description: "Verde administrativo com sensa√ß√£o est√°vel e confi√°vel.",
     primary: "#1f5d4d",
     accent: "#22c55e",
     background: "#f3faf7",
@@ -1278,8 +1278,8 @@ export const desktopThemePresets: ThemePreset[] = [
   },
   {
     id: "escuro-petroleo",
-    label: "Escuro petrÛleo",
-    description: "Base petrÛleo elegante com contraste est·vel para operaÁ„o.",
+    label: "Escuro petr√≥leo",
+    description: "Base petr√≥leo elegante com contraste est√°vel para opera√ß√£o.",
     primary: "#16343f",
     accent: "#60a5fa",
     background: "#0c1920",
@@ -1288,7 +1288,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "escuro-vinho",
     label: "Escuro vinho",
-    description: "Vinho profundo com eleg‚ncia corporativa e contraste sÛbrio.",
+    description: "Vinho profundo com eleg√¢ncia corporativa e contraste s√≥brio.",
     primary: "#4f1f2d",
     accent: "#fb7185",
     background: "#170d12",
@@ -1297,7 +1297,7 @@ export const desktopThemePresets: ThemePreset[] = [
   {
     id: "escuro-floresta",
     label: "Escuro floresta",
-    description: "Verde fechado com presenÁa institucional forte e serena.",
+    description: "Verde fechado com presen√ßa institucional forte e serena.",
     primary: "#17372d",
     accent: "#4ade80",
     background: "#0c1713",
@@ -1317,10 +1317,10 @@ export const desktopThemePresets: ThemePreset[] = [
 export const themePresets: ThemePreset[] = desktopThemePresets;
 
 export const processTypeCatalog = [
-  "AprovaÁ„o de Projeto Residencial",
-  "AprovaÁ„o de Projeto Comercial",
-  "AprovaÁ„o de Projeto Industrial",
-  "AprovaÁ„o de Projeto Institucional",
+  "Aprova√ß√£o de Projeto Residencial",
+  "Aprova√ß√£o de Projeto Comercial",
+  "Aprova√ß√£o de Projeto Industrial",
+  "Aprova√ß√£o de Projeto Institucional",
   "Projeto Multifamiliar",
   "Projeto de Reforma",
   "Projeto de Ampliacao",
@@ -1345,10 +1345,10 @@ export const processTypeCatalog = [
   "Licenciamento de Fachada",
   "Licenciamento de Muro e Fechamento",
   "Licenciamento de Tapume",
-  "AprovaÁ„o de Projeto de Acessibilidade",
-  "AprovaÁ„o de Projeto de Combate a IncÍndio",
-  "AprovaÁ„o de Projeto de Infraestrutura",
-  "AprovaÁ„o de Projeto de CondomÌnio",
+  "Aprova√ß√£o de Projeto de Acessibilidade",
+  "Aprova√ß√£o de Projeto de Combate a Inc√™ndio",
+  "Aprova√ß√£o de Projeto de Infraestrutura",
+  "Aprova√ß√£o de Projeto de Condom√≠nio",
 ];
 
 const checklistPadraoProjeto = [
@@ -1381,7 +1381,7 @@ export const checklistTemplates: ChecklistTemplate[] = [
   {
     id: "check-residencial",
     tenantId: null,
-    processType: "AprovaÁ„o de projeto residencial",
+    processType: "Aprova√ß√£o de projeto residencial",
     items: [
       { id: "res-1", label: "RG ou CNH do proprietario", required: true },
       { id: "res-2", label: "CPF do proprietario", required: true },
@@ -1407,19 +1407,19 @@ export const checklistTemplates: ChecklistTemplate[] = [
   {
     id: "check-comercial",
     tenantId: null,
-    processType: "AprovaÁ„o de Projeto Comercial",
+    processType: "Aprova√ß√£o de Projeto Comercial",
     items: checklistPadraoProjeto,
   },
   {
     id: "check-industrial",
     tenantId: null,
-    processType: "AprovaÁ„o de Projeto Industrial",
+    processType: "Aprova√ß√£o de Projeto Industrial",
     items: [...checklistPadraoProjeto, { id: "ind-1", label: "Licencas complementares", required: false }],
   },
   {
     id: "check-institucional",
     tenantId: null,
-    processType: "AprovaÁ„o de Projeto Institucional",
+    processType: "Aprova√ß√£o de Projeto Institucional",
     items: checklistPadraoProjeto,
   },
   {
@@ -1538,8 +1538,8 @@ export const checklistTemplates: ChecklistTemplate[] = [
 export const documentTemplates = [
   { id: "tpl-despacho-1", type: "despacho", title: "Despacho para setor financeiro", body: "Encaminho o processo para validacao da arrecadacao e conferencia da guia municipal." },
   { id: "tpl-despacho-2", type: "despacho", title: "Despacho para setor intersetorial", body: "Encaminho para manifestacao tecnica complementar dentro do prazo estabelecido." },
-  { id: "tpl-parecer-1", type: "parecer", title: "Parecer favor·vel com ressalvas", body: "An·lise favor·vel, condicionada ao atendimento das exigÍncias descritas no processo." },
-  { id: "tpl-parecer-2", type: "parecer", title: "Parecer desfavor·vel", body: "An·lise desfavor·vel em raz„o de inconformidade com a legislaÁ„o urbanÌstica vigente." },
+  { id: "tpl-parecer-1", type: "parecer", title: "Parecer favor√°vel com ressalvas", body: "An√°lise favor√°vel, condicionada ao atendimento das exig√™ncias descritas no processo." },
+  { id: "tpl-parecer-2", type: "parecer", title: "Parecer desfavor√°vel", body: "An√°lise desfavor√°vel em raz√£o de inconformidade com a legisla√ß√£o urban√≠stica vigente." },
   { id: "tpl-decisao-1", type: "decisao", title: "Decisao de deferimento", body: "Fica deferido o processo, observadas as condicionantes registradas." },
   { id: "tpl-decisao-2", type: "decisao", title: "Decisao de indeferimento", body: "Fica indeferido o processo em razao das inconsistencias registradas." },
 ];
@@ -1557,7 +1557,7 @@ export const processRecords: ProcessRecord[] = [
     protocol: "SIG-2026-0001",
     externalProtocol: "PMCLP-2026-23109",
     title: "Residencial Santa Cruz",
-    type: "AprovaÁ„o de projeto residencial",
+    type: "Aprova√ß√£o de projeto residencial",
     status: "pagamento_pendente",
     ownerName: "Sergio Matos",
     ownerDocument: "***.401.218-**",
@@ -1580,7 +1580,7 @@ export const processRecords: ProcessRecord[] = [
       assignedTo: "Camila Andrade",
       notes: "Triagem documental inicial concluida com envio para pagamento.",
     },
-    checklistType: "AprovaÁ„o de projeto residencial",
+    checklistType: "Aprova√ß√£o de projeto residencial",
     sla: {
       currentStage: "Pagamento e distribuicao",
       dueDate: "20/03/2026",
@@ -1656,7 +1656,7 @@ export const processRecords: ProcessRecord[] = [
         senderName: "Marcelo Teixeira",
         senderRole: "Analista",
         audience: "externo",
-        message: "Favor acompanhar a compensaÁ„o da guia para continuidade da an·lise.",
+        message: "Favor acompanhar a compensa√ß√£o da guia para continuidade da an√°lise.",
         at: "18/03/2026 14:12",
       },
     ],
@@ -1683,7 +1683,7 @@ export const processRecords: ProcessRecord[] = [
     createdBy: "u-ext-1",
     tags: ["multifamiliar", "piloto"],
     address: "Estrada da Serra, 2400 - Vale Verde",
-    notes: "Protocolo multifamiliar em triagem documental com par‚metros institucionais ativos.",
+    notes: "Protocolo multifamiliar em triagem documental com par√¢metros institucionais ativos.",
     property: {
       registration: "99.102.221",
       iptu: "03.11.702.0001.000",

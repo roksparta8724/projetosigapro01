@@ -44,12 +44,12 @@ export function TableCard({
           </div>
         </div>
         {actions ? (
-          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div className="sig-section-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
             {actions}
           </div>
         ) : null}
       </div>
-      <div className="min-w-0 flex-1 pt-5">{children}</div>
+      <div className="sig-table-content min-w-0 flex-1 pt-5">{children}</div>
     </section>
   );
 }

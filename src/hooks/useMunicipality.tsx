@@ -3,6 +3,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { loadMunicipalityBundleByUserId } from "@/integrations/supabase/municipality";
+import { useTenant } from "@/hooks/useTenant";
 import {
   buildTenantSettingsFromMunicipality,
   getMunicipalityTheme,
@@ -35,6 +36,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
   const { authenticatedUserId } = useAuthGateway();
   const { session } = usePlatformSession();
   const { institutions, getInstitutionSettings } = usePlatformData();
+  const tenant = useTenant();
   const [bundle, setBundle] = useState<{
     municipality: Municipality | null;
     branding: MunicipalityBranding | null;
@@ -42,7 +44,8 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const activeInstitutionId = bundle?.municipality?.id ?? session.municipalityId ?? session.tenantId ?? null;
+  const activeInstitutionId =
+    tenant.municipalityId ?? bundle?.municipality?.id ?? session.municipalityId ?? session.tenantId ?? null;
   const institution = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const fallbackInstitutionSettings = getInstitutionSettings(activeInstitutionId);
 
@@ -50,6 +53,13 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     let active = true;
 
     const run = async () => {
+      if (tenant.mode === "tenant") {
+        if (!active) return;
+        setBundle(tenant.municipalityBundle);
+        setLoading(tenant.loading);
+        return;
+      }
+
       setLoading(true);
       try {
         const nextBundle = await loadMunicipalityBundleByUserId(authenticatedUserId);
@@ -67,7 +77,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, [authenticatedUserId]);
+  }, [authenticatedUserId, tenant.loading, tenant.mode, tenant.municipalityBundle]);
 
   const value = useMemo<MunicipalityContextValue>(() => {
     const municipality = bundle?.municipality ?? null;

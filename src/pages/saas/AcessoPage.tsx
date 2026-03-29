@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
+import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
@@ -45,15 +46,20 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { authenticatedRole, isAuthenticated, signIn } = useAuthGateway();
-  const { institutions, getInstitutionSettings } = usePlatformData();
+  const { authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
+  const { institutions, getInstitutionSettings, sessionUsers } = usePlatformData();
+  const tenant = useTenant();
   const [searchParams] = useSearchParams();
   const tenantSlug = searchParams.get("tenant");
+  const tenantQuery =
+    tenant.mode === "tenant" || !tenantSlug ? "" : `?tenant=${tenantSlug}`;
   const selectedInstitution =
-    institutions.filter((institution) => isInstitutionPubliclyAvailable(institution)).find(
-      (institution) =>
-        getInstitutionClientSlug(institution, getInstitutionSettings(institution.id)) === tenantSlug,
-    ) ?? null;
+    tenant.mode === "tenant"
+      ? tenant.municipalityBundle?.municipality ?? null
+      : institutions.filter((institution) => isInstitutionPubliclyAvailable(institution)).find(
+          (institution) =>
+            getInstitutionClientSlug(institution, getInstitutionSettings(institution.id)) === tenantSlug,
+        ) ?? null;
 
   const [email, setEmail] = useState(hasSupabaseEnv ? "" : "roksparta02@gmail.com");
   const [password, setPassword] = useState(hasSupabaseEnv ? "" : "Sigapro@2026");
@@ -75,6 +81,40 @@ export function AcessoPage() {
     if (!result.ok) {
       setError(result.message ?? "Não foi possível entrar.");
     } else {
+      if (tenant.mode === "tenant" && tenant.municipalityId && result.role !== "master_admin" && result.role !== "master_ops") {
+        const normalized = email.trim().toLowerCase();
+        let scopeId: string | null = null;
+
+        if (hasSupabaseEnv && supabase) {
+          const { data } = await supabase.auth.getUser();
+          const userId = data.user?.id;
+          if (userId) {
+            const profileResult = await supabase
+              .from("profiles")
+              .select("municipality_id")
+              .eq("user_id", userId)
+              .maybeSingle();
+            scopeId = (profileResult.data?.municipality_id as string | null | undefined) ?? null;
+          }
+        }
+
+        if (!scopeId) {
+          const signedUser =
+            sessionUsers.find((item) => item.email.trim().toLowerCase() === normalized) ?? null;
+          scopeId = signedUser?.municipalityId ?? signedUser?.tenantId ?? null;
+        }
+
+        if (scopeId && scopeId !== tenant.municipalityId) {
+          await signOut();
+          setError(
+            `Esta conta não está vinculada à Prefeitura ${
+              tenant.municipalityName ? `de ${tenant.municipalityName}` : "deste subdomínio"
+            }.`,
+          );
+          setSubmitting(false);
+          return;
+        }
+      }
       navigate(resolveRedirect(result.role ?? authenticatedRole), { replace: true });
     }
 
@@ -226,7 +266,7 @@ export function AcessoPage() {
                           </button>
                         </div>
                         <div className="text-right text-sm text-muted-foreground">
-                          <Link to={`/recuperar-senha${tenantSlug ? `?tenant=${tenantSlug}` : ""}`}>
+                          <Link to={`/recuperar-senha${tenantQuery}`}>
                             Esqueceu a senha?
                           </Link>
                         </div>
@@ -252,7 +292,7 @@ export function AcessoPage() {
                         variant="outline"
                         className="h-12 w-full rounded-lg border"
                       >
-                        <Link to={`/criar-conta${tenantSlug ? `?tenant=${tenantSlug}` : ""}`}>
+                        <Link to={`/criar-conta${tenantQuery}`}>
                           Criar conta
                         </Link>
                       </Button>
