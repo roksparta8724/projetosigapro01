@@ -36,6 +36,22 @@ const getStatusTone = (status: AccountStatus) => status === "blocked" ? "border-
 const getStatusLabel = (status: AccountStatus) => status === "blocked" ? "Bloqueado" : status === "inactive" ? "Inativo" : "Ativo";
 const getInstitutionBadgeTone = (status: Institution["status"]) => status === "suspenso" ? "border-red-200 bg-red-50 text-red-600 dark:text-red-400" : status === "implantacao" ? "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400" : "border-green-200 bg-green-50 text-green-600 dark:text-green-400";
 const getInstitutionStatusLabel = (status: Institution["status"]) => status === "suspenso" ? "Suspensa" : status === "implantacao" ? "Implantação" : "Ativa";
+const withTimeout = async <T,>(promise: Promise<T>, ms = 15000) => {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error("Tempo limite ao salvar. Verifique a conexão com o Supabase."));
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+};
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
@@ -150,11 +166,24 @@ export function MasterAdminPage() {
       const slug = normalizeSlug(form.subdomain || form.city || form.name);
       let savedTenant = upsertInstitution({ institutionId: selectedTenantId || undefined, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
       if (hasSupabaseEnv) {
-        const remoteInstitution = await upsertRemoteInstitution({ institutionId: savedTenant.id, name: form.name, city: form.city, state: form.state, status: form.status, subdomain: slug, cnpj: form.cnpj, primaryColor: form.primaryColor, accentColor: form.accentColor, secretariat: form.secretariat });
+        const remoteInstitution = await withTimeout(
+          upsertRemoteInstitution({
+            institutionId: savedTenant.id,
+            name: form.name,
+            city: form.city,
+            state: form.state,
+            status: form.status,
+            subdomain: slug,
+            cnpj: form.cnpj,
+            primaryColor: form.primaryColor,
+            accentColor: form.accentColor,
+            secretariat: form.secretariat,
+          }),
+        );
         savedTenant = upsertInstitution({ institutionId: remoteInstitution.id, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
       }
       const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "" };
-      if (hasSupabaseEnv) await saveRemoteInstitutionSettings(nextSettings);
+      if (hasSupabaseEnv) await withTimeout(saveRemoteInstitutionSettings(nextSettings));
       saveInstitutionSettings(nextSettings);
       admins.filter((admin) => admin.email.trim() && admin.fullName.trim()).forEach((admin) => {
         const normalizedEmail = admin.email.trim().toLowerCase();
