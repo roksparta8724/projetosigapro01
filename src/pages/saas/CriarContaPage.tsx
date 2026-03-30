@@ -10,9 +10,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
-import { registerRemoteExternalAccount, registerRemoteOwnerAccount, saveRemoteProfile } from "@/integrations/supabase/platform";
+import {
+  registerRemoteExternalAccount,
+  registerRemoteOwnerAccount,
+  saveRemoteProfile,
+} from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
-import { getInstitutionClientSlug, isInstitutionPubliclyAvailable, roleLabels, type UserRole } from "@/lib/platform";
+import {
+  getInstitutionClientSlug,
+  isInstitutionPubliclyAvailable,
+  roleLabels,
+  type UserRole,
+} from "@/lib/platform";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
 
@@ -41,7 +50,9 @@ export function CriarContaPage() {
   const { institutions, createTenantUser, saveUserProfile } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
+
   const tenantSlug = searchParams.get("tenant");
+
   const availableInstitutions = useMemo(() => {
     if (tenant.mode === "tenant" && tenant.municipalityId) {
       return [
@@ -94,14 +105,17 @@ export function CriarContaPage() {
     }
 
     return sorted.filter((institution) => getInstitutionClientSlug(institution) === tenantSlug);
-  }, [institutions, tenantSlug, tenant.mode, tenant.municipalityId]);
+  }, [institutions, tenantSlug, tenant.mode, tenant.municipalityId, tenant.municipalityName, tenant.subdomain]);
+
   const tenantFromLink =
     availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
+
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [cepStatus, setCepStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const lastCepLookupRef = useRef("");
+
   const [form, setForm] = useState({
     tenantId: tenant.municipalityId || tenantFromLink || availableInstitutions[0]?.id || "",
     role: "profissional_externo" as UserRole,
@@ -126,9 +140,12 @@ export function CriarContaPage() {
     password: "",
     confirmPassword: "",
   });
+
   const isOwnerSignup = form.role === "property_owner";
-  const tenantLocked = tenant.mode === "tenant" && Boolean(tenant.municipalityId);
-  const lockedInstitution = availableInstitutions.find((item) => item.id === form.tenantId) ?? availableInstitutions[0];
+  const tenantSelectionLocked =
+    Boolean(tenant.municipalityId) || Boolean(tenantFromLink) || tenant.mode === "tenant";
+  const lockedInstitution =
+    availableInstitutions.find((item) => item.id === form.tenantId) ?? availableInstitutions[0];
 
   useEffect(() => {
     setForm((current) => {
@@ -198,8 +215,36 @@ export function CriarContaPage() {
     setError("");
     setStatus("");
 
-    if (!form.tenantId || !form.fullName || !form.email) {
-      setError("Preencha Prefeitura, nome e e-mail.");
+    if (!form.tenantId) {
+      setError("Prefeitura não identificada no link de acesso.");
+      return;
+    }
+
+    const commonRequired: Array<[string, string]> = [
+      [form.fullName, "Nome completo"],
+      [form.email, "E-mail"],
+      [form.phone, "Telefone"],
+      [form.cpfCnpj, "CPF ou CNPJ"],
+      [form.rg, "RG"],
+      [form.birthDate, "Data de nascimento"],
+      [form.addressLine, "Endereço"],
+      [form.addressNumber, "Número"],
+      [form.neighborhood, "Bairro"],
+      [form.city, "Cidade"],
+      [form.state, "UF"],
+      [form.zipCode, "CEP"],
+    ];
+
+    const professionalRequired: Array<[string, string]> = isOwnerSignup
+      ? []
+      : [
+          [form.professionalType, "Tipo profissional"],
+          [form.registrationNumber, "Registro profissional"],
+        ];
+
+    const missingField = [...commonRequired, ...professionalRequired].find(([value]) => !value.trim());
+    if (missingField) {
+      setError(`Preencha o campo obrigatório: ${missingField[1]}.`);
       return;
     }
 
@@ -221,7 +266,9 @@ export function CriarContaPage() {
     }
 
     setSubmitting(true);
+
     const normalizedEmail = form.email.trim().toLowerCase();
+
     const draftProfile = {
       fullName: form.fullName,
       email: normalizedEmail,
@@ -252,6 +299,7 @@ export function CriarContaPage() {
     const existingDrafts = existingDraftsRaw
       ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>)
       : {};
+
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         SIGNUP_DRAFTS_KEY,
@@ -325,17 +373,21 @@ export function CriarContaPage() {
               bio: form.bio,
             });
           }
+
           await saveRemoteProfile({
             userId: data.user.id,
             ...draftProfile,
           });
+
           setStatus(
             form.role === "property_owner"
               ? "Conta criada com sucesso. Você já pode solicitar acompanhamento do seu projeto."
               : "Conta criada com sucesso. Você já pode entrar no portal da Prefeitura.",
           );
+
           const accessRedirect =
             tenant.mode === "tenant" ? "/acesso" : `/acesso?tenant=${tenantSlug || ""}`;
+
           setTimeout(() => navigate(accessRedirect), 1200);
         } catch (registrationError) {
           setError(
@@ -346,6 +398,7 @@ export function CriarContaPage() {
         } finally {
           setSubmitting(false);
         }
+
         return;
       }
 
@@ -394,6 +447,7 @@ export function CriarContaPage() {
         ? "Conta de proprietário criada com sucesso. Senha inicial: Acesso@2026"
         : "Conta de profissional externo criada com sucesso. Senha inicial: Acesso@2026",
     );
+
     setSubmitting(false);
     setForm((current) => ({
       ...current,
@@ -428,18 +482,19 @@ export function CriarContaPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.10),transparent_22%),linear-gradient(180deg,rgba(2,6,12,0.08),rgba(2,6,12,0.14))]" />
 
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.34fr)] lg:gap-12">
-          <div className="hidden flex-col justify-between rounded-[30px] border border-white/12 bg-white/[0.03] p-8 backdrop-blur-sm lg:flex">
+          <div className="hidden flex-col justify-between rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,27,46,0.82)_0%,rgba(6,20,36,0.74)_100%)] p-8 backdrop-blur-sm lg:flex">
             <div className="space-y-7">
-              <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/18 bg-white/[0.04] px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
+              <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/18 bg-white/[0.06] px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
                 Cadastro profissional
               </div>
+
               <div className="space-y-4">
                 <h1 className="max-w-[11ch] text-[clamp(34px,3.1vw,48px)] font-semibold leading-[0.95] tracking-[-0.06em] text-white">
                   Crie seu acesso profissional no SIGAPRO.
                 </h1>
-                <p className="max-w-[50ch] text-[15px] leading-7 text-slate-100/92">
-                  Autoatendimento exclusivo para profissionais externos. Usuários internos da
-                  Prefeitura são criados pelo administrador municipal.
+
+                <p className="max-w-[50ch] text-[15px] leading-7 text-slate-100">
+                  Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura são criados pelo administrador municipal.
                 </p>
               </div>
             </div>
@@ -448,21 +503,20 @@ export function CriarContaPage() {
               <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,33,53,0.94)_0%,rgba(13,30,48,0.88)_100%)] p-5 text-sm text-slate-100 shadow-[0_18px_40px_rgba(4,12,20,0.18)]">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
                   <Building2 className="h-4 w-4" />
-                  Vinculação à Prefeitura
+                  Vinculação automática à Prefeitura
                 </div>
-                <p>
-                  O profissional externo escolhe a Prefeitura cadastrada no SIGAPRO e já vincula sua
-                  conta ao ambiente correto.
+                <p className="leading-6 text-slate-100">
+                  O cadastro já fica vinculado à Prefeitura do link acessado, sem necessidade de seleção manual.
                 </p>
               </div>
+
               <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,33,53,0.94)_0%,rgba(13,30,48,0.88)_100%)] p-5 text-sm text-slate-100 shadow-[0_18px_40px_rgba(4,12,20,0.18)]">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
                   <IdCard className="h-4 w-4" />
-                  Cadastro interno
+                  Campos documentais obrigatórios
                 </div>
-                <p>
-                  Usuários internos da Prefeitura são criados pelo administrador municipal, com
-                  perfil, cargo e nível já vinculados ao órgão.
+                <p className="leading-6 text-slate-100">
+                  Dados pessoais, endereço e registro profissional devem ser preenchidos para finalizar o cadastro.
                 </p>
               </div>
             </div>
@@ -474,6 +528,7 @@ export function CriarContaPage() {
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white">
                   <UserPlus className="h-6 w-6" />
                 </div>
+
                 <Button asChild type="button" variant="outline" className="rounded-full">
                   <Link to="/acesso">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -485,6 +540,7 @@ export function CriarContaPage() {
               <CardTitle className="max-w-sm text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-slate-900">
                 {isOwnerSignup ? "Criar conta de proprietário" : "Criar conta profissional"}
               </CardTitle>
+
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
                 {isOwnerSignup
                   ? "Acompanhe o processo do seu imóvel após aprovação do profissional responsável."
@@ -496,26 +552,15 @@ export function CriarContaPage() {
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Prefeitura cadastrada no SIGAPRO</Label>
-                    {tenantLocked ? (
-                      <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
-                        {lockedInstitution?.name || "Prefeitura selecionada"}
-                      </div>
-                    ) : (
-                      <Select value={form.tenantId} onValueChange={(value) => setField("tenantId", value)}>
-                        <SelectTrigger className="h-12 rounded-2xl">
-                          <SelectValue placeholder="Escolha a Prefeitura" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableInstitutions.map((institution) => (
-                            <SelectItem key={institution.id} value={institution.id}>
-                              {institution.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                    <Label>Prefeitura vinculada</Label>
+                    <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
+                      {lockedInstitution?.name || tenant.municipalityName || "Prefeitura vinculada pelo link"}
+                    </div>
+                    <p className="text-xs leading-5 text-slate-500">
+                      Este cadastro será criado automaticamente dentro da Prefeitura vinculada ao link acessado.
+                    </p>
                   </div>
+
                   <div className="space-y-2">
                     <Label>Tipo de acesso</Label>
                     <Select value={form.role} onValueChange={(value) => setField("role", value)}>
@@ -535,31 +580,40 @@ export function CriarContaPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Nome completo</Label>
-                    <Input value={form.fullName} onChange={(event) => setField("fullName", event.target.value)} />
+                    <Label>Nome completo *</Label>
+                    <Input
+                      required
+                      value={form.fullName}
+                      onChange={(event) => setField("fullName", event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>E-mail</Label>
-                    <Input value={form.email} onChange={(event) => setField("email", event.target.value)} />
+                    <Label>E-mail *</Label>
+                    <Input
+                      required
+                      value={form.email}
+                      onChange={(event) => setField("email", event.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Senha</Label>
+                    <Label>Senha *</Label>
                     <Input
+                      required
                       type="password"
                       value={form.password}
                       onChange={(event) => setField("password", event.target.value)}
                     />
                     <p className="max-w-md text-xs leading-5 text-slate-500">
-                      Use no mínimo 8 caracteres, com letra maiúscula, letra minúscula, número e
-                      caractere especial.
+                      Use no mínimo 8 caracteres, com letra maiúscula, letra minúscula, número e caractere especial.
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Confirmar senha</Label>
+                    <Label>Confirmar senha *</Label>
                     <Input
+                      required
                       type="password"
                       value={form.confirmPassword}
                       onChange={(event) => setField("confirmPassword", event.target.value)}
@@ -569,23 +623,36 @@ export function CriarContaPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Telefone</Label>
-                    <Input value={form.phone} onChange={(event) => setField("phone", event.target.value)} />
+                    <Label>Telefone *</Label>
+                    <Input
+                      required
+                      value={form.phone}
+                      onChange={(event) => setField("phone", event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>CPF ou CNPJ</Label>
-                    <Input value={form.cpfCnpj} onChange={(event) => setField("cpfCnpj", event.target.value)} />
+                    <Label>CPF ou CNPJ *</Label>
+                    <Input
+                      required
+                      value={form.cpfCnpj}
+                      onChange={(event) => setField("cpfCnpj", event.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>RG</Label>
-                    <Input value={form.rg} onChange={(event) => setField("rg", event.target.value)} />
+                    <Label>RG *</Label>
+                    <Input
+                      required
+                      value={form.rg}
+                      onChange={(event) => setField("rg", event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de nascimento</Label>
+                    <Label>Data de nascimento *</Label>
                     <Input
+                      required
                       type="date"
                       value={form.birthDate}
                       onChange={(event) => setField("birthDate", event.target.value)}
@@ -595,15 +662,17 @@ export function CriarContaPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Tipo profissional</Label>
+                    <Label>Tipo profissional {!isOwnerSignup ? "*" : ""}</Label>
                     <Input
+                      required={!isOwnerSignup}
                       value={form.professionalType}
                       onChange={(event) => setField("professionalType", event.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Registro profissional</Label>
+                    <Label>Registro profissional {!isOwnerSignup ? "*" : ""}</Label>
                     <Input
+                      required={!isOwnerSignup}
                       value={form.registrationNumber}
                       onChange={(event) => setField("registrationNumber", event.target.value)}
                     />
@@ -613,22 +682,36 @@ export function CriarContaPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Empresa, órgão ou escritório</Label>
-                    <Input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} />
+                    <Input
+                      value={form.companyName}
+                      onChange={(event) => setField("companyName", event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Cargo ou função</Label>
-                    <Input value={form.title} onChange={(event) => setField("title", event.target.value)} />
+                    <Input
+                      value={form.title}
+                      onChange={(event) => setField("title", event.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-[1.35fr,0.65fr]">
                   <div className="space-y-2">
-                    <Label>Endereço</Label>
-                    <Input value={form.addressLine} onChange={(event) => setField("addressLine", event.target.value)} />
+                    <Label>Endereço *</Label>
+                    <Input
+                      required
+                      value={form.addressLine}
+                      onChange={(event) => setField("addressLine", event.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Número</Label>
-                    <Input value={form.addressNumber} onChange={(event) => setField("addressNumber", event.target.value)} />
+                    <Label>Número *</Label>
+                    <Input
+                      required
+                      value={form.addressNumber}
+                      onChange={(event) => setField("addressNumber", event.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -641,23 +724,36 @@ export function CriarContaPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Bairro</Label>
-                    <Input value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} />
+                    <Label>Bairro *</Label>
+                    <Input
+                      required
+                      value={form.neighborhood}
+                      onChange={(event) => setField("neighborhood", event.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-[1fr,0.4fr,0.7fr]">
                   <div className="space-y-2">
-                    <Label>Cidade</Label>
-                    <Input value={form.city} onChange={(event) => setField("city", event.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>UF</Label>
-                    <Input value={form.state} onChange={(event) => setField("state", event.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>CEP</Label>
+                    <Label>Cidade *</Label>
                     <Input
+                      required
+                      value={form.city}
+                      onChange={(event) => setField("city", event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>UF *</Label>
+                    <Input
+                      required
+                      value={form.state}
+                      onChange={(event) => setField("state", event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CEP *</Label>
+                    <Input
+                      required
                       value={form.zipCode}
                       onChange={(event) => {
                         lastCepLookupRef.current = "";
@@ -676,7 +772,11 @@ export function CriarContaPage() {
 
                 <div className="space-y-2">
                   <Label>Resumo profissional</Label>
-                  <Textarea rows={4} value={form.bio} onChange={(event) => setField("bio", event.target.value)} />
+                  <Textarea
+                    rows={4}
+                    value={form.bio}
+                    onChange={(event) => setField("bio", event.target.value)}
+                  />
                 </div>
 
                 {error ? (
@@ -684,8 +784,11 @@ export function CriarContaPage() {
                     {error}
                   </div>
                 ) : null}
+
                 {status ? (
-                  <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">{status}</div>
+                  <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">
+                    {status}
+                  </div>
                 ) : null}
 
                 <Button
@@ -701,16 +804,17 @@ export function CriarContaPage() {
                 <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)] p-4 text-sm text-slate-600">
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
                     <Building2 className="h-4 w-4" />
-                    Vinculação à Prefeitura
+                    Vinculação automática
                   </div>
-                  O profissional externo escolhe a Prefeitura cadastrada no SIGAPRO e já vincula sua conta ao ambiente correto.
+                  O cadastro fica vinculado automaticamente à Prefeitura do link acessado.
                 </div>
+
                 <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)] p-4 text-sm text-slate-600">
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
                     <IdCard className="h-4 w-4" />
-                    Cadastro interno
+                    Campos obrigatórios
                   </div>
-                  Usuários internos da Prefeitura são criados pelo administrador municipal, com perfil, cargo e nível já vinculados ao órgão.
+                  Dados pessoais, endereço e registro profissional devem ser preenchidos para concluir o cadastro.
                 </div>
               </div>
             </CardContent>
