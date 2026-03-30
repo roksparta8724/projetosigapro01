@@ -53,6 +53,38 @@ const periodOptions = [
   { value: "180", label: "Últimos 180 dias" },
 ];
 
+function getProcessDateValue(process: unknown): string | null {
+  const record = process as Record<string, unknown>;
+  const candidates = [
+    record.updatedAt,
+    record.createdAt,
+    record.updated_at,
+    record.created_at,
+    record.lastUpdatedAt,
+    record.openedAt,
+    record.protocolDate,
+    record.date,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function formatProcessDate(process: unknown): string {
+  const rawDate = getProcessDateValue(process);
+  if (!rawDate) return "—";
+
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return "—";
+
+  return parsed.toLocaleDateString("pt-BR");
+}
+
 export function ExternalProcessControlPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,9 +153,14 @@ export function ExternalProcessControlPage() {
         process.title.toLowerCase().includes(normalizedSearch) ||
         process.address.toLowerCase().includes(normalizedSearch);
 
-      const lastUpdate = new Date(process.updatedAt ?? process.createdAt ?? "");
+      const rawDate = getProcessDateValue(process);
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+
       const matchesPeriod =
-        !periodThreshold || Number.isNaN(lastUpdate.getTime()) || lastUpdate >= periodThreshold;
+        !periodThreshold ||
+        !parsedDate ||
+        Number.isNaN(parsedDate.getTime()) ||
+        parsedDate >= periodThreshold;
 
       return matchesStatus && matchesStage && matchesSearch && matchesPeriod;
     });
@@ -132,11 +169,15 @@ export function ExternalProcessControlPage() {
   const recentMovements = useMemo(
     () =>
       [...processes]
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt ?? b.createdAt).getTime() -
-            new Date(a.updatedAt ?? a.createdAt).getTime(),
-        )
+        .sort((a, b) => {
+          const dateA = getProcessDateValue(a);
+          const dateB = getProcessDateValue(b);
+
+          const timeA = dateA ? new Date(dateA).getTime() : 0;
+          const timeB = dateB ? new Date(dateB).getTime() : 0;
+
+          return timeB - timeA;
+        })
         .slice(0, 3),
     [processes],
   );
@@ -269,10 +310,7 @@ export function ExternalProcessControlPage() {
               {filteredProcesses.map((process) => {
                 const guides = getProcessPaymentGuides(process, tenantSettings);
                 const pendingGuide = guides.find((guide) => guide.status !== "compensada");
-                const lastUpdate = process.updatedAt ?? process.createdAt;
-                const lastUpdateLabel = lastUpdate
-                  ? new Date(lastUpdate).toLocaleDateString("pt-BR")
-                  : "—";
+                const lastUpdateLabel = formatProcessDate(process);
 
                 return (
                   <div
