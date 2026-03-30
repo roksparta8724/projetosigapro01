@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, CircleDashed, FilePlus2, FileStack, Landmark, ShieldCheck, UploadCloud, UserSquare2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
+import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
@@ -84,8 +85,15 @@ const groupMeta = {
   complementares: { title: "Documentos complementares", icon: ShieldCheck },
 } as const;
 
+const externalTabs = [
+  { value: "visao", label: "Visão geral", helper: "Resumo executivo", route: "/externo" },
+  { value: "protocolar", label: "Protocolar", helper: "Novo protocolo", route: "/externo/protocolar" },
+  { value: "controle", label: "Controle de processos", helper: "Acompanhamento", route: "/externo/controle" },
+];
+
 export function ProtocolarProjetoPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { createProcess, getInstitutionSettings, getUserProfile } = usePlatformData();
@@ -166,6 +174,9 @@ export function ProtocolarProjetoPage() {
   const uploadedDocumentCount = useMemo(() => Object.values(files).reduce((sum, current) => sum + current.length, 0), [files]);
   const requiredDocuments = useMemo(() => documentItems.filter((item) => item.required), [documentItems]);
   const missingRequired = useMemo(() => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0), [files, requiredDocuments]);
+  const isExternalFlow = location.pathname.startsWith("/externo");
+  const activeTab =
+    externalTabs.find((tab) => location.pathname === tab.route) ?? externalTabs[0];
 
   const protocolSummary = useMemo(
     () => [
@@ -358,6 +369,18 @@ export function ProtocolarProjetoPage() {
             </Button>
           }
         />
+
+        {isExternalFlow ? (
+          <InternalTabs
+            items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
+            value={activeTab.value}
+            onChange={(value) => {
+              const target = externalTabs.find((tab) => tab.value === value);
+              if (target) navigate(target.route);
+            }}
+            className="mb-4"
+          />
+        ) : null}
 
         <PageStatsRow>
           {statusCards.map((item, index) => (

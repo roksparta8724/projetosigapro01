@@ -18,6 +18,7 @@ import { FinanceProtocolsPage } from "@/pages/saas/FinanceProtocolsPage";
 import { ProtocolDeskPage } from "@/pages/saas/ProtocolDeskPage";
 import { IptuDeskPage } from "@/pages/saas/IptuDeskPage";
 import { ExternalPortalPage } from "@/pages/saas/ExternalPortalPage";
+import { ExternalProcessControlPage } from "@/pages/saas/ExternalProcessControlPage";
 import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
 import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
 import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
@@ -195,6 +196,14 @@ const AppRoutes = () => {
         element={
           <PermissionRoute permission="submit_processes">
             <ProtocolarProjetoPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/externo/controle"
+        element={
+          <PermissionRoute permission="submit_processes">
+            <ExternalProcessControlPage />
           </PermissionRoute>
         }
       />

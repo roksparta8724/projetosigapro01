@@ -77,6 +77,7 @@ export function ConfiguracoesPage() {
   const [selectedTenantId, setSelectedTenantId] = useState(initialTenantId);
   const [status, setStatus] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
+  const statusIsSuccess = status.toLowerCase().includes("sucesso");
   const tenant = availableInstitutions.find((item) => item.id === selectedTenantId) ?? null;
   const [remoteBundle, setRemoteBundle] = useState<Awaited<ReturnType<typeof loadMunicipalityBundleById>>>(null);
   const activeInstitution =
@@ -106,6 +107,21 @@ export function ConfiguracoesPage() {
       style: "currency",
       currency: "BRL",
     }).format(Number(value || 0));
+  const normalizeSlug = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  const normalizeSubdomainInput = (value: string) => {
+    const raw = value.trim().toLowerCase();
+    if (!raw) return "";
+    const withoutProtocol = raw.replace(/^https?:\/\//, "");
+    const withoutPath = withoutProtocol.split("/")[0] ?? "";
+    const firstLabel = withoutPath.split(".")[0] ?? "";
+    return normalizeSlug(firstLabel);
+  };
 
   const [tenantForm, setTenantForm] = useState({
     name: activeInstitution?.name ?? "",
@@ -398,18 +414,22 @@ export function ConfiguracoesPage() {
     setAccountForm((current) => ({ ...current, [field]: value }));
   };
 
-  const ensureSelectedTenant = () =>
-    upsertInstitution({
+  const ensureSelectedTenant = (subdomainOverride?: string) => {
+    const normalizedSubdomain = normalizeSubdomainInput(
+      subdomainOverride ?? tenantForm.subdomain ?? tenantForm.city ?? tenantForm.name,
+    );
+    return upsertInstitution({
       institutionId: selectedTenantId || undefined,
       name: tenantForm.name,
       city: tenantForm.city,
       state: tenantForm.state,
       status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
       plan: tenantForm.plan,
-      subdomain: tenantForm.subdomain,
+      subdomain: normalizedSubdomain,
       primaryColor: tenantForm.primaryColor,
       accentColor: tenantForm.accentColor,
     });
+  };
 
   const handleConfirmLogo = async (variant: InstitutionalLogoConfigVariant) => {
     if (variant === "footer") {
@@ -525,8 +545,24 @@ export function ConfiguracoesPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    setStatus("");
 
-    const savedTenant = ensureSelectedTenant();
+    const normalizedSubdomain = normalizeSubdomainInput(
+      tenantForm.subdomain || tenantForm.name || tenantForm.city,
+    );
+    if (!tenantForm.name.trim()) {
+      setStatus("Informe o nome institucional antes de salvar.");
+      return;
+    }
+    if (!normalizedSubdomain) {
+      setStatus("Informe um subdomínio válido (somente o nome, sem .sigapro.com.br).");
+      return;
+    }
+    if (tenantForm.subdomain !== normalizedSubdomain) {
+      setTenantField("subdomain", normalizedSubdomain);
+    }
+
+    const savedTenant = ensureSelectedTenant(normalizedSubdomain);
     const logoUrl = logoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
 
     const nextSettings = updateInstitutionBranding({
@@ -574,19 +610,17 @@ export function ConfiguracoesPage() {
       logoFitMode: headerBranding.logoFitMode,
     }, "header");
 
-    if (hasSupabaseEnv) {
-      try {
+    try {
+      if (hasSupabaseEnv) {
         await saveRemoteInstitutionSettings(nextSettings);
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Falha ao sincronizar o branding institucional.");
-        return;
       }
+
+      saveInstitutionSettings(nextSettings);
+      setSelectedTenantId(savedTenant.id);
+      setStatus("Configurações da prefeitura salvas com sucesso.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Falha ao salvar a prefeitura.");
     }
-
-    saveInstitutionSettings(nextSettings);
-
-    setSelectedTenantId(savedTenant.id);
-    setStatus("Configurações da prefeitura salvas com sucesso.");
   };
 
   const savePreferences = (next: typeof preferences) => {
@@ -900,7 +934,7 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Portal institucional</p>
-                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
+                <p className="sig-fit-title mt-2 break-all text-sm font-semibold leading-6 text-slate-900">
                   {tenantForm.subdomain || settingsForm.linkPortalCliente || "Não configurado"}
                 </p>
               </div>
@@ -1180,7 +1214,13 @@ export function ConfiguracoesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Link do cliente</Label>
-                <Input value={tenantForm.subdomain} onChange={(event) => setTenantField("subdomain", event.target.value)} placeholder="cliente.sigapro.com.br" />
+                <Textarea
+                  value={tenantForm.subdomain}
+                  onChange={(event) => setTenantField("subdomain", normalizeSubdomainInput(event.target.value))}
+                  placeholder="campolimpo"
+                  className="min-h-[54px] resize-none text-[13px] leading-5"
+                />
+                <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapro.com.br.</p>
               </div>
             </div>
 
@@ -1342,16 +1382,7 @@ export function ConfiguracoesPage() {
               </Select>
             </div>
 
-            <div className="hidden grid-cols-2 gap-4 md:grid">
-              <div className="space-y-2">
-                <Label>Cor principal</Label>
-                <Input type="color" value={tenantForm.primaryColor} onChange={(event) => setTenantField("primaryColor", event.target.value)} className="h-12 rounded-2xl" />
-              </div>
-              <div className="space-y-2">
-                <Label>Cor de destaque</Label>
-                <Input type="color" value={tenantForm.accentColor} onChange={(event) => setTenantField("accentColor", event.target.value)} className="h-12 rounded-2xl" />
-              </div>
-            </div>
+            {/* Removed manual color pickers to keep the layout clean and focused on presets. */}
 
             <div className="grid gap-4">
               <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
@@ -1660,7 +1691,11 @@ export function ConfiguracoesPage() {
                 <>
               <div className="space-y-2">
                 <Label>Link publico do cliente</Label>
-                <Input value={settingsForm.linkPortalCliente} onChange={(event) => setSettingsField("linkPortalCliente", event.target.value)} />
+                <Textarea
+                  value={settingsForm.linkPortalCliente}
+                  onChange={(event) => setSettingsField("linkPortalCliente", event.target.value)}
+                  className="min-h-[64px] resize-none text-[13px] leading-5"
+                />
               </div>
 
                 </>
@@ -1745,7 +1780,17 @@ export function ConfiguracoesPage() {
                 </>
               ) : null}
 
-              {status ? <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">{status}</div> : null}
+              {status ? (
+                <div
+                  className={`rounded-2xl border p-4 text-sm ${
+                    statusIsSuccess
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {status}
+                </div>
+              ) : null}
 
               <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 hover:bg-slate-900">
                 Atualizar perfil da prefeitura

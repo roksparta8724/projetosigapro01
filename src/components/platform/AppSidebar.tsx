@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +7,7 @@ export type AppSidebarItem = {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  children?: Array<{ to: string; label: string; icon?: React.ComponentType<{ className?: string }> }>;
 };
 
 export type AppSidebarGroup = {
@@ -21,6 +23,8 @@ type SidebarInnerProps = {
   onNavigate?: () => void;
   showClose?: boolean;
   onClose?: () => void;
+  expandedItems?: Record<string, boolean>;
+  onToggleItem?: (itemKey: string) => void;
 };
 
 function SidebarInner({
@@ -31,6 +35,8 @@ function SidebarInner({
   onNavigate,
   showClose = false,
   onClose,
+  expandedItems = {},
+  onToggleItem,
 }: SidebarInnerProps) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--sig-sidebar-fill,#0d1526)]">
@@ -60,78 +66,130 @@ function SidebarInner({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3.5">
-        <nav className="space-y-5">
+      <div className="sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <nav className="space-y-4">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
 
             return (
-              <div key={group.title} className="space-y-1.5">
-                <p
-                  className={cn(
-                    "px-2 pb-1 text-[10px] font-normal uppercase tracking-[0.2em]",
-                    darkSurface ? "text-slate-400/90" : "text-slate-600",
-                  )}
-                >
-                  {group.title}
-                </p>
-
+              <div key={group.title} className="space-y-3">
                 {group.items.map((item) => {
-                  const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
+                  const hasChildren = (item.children?.length ?? 0) > 0;
+                  const isChildActive = item.children?.some((child) => pathname === child.to || pathname.startsWith(`${child.to}/`));
+                  const isExactActive = pathname === item.to;
+                  const active = hasChildren ? (isExactActive || isChildActive) : isExactActive;
+                  const isExpanded = expandedItems[item.to] ?? isChildActive ?? false;
                   const Icon = item.icon;
 
                   return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={onNavigate}
-                      data-sidebar-active={active ? "true" : "false"}
-                      className={cn(
-                        "group flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-sm leading-5 transition-all duration-200 ease-out",
-                        active
-                          ? darkSurface
-                            ? "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(32,78,125,0.98)_0%,rgba(59,130,246,0.92)_100%)] text-white"
-                            : "border border-slate-300 bg-white text-slate-950"
-                          : darkSurface
-                            ? "border border-transparent text-slate-300 hover:border-white/30 hover:bg-white/[0.04] hover:text-white"
-                            : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-black/[0.04] hover:text-slate-950",
-                      )}
-                      style={
-                        active
-                          ? { boxShadow: "inset 2px 0 0 rgba(15,23,42,0.95)" }
-                          : { boxShadow: "none" }
-                      }
-                    >
-                      <span
+                    <div key={item.to} className="space-y-2.5">
+                      <Link
+                        to={item.to}
+                        onClick={(event) => {
+                          if (hasChildren && onToggleItem) {
+                            event.preventDefault();
+                            onToggleItem(item.to);
+                          } else {
+                            onNavigate?.();
+                          }
+                        }}
+                        data-sidebar-active={active ? "true" : "false"}
                         className={cn(
-                          "sig-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
+                          "group flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-sm leading-5 transition-all duration-200 ease-out",
                           active
                             ? darkSurface
-                              ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                              : "border-slate-300 bg-slate-50 text-slate-950"
+                              ? "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(32,78,125,0.98)_0%,rgba(59,130,246,0.92)_100%)] text-white"
+                              : "border border-slate-300 bg-white text-slate-950"
                             : darkSurface
-                              ? "border-white/8 bg-white/[0.025] text-slate-300 group-hover:border-white/10 group-hover:bg-white/[0.05] group-hover:text-white"
-                              : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
+                              ? "border border-transparent text-slate-300 hover:border-white/30 hover:bg-white/[0.04] hover:text-white"
+                              : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-black/[0.04] hover:text-slate-950",
                         )}
-                      >
-                        <Icon className="h-[15px] w-[15px] shrink-0" />
-                      </span>
-                      <span
-                        className={cn(
-                          "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
+                        style={
                           active
-                            ? darkSurface
-                              ? "font-semibold text-white"
-                              : "font-semibold text-slate-950"
-                            : darkSurface
-                              ? "font-medium text-slate-200"
-                              : "font-medium text-slate-800",
-                        )}
-                        title={item.label}
+                            ? { boxShadow: "inset 2px 0 0 rgba(15,23,42,0.95)" }
+                            : { boxShadow: "none" }
+                        }
                       >
-                        {item.label}
-                      </span>
-                    </Link>
+                        <span
+                          className={cn(
+                            "sig-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
+                            active
+                              ? darkSurface
+                                ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                                : "border-slate-300 bg-slate-50 text-slate-950"
+                              : darkSurface
+                                ? "border-white/8 bg-white/[0.025] text-slate-300 group-hover:border-white/10 group-hover:bg-white/[0.05] group-hover:text-white"
+                                : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
+                          )}
+                        >
+                          <Icon className="h-[15px] w-[15px] shrink-0" />
+                        </span>
+                        <span
+                          className={cn(
+                            "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
+                            active
+                              ? darkSurface
+                                ? "font-semibold text-white"
+                                : "font-semibold text-slate-950"
+                              : darkSurface
+                                ? "font-medium text-slate-200"
+                                : "font-medium text-slate-800",
+                          )}
+                          title={item.label}
+                        >
+                          {item.label}
+                        </span>
+                        {hasChildren ? (
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 transition",
+                              isExpanded ? "rotate-180" : "rotate-0",
+                              active ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500",
+                            )}
+                          />
+                        ) : null}
+                      </Link>
+
+                      {hasChildren && isExpanded ? (
+                        <div
+                          className={cn(
+                            "ml-7 border-l pl-4",
+                            darkSurface ? "border-white/10" : "border-slate-200",
+                          )}
+                        >
+                          <div className="space-y-2">
+                            {item.children!.map((child) => {
+                              const childActive = pathname === child.to || pathname.startsWith(`${child.to}/`);
+                              const ChildIcon = child.icon;
+                              return (
+                                <Link
+                                  key={child.to}
+                                  to={child.to}
+                                  onClick={onNavigate}
+                                  className={cn(
+                                    "group flex items-center gap-2 rounded-[12px] px-3 py-2 text-[12.5px] font-medium transition-all",
+                                    childActive
+                                      ? darkSurface
+                                        ? "border border-white/18 bg-white/10 text-white"
+                                        : "border border-slate-300 bg-white text-slate-950"
+                                      : darkSurface
+                                        ? "border border-transparent text-slate-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
+                                        : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950",
+                                  )}
+                                >
+                                  {ChildIcon ? (
+                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500")} />
+                                  ) : (
+                                    <ChevronRight className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500")} />
+                                  )}
+                                  <span className="min-w-0 flex-1 truncate">{child.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
@@ -166,6 +224,24 @@ export function AppSidebar({
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setExpandedItems((current) => {
+      const next = { ...current };
+      groups.forEach((group) => {
+        group.items.forEach((item) => {
+          if (!item.children?.length) return;
+          const shouldExpand = pathname === item.to || pathname.startsWith(`${item.to}/`);
+          if (shouldExpand) {
+            next[item.to] = true;
+          }
+        });
+      });
+      return next;
+    });
+  }, [groups, pathname]);
+
   return (
     <>
         <aside
@@ -179,7 +255,19 @@ export function AppSidebar({
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
         style={{ background: "var(--sig-sidebar-fill, #0d1526)" }}
       >
-        <SidebarInner pathname={pathname} groups={groups} footer={footer} darkSurface={darkSurface} />
+        <SidebarInner
+          pathname={pathname}
+          groups={groups}
+          footer={footer}
+          darkSurface={darkSurface}
+          expandedItems={expandedItems}
+          onToggleItem={(itemKey) =>
+            setExpandedItems((current) => ({
+              ...current,
+              [itemKey]: !current[itemKey],
+            }))
+          }
+        />
       </aside>
 
       <div
@@ -212,6 +300,13 @@ export function AppSidebar({
             onNavigate={onMobileClose}
             showClose
             onClose={onMobileClose}
+            expandedItems={expandedItems}
+            onToggleItem={(itemKey) =>
+              setExpandedItems((current) => ({
+                ...current,
+                [itemKey]: !current[itemKey],
+              }))
+            }
           />
         </aside>
       </div>

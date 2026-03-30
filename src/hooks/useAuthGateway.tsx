@@ -38,10 +38,10 @@ const authGatewayFallback: AuthGatewayContextValue = {
   authenticatedUserId: null,
   authenticatedRole: null,
   authenticatedEmail: null,
-  signIn: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
-  resetPassword: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
-  updateEmail: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
-  updatePassword: async () => ({ ok: false, message: "AutenticaÃ§Ã£o indisponÃ­vel no momento." }),
+  signIn: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
+  resetPassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
+  updateEmail: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
+  updatePassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   signOut: async () => {},
 };
 
@@ -203,7 +203,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
 
           return {
             ok: false,
-            message: error?.message || "NÃ£o foi possÃ­vel autenticar no Supabase.",
+            message: error?.message || "Não foi possível autenticar no Supabase.",
           };
         }
 
@@ -258,7 +258,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
           : {};
         const existing = existingDynamic[normalized] ?? demoCredentials[normalized];
         if (!existing) {
-          return { ok: false, message: "NÃ£o encontramos esse e-mail na base de teste." };
+          return { ok: false, message: "Não encontramos esse e-mail na base de teste." };
         }
 
         const nextDynamic = {
@@ -281,7 +281,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { error } = await supabase.auth.updateUser({ email: normalized });
           if (error) {
-            return { ok: false, message: error.message || "NÃ£o foi possÃ­vel atualizar o e-mail." };
+            return { ok: false, message: error.message || "Não foi possível atualizar o e-mail." };
           }
 
           const nextPayload = {
@@ -304,7 +304,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         const currentEmail = authenticatedEmail?.trim().toLowerCase() ?? "";
         const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
         if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "NÃ£o foi possÃ­vel localizar a conta atual." };
+          return { ok: false, message: "Não foi possível localizar a conta atual." };
         }
 
         const nextDynamic = { ...existingDynamic };
@@ -326,7 +326,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { error } = await supabase.auth.updateUser({ password });
           if (error) {
-            return { ok: false, message: error.message || "NÃ£o foi possÃ­vel atualizar a senha." };
+            return { ok: false, message: error.message || "Não foi possível atualizar a senha." };
           }
           return { ok: true, message: "Senha atualizada com sucesso." };
         }
@@ -338,7 +338,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
           : {};
         const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
         if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "NÃ£o foi possÃ­vel localizar a conta atual." };
+          return { ok: false, message: "Não foi possível localizar a conta atual." };
         }
 
         localStorage.setItem(
@@ -354,10 +354,31 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         return { ok: true, message: "Senha atualizada com sucesso." };
       },
       signOut: async () => {
-        if (hasSupabaseEnv && supabase) {
-          await supabase.auth.signOut();
+        try {
+          if (hasSupabaseEnv && supabase) {
+            await Promise.race([
+              supabase.auth.signOut(),
+              new Promise((resolve) => setTimeout(resolve, 1200)),
+            ]);
+          }
+        } catch {
+          // keep local cleanup even if remote signOut fails
         }
-        localStorage.removeItem(STORAGE_KEY);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(PLATFORM_STORE_KEY);
+          localStorage.removeItem("sigapro-layout-theme");
+          try {
+            for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith("sb-")) {
+                localStorage.removeItem(key);
+              }
+            }
+          } catch {
+            // ignore storage cleanup errors
+          }
+        }
         setAuthenticatedUserId(null);
         setAuthenticatedRole(null);
         setAuthenticatedEmail(null);

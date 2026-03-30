@@ -107,7 +107,7 @@
   }
 
   p {
-    color: #6b7280;
+    color: #3f4b5c;
     line-height: 1.5;
   }
 
@@ -142,7 +142,7 @@
     text-transform: uppercase;
     font-size: 0.75rem;
     font-weight: 400;
-    color: #6b7280;
+    color: #5b6678;
     line-height: 1.2;
   }
 
@@ -169,7 +169,7 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 400;
-    color: #6b7280;
+    color: #495669;
   }
 
   .sig-section-title {
@@ -187,7 +187,7 @@
     font-size: 0.875rem;
     line-height: 1.45;
     font-weight: 400;
-    color: #6b7280;
+    color: #465367;
     max-width: 68ch;
   }
 
@@ -197,14 +197,14 @@
     font-weight: 400;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6b7280;
+    color: #4b586b;
   }
 
   .sig-body {
     font-size: 0.875rem;
     line-height: 1.45;
     font-weight: 400;
-    color: #374151;
+    color: #2c3849;
   }
 
   .sig-body-strong {
@@ -218,14 +218,14 @@
     font-size: 0.75rem;
     line-height: 1.4;
     font-weight: 400;
-    color: #6b7280;
+    color: #4a5668;
   }
 
   .sig-aux {
     font-size: 0.75rem;
     line-height: 1.4;
     font-weight: 400;
-    color: #7c8796;
+    color: #566375;
   }
 
   .sig-email {
@@ -296,7 +296,7 @@
     font-size: 0.875rem;
     line-height: 1.45;
     font-weight: 400;
-    color: #6b7280;
+    color: #475468;
   }
 
   .sig-value {
@@ -431,6 +431,49 @@
     padding: 0 0.5rem 0.75rem;
   }
 
+  .sig-contrast-strong .text-slate-500,
+  .sig-contrast-strong .text-slate-600 {
+    color: #2f3b4a !important;
+  }
+
+  .sig-contrast-strong .text-slate-400 {
+    color: #3b4758 !important;
+  }
+
+  .sig-contrast-strong .text-slate-300 {
+    color: #4b586b !important;
+  }
+
+  .sig-contrast-strong input::placeholder,
+  .sig-contrast-strong textarea::placeholder {
+    color: #4b586b !important;
+  }
+
+  .sig-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+
+  .sig-sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .sig-sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sig-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .sig-sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    background-clip: content-box;
+  }
+
   .sig-support-grid {
     display: grid;
     gap: 1.25rem;
@@ -506,17 +549,17 @@
   .sig-main-shell .sig-ui-card,
   .sig-main-shell .sig-stat-card,
   .sig-main-shell .sig-metric-card {
-    background: linear-gradient(180deg, #f9fbfd 0%, #edf3f8 100%);
-    border-color: rgba(148, 163, 184, 0.3);
+    background: linear-gradient(180deg, #f6f9fd 0%, #e7eff7 100%);
+    border-color: rgba(100, 116, 139, 0.36);
     box-shadow:
-      0 14px 30px rgba(15, 23, 42, 0.06),
+      0 14px 32px rgba(15, 23, 42, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.78);
   }
 
   .sig-main-shell .sig-dark-panel,
   .sig-main-shell .sig-inverse-panel {
-    background: linear-gradient(180deg, #f5f8fc 0%, #e8eff6 100%);
-    border-color: rgba(148, 163, 184, 0.3);
+    background: linear-gradient(180deg, #f3f7fc 0%, #e4edf6 100%);
+    border-color: rgba(100, 116, 139, 0.32);
     box-shadow:
       0 12px 26px rgba(15, 23, 42, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -541,7 +584,7 @@
   .sig-main-shell .border-slate-200\/90,
   .sig-main-shell .border-slate-200\/80,
   .sig-main-shell .border-slate-100 {
-    border-color: rgba(148, 163, 184, 0.3);
+    border-color: rgba(100, 116, 139, 0.34);
   }
 
   .sig-main-shell .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
@@ -736,16 +779,16 @@
     color: #f8fafc;
   }
 
-  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-white"],
-  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 input[class*="bg-slate-50"],
-  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-slate-50"] {
+  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-white"]:not(.sig-topbar-dark),
+  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 input[class*="bg-slate-50"]:not(.sig-topbar-dark),
+  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-slate-50"]:not(.sig-topbar-dark) {
     background: #ffffff !important;
     border-color: rgba(203, 213, 225, 0.92) !important;
     color: #0f172a !important;
   }
 
-  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-white"] svg,
-  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-slate-50"] svg,
+  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-white"]:not(.sig-topbar-dark) svg,
+  [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 button[class*="bg-slate-50"]:not(.sig-topbar-dark) svg,
   [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 .rounded-full.bg-slate-100,
   [data-layout-mode="inverse-main"] .fixed.inset-x-0.top-0 .rounded-full.bg-slate-100 svg {
     color: #0f172a !important;
@@ -1431,6 +1474,11 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 34px rgba(2, 6, 23, 0.18) !important;
   }
 
+  [data-layout-mode="inverse-main"] .sig-main-shell svg:not([class*="text-"]) {
+    color: #cfe3ff;
+    stroke: currentColor;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-950,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-900,
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-panel .text-slate-800 {
@@ -1483,6 +1531,26 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
   }
 
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white\/95,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white\/90,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white\/85,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-white\/80,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50\/70,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50\/80,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-50\/85,
+  [data-layout-mode="inverse-main"] .sig-main-shell .bg-slate-100 {
+    background: linear-gradient(180deg, rgba(12, 24, 40, 0.86) 0%, rgba(10, 21, 35, 0.78) 100%) !important;
+    border-color: rgba(125, 211, 252, 0.16) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-empty-state {
+    background: rgba(12, 24, 40, 0.78);
+    border-color: rgba(125, 211, 252, 0.18);
+    color: #cdd8ea;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-ghost-btn {
     background: rgba(9, 20, 34, 0.72) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
@@ -1525,6 +1593,66 @@
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn svg[class*="text-emerald-"],
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-action-btn svg[class*="text-green-"] {
     color: #a7f3d0 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-contrast-strong .text-slate-500,
+  [data-layout-mode="inverse-main"] .sig-contrast-strong .text-slate-600 {
+    color: #dbe7fb !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-contrast-strong .text-slate-400 {
+    color: #cdd8ea !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-contrast-strong input::placeholder,
+  [data-layout-mode="inverse-main"] .sig-contrast-strong textarea::placeholder {
+    color: #cdd8ea !important;
+  }
+
+  .sig-dispatch-field {
+    color: #1f2937 !important;
+  }
+
+  .sig-dispatch-field,
+  .sig-dispatch-field span,
+  .sig-dispatch-field [data-placeholder],
+  .sig-dispatch-field [data-state],
+  .sig-dispatch-field [data-radix-select-value] {
+    color: inherit !important;
+  }
+
+  .sig-dispatch-field svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+  }
+
+  .sig-dispatch-field::placeholder {
+    color: #4b586b !important;
+  }
+
+  .sig-dispatch-field [data-radix-select-trigger] {
+    color: inherit !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-dispatch-field {
+    color: #e8eef9 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-dispatch-field,
+  [data-layout-mode="inverse-main"] .sig-dispatch-field span,
+  [data-layout-mode="inverse-main"] .sig-dispatch-field [data-placeholder],
+  [data-layout-mode="inverse-main"] .sig-dispatch-field [data-state],
+  [data-layout-mode="inverse-main"] .sig-dispatch-field [data-radix-select-value] {
+    color: inherit !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-dispatch-field svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-dispatch-field::placeholder {
+    color: #cdd8ea !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-ghost-btn:hover {
@@ -1570,6 +1698,19 @@
 
   .sig-premium-admin-form input.sig-admin-input::placeholder {
     color: #94a3b8;
+  }
+
+  .sig-main-shell input,
+  .sig-main-shell textarea,
+  .sig-main-shell select,
+  .sig-main-shell [role="combobox"],
+  .sig-main-shell [data-radix-select-trigger] {
+    color: #1f2937 !important;
+  }
+
+  .sig-main-shell input::placeholder,
+  .sig-main-shell textarea::placeholder {
+    color: #64748b !important;
   }
 
   .sig-premium-admin-form [data-radix-select-trigger].sig-admin-input,
@@ -1754,6 +1895,19 @@
 
   [data-layout-mode="inverse-main"] .sig-premium-admin-form .sig-admin-input::placeholder {
     color: rgba(191, 219, 254, 0.62) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input,
+  [data-layout-mode="inverse-main"] .sig-main-shell textarea,
+  [data-layout-mode="inverse-main"] .sig-main-shell select,
+  [data-layout-mode="inverse-main"] .sig-main-shell [role="combobox"],
+  [data-layout-mode="inverse-main"] .sig-main-shell [data-radix-select-trigger] {
+    color: #e8eef9 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-main-shell input::placeholder,
+  [data-layout-mode="inverse-main"] .sig-main-shell textarea::placeholder {
+    color: #c7d6ea !important;
   }
 
   @media (min-width: 768px) {

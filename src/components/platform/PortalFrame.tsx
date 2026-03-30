@@ -19,6 +19,10 @@
   Settings2,
   UserRound,
   Wallet,
+  Layers,
+  PlusCircle,
+  ListChecks,
+  FileBarChart2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -54,13 +58,42 @@ interface PortalFrameProps {
 const navItems = [
   { to: "/master", label: "Administrador Geral", icon: Building2, permission: "view_master_dashboard" as Permission },
   { to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission },
-  { to: "/prefeitura/protocolos", label: "Protocolos", icon: ScrollText, permission: "manage_tenant_users" as Permission },
+  {
+    to: "/prefeitura/protocolos",
+    label: "Protocolos",
+    icon: ScrollText,
+    permission: "manage_tenant_users" as Permission,
+    children: [
+      { to: "/prefeitura/protocolos", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/prefeitura/protocolos/novo", label: "Novo protocolo", icon: PlusCircle },
+    ],
+  },
   { to: "/prefeitura/analise", label: "Análise", icon: FileText, permission: "review_processes" as Permission },
-  { to: "/prefeitura/financeiro", label: "Financeiro", icon: Wallet, permission: "manage_financial" as Permission },
+  {
+    to: "/prefeitura/financeiro",
+    label: "Financeiro",
+    icon: Wallet,
+    permission: "manage_financial" as Permission,
+    children: [
+      { to: "/prefeitura/financeiro", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/prefeitura/financeiro/protocolos", label: "Protocolos e recolhimento", icon: FileBarChart2 },
+      { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers },
+    ],
+  },
   { to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
   { to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
   { to: "/legislacao", label: "Legislação", icon: BookOpenText, permission: "manage_own_profile" as Permission },
-  { to: "/externo", label: "Acesso Externo", icon: LayoutDashboard, permission: "submit_processes" as Permission },
+  {
+    to: "/externo",
+    label: "Acesso Externo",
+    icon: LayoutDashboard,
+    permission: "submit_processes" as Permission,
+    children: [
+      { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/externo/protocolar", label: "Protocolar", icon: ListChecks },
+      { to: "/externo/controle", label: "Controle de processos", icon: FileBarChart2 },
+    ],
+  },
   { to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission },
 ];
 
@@ -96,14 +129,14 @@ function withAlpha(hex: string, alpha: string) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function isDarkSurface(hex: string) {
+function isDarkSurface(hex: string, threshold = 0.56) {
   const clean = hex.replace("#", "");
   const value = clean.length === 3 ? clean.split("").map((part) => part + part).join("") : clean;
   const r = parseInt(value.slice(0, 2), 16) / 255;
   const g = parseInt(value.slice(2, 4), 16) / 255;
   const b = parseInt(value.slice(4, 6), 16) / 255;
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance < 0.56;
+  return luminance < threshold;
 }
 
 export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
@@ -199,7 +232,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const sidebarBottom = darken(sidebarBase, 8);
   const sidebarFill = darken(primaryColor, 10);
   const darkSidebar = isDarkSurface(sidebarFill);
-  const darkTopbar = isDarkSurface(primaryColor);
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
@@ -262,6 +294,19 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     resolvedThemePreset;
   const activeThemePresetId = activeThemePreset?.id ?? null;
   const inverseMainTheme = inverseThemeHint || !!activeThemePreset?.inverseMain;
+  const darkTopbar = inverseMainTheme || isDarkSurface(primaryColor, 0.7);
+
+  const handleSignOut = async (destination = "/acesso") => {
+    try {
+      await signOut();
+    } finally {
+      if (typeof window !== "undefined") {
+        window.location.assign(destination);
+      } else {
+        navigate(destination, { replace: true });
+      }
+    }
+  };
 
   const applyLayoutTheme = (theme: { primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null) => {
     setThemeOverride(theme);
@@ -385,7 +430,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <Button
               type="button"
               variant="outline"
-              className="h-[40px] rounded-[14px] border border-slate-200 bg-white px-3.5 text-[13px] text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
+              className={cn(
+                "h-[40px] rounded-[14px] px-3.5 text-[13px] shadow-sm",
+                darkTopbar
+                  ? "sig-topbar-dark border border-white/14 bg-white/10 text-white hover:bg-white/16"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950",
+              )}
               onClick={() => setSidebarExpanded((current) => !current)}
             >
               <Menu className="mr-2 h-4 w-4" />
@@ -395,7 +445,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <div className="relative w-[280px]">
               <button
                 type="button"
-                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200/80 bg-slate-50/90 p-1 text-slate-600 shadow-sm transition hover:text-slate-800"
+                className={cn(
+                  "absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border p-1 shadow-sm transition",
+                  darkTopbar
+                    ? "border-white/14 bg-white/10 text-white/85 hover:text-white"
+                    : "border-slate-200/80 bg-slate-50/90 text-slate-600 hover:text-slate-800",
+                )}
                 aria-label="Pesquisar no sistema"
                 onClick={() => {
                   const term = topSearch.trim();
@@ -403,7 +458,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   navigate(`/buscar?query=${encodeURIComponent(term)}`);
                 }}
               >
-                <Search className="h-4 w-4 text-slate-600" />
+                <Search className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-600")} />
               </button>
               <Input
                 value={topSearch}
@@ -416,19 +471,29 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   navigate(`/buscar?query=${encodeURIComponent(term)}`);
                 }}
                 placeholder="Busca rápida"
-                className="h-[40px] rounded-[14px] border border-slate-200 bg-slate-50 pl-11 text-[13px] text-slate-700 shadow-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-300"
+                className={cn(
+                  "h-[40px] rounded-[14px] pl-11 text-[13px] shadow-none focus-visible:ring-2",
+                  darkTopbar
+                    ? "sig-topbar-dark border border-white/16 bg-white/10 text-white placeholder:text-white/65 focus-visible:ring-white/30"
+                    : "border border-slate-200 bg-slate-50 text-slate-700 placeholder:text-slate-400 focus-visible:ring-slate-300",
+                )}
               />
             </div>
 
             <button
               type="button"
               onClick={() => navigate("/notificacoes")}
-              className="inline-flex h-[40px] items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              className={cn(
+                "inline-flex h-[40px] items-center gap-2 rounded-full px-3 text-xs shadow-sm transition",
+                darkTopbar
+                  ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
               aria-label="Notificações"
               title="Notificações"
             >
-              <Bell className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+              <Bell className={cn("h-4 w-4", darkTopbar ? "text-amber-300" : "text-amber-500")} aria-hidden="true" />
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600")}>
                 {notificationCount}
               </span>
             </button>
@@ -437,15 +502,16 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-[40px] items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  className={cn(
+                    "flex h-[40px] items-center gap-2 rounded-full px-3 shadow-sm transition",
+                    darkTopbar
+                      ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  )}
                   aria-label="Selecionar tema"
                   title={activeThemePreset?.label || "Tema"}
                 >
-                  <Palette className="h-4 w-4 text-slate-500" aria-hidden="true" />
-                  <span className="sig-fit-title max-w-[138px] text-[13px] font-medium">
-                    {activeThemePreset?.label || "Tema do layout"}
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <Palette className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-500")} aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[272px] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
@@ -497,34 +563,25 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-[40px] items-center gap-2 rounded-full !border-slate-200 !bg-white px-2.5 pr-3 !text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-[1px] hover:!bg-slate-50"
+                  className={cn(
+                    "flex h-[40px] items-center gap-2 rounded-full px-2.5 pr-3 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-[1px]",
+                    darkTopbar
+                      ? "sig-topbar-dark !border-white/18 !bg-white/10 !text-white hover:!bg-white/16"
+                      : "!border-slate-200 !bg-white !text-slate-900 hover:!bg-slate-50",
+                  )}
                 >
                   <UserAvatar
                     name={displayUserName}
                     imageUrl={userProfile?.avatarUrl}
                     size="md"
-                    className="border-slate-200 bg-white"
+                    className={cn("bg-white", darkTopbar ? "border-white/22" : "border-slate-200")}
                   />
-                  <div className="flex min-w-0 flex-col items-start">
-                    <span
-                      className="sig-fit-title text-[12px] font-semibold leading-none"
-                      style={{ color: "#0f172a" }}
-                    >
-                      {displayUserName}
-                    </span>
-                    <span
-                      className="sig-fit-copy mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                      style={{ color: "#475569" }}
-                    >
-                      {roleLabel}
-                    </span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 !text-slate-600" />
+                  <ChevronDown className={cn("h-4 w-4", darkTopbar ? "!text-white/80" : "!text-slate-600")} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
                 <DropdownMenuLabel className="px-3 py-3">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 rounded-[14px] border border-slate-300 bg-slate-200 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
                     <UserAvatar name={displayUserName} imageUrl={userProfile?.avatarUrl} size="md" />
                     <div className="min-w-0">
                       <p className="sig-fit-title text-sm font-semibold text-slate-900" title={displayUserName}>
@@ -548,8 +605,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <DropdownMenuItem
                   className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
                   onClick={async () => {
-                    await signOut();
-                    navigate("/acesso", { replace: true });
+                    await handleSignOut("/acesso");
                   }}
                 >
                   <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -579,8 +635,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <DropdownMenuItem
                   className="rounded-[12px] px-3 py-2.5 text-[13px] text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                   onClick={async () => {
-                    await signOut();
-                    navigate("/acesso", { replace: true });
+                    await handleSignOut("/acesso");
                   }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -603,15 +658,15 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           darkSurface={darkSidebar}
           footer={
             <div className="space-y-3">
-              <SidebarProfilePanel
-                name={displayUserName}
-                role={roleLabel}
-                email={session.email}
-                imageUrl={userProfile?.avatarUrl}
-                statusLabel={loading ? "carregando" : source === "local" ? "dados persistidos" : "ambiente remoto"}
-                onClick={() => navigate("/perfil")}
-                darkSurface={darkSidebar}
-              />
+                <SidebarProfilePanel
+                  name={displayUserName}
+                  role={roleLabel}
+                  email={session.email}
+                  imageUrl={userProfile?.avatarUrl}
+                  statusLabel={loading ? "" : source === "local" ? "dados persistidos" : "ambiente remoto"}
+                  onClick={() => navigate("/perfil")}
+                  darkSurface={darkSidebar}
+                />
 
               <Button
                 type="button"
@@ -623,8 +678,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     : "border-slate-900/85 bg-slate-900 text-white hover:bg-slate-800 hover:text-white",
                 )}
                 onClick={async () => {
-                  await signOut();
-                  navigate("/acesso", { replace: true });
+                  await handleSignOut("/acesso");
                 }}
               >
                 <LogOut className={cn("mr-2 h-[13px] w-[13px]", darkSidebar ? "!text-rose-50" : "!text-white/90")} />

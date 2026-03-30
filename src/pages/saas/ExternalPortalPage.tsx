@@ -13,12 +13,13 @@ import {
   Sparkles,
   Waypoints,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MetricCard } from "@/components/platform/MetricCard";
+import { InternalTabs } from "@/components/platform/InternalTabs";
 import { MainContent, MainGrid, PageContainer, StatsCards } from "@/components/platform/PageLayout";
 import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -44,7 +45,15 @@ const quickMarkers = [
   { label: "pendência", color: "#dc2626" },
 ];
 
+const externalTabs = [
+  { value: "visao", label: "Visão geral", helper: "Resumo executivo", route: "/externo" },
+  { value: "protocolar", label: "Protocolar", helper: "Novo protocolo", route: "/externo/protocolar" },
+  { value: "controle", label: "Controle de processos", helper: "Acompanhamento", route: "/externo/controle" },
+];
+
 export function ExternalPortalPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { session } = usePlatformSession();
   const {
     processes: allProcesses,
@@ -119,6 +128,8 @@ export function ExternalPortalPage() {
   const selectedOwnerProcess = selectedOwnerLink
     ? processes.find((process) => process.id === selectedOwnerLink.projectId)
     : null;
+  const activeTab =
+    externalTabs.find((tab) => location.pathname === tab.route) ?? externalTabs[0];
 
   return (
     <PortalFrame eyebrow="Acesso do profissional" title="Acompanhamento de protocolos, exigências, pagamentos e andamento">
@@ -136,6 +147,15 @@ export function ExternalPortalPage() {
               </Link>
             </Button>
           }
+        />
+
+        <InternalTabs
+          items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
+          value={activeTab.value}
+          onChange={(value) => {
+            const target = externalTabs.find((tab) => tab.value === value);
+            if (target) navigate(target.route);
+          }}
         />
 
         <StatsCards className="2xl:grid-cols-5">
