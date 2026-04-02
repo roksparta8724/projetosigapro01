@@ -307,14 +307,17 @@ export function CriarContaPage() {
       );
     }
 
-    if (hasSupabaseEnv && supabase) {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password: form.password,
-        options: {
-          data: {
-            role: form.role,
-            tenant_id: form.tenantId,
+      if (hasSupabaseEnv && supabase) {
+        const emailRedirectTo =
+          typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password: form.password,
+          options: {
+            emailRedirectTo,
+            data: {
+              role: form.role,
+              tenant_id: form.tenantId,
             full_name: form.fullName,
             phone: form.phone,
             cpf_cnpj: form.cpfCnpj,
