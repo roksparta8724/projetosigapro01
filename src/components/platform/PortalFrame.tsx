@@ -1,5 +1,6 @@
 ﻿import {
   Bell,
+  Bookmark,
   BookOpenText,
   Building2,
   ChevronDown,
@@ -42,7 +43,7 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, roleLabels, type Permission } from "@/lib/platform";
+import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
@@ -84,16 +85,19 @@ const navItems = [
   { to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
   { to: "/legislacao", label: "Legislação", icon: BookOpenText, permission: "manage_own_profile" as Permission },
   {
-    to: "/externo",
-    label: "Acesso Externo",
-    icon: LayoutDashboard,
-    permission: "submit_processes" as Permission,
-    children: [
-      { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
-      { to: "/externo/protocolar", label: "Protocolar", icon: ListChecks },
-      { to: "/externo/controle", label: "Controle de processos", icon: FileBarChart2 },
-    ],
-  },
+      to: "/externo",
+      label: "Acesso Externo",
+      icon: LayoutDashboard,
+      permission: "submit_processes" as Permission,
+      children: [
+        { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
+        { to: "/externo/protocolar", label: "Protocolar", icon: ListChecks },
+        { to: "/externo/controle", label: "Controle de processos", icon: FileBarChart2 },
+        { to: "/externo/pagamentos", label: "Pagamentos", icon: Wallet },
+        { to: "/externo/historico", label: "Histórico", icon: History },
+        { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
+      ],
+    },
   { to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission },
 ];
 
@@ -264,6 +268,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   ];
 
   const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(activeInstitutionId, process));
+  const bookmarkedProcesses = visibleTenantProcesses.filter((process) =>
+    (process.tags ?? []).some((tag) => {
+      const parsed = parseMarker(tag);
+      return parsed.label === "marcado" || parsed.label === "favorito" || parsed.label === "favoritos";
+    }),
+  );
   const notificationCount = visibleTenantProcesses.reduce(
     (count, process) => count + (process.messages?.length ?? 0) + (process.dispatches?.length ?? 0),
     0,
@@ -497,6 +507,53 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 {notificationCount}
               </span>
             </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-[40px] items-center gap-2 rounded-full px-3 text-xs shadow-sm transition",
+                    darkTopbar
+                      ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  )}
+                  aria-label="Marcadores"
+                  title="Marcadores"
+                >
+                  <Bookmark className={cn("h-4 w-4", darkTopbar ? "text-sky-200" : "text-slate-500")} />
+                  <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600")}>
+                    {bookmarkedProcesses.length}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
+                <DropdownMenuLabel className="px-3 py-2">
+                  <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Marcadores</p>
+                  <p className="mt-1 text-[12px] text-slate-500">Acesso rápido aos seus processos marcados.</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {bookmarkedProcesses.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-slate-500">Nenhum marcador ainda.</div>
+                ) : (
+                  bookmarkedProcesses.slice(0, 6).map((process) => (
+                    <DropdownMenuItem
+                      key={process.id}
+                      className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
+                      onClick={() => navigate(`/processos/${process.id}`)}
+                    >
+                      <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                        {process.protocol.slice(0, 2)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>
+                        <span className="block text-xs text-slate-500">{process.title}</span>
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -876,6 +933,3 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     </div>
   );
 }
-
-
-

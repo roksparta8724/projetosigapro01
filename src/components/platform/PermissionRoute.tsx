@@ -39,7 +39,8 @@ export function PermissionRoute({
     !tenant.loading &&
     Boolean(tenant.municipalityId) &&
     !isMaster &&
-    (!sessionScopeId || sessionScopeId !== tenant.municipalityId);
+    Boolean(sessionScopeId) &&
+    sessionScopeId !== tenant.municipalityId;
 
   if (tenant.mode === "tenant" && tenant.inactive) {
     return (

@@ -43,7 +43,7 @@ import {
   getProcessPaymentGuides,
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import {
   createRemoteOwnerMessage,
   createRemoteOwnerRequest,
@@ -542,6 +542,12 @@ function buildAuditEntry(
   };
 }
 
+function isAuthError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const status = "status" in error ? Number((error as { status?: number }).status) : NaN;
+  return status === 401 || status === 403;
+}
+
 export function PlatformDataProvider({ children }: { children: React.ReactNode }) {
   const [store, setStore] = useState<PlatformStore>(defaultStore);
   const [loading, setLoading] = useState(true);
@@ -554,6 +560,27 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       if (hasSupabaseEnv) {
         setLoading(true);
         try {
+          const sessionResult = await supabase?.auth.getSession();
+          const sessionUser = sessionResult?.data?.session?.user;
+          const sessionExpiry = sessionResult?.data?.session?.expires_at;
+
+          if (sessionExpiry && sessionExpiry * 1000 < Date.now() - 60_000) {
+            await supabase?.auth.signOut();
+          }
+
+          const userResult = await supabase?.auth.getUser();
+          const activeUser = userResult?.data?.user ?? null;
+
+          if (!sessionUser || !activeUser) {
+            const nextStore = readStore();
+            if (!active) return;
+            setStore(nextStore);
+            syncAuthUsers(nextStore.sessionUsers);
+            setSource(nextStore === defaultStore ? "demo" : "local");
+            setLoading(false);
+            return;
+          }
+
           const remote = await loadRemotePlatformStore();
           const sanitized = buildSanitizedStore(remote, false);
           if (!active) return;
@@ -565,10 +592,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           return;
         } catch {
           if (!active) return;
-          const emptyRemote = buildSanitizedStore({}, false);
-          setStore(emptyRemote);
-          syncStore(emptyRemote);
-          setSource("remote");
+          const nextStore = readStore();
+          setStore(nextStore);
+          syncAuthUsers(nextStore.sessionUsers);
+          setSource(nextStore === defaultStore ? "demo" : "local");
           setLoading(false);
           return;
         }
@@ -607,6 +634,54 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!hasSupabaseEnv || !supabase) return;
+
+    const refetchRemote = async () => {
+      setLoading(true);
+      try {
+        const userResult = await supabase.auth.getUser();
+        if (!userResult.data.user) {
+          await supabase.auth.signOut();
+          return;
+        }
+
+        const remote = await loadRemotePlatformStore();
+        const sanitized = buildSanitizedStore(remote, false);
+        setStore(sanitized);
+        syncStore(sanitized);
+        syncAuthUsers(sanitized.sessionUsers);
+        setSource("remote");
+      } catch (error) {
+        if (isAuthError(error)) {
+          await supabase.auth.signOut();
+        }
+        const emptyRemote = buildSanitizedStore({}, false);
+        setStore(emptyRemote);
+        syncStore(emptyRemote);
+        setSource("remote");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        const emptyRemote = buildSanitizedStore({}, false);
+        setStore(emptyRemote);
+        syncStore(emptyRemote);
+        return;
+      }
+      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        void refetchRemote();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {

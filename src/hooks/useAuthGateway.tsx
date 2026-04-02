@@ -1,6 +1,6 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
-import { sessionUsers, type AccountStatus, type SessionUser } from "@/lib/platform";
+import { sessionUsers, type AccountStatus, type SessionUser, type UserRole } from "@/lib/platform";
 
 interface AuthGatewayContextValue {
   isAuthenticated: boolean;
@@ -9,7 +9,7 @@ interface AuthGatewayContextValue {
   authenticatedRole: string | null;
   authenticatedEmail: string | null;
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string }>;
-  resetPassword: (email: string, newPassword: string) => Promise<{ ok: boolean; message?: string }>;
+  resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
@@ -27,7 +27,9 @@ const demoCredentials: Record<string, { password: string; userId: string; role: 
 const MASTER_EMAIL = "roksparta02@gmail.com";
 const MASTER_NAME = "Jonatas Rodrigues";
 
-const STORAGE_KEY = "sigapro-auth";
+const STORAGE_KEY = "sigapro-auth-gateway";
+const LEGACY_SUPABASE_STORAGE_KEY = "sigapro-auth";
+const SUPABASE_STORAGE_KEY = "sigapro-supabase-auth";
 const DYNAMIC_CREDENTIALS_KEY = "sigapro-demo-credentials";
 const PLATFORM_STORE_KEY = "sigapro-platform-store";
 
@@ -39,7 +41,7 @@ const authGatewayFallback: AuthGatewayContextValue = {
   authenticatedRole: null,
   authenticatedEmail: null,
   signIn: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
-  resetPassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
+  resetPassword: async (_email: string) => ({ ok: false, message: "Autenticacao indisponivel no momento." }),
   updateEmail: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   updatePassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   signOut: async () => {},
@@ -84,6 +86,30 @@ function blockedAccountMessage(status: AccountStatus | undefined) {
     : "Esta conta esta bloqueada administrativamente. Entre em contato com a gestao do sistema.";
 }
 
+function mapDbRoleCodeToAppRole(code: string | null | undefined): UserRole | null {
+  if (!code) return null;
+  const c = code.trim();
+  const aliases: Record<string, UserRole> = {
+    master_admin: "master_admin",
+    admin_master: "master_admin",
+    master_ops: "master_ops",
+    prefeitura_admin: "prefeitura_admin",
+    admin_municipality: "prefeitura_admin",
+    prefeitura_supervisor: "prefeitura_supervisor",
+    analista: "analista",
+    analyst: "analista",
+    financeiro: "financeiro",
+    financial: "financeiro",
+    setor_intersetorial: "setor_intersetorial",
+    fiscal: "fiscal",
+    profissional_externo: "profissional_externo",
+    professional_external: "profissional_externo",
+    proprietario_consulta: "proprietario_consulta",
+    property_owner: "property_owner",
+  };
+  return aliases[c] ?? aliases[c.toLowerCase()] ?? null;
+}
+
 async function ensureMasterProfile(userId: string | null | undefined, email?: string | null) {
   if (!supabase || !userId) return;
   if (normalizeEmail(email) !== MASTER_EMAIL) return;
@@ -91,10 +117,10 @@ async function ensureMasterProfile(userId: string | null | undefined, email?: st
   try {
     await supabase.from("profiles").upsert(
       {
+        id: userId,
         user_id: userId,
         full_name: MASTER_NAME,
         email: MASTER_EMAIL,
-        role: "master_admin",
       },
       { onConflict: "user_id" },
     );
@@ -114,6 +140,13 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!hasSupabaseEnv || !supabase) return;
 
+    if (typeof window !== "undefined") {
+      const legacy = window.localStorage.getItem(LEGACY_SUPABASE_STORAGE_KEY);
+      if (legacy && !legacy.includes("access_token")) {
+        window.localStorage.removeItem(LEGACY_SUPABASE_STORAGE_KEY);
+      }
+    }
+
     const resolveRole = (email?: string | null, fallbackRole?: string | null) => {
       const normalized = email?.trim().toLowerCase() || "";
       const fallbackProfile = sessionUsers.find((item) => item.email.toLowerCase() === normalized);
@@ -123,15 +156,43 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
     const resolveProfileRole = async (userId: string, email?: string | null) => {
       if (!supabase) return resolveRole(email, null);
       try {
-        const { data } = await supabase.from("profiles").select("role").eq("user_id", userId).maybeSingle();
-        return (data?.role as string | null) ?? resolveRole(email, null);
+        const membershipResult = await supabase
+          .from("tenant_memberships")
+          .select("roles(code)")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .limit(1)
+          .maybeSingle();
+        const nested = membershipResult.data?.roles;
+        const code =
+          nested && typeof nested === "object" && nested !== null && "code" in nested
+            ? String((nested as { code: string }).code)
+            : null;
+        const fromMembership = mapDbRoleCodeToAppRole(code);
+        if (fromMembership) return fromMembership;
       } catch {
-        return resolveRole(email, null);
+        // fall through
       }
+      try {
+        const { data, error } = await supabase.from("profiles").select("role").eq("user_id", userId).maybeSingle();
+        if (!error && data?.role) {
+          const fromProfile = mapDbRoleCodeToAppRole(String(data.role));
+          if (fromProfile) return fromProfile;
+        }
+      } catch {
+        // fall through
+      }
+      return resolveRole(email, null);
     };
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session?.user) return;
+      const userResult = await supabase.auth.getUser();
+      if (!userResult.data.user) {
+        await supabase.auth.signOut();
+        return;
+      }
       const role =
         (data.session.user.app_metadata?.role as string | undefined) ??
         (await resolveProfileRole(data.session.user.id, data.session.user.email));
@@ -180,6 +241,10 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (hasSupabaseEnv && supabase) {
           const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password });
           if (!error && data.user) {
+            const userResult = await supabase.auth.getUser();
+            if (!userResult.data.user) {
+              return { ok: false, message: "Não foi possível validar a sessão. Tente novamente." };
+            }
             await ensureMasterProfile(data.user.id, data.user.email);
             const fallbackProfile = resolveStoredUser(normalized, data.user.id);
             if (isAdministrativeBlocked(fallbackProfile?.accountStatus)) {
@@ -240,37 +305,31 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         setAuthenticatedEmail(normalized);
         return { ok: true, role: credential.role };
       },
-      resetPassword: async (email, newPassword) => {
+      resetPassword: async (email) => {
         const normalized = email.trim().toLowerCase();
+        if (!normalized) {
+          return { ok: false, message: "Informe um e-mail valido." };
+        }
 
         if (hasSupabaseEnv && supabase) {
           const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-            redirectTo: `${window.location.origin}/acesso`,
+            redirectTo: `${window.location.origin}/recuperar-senha`,
           });
-          if (!error) {
-            return { ok: true, message: "Instrucao de redefinicao enviada para o e-mail informado." };
+          if (error) {
+            return { ok: false, message: error.message || "Nao foi possivel enviar o e-mail de recuperacao." };
           }
+          return {
+            ok: true,
+            message:
+              "Se existir uma conta para este e-mail, enviamos um link seguro para redefinir a senha. Verifique a caixa de entrada e o spam.",
+          };
         }
 
-        const existingDynamicRaw = localStorage.getItem(DYNAMIC_CREDENTIALS_KEY);
-        const existingDynamic = existingDynamicRaw
-          ? (JSON.parse(existingDynamicRaw) as Record<string, { password: string; userId: string; role: string }>)
-          : {};
-        const existing = existingDynamic[normalized] ?? demoCredentials[normalized];
-        if (!existing) {
-          return { ok: false, message: "Não encontramos esse e-mail na base de teste." };
-        }
-
-        const nextDynamic = {
-          ...existingDynamic,
-          [normalized]: {
-            userId: existing.userId,
-            role: existing.role,
-            password: newPassword,
-          },
+        return {
+          ok: false,
+          message:
+            "A recuperacao de senha por link no e-mail exige o Supabase configurado (VITE_SUPABASE_URL e chave anonima). No modo demonstracao local, use as credenciais de teste na tela de acesso.",
         };
-        localStorage.setItem(DYNAMIC_CREDENTIALS_KEY, JSON.stringify(nextDynamic));
-        return { ok: true, message: "Senha atualizada com sucesso para este perfil de teste." };
       },
       updateEmail: async (email) => {
         const normalized = email.trim().toLowerCase();
@@ -367,6 +426,8 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
         if (typeof window !== "undefined") {
           localStorage.removeItem(STORAGE_KEY);
           localStorage.removeItem(PLATFORM_STORE_KEY);
+          localStorage.removeItem(SUPABASE_STORAGE_KEY);
+          localStorage.removeItem(LEGACY_SUPABASE_STORAGE_KEY);
           localStorage.removeItem("sigapro-layout-theme");
           try {
             for (let i = localStorage.length - 1; i >= 0; i -= 1) {

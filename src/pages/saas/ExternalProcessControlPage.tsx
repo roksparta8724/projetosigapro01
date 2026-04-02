@@ -10,7 +10,6 @@ import {
   MainContent,
   MainGrid,
   PageContainer,
-  SideContent,
   StatsCards,
 } from "@/components/platform/PageLayout";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -20,6 +19,7 @@ import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   formatCurrency,
   getProcessPaymentGuides,
@@ -27,12 +27,6 @@ import {
   statusLabel,
   statusTone,
 } from "@/lib/platform";
-
-const externalTabs = [
-  { value: "visao", label: "Visão geral", helper: "Resumo executivo", route: "/externo" },
-  { value: "protocolar", label: "Protocolar", helper: "Novo protocolo", route: "/externo/protocolar" },
-  { value: "controle", label: "Controle de processos", helper: "Acompanhamento", route: "/externo/controle" },
-];
 
 const statusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -97,8 +91,7 @@ export function ExternalProcessControlPage() {
   const [stageFilter, setStageFilter] = useState("todos");
   const [periodFilter, setPeriodFilter] = useState("todos");
 
-  const activeTab =
-    externalTabs.find((tab) => location.pathname === tab.route) ?? externalTabs[0];
+  const activeTab = getExternalTabByPath(location.pathname);
 
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
@@ -237,11 +230,11 @@ export function ExternalProcessControlPage() {
           />
         </StatsCards>
 
-        <MainGrid>
+        <MainGrid className="xl:grid-cols-1">
           <MainContent>
             <SectionPanel
               title="Processos em acompanhamento"
-              description="Filtre por protocolo, status e etapa para localizar rapidamente cada processo."
+              description="Filtre por protocolo, etapa e status para localizar rapidamente cada processo."
               actions={
                 <div className="mt-2 grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_210px_220px_200px]">
                   <div className="relative min-w-0">
@@ -297,7 +290,7 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
-              <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_0.85fr] 2xl:gap-3">
+              <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_1fr] 2xl:gap-3">
                 <span>Protocolo</span>
                 <span>Projeto</span>
                 <span>Status</span>
@@ -317,33 +310,21 @@ export function ExternalProcessControlPage() {
                     key={process.id}
                     className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
-                    <div className="grid gap-4 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_0.85fr] 2xl:items-center">
+                    <div className="grid gap-4 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_1fr] 2xl:items-center">
                       <div className="min-w-0">
-                        <p
-                          className="truncate text-[15px] font-semibold leading-6 text-slate-950"
-                          title={process.protocol}
-                        >
+                        <p className="truncate text-[15px] font-semibold leading-6 text-slate-950" title={process.protocol}>
                           {process.protocol}
                         </p>
-                        <p
-                          className="mt-1 truncate text-[13px] leading-5 text-slate-500"
-                          title={process.externalProtocol}
-                        >
+                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.externalProtocol}>
                           {process.externalProtocol}
                         </p>
                       </div>
 
                       <div className="min-w-0">
-                        <p
-                          className="truncate text-[14px] font-semibold leading-6 text-slate-900"
-                          title={process.title}
-                        >
+                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900" title={process.title}>
                           {process.title}
                         </p>
-                        <p
-                          className="mt-1 truncate text-[13px] leading-5 text-slate-500"
-                          title={process.type}
-                        >
+                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.type}>
                           {process.type}
                         </p>
                       </div>
@@ -358,24 +339,15 @@ export function ExternalProcessControlPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <p
-                          className="truncate text-[14px] font-medium leading-6 text-slate-900"
-                          title={process.sla?.currentStage || "Em andamento"}
-                        >
+                        <p className="truncate text-[14px] font-medium leading-6 text-slate-900" title={process.sla?.currentStage || "Em andamento"}>
                           {process.sla?.currentStage || "Em andamento"}
                         </p>
-                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">
-                          Etapa atual
-                        </p>
+                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">Etapa atual</p>
                       </div>
 
                       <div className="min-w-0">
-                        <p className="text-[14px] font-medium leading-6 text-slate-900">
-                          {lastUpdateLabel}
-                        </p>
-                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">
-                          Última movimentação
-                        </p>
+                        <p className="text-[14px] font-medium leading-6 text-slate-900">{lastUpdateLabel}</p>
+                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">Última movimentação</p>
                       </div>
 
                       <div className="min-w-0">
@@ -387,9 +359,12 @@ export function ExternalProcessControlPage() {
                         </p>
                       </div>
 
-                      <div className="flex justify-start 2xl:justify-end">
+                      <div className="flex flex-wrap justify-start gap-2 2xl:justify-end">
                         <Button asChild variant="outline" className="rounded-full text-[13px]">
                           <Link to={`/processos/${process.id}`}>Ver detalhes</Link>
+                        </Button>
+                        <Button asChild variant="outline" className="rounded-full text-[13px]">
+                          <Link to={`/processos/${process.id}?aba=fluxo`}>Acompanhar fluxo</Link>
                         </Button>
                       </div>
                     </div>
@@ -399,11 +374,9 @@ export function ExternalProcessControlPage() {
 
               {filteredProcesses.length === 0 ? (
                 <div className="sig-dark-panel rounded-[12px] border border-dashed border-slate-300 p-8 text-center">
-                  <p className="text-[18px] font-semibold leading-7 text-slate-900">
-                    Nenhum processo encontrado
-                  </p>
+                  <p className="text-[18px] font-semibold leading-7 text-slate-900">Nenhum processo encontrado</p>
                   <p className="mt-2 text-[15px] leading-7 text-slate-600">
-                    Não há protocolos compatíveis com os filtros aplicados neste momento.
+                    Você ainda não possui protocolos com os filtros selecionados.
                   </p>
                   <Button asChild className="mt-4 rounded-full bg-slate-950 hover:bg-slate-900">
                     <Link to="/externo/protocolar">Novo protocolo</Link>
@@ -411,83 +384,56 @@ export function ExternalProcessControlPage() {
                 </div>
               ) : null}
             </SectionPanel>
-          </MainContent>
 
-          <SideContent>
-            <SectionPanel
-              title="Pendências do profissional"
-              description="Exigências que precisam de retorno, complementação ou novo envio de documento."
-              contentClassName="space-y-3"
-            >
-              {requirementCount === 0 ? (
-                <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
-                  Nenhuma pendência aberta no momento.
-                </div>
-              ) : (
-                filteredProcesses
-                  .filter((process) => (process.requirements ?? []).length > 0)
-                  .slice(0, 3)
-                  .map((process) => (
-                    <div
-                      key={`req-${process.id}`}
-                      className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm text-slate-700"
-                    >
-                      <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">
-                        {process.protocol}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">
-                        {process.title}
-                      </p>
-                      <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
-                        Exigência pendente
+            <div className="grid gap-5 lg:grid-cols-2">
+              <SectionPanel
+                title="Pendências do profissional"
+                description="Exigências que precisam de retorno, complementação ou novo envio de documento."
+                contentClassName="space-y-3"
+              >
+                {requirementCount === 0 ? (
+                  <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
+                    Nenhuma pendência aberta no momento.
+                  </div>
+                ) : (
+                  filteredProcesses
+                    .filter((process) => (process.requirements ?? []).length > 0)
+                    .slice(0, 4)
+                    .map((process) => (
+                      <div key={`req-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm text-slate-700">
+                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
+                        <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                        <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
+                          Exigência pendente
+                        </p>
+                      </div>
+                    ))
+                )}
+              </SectionPanel>
+
+              <SectionPanel
+                title="Últimas movimentações"
+                description="Processos atualizados recentemente para acompanhamento rápido."
+                contentClassName="space-y-3"
+              >
+                {recentMovements.length === 0 ? (
+                  <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
+                    Nenhuma movimentação recente encontrada.
+                  </div>
+                ) : (
+                  recentMovements.map((process) => (
+                    <div key={`recent-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
+                      <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
+                      <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                      <p className="mt-2 text-[12px] uppercase tracking-[0.08em] text-slate-500">
+                        Etapa: {process.sla?.currentStage || "Em andamento"}
                       </p>
                     </div>
                   ))
-              )}
-            </SectionPanel>
-
-            <SectionPanel
-              title="Últimas movimentações"
-              description="Processos atualizados recentemente para acompanhamento rápido."
-              contentClassName="space-y-3"
-            >
-              {recentMovements.length === 0 ? (
-                <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
-                  Nenhuma movimentação recente encontrada.
-                </div>
-              ) : (
-                recentMovements.map((process) => (
-                  <div
-                    key={`recent-${process.id}`}
-                    className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm"
-                  >
-                    <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">
-                      {process.protocol}
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">
-                      {process.title}
-                    </p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.08em] text-slate-500">
-                      Etapa: {process.sla?.currentStage || "Em andamento"}
-                    </p>
-                  </div>
-                ))
-              )}
-            </SectionPanel>
-
-            <SectionPanel
-              title="Ações rápidas"
-              description="Atalhos úteis para o fluxo diário do profissional."
-              contentClassName="space-y-3"
-            >
-              <Button asChild variant="outline" className="w-full justify-start rounded-2xl text-[14px]">
-                <Link to="/externo/protocolar">Novo protocolo</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start rounded-2xl text-[14px]">
-                <Link to="/historico">Ver histórico</Link>
-              </Button>
-            </SectionPanel>
-          </SideContent>
+                )}
+              </SectionPanel>
+            </div>
+          </MainContent>
         </MainGrid>
       </PageContainer>
     </PortalFrame>

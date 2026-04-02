@@ -59,7 +59,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [resolution.isReserved, resolution.mode, resolution.subdomain]);
+  }, [resolution.hostname, resolution.isReserved, resolution.mode, resolution.subdomain]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;

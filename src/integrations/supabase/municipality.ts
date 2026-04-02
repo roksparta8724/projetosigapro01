@@ -6,6 +6,12 @@ import type {
   MunicipalitySettings,
 } from "@/lib/municipality";
 
+async function hasAuthenticatedSession() {
+  if (!supabase) return false;
+  const userResult = await supabase.auth.getUser();
+  return Boolean(userResult.data.user);
+}
+
 function isMissingRelationError(error: unknown, relationName: string) {
   if (!error || typeof error !== "object") return false;
 
@@ -76,6 +82,10 @@ export async function loadMunicipalityBundleByUserId(
   userId: string | null | undefined,
 ): Promise<MunicipalityBundle | null> {
   if (!hasSupabaseEnv || !supabase || !userId) {
+    return null;
+  }
+
+  if (!(await hasAuthenticatedSession())) {
     return null;
   }
 
@@ -153,6 +163,10 @@ export async function loadMunicipalityBundleById(
     return null;
   }
 
+  if (!(await hasAuthenticatedSession())) {
+    return null;
+  }
+
   const [municipalityResult, brandingResult, settingsResult] = await Promise.all([
     supabase.from("municipalities").select("*").eq("id", municipalityId).maybeSingle(),
     supabase.from("municipality_branding").select("*").eq("municipality_id", municipalityId).maybeSingle(),
@@ -180,6 +194,10 @@ export async function loadMunicipalityBundleBySubdomain(
   subdomain: string | null | undefined,
 ): Promise<MunicipalityBundle | null> {
   if (!hasSupabaseEnv || !supabase || !subdomain) {
+    return null;
+  }
+
+  if (!(await hasAuthenticatedSession())) {
     return null;
   }
 
@@ -235,6 +253,10 @@ export async function loadMunicipalityBundleByHostname(
     return null;
   }
 
+  if (!(await hasAuthenticatedSession())) {
+    return null;
+  }
+
   const normalized = hostname.trim().toLowerCase();
 
   const municipalityResult = await supabase
@@ -282,6 +304,10 @@ export async function loadMunicipalityBundleByHostname(
 
 export async function loadMunicipalityCatalog(): Promise<MunicipalityBundle[]> {
   if (!hasSupabaseEnv || !supabase) {
+    return [];
+  }
+
+  if (!(await hasAuthenticatedSession())) {
     return [];
   }
 

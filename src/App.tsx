@@ -19,6 +19,9 @@ import { ProtocolDeskPage } from "@/pages/saas/ProtocolDeskPage";
 import { IptuDeskPage } from "@/pages/saas/IptuDeskPage";
 import { ExternalPortalPage } from "@/pages/saas/ExternalPortalPage";
 import { ExternalProcessControlPage } from "@/pages/saas/ExternalProcessControlPage";
+import { ExternalPaymentsPage } from "@/pages/saas/ExternalPaymentsPage";
+import { ExternalHistoryPage } from "@/pages/saas/ExternalHistoryPage";
+import { ExternalMessagesPage } from "@/pages/saas/ExternalMessagesPage";
 import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
 import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
 import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
@@ -204,6 +207,30 @@ const AppRoutes = () => {
         element={
           <PermissionRoute permission="submit_processes">
             <ExternalProcessControlPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/externo/pagamentos"
+        element={
+          <PermissionRoute permission="submit_processes">
+            <ExternalPaymentsPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/externo/historico"
+        element={
+          <PermissionRoute permission="submit_processes">
+            <ExternalHistoryPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/externo/mensagens"
+        element={
+          <PermissionRoute permission="submit_processes">
+            <ExternalMessagesPage />
           </PermissionRoute>
         }
       />

@@ -51,6 +51,30 @@ function normalizeUuid(value: string | null | undefined) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
+function readGeneralString(general: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+
+function readGeneralOptionalString(general: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "string") return value;
+  }
+  return "";
+}
+
+function readGeneralNumber(general: Record<string, unknown>, keys: string[], fallback: number) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "number" && !Number.isNaN(value)) return value;
+  }
+  return fallback;
+}
+
 function buildMunicipalitySlug(value: string | null | undefined) {
   if (!value) return null;
   const normalized = value
@@ -266,6 +290,8 @@ export async function loadRemotePlatformStore() {
   const mappedSettingsFromLegacy: TenantSettings[] = tenantRows.map((tenant) => {
     const branding = brandingByTenant.get(tenant.id);
     const settings = settingsByTenant.get(tenant.id);
+    const legacyExtra =
+      settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
     return {
       tenantId: tenant.id,
       cnpj: settings?.cnpj ?? tenant.cnpj ?? "",
@@ -324,13 +350,13 @@ export async function loadRemotePlatformStore() {
       taxaProtocolo: Number(settings?.taxa_protocolo ?? 35.24),
       taxaIssPorMetroQuadrado: Number(settings?.taxa_iss_por_metro_quadrado ?? 0),
       issRateProfiles:
-        Array.isArray(general.iss_rate_profiles) && general.iss_rate_profiles.length > 0
-          ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
+        Array.isArray(legacyExtra.iss_rate_profiles) && legacyExtra.iss_rate_profiles.length > 0
+          ? (legacyExtra.iss_rate_profiles as TenantSettings["issRateProfiles"])
           : undefined,
       taxaAprovacaoFinal: Number(settings?.taxa_aprovacao_final ?? 0),
       approvalRateProfiles:
-        Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
-          ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
+        Array.isArray(legacyExtra.approval_rate_profiles) && legacyExtra.approval_rate_profiles.length > 0
+          ? (legacyExtra.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
           : undefined,
       registroProfissionalObrigatorio: Boolean(settings?.registro_profissional_obrigatorio ?? true),
     };
@@ -414,9 +440,9 @@ export async function loadRemotePlatformStore() {
         (municipality.subdomain ? `https://${municipality.subdomain}` : municipality.custom_domain ?? ""),
       protocoloPrefixo: settings?.protocol_prefix ?? "SIG",
       guiaPrefixo: settings?.guide_prefix ?? "DAM",
-      chavePix: typeof general.chave_pix === "string" ? general.chave_pix : "",
+      chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
       beneficiarioArrecadacao:
-        typeof general.beneficiario_arrecadacao === "string" ? general.beneficiario_arrecadacao : municipality.name,
+        readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipality.name,
       contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
       contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
       contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
@@ -447,15 +473,26 @@ export async function loadRemotePlatformStore() {
       headerLogoFitMode: "contain",
       footerLogoFrameMode: "soft-square",
       footerLogoFitMode: "contain",
-      planoDiretorArquivoNome: typeof general.plano_diretor_arquivo_nome === "string" ? general.plano_diretor_arquivo_nome : "",
-      planoDiretorArquivoUrl: typeof general.plano_diretor_arquivo_url === "string" ? general.plano_diretor_arquivo_url : "",
-      usoSoloArquivoNome: typeof general.uso_solo_arquivo_nome === "string" ? general.uso_solo_arquivo_nome : "",
-      usoSoloArquivoUrl: typeof general.uso_solo_arquivo_url === "string" ? general.uso_solo_arquivo_url : "",
-      leisArquivoNome: typeof general.leis_arquivo_nome === "string" ? general.leis_arquivo_nome : "",
-      leisArquivoUrl: typeof general.leis_arquivo_url === "string" ? general.leis_arquivo_url : "",
-      taxaProtocolo: typeof general.taxa_protocolo === "number" ? general.taxa_protocolo : 35.24,
-      taxaIssPorMetroQuadrado: typeof general.taxa_iss_por_metro_quadrado === "number" ? general.taxa_iss_por_metro_quadrado : 0,
-      taxaAprovacaoFinal: typeof general.taxa_aprovacao_final === "number" ? general.taxa_aprovacao_final : 0,
+      planoDiretorArquivoNome: readGeneralOptionalString(general, [
+        "plano_diretor_arquivo_nome",
+        "plan_file_name",
+      ]),
+      planoDiretorArquivoUrl: readGeneralOptionalString(general, ["plano_diretor_arquivo_url", "plan_file_url"]),
+      usoSoloArquivoNome: readGeneralOptionalString(general, ["uso_solo_arquivo_nome", "zoning_file_name"]),
+      usoSoloArquivoUrl: readGeneralOptionalString(general, ["uso_solo_arquivo_url", "zoning_file_url"]),
+      leisArquivoNome: readGeneralOptionalString(general, ["leis_arquivo_nome", "complementary_laws_file_name"]),
+      leisArquivoUrl: readGeneralOptionalString(general, ["leis_arquivo_url", "complementary_laws_file_url"]),
+      taxaProtocolo: readGeneralNumber(general, ["taxa_protocolo", "fee_protocol"], 35.24),
+      taxaIssPorMetroQuadrado: readGeneralNumber(general, ["taxa_iss_por_metro_quadrado", "fee_iss_m2"], 0),
+      issRateProfiles:
+        Array.isArray(general.iss_rate_profiles) && general.iss_rate_profiles.length > 0
+          ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
+          : undefined,
+      taxaAprovacaoFinal: readGeneralNumber(general, ["taxa_aprovacao_final", "fee_final_approval"], 0),
+      approvalRateProfiles:
+        Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
+          ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
+          : undefined,
       registroProfissionalObrigatorio: settings?.require_professional_registration ?? true,
     };
   });
@@ -1069,6 +1106,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
   }
 
   const payload: Record<string, unknown> = {
+    id: profile.userId,
     user_id: profile.userId,
     full_name: profile.fullName,
     email: profile.email,
@@ -1275,7 +1313,9 @@ export async function saveRemoteInstitutionSettings(
       directorship_email: settings.diretoriaEmail || null,
       office_hours: settings.horarioAtendimento || null,
       pix_key: settings.chavePix || null,
+      chave_pix: settings.chavePix || null,
       settlement_beneficiary: settings.beneficiarioArrecadacao || null,
+      beneficiario_arrecadacao: settings.beneficiarioArrecadacao || null,
       contract_number: settings.contractNumber || null,
       contract_start: settings.contractStart || null,
       contract_end: settings.contractEnd || null,
@@ -1285,14 +1325,23 @@ export async function saveRemoteInstitutionSettings(
       client_delivery_link: settings.clientDeliveryLink || null,
       plan_file_name: settings.planoDiretorArquivoNome || null,
       plan_file_url: settings.planoDiretorArquivoUrl || null,
+      plano_diretor_arquivo_nome: settings.planoDiretorArquivoNome || null,
+      plano_diretor_arquivo_url: settings.planoDiretorArquivoUrl || null,
       zoning_file_name: settings.usoSoloArquivoNome || null,
       zoning_file_url: settings.usoSoloArquivoUrl || null,
+      uso_solo_arquivo_nome: settings.usoSoloArquivoNome || null,
+      uso_solo_arquivo_url: settings.usoSoloArquivoUrl || null,
       complementary_laws_file_name: settings.leisArquivoNome || null,
       complementary_laws_file_url: settings.leisArquivoUrl || null,
+      leis_arquivo_nome: settings.leisArquivoNome || null,
+      leis_arquivo_url: settings.leisArquivoUrl || null,
       fee_protocol: settings.taxaProtocolo ?? 35.24,
+      taxa_protocolo: settings.taxaProtocolo ?? 35.24,
       fee_iss_m2: settings.taxaIssPorMetroQuadrado ?? 0,
+      taxa_iss_por_metro_quadrado: settings.taxaIssPorMetroQuadrado ?? 0,
       iss_rate_profiles: settings.issRateProfiles ?? null,
       fee_final_approval: settings.taxaAprovacaoFinal ?? 0,
+      taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
       approval_rate_profiles: settings.approvalRateProfiles ?? null,
     },
   };

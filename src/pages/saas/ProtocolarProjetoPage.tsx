@@ -18,6 +18,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { createRemoteExternalProcess, uploadFileToStorage } from "@/integrations/supabase/platform";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
+import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
   defaultProtocolDraftForm,
@@ -84,12 +85,6 @@ const groupMeta = {
   tecnicos: { title: "Documentos técnicos", icon: FileStack },
   complementares: { title: "Documentos complementares", icon: ShieldCheck },
 } as const;
-
-const externalTabs = [
-  { value: "visao", label: "Visão geral", helper: "Resumo executivo", route: "/externo" },
-  { value: "protocolar", label: "Protocolar", helper: "Novo protocolo", route: "/externo/protocolar" },
-  { value: "controle", label: "Controle de processos", helper: "Acompanhamento", route: "/externo/controle" },
-];
 
 export function ProtocolarProjetoPage() {
   const navigate = useNavigate();
@@ -175,8 +170,7 @@ export function ProtocolarProjetoPage() {
   const requiredDocuments = useMemo(() => documentItems.filter((item) => item.required), [documentItems]);
   const missingRequired = useMemo(() => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0), [files, requiredDocuments]);
   const isExternalFlow = location.pathname.startsWith("/externo");
-  const activeTab =
-    externalTabs.find((tab) => location.pathname === tab.route) ?? externalTabs[0];
+  const activeTab = getExternalTabByPath(location.pathname);
 
   const protocolSummary = useMemo(
     () => [

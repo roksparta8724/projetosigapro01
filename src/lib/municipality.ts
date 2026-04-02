@@ -193,16 +193,26 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.link_portal_cliente === "string" && general.link_portal_cliente) || base.linkPortalCliente,
     protocoloPrefixo: settings?.protocolPrefix || base.protocoloPrefixo,
     guiaPrefixo: settings?.guidePrefix || base.guiaPrefixo,
-    chavePix: (typeof general.chave_pix === "string" && general.chave_pix) || base.chavePix,
+    chavePix:
+      (typeof general.chave_pix === "string" && general.chave_pix) ||
+      (typeof general.pix_key === "string" && general.pix_key) ||
+      base.chavePix,
     beneficiarioArrecadacao:
       (typeof general.beneficiario_arrecadacao === "string" && general.beneficiario_arrecadacao) ||
+      (typeof general.settlement_beneficiary === "string" && general.settlement_beneficiary) ||
       base.beneficiarioArrecadacao,
     taxaProtocolo:
-      typeof general.taxa_protocolo === "number" ? general.taxa_protocolo : base.taxaProtocolo,
+      typeof general.taxa_protocolo === "number"
+        ? general.taxa_protocolo
+        : typeof general.fee_protocol === "number"
+          ? general.fee_protocol
+          : base.taxaProtocolo,
     taxaIssPorMetroQuadrado:
       typeof general.taxa_iss_por_metro_quadrado === "number"
         ? general.taxa_iss_por_metro_quadrado
-        : base.taxaIssPorMetroQuadrado,
+        : typeof general.fee_iss_m2 === "number"
+          ? general.fee_iss_m2
+          : base.taxaIssPorMetroQuadrado,
     issRateProfiles:
       Array.isArray(general.iss_rate_profiles) && general.iss_rate_profiles.length > 0
         ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
@@ -210,7 +220,9 @@ export function buildTenantSettingsFromMunicipality(
     taxaAprovacaoFinal:
       typeof general.taxa_aprovacao_final === "number"
         ? general.taxa_aprovacao_final
-        : base.taxaAprovacaoFinal,
+        : typeof general.fee_final_approval === "number"
+          ? general.fee_final_approval
+          : base.taxaAprovacaoFinal,
     approvalRateProfiles:
       Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
         ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
