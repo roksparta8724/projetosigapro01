@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" aria-hidden="true">
+  <defs>
+    <linearGradient id="sigaproGreenMain" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2b9c6b" />
+      <stop offset="100%" stop-color="#145b3f" />
+    </linearGradient>
+    <linearGradient id="sigaproGreenDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#186b4b" />
+      <stop offset="100%" stop-color="#104734" />
+    </linearGradient>
+    <linearGradient id="sigaproAccentWarm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff8f5b" />
+      <stop offset="100%" stop-color="#ffd166" />
+    </linearGradient>
+  </defs>
+
+  <rect x="6" y="6" width="132" height="132" rx="28" fill="#ffffff" />
+
+  <g transform="translate(10 10)">
+    <path d="M20 114V60l16-11v65z" fill="url(#sigaproGreenMain)" />
+    <path d="M41 114V40l20-14v88z" fill="#1c7d57" />
+    <path d="M66 114V19l24 14v81z" fill="url(#sigaproGreenMain)" />
+    <path d="M96 114V51l18 11v52z" fill="url(#sigaproGreenDark)" />
+    <path
+      d="M87 37h17l9 10v15"
+      fill="none"
+      stroke="url(#sigaproAccentWarm)"
+      stroke-width="6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <rect x="29" y="68" width="64" height="36" rx="8" fill="#ffffff" />
+    <path
+      d="M36 76h50M36 85h50M36 94h50M50 68v36M68 68v36"
+      stroke="#6b7f92"
+      stroke-width="3"
+      stroke-linecap="round"
+    />
+    <path d="M22 119h96" stroke="#15503b" stroke-width="8" stroke-linecap="round" />
+  </g>
+</svg>

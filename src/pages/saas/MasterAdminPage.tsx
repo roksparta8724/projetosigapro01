@@ -443,7 +443,7 @@ export function MasterAdminPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 xl:grid-cols-[0.85fr_0.85fr_1fr]">
+          <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_1fr_1.2fr]">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
             <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Usuários ativos</p>
             <p className="mt-2 text-lg font-semibold text-slate-950">{tenant.users}</p>
@@ -462,7 +462,7 @@ export function MasterAdminPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
             <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Portal institucional</p>
-            <p className="mt-2 line-clamp-2 break-all text-sm font-medium leading-6 text-slate-900" title={portalLink}>
+            <p className="mt-2 truncate text-sm font-medium leading-6 text-slate-900" title={portalLink}>
               {portalLink}
             </p>
             <p className="mt-1 text-sm text-slate-500">Acesso oficial da Prefeitura e da equipe responsável.</p>
@@ -546,48 +546,48 @@ export function MasterAdminPage() {
                         </Button>
                       </div>
                     ) : null}
-                    <div className="grid gap-4 xl:grid-cols-3">
-                      <div className="sig-dark-panel flex min-h-[136px] flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm">
+                  <div className="grid gap-5 xl:grid-cols-12">
+                      <div className="sig-dark-panel flex min-h-[140px] min-w-0 flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm xl:col-span-7">
                         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Conta selecionada</p>
-                        <p className="mt-3 max-w-[18ch] text-balance text-[1.45rem] font-semibold leading-[1.18] tracking-[-0.03em] text-slate-950">
+                        <p className="mt-3 text-[1.35rem] font-semibold leading-[1.22] tracking-[-0.02em] text-slate-950 sig-url-display" title={activeTenant?.name || "Nova Prefeitura"}>
                           {activeTenant?.name || "Nova Prefeitura"}
                         </p>
-                        <p className="mt-auto pt-3 text-sm leading-6 text-slate-500">Ficha comercial e institucional.</p>
+                        <p className="pt-3 text-sm leading-6 text-slate-500">Ficha comercial e institucional.</p>
                       </div>
-                      <div className="sig-dark-panel flex min-h-[136px] flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm">
+                      <div className="sig-dark-panel flex min-h-[140px] min-w-0 flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm xl:col-span-5">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Saúde do contrato</p>
+                        <p className="mt-3 text-[1.35rem] font-semibold leading-[1.22] tracking-[-0.02em] text-slate-950" title={form.contractEnd || "Sem vencimento"}>
+                          {form.contractEnd || "Sem vencimento"}
+                        </p>
+                        <p className="pt-3 text-sm leading-6 text-slate-500">Renovação e recorrência.</p>
+                      </div>
+                      <div className="sig-dark-panel flex min-h-[128px] min-w-0 flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm xl:col-span-12">
                         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Entrega comercial</p>
                         <p
-                          className="mt-3 break-all text-[1.15rem] font-semibold leading-6 tracking-[-0.02em] text-slate-950"
+                          className="mt-3 text-[1.05rem] font-semibold leading-6 tracking-[-0.02em] text-slate-950 sig-url-display"
                           title={form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
                         >
                           {form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
                         </p>
-                        <p className="mt-auto pt-3 text-sm leading-6 text-slate-500">Portal e acesso institucional.</p>
-                      </div>
-                      <div className="sig-dark-panel flex min-h-[136px] flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Saúde do contrato</p>
-                        <p className="mt-3 text-balance text-[1.45rem] font-semibold leading-[1.18] tracking-[-0.03em] text-slate-950">
-                          {form.contractEnd || "Sem vencimento"}
-                        </p>
-                        <p className="mt-auto pt-3 text-sm leading-6 text-slate-500">Renovação e recorrência.</p>
+                        <p className="pt-3 text-sm leading-6 text-slate-500">Portal e acesso institucional.</p>
                       </div>
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
-                      <div className="space-y-2 xl:col-span-2">
-                        <Label>Nome institucional</Label>
-                        <Input value={form.name} onChange={(event) => handleSetForm("name", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2 xl:col-span-2">
-                        <Label>Cidade</Label>
-                        <Input value={form.city} onChange={(event) => handleSetForm("city", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>UF</Label>
-                        <Input value={form.state} onChange={(event) => handleSetForm("state", event.target.value)} className="sig-admin-input" />
-                      </div>
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-6">
+                      <Label>Nome institucional</Label>
+                      <Input value={form.name} onChange={(event) => handleSetForm("name", event.target.value)} className="sig-admin-input" />
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-8">
-                      <div className="space-y-2">
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>Cidade</Label>
+                      <Input value={form.city} onChange={(event) => handleSetForm("city", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-2">
+                      <Label>UF</Label>
+                      <Input value={form.state} onChange={(event) => handleSetForm("state", event.target.value)} className="sig-admin-input" />
+                    </div>
+                  </div>
+                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                      <div className="space-y-2 xl:col-span-3">
                         <Label>Status</Label>
                         <Select value={form.status} onValueChange={(value) => handleSetForm("status", value as Institution["status"])}>
                           <SelectTrigger className="sig-admin-input">
@@ -600,11 +600,13 @@ export function MasterAdminPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2 xl:col-span-2">
-                        <Label>Plano</Label>
-                        <Input value={form.plan} onChange={(event) => handleSetForm("plan", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2 xl:col-span-2">
+                    <div className="space-y-2 xl:col-span-9">
+                      <Label>Plano</Label>
+                      <Input value={form.plan} onChange={(event) => handleSetForm("plan", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
                         <Label>Subdomínio</Label>
                         <div className="sig-dark-panel rounded-[22px] border border-slate-200 p-[3px] shadow-sm">
                           <Textarea
@@ -614,12 +616,12 @@ export function MasterAdminPage() {
                             spellCheck={false}
                             autoCapitalize="none"
                             autoCorrect="off"
-                            className="sig-admin-input min-h-[52px] resize-none border-0 bg-transparent text-[13px] font-medium leading-5 tracking-[-0.01em] text-slate-900 shadow-none"
+                            className="sig-admin-input sig-admin-input-wrap resize-none border-0 bg-transparent text-[13px] font-medium leading-5 tracking-[-0.01em] text-slate-900 shadow-none"
                           />
                         </div>
                         <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapro.com.br.</p>
                       </div>
-                      <div className="space-y-2 xl:col-span-3">
+                      <div className="space-y-2">
                         <Label>Link de entrega</Label>
                         <div className="sig-dark-panel rounded-[22px] border border-slate-200 p-[3px] shadow-sm">
                           <Textarea
@@ -629,37 +631,37 @@ export function MasterAdminPage() {
                             spellCheck={false}
                             autoCapitalize="none"
                             autoCorrect="off"
-                            className="sig-admin-input min-h-[72px] resize-none border-0 bg-transparent text-[13px] font-medium leading-5 tracking-[-0.015em] text-slate-900 shadow-none"
+                            className="sig-admin-input sig-admin-input-wrap sig-admin-input-url resize-none border-0 bg-transparent text-[13px] font-medium leading-5 tracking-[-0.015em] text-slate-900 shadow-none"
                           />
                         </div>
                       </div>
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
+                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                      <div className="space-y-2 xl:col-span-6">
                         <Label>Mensalidade</Label>
                         <Input type="number" step="0.01" value={form.monthlyFee} onChange={(event) => handleSetForm("monthlyFee", Number(event.target.value))} className="sig-admin-input" />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 xl:col-span-6">
                         <Label>Taxa de implantação</Label>
                         <Input type="number" step="0.01" value={form.setupFee} onChange={(event) => handleSetForm("setupFee", Number(event.target.value))} className="sig-admin-input" />
                       </div>
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-                      <div className="space-y-2">
-                        <Label>Contrato</Label>
-                        <Input value={form.contractNumber} onChange={(event) => handleSetForm("contractNumber", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Início</Label>
-                        <Input type="date" value={form.contractStart} onChange={(event) => handleSetForm("contractStart", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Fim</Label>
-                        <Input type="date" value={form.contractEnd} onChange={(event) => handleSetForm("contractEnd", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Assinatura</Label>
-                        <Select value={form.signatureMode} onValueChange={(value) => handleSetForm("signatureMode", value as SignatureMode)}>
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>Contrato</Label>
+                      <Input value={form.contractNumber} onChange={(event) => handleSetForm("contractNumber", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-2">
+                      <Label>Início</Label>
+                      <Input type="date" value={form.contractStart} onChange={(event) => handleSetForm("contractStart", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-2">
+                      <Label>Fim</Label>
+                      <Input type="date" value={form.contractEnd} onChange={(event) => handleSetForm("contractEnd", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>Assinatura</Label>
+                      <Select value={form.signatureMode} onValueChange={(value) => handleSetForm("signatureMode", value as SignatureMode)}>
                           <SelectTrigger className="sig-admin-input">
                             <SelectValue />
                           </SelectTrigger>
@@ -671,48 +673,48 @@ export function MasterAdminPage() {
                         </Select>
                       </div>
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>CNPJ</Label>
-                        <Input value={form.cnpj} onChange={(event) => handleSetForm("cnpj", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Telefone</Label>
-                        <Input value={form.phone} onChange={(event) => handleSetForm("phone", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>E-mail oficial</Label>
-                        <Input value={form.email} onChange={(event) => handleSetForm("email", event.target.value)} className="sig-admin-input" />
-                      </div>
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>CNPJ</Label>
+                      <Input value={form.cnpj} onChange={(event) => handleSetForm("cnpj", event.target.value)} className="sig-admin-input" />
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Site</Label>
-                        <Input value={form.site} onChange={(event) => handleSetForm("site", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Secretaria principal</Label>
-                        <Input value={form.secretariat} onChange={(event) => handleSetForm("secretariat", event.target.value)} className="sig-admin-input" />
-                      </div>
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>Telefone</Label>
+                      <Input value={form.phone} onChange={(event) => handleSetForm("phone", event.target.value)} className="sig-admin-input" />
                     </div>
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>E-mail oficial</Label>
+                      <Input value={form.email} onChange={(event) => handleSetForm("email", event.target.value)} className="sig-admin-input" />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-7">
+                      <Label>Site</Label>
+                      <Input value={form.site} onChange={(event) => handleSetForm("site", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-5">
+                      <Label>Secretaria principal</Label>
+                      <Input value={form.secretariat} onChange={(event) => handleSetForm("secretariat", event.target.value)} className="sig-admin-input" />
+                    </div>
+                  </div>
                     <div className="space-y-2">
                       <Label>Endereço</Label>
                       <Input value={form.address} onChange={(event) => handleSetForm("address", event.target.value)} className="sig-admin-input" />
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>Diretoria</Label>
-                        <Input value={form.directorate} onChange={(event) => handleSetForm("directorate", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Telefone da diretoria</Label>
-                        <Input value={form.directorPhone} onChange={(event) => handleSetForm("directorPhone", event.target.value)} className="sig-admin-input" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>E-mail da diretoria</Label>
-                        <Input value={form.directorEmail} onChange={(event) => handleSetForm("directorEmail", event.target.value)} className="sig-admin-input" />
-                      </div>
+                  <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-5">
+                      <Label>Diretoria</Label>
+                      <Input value={form.directorate} onChange={(event) => handleSetForm("directorate", event.target.value)} className="sig-admin-input" />
                     </div>
+                    <div className="space-y-2 xl:col-span-3">
+                      <Label>Telefone da diretoria</Label>
+                      <Input value={form.directorPhone} onChange={(event) => handleSetForm("directorPhone", event.target.value)} className="sig-admin-input" />
+                    </div>
+                    <div className="space-y-2 xl:col-span-4">
+                      <Label>E-mail da diretoria</Label>
+                      <Input value={form.directorEmail} onChange={(event) => handleSetForm("directorEmail", event.target.value)} className="sig-admin-input" />
+                    </div>
+                  </div>
                     <div className="sig-dark-panel space-y-4 rounded-[24px] border border-slate-200 p-5">
                       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -792,7 +794,7 @@ export function MasterAdminPage() {
                         Copiar
                       </Button>
                     </div>
-                    <p className="mt-3 break-all text-[13px] font-semibold leading-6 text-slate-950" title={form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}>
+                    <p className="mt-3 text-[13px] font-semibold leading-6 text-slate-950 sig-url-display" title={form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}>
                       {form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-500">Acesso institucional publicado para a conta ativa.</p>

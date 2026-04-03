@@ -8,8 +8,13 @@
   "theme_color": "#1d4ed8",
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/favicon-sigapro.svg",
       "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "256x256",
       "type": "image/png"
     }
   ]

@@ -25,6 +25,12 @@ import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { loadMunicipalityBundleById } from "@/integrations/supabase/municipality";
 import { saveRemoteInstitutionSettings, uploadInstitutionalBrandingAsset } from "@/integrations/supabase/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import {
+  getMasterInstitutionBranding,
+  loadMasterBranding,
+  saveMasterBranding,
+  updateMasterBranding,
+} from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
 import { can, desktopThemePresets, mobileThemePresets } from "@/lib/platform";
 
@@ -90,6 +96,8 @@ export function ConfiguracoesPage() {
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
   const canManageTenantSettings = can(session, "manage_tenant_branding");
+  const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
+  const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const brandingUpdatedBy = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.id)
     ? session.id
     : "";
@@ -102,6 +110,8 @@ export function ConfiguracoesPage() {
     const b = clamp(parseInt(value.slice(4, 6), 16) - amount);
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
   };
+  const masterPrimaryColor = "#0f3557";
+  const masterAccentColor = "#178f78";
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -242,6 +252,7 @@ export function ConfiguracoesPage() {
     | "team"
     | "account"
     | "advanced"
+    | "platform"
   >("overview");
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
@@ -259,6 +270,26 @@ export function ConfiguracoesPage() {
   const [headerLogoStatus, setHeaderLogoStatus] = useState("");
   const [footerLogoStatus, setFooterLogoStatus] = useState("");
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
+  const [masterLogoFiles, setMasterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+  const [draftMasterLogoFiles, setDraftMasterLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(masterBranding.logoUrl ?? "", "master-logo"),
+  );
+  const [masterFooterText, setMasterFooterText] = useState(masterBranding.footerText ?? "");
+  const [draftMasterHeaderConfig, setDraftMasterHeaderConfig] = useState({
+    scale: masterBranding.headerLogoScale ?? masterBranding.logoScale ?? 1,
+    offsetX: masterBranding.headerLogoOffsetX ?? masterBranding.logoOffsetX ?? 0,
+    offsetY: masterBranding.headerLogoOffsetY ?? masterBranding.logoOffsetY ?? 0,
+  });
+  const [draftMasterFooterConfig, setDraftMasterFooterConfig] = useState({
+    scale: masterBranding.footerLogoScale ?? masterBranding.logoScale ?? 1,
+    offsetX: masterBranding.footerLogoOffsetX ?? masterBranding.logoOffsetX ?? 0,
+    offsetY: masterBranding.footerLogoOffsetY ?? masterBranding.logoOffsetY ?? 0,
+  });
+  const [masterHeaderStatus, setMasterHeaderStatus] = useState("");
+  const [masterFooterStatus, setMasterFooterStatus] = useState("");
+  const [masterLogoSaving, setMasterLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
+  const masterHeaderStatusIsSuccess = masterHeaderStatus.toLowerCase().includes("sucesso");
+  const masterFooterStatusIsSuccess = masterFooterStatus.toLowerCase().includes("sucesso");
   const [brasaoFiles, setBrasaoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.brasaoUrl ?? "", "brasao"));
   const [bandeiraFiles, setBandeiraFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.bandeiraUrl ?? "", "bandeira"));
   const [heroFiles, setHeroFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.imagemHeroUrl ?? "", "imagem institucional"));
@@ -402,6 +433,97 @@ export function ConfiguracoesPage() {
       setDraftHeaderLogoConfig(next);
     };
 
+  const updateMasterLogoFrame =
+    (variant: InstitutionalLogoConfigVariant) =>
+    ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+      const next = { scale, offsetX, offsetY };
+      if (variant === "footer") {
+        setDraftMasterFooterConfig(next);
+        return;
+      }
+      setDraftMasterHeaderConfig(next);
+    };
+
+  const previewMasterBrandingBase = useMemo(() => {
+    const draftLogoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+    return updateMasterBranding(masterBranding, {
+      logoUrl: draftLogoUrl,
+      logoAlt: "Logo institucional do SIGAPRO",
+      footerText: masterFooterText,
+      headerLogoScale: draftMasterHeaderConfig.scale,
+      headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+      headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+      footerLogoScale: draftMasterFooterConfig.scale,
+      footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+      footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+    });
+  }, [draftMasterFooterConfig, draftMasterHeaderConfig, draftMasterLogoFiles, masterBranding, masterFooterText]);
+
+  const previewMasterHeaderBranding = useMemo(
+    () => getMasterInstitutionBranding(previewMasterBrandingBase, "header"),
+    [previewMasterBrandingBase],
+  );
+  const previewMasterFooterBranding = useMemo(
+    () => getMasterInstitutionBranding(previewMasterBrandingBase, "footer"),
+    [previewMasterBrandingBase],
+  );
+
+  const handleConfirmMasterLogo = async (variant: InstitutionalLogoConfigVariant) => {
+    try {
+      setMasterHeaderStatus("");
+      setMasterFooterStatus("");
+      setMasterLogoSaving(variant);
+      const logoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+
+      if (!logoUrl) {
+        const message = "Envie o logo institucional da plataforma para continuar.";
+        if (variant === "footer") {
+          setMasterFooterStatus(message);
+        } else {
+          setMasterHeaderStatus(message);
+        }
+        return;
+      }
+
+      const updated = updateMasterBranding(masterBranding, {
+        logoUrl,
+        logoAlt: "Logo institucional do SIGAPRO",
+        logoUpdatedAt: new Date().toISOString(),
+        logoUpdatedBy: brandingUpdatedBy,
+        footerText: masterFooterText,
+        headerLogoScale: draftMasterHeaderConfig.scale,
+        headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+        headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+        footerLogoScale: draftMasterFooterConfig.scale,
+        footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+        footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+      });
+
+      setMasterBranding(updated);
+      setMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      setDraftMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      saveMasterBranding(updated);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sigapro-master-branding-updated"));
+      }
+
+      if (variant === "footer") {
+        setMasterFooterStatus("Logo do rodapé da plataforma atualizado com sucesso.");
+      } else {
+        setMasterHeaderStatus("Logo do cabeçalho da plataforma atualizado com sucesso.");
+      }
+    } catch (error) {
+      const message = resolveBrandingErrorMessage(error, "Falha ao aplicar o logo institucional da plataforma.");
+      if (variant === "footer") {
+        setMasterFooterStatus(message);
+      } else {
+        setMasterHeaderStatus(message);
+      }
+    } finally {
+      setMasterLogoSaving(null);
+    }
+  };
+
   useEffect(() => {
     setAccountForm((current) => ({
       ...current,
@@ -409,6 +531,22 @@ export function ConfiguracoesPage() {
       nextEmail: authenticatedEmail ?? session.email,
     }));
   }, [authenticatedEmail, session.email]);
+
+  useEffect(() => {
+    setMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+    setDraftMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+    setDraftMasterHeaderConfig({
+      scale: masterBranding.headerLogoScale ?? masterBranding.logoScale ?? 1,
+      offsetX: masterBranding.headerLogoOffsetX ?? masterBranding.logoOffsetX ?? 0,
+      offsetY: masterBranding.headerLogoOffsetY ?? masterBranding.logoOffsetY ?? 0,
+    });
+    setDraftMasterFooterConfig({
+      scale: masterBranding.footerLogoScale ?? masterBranding.logoScale ?? 1,
+      offsetX: masterBranding.footerLogoOffsetX ?? masterBranding.logoOffsetX ?? 0,
+      offsetY: masterBranding.footerLogoOffsetY ?? masterBranding.logoOffsetY ?? 0,
+    });
+    setMasterFooterText(masterBranding.footerText ?? "");
+  }, [masterBranding]);
 
   const setAccountField = (field: keyof typeof accountForm, value: string) => {
     setAccountForm((current) => ({ ...current, [field]: value }));
@@ -1055,9 +1193,9 @@ export function ConfiguracoesPage() {
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
       <PageShell>
       <PageHeader
-        eyebrow="Branding institucional"
+        eyebrow="Identidade visual"
         title="Identidade e operação institucional"
-        description="Organize branding, contatos oficiais, prefixos e preferências da Prefeitura."
+        description="Organize identidade visual, contatos oficiais, prefixos e preferências da Prefeitura."
         icon={MonitorCog}
         className="rounded-[30px] p-5 md:p-6 lg:p-7"
       />
@@ -1070,7 +1208,7 @@ export function ConfiguracoesPage() {
       <InternalTabs
         items={[
           { value: "overview", label: "Visão geral", helper: "Resumo institucional" },
-          { value: "branding", label: "Branding", helper: "Logo e identidade" },
+          { value: "branding", label: "Identidade visual", helper: "Logo e identidade" },
           { value: "institutional", label: "Dados institucionais", helper: "Prefeitura e cadastro" },
           { value: "communication", label: "Comunicação oficial", helper: "Canais e contato público" },
           { value: "protocol", label: "Protocolo e prefixos", helper: "Numeração e DAM" },
@@ -1084,7 +1222,7 @@ export function ConfiguracoesPage() {
       {activeSettingsView === "overview" ? overviewSection : null}
       {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4">
         {activeSettingsView === "branding" ? <PageMainContent className="xl:col-span-12">
-        <SectionCard title="Branding e identidade" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
+        <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
             {session.tenantId === null ? (
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -1224,163 +1362,181 @@ export function ConfiguracoesPage() {
               </div>
             </div>
 
-            <div className="space-y-2 md:hidden">
-              <Label>Tema visual institucional</Label>
-              <div className="grid gap-3">
-                {mobileThemePresets.map((preset) => {
-                  const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() =>
-                        setTenantForm((current) => ({
-                          ...current,
-                          primaryColor: preset.primary,
-                          accentColor: preset.accent,
-                        }))
-                      }
-                      className={`rounded-[20px] border p-3 text-left transition ${
-                        active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
-                      }`}
+            {isMasterRole ? (
+              <div className="space-y-2 md:hidden">
+                <Label>Tema visual institucional</Label>
+                <div className="grid gap-3">
+                  {mobileThemePresets.map((preset) => {
+                    const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setTenantForm((current) => ({
+                            ...current,
+                            primaryColor: preset.primary,
+                            accentColor: preset.accent,
+                          }))
+                        }
+                        className={`rounded-[20px] border p-3 text-left transition ${
+                          active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="overflow-hidden rounded-[14px] border border-slate-200">
+                          <div style={{ height: 10, background: darken(preset.primary, 28) }} />
+                          <div
+                            style={{
+                              height: 42,
+                              background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
+                            }}
+                          />
+                        </div>
+                        <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
+                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
+                        </div>
+                        {active ? (
+                          <span className="mt-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-white md:hidden">
+                            Tema ativo
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                <Select
+                  value={activeTenantMobileThemePreset.id}
+                  onValueChange={(value) => {
+                    const preset = mobileThemePresets.find((item) => item.id === value);
+                    if (!preset) return;
+                    setTenantForm((current) => ({
+                      ...current,
+                      primaryColor: preset.primary,
+                      accentColor: preset.accent,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-12 rounded-2xl">
+                    <SelectValue placeholder="Selecione um dos 4 temas oficiais" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mobileThemePresets.map((preset) => (
+                      <SelectItem key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Tema selecionado</p>
+                  <div className="mt-3 flex items-center gap-4">
+                    <span
+                      className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-slate-200 shadow-sm"
+                      style={{
+                        background: `linear-gradient(135deg, ${activeTenantMobileThemePreset.primary} 0%, ${darken(activeTenantMobileThemePreset.primary, -8)} 100%)`,
+                      }}
                     >
-                      <div className="overflow-hidden rounded-[14px] border border-slate-200">
-                        <div style={{ height: 10, background: darken(preset.primary, 28) }} />
-                        <div
-                          style={{
-                            height: 42,
-                            background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
-                          }}
-                        />
-                      </div>
-                      <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
-                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
-                      </div>
-                      {active ? (
-                        <span className="mt-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-white md:hidden">
-                          Tema ativo
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-              <Select
-                value={activeTenantMobileThemePreset.id}
-                onValueChange={(value) => {
-                  const preset = mobileThemePresets.find((item) => item.id === value);
-                  if (!preset) return;
-                  setTenantForm((current) => ({
-                    ...current,
-                    primaryColor: preset.primary,
-                    accentColor: preset.accent,
-                  }));
-                }}
-              >
-                <SelectTrigger className="h-12 rounded-2xl">
-                  <SelectValue placeholder="Selecione um dos 4 temas oficiais" />
-                </SelectTrigger>
-                <SelectContent>
-                  {themePresets.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Tema selecionado</p>
-                <div className="mt-3 flex items-center gap-4">
-                  <span
-                    className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-slate-200 shadow-sm"
-                    style={{
-                      background: `linear-gradient(135deg, ${activeTenantMobileThemePreset.primary} 0%, ${darken(activeTenantMobileThemePreset.primary, -8)} 100%)`,
-                    }}
-                  >
-                    <Palette className="h-4 w-4 text-white" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900">{activeTenantMobileThemePreset.label}</p>
-                    <p className="text-sm leading-6 text-slate-500">{activeTenantMobileThemePreset.description}</p>
+                      <Palette className="h-4 w-4 text-white" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900">{activeTenantMobileThemePreset.label}</p>
+                      <p className="text-sm leading-6 text-slate-500">{activeTenantMobileThemePreset.description}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.primary }} />
+                    <span className="text-xs text-slate-500">Base institucional</span>
+                    <span className="ml-3 h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.accent }} />
+                    <span className="text-xs text-slate-500">Acento visual</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.primary }} />
-                  <span className="text-xs text-slate-500">Base institucional</span>
-                  <span className="ml-3 h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.accent }} />
-                  <span className="text-xs text-slate-500">Acento visual</span>
+              </div>
+            ) : (
+              <div className="space-y-2 md:hidden">
+                <Label>Tema visual institucional</Label>
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="text-sm text-slate-700">A paleta visual segue o layout institucional do SIGAPRO. Ajuste disponível apenas no painel master.</p>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="hidden space-y-2 md:block">
-              <Label>Variedade de cores do layout</Label>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {desktopThemePresets.map((preset) => {
-                  const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() =>
-                        setTenantForm((current) => ({
-                          ...current,
-                          primaryColor: preset.primary,
-                          accentColor: preset.accent,
-                        }))
-                      }
-                      className={`rounded-[20px] border p-3 text-left transition ${
-                        active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="overflow-hidden rounded-[14px] border border-slate-200">
-                        <div style={{ height: 10, background: darken(preset.primary, 28) }} />
-                        <div
-                          style={{
-                            height: 42,
-                            background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
-                          }}
-                        />
-                      </div>
-                      <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
-                        <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
-                      </div>
-                    </button>
-                  );
-                })}
+            {isMasterRole ? (
+              <div className="hidden space-y-2 md:block">
+                <Label>Variedade de cores do layout</Label>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {desktopThemePresets.map((preset) => {
+                    const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setTenantForm((current) => ({
+                            ...current,
+                            primaryColor: preset.primary,
+                            accentColor: preset.accent,
+                          }))
+                        }
+                        className={`rounded-[20px] border p-3 text-left transition ${
+                          active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="overflow-hidden rounded-[14px] border border-slate-200">
+                          <div style={{ height: 10, background: darken(preset.primary, 28) }} />
+                          <div
+                            style={{
+                              height: 42,
+                              background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
+                            }}
+                          />
+                        </div>
+                        <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
+                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Select
+                  value={desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor)?.id ?? "personalizado"}
+                  onValueChange={(value) => {
+                    if (value === "personalizado") return;
+                    const preset = desktopThemePresets.find((item) => item.id === value);
+                    if (!preset) return;
+                    setTenantForm((current) => ({
+                      ...current,
+                      primaryColor: preset.primary,
+                      accentColor: preset.accent,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-12 rounded-2xl">
+                    <SelectValue placeholder="Selecione uma paleta pronta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personalizado">Personalizado atual</SelectItem>
+                    {desktopThemePresets.map((preset) => (
+                      <SelectItem key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor)?.id ?? "personalizado"}
-                onValueChange={(value) => {
-                  if (value === "personalizado") return;
-                  const preset = desktopThemePresets.find((item) => item.id === value);
-                  if (!preset) return;
-                  setTenantForm((current) => ({
-                    ...current,
-                    primaryColor: preset.primary,
-                    accentColor: preset.accent,
-                  }));
-                }}
-              >
-                <SelectTrigger className="h-12 rounded-2xl">
-                  <SelectValue placeholder="Selecione uma paleta pronta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personalizado">Personalizado atual</SelectItem>
-                  {desktopThemePresets.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            ) : (
+              <div className="hidden space-y-2 md:block">
+                <Label>Tema visual institucional</Label>
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="text-sm text-slate-700">A paleta visual segue o layout institucional do SIGAPRO. Ajuste disponível apenas no painel master.</p>
+                </div>
+              </div>
+            )}
 
             {/* Removed manual color pickers to keep the layout clean and focused on presets. */}
 
@@ -1601,6 +1757,192 @@ export function ConfiguracoesPage() {
             </div>
         </SectionCard>
         </PageMainContent> : null}
+        {activeSettingsView === "platform" && isMasterRole ? (
+          <PageMainContent className="xl:col-span-12">
+            <SectionCard
+              title="Administração da plataforma"
+              description="Defina a identidade visual exclusiva do ambiente Master."
+              icon={MonitorCog}
+              contentClassName="space-y-5"
+              headerClassName="gap-2 pb-3"
+            >
+              <div className="grid gap-4">
+                <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+                  <div className="flex items-center gap-2 text-slate-950">
+                    <ImageIcon className="h-4 w-4" />
+                    <p className="text-sm text-slate-900">Logo institucional da plataforma (Master)</p>
+                  </div>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    Configure o logo exibido no cabeçalho e no rodapé do ambiente Master, sem misturar com a Prefeitura.
+                  </p>
+                  <div className="mt-4 grid gap-6 2xl:grid-cols-[minmax(520px,1.15fr)_minmax(340px,0.85fr)]">
+                    <div
+                      className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                      style={{ background: `linear-gradient(135deg, ${masterPrimaryColor} 0%, ${darken(masterPrimaryColor, -6)} 58%, ${darken(masterPrimaryColor, -10)} 100%)` }}
+                    >
+                      <div
+                        className="rounded-[22px] px-5 pb-4 pt-4"
+                        style={{ background: `linear-gradient(90deg, ${darken(masterPrimaryColor, 28)} 0%, ${darken(masterPrimaryColor, 18)} 46%, ${darken(masterPrimaryColor, 10)} 100%)` }}
+                      >
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-[#d4e7f7]">Visual institucional</p>
+                        <p className="mt-2 text-sm leading-6 text-white md:text-[15px]">Cabeçalho Master</p>
+                      </div>
+                      <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center xl:grid-cols-[240px_minmax(0,1fr)]">
+                        <InstitutionalLogo
+                          branding={previewMasterHeaderBranding}
+                          fallbackLabel="SIGAPRO"
+                          variant="header"
+                          className="mx-auto shrink-0 lg:mx-0"
+                        />
+                        <div className="min-w-0 flex-1 text-white">
+                          <p className="text-balance break-words text-[15px] font-semibold leading-tight text-white md:text-[17px] xl:text-[18px]">
+                            SIGAPRO
+                          </p>
+                          <p className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm" style={{ color: masterAccentColor }}>
+                            Plataforma institucional
+                          </p>
+                          <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
+                            <span className="truncate">Ambiente Master</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {draftMasterLogoFiles[0]?.previewUrl ? (
+                        <ImageFrameEditor
+                          imageUrl={draftMasterLogoFiles[0].previewUrl}
+                          scale={draftMasterHeaderConfig.scale}
+                          offsetX={draftMasterHeaderConfig.offsetX}
+                          offsetY={draftMasterHeaderConfig.offsetY}
+                          onChange={updateMasterLogoFrame("header")}
+                          label="Enquadramento do cabeçalho"
+                          hint="Arraste a marca dentro do quadro e use o scroll para posicionar o logo do cabeçalho Master."
+                          frameClassName="justify-start"
+                          viewportClassName="h-[104px] w-[176px] rounded-[18px]"
+                          wrapperClassName="border-slate-200 bg-white"
+                        />
+                      ) : (
+                        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
+                          Envie o logo do SIGAPRO para liberar o ajuste do cabeçalho Master.
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => setDraftMasterHeaderConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                        >
+                          Restaurar enquadramento
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-2xl bg-slate-950 hover:bg-slate-900"
+                          onClick={() => handleConfirmMasterLogo("header")}
+                          disabled={masterLogoSaving === "header"}
+                        >
+                          {masterLogoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
+                        </Button>
+                      </div>
+                      {masterHeaderStatus ? (
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-sm ${
+                            masterHeaderStatusIsSuccess
+                              ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700"
+                              : "border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {masterHeaderStatus}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                    <div
+                      className="rounded-[28px] p-5 shadow-sm"
+                      style={{ background: `linear-gradient(135deg, ${darken(masterPrimaryColor, 2)} 0%, ${masterPrimaryColor} 48%, ${darken(masterPrimaryColor, 10)} 100%)` }}
+                    >
+                      <div className="flex items-center justify-center py-3">
+                        <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {draftMasterLogoFiles[0]?.previewUrl ? (
+                        <ImageFrameEditor
+                          imageUrl={draftMasterLogoFiles[0].previewUrl}
+                          scale={draftMasterFooterConfig.scale}
+                          offsetX={draftMasterFooterConfig.offsetX}
+                          offsetY={draftMasterFooterConfig.offsetY}
+                          onChange={updateMasterLogoFrame("footer")}
+                          label="Enquadramento do rodapé"
+                          hint="Ajuste o logo especificamente para o rodapé Master, sem afetar o cabeçalho."
+                          frameClassName="justify-start"
+                          viewportClassName="h-[138px] w-[140px] rounded-[18px]"
+                          wrapperClassName="border-slate-200 bg-white"
+                        />
+                      ) : (
+                        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
+                          Envie o logo do SIGAPRO para liberar o ajuste do rodapé Master.
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => setDraftMasterFooterConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                        >
+                          Restaurar enquadramento
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-2xl bg-slate-950 hover:bg-slate-900"
+                          onClick={() => handleConfirmMasterLogo("footer")}
+                          disabled={masterLogoSaving === "footer"}
+                        >
+                          {masterLogoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
+                        </Button>
+                      </div>
+                      {masterFooterStatus ? (
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-sm ${
+                            masterFooterStatusIsSuccess
+                              ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700"
+                              : "border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {masterFooterStatus}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                    <FileDropZone
+                      title="Logo da plataforma"
+                      description="Logo exibido no ambiente Master, separado do logo das Prefeituras."
+                      accept="image/*"
+                      multiple={false}
+                      allowPreview
+                      files={draftMasterLogoFiles}
+                      onFilesSelected={setDraftMasterLogoFiles}
+                    />
+                    <div className="space-y-2">
+                      <Label>Texto do rodapé Master</Label>
+                      <Textarea
+                        rows={3}
+                        value={masterFooterText}
+                        onChange={(event) => setMasterFooterText(event.target.value)}
+                        className="min-h-[90px]"
+                        placeholder="SIGAPRO — Plataforma institucional para aprovação de projetos"
+                      />
+                      <p className="text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+          </PageMainContent>
+        ) : null}
 
         {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="xl:col-span-12">
         <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>

@@ -11,7 +11,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1560px] flex-col gap-4 px-0 pb-6 sm:gap-5 md:gap-6 xl:px-2 2xl:max-w-[1640px]",
+        "mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-0 pb-6 sm:gap-5 md:gap-6 xl:px-2 2xl:max-w-[1700px]",
       className,
     )}
   >
@@ -54,12 +54,12 @@ export function PageHeader({
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">
-              {eyebrow ? <p className="sig-section-label text-[#64748b]">{eyebrow}</p> : null}
-              <h1 className="sig-page-title mt-1.5 max-w-full text-[#0f172a]" title={title}>
+              {eyebrow ? <p className="sig-section-label">{eyebrow}</p> : null}
+              <h1 className="sig-page-title mt-1.5 max-w-full text-balance" title={title}>
                 {title}
               </h1>
               {description ? (
-                <p className="sig-subtitle mt-2 line-clamp-2 max-w-[64ch] text-[#64748b]" title={description}>
+                <p className="sig-subtitle mt-2 line-clamp-3 max-w-[72ch]" title={description}>
                   {description}
                 </p>
               ) : null}
@@ -130,8 +130,8 @@ export function SectionCard({
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">
-              <h2 className="sig-section-title line-clamp-2 max-w-[34ch]" title={title}>{title}</h2>
-              {description ? <p className="sig-subtitle mt-1 line-clamp-2 max-w-[60ch]" title={description}>{description}</p> : null}
+              <h2 className="sig-section-title line-clamp-3 max-w-[42ch]" title={title}>{title}</h2>
+              {description ? <p className="sig-subtitle mt-1 line-clamp-3 max-w-[72ch]" title={description}>{description}</p> : null}
             </div>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,8fr)_minmax(320px,4fr)] xl:items-start",
+        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2.1fr)_minmax(360px,0.95fr)] xl:items-start 2xl:grid-cols-[minmax(0,2.25fr)_minmax(400px,1fr)]",
         className,
       )}
     >

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -9,6 +9,7 @@ import {
   type TenantSettings,
 } from "@/lib/platform";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
+import { getMasterInstitutionBranding, loadMasterBranding } from "@/lib/masterBranding";
 
 function buildEmptyTenantSettings(tenantId: string): TenantSettings {
   return {
@@ -79,7 +80,16 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const { session } = usePlatformSession();
   const { municipality, branding: municipalityBranding, scopeId, tenantSettingsCompat } = useMunicipality();
   const { institutions, getInstitutionSettings } = usePlatformData();
+  const isMaster = session.role === "master_admin" || session.role === "master_ops";
+  const [masterBrandingState, setMasterBrandingState] = useState(() => loadMasterBranding());
   const resolvedInstitutionId = tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
+  const shouldUseMasterBranding =
+    isMaster &&
+    !tenantId &&
+    !municipality?.id &&
+    !scopeId &&
+    !session.municipalityId &&
+    !session.tenantId;
   const institution = municipality
     ? {
         id: municipality.id,
@@ -101,25 +111,38 @@ export function useInstitutionBranding(tenantId?: string | null) {
     institutionSettings?.resumoPlanoDiretor ??
     "SIGAPRO — Plataforma institucional para aprovação de projetos";
 
-  const headerBranding = useMemo(
-    () =>
-      getInstitutionBranding(
-        institutionSettings,
-        institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
-        "header",
-      ),
-    [institution?.name, institutionSettings],
-  );
+  const resolvedFooterText = shouldUseMasterBranding
+    ? masterBrandingState.footerText || officialFooterText
+    : officialFooterText;
 
-  const footerBranding = useMemo(
-    () =>
-      getInstitutionBranding(
-        institutionSettings,
-        institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
-        "footer",
-      ),
-    [institution?.name, institutionSettings],
-  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => setMasterBrandingState(loadMasterBranding());
+    window.addEventListener("sigapro-master-branding-updated", handler as EventListener);
+    return () => window.removeEventListener("sigapro-master-branding-updated", handler as EventListener);
+  }, []);
+
+  const headerBranding = useMemo(() => {
+    if (shouldUseMasterBranding) {
+      return getMasterInstitutionBranding(masterBrandingState, "header");
+    }
+    return getInstitutionBranding(
+      institutionSettings,
+      institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
+      "header",
+    );
+  }, [institution?.name, institutionSettings, masterBrandingState, shouldUseMasterBranding]);
+
+  const footerBranding = useMemo(() => {
+    if (shouldUseMasterBranding) {
+      return getMasterInstitutionBranding(masterBrandingState, "footer");
+    }
+    return getInstitutionBranding(
+      institutionSettings,
+      institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
+      "footer",
+    );
+  }, [institution?.name, institutionSettings, masterBrandingState, shouldUseMasterBranding]);
 
   return {
     tenant: institution,
@@ -130,7 +153,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     headerBranding,
     footerBranding,
     officialHeaderText,
-    officialFooterText,
+    officialFooterText: resolvedFooterText,
     canEditBranding: can(session, "manage_tenant_branding"),
   };
 }

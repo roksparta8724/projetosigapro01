@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
+import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { InternalSectionNav } from "@/components/platform/PageLayout";
@@ -29,8 +30,29 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { saveRemoteProfile, uploadFileToStorage } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
+import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import {
+  getMasterInstitutionBranding,
+  loadMasterBranding,
+  saveMasterBranding,
+  updateMasterBranding,
+} from "@/lib/masterBranding";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
+
+function imageFiles(url: string, label: string): UploadedFileItem[] {
+  return url
+    ? [
+        {
+          id: `${label}-${encodeURIComponent(url)}`,
+          fileName: label,
+          mimeType: "image/*",
+          sizeLabel: "imagem salva",
+          previewUrl: url,
+        },
+      ]
+    : [];
+}
 
 type ProfileSection =
   | "visao-geral"
@@ -46,6 +68,10 @@ export function PerfilPage() {
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
   const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
+  const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
+  const brandingUpdatedBy = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.id)
+    ? session.id
+    : session.email || session.name;
   const profile = getUserProfile(session.id);
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
@@ -59,6 +85,25 @@ export function PerfilPage() {
   const lastAvatarSourceRef = useRef("");
   const hydratedDraftRef = useRef(false);
   const lastCepLookupRef = useRef("");
+  const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
+  const [masterLogoFiles, setMasterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+  const [draftMasterLogoFiles, setDraftMasterLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(masterBranding.logoUrl ?? "", "master-logo"),
+  );
+  const [masterFooterText, setMasterFooterText] = useState(masterBranding.footerText ?? "");
+  const [draftMasterHeaderConfig, setDraftMasterHeaderConfig] = useState({
+    scale: masterBranding.headerLogoScale ?? 1,
+    offsetX: masterBranding.headerLogoOffsetX ?? 0,
+    offsetY: masterBranding.headerLogoOffsetY ?? 0,
+  });
+  const [draftMasterFooterConfig, setDraftMasterFooterConfig] = useState({
+    scale: masterBranding.footerLogoScale ?? 1,
+    offsetX: masterBranding.footerLogoOffsetX ?? 0,
+    offsetY: masterBranding.footerLogoOffsetY ?? 0,
+  });
+  const [masterHeaderStatus, setMasterHeaderStatus] = useState("");
+  const [masterFooterStatus, setMasterFooterStatus] = useState("");
+  const [masterLogoSaving, setMasterLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
   const [form, setForm] = useState({
     fullName: session.name,
     email: session.email,
@@ -128,6 +173,22 @@ export function PerfilPage() {
       ]);
     }
   }, [profile]);
+
+  useEffect(() => {
+    setMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+    setDraftMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
+    setDraftMasterHeaderConfig({
+      scale: masterBranding.headerLogoScale ?? 1,
+      offsetX: masterBranding.headerLogoOffsetX ?? 0,
+      offsetY: masterBranding.headerLogoOffsetY ?? 0,
+    });
+    setDraftMasterFooterConfig({
+      scale: masterBranding.footerLogoScale ?? 1,
+      offsetX: masterBranding.footerLogoOffsetX ?? 0,
+      offsetY: masterBranding.footerLogoOffsetY ?? 0,
+    });
+    setMasterFooterText(masterBranding.footerText ?? "");
+  }, [masterBranding.logoUrl]);
 
   useEffect(() => {
     setAccountForm((current) => ({
@@ -259,6 +320,95 @@ export function PerfilPage() {
 
   const setAccountField = (field: keyof typeof accountForm, value: string) => {
     setAccountForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateMasterLogoFrame =
+    (variant: InstitutionalLogoConfigVariant) =>
+    ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+      if (variant === "footer") {
+        setDraftMasterFooterConfig({ scale, offsetX, offsetY });
+        return;
+      }
+      setDraftMasterHeaderConfig({ scale, offsetX, offsetY });
+    };
+
+  const previewMasterBrandingBase = useMemo(() => {
+    const draftLogoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+    return updateMasterBranding(masterBranding, {
+      logoUrl: draftLogoUrl,
+      footerText: masterFooterText,
+      headerLogoScale: draftMasterHeaderConfig.scale,
+      headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+      headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+      footerLogoScale: draftMasterFooterConfig.scale,
+      footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+      footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+    });
+  }, [draftMasterFooterConfig, draftMasterHeaderConfig, draftMasterLogoFiles, masterBranding, masterFooterText]);
+
+  const previewMasterHeaderBranding = useMemo(
+    () => getMasterInstitutionBranding(previewMasterBrandingBase, "header"),
+    [previewMasterBrandingBase],
+  );
+  const previewMasterFooterBranding = useMemo(
+    () => getMasterInstitutionBranding(previewMasterBrandingBase, "footer"),
+    [previewMasterBrandingBase],
+  );
+
+  const handleConfirmMasterLogo = async (variant: InstitutionalLogoConfigVariant) => {
+    try {
+      setMasterHeaderStatus("");
+      setMasterFooterStatus("");
+      setMasterLogoSaving(variant);
+      const logoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+
+      if (!logoUrl) {
+        const message = "Envie o logo institucional da plataforma para continuar.";
+        if (variant === "footer") {
+          setMasterFooterStatus(message);
+        } else {
+          setMasterHeaderStatus(message);
+        }
+        return;
+      }
+
+      const updated = updateMasterBranding(masterBranding, {
+        logoUrl,
+        logoAlt: "Logo institucional do SIGAPRO",
+        logoUpdatedAt: new Date().toISOString(),
+        logoUpdatedBy: brandingUpdatedBy,
+        footerText: masterFooterText,
+        headerLogoScale: draftMasterHeaderConfig.scale,
+        headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+        headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+        footerLogoScale: draftMasterFooterConfig.scale,
+        footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+        footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+      });
+
+      setMasterBranding(updated);
+      setMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      setDraftMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      saveMasterBranding(updated);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sigapro-master-branding-updated"));
+      }
+
+      if (variant === "footer") {
+        setMasterFooterStatus("Logo do rodapé da plataforma atualizado com sucesso.");
+      } else {
+        setMasterHeaderStatus("Logo do cabeçalho da plataforma atualizado com sucesso.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível atualizar o logo agora.";
+      if (variant === "footer") {
+        setMasterFooterStatus(message);
+      } else {
+        setMasterHeaderStatus(message);
+      }
+    } finally {
+      setMasterLogoSaving(null);
+    }
   };
 
   const handleUpdateEmail = async () => {
@@ -561,6 +711,7 @@ export function PerfilPage() {
                     </div>
                   </div>
                 </SectionCard>
+
               </PageSideContent>
             </PageMainGrid>
           </>
@@ -696,6 +847,160 @@ export function PerfilPage() {
               <Button type="button" className="h-11 rounded-2xl bg-slate-950 px-6 hover:bg-slate-900" onClick={(event) => void handleSubmit(event as unknown as FormEvent)} disabled={saving}>
                 {saving ? "Salvando..." : "Salvar ajustes da foto"}
               </Button>
+
+              {isMasterRole ? (
+                <div className="pt-2">
+                  <SectionCard
+                    title="Identidade visual do Master"
+                    description="Logo de cabeçalho e rodapé exclusivos do ambiente Master."
+                    icon={Building2}
+                  >
+                    <div className="space-y-6">
+                      <div className="rounded-[22px] border border-slate-200 bg-slate-950 p-5 text-white">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Cabeçalho Master</p>
+                            <p className="mt-2 text-sm text-slate-300">Pré-visualização do topo institucional.</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <InstitutionalLogo branding={previewMasterHeaderBranding} fallbackLabel="SIGAPRO" variant="header" />
+                            <div className="min-w-[120px]">
+                              <p className="text-sm font-semibold text-white">SIGAPRO</p>
+                              <p className="text-xs text-slate-300">Ambiente Master</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                        <FileDropZone
+                          title="Logo da plataforma (Master)"
+                          description="Logo exclusivo do Master, sem misturar com Prefeituras."
+                          accept="image/*"
+                          multiple={false}
+                          allowPreview
+                          files={draftMasterLogoFiles}
+                          onFilesSelected={setDraftMasterLogoFiles}
+                        />
+                        <div className="space-y-3">
+                          {draftMasterLogoFiles[0]?.previewUrl ? (
+                            <ImageFrameEditor
+                              imageUrl={draftMasterLogoFiles[0].previewUrl}
+                              scale={draftMasterHeaderConfig.scale}
+                              offsetX={draftMasterHeaderConfig.offsetX}
+                              offsetY={draftMasterHeaderConfig.offsetY}
+                              onChange={updateMasterLogoFrame("header")}
+                              label="Enquadramento do cabeçalho"
+                              hint="Ajuste o logo para o cabeçalho Master."
+                              frameClassName="justify-start"
+                              viewportClassName="h-[128px] w-[180px] rounded-[18px]"
+                              wrapperClassName="border-slate-200 bg-white"
+                            />
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                              Envie o logo do SIGAPRO para liberar o ajuste do cabeçalho Master.
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-2xl"
+                              onClick={() => setDraftMasterHeaderConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                            >
+                              Resetar posição
+                            </Button>
+                            <Button
+                              type="button"
+                              className="rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                              onClick={() => handleConfirmMasterLogo("header")}
+                              disabled={masterLogoSaving === "header"}
+                            >
+                              {masterLogoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
+                            </Button>
+                          </div>
+                          {masterHeaderStatus ? (
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+                              {masterHeaderStatus}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[22px] border border-slate-200 bg-slate-950 p-5 text-white">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Rodapé Master</p>
+                            <p className="mt-2 text-sm text-slate-300">Pré-visualização do rodapé institucional.</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
+                            <p className="max-w-[220px] text-xs text-slate-300">{masterFooterText || "SIGAPRO — Plataforma institucional"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                        <div className="space-y-3">
+                          {draftMasterLogoFiles[0]?.previewUrl ? (
+                            <ImageFrameEditor
+                              imageUrl={draftMasterLogoFiles[0].previewUrl}
+                              scale={draftMasterFooterConfig.scale}
+                              offsetX={draftMasterFooterConfig.offsetX}
+                              offsetY={draftMasterFooterConfig.offsetY}
+                              onChange={updateMasterLogoFrame("footer")}
+                              label="Enquadramento do rodapé"
+                              hint="Ajuste o logo especificamente para o rodapé Master."
+                              frameClassName="justify-start"
+                              viewportClassName="h-[128px] w-[180px] rounded-[18px]"
+                              wrapperClassName="border-slate-200 bg-white"
+                            />
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                              Envie o logo do SIGAPRO para liberar o ajuste do rodapé Master.
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-2xl"
+                              onClick={() => setDraftMasterFooterConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                            >
+                              Resetar posição
+                            </Button>
+                            <Button
+                              type="button"
+                              className="rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                              onClick={() => handleConfirmMasterLogo("footer")}
+                              disabled={masterLogoSaving === "footer"}
+                            >
+                              {masterLogoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
+                            </Button>
+                          </div>
+                          {masterFooterStatus ? (
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+                              {masterFooterStatus}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Texto do rodapé Master</Label>
+                          <Textarea
+                            rows={3}
+                            value={masterFooterText}
+                            onChange={(event) => setMasterFooterText(event.target.value)}
+                            className="min-h-[96px]"
+                            placeholder="SIGAPRO — Plataforma institucional de projetos"
+                          />
+                          <p className="text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </SectionCard>
+                </div>
+              ) : null}
             </div>
           </SectionCard>
         ) : null}

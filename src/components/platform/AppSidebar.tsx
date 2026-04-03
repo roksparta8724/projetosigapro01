@@ -248,7 +248,7 @@ export function AppSidebar({
           className={cn(
             "relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch transition-[width] duration-200 lg:sticky lg:top-[56px] lg:flex lg:flex-col",
             expanded
-              ? "w-[244px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
+              ? "w-[276px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
               : "w-0 overflow-hidden after:hidden",
             className,
         )}

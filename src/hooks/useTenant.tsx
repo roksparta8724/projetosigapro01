@@ -65,7 +65,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
 
     const branding = bundle?.branding ?? null;
-    const faviconUrl = branding?.logoUrl || branding?.coatOfArmsUrl || "/favicon.png";
+    const faviconUrl = branding?.logoUrl || branding?.coatOfArmsUrl || "/favicon-sigapro.svg";
     const link =
       document.querySelector<HTMLLinkElement>("link[rel='icon']") ||
       document.querySelector<HTMLLinkElement>("link[rel='shortcut icon']");

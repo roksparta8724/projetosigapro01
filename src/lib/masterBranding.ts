@@ -1,0 +1,119 @@
+import type { InstitutionalBranding, InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+
+export type MasterBrandingState = {
+  logoUrl: string;
+  logoAlt: string;
+  logoUpdatedAt: string;
+  logoUpdatedBy: string;
+  footerText: string;
+  logoScale: number;
+  logoOffsetX: number;
+  logoOffsetY: number;
+  logoFrameMode: "soft-square" | "rounded";
+  logoFitMode: "contain" | "cover";
+  headerLogoScale: number;
+  headerLogoOffsetX: number;
+  headerLogoOffsetY: number;
+  headerLogoFrameMode: "soft-square" | "rounded";
+  headerLogoFitMode: "contain" | "cover";
+  footerLogoScale: number;
+  footerLogoOffsetX: number;
+  footerLogoOffsetY: number;
+  footerLogoFrameMode: "soft-square" | "rounded";
+  footerLogoFitMode: "contain" | "cover";
+};
+
+const STORAGE_KEY = "sigapro-master-branding";
+
+const defaultMasterBranding: MasterBrandingState = {
+  logoUrl: "",
+  logoAlt: "Logo institucional do SIGAPRO",
+  logoUpdatedAt: "",
+  logoUpdatedBy: "",
+  footerText: "SIGAPRO — Plataforma institucional para aprovação de projetos",
+  logoScale: 1,
+  logoOffsetX: 0,
+  logoOffsetY: 0,
+  logoFrameMode: "soft-square",
+  logoFitMode: "contain",
+  headerLogoScale: 1,
+  headerLogoOffsetX: 0,
+  headerLogoOffsetY: 0,
+  headerLogoFrameMode: "soft-square",
+  headerLogoFitMode: "contain",
+  footerLogoScale: 1,
+  footerLogoOffsetX: 0,
+  footerLogoOffsetY: 0,
+  footerLogoFrameMode: "soft-square",
+  footerLogoFitMode: "contain",
+};
+
+export function loadMasterBranding(): MasterBrandingState {
+  if (typeof window === "undefined") {
+    return { ...defaultMasterBranding };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...defaultMasterBranding };
+    const parsed = JSON.parse(raw) as Partial<MasterBrandingState>;
+    return { ...defaultMasterBranding, ...parsed };
+  } catch {
+    return { ...defaultMasterBranding };
+  }
+}
+
+export function saveMasterBranding(nextState: MasterBrandingState) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+}
+
+function pickVariant(state: MasterBrandingState, variant: InstitutionalLogoConfigVariant) {
+  if (variant === "footer") {
+    return {
+      scale: state.footerLogoScale,
+      offsetX: state.footerLogoOffsetX,
+      offsetY: state.footerLogoOffsetY,
+      frameMode: state.footerLogoFrameMode,
+      fitMode: state.footerLogoFitMode,
+    };
+  }
+
+  return {
+    scale: state.headerLogoScale,
+    offsetX: state.headerLogoOffsetX,
+    offsetY: state.headerLogoOffsetY,
+    frameMode: state.headerLogoFrameMode,
+    fitMode: state.headerLogoFitMode,
+  };
+}
+
+export function getMasterInstitutionBranding(
+  state: MasterBrandingState,
+  variant: InstitutionalLogoConfigVariant,
+): InstitutionalBranding {
+  const selected = pickVariant(state, variant);
+
+  return {
+    tenantId: "master",
+    logoUrl: state.logoUrl,
+    logoScale: selected.scale,
+    logoOffsetX: selected.offsetX,
+    logoOffsetY: selected.offsetY,
+    logoAlt: state.logoAlt || "Logo institucional do SIGAPRO",
+    logoUpdatedAt: state.logoUpdatedAt,
+    logoUpdatedBy: state.logoUpdatedBy,
+    logoFrameMode: selected.frameMode,
+    logoFitMode: selected.fitMode,
+  };
+}
+
+export function updateMasterBranding(
+  state: MasterBrandingState,
+  updates: Partial<MasterBrandingState>,
+): MasterBrandingState {
+  return {
+    ...state,
+    ...updates,
+  };
+}

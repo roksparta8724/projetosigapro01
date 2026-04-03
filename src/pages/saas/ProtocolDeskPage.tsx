@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
   PageMainContent,
   PageMainGrid,
@@ -35,6 +36,7 @@ import {
   formatCurrency,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  parseMarker,
   statusLabel,
   statusTone,
   type ProcessRecord,
@@ -230,6 +232,22 @@ export function ProtocolDeskPage() {
                     <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700">
                       {isDeskFlow ? "Balcão" : "Online"}
                     </Badge>
+                    {process.tags?.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {process.tags.map((tag) => {
+                          const marker = parseMarker(tag);
+                          return (
+                            <span
+                              key={`${process.id}-${tag}`}
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700"
+                            >
+                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
+                              {marker.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                     {isUrgent ? (
                       <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
                         ⏱ SLA crítico
@@ -257,6 +275,12 @@ export function ProtocolDeskPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2 xl:w-auto">
+                  <MarkerSelector
+                    processId={process.id}
+                    tags={process.tags}
+                    actor={session.name}
+                    triggerClassName="h-9 rounded-full text-[12px]"
+                  />
                   <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto">
                     <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                   </Button>

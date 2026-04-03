@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MetricCard } from "@/components/platform/MetricCard";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
   MainContent,
   MainGrid,
@@ -24,6 +25,7 @@ import {
   formatCurrency,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  parseMarker,
   statusLabel,
   statusTone,
 } from "@/lib/platform";
@@ -318,6 +320,22 @@ export function ExternalProcessControlPage() {
                         <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.externalProtocol}>
                           {process.externalProtocol}
                         </p>
+                        {process.tags?.length ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {process.tags.map((tag) => {
+                              const marker = parseMarker(tag);
+                              return (
+                                <span
+                                  key={`${process.id}-${tag}`}
+                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700"
+                                >
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
+                                  {marker.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="min-w-0">
@@ -360,6 +378,12 @@ export function ExternalProcessControlPage() {
                       </div>
 
                       <div className="flex flex-wrap justify-start gap-2 2xl:justify-end">
+                        <MarkerSelector
+                          processId={process.id}
+                          tags={process.tags}
+                          actor={session.name}
+                          triggerClassName="h-9 rounded-full text-[12px]"
+                        />
                         <Button asChild variant="outline" className="rounded-full text-[13px]">
                           <Link to={`/processos/${process.id}`}>Ver detalhes</Link>
                         </Button>

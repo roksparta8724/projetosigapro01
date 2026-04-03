@@ -1,6 +1,5 @@
 ﻿import {
   Bell,
-  Bookmark,
   BookOpenText,
   Building2,
   ChevronDown,
@@ -24,8 +23,10 @@
   PlusCircle,
   ListChecks,
   FileBarChart2,
+  Trash2,
+  Flag,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +50,7 @@ import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { formatMarkerLabel, useMarkerPresets } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
   title: string;
@@ -148,6 +150,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [markerEmoji, setMarkerEmoji] = useState("🚩");
+  const [markerLabel, setMarkerLabel] = useState("");
+  const [markerColor, setMarkerColor] = useState("#3b82f6");
+  const [markerSavePulse, setMarkerSavePulse] = useState(false);
   const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -163,6 +169,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
   const { source, loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
+  const { presets: markerPresets, addPreset, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(activeInstitutionId);
 
@@ -268,11 +275,18 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   ];
 
   const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(activeInstitutionId, process));
-  const bookmarkedProcesses = visibleTenantProcesses.filter((process) =>
-    (process.tags ?? []).some((tag) => {
-      const parsed = parseMarker(tag);
-      return parsed.label === "marcado" || parsed.label === "favorito" || parsed.label === "favoritos";
-    }),
+  const bookmarkedProcesses = visibleTenantProcesses.filter((process) => (process.tags ?? []).length > 0);
+  const bookmarkedMarkers = useMemo(
+    () =>
+      bookmarkedProcesses.map((process) => {
+        const firstTag = (process.tags ?? [])[0] ?? "";
+        const parsed = parseMarker(firstTag);
+        return {
+          process,
+          marker: parsed,
+        };
+      }),
+    [bookmarkedProcesses],
   );
   const notificationCount = visibleTenantProcesses.reduce(
     (count, process) => count + (process.messages?.length ?? 0) + (process.dispatches?.length ?? 0),
@@ -363,13 +377,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
   return (
     <div
-      className="sig-app-frame min-h-screen text-[#1A1A1A]"
+      className="sig-app-frame min-h-screen text-foreground"
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
       data-viewport={isMobileViewport ? "mobile" : "desktop"}
       style={
         {
           backgroundColor: pageBackground,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "244px" : "0px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "276px" : "0px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -458,7 +472,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 className={cn(
                   "absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border p-1 shadow-sm transition",
                   darkTopbar
-                    ? "border-white/14 bg-white/10 text-white/85 hover:text-white"
+                    ? "sig-topbar-dark border-white/14 bg-white/10 text-white/85 hover:text-white"
                     : "border-slate-200/80 bg-slate-50/90 text-slate-600 hover:text-slate-800",
                 )}
                 aria-label="Pesquisar no sistema"
@@ -468,7 +482,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   navigate(`/buscar?query=${encodeURIComponent(term)}`);
                 }}
               >
-                <Search className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-600")} />
+                <Search className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-700")} />
               </button>
               <Input
                 value={topSearch}
@@ -513,45 +527,136 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <button
                   type="button"
                   className={cn(
-                    "flex h-[40px] items-center gap-2 rounded-full px-3 text-xs shadow-sm transition",
+                    "inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border text-xs shadow-sm transition",
                     darkTopbar
-                      ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                      ? "sig-topbar-dark border-white/16 bg-white/10 text-white hover:bg-white/16"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
                   )}
                   aria-label="Marcadores"
                   title="Marcadores"
                 >
-                  <Bookmark className={cn("h-4 w-4", darkTopbar ? "text-sky-200" : "text-slate-500")} />
-                  <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600")}>
-                    {bookmarkedProcesses.length}
-                  </span>
+                  <Flag
+                    className={cn(
+                      "h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad",
+                      darkTopbar ? "text-sky-200" : "text-slate-700",
+                    )}
+                    style={{ fill: darkTopbar ? "#7dd3fc" : "#334155" }}
+                  />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
-                <DropdownMenuLabel className="px-3 py-2">
+              <DropdownMenuContent align="end" className="sig-marker-panel w-[340px] rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_24px_48px_rgba(15,42,68,0.2)]">
+                <DropdownMenuLabel className="px-1 py-1">
                   <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Marcadores</p>
                   <p className="mt-1 text-[12px] text-slate-500">Acesso rápido aos seus processos marcados.</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {bookmarkedProcesses.length === 0 ? (
-                  <div className="px-3 py-3 text-xs text-slate-500">Nenhum marcador ainda.</div>
-                ) : (
-                  bookmarkedProcesses.slice(0, 6).map((process) => (
-                    <DropdownMenuItem
-                      key={process.id}
-                      className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
-                      onClick={() => navigate(`/processos/${process.id}`)}
+                <div className="space-y-3">
+                  <div className="rounded-[16px] border border-slate-200 bg-slate-50/60 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Criar marcador</p>
+                    <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)_58px] gap-2">
+                      <button
+                        type="button"
+                        aria-label="Bandeira do marcador"
+                        className="flex h-11 w-[52px] items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm"
+                        onClick={() => setMarkerEmoji("🚩")}
+                      >
+                        <Flag
+                          className={cn(
+                            "h-5 w-5 sig-flag-glow-strong sig-flag-filled sig-flag-grad",
+                            markerSavePulse && "sig-flag-pulse",
+                          )}
+                          style={{ color: markerColor, fill: markerColor }}
+                        />
+                      </button>
+                      <Input
+                        value={markerLabel}
+                        onChange={(event) => setMarkerLabel(event.target.value)}
+                        placeholder="Nome do marcador"
+                        className="h-11 rounded-xl"
+                      />
+                      <Input
+                        type="color"
+                        value={markerColor}
+                        onChange={(event) => setMarkerColor(event.target.value)}
+                        className="h-11 w-full rounded-xl p-1"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn("mt-2 h-9 rounded-full text-[12px]", markerSavePulse && "sig-flag-pulse")}
+                      onClick={() => {
+                        if (!markerLabel.trim()) return;
+                        addPreset({ label: markerLabel.trim(), emoji: markerEmoji.trim() || "🚩", color: markerColor });
+                        setMarkerLabel("");
+                        setMarkerSavePulse(true);
+                        window.setTimeout(() => setMarkerSavePulse(false), 520);
+                      }}
                     >
-                      <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
-                        {process.protocol.slice(0, 2)}
+                      Salvar marcador
+                    </Button>
+                  </div>
+
+                <div className="grid gap-2">
+                  {markerPresets.map((preset) => (
+                    <div
+                      key={preset.id}
+                      className="flex items-center justify-between rounded-[14px] border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                      title={preset.label}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] text-base">
+                          <Flag
+                            className="h-4 w-4 sig-flag-glow sig-flag-filled"
+                            style={{ color: preset.color || "#3b82f6", fill: preset.color || "#3b82f6" }}
+                          />
+                        </span>
+                        <span className="font-medium">{preset.label}</span>
                       </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>
-                        <span className="block text-xs text-slate-500">{process.title}</span>
-                      </span>
-                    </DropdownMenuItem>
-                  ))
-                )}
+                      <button
+                        type="button"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        onClick={() => removePreset(preset.id)}
+                        aria-label="Remover marcador"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Marcados recentes</p>
+                  <div className="mt-2 space-y-2">
+                    {bookmarkedMarkers.length === 0 ? (
+                      <div className="rounded-[12px] border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-500">
+                        Nenhum marcador ainda.
+                      </div>
+                    ) : (
+                      bookmarkedMarkers.slice(0, 6).map(({ process, marker }) => (
+                        <DropdownMenuItem
+                          key={process.id}
+                          className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
+                          onClick={() => navigate(`/processos/${process.id}`)}
+                          title={marker.label || process.title}
+                        >
+                          <span className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-[12px]">
+                            <Flag
+                              className="h-4 w-4 sig-flag-glow sig-flag-filled"
+                              style={{ color: marker.color ?? "#3b82f6", fill: marker.color ?? "#3b82f6" }}
+                            />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>
+                            <span className="block text-xs text-slate-500">{marker.label || process.title}</span>
+                          </span>
+                          <span className="ml-auto h-2.5 w-2.5 rounded-full" style={{ backgroundColor: marker.color }} />
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -568,7 +673,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   aria-label="Selecionar tema"
                   title={activeThemePreset?.label || "Tema"}
                 >
-                  <Palette className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-500")} aria-hidden="true" />
+                  <Palette className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-700")} aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[272px] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
@@ -748,8 +853,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         <main className="min-w-0 flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 2xl:px-8">
           <div
             className={cn(
-              "sig-main-shell rounded-[20px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-3 shadow-sm sm:rounded-[24px] sm:p-4 md:p-5 lg:p-6",
-              inverseMainTheme && "border-white/10 shadow-[0_18px_36px_rgba(2,6,23,0.32)]",
+              "sig-main-shell rounded-[20px] border p-3 shadow-sm sm:rounded-[24px] sm:p-4 md:p-5 lg:p-6",
+              inverseMainTheme
+                ? "border-white/10 bg-transparent shadow-[0_18px_36px_rgba(2,6,23,0.32)]"
+                : "border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)]",
             )}
           >
             <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
@@ -827,13 +934,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   }}
                 >
                   <div className="px-5 py-2.5 md:px-6">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/84">Diretoria responsável</p>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Diretoria responsável</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 px-5 py-4 md:px-6">
                     <p className="text-sm font-medium text-white">{tenantSettings?.diretoriaResponsavel || "Diretoria do processo"}</p>
-                    {tenantSettings?.diretoriaTelefone ? <p className="text-sm font-normal text-white/82">{tenantSettings.diretoriaTelefone}</p> : null}
+                    {tenantSettings?.diretoriaTelefone ? <p className="text-sm font-normal text-white/90">{tenantSettings.diretoriaTelefone}</p> : null}
                     {tenantSettings?.diretoriaEmail ? (
-                      <p className="sig-fit-copy max-w-[28ch] text-white/82" title={tenantSettings.diretoriaEmail}>
+                      <p className="sig-fit-copy whitespace-nowrap text-white/90" title={tenantSettings.diretoriaEmail}>
                         {tenantSettings.diretoriaEmail}
                       </p>
                     ) : null}
