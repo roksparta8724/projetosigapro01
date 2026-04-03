@@ -1057,6 +1057,11 @@ export async function uploadFileToStorage(input: {
   });
 
   if (error) {
+    if (typeof error.message === "string" && error.message.toLowerCase().includes("bucket not found")) {
+      throw new Error(
+        "Bucket de storage não encontrado. É necessário criar o bucket no Supabase antes do upload.",
+      );
+    }
     throw error;
   }
 
@@ -1090,6 +1095,11 @@ export async function uploadInstitutionalBrandingAsset(input: {
   });
 
   if (error) {
+    if (typeof error.message === "string" && error.message.toLowerCase().includes("bucket not found")) {
+      throw new Error(
+        "Bucket institucional não encontrado no Supabase. Crie o bucket 'institutional-branding' e tente novamente.",
+      );
+    }
     throw new Error(error.message || "Falha ao enviar a imagem do logo institucional.");
   }
 

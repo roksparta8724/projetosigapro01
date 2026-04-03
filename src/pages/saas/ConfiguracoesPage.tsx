@@ -578,7 +578,8 @@ export function ConfiguracoesPage() {
     setLogoSaving(variant);
 
     try {
-      const savedTenant = ensureSelectedTenant();
+      const resolvedTenantId = scopeId || municipality?.id || selectedTenantId || session.tenantId || "";
+      const savedTenant = resolvedTenantId ? { id: resolvedTenantId } : ensureSelectedTenant();
       let logoUrl = draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
       const draftConfig = variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig;
       const activeBranding = variant === "footer" ? footerBranding : headerBranding;
