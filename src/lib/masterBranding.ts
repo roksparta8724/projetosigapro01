@@ -2,6 +2,8 @@ import type { InstitutionalBranding, InstitutionalLogoConfigVariant } from "@/li
 
 export type MasterBrandingState = {
   logoUrl: string;
+  headerLogoUrl: string;
+  footerLogoUrl: string;
   logoAlt: string;
   logoUpdatedAt: string;
   logoUpdatedBy: string;
@@ -27,6 +29,8 @@ const STORAGE_KEY = "sigapro-master-branding";
 
 const defaultMasterBranding: MasterBrandingState = {
   logoUrl: "",
+  headerLogoUrl: "",
+  footerLogoUrl: "",
   logoAlt: "Logo institucional do SIGAPRO",
   logoUpdatedAt: "",
   logoUpdatedBy: "",
@@ -61,6 +65,12 @@ function sanitizeBranding(input: MasterBrandingState): MasterBrandingState {
   const sanitized = { ...input };
   if (!isRenderableLogoUrl(sanitized.logoUrl)) {
     sanitized.logoUrl = "";
+  }
+  if (!isRenderableLogoUrl(sanitized.headerLogoUrl)) {
+    sanitized.headerLogoUrl = "";
+  }
+  if (!isRenderableLogoUrl(sanitized.footerLogoUrl)) {
+    sanitized.footerLogoUrl = "";
   }
   return sanitized;
 }
@@ -110,10 +120,14 @@ export function getMasterInstitutionBranding(
   variant: InstitutionalLogoConfigVariant,
 ): InstitutionalBranding {
   const selected = pickVariant(state, variant);
+  const variantUrl =
+    variant === "footer"
+      ? state.footerLogoUrl || state.logoUrl
+      : state.headerLogoUrl || state.logoUrl;
 
   return {
     tenantId: "master",
-    logoUrl: state.logoUrl,
+    logoUrl: variantUrl,
     logoScale: selected.scale,
     logoOffsetX: selected.offsetX,
     logoOffsetY: selected.offsetY,

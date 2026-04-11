@@ -40,6 +40,14 @@ export function InstitutionalLogo({
   const [naturalSize, setNaturalSize] = useState({ width: 1, height: 1 });
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoadedUrl, setImageLoadedUrl] = useState<string>("");
+  const isRenderableUrl = (value?: string | null) => {
+    if (!value) return false;
+    return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
+  };
+  const [stableLogoUrl, setStableLogoUrl] = useState<string>(
+    isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "",
+  );
   const initials = fallbackLabel
     .split(" ")
     .filter(Boolean)
@@ -48,15 +56,25 @@ export function InstitutionalLogo({
     .join("") || "SG";
 
   useEffect(() => {
+    setStableLogoUrl(isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "");
+    setImageFailed(false);
+  }, [branding.tenantId]);
+
+  useEffect(() => {
     console.log("[LogoRender] Renderizando logo", {
       variant,
       logoUrl: branding.logoUrl,
     });
-    if (!branding.logoUrl) {
-      setImageFailed(false);
-      return;
-    }
+    if (!isRenderableUrl(branding.logoUrl)) return;
+    if (branding.logoUrl === stableLogoUrl) return;
 
+    setStableLogoUrl(branding.logoUrl);
+    setImageFailed(false);
+  }, [branding.logoUrl, stableLogoUrl, variant]);
+
+  useEffect(() => {
+    if (!stableLogoUrl) return;
+    if (stableLogoUrl === imageLoadedUrl) return;
     const image = new window.Image();
     image.onload = () => {
       setImageFailed(false);
@@ -64,12 +82,13 @@ export function InstitutionalLogo({
         width: image.naturalWidth || 1,
         height: image.naturalHeight || 1,
       });
+      setImageLoadedUrl(stableLogoUrl);
     };
     image.onerror = () => {
-      setImageFailed(true);
+      if (!imageLoadedUrl) setImageFailed(true);
     };
-    image.src = branding.logoUrl;
-  }, [branding.logoUrl]);
+    image.src = stableLogoUrl;
+  }, [stableLogoUrl, imageLoadedUrl]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -104,6 +123,9 @@ export function InstitutionalLogo({
     };
   }, [branding.logoFitMode, branding.logoScale, naturalSize.height, naturalSize.width, viewportSize.height, viewportSize.width]);
 
+  const displayUrl = imageLoadedUrl;
+  const shouldRenderImage = !!displayUrl && !imageFailed;
+
   return (
     <div className={cn("flex items-center justify-center", classes.frame, className)}>
       <div
@@ -114,12 +136,14 @@ export function InstitutionalLogo({
           viewportClassName,
         )}
       >
-        {branding.logoUrl && !imageFailed ? (
+        {shouldRenderImage ? (
           <img
-            src={branding.logoUrl}
+            src={displayUrl}
             alt={branding.logoAlt || fallbackLabel}
-            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none transition-transform duration-200"
-            onError={() => setImageFailed(true)}
+            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+            onError={() => {
+              if (!stableLogoUrl) setImageFailed(true);
+            }}
             style={{
               width: `${imageMetrics.width}px`,
               height: `${imageMetrics.height}px`,

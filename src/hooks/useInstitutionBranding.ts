@@ -8,10 +8,28 @@ import {
   defaultIssRateProfiles,
   type TenantSettings,
 } from "@/lib/platform";
-import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { loadPlatformBranding } from "@/integrations/supabase/platform";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding } from "@/lib/masterBranding";
+
+const MASTER_SIGNED_CACHE_TTL_MS = 1000 * 60 * 15;
+let cachedMasterHeaderSignedUrl = "";
+let cachedMasterHeaderSignedAt = 0;
+let cachedMasterFooterSignedUrl = "";
+let cachedMasterFooterSignedAt = 0;
+
+const isCacheValid = (ts: number) => Date.now() - ts < MASTER_SIGNED_CACHE_TTL_MS;
+
+const getCachedMasterHeaderUrl = () =>
+  cachedMasterHeaderSignedUrl && isCacheValid(cachedMasterHeaderSignedAt)
+    ? cachedMasterHeaderSignedUrl
+    : "";
+
+const getCachedMasterFooterUrl = () =>
+  cachedMasterFooterSignedUrl && isCacheValid(cachedMasterFooterSignedAt)
+    ? cachedMasterFooterSignedUrl
+    : "";
 
 function buildEmptyTenantSettings(tenantId: string): TenantSettings {
   return {
@@ -84,8 +102,12 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const { institutions, getInstitutionSettings } = usePlatformData();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const [masterBrandingState, setMasterBrandingState] = useState(() => loadMasterBranding());
-  const [resolvedMasterHeaderLogoUrl, setResolvedMasterHeaderLogoUrl] = useState<string>("");
-  const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>("");
+  const [resolvedMasterHeaderLogoUrl, setResolvedMasterHeaderLogoUrl] = useState<string>(
+    () => getCachedMasterHeaderUrl(),
+  );
+  const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>(
+    () => getCachedMasterFooterUrl(),
+  );
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
 
   const resolvedInstitutionId = isMaster
@@ -159,17 +181,29 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
     const resolveLogo = async (raw: string, setter: (value: string) => void) => {
       const trimmed = raw.trim();
-      if (!trimmed || trimmed.startsWith("http")) {
-        setter(trimmed);
+      if (!trimmed) {
+        setter("");
         return;
       }
-      try {
-        const publicUrl = getPublicUrl(trimmed);
-        if (publicUrl) {
-          setter(publicUrl);
-          return;
+      if (trimmed.startsWith("http")) {
+        // Para o Master, nunca usamos URL pública direta. Tentamos resolver o object_key.
+        try {
+          const url = new URL(trimmed);
+          const objectKey = url.pathname.replace(/^\/+/, "");
+          if (objectKey) {
+            const signedUrl = await getSignedUrlForObjectStrict({ bucket, objectKey });
+            setter(signedUrl || "");
+            return;
+          }
+        } catch {
+          // ignore
         }
-        const signedUrl = await getSignedUrlForObject({ bucket, objectKey: trimmed });
+        setter("");
+        return;
+      }
+
+      try {
+        const signedUrl = await getSignedUrlForObjectStrict({ bucket, objectKey: trimmed });
         setter(signedUrl || "");
       } catch {
         setter("");
@@ -179,16 +213,30 @@ export function useInstitutionBranding(tenantId?: string | null) {
     const headerRaw =
       platformBranding?.headerLogoObjectKey ||
       platformBranding?.headerLogoUrl ||
+      masterBrandingState.headerLogoUrl ||
       masterBrandingState.logoUrl ||
       "";
     const footerRaw =
       platformBranding?.footerLogoObjectKey ||
       platformBranding?.footerLogoUrl ||
+      masterBrandingState.footerLogoUrl ||
       masterBrandingState.logoUrl ||
       "";
 
-    void resolveLogo(headerRaw, setResolvedMasterHeaderLogoUrl);
-    void resolveLogo(footerRaw, setResolvedMasterFooterLogoUrl);
+    void resolveLogo(headerRaw, (value) => {
+      if (value) {
+        cachedMasterHeaderSignedUrl = value;
+        cachedMasterHeaderSignedAt = Date.now();
+      }
+      setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
+    });
+    void resolveLogo(footerRaw, (value) => {
+      if (value) {
+        cachedMasterFooterSignedUrl = value;
+        cachedMasterFooterSignedAt = Date.now();
+      }
+      setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
+    });
   }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
 
   const headerBranding = useMemo(() => {

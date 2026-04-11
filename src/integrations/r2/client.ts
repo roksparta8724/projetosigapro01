@@ -144,6 +144,34 @@ export async function getSignedUrlForObject(input: {
   return payload.signedUrl || "";
 }
 
+export async function getSignedUrlForObjectStrict(input: {
+  bucket: string;
+  objectKey: string;
+  expiresIn?: number;
+}) {
+  const primaryUrl = buildApiUrl("/api/r2-sign-get");
+  const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
+    ? input.expiresIn
+    : 21600;
+  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+
+  if (response.status === 404 && apiBase) {
+    response = await requestSignedUrl("/api/r2-sign-get", input);
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const message = payload?.error || "Falha ao gerar URL assinada.";
+    throw new Error(message);
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    signedUrl?: string;
+  };
+
+  return payload.signedUrl || "";
+}
+
 async function fileToBase64(file: File) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

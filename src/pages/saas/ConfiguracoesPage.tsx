@@ -42,7 +42,7 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/supabase/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { deleteFile, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { deleteFile, getObjectKeyFromPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -618,10 +618,20 @@ export function ConfiguracoesPage() {
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
   const logoSavingTimeoutRef = useRef<number | null>(null);
   const [draftMasterHeaderLogoFiles, setDraftMasterHeaderLogoFiles] = useState<UploadedFileItem[]>(
-    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-header-logo"),
+    imageFiles(
+      isRenderablePreviewUrl(masterBranding.headerLogoUrl || masterBranding.logoUrl)
+        ? masterBranding.headerLogoUrl || masterBranding.logoUrl
+        : "",
+      "master-header-logo",
+    ),
   );
   const [draftMasterFooterLogoFiles, setDraftMasterFooterLogoFiles] = useState<UploadedFileItem[]>(
-    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-footer-logo"),
+    imageFiles(
+      isRenderablePreviewUrl(masterBranding.footerLogoUrl || masterBranding.logoUrl)
+        ? masterBranding.footerLogoUrl || masterBranding.logoUrl
+        : "",
+      "master-footer-logo",
+    ),
   );
   const [masterFooterText, setMasterFooterText] = useState(masterBranding.footerText ?? "");
   const [draftMasterHeaderConfig, setDraftMasterHeaderConfig] = useState({
@@ -797,20 +807,26 @@ export function ConfiguracoesPage() {
     };
 
   const masterHeaderPreviewUrl = useMemo(() => {
-    const url = draftMasterHeaderLogoFiles[0]?.previewUrl ?? "";
-    return isRenderablePreviewUrl(url) ? url : "";
+    const entry = draftMasterHeaderLogoFiles[0];
+    const url = entry?.previewUrl ?? "";
+    const isLocalPreview = Boolean(entry?.file) || url.startsWith("blob:") || url.startsWith("data:");
+    return isLocalPreview && isRenderablePreviewUrl(url) ? url : "";
   }, [draftMasterHeaderLogoFiles]);
   const masterFooterPreviewUrl = useMemo(() => {
-    const url = draftMasterFooterLogoFiles[0]?.previewUrl ?? "";
-    return isRenderablePreviewUrl(url) ? url : "";
+    const entry = draftMasterFooterLogoFiles[0];
+    const url = entry?.previewUrl ?? "";
+    const isLocalPreview = Boolean(entry?.file) || url.startsWith("blob:") || url.startsWith("data:");
+    return isLocalPreview && isRenderablePreviewUrl(url) ? url : "";
   }, [draftMasterFooterLogoFiles]);
   const masterHeaderActiveUrl = masterHeaderPreviewUrl || masterHeaderPersistedUrl;
   const masterFooterActiveUrl = masterFooterPreviewUrl || masterFooterPersistedUrl;
 
   const previewMasterHeaderBranding = useMemo(() => {
     const draftLogoUrl = masterHeaderActiveUrl || "";
+    const safeDraftLogoUrl = isRenderablePreviewUrl(draftLogoUrl) ? draftLogoUrl : "";
     const nextState = updateMasterBranding(masterBranding, {
-      logoUrl: draftLogoUrl,
+      logoUrl: safeDraftLogoUrl || masterBranding.logoUrl,
+      headerLogoUrl: safeDraftLogoUrl || masterBranding.headerLogoUrl,
       logoAlt: "Logo institucional do SIGAPRO",
       footerText: masterFooterText,
       headerLogoScale: draftMasterHeaderConfig.scale,
@@ -831,8 +847,10 @@ export function ConfiguracoesPage() {
 
   const previewMasterFooterBranding = useMemo(() => {
     const draftLogoUrl = masterFooterActiveUrl || "";
+    const safeDraftLogoUrl = isRenderablePreviewUrl(draftLogoUrl) ? draftLogoUrl : "";
     const nextState = updateMasterBranding(masterBranding, {
-      logoUrl: draftLogoUrl,
+      logoUrl: safeDraftLogoUrl || masterBranding.logoUrl,
+      footerLogoUrl: safeDraftLogoUrl || masterBranding.footerLogoUrl,
       logoAlt: "Logo institucional do SIGAPRO",
       footerText: masterFooterText,
       headerLogoScale: draftMasterHeaderConfig.scale,
@@ -937,8 +955,6 @@ export function ConfiguracoesPage() {
     if (!isMasterRole) return;
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
-    const allowPublicFallback =
-      String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
     const resolveUrl = async (raw: string) => {
       const trimmed = raw.trim();
       if (!trimmed) return "";
@@ -946,19 +962,17 @@ export function ConfiguracoesPage() {
         const extractedKey = getObjectKeyFromPublicUrl(trimmed);
         if (extractedKey) {
           try {
-            return await getSignedUrlForObject({ bucket, objectKey: extractedKey });
+            return await getSignedUrlForObjectStrict({ bucket, objectKey: extractedKey });
           } catch {
-            return allowPublicFallback ? trimmed : "";
+            return "";
           }
         }
-        return allowPublicFallback ? trimmed : "";
+        return "";
       }
       try {
-        return await getSignedUrlForObject({ bucket, objectKey: trimmed });
+        return await getSignedUrlForObjectStrict({ bucket, objectKey: trimmed });
       } catch {
-        if (!allowPublicFallback) return "";
-        const publicUrl = getPublicUrl(trimmed);
-        return publicUrl || "";
+        return "";
       }
     };
 
@@ -1011,7 +1025,9 @@ export function ConfiguracoesPage() {
       }
       const draftFiles =
         variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
-      let logoUrl = draftFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+      const currentPersisted =
+        variant === "footer" ? masterBranding.footerLogoUrl : masterBranding.headerLogoUrl;
+      let logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
       let nextObjectKey = "";
       let nextFileName = "";
       let nextMimeType = "";
@@ -1047,15 +1063,10 @@ export function ConfiguracoesPage() {
           }),
           30000,
         );
-        const allowPublicFallback =
-          String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
-        if (allowPublicFallback && uploaded.publicUrl) {
-          logoUrl = uploaded.publicUrl;
-        }
         nextObjectKey = uploaded.objectKey;
         nextFileName = uploaded.fileName;
         nextMimeType = uploaded.mimeType;
-        nextPublicUrl = allowPublicFallback ? uploaded.publicUrl : "";
+        nextPublicUrl = "";
         console.log("[AssetUpload] Master logo salvo", { variant, objectKey: uploaded.objectKey });
       }
 
@@ -1085,9 +1096,7 @@ export function ConfiguracoesPage() {
           ? existingPlatformBranding.headerLogoUrl || ""
           : existingPlatformBranding?.footerLogoUrl || "";
 
-      if (!nextPublicUrl) {
-        nextPublicUrl = existingPublicUrl;
-      }
+      const nextPublicUrlForSave = nextPublicUrl || existingPublicUrl;
 
       const finalObjectKey = nextObjectKey || existingObjectKey;
       if (!finalObjectKey) {
@@ -1102,7 +1111,7 @@ export function ConfiguracoesPage() {
           objectKey: finalObjectKey,
           fileName: nextFileName || draftFiles[0]?.file?.name || existingFileName || "",
           mimeType: nextMimeType || draftFiles[0]?.file?.type || existingMimeType || "application/octet-stream",
-          publicUrl: nextPublicUrl || "",
+          publicUrl: nextPublicUrlForSave || "",
           updatedBy: brandingUpdatedBy,
         }),
         20000,
@@ -1110,7 +1119,7 @@ export function ConfiguracoesPage() {
 
       if (!nextPublicUrl) {
         try {
-          nextPublicUrl = await getSignedUrlForObject({
+          nextPublicUrl = await getSignedUrlForObjectStrict({
             bucket:
               (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
               "sigapro-logos",
@@ -1136,9 +1145,18 @@ export function ConfiguracoesPage() {
         setPlatformBranding(existingPlatformBranding);
       }
 
-      const persistedUrl = nextPublicUrl || (logoUrl.startsWith("http") ? logoUrl : "");
+      const persistedUrl = nextPublicUrl || (isRenderablePreviewUrl(logoUrl) ? logoUrl : "");
+      const safePersistedUrl = isRenderablePreviewUrl(persistedUrl) ? persistedUrl : "";
+      const nextHeaderLogoUrl =
+        variant === "header" && safePersistedUrl ? safePersistedUrl : masterBranding.headerLogoUrl;
+      const nextFooterLogoUrl =
+        variant === "footer" && safePersistedUrl ? safePersistedUrl : masterBranding.footerLogoUrl;
+      const nextGenericLogoUrl =
+        variant === "header" && safePersistedUrl ? safePersistedUrl : masterBranding.logoUrl;
       const updated = updateMasterBranding(masterBranding, {
-        logoUrl: persistedUrl,
+        logoUrl: nextGenericLogoUrl,
+        headerLogoUrl: nextHeaderLogoUrl,
+        footerLogoUrl: nextFooterLogoUrl,
         logoAlt: "Logo institucional do SIGAPRO",
         logoUpdatedAt: new Date().toISOString(),
         logoUpdatedBy: brandingUpdatedBy,
