@@ -2062,3 +2062,15 @@
       }
     }
   }
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-topbar-dark {
+  color: rgba(255, 255, 255, 0.92);
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-topbar-dark svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+[data-sidebar-mode="inverse-main"] .sig-sidebar-icon svg {
+  color: rgba(255, 255, 255, 0.92);
+}
+[data-sidebar-mode="inverse-main"] .sig-sidebar-label {
+  color: rgba(255, 255, 255, 0.92);
+}

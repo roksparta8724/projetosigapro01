@@ -66,13 +66,13 @@ function SidebarInner({
         </div>
       ) : null}
 
-      <div className="sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
-        <nav className="space-y-4">
+      <div className="sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
+        <nav className="space-y-2">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
 
             return (
-              <div key={group.title} className="space-y-3">
+              <div key={group.title} className="space-y-2">
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
                   const isChildActive = item.children?.some((child) => pathname === child.to || pathname.startsWith(`${child.to}/`));
@@ -82,7 +82,7 @@ function SidebarInner({
                   const Icon = item.icon;
 
                   return (
-                    <div key={item.to} className="space-y-2.5">
+                    <div key={item.to} className="space-y-1.5">
                       <Link
                         to={item.to}
                         onClick={(event) => {
@@ -95,7 +95,7 @@ function SidebarInner({
                         }}
                         data-sidebar-active={active ? "true" : "false"}
                         className={cn(
-                          "group flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-sm leading-5 transition-all duration-200 ease-out",
+                          "group flex min-h-[44px] items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm leading-5 transition-all duration-200 ease-out hover:shadow-[0_6px_16px_rgba(2,6,23,0.18)]",
                           active
                             ? darkSurface
                               ? "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(32,78,125,0.98)_0%,rgba(59,130,246,0.92)_100%)] text-white"
@@ -112,7 +112,7 @@ function SidebarInner({
                       >
                         <span
                           className={cn(
-                            "sig-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border transition-all duration-200",
+                            "sig-sidebar-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200",
                             active
                               ? darkSurface
                                 ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -122,11 +122,11 @@ function SidebarInner({
                                 : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                           )}
                         >
-                          <Icon className="h-[15px] w-[15px] shrink-0" />
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
                         </span>
                         <span
                           className={cn(
-                            "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13.5px] leading-5 tracking-[0.003em]",
+                            "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13px] leading-5 tracking-[0.003em]",
                             active
                               ? darkSurface
                                 ? "font-semibold text-white"
@@ -153,11 +153,11 @@ function SidebarInner({
                       {hasChildren && isExpanded ? (
                         <div
                           className={cn(
-                            "ml-7 border-l pl-4",
+                            "ml-6 border-l pl-3",
                             darkSurface ? "border-white/10" : "border-slate-200",
                           )}
                         >
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {item.children!.map((child) => {
                               const childActive = pathname === child.to || pathname.startsWith(`${child.to}/`);
                               const ChildIcon = child.icon;
@@ -167,7 +167,7 @@ function SidebarInner({
                                   to={child.to}
                                   onClick={onNavigate}
                                   className={cn(
-                                    "group flex items-center gap-2 rounded-[12px] px-3 py-2 text-[12.5px] font-medium transition-all",
+                                    "group flex min-h-[36px] items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-all",
                                     childActive
                                       ? darkSurface
                                         ? "border border-white/18 bg-white/10 text-white"
@@ -198,7 +198,7 @@ function SidebarInner({
         </nav>
       </div>
 
-      {footer ? <div className="mt-auto shrink-0 px-3 pb-5 pt-6">{footer}</div> : null}
+      {footer ? <div className="mt-auto shrink-0 px-3 pb-4 pt-4">{footer}</div> : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -44,6 +44,7 @@ import {
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   createRemoteOwnerMessage,
   createRemoteOwnerRequest,
@@ -229,11 +230,8 @@ function mergeUserProfiles(localProfiles: UserProfile[], remoteProfiles: UserPro
   const merged: UserProfile[] = [...localProfiles];
 
   remoteProfiles.forEach((remoteProfile) => {
-    const remoteEmail = normalizeEmail(remoteProfile.email);
     const existingIndex = merged.findIndex(
-      (localProfile) =>
-        localProfile.userId === remoteProfile.userId ||
-        (remoteEmail.length > 0 && normalizeEmail(localProfile.email) === remoteEmail),
+      (localProfile) => localProfile.userId === remoteProfile.userId,
     );
 
     if (existingIndex >= 0) {
@@ -287,17 +285,9 @@ function mergeRecordsByTenantId<T extends { tenantId: string }>(
   return Array.from(merged.values());
 }
 
-function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, email?: string | null | undefined) {
-  if (!userId && !email) return undefined;
-  const normalizedEmail = normalizeEmail(email);
-  const byUserId = userId ? profiles.find((item) => item.userId === userId) : undefined;
-
-  if (!normalizedEmail) {
-    return byUserId;
-  }
-
-  const byEmail = profiles.find((item) => normalizeEmail(item.email) === normalizedEmail);
-  return mergeUserProfileRecord(byUserId, byEmail) ?? byUserId ?? byEmail;
+function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, _email?: string | null | undefined) {
+  if (!userId) return undefined;
+  return profiles.find((item) => item.userId === userId);
 }
 
 const STORAGE_KEY = "sigapro-platform-store";
@@ -393,6 +383,20 @@ function normalizeTenantLabel(value: string | null | undefined) {
     .trim();
 }
 
+function isLocalDevHost() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  if (!host) return false;
+  if (host === "localhost" || host === "127.0.0.1") return true;
+  if (host.startsWith("10.") || host.startsWith("192.168.")) return true;
+  if (host.startsWith("172.")) {
+    const parts = host.split(".");
+    const second = Number(parts[1] || "0");
+    return second >= 16 && second <= 31;
+  }
+  return host.endsWith(".local");
+}
+
 function isLegacyDemoTenantName(name: string | null | undefined) {
   const normalized = normalizeTenantLabel(name);
   return (
@@ -408,28 +412,16 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
       .filter((tenant) => isLegacyDemoTenantName(tenant.name))
       .map((tenant) => tenant.id),
   );
-  const masterEmail = "roksparta02@gmail.com";
-  const masterName = "Jonatas Rodrigues";
-
   const tenants = sourceTenants.filter((tenant) => !legacyDemoIds.has(tenant.id));
   const processes = (rawStore.processes ?? defaultStore.processes).filter(
     (process) => !legacyDemoIds.has(process.tenantId) && !legacyDemoIds.has(process.municipalityId ?? ""),
   );
   const validProcessIds = new Set(processes.map((process) => process.id));
 
-  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers)
-    .filter((user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""))
-    .map((user) =>
-      normalizeEmail(user.email) === masterEmail
-        ? { ...user, name: masterName, email: masterEmail }
-        : user,
-    );
-  const normalizedUserProfiles = (rawStore.userProfiles ?? (fallbackToDefault ? defaultStore.userProfiles : [])).map(
-    (profile) =>
-      normalizeEmail(profile.email) === masterEmail
-        ? { ...profile, fullName: masterName, email: masterEmail }
-        : profile,
+  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers).filter(
+    (user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""),
   );
+  const normalizedUserProfiles = (rawStore.userProfiles ?? (fallbackToDefault ? defaultStore.userProfiles : []));
 
   return {
     tenants: tenants.length > 0 || !fallbackToDefault ? tenants : defaultStore.tenants,
@@ -549,64 +541,58 @@ function isAuthError(error: unknown) {
 }
 
 export function PlatformDataProvider({ children }: { children: React.ReactNode }) {
+  const { authenticatedUserId, loading: authLoading } = useAuthGateway();
   const [store, setStore] = useState<PlatformStore>(defaultStore);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<DataSource>("demo");
+  const lastFetchedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    const allowRemoteInLocal =
+      (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
+    const localDev = isLocalDevHost();
 
     const bootstrap = async () => {
-      if (hasSupabaseEnv) {
-        setLoading(true);
-        try {
-          const sessionResult = await supabase?.auth.getSession();
-          const sessionUser = sessionResult?.data?.session?.user;
-          const sessionExpiry = sessionResult?.data?.session?.expires_at;
+      if (authLoading) return;
 
-          if (sessionExpiry && sessionExpiry * 1000 < Date.now() - 60_000) {
-            await supabase?.auth.signOut();
-          }
-
-          const userResult = await supabase?.auth.getUser();
-          const activeUser = userResult?.data?.user ?? null;
-
-          if (!sessionUser || !activeUser) {
-            const nextStore = readStore();
-            if (!active) return;
-            setStore(nextStore);
-            syncAuthUsers(nextStore.sessionUsers);
-            setSource(nextStore === defaultStore ? "demo" : "local");
-            setLoading(false);
-            return;
-          }
-
-          const remote = await loadRemotePlatformStore();
-          const sanitized = buildSanitizedStore(remote, false);
-          if (!active) return;
-          setStore(sanitized);
-          syncStore(sanitized);
-          syncAuthUsers(sanitized.sessionUsers);
-          setSource("remote");
-          setLoading(false);
-          return;
-        } catch {
-          if (!active) return;
-          const nextStore = readStore();
-          setStore(nextStore);
-          syncAuthUsers(nextStore.sessionUsers);
-          setSource(nextStore === defaultStore ? "demo" : "local");
-          setLoading(false);
-          return;
-        }
+      if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasSupabaseEnv) {
+        const nextStore = readStore();
+        if (!active) return;
+        setStore(nextStore);
+        syncAuthUsers(nextStore.sessionUsers);
+        setSource(nextStore === defaultStore ? "demo" : "local");
+        setLoading(false);
+        return;
       }
 
-      const nextStore = readStore();
-      if (!active) return;
-      setStore(nextStore);
-      syncAuthUsers(nextStore.sessionUsers);
-      setSource(nextStore === defaultStore ? "demo" : "local");
-      setLoading(false);
+      if (lastFetchedUserId.current === authenticatedUserId && source === "remote") {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const remote = await loadRemotePlatformStore();
+        const sanitized = buildSanitizedStore(remote, false);
+        if (!active) return;
+        setStore(sanitized);
+        syncStore(sanitized);
+        syncAuthUsers(sanitized.sessionUsers);
+        setSource("remote");
+        lastFetchedUserId.current = authenticatedUserId;
+      } catch (error) {
+        if (!active) return;
+        if (isAuthError(error) && supabase) {
+          await supabase.auth.signOut();
+        }
+        const nextStore = readStore();
+        setStore(nextStore);
+        syncAuthUsers(nextStore.sessionUsers);
+        setSource(nextStore === defaultStore ? "demo" : "local");
+      } finally {
+        if (active) setLoading(false);
+      }
     };
 
     void bootstrap();
@@ -634,55 +620,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!hasSupabaseEnv || !supabase) return;
-
-    const refetchRemote = async () => {
-      setLoading(true);
-      try {
-        const userResult = await supabase.auth.getUser();
-        if (!userResult.data.user) {
-          await supabase.auth.signOut();
-          return;
-        }
-
-        const remote = await loadRemotePlatformStore();
-        const sanitized = buildSanitizedStore(remote, false);
-        setStore(sanitized);
-        syncStore(sanitized);
-        syncAuthUsers(sanitized.sessionUsers);
-        setSource("remote");
-      } catch (error) {
-        if (isAuthError(error)) {
-          await supabase.auth.signOut();
-        }
-        const emptyRemote = buildSanitizedStore({}, false);
-        setStore(emptyRemote);
-        syncStore(emptyRemote);
-        setSource("remote");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        const emptyRemote = buildSanitizedStore({}, false);
-        setStore(emptyRemote);
-        syncStore(emptyRemote);
-        return;
-      }
-      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        void refetchRemote();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  }, [authenticatedUserId, authLoading]);
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {
     setStore((current) => {
@@ -2397,10 +2335,3 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 export function usePlatformData() {
   return useContext(PlatformDataContext);
 }
-
-
-
-
-
-
-

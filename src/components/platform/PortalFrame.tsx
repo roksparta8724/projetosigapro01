@@ -37,6 +37,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
@@ -44,6 +53,7 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -59,9 +69,11 @@ interface PortalFrameProps {
 }
 
 const navItems = [
-  { to: "/master", label: "Administrador Geral", icon: Building2, permission: "view_master_dashboard" as Permission },
-  { to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission },
+  { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true },
+  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: Building2, permission: "view_master_dashboard" as Permission, essential: true },
+  { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true },
   {
+    key: "protocols",
     to: "/prefeitura/protocolos",
     label: "Protocolos",
     icon: ScrollText,
@@ -71,8 +83,9 @@ const navItems = [
       { to: "/prefeitura/protocolos/novo", label: "Novo protocolo", icon: PlusCircle },
     ],
   },
-  { to: "/prefeitura/analise", label: "Análise", icon: FileText, permission: "review_processes" as Permission },
+  { key: "analysis", to: "/prefeitura/analise", label: "Análise", icon: FileText, permission: "review_processes" as Permission },
   {
+    key: "finance",
     to: "/prefeitura/financeiro",
     label: "Financeiro",
     icon: Wallet,
@@ -83,10 +96,11 @@ const navItems = [
       { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers },
     ],
   },
-  { to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
-  { to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
-  { to: "/legislacao", label: "Legislação", icon: BookOpenText, permission: "manage_own_profile" as Permission },
+  { key: "notifications", to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
+  { key: "history", to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
+  { key: "legislation", to: "/legislacao", label: "Legislação", icon: BookOpenText, permission: "manage_own_profile" as Permission },
   {
+      key: "external",
       to: "/externo",
       label: "Acesso Externo",
       icon: LayoutDashboard,
@@ -100,11 +114,12 @@ const navItems = [
         { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
       ],
     },
-  { to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission },
+  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission, essential: true },
 ];
 
 const managementNavItems = ["/master", "/prefeitura", "/configuracoes"];
 const operationalNavItems = [
+  "/dashboard",
   "/prefeitura/protocolos",
   "/prefeitura/analise",
   "/prefeitura/financeiro",
@@ -146,7 +161,8 @@ function isDarkSurface(hex: string, threshold = 0.56) {
 }
 
 export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
-  const [topSearch, setTopSearch] = useState("");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -165,13 +181,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   });
   const navigate = useNavigate();
   const location = useLocation();
+  const isConfigPage = location.pathname.startsWith("/configuracoes");
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
   const { source, loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
+  const { isItemVisible } = useUserMenuPreferences();
   const { presets: markerPresets, addPreset, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(activeInstitutionId);
+  const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
+  const brandingTenantId = isMasterUser ? null : activeInstitutionId;
+  const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -246,7 +266,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
-  const visibleNavItems = navItems.filter((item) => can(session, item.permission));
+  const visibleNavItems = navItems.filter((item) => {
+    if (!can(session, item.permission)) return false;
+    if (!item.key) return true;
+    if (item.essential) return true;
+    return isItemVisible(item.key as MenuPreferenceKey);
+  });
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
@@ -293,6 +318,93 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     0,
   );
 
+  const globalSearchItems = useMemo(() => {
+    const items: {
+      id: string;
+      label: string;
+      description?: string;
+      group: string;
+      onSelect: () => void;
+    }[] = [];
+
+    visibleNavItemsResolved.forEach((item) => {
+      items.push({
+        id: `page-${item.to}`,
+        label: item.label,
+        description: "Acesso rápido",
+        group: "Páginas",
+        onSelect: () => navigate(item.to),
+      });
+      (item.children ?? []).forEach((child) => {
+        items.push({
+          id: `page-${child.to}`,
+          label: child.label,
+          description: item.label,
+          group: "Páginas",
+          onSelect: () => navigate(child.to),
+        });
+      });
+    });
+
+    visibleTenantProcesses.slice(0, 8).forEach((process) => {
+      items.push({
+        id: `process-${process.id}`,
+        label: process.protocol || process.title || "Processo sem título",
+        description: process.title || "Processo administrativo",
+        group: "Processos",
+        onSelect: () => navigate(`/processos/${process.id}`),
+      });
+    });
+
+    if ((session.role === "master_admin" || session.role === "master_ops") && institutions.length > 0) {
+      institutions.slice(0, 6).forEach((institution) => {
+        items.push({
+          id: `tenant-${institution.id}`,
+          label: institution.name,
+          description: institution.city ? `${institution.city} • ${institution.state}` : "Prefeitura cliente",
+          group: "Prefeituras",
+          onSelect: () => navigate("/master"),
+        });
+      });
+    }
+
+    items.push({
+      id: "action-settings",
+      label: "Configurações institucionais",
+      description: "Branding e preferências",
+      group: "Ações rápidas",
+      onSelect: () => navigate("/configuracoes"),
+    });
+    items.push({
+      id: "action-profile",
+      label: "Meu perfil",
+      description: "Conta e identidade",
+      group: "Ações rápidas",
+      onSelect: () => navigate("/perfil"),
+    });
+
+    return items;
+  }, [institutions, navigate, session.role, visibleNavItemsResolved, visibleTenantProcesses]);
+
+  const filteredSearchItems = useMemo(() => {
+    const query = commandQuery.trim().toLowerCase();
+    if (!query) return globalSearchItems;
+    return globalSearchItems.filter((item) => {
+      const content = `${item.label} ${item.description || ""}`.toLowerCase();
+      return content.includes(query);
+    });
+  }, [commandQuery, globalSearchItems]);
+
+  const groupedSearchItems = useMemo(() => {
+    const groups = new Map<string, typeof filteredSearchItems>();
+    filteredSearchItems.forEach((item) => {
+      const groupItems = groups.get(item.group) ?? [];
+      groupItems.push(item);
+      groups.set(item.group, groupItems);
+    });
+    return Array.from(groups.entries());
+  }, [filteredSearchItems]);
+
   const displayUserName = userProfile?.fullName?.trim() || session.name;
   const roleLabel = userProfile?.professionalType?.trim() || roleLabels[session.role];
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
@@ -320,12 +432,35 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const inverseMainTheme = inverseThemeHint || !!activeThemePreset?.inverseMain;
   const darkTopbar = inverseMainTheme || isDarkSurface(primaryColor, 0.7);
 
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (!commandOpen) {
+      setCommandQuery("");
+    }
+  }, [commandOpen]);
+
   const handleSignOut = async (destination = "/acesso") => {
     try {
+      console.log("[Logout] click");
+      console.log("[Logout] signOut start");
       await signOut();
+      console.log("[Logout] signOut result");
+    } catch (error) {
+      console.warn("[SIGAPRO] Falha ao encerrar sessão, forçando redirecionamento.", error);
     } finally {
+      console.log("[Logout] redirect", { destination });
       if (typeof window !== "undefined") {
-        window.location.assign(destination);
+        window.location.replace(destination);
       } else {
         navigate(destination, { replace: true });
       }
@@ -397,31 +532,31 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       }
     >
       <div
-        className="fixed inset-x-0 top-0 z-50 h-[50px] shadow-[0_10px_26px_rgba(15,23,42,0.08)] lg:h-[56px]"
+        className="fixed inset-x-0 top-0 z-50 h-[54px] shadow-[0_18px_40px_rgba(15,23,42,0.12)] lg:h-[62px]"
         style={{
           borderBottom: `1px solid ${withAlpha(darken(primaryColor, 10), "0.36")}`,
           background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 52%, ${bannerMid} 100%)`,
         }}
       >
-        <div className="flex h-full items-center justify-between gap-2 px-2.5 lg:gap-4 lg:px-6 xl:px-8">
-          <div className="flex min-w-0 items-center gap-4">
+        <div className="flex h-full items-center justify-between gap-2 px-3 lg:gap-4 lg:px-6 xl:px-8">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
+              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-              <div className="flex h-[36px] w-[36px] items-center justify-center rounded-[11px] border border-slate-200 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
+              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px] border border-slate-200 bg-white p-1 shadow-[0_10px_20px_rgba(15,23,42,0.18)]">
                 <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.78]" />
               </div>
               <div className="min-w-0">
-                <p className={cn("sig-fit-title text-xs font-semibold uppercase tracking-[0.08em] leading-none", darkTopbar ? "text-white" : "text-slate-900")}>
+                <p className={cn("sig-fit-title text-[11px] font-semibold uppercase tracking-[0.1em] leading-none", darkTopbar ? "text-white" : "text-slate-900")}>
                   SIGAPRO
                 </p>
-                <p className={cn("sig-fit-copy mt-0.5 text-[11px] font-medium leading-[1.15]", darkTopbar ? "text-white/90" : "text-slate-700")}>
-                  Plataforma institucional de projetos
+                <p className={cn("sig-fit-copy mt-0.5 max-w-[220px] text-[12px] font-medium leading-[1.2] text-white/90 lg:max-w-[320px]", darkTopbar ? "text-white/90" : "text-slate-700")}>
+                  Sistema integrado de gestão e aprovação de projetos
                 </p>
               </div>
           </div>
@@ -430,15 +565,20 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <button
               type="button"
               onClick={() => navigate("/notificacoes")}
-              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-full border border-white/14 bg-white/10 text-white shadow-sm transition hover:bg-white/16"
+              className={cn(
+                "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border shadow-sm transition",
+                darkTopbar
+                  ? "sig-topbar-dark border-white/14 bg-white/10 text-white hover:bg-white/18"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+              )}
               aria-label="Notificações"
             >
-              <Bell className="h-4 w-4 text-[#facc15]" />
+              <Bell className="h-4 w-4 text-[#facc15] drop-shadow-[0_2px_6px_rgba(15,23,42,0.55)]" />
             </button>
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="flex h-[32px] items-center rounded-full border border-white/14 bg-white/10 px-1.5 text-white shadow-sm transition hover:bg-white/16"
+              className="flex h-[34px] items-center rounded-[14px] border border-white/14 bg-white/10 px-1.5 text-white shadow-sm transition hover:bg-white/16"
               aria-label="Meu perfil"
             >
               <UserAvatar
@@ -455,7 +595,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               type="button"
               variant="outline"
               className={cn(
-                "h-[40px] rounded-[14px] px-3.5 text-[13px] shadow-sm",
+                "h-[42px] rounded-[14px] px-3.5 text-[13px] shadow-[0_8px_18px_rgba(15,23,42,0.12)]",
                 darkTopbar
                   ? "sig-topbar-dark border border-white/14 bg-white/10 text-white hover:bg-white/16"
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950",
@@ -466,58 +606,57 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               Menu
             </Button>
 
-            <div className="relative w-[280px]">
+            <div className="relative w-[360px]">
               <button
                 type="button"
+                onClick={() => setCommandOpen(true)}
                 className={cn(
-                  "absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border p-1 shadow-sm transition",
+                  "group flex h-[42px] w-full items-center gap-2 rounded-[16px] border px-3 text-[13px] shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition",
                   darkTopbar
-                    ? "sig-topbar-dark border-white/14 bg-white/10 text-white/85 hover:text-white"
-                    : "border-slate-200/80 bg-slate-50/90 text-slate-600 hover:text-slate-800",
+                    ? "sig-topbar-dark border-white/16 bg-white/8 text-white/90 hover:bg-white/14"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 )}
-                aria-label="Pesquisar no sistema"
-                onClick={() => {
-                  const term = topSearch.trim();
-                  if (!term) return;
-                  navigate(`/buscar?query=${encodeURIComponent(term)}`);
-                }}
+                aria-label="Busca global"
               >
-                <Search className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-700")} />
+                <span
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full border",
+                    darkTopbar ? "border-white/12 bg-white/12 text-white/90" : "border-slate-200 bg-slate-100 text-slate-600",
+                  )}
+                >
+                  <Search className="h-4 w-4" />
+                </span>
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-left text-[13px] font-semibold tracking-[0.02em]",
+                    darkTopbar ? "text-white/90" : "text-slate-700",
+                  )}
+                >
+                  Pesquisar
+                </span>
               </button>
-              <Input
-                value={topSearch}
-                onChange={(event) => setTopSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  const term = topSearch.trim();
-                  if (!term) return;
-                  navigate(`/buscar?query=${encodeURIComponent(term)}`);
-                }}
-                placeholder="Busca rápida"
-                className={cn(
-                  "h-[40px] rounded-[14px] pl-11 text-[13px] shadow-none focus-visible:ring-2",
-                  darkTopbar
-                    ? "sig-topbar-dark border border-white/16 bg-white/10 text-white placeholder:text-white/65 focus-visible:ring-white/30"
-                    : "border border-slate-200 bg-slate-50 text-slate-700 placeholder:text-slate-400 focus-visible:ring-slate-300",
-                )}
-              />
             </div>
 
             <button
               type="button"
               onClick={() => navigate("/notificacoes")}
               className={cn(
-                "inline-flex h-[40px] items-center gap-2 rounded-full px-3 text-xs shadow-sm transition",
+                "inline-flex h-[42px] items-center gap-2 rounded-[14px] px-3 text-xs shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
                 darkTopbar
-                  ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                  ? "sig-topbar-dark border border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 ring-1 ring-slate-200/60",
               )}
               aria-label="Notificações"
               title="Notificações"
             >
-              <Bell className={cn("h-4 w-4", darkTopbar ? "text-amber-300" : "text-amber-500")} aria-hidden="true" />
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600")}>
+              <Bell
+                className={cn(
+                  "h-4.5 w-4.5 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
+                  darkTopbar ? "text-amber-200" : "text-amber-500",
+                )}
+                aria-hidden="true"
+              />
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/18 text-white" : "bg-slate-100 text-slate-600")}>
                 {notificationCount}
               </span>
             </button>
@@ -527,20 +666,20 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border text-xs shadow-sm transition",
+                    "inline-flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border text-xs shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
                     darkTopbar
-                      ? "sig-topbar-dark border-white/16 bg-white/10 text-white hover:bg-white/16"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                      ? "sig-topbar-dark border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200/60",
                   )}
                   aria-label="Marcadores"
                   title="Marcadores"
                 >
                   <Flag
                     className={cn(
-                      "h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad",
+                      "h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled sig-flag-grad drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
                       darkTopbar ? "text-sky-200" : "text-slate-700",
                     )}
-                    style={{ fill: darkTopbar ? "#7dd3fc" : "#334155" }}
+                    style={{ fill: darkTopbar ? "#bae6fd" : "#334155" }}
                   />
                 </button>
               </DropdownMenuTrigger>
@@ -665,15 +804,21 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <button
                   type="button"
                   className={cn(
-                    "flex h-[40px] items-center gap-2 rounded-full px-3 shadow-sm transition",
+                    "flex h-[42px] items-center gap-2 rounded-[14px] px-3 shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
                     darkTopbar
-                      ? "sig-topbar-dark border border-white/16 bg-white/10 text-white hover:bg-white/16"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                      ? "sig-topbar-dark border border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200/60",
                   )}
                   aria-label="Selecionar tema"
                   title={activeThemePreset?.label || "Tema"}
                 >
-                  <Palette className={cn("h-4 w-4", darkTopbar ? "text-white/85" : "text-slate-700")} aria-hidden="true" />
+                  <Palette
+                    className={cn(
+                      "h-4.5 w-4.5 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
+                      darkTopbar ? "text-white/95" : "text-slate-700",
+                    )}
+                    aria-hidden="true"
+                  />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[272px] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
@@ -726,10 +871,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <button
                   type="button"
                   className={cn(
-                    "flex h-[40px] items-center gap-2 rounded-full px-2.5 pr-3 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-[1px]",
+                    "flex h-[42px] items-center gap-2 rounded-[14px] px-2.5 pr-3 shadow-[0_14px_28px_rgba(15,23,42,0.2)] transition hover:-translate-y-[1px]",
                     darkTopbar
-                      ? "sig-topbar-dark !border-white/18 !bg-white/10 !text-white hover:!bg-white/16"
-                      : "!border-slate-200 !bg-white !text-slate-900 hover:!bg-slate-50",
+                      ? "sig-topbar-dark !border-white/18 !bg-white/12 !text-white hover:!bg-white/20 ring-1 ring-white/10"
+                      : "!border-slate-200 !bg-white !text-slate-900 hover:!bg-slate-50 ring-1 ring-slate-200/60",
                   )}
                 >
                   <UserAvatar
@@ -741,36 +886,43 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <ChevronDown className={cn("h-4 w-4", darkTopbar ? "!text-white/80" : "!text-slate-600")} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[280px] rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_20px_42px_rgba(15,42,68,0.18)]">
+              <DropdownMenuContent align="end" className="w-[320px] rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_26px_56px_rgba(15,42,68,0.24)]">
                 <DropdownMenuLabel className="px-3 py-3">
-                  <div className="flex items-start gap-3 rounded-[14px] border border-slate-300 bg-slate-200 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                  <div className="flex items-start gap-3 rounded-[18px] border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <UserAvatar name={displayUserName} imageUrl={userProfile?.avatarUrl} size="md" />
                     <div className="min-w-0">
                       <p className="sig-fit-title text-sm font-semibold text-slate-900" title={displayUserName}>
                         {displayUserName}
                       </p>
-                      <p className="mt-1 text-xs font-normal text-slate-500">{roleLabel}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">{roleLabel}</p>
+                      {session.email ? <p className="mt-1 text-[11px] text-slate-400">{session.email}</p> : null}
                     </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/perfil")}>
-                  <UserRound className="mr-2 h-4 w-4" />
+                <DropdownMenuItem className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/perfil")}>
+                  <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition group-hover:bg-slate-200 group-hover:text-slate-900">
+                    <UserRound className="h-4.5 w-4.5" />
+                  </span>
                   Meu Perfil
                 </DropdownMenuItem>
                 {can(session, "manage_tenant_branding") ? (
-                  <DropdownMenuItem className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/configuracoes")}>
-                    <Settings2 className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/configuracoes")}>
+                    <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition group-hover:bg-slate-200 group-hover:text-slate-900">
+                      <Settings2 className="h-4.5 w-4.5" />
+                    </span>
                     Configurações
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem
-                  className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
+                  className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
                   onClick={async () => {
                     await handleSignOut("/acesso");
                   }}
                 >
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition group-hover:bg-slate-200 group-hover:text-slate-900">
+                    <LayoutDashboard className="h-4.5 w-4.5" />
+                  </span>
                   Entrar com outra conta
                 </DropdownMenuItem>
                 {sessions.length > 1 ? (
@@ -780,12 +932,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                       <DropdownMenuItem
                         key={item.id}
                         className={cn(
-                          "rounded-[12px] px-3 py-2.5 text-[13px]",
+                          "group rounded-[12px] px-3 py-2.5 text-[13px]",
                           item.id === session.id ? "bg-slate-100 text-slate-950" : "text-slate-700",
                         )}
                         onClick={() => setActiveSession(item.id)}
                       >
-                        <UserRound className="mr-2 h-4 w-4" />
+                        <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition group-hover:bg-slate-200 group-hover:text-slate-900">
+                          <UserRound className="h-4.5 w-4.5" />
+                        </span>
                         <span className="sig-fit-title" title={getSessionDisplayLabel(item)}>
                           {getSessionDisplayLabel(item)}
                         </span>
@@ -795,12 +949,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-[12px] px-3 py-2.5 text-[13px] text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                  className="group rounded-[12px] px-3 py-2.5 text-[13px] text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                   onClick={async () => {
                     await handleSignOut("/acesso");
                   }}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-red-50 text-red-500 transition group-hover:bg-red-100 group-hover:text-red-600">
+                    <LogOut className="h-4.5 w-4.5" />
+                  </span>
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -809,7 +965,42 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         </div>
       </div>
 
-      <div className="flex min-h-screen pt-[50px] lg:pt-[56px]">
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+        <CommandInput
+          placeholder="Buscar protocolos, usuários, páginas ou ações..."
+          value={commandQuery}
+          onValueChange={setCommandQuery}
+        />
+        <CommandList>
+          <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+          {groupedSearchItems.map(([group, items], index) => (
+            <div key={group}>
+              <CommandGroup heading={group}>
+                {items.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    onSelect={() => {
+                      item.onSelect();
+                      setCommandOpen(false);
+                    }}
+                    className="rounded-[12px]"
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      {item.description ? (
+                        <span className="text-xs text-muted-foreground">{item.description}</span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              {index < groupedSearchItems.length - 1 ? <CommandSeparator /> : null}
+            </div>
+          ))}
+        </CommandList>
+      </CommandDialog>
+
+      <div className="flex min-h-screen pt-[54px] lg:pt-[62px]">
         <AppSidebar
           pathname={location.pathname}
           groups={sidebarGroups}

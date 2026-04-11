@@ -1,16 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import {
-  loadMunicipalityBundleByHostname,
-  loadMunicipalityBundleBySubdomain,
-} from "@/integrations/supabase/municipality";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import { isRootDomainHost, resolveTenantFromLocation } from "@/lib/tenant";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
 interface TenantContextValue {
   loading: boolean;
   mode: "root" | "tenant";
   subdomain: string | null;
   isReserved: boolean;
+  isLocalhost: boolean;
   municipalityBundle: MunicipalityBundle | null;
   municipalityId: string | null;
   municipalityName: string | null;
@@ -23,43 +21,11 @@ interface TenantContextValue {
 const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [bundle, setBundle] = useState<MunicipalityBundle | null>(null);
-  const [resolution, setResolution] = useState(() => resolveTenantFromLocation());
-
-  useEffect(() => {
-    setResolution(resolveTenantFromLocation());
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      setLoading(true);
-      try {
-        let nextBundle: MunicipalityBundle | null = null;
-
-        if (resolution.mode === "tenant" && resolution.subdomain && !resolution.isReserved) {
-          nextBundle = await loadMunicipalityBundleBySubdomain(resolution.subdomain);
-        } else if (!resolution.isLocalhost && resolution.hostname && !isRootDomainHost(resolution.hostname)) {
-          nextBundle = await loadMunicipalityBundleByHostname(resolution.hostname);
-        }
-
-        if (!active) return;
-        setBundle(nextBundle);
-      } catch {
-        if (!active) return;
-        setBundle(null);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void run();
-    return () => {
-      active = false;
-    };
-  }, [resolution.hostname, resolution.isReserved, resolution.mode, resolution.subdomain]);
+  const bootstrap = useAppBootstrap();
+  const resolution = bootstrap.resolution ?? resolveTenantFromLocation();
+  const bundle: MunicipalityBundle | null =
+    bootstrap.scopeType === "platform" ? null : bootstrap.municipalityBundle ?? null;
+  const loading = bootstrap.loading;
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -77,12 +43,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (resolution.mode === "tenant" && bundle?.municipality?.name) {
+    if (bootstrap.scopeType !== "platform" && resolution.mode === "tenant" && bundle?.municipality?.name) {
       document.title = `${bundle.municipality.name} | SIGAPRO`;
       return;
     }
     document.title = "SIGAPRO | Plataforma institucional de projetos";
-  }, [bundle?.municipality?.name, resolution.mode]);
+  }, [bootstrap.scopeType, bundle?.municipality?.name, resolution.mode]);
 
   const value = useMemo<TenantContextValue>(() => {
     const municipality = bundle?.municipality ?? null;
@@ -95,6 +61,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       mode: resolution.mode,
       subdomain: resolution.subdomain,
       isReserved: resolution.isReserved,
+      isLocalhost: resolution.isLocalhost,
       municipalityBundle: bundle,
       municipalityId: municipality?.id ?? null,
       municipalityName: municipality?.name ?? null,

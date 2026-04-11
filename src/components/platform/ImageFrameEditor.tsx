@@ -1,4 +1,4 @@
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { Image as ImageIcon, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -208,24 +208,36 @@ export function ImageFrameEditor({
   };
 
   return (
-    <div className={cn("rounded-[24px] border border-slate-200 bg-white p-4", wrapperClassName)}>
+    <div className={cn("rounded-[24px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/50", wrapperClassName)}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-slate-950">{label}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{hint}</p>
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">{label}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{hint}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => updateScale(scale - 0.1)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-full dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/70"
+            onClick={() => updateScale(scale - 0.1)}
+          >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => updateScale(scale + 0.1)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-full dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/70"
+            onClick={() => updateScale(scale + 0.1)}
+          >
             <ZoomIn className="h-4 w-4" />
           </Button>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 rounded-full"
+            className="h-9 w-9 rounded-full dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/70"
             onClick={() =>
               onChange({
                 scale: DEFAULT_SCALE,
@@ -240,12 +252,12 @@ export function ImageFrameEditor({
       </div>
 
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
-        <div className="relative rounded-[34px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-          <div className="pointer-events-none absolute inset-[12px] rounded-[26px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]" />
+        <div className="relative rounded-[34px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]">
+          <div className="pointer-events-none absolute inset-[12px] rounded-[26px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10" />
           <div
             ref={frameRef}
             className={cn(
-              "relative h-[180px] w-[180px] cursor-grab overflow-hidden rounded-[26px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] active:cursor-grabbing",
+              "relative h-[180px] w-[180px] cursor-grab overflow-hidden rounded-[26px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] active:cursor-grabbing dark:bg-slate-50",
               viewportClassName,
             )}
             onPointerDown={handlePointerDown}
@@ -255,26 +267,33 @@ export function ImageFrameEditor({
             onWheel={handleWheel}
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(15,23,42,0.08)_100%)]" />
-            <img
-              src={imageUrl}
-              alt="Preview"
-              draggable={false}
-              className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
-              style={{
-                width: `${metrics.width}px`,
-                height: `${metrics.height}px`,
-                transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
-              }}
-            />
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt="Preview"
+                draggable={false}
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+                style={{
+                  width: `${metrics.width}px`,
+                  height: `${metrics.height}px`,
+                  transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
+                }}
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                <ImageIcon className="h-6 w-6 text-slate-400/80" />
+                <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Preview</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <p className="text-sm text-slate-600">
-          Zoom atual: <span className="font-semibold text-slate-950">{scale.toFixed(2)}x</span>
+      <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
+        <p className="text-sm text-slate-600 dark:text-slate-200">
+          Zoom atual: <span className="font-semibold text-slate-950 dark:text-slate-100">{scale.toFixed(2)}x</span>
         </p>
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
           {wheelZoomRequiresModifier ? "Arraste + Ctrl Scroll" : "Arraste + Scroll"}
         </p>
       </div>

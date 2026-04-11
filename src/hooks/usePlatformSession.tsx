@@ -1,7 +1,6 @@
-import { createContext, useContext, useMemo, useState } from "react";
-import { SessionUser, roleLabels, sessionUsers as demoSessionUsers } from "@/lib/platform";
+import { createContext, useContext, useMemo } from "react";
+import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
-import { usePlatformData } from "@/hooks/usePlatformData";
 
 interface PlatformSessionContextValue {
   session: SessionUser;
@@ -11,32 +10,51 @@ interface PlatformSessionContextValue {
 
 const PlatformSessionContext = createContext<PlatformSessionContextValue | null>(null);
 
+function normalizeRole(role: string | null | undefined): SessionUser["role"] {
+  const raw = (role ?? "").toLowerCase();
+  if (raw === "admin_master") return "master_admin";
+  if (raw === "master") return "master_admin";
+  if (raw === "prefeitura_admin") return "prefeitura_admin";
+  if (raw === "prefeitura_supervisor") return "prefeitura_supervisor";
+  if (raw === "master_ops") return "master_ops";
+  if (raw === "profissional_externo") return "profissional_externo";
+  if (raw === "property_owner") return "property_owner";
+  if (raw === "proprietario_consulta") return "proprietario_consulta";
+  if (raw === "financeiro") return "financeiro";
+  if (raw === "analista") return "analista";
+  if (raw === "setor_intersetorial") return "setor_intersetorial";
+  return (raw as SessionUser["role"]) || "profissional_externo";
+}
+
 export function PlatformSessionProvider({ children }: { children: React.ReactNode }) {
-  const { sessionUsers } = usePlatformData();
-  const { authenticatedEmail, authenticatedRole, authenticatedUserId } = useAuthGateway();
-  const [activeSessionId, setActiveSessionId] = useState("");
-  const allCandidates = useMemo(() => {
-    const merged = [...sessionUsers];
-    demoSessionUsers.forEach((entry) => {
-      if (!merged.some((item) => item.id === entry.id || item.email.toLowerCase() === entry.email.toLowerCase())) {
-        merged.push(entry);
-      }
-    });
-    return merged.length > 0 ? merged : demoSessionUsers;
-  }, [sessionUsers]);
-  const signedUser =
-    allCandidates.find((entry) => entry.id === authenticatedUserId) ??
-    allCandidates.find((entry) => entry.email.toLowerCase() === authenticatedEmail?.toLowerCase());
-  const fallbackAuthSession = useMemo<SessionUser | null>(() => {
-    if (!authenticatedUserId || !authenticatedRole) return null;
+  const {
+    authenticatedEmail,
+    authenticatedRole,
+    authenticatedUserId,
+    authenticatedMunicipalityId,
+  } = useAuthGateway();
+
+  const session = useMemo<SessionUser>(() => {
+    const safeRole = normalizeRole(authenticatedRole);
+    const email = authenticatedEmail || "";
     return {
-      id: authenticatedUserId,
-      name: authenticatedEmail?.split("@")[0]?.replace(/[._-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) || "Usuário autenticado",
-      role: authenticatedRole as SessionUser["role"],
-      accessLevel: authenticatedRole === "master_admin" || authenticatedRole === "prefeitura_admin" ? 3 : authenticatedRole === "prefeitura_supervisor" ? 2 : 1,
-      tenantId: null,
-      title: roleLabels[authenticatedRole as SessionUser["role"]] || "Usuário",
-      email: authenticatedEmail || "",
+      id: authenticatedUserId || "unknown",
+      name:
+        email
+          .split("@")[0]
+          ?.replace(/[._-]/g, " ")
+          .replace(/\b\w/g, (char) => char.toUpperCase()) || "Usuário autenticado",
+      role: safeRole,
+      accessLevel:
+        safeRole === "master_admin" || safeRole === "prefeitura_admin"
+          ? 3
+          : safeRole === "prefeitura_supervisor"
+            ? 2
+            : 1,
+      tenantId: authenticatedMunicipalityId ?? null,
+      municipalityId: authenticatedMunicipalityId ?? null,
+      title: roleLabels[safeRole] || "Usuário",
+      email,
       accountStatus: "active",
       userType: "Usuário",
       department: "",
@@ -47,29 +65,16 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: null,
       deletedAt: null,
     };
-  }, [authenticatedEmail, authenticatedRole, authenticatedUserId]);
-  const canSwitchProfiles = authenticatedRole === "master_admin" || authenticatedRole === "master_ops";
-  const candidates = canSwitchProfiles
-    ? fallbackAuthSession
-      ? [fallbackAuthSession, ...allCandidates]
-      : allCandidates
-    : signedUser
-      ? [signedUser]
-      : fallbackAuthSession
-        ? [fallbackAuthSession]
-        : [allCandidates[0]];
-  const session = candidates.find((entry) => entry.id === activeSessionId) ?? signedUser ?? fallbackAuthSession ?? candidates[0];
+  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId]);
+
+  const candidates = authenticatedUserId ? [session] : [];
 
   return (
     <PlatformSessionContext.Provider
       value={{
         session,
         sessions: candidates,
-        setActiveSession: (userId: string) => {
-          if (canSwitchProfiles || userId === signedUser?.id) {
-            setActiveSessionId(userId);
-          }
-        },
+        setActiveSession: () => {},
       }}
     >
       {children}

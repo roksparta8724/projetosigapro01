@@ -1,4 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
@@ -17,14 +18,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { loadMunicipalityBundleById } from "@/integrations/supabase/municipality";
-import { saveRemoteInstitutionSettings, uploadInstitutionalBrandingAsset } from "@/integrations/supabase/platform";
+import { useTenant } from "@/hooks/useTenant";
+import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import {
+  resolveMunicipalityIdBySubdomain,
+  resolveDefaultMunicipalityId,
+  resolveDevMunicipalityId,
+  resolveCurrentMunicipalityId,
+  resolveCurrentMunicipality,
+} from "@/integrations/supabase/municipality";
+import {
+  getMunicipalityBrandingSafe,
+  loadPlatformBranding,
+  saveRemoteInstitutionSettings,
+  savePlatformBranding,
+  uploadInstitutionalBrandingAsset,
+  uploadPlatformBrandingAsset,
+  upsertRemoteInstitution,
+} from "@/integrations/supabase/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import { deleteFile, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -72,32 +90,80 @@ function resolveBrandingErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function shallowEqualObject<T extends Record<string, unknown>>(a: T, b: T) {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
+function sameFileList(a: UploadedFileItem[], b: UploadedFileItem[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i]?.previewUrl !== b[i]?.previewUrl) return false;
+  }
+  return true;
+}
+
+function isRenderablePreviewUrl(value?: string | null) {
+  if (!value) return false;
+  return (
+    value.startsWith("http") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  );
+}
+
 export function ConfiguracoesPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
-  const { municipality, scopeId } = useMunicipality();
+  const tenantContext = useTenant();
+  const { municipality, branding: municipalityBranding, settings: municipalitySettings, scopeId, tenantSettingsCompat } = useMunicipality();
   const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
+  const bootstrap = useAppBootstrap();
   const { institutions, getInstitutionSettings, getUserProfile, saveUserProfile, saveInstitutionSettings, upsertInstitution } = usePlatformData();
+  const getInstitutionSettingsRef = useRef(getInstitutionSettings);
   const availableInstitutions = useMemo(() => institutions, [institutions]);
   const initialTenantId = scopeId ?? session.tenantId ?? availableInstitutions[0]?.id ?? "";
   const [selectedTenantId, setSelectedTenantId] = useState(initialTenantId);
   const [status, setStatus] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
+  const [diagnosticStatus, setDiagnosticStatus] = useState("");
   const statusIsSuccess = status.toLowerCase().includes("sucesso");
   const tenant = availableInstitutions.find((item) => item.id === selectedTenantId) ?? null;
-  const [remoteBundle, setRemoteBundle] = useState<Awaited<ReturnType<typeof loadMunicipalityBundleById>>>(null);
   const activeInstitution =
-    buildTenantFromMunicipalityBundle(remoteBundle?.municipality, remoteBundle?.branding, remoteBundle?.settings, tenant) ??
+    buildTenantFromMunicipalityBundle(municipality, municipalityBranding, municipalitySettings, tenant) ??
     municipality ??
     tenant;
   const settings =
-    buildTenantSettingsFromMunicipality(remoteBundle?.municipality, remoteBundle?.branding, remoteBundle?.settings, getInstitutionSettings(selectedTenantId)) ??
+    tenantSettingsCompat ??
+    buildTenantSettingsFromMunicipality(municipality, municipalityBranding, municipalitySettings, getInstitutionSettings(selectedTenantId)) ??
     getInstitutionSettings(selectedTenantId);
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
   const canManageTenantSettings = can(session, "manage_tenant_branding");
-  const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
+  const isMasterRole =
+    bootstrap.scopeType === "platform" ||
+    session.role === "master_admin" ||
+    session.role === "master_ops";
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
+  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const platformBrandingLoadedRef = useRef(false);
+  const [masterHeaderPersistedUrl, setMasterHeaderPersistedUrl] = useState("");
+  const [masterFooterPersistedUrl, setMasterFooterPersistedUrl] = useState("");
+  const [tenantForm, setTenantForm] = useState({
+    name: activeInstitution?.name ?? "",
+    city: tenant?.city ?? "",
+    state: tenant?.state ?? municipality?.state ?? "SP",
+    status: tenant?.status ?? "implantacao",
+    plan: tenant?.plan ?? "Plano institucional",
+    subdomain: tenant?.subdomain ?? municipality?.subdomain ?? "",
+    primaryColor: tenant?.theme.primary ?? "#0f3557",
+    accentColor: tenant?.theme.accent ?? "#178f78",
+  });
   const brandingUpdatedBy = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.id)
     ? session.id
     : "";
@@ -132,17 +198,271 @@ export function ConfiguracoesPage() {
     const firstLabel = withoutPath.split(".")[0] ?? "";
     return normalizeSlug(firstLabel);
   };
+  const isLocalHost = useMemo(() => {
+    const host = (tenantContext.hostname || "").trim().toLowerCase();
+    if (tenantContext.isLocalhost) return true;
+    if (!host) return false;
+    if (host === "localhost" || host === "127.0.0.1") return true;
+    if (host.startsWith("10.") || host.startsWith("192.168.")) return true;
+    if (host.startsWith("172.")) {
+      const parts = host.split(".");
+      const second = Number(parts[1] || "0");
+      return second >= 16 && second <= 31;
+    }
+    return host.endsWith(".local");
+  }, [tenantContext.hostname, tenantContext.isLocalhost]);
+  const allowRemoteInLocal =
+    (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
+  const publicBase =
+    (import.meta.env.VITE_R2_PUBLIC_BASE_URL as string | undefined)?.trim() ||
+    "";
+  const isUuid = (value?: string | null) =>
+    Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+  const withTimeout = async <T,>(promise: Promise<T>, message: string, ms = 20000): Promise<T> => {
+    let timer: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = window.setTimeout(() => reject(new Error(message)), ms);
+    });
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timer) window.clearTimeout(timer);
+    }
+  };
+  const withTimeoutLogged = async <T,>(label: string, promise: Promise<T>, ms = 20000): Promise<T> => {
+    console.log("[FinalState] Iniciando etapa", { label, ms });
+    try {
+      return await withTimeout(promise, `Timeout: ${label}`, ms);
+    } catch (error) {
+      console.error("[Timeout]", { label, error });
+      throw error;
+    }
+  };
+  const clearLogoSavingTimeout = () => {
+    if (logoSavingTimeoutRef.current) {
+      window.clearTimeout(logoSavingTimeoutRef.current);
+      logoSavingTimeoutRef.current = null;
+    }
+  };
+  const armLogoSavingTimeout = (variant: InstitutionalLogoConfigVariant) => {
+    clearLogoSavingTimeout();
+    logoSavingTimeoutRef.current = window.setTimeout(() => {
+      const message = "Tempo limite ao aplicar o logo. Verifique a conexão e tente novamente.";
+      if (variant === "footer") {
+        setFooterLogoStatus(message);
+      } else {
+        setHeaderLogoStatus(message);
+      }
+      setLogoSaving(null);
+    }, 25000);
+  };
+  const resolveValidScopeId = (...candidates: Array<string | null | undefined>) => {
+    for (const value of candidates) {
+      if (!value) continue;
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+        return value;
+      }
+    }
+    return "";
+  };
 
-  const [tenantForm, setTenantForm] = useState({
-    name: activeInstitution?.name ?? "",
-    city: tenant?.city ?? "",
-    state: tenant?.state ?? municipality?.state ?? "SP",
-    status: tenant?.status ?? "implantacao",
-    plan: tenant?.plan ?? "Plano institucional",
-    subdomain: tenant?.subdomain ?? municipality?.subdomain ?? "",
-    primaryColor: tenant?.theme.primary ?? "#0f3557",
-    accentColor: tenant?.theme.accent ?? "#178f78",
-  });
+  const resolvedLocalMunicipalityId = useMemo(() => {
+    if (!tenantContext.isLocalhost) return "";
+    const envId = (import.meta.env.VITE_DEV_MUNICIPALITY_ID as string | undefined)?.trim() || "";
+    return isUuid(envId) ? envId : "";
+  }, [tenantContext.isLocalhost]);
+
+  const resolveMunicipalityForBranding = async (normalizedSubdomain: string) => {
+    const directId = resolveValidScopeId(
+      tenantContext.municipalityId,
+      municipality?.id,
+      selectedTenantId,
+      session.tenantId,
+      settings?.tenantId,
+      activeInstitution?.id,
+      tenant?.id,
+    );
+    if (directId) {
+      console.log("[SIGAPRO] Branding: municipio pelo contexto", { directId });
+      return directId;
+    }
+
+    if (tenantContext.isLocalhost) {
+      const devId = (import.meta.env.VITE_DEV_MUNICIPALITY_ID as string | undefined)?.trim() || "";
+      const devSlug = (import.meta.env.VITE_DEV_MUNICIPALITY_SLUG as string | undefined)?.trim() || "";
+      const devName = (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined)?.trim() || "";
+
+      if (isUuid(devId)) {
+        console.log("[SIGAPRO] Branding: municipio por VITE_DEV_MUNICIPALITY_ID", { devId });
+        return devId;
+      }
+
+      if (devSlug) {
+        const normalizedDevSlug = normalizeSubdomainInput(devSlug);
+        const bySlug = availableInstitutions.find(
+          (item) => normalizeSubdomainInput(item.subdomain || item.slug || "") === normalizedDevSlug,
+        );
+        if (bySlug?.id && isUuid(bySlug.id)) {
+          console.log("[SIGAPRO] Branding: municipio por VITE_DEV_MUNICIPALITY_SLUG", {
+            devSlug,
+            id: bySlug.id,
+          });
+          return bySlug.id;
+        }
+      }
+
+      if (devName) {
+        const normalizedName = devName.trim().toLowerCase();
+        const byName = availableInstitutions.find(
+          (item) => (item.name || "").trim().toLowerCase() === normalizedName,
+        );
+        if (byName?.id && isUuid(byName.id)) {
+          console.log("[SIGAPRO] Branding: municipio por VITE_DEV_MUNICIPALITY_NAME", {
+            devName,
+            id: byName.id,
+          });
+          return byName.id;
+        }
+      }
+    }
+
+    const normalizedName = tenantForm.name.trim().toLowerCase();
+    const fallbackByList =
+      availableInstitutions.find((item) => {
+        const sub = normalizeSubdomainInput(item.subdomain || item.slug || "");
+        const name = (item.name || "").trim().toLowerCase();
+        return (normalizedSubdomain && sub === normalizedSubdomain) || (normalizedName && name === normalizedName);
+      }) ?? (availableInstitutions.length === 1 ? availableInstitutions[0] : null);
+
+    if (fallbackByList && isUuid(fallbackByList.id)) {
+      console.log("[SIGAPRO] Branding: municipio por lista local", { id: fallbackByList.id });
+      return fallbackByList.id;
+    }
+
+    const preferredName = tenantForm.name || "Campo Limpo Paulista";
+
+    if (tenantContext.isLocalhost) {
+      console.log("[SIGAPRO] Branding: modo localhost", {
+        hostname: tenantContext.hostname,
+        subdomain: tenantContext.subdomain,
+        preferredName,
+      });
+      try {
+        const devId = await withTimeout(
+          resolveDevMunicipalityId(),
+          "Falha ao localizar prefeitura do ambiente local.",
+          6000,
+        );
+        if (devId) {
+          console.log("[SIGAPRO] Branding: municipio por .env (dev)", { devId });
+          return devId;
+        }
+      } catch (error) {
+        console.warn("[SIGAPRO] Branding: fallback .env falhou", error);
+      }
+
+      try {
+        const fallbackId = await withTimeout(
+          resolveDefaultMunicipalityId(preferredName),
+          "Falha ao localizar prefeitura padrão.",
+          6000,
+        );
+        if (fallbackId) {
+          console.log("[SIGAPRO] Branding: municipio por fallback padrão", { fallbackId });
+          return fallbackId;
+        }
+      } catch (error) {
+        console.warn("[SIGAPRO] Branding: fallback padrão falhou", error);
+      }
+    }
+
+    if (normalizedSubdomain && hasSupabaseEnv) {
+      try {
+        const idBySubdomain = await withTimeout(
+          resolveMunicipalityIdBySubdomain(normalizedSubdomain),
+          "Falha ao localizar prefeitura pelo subdomínio.",
+          6000,
+        );
+        if (idBySubdomain) {
+          console.log("[SIGAPRO] Branding: municipio por subdominio", { normalizedSubdomain, idBySubdomain });
+          return idBySubdomain;
+        }
+      } catch (error) {
+        console.warn("[SIGAPRO] Branding: subdominio falhou", error);
+      }
+    }
+
+    if (hasSupabaseEnv) {
+      try {
+        const resolved = await withTimeout(
+          resolveCurrentMunicipalityId({
+            hostname: tenantContext.hostname,
+            subdomain: tenantContext.subdomain ?? normalizedSubdomain,
+            isLocalhost: tenantContext.isLocalhost,
+            preferredName,
+          }),
+          "Falha ao resolver prefeitura atual.",
+          6000,
+        );
+        if (resolved.id) {
+          console.log("[SIGAPRO] Branding: municipio por resolver atual", resolved);
+          return resolved.id;
+        }
+      } catch (error) {
+        console.warn("[SIGAPRO] Branding: resolver atual falhou", error);
+      }
+    }
+
+    return "";
+  };
+
+  const handleTestMunicipality = async () => {
+    setDiagnosticStatus("Diagnóstico: resolvendo prefeitura...");
+    try {
+      const resolveStartedAt = Date.now();
+      const resolved = await resolveCurrentMunicipality({
+        hostname: tenantContext.hostname,
+        subdomain: tenantContext.subdomain,
+        isLocalhost: tenantContext.isLocalhost,
+      });
+      console.log("[SIGAPRO][Diagnostico] resolveCurrentMunicipality tempo (ms)", {
+        elapsed: Date.now() - resolveStartedAt,
+      });
+
+      console.log("[SIGAPRO][Diagnostico] Prefeitura resolvida", resolved);
+
+      if (!resolved?.id) {
+        setDiagnosticStatus("Diagnóstico: prefeitura não encontrada.");
+        return;
+      }
+
+      if (!hasSupabaseEnv || !supabase) {
+        setDiagnosticStatus("Diagnóstico: Supabase indisponível.");
+        return;
+      }
+
+      setDiagnosticStatus(`Diagnóstico: prefeitura ${resolved.id}. Testando banco...`);
+
+      const brandingStartedAt = Date.now();
+      const branding = await getMunicipalityBrandingSafe(resolved.id);
+      console.log("[SIGAPRO][Diagnostico] getMunicipalityBrandingSafe tempo (ms)", {
+        elapsed: Date.now() - brandingStartedAt,
+      });
+      console.log("[SIGAPRO][Diagnostico] Branding retornado", branding);
+
+      if (!branding) {
+        setDiagnosticStatus("Diagnóstico: branding não retornou (ver logs).");
+        return;
+      }
+
+      setDiagnosticStatus(`Diagnóstico: branding OK (id ${branding.id}).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido.";
+      console.error("[SIGAPRO][Diagnostico] Falha", error);
+      setDiagnosticStatus(`Diagnóstico: falha -> ${message}`);
+    }
+  };
+
   const activeTenantDesktopThemePreset =
     desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor) ??
     desktopThemePresets[0];
@@ -152,7 +472,14 @@ export function ConfiguracoesPage() {
 
   useEffect(() => {
     if (availableInstitutions.length === 0) {
-      if (selectedTenantId) setSelectedTenantId("");
+      if (selectedTenantId && !isUuid(selectedTenantId)) {
+        setSelectedTenantId("");
+      }
+      return;
+    }
+
+    // Evita sobrescrever o municipality_id resolvido (UUID) com tenantIds locais.
+    if (isUuid(selectedTenantId)) {
       return;
     }
 
@@ -171,6 +498,14 @@ export function ConfiguracoesPage() {
       setSelectedTenantId(nextPreferred);
     }
   }, [availableInstitutions, scopeId, selectedTenantId, session.tenantId]);
+
+  useEffect(() => {
+    if (isLocalHost && !allowRemoteInLocal) {
+      if (resolvedLocalMunicipalityId && resolvedLocalMunicipalityId !== selectedTenantId) {
+        setSelectedTenantId(resolvedLocalMunicipalityId);
+      }
+    }
+  }, [allowRemoteInLocal, isLocalHost, resolvedLocalMunicipalityId, selectedTenantId]);
 
   const [settingsForm, setSettingsForm] = useState({
     cnpj: settings?.cnpj ?? "",
@@ -257,6 +592,17 @@ export function ConfiguracoesPage() {
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
   const [draftLogoFiles, setDraftLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
+  const [logoRemovalRequested, setLogoRemovalRequested] = useState(false);
+  useEffect(() => {
+    if (!draftLogoFiles.length) return;
+    const file = draftLogoFiles[0];
+    console.log("[LogoSelect] Arquivo selecionado", {
+      name: file.fileName,
+      sizeLabel: file.sizeLabel,
+      mimeType: file.mimeType,
+      previewUrl: file.previewUrl,
+    });
+  }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState({
     scale: settings?.headerLogoScale ?? settings?.logoScale ?? 1,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
@@ -270,9 +616,12 @@ export function ConfiguracoesPage() {
   const [headerLogoStatus, setHeaderLogoStatus] = useState("");
   const [footerLogoStatus, setFooterLogoStatus] = useState("");
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
-  const [masterLogoFiles, setMasterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
-  const [draftMasterLogoFiles, setDraftMasterLogoFiles] = useState<UploadedFileItem[]>(
-    imageFiles(masterBranding.logoUrl ?? "", "master-logo"),
+  const logoSavingTimeoutRef = useRef<number | null>(null);
+  const [draftMasterHeaderLogoFiles, setDraftMasterHeaderLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-header-logo"),
+  );
+  const [draftMasterFooterLogoFiles, setDraftMasterFooterLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-footer-logo"),
   );
   const [masterFooterText, setMasterFooterText] = useState(masterBranding.footerText ?? "");
   const [draftMasterHeaderConfig, setDraftMasterHeaderConfig] = useState({
@@ -309,41 +658,29 @@ export function ConfiguracoesPage() {
       : [],
   );
 
+  // bundle remoto agora vem do AppBootstrap/MunicipalityProvider
+
   useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      try {
-        const bundle = await loadMunicipalityBundleById(selectedTenantId);
-        if (active) setRemoteBundle(bundle);
-      } catch {
-        if (active) setRemoteBundle(null);
-      }
-    };
-
-    void run();
-    return () => {
-      active = false;
-    };
-  }, [selectedTenantId]);
+    getInstitutionSettingsRef.current = getInstitutionSettings;
+  }, [getInstitutionSettings]);
 
   useEffect(() => {
     const nextTenant = availableInstitutions.find((item) => item.id === selectedTenantId) ?? null;
     const nextMappedInstitution = buildTenantFromMunicipalityBundle(
-      remoteBundle?.municipality,
-      remoteBundle?.branding,
-      remoteBundle?.settings,
+      municipality,
+      municipalityBranding,
+      municipalitySettings,
       nextTenant,
     );
     const nextSettings =
       buildTenantSettingsFromMunicipality(
-        remoteBundle?.municipality,
-        remoteBundle?.branding,
-        remoteBundle?.settings,
-        getInstitutionSettings(selectedTenantId),
-      ) ?? getInstitutionSettings(selectedTenantId);
+        municipality,
+        municipalityBranding,
+        municipalitySettings,
+        getInstitutionSettingsRef.current(selectedTenantId),
+      ) ?? getInstitutionSettingsRef.current(selectedTenantId);
 
-    setTenantForm({
+    const nextTenantForm = {
       name: nextMappedInstitution?.name ?? "",
       city: nextMappedInstitution?.city ?? "",
       state: nextMappedInstitution?.state ?? "SP",
@@ -352,9 +689,10 @@ export function ConfiguracoesPage() {
       subdomain: nextMappedInstitution?.subdomain ?? "",
       primaryColor: nextMappedInstitution?.theme.primary ?? "#0f3557",
       accentColor: nextMappedInstitution?.theme.accent ?? "#178f78",
-    });
+    };
+    setTenantForm((current) => (shallowEqualObject(current, nextTenantForm) ? current : nextTenantForm));
 
-    setSettingsForm({
+    const nextSettingsForm = {
       cnpj: nextSettings?.cnpj ?? "",
       endereco: nextSettings?.endereco ?? "",
       telefone: nextSettings?.telefone ?? "",
@@ -380,39 +718,53 @@ export function ConfiguracoesPage() {
       logoScale: nextSettings?.logoScale ?? 1,
       logoOffsetX: nextSettings?.logoOffsetX ?? 0,
       logoOffsetY: nextSettings?.logoOffsetY ?? 0,
-    });
+    };
+    setSettingsForm((current) => (shallowEqualObject(current, nextSettingsForm) ? current : nextSettingsForm));
 
-    setLogoFiles(imageFiles(nextSettings?.logoUrl ?? "", "logo"));
-    setDraftLogoFiles(imageFiles(nextSettings?.logoUrl ?? "", "logo"));
-    setDraftHeaderLogoConfig({
+    const nextLogoFiles = imageFiles(nextSettings?.logoUrl ?? "", "logo");
+    setLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
+    setDraftLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
+
+    const nextHeaderConfig = {
       scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1,
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    });
-    setDraftFooterLogoConfig({
+    };
+    setDraftHeaderLogoConfig((current) =>
+      shallowEqualObject(current, nextHeaderConfig) ? current : nextHeaderConfig,
+    );
+
+    const nextFooterConfig = {
       scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    });
-    setBrasaoFiles(imageFiles(nextSettings?.brasaoUrl ?? "", "brasao"));
-    setBandeiraFiles(imageFiles(nextSettings?.bandeiraUrl ?? "", "bandeira"));
-    setHeroFiles(imageFiles(nextSettings?.imagemHeroUrl ?? "", "imagem institucional"));
-    setPlanoDiretorFiles(
-      nextSettings?.planoDiretorArquivoUrl
-        ? [{ id: "plano-diretor", fileName: nextSettings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.planoDiretorArquivoUrl }]
-        : [],
+    };
+    setDraftFooterLogoConfig((current) =>
+      shallowEqualObject(current, nextFooterConfig) ? current : nextFooterConfig,
     );
-    setUsoSoloFiles(
-      nextSettings?.usoSoloArquivoUrl
-        ? [{ id: "uso-solo", fileName: nextSettings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.usoSoloArquivoUrl }]
-        : [],
+
+    const nextBrasaoFiles = imageFiles(nextSettings?.brasaoUrl ?? "", "brasao");
+    const nextBandeiraFiles = imageFiles(nextSettings?.bandeiraUrl ?? "", "bandeira");
+    const nextHeroFiles = imageFiles(nextSettings?.imagemHeroUrl ?? "", "imagem institucional");
+    setBrasaoFiles((current) => (sameFileList(current, nextBrasaoFiles) ? current : nextBrasaoFiles));
+    setBandeiraFiles((current) => (sameFileList(current, nextBandeiraFiles) ? current : nextBandeiraFiles));
+    setHeroFiles((current) => (sameFileList(current, nextHeroFiles) ? current : nextHeroFiles));
+
+    const nextPlanoDiretorFiles = nextSettings?.planoDiretorArquivoUrl
+      ? [{ id: "plano-diretor", fileName: nextSettings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.planoDiretorArquivoUrl }]
+      : [];
+    const nextUsoSoloFiles = nextSettings?.usoSoloArquivoUrl
+      ? [{ id: "uso-solo", fileName: nextSettings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.usoSoloArquivoUrl }]
+      : [];
+    const nextLeisFiles = nextSettings?.leisArquivoUrl
+      ? [{ id: "leis-complementares", fileName: nextSettings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.leisArquivoUrl }]
+      : [];
+    setPlanoDiretorFiles((current) =>
+      sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
     );
-    setLeisFiles(
-      nextSettings?.leisArquivoUrl
-        ? [{ id: "leis-complementares", fileName: nextSettings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.leisArquivoUrl }]
-        : [],
-    );
-  }, [availableInstitutions, getInstitutionSettings, remoteBundle, selectedTenantId]);
+    setUsoSoloFiles((current) => (sameFileList(current, nextUsoSoloFiles) ? current : nextUsoSoloFiles));
+    setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
+  }, [availableInstitutions, selectedTenantId]);
 
   const setTenantField = (field: keyof typeof tenantForm, value: string) => {
     setTenantForm((current) => ({ ...current, [field]: value }));
@@ -444,9 +796,20 @@ export function ConfiguracoesPage() {
       setDraftMasterHeaderConfig(next);
     };
 
-  const previewMasterBrandingBase = useMemo(() => {
-    const draftLogoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
-    return updateMasterBranding(masterBranding, {
+  const masterHeaderPreviewUrl = useMemo(() => {
+    const url = draftMasterHeaderLogoFiles[0]?.previewUrl ?? "";
+    return isRenderablePreviewUrl(url) ? url : "";
+  }, [draftMasterHeaderLogoFiles]);
+  const masterFooterPreviewUrl = useMemo(() => {
+    const url = draftMasterFooterLogoFiles[0]?.previewUrl ?? "";
+    return isRenderablePreviewUrl(url) ? url : "";
+  }, [draftMasterFooterLogoFiles]);
+  const masterHeaderActiveUrl = masterHeaderPreviewUrl || masterHeaderPersistedUrl;
+  const masterFooterActiveUrl = masterFooterPreviewUrl || masterFooterPersistedUrl;
+
+  const previewMasterHeaderBranding = useMemo(() => {
+    const draftLogoUrl = masterHeaderActiveUrl || "";
+    const nextState = updateMasterBranding(masterBranding, {
       logoUrl: draftLogoUrl,
       logoAlt: "Logo institucional do SIGAPRO",
       footerText: masterFooterText,
@@ -457,23 +820,202 @@ export function ConfiguracoesPage() {
       footerLogoOffsetX: draftMasterFooterConfig.offsetX,
       footerLogoOffsetY: draftMasterFooterConfig.offsetY,
     });
-  }, [draftMasterFooterConfig, draftMasterHeaderConfig, draftMasterLogoFiles, masterBranding, masterFooterText]);
+    return getMasterInstitutionBranding(nextState, "header");
+  }, [
+    draftMasterFooterConfig,
+    draftMasterHeaderConfig,
+    masterBranding,
+    masterFooterText,
+    masterHeaderActiveUrl,
+  ]);
 
-  const previewMasterHeaderBranding = useMemo(
-    () => getMasterInstitutionBranding(previewMasterBrandingBase, "header"),
-    [previewMasterBrandingBase],
-  );
-  const previewMasterFooterBranding = useMemo(
-    () => getMasterInstitutionBranding(previewMasterBrandingBase, "footer"),
-    [previewMasterBrandingBase],
-  );
+  const previewMasterFooterBranding = useMemo(() => {
+    const draftLogoUrl = masterFooterActiveUrl || "";
+    const nextState = updateMasterBranding(masterBranding, {
+      logoUrl: draftLogoUrl,
+      logoAlt: "Logo institucional do SIGAPRO",
+      footerText: masterFooterText,
+      headerLogoScale: draftMasterHeaderConfig.scale,
+      headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+      headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+      footerLogoScale: draftMasterFooterConfig.scale,
+      footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+      footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+    });
+    return getMasterInstitutionBranding(nextState, "footer");
+  }, [
+    draftMasterFooterConfig,
+    draftMasterHeaderConfig,
+    masterBranding,
+    masterFooterText,
+    masterFooterActiveUrl,
+  ]);
+
+  useEffect(() => {
+    if (!isMasterRole) return;
+    console.log("[MasterHeaderPreview] src", {
+      persistedUrl: platformBranding?.headerLogoUrl,
+      objectKey: platformBranding?.headerLogoObjectKey,
+      previewUrl: masterHeaderPreviewUrl,
+      finalSrc: previewMasterHeaderBranding.logoUrl,
+    });
+    console.log("[MasterFooterPreview] src", {
+      persistedUrl: platformBranding?.footerLogoUrl,
+      objectKey: platformBranding?.footerLogoObjectKey,
+      previewUrl: masterFooterPreviewUrl,
+      finalSrc: previewMasterFooterBranding.logoUrl,
+    });
+    console.log("[ProfilePreviewReference] Perfil usado como referencia de preview do Master");
+    console.log("[LogoRender] master previews atualizados", {
+      headerSrc: previewMasterHeaderBranding.logoUrl,
+      footerSrc: previewMasterFooterBranding.logoUrl,
+    });
+  }, [
+    isMasterRole,
+    masterFooterPreviewUrl,
+    masterHeaderPreviewUrl,
+    platformBranding?.footerLogoObjectKey,
+    platformBranding?.footerLogoUrl,
+    platformBranding?.headerLogoObjectKey,
+    platformBranding?.headerLogoUrl,
+    previewMasterFooterBranding.logoUrl,
+    previewMasterHeaderBranding.logoUrl,
+  ]);
+
+  useEffect(() => {
+    if (!isMasterRole) return;
+    let active = true;
+    const loadRemote = async () => {
+      try {
+        const remote = await loadPlatformBranding();
+        console.log("[BrandingLoad] platform_branding carregado", { remote });
+        if (active) setPlatformBranding(remote);
+      } catch {
+        console.log("[BrandingLoad] platform_branding falhou, retornando null");
+        if (active) setPlatformBranding(null);
+      }
+    };
+    void loadRemote();
+    return () => {
+      active = false;
+    };
+  }, [isMasterRole]);
+
+  useEffect(() => {
+    if (!isMasterRole || activeSettingsView !== "platform") return;
+    console.log("[LayoutOverflow] Master branding pronto para renderização");
+  }, [activeSettingsView, isMasterRole]);
+
+  useEffect(() => {
+    if (!isMasterRole) {
+      platformBrandingLoadedRef.current = false;
+      return;
+    }
+    if (platformBrandingLoadedRef.current) return;
+    platformBrandingLoadedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        console.log("[BrandingLoad] Carregando branding master (platform_branding)");
+        const remote = await loadPlatformBranding();
+        if (!cancelled) {
+          setPlatformBranding(remote);
+        }
+      } catch (error) {
+        console.warn("[BrandingLoad] Falha ao carregar branding master", { error });
+        if (!cancelled) {
+          setPlatformBranding(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isMasterRole]);
+
+  useEffect(() => {
+    if (!isMasterRole) return;
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
+    const allowPublicFallback =
+      String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+    const resolveUrl = async (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) return "";
+      if (trimmed.startsWith("http")) {
+        const extractedKey = getObjectKeyFromPublicUrl(trimmed);
+        if (extractedKey) {
+          try {
+            return await getSignedUrlForObject({ bucket, objectKey: extractedKey });
+          } catch {
+            return allowPublicFallback ? trimmed : "";
+          }
+        }
+        return allowPublicFallback ? trimmed : "";
+      }
+      try {
+        return await getSignedUrlForObject({ bucket, objectKey: trimmed });
+      } catch {
+        if (!allowPublicFallback) return "";
+        const publicUrl = getPublicUrl(trimmed);
+        return publicUrl || "";
+      }
+    };
+
+    const headerRaw =
+      platformBranding?.headerLogoObjectKey || platformBranding?.headerLogoUrl || "";
+    const footerRaw =
+      platformBranding?.footerLogoObjectKey || platformBranding?.footerLogoUrl || "";
+
+    const hasLocalHeader = Boolean(draftMasterHeaderLogoFiles[0]?.file);
+    const hasLocalFooter = Boolean(draftMasterFooterLogoFiles[0]?.file);
+    const currentHeaderPreview = draftMasterHeaderLogoFiles[0]?.previewUrl ?? "";
+    const currentFooterPreview = draftMasterFooterLogoFiles[0]?.previewUrl ?? "";
+
+    void resolveUrl(headerRaw).then((url) => {
+      if (url && url !== masterHeaderPersistedUrl) {
+        setMasterHeaderPersistedUrl(url);
+      }
+      if (!hasLocalHeader && !isRenderablePreviewUrl(currentHeaderPreview) && url) {
+        setDraftMasterHeaderLogoFiles(imageFiles(url, "master-header-logo"));
+      }
+    });
+
+    void resolveUrl(footerRaw).then((url) => {
+      if (url && url !== masterFooterPersistedUrl) {
+        setMasterFooterPersistedUrl(url);
+      }
+      if (!hasLocalFooter && !isRenderablePreviewUrl(currentFooterPreview) && url) {
+        setDraftMasterFooterLogoFiles(imageFiles(url, "master-footer-logo"));
+      }
+    });
+  }, [
+    isMasterRole,
+    platformBranding,
+    draftMasterHeaderLogoFiles,
+    draftMasterFooterLogoFiles,
+    masterHeaderPersistedUrl,
+    masterFooterPersistedUrl,
+  ]);
 
   const handleConfirmMasterLogo = async (variant: InstitutionalLogoConfigVariant) => {
     try {
+      console.log("[PlatformBranding] Clique em confirmar logo", { variant });
       setMasterHeaderStatus("");
       setMasterFooterStatus("");
       setMasterLogoSaving(variant);
-      const logoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+      if (variant === "footer") {
+        setMasterFooterStatus("Aplicando logo do rodapé da plataforma...");
+      } else {
+        setMasterHeaderStatus("Aplicando logo do cabeçalho da plataforma...");
+      }
+      const draftFiles =
+        variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
+      let logoUrl = draftFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+      let nextObjectKey = "";
+      let nextFileName = "";
+      let nextMimeType = "";
+      let nextPublicUrl = "";
 
       if (!logoUrl) {
         const message = "Envie o logo institucional da plataforma para continuar.";
@@ -485,8 +1027,118 @@ export function ConfiguracoesPage() {
         return;
       }
 
+      if (logoUrl.startsWith("blob:") && !draftFiles[0]?.file) {
+        const message = "Reenvie o arquivo do logo para salvar no banco.";
+        if (variant === "footer") {
+          setMasterFooterStatus(message);
+        } else {
+          setMasterHeaderStatus(message);
+        }
+        return;
+      }
+
+      if (draftFiles[0]?.file) {
+        const assetKey = variant === "footer" ? "footer-logo" : "header-logo";
+        const uploaded = await withTimeoutLogged(
+          "upload master",
+          uploadPlatformBrandingAsset({
+            file: draftFiles[0].file,
+            assetKey,
+          }),
+          30000,
+        );
+        const allowPublicFallback =
+          String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+        if (allowPublicFallback && uploaded.publicUrl) {
+          logoUrl = uploaded.publicUrl;
+        }
+        nextObjectKey = uploaded.objectKey;
+        nextFileName = uploaded.fileName;
+        nextMimeType = uploaded.mimeType;
+        nextPublicUrl = allowPublicFallback ? uploaded.publicUrl : "";
+        console.log("[AssetUpload] Master logo salvo", { variant, objectKey: uploaded.objectKey });
+      }
+
+      let existingPlatformBranding = null as Awaited<ReturnType<typeof loadPlatformBranding>> | null;
+      if (!nextObjectKey) {
+        try {
+          existingPlatformBranding = await loadPlatformBranding();
+        } catch {
+          existingPlatformBranding = null;
+        }
+      }
+
+      const existingObjectKey =
+        existingPlatformBranding && variant === "header"
+          ? existingPlatformBranding.headerLogoObjectKey || ""
+          : existingPlatformBranding?.footerLogoObjectKey || "";
+      const existingFileName =
+        existingPlatformBranding && variant === "header"
+          ? existingPlatformBranding.headerLogoFileName || ""
+          : existingPlatformBranding?.footerLogoFileName || "";
+      const existingMimeType =
+        existingPlatformBranding && variant === "header"
+          ? existingPlatformBranding.headerLogoMimeType || ""
+          : existingPlatformBranding?.footerLogoMimeType || "";
+      const existingPublicUrl =
+        existingPlatformBranding && variant === "header"
+          ? existingPlatformBranding.headerLogoUrl || ""
+          : existingPlatformBranding?.footerLogoUrl || "";
+
+      if (!nextPublicUrl) {
+        nextPublicUrl = existingPublicUrl;
+      }
+
+      const finalObjectKey = nextObjectKey || existingObjectKey;
+      if (!finalObjectKey) {
+        throw new Error("Envie o arquivo do logo da plataforma para concluir.");
+      }
+
+      console.log("[BrandingScope] Master save", { variant, scopeType: "platform" });
+      await withTimeoutLogged(
+        "platform_branding upsert",
+        savePlatformBranding({
+          variant,
+          objectKey: finalObjectKey,
+          fileName: nextFileName || draftFiles[0]?.file?.name || existingFileName || "",
+          mimeType: nextMimeType || draftFiles[0]?.file?.type || existingMimeType || "application/octet-stream",
+          publicUrl: nextPublicUrl || "",
+          updatedBy: brandingUpdatedBy,
+        }),
+        20000,
+      );
+
+      if (!nextPublicUrl) {
+        try {
+          nextPublicUrl = await getSignedUrlForObject({
+            bucket:
+              (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+              "sigapro-logos",
+            objectKey: finalObjectKey,
+          });
+        } catch {
+          nextPublicUrl = "";
+        }
+      }
+
+      if (isRenderablePreviewUrl(nextPublicUrl)) {
+        if (variant === "footer") {
+          setMasterFooterPersistedUrl(nextPublicUrl);
+        } else {
+          setMasterHeaderPersistedUrl(nextPublicUrl);
+        }
+      }
+
+      try {
+        const remote = await withTimeoutLogged("reload platform_branding", loadPlatformBranding(), 15000);
+        setPlatformBranding(remote);
+      } catch {
+        setPlatformBranding(existingPlatformBranding);
+      }
+
+      const persistedUrl = nextPublicUrl || (logoUrl.startsWith("http") ? logoUrl : "");
       const updated = updateMasterBranding(masterBranding, {
-        logoUrl,
+        logoUrl: persistedUrl,
         logoAlt: "Logo institucional do SIGAPRO",
         logoUpdatedAt: new Date().toISOString(),
         logoUpdatedBy: brandingUpdatedBy,
@@ -500,8 +1152,19 @@ export function ConfiguracoesPage() {
       });
 
       setMasterBranding(updated);
-      setMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
-      setDraftMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      const nextLogoPreview =
+        (isRenderablePreviewUrl(logoUrl) ? logoUrl : "") ||
+        nextPublicUrl ||
+        updated.logoUrl ||
+        "";
+      // Mantemos o preview local apenas quando houver URL renderizável.
+      if (isRenderablePreviewUrl(nextLogoPreview)) {
+        if (variant === "footer") {
+          setDraftMasterFooterLogoFiles(imageFiles(nextLogoPreview, "master-footer-logo"));
+        } else {
+          setDraftMasterHeaderLogoFiles(imageFiles(nextLogoPreview, "master-header-logo"));
+        }
+      }
       saveMasterBranding(updated);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("sigapro-master-branding-updated"));
@@ -533,8 +1196,6 @@ export function ConfiguracoesPage() {
   }, [authenticatedEmail, session.email]);
 
   useEffect(() => {
-    setMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
-    setDraftMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
     setDraftMasterHeaderConfig({
       scale: masterBranding.headerLogoScale ?? masterBranding.logoScale ?? 1,
       offsetX: masterBranding.headerLogoOffsetX ?? masterBranding.logoOffsetX ?? 0,
@@ -570,6 +1231,18 @@ export function ConfiguracoesPage() {
   };
 
   const handleConfirmLogo = async (variant: InstitutionalLogoConfigVariant) => {
+    console.log("[SIGAPRO][LogoSelect] Confirmar logo: clique", { variant });
+    if (isMasterRole) {
+      console.warn("[SIGAPRO][LogoSelect] Master detectado, bloqueando branding municipal", { variant });
+      const message = "Você está no ambiente Master. Edite o logo na seção Plataforma.";
+      if (variant === "footer") {
+        setFooterLogoStatus(message);
+      } else {
+        setHeaderLogoStatus(message);
+      }
+      return;
+    }
+
     if (variant === "footer") {
       setFooterLogoStatus("");
     } else {
@@ -577,36 +1250,262 @@ export function ConfiguracoesPage() {
     }
     setLogoSaving(variant);
 
-    try {
-      const resolvedTenantId = scopeId || municipality?.id || selectedTenantId || session.tenantId || "";
-      const savedTenant = resolvedTenantId ? { id: resolvedTenantId } : ensureSelectedTenant();
-      let logoUrl = draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
-      const draftConfig = variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig;
-      const activeBranding = variant === "footer" ? footerBranding : headerBranding;
+    const setStepStatus = (message: string) => {
+      console.log("[SIGAPRO][LogoPreview] Confirmar logo: etapa", { variant, message });
+      if (variant === "footer") {
+        setFooterLogoStatus(message);
+      } else {
+        setHeaderLogoStatus(message);
+      }
+    };
 
-      if (hasSupabaseEnv && draftLogoFiles[0]?.file) {
-        const uploaded = await uploadInstitutionalBrandingAsset({
-          tenantId: savedTenant.id,
-          file: draftLogoFiles[0].file,
+    try {
+      // ------------------------------------------------------------------
+      // 1. Resolver prefeitura
+      // ------------------------------------------------------------------
+      setStepStatus("Localizando prefeitura...");
+
+      const normalizedSubdomain = normalizeSubdomainInput(
+        tenantContext.subdomain ??
+          tenantForm.subdomain ??
+          settingsForm.linkPortalCliente ??
+          settingsForm.site ??
+          tenantForm.city ??
+          tenantForm.name,
+      );
+
+      console.log("[SIGAPRO][LogoPreview] Confirmar logo: resolucao iniciada", {
+        variant,
+        scopeId,
+        selectedTenantId,
+        sessionTenantId: session.tenantId,
+        municipalityId: municipality?.id,
+        remoteMunicipalityId: municipality?.id,
+        normalizedSubdomain,
+        hostname: tenantContext.hostname,
+        isLocalhost: tenantContext.isLocalhost,
+        institutionsCount: availableInstitutions.length,
+      });
+
+      let resolvedTenantId = await resolveMunicipalityForBranding(
+        normalizedSubdomain,
+      );
+
+      if (!resolvedTenantId && isMasterRole && hasSupabaseEnv) {
+        if (!tenantForm.name.trim()) {
+          throw new Error("Informe o nome institucional antes de aplicar o logo.");
+        }
+        if (!normalizedSubdomain) {
+          throw new Error("Informe um subdomínio válido para aplicar o logo.");
+        }
+        const remote = await withTimeout(
+          upsertRemoteInstitution({
+            tenantId: selectedTenantId || undefined,
+            name: tenantForm.name,
+            city: tenantForm.city,
+            state: tenantForm.state,
+            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
+            subdomain: normalizedSubdomain,
+            cnpj: settingsForm.cnpj || "",
+            primaryColor: tenantForm.primaryColor,
+            accentColor: tenantForm.accentColor,
+            secretariat: settingsForm.secretariaResponsavel || "",
+          }),
+          "Falha ao registrar a prefeitura no Supabase.",
+          15000,
+        );
+        resolvedTenantId = resolveValidScopeId(remote?.id);
+        console.log("[SIGAPRO] Confirmar logo: prefeitura criada/atualizada", {
+          normalizedSubdomain,
+          resolvedTenantId,
         });
-        logoUrl = uploaded.publicUrl;
+        if (resolvedTenantId) {
+          upsertInstitution({
+            institutionId: resolvedTenantId,
+            name: tenantForm.name,
+            city: tenantForm.city,
+            state: tenantForm.state,
+            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
+            plan: tenantForm.plan,
+            subdomain: normalizedSubdomain,
+            primaryColor: tenantForm.primaryColor,
+            accentColor: tenantForm.accentColor,
+          });
+          setSelectedTenantId(resolvedTenantId);
+        }
       }
 
+      if (!resolvedTenantId) {
+        throw new Error(
+          "Não foi possível localizar a prefeitura atual. " +
+            "Verifique o subdomínio ou recarregue a página.",
+        );
+      }
+
+      console.log("[SIGAPRO] Confirmar logo: municipio resolvido", {
+        resolvedTenantId,
+      });
+
+      if (resolvedTenantId && resolvedTenantId !== selectedTenantId) {
+        setSelectedTenantId(resolvedTenantId);
+      }
+
+      const savedTenant = { id: resolvedTenantId };
+
+      // ------------------------------------------------------------------
+      // 2. Definir URL e metadados do logo
+      // ------------------------------------------------------------------
+      let logoUrl = logoRemovalRequested
+        ? ""
+        : draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
+
+    // URLs específicas por variante — inicialmente iguais ao genérico,
+    // serão sobrescritas após upload ou remoção
+    let variantLogoUrl = logoUrl;
+    let persistedVariantUrl = "";
+
+      let logoMeta: {
+        bucket: string;
+        objectKey: string;
+        fileName: string;
+        mimeType: string;
+        fileSize: number;
+      } | null = null;
+
+      const draftConfig =
+        variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig;
+      const activeBranding =
+        variant === "footer" ? footerBranding : headerBranding;
+
+      // ------------------------------------------------------------------
+      // 3. Upload para o R2 (apenas se houver arquivo novo)
+      // ------------------------------------------------------------------
+    if (hasSupabaseEnv && draftLogoFiles[0]?.file) {
+      setStepStatus("Enviando arquivo para o storage...");
+
+      // Chave de asset por variante para path separado no R2
+      const assetKey = variant === "footer" ? "footer-logo" : "header-logo";
+      console.log("[AssetUpload] Preparando upload", {
+        variant,
+        assetKey,
+        municipalityId: savedTenant.id,
+      });
+
+      const uploaded = await withTimeoutLogged(
+        "upload municipio logo",
+        uploadInstitutionalBrandingAsset({
+          tenantId: savedTenant.id,
+          subdomain: normalizeSubdomainInput(
+            tenantForm.subdomain ?? tenantForm.city ?? tenantForm.name,
+          ),
+          file: draftLogoFiles[0].file,
+          assetKey,
+        }),
+        30000,
+      );
+
+      const bucket =
+        (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+        "sigapro-logos";
+      let signedUrl = "";
+      try {
+        signedUrl = await getSignedUrlForObject({
+          bucket,
+          objectKey: uploaded.objectKey,
+        });
+      } catch (error) {
+        console.warn("[SIGAPRO][LogoRender] Confirmar logo: falha ao assinar URL", error);
+      }
+
+      variantLogoUrl = signedUrl || uploaded.publicUrl;
+      persistedVariantUrl = publicBase ? uploaded.publicUrl : "";
+      // logoUrl genérico também é atualizado para manter retrocompat
+      logoUrl = variantLogoUrl;
+
+      logoMeta = {
+        bucket: uploaded.bucket,
+        objectKey: uploaded.objectKey,
+        fileName: uploaded.fileName,
+        mimeType: uploaded.mimeType,
+        fileSize: uploaded.fileSize,
+      };
+
+      console.log("[SIGAPRO][LogoUpload] Confirmar logo: upload concluido", {
+        variant,
+        assetKey,
+        variantLogoUrl,
+        logoMeta,
+      });
+      console.log("[AssetUpload] object_key gerado", {
+        variant,
+        objectKey: uploaded.objectKey,
+      });
+      } else if (hasSupabaseEnv && logoUrl.startsWith("blob:")) {
+        throw new Error(
+          "Envie o arquivo do logo para concluir o salvamento no Supabase.",
+        );
+    } else if (hasSupabaseEnv && logoRemovalRequested) {
+      // Remoção do logo no R2
+      const existingUrl =
+        variant === "footer"
+          ? (settings as any)?.footerLogoUrl || settings?.logoUrl || ""
+          : (settings as any)?.headerLogoUrl || settings?.logoUrl || "";
+        const objectKey = getObjectKeyFromPublicUrl(existingUrl);
+        const bucket =
+          (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+          "sigapro-logos";
+        if (objectKey) {
+          await withTimeout(
+            deleteFile({ bucket, objectKey }),
+            "Falha ao remover o logo do storage.",
+            15000,
+          );
+        }
+      variantLogoUrl = "";
+      persistedVariantUrl = "";
+      logoUrl = "";
+    } else {
+      // Sem arquivo novo, mas pode ter mudado só o enquadramento —
+      // preserva a URL já salva para essa variante
+      variantLogoUrl =
+        variant === "footer"
+          ? (settings as any)?.footerLogoUrl || settings?.logoUrl || logoUrl
+          : (settings as any)?.headerLogoUrl || settings?.logoUrl || logoUrl;
+      persistedVariantUrl =
+        publicBase && variantLogoUrl.startsWith(publicBase) ? variantLogoUrl : "";
+    }
+
+      // ------------------------------------------------------------------
+      // 4. Montar nextSettings com URLs separadas por variante
+      // ------------------------------------------------------------------
       const nextSettings = updateInstitutionBranding(
         {
-          tenantId: savedTenant.id,
           ...(settings ?? settingsForm),
           ...settingsForm,
+          tenantId: savedTenant.id,
+          institutionId: savedTenant.id,
           logoUrl,
           brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
-          bandeiraUrl: bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
-          imagemHeroUrl: heroFiles[0]?.previewUrl ?? settings?.imagemHeroUrl ?? "",
-          planoDiretorArquivoNome: planoDiretorFiles[0]?.fileName ?? settings?.planoDiretorArquivoNome ?? "",
-          planoDiretorArquivoUrl: planoDiretorFiles[0]?.previewUrl ?? settings?.planoDiretorArquivoUrl ?? "",
-          usoSoloArquivoNome: usoSoloFiles[0]?.fileName ?? settings?.usoSoloArquivoNome ?? "",
-          usoSoloArquivoUrl: usoSoloFiles[0]?.previewUrl ?? settings?.usoSoloArquivoUrl ?? "",
-          leisArquivoNome: leisFiles[0]?.fileName ?? settings?.leisArquivoNome ?? "",
-          leisArquivoUrl: leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
+          bandeiraUrl:
+            bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
+          imagemHeroUrl:
+            heroFiles[0]?.previewUrl ?? settings?.imagemHeroUrl ?? "",
+          planoDiretorArquivoNome:
+            planoDiretorFiles[0]?.fileName ??
+            settings?.planoDiretorArquivoNome ??
+            "",
+          planoDiretorArquivoUrl:
+            planoDiretorFiles[0]?.previewUrl ??
+            settings?.planoDiretorArquivoUrl ??
+            "",
+          usoSoloArquivoNome:
+            usoSoloFiles[0]?.fileName ?? settings?.usoSoloArquivoNome ?? "",
+          usoSoloArquivoUrl:
+            usoSoloFiles[0]?.previewUrl ?? settings?.usoSoloArquivoUrl ?? "",
+          leisArquivoNome:
+            leisFiles[0]?.fileName ?? settings?.leisArquivoNome ?? "",
+          leisArquivoUrl:
+            leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
           logoScale: headerBranding.logoScale,
           logoOffsetX: headerBranding.logoOffsetX,
           logoOffsetY: headerBranding.logoOffsetY,
@@ -625,30 +1524,155 @@ export function ConfiguracoesPage() {
           headerLogoFitMode: headerBranding.logoFitMode,
           footerLogoFrameMode: footerBranding.logoFrameMode,
           footerLogoFitMode: footerBranding.logoFitMode,
+          logoStorageProvider: logoRemovalRequested
+            ? undefined
+            : logoMeta
+              ? "r2"
+              : settings?.logoStorageProvider,
+          logoBucket: logoRemovalRequested
+            ? undefined
+            : logoMeta?.bucket ?? settings?.logoBucket,
+          logoObjectKey: logoRemovalRequested
+            ? undefined
+            : logoMeta?.objectKey ?? settings?.logoObjectKey,
+          logoFileName: logoRemovalRequested
+            ? undefined
+            : logoMeta?.fileName ?? settings?.logoFileName,
+          logoMimeType: logoRemovalRequested
+            ? undefined
+            : logoMeta?.mimeType ?? settings?.logoMimeType,
+          logoFileSize: logoRemovalRequested
+            ? undefined
+            : logoMeta?.fileSize ?? settings?.logoFileSize,
         },
         {
           tenantId: savedTenant.id,
-          logoUrl,
+          logoUrl: variantLogoUrl,
           logoScale: draftConfig.scale,
           logoOffsetX: draftConfig.offsetX,
           logoOffsetY: draftConfig.offsetY,
-          logoAlt: tenantForm.name ? `Logo institucional de ${tenantForm.name}` : activeBranding.logoAlt,
+          logoAlt: tenantForm.name
+            ? `Logo institucional de ${tenantForm.name}`
+            : activeBranding.logoAlt,
           logoUpdatedAt: new Date().toISOString(),
           logoUpdatedBy: brandingUpdatedBy,
           logoFrameMode: "soft-square",
           logoFitMode: "contain",
         },
         variant,
-      );
+        ) as TenantSettings & {
+          headerLogoUrl?: string;
+          footerLogoUrl?: string;
+          headerLogoObjectKey?: string;
+          footerLogoObjectKey?: string;
+          headerLogoFileName?: string;
+          footerLogoFileName?: string;
+          headerLogoMimeType?: string;
+          footerLogoMimeType?: string;
+          institutionId?: string;
+        };
 
+      // Injeta as URLs separadas para o saveRemoteInstitutionSettings
+    if (variant === "header") {
+      nextSettings.headerLogoUrl = variantLogoUrl;
+      nextSettings.headerLogoObjectKey = logoRemovalRequested
+        ? ""
+        : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
+      nextSettings.headerLogoFileName = logoRemovalRequested
+        ? ""
+        : logoMeta?.fileName ?? (settings as any)?.headerLogoFileName ?? "";
+      nextSettings.headerLogoMimeType = logoRemovalRequested
+        ? ""
+        : logoMeta?.mimeType ?? (settings as any)?.headerLogoMimeType ?? "";
+          // Preserva footer URL existente
+          nextSettings.footerLogoUrl =
+            (settings as any)?.footerLogoUrl || settings?.logoUrl || "";
+          nextSettings.footerLogoObjectKey =
+            (settings as any)?.footerLogoObjectKey || settings?.logoObjectKey || "";
+          nextSettings.footerLogoFileName =
+            (settings as any)?.footerLogoFileName || "";
+          nextSettings.footerLogoMimeType =
+            (settings as any)?.footerLogoMimeType || "";
+    } else {
+      nextSettings.footerLogoUrl = variantLogoUrl;
+      nextSettings.footerLogoObjectKey = logoRemovalRequested
+        ? ""
+        : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
+      nextSettings.footerLogoFileName = logoRemovalRequested
+        ? ""
+        : logoMeta?.fileName ?? (settings as any)?.footerLogoFileName ?? "";
+      nextSettings.footerLogoMimeType = logoRemovalRequested
+        ? ""
+        : logoMeta?.mimeType ?? (settings as any)?.footerLogoMimeType ?? "";
+          // Preserva header URL existente
+          nextSettings.headerLogoUrl =
+            (settings as any)?.headerLogoUrl || settings?.logoUrl || "";
+          nextSettings.headerLogoObjectKey =
+            (settings as any)?.headerLogoObjectKey || settings?.logoObjectKey || "";
+          nextSettings.headerLogoFileName =
+            (settings as any)?.headerLogoFileName || "";
+          nextSettings.headerLogoMimeType =
+            (settings as any)?.headerLogoMimeType || "";
+        }
+
+    nextSettings.tenantId = savedTenant.id;
+    nextSettings.institutionId = savedTenant.id;
+
+    const sanitizePersistedUrl = (value?: string) =>
+      publicBase && value && value.startsWith(publicBase) ? value : "";
+
+    const nextSettingsForSave = {
+      ...nextSettings,
+      headerLogoUrl:
+        variant === "header"
+          ? persistedVariantUrl
+          : sanitizePersistedUrl(nextSettings.headerLogoUrl),
+      footerLogoUrl:
+        variant === "footer"
+          ? persistedVariantUrl
+          : sanitizePersistedUrl(nextSettings.footerLogoUrl),
+    } as typeof nextSettings;
+
+      // ------------------------------------------------------------------
+      // 5. Salvar no Supabase
+      // ------------------------------------------------------------------
       if (hasSupabaseEnv) {
-        await saveRemoteInstitutionSettings(nextSettings);
-      }
+        setStepStatus("Salvando referência no banco...");
 
+      console.info("[SIGAPRO][BrandingSave] Confirmar logo: salvando no Supabase", {
+        tenantId: savedTenant.id,
+        variant,
+        logoUrl,
+        variantLogoUrl,
+        persistedVariantUrl,
+        headerLogoUrl: nextSettingsForSave.headerLogoUrl,
+        footerLogoUrl: nextSettingsForSave.footerLogoUrl,
+        logoMeta,
+      });
+
+      await withTimeoutLogged(
+        "municipality_branding upsert",
+        saveRemoteInstitutionSettings(nextSettingsForSave, {
+          skipMunicipalityUpdate: true,
+          skipMunicipalitySettings: true,
+        }),
+        20000,
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // 6. Atualizar estado local + revalidar branding global
+    // ------------------------------------------------------------------
+    try {
+      await bootstrap.refreshMunicipalityBundle(savedTenant.id);
+    } catch (error) {
+      console.warn("[SIGAPRO][BrandingLoad] Falha ao revalidar bundle", error);
+    }
       saveInstitutionSettings(nextSettings);
       setSelectedTenantId(savedTenant.id);
       setLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
       setDraftLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
+      setLogoRemovalRequested(false);
       setSettingsForm((current) => ({
         ...current,
         logoScale: nextSettings.logoScale ?? 1,
@@ -665,19 +1689,38 @@ export function ConfiguracoesPage() {
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       });
+
       if (variant === "footer") {
-        setFooterLogoStatus("Logo do rodape atualizado com sucesso.");
+        setFooterLogoStatus(
+          variantLogoUrl
+            ? "Logo do rodapé atualizado com sucesso."
+            : "Logo do rodapé removido com sucesso.",
+        );
       } else {
-        setHeaderLogoStatus("Logo do cabecalho atualizado com sucesso.");
+        setHeaderLogoStatus(
+          variantLogoUrl
+            ? "Logo do cabeçalho atualizado com sucesso."
+            : "Logo do cabeçalho removido com sucesso.",
+        );
       }
+
+      console.log("[SIGAPRO] Confirmar logo: concluido", {
+        variant,
+        variantLogoUrl,
+      });
     } catch (error) {
-      const message = resolveBrandingErrorMessage(error, "Falha ao aplicar o logo institucional.");
+      console.error("[SIGAPRO] Confirmar logo: falha", { variant, error });
+      const message = resolveBrandingErrorMessage(
+        error,
+        "Falha ao aplicar o logo institucional.",
+      );
       if (variant === "footer") {
         setFooterLogoStatus(message);
       } else {
         setHeaderLogoStatus(message);
       }
     } finally {
+      clearLogoSavingTimeout();
       setLogoSaving(null);
     }
   };
@@ -751,7 +1794,17 @@ export function ConfiguracoesPage() {
 
     try {
       if (hasSupabaseEnv) {
-        await saveRemoteInstitutionSettings(nextSettings);
+        const sanitizePersistedUrl = (value?: string) =>
+          publicBase && value && value.startsWith(publicBase) ? value : "";
+        const nextSettingsForSave = {
+          ...nextSettings,
+          headerLogoUrl: sanitizePersistedUrl((nextSettings as any)?.headerLogoUrl),
+          footerLogoUrl: sanitizePersistedUrl((nextSettings as any)?.footerLogoUrl),
+        } as typeof nextSettings;
+        await withTimeout(
+          saveRemoteInstitutionSettings(nextSettingsForSave),
+          "Tempo limite ao salvar o branding institucional. Verifique a conexao com o Supabase.",
+        );
       }
 
       saveInstitutionSettings(nextSettings);
@@ -838,42 +1891,30 @@ export function ConfiguracoesPage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <div className="mb-3 flex items-center gap-2 text-slate-950">
                 <MonitorCog className="h-4 w-4" />
-                <p className="text-sm text-slate-900">Aparência e experiência</p>
+                <p className="text-sm text-slate-900">Preferências operacionais</p>
               </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label>Densidade do layout</Label>
-                <Select value={preferences.layoutDensity} onValueChange={(value) => savePreferences({ ...preferences, layoutDensity: value })}>
-                  <SelectTrigger className="rounded-2xl bg-white">
-                    <SelectValue placeholder="Escolha a densidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="confortavel">Confortável</SelectItem>
-                    <SelectItem value="compacta">Compacta</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Painel principal</Label>
-                <Select value={preferences.dashboardStart} onValueChange={(value) => savePreferences({ ...preferences, dashboardStart: value })}>
-                  <SelectTrigger className="rounded-2xl bg-white">
-                    <SelectValue placeholder="Escolha a prioridade do painel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="protocolos">Protocolos e processos</SelectItem>
-                    <SelectItem value="resumo">Resumo geral</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <div>
-                  <p className="text-sm text-slate-900">Aviso de andamento</p>
-                  <p className="text-sm text-slate-500">Destaca mudanças de etapa e confirmações importantes.</p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Painel principal</Label>
+                  <Select value={preferences.dashboardStart} onValueChange={(value) => savePreferences({ ...preferences, dashboardStart: value })}>
+                    <SelectTrigger className="rounded-2xl bg-white">
+                      <SelectValue placeholder="Escolha a prioridade do painel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="protocolos">Protocolos e processos</SelectItem>
+                      <SelectItem value="resumo">Resumo geral</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Switch checked={preferences.receiveProgressAlerts} onCheckedChange={(checked) => savePreferences({ ...preferences, receiveProgressAlerts: checked })} />
+                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div>
+                    <p className="text-sm text-slate-900">Aviso de andamento</p>
+                    <p className="text-sm text-slate-500">Destaca mudanças de etapa e confirmações importantes.</p>
+                  </div>
+                  <Switch checked={preferences.receiveProgressAlerts} onCheckedChange={(checked) => savePreferences({ ...preferences, receiveProgressAlerts: checked })} />
+                </div>
               </div>
             </div>
-          </div>
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1363,184 +2404,9 @@ export function ConfiguracoesPage() {
               </div>
             </div>
 
-            {isMasterRole ? (
-              <div className="space-y-2 md:hidden">
-                <Label>Tema visual institucional</Label>
-                <div className="grid gap-3">
-                  {mobileThemePresets.map((preset) => {
-                    const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() =>
-                          setTenantForm((current) => ({
-                            ...current,
-                            primaryColor: preset.primary,
-                            accentColor: preset.accent,
-                          }))
-                        }
-                        className={`rounded-[20px] border p-3 text-left transition ${
-                          active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="overflow-hidden rounded-[14px] border border-slate-200">
-                          <div style={{ height: 10, background: darken(preset.primary, 28) }} />
-                          <div
-                            style={{
-                              height: 42,
-                              background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
-                            }}
-                          />
-                        </div>
-                        <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
-                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
-                        </div>
-                        {active ? (
-                          <span className="mt-3 inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-white md:hidden">
-                            Tema ativo
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-                <Select
-                  value={activeTenantMobileThemePreset.id}
-                  onValueChange={(value) => {
-                    const preset = mobileThemePresets.find((item) => item.id === value);
-                    if (!preset) return;
-                    setTenantForm((current) => ({
-                      ...current,
-                      primaryColor: preset.primary,
-                      accentColor: preset.accent,
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="h-12 rounded-2xl">
-                    <SelectValue placeholder="Selecione um dos 4 temas oficiais" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mobileThemePresets.map((preset) => (
-                      <SelectItem key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Tema selecionado</p>
-                  <div className="mt-3 flex items-center gap-4">
-                    <span
-                      className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-slate-200 shadow-sm"
-                      style={{
-                        background: `linear-gradient(135deg, ${activeTenantMobileThemePreset.primary} 0%, ${darken(activeTenantMobileThemePreset.primary, -8)} 100%)`,
-                      }}
-                    >
-                      <Palette className="h-4 w-4 text-white" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{activeTenantMobileThemePreset.label}</p>
-                      <p className="text-sm leading-6 text-slate-500">{activeTenantMobileThemePreset.description}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center gap-2">
-                    <span className="h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.primary }} />
-                    <span className="text-xs text-slate-500">Base institucional</span>
-                    <span className="ml-3 h-3.5 w-3.5 rounded-full border border-slate-200" style={{ backgroundColor: activeTenantMobileThemePreset.accent }} />
-                    <span className="text-xs text-slate-500">Acento visual</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2 md:hidden">
-                <Label>Tema visual institucional</Label>
-                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="text-sm text-slate-700">A paleta visual segue o layout institucional do SIGAPRO. Ajuste disponível apenas no painel master.</p>
-                </div>
-              </div>
-            )}
+            {/* Tema do layout removido desta tela para manter o padrão institucional. */}
 
-            {isMasterRole ? (
-              <div className="hidden space-y-2 md:block">
-                <Label>Variedade de cores do layout</Label>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {desktopThemePresets.map((preset) => {
-                    const active = tenantForm.primaryColor === preset.primary && tenantForm.accentColor === preset.accent;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() =>
-                          setTenantForm((current) => ({
-                            ...current,
-                            primaryColor: preset.primary,
-                            accentColor: preset.accent,
-                          }))
-                        }
-                        className={`rounded-[20px] border p-3 text-left transition ${
-                          active ? "border-slate-900 shadow-sm" : "border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="overflow-hidden rounded-[14px] border border-slate-200">
-                          <div style={{ height: 10, background: darken(preset.primary, 28) }} />
-                          <div
-                            style={{
-                              height: 42,
-                              background: `linear-gradient(135deg, ${preset.primary} 0%, ${darken(preset.primary, -6)} 58%, ${darken(preset.primary, -10)} 100%)`,
-                            }}
-                          />
-                        </div>
-                        <p className="mt-3 text-sm text-slate-900">{preset.label}</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">{preset.description}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.primary }} />
-                          <span className="h-4 w-4 rounded-full border border-slate-200" style={{ backgroundColor: preset.accent }} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <Select
-                  value={desktopThemePresets.find((preset) => preset.primary === tenantForm.primaryColor && preset.accent === tenantForm.accentColor)?.id ?? "personalizado"}
-                  onValueChange={(value) => {
-                    if (value === "personalizado") return;
-                    const preset = desktopThemePresets.find((item) => item.id === value);
-                    if (!preset) return;
-                    setTenantForm((current) => ({
-                      ...current,
-                      primaryColor: preset.primary,
-                      accentColor: preset.accent,
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="h-12 rounded-2xl">
-                    <SelectValue placeholder="Selecione uma paleta pronta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personalizado">Personalizado atual</SelectItem>
-                    {desktopThemePresets.map((preset) => (
-                      <SelectItem key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="hidden space-y-2 md:block">
-                <Label>Tema visual institucional</Label>
-                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="text-sm text-slate-700">A paleta visual segue o layout institucional do SIGAPRO. Ajuste disponível apenas no painel master.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Removed manual color pickers to keep the layout clean and focused on presets. */}
-
+            {!isMasterRole ? (
             <div className="grid gap-4">
               <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
@@ -1608,7 +2474,15 @@ export function ConfiguracoesPage() {
                       <Button type="button" className="rounded-2xl bg-slate-950 hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
+                      <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
+                        Testar prefeitura
+                      </Button>
                     </div>
+                    {diagnosticStatus ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                        {diagnosticStatus}
+                      </div>
+                    ) : null}
                     {headerLogoStatus ? (
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm ${
@@ -1668,6 +2542,7 @@ export function ConfiguracoesPage() {
                         className="rounded-2xl text-red-600 dark:text-red-400"
                         onClick={() => {
                           setDraftLogoFiles([]);
+                          setLogoRemovalRequested(true);
                           setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
                           setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
                         }}
@@ -1699,7 +2574,12 @@ export function ConfiguracoesPage() {
                 multiple={false}
                 allowPreview
                 files={draftLogoFiles}
-                onFilesSelected={setDraftLogoFiles}
+                onFilesSelected={(files) => {
+                  setDraftLogoFiles(files);
+                  if (files.length > 0) {
+                    setLogoRemovalRequested(false);
+                  }
+                }}
               />
               <FileDropZone
                 title="Brasao"
@@ -1756,6 +2636,11 @@ export function ConfiguracoesPage() {
                 onFilesSelected={setLeisFiles}
               />
             </div>
+            ) : (
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+                Você está no ambiente Master. O branding da prefeitura é editado apenas no escopo da prefeitura.
+              </div>
+            )}
         </SectionCard>
         </PageMainContent> : null}
         {activeSettingsView === "platform" && isMasterRole ? (
@@ -1768,17 +2653,17 @@ export function ConfiguracoesPage() {
               headerClassName="gap-2 pb-3"
             >
               <div className="grid gap-4">
-                <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
-                  <div className="flex items-center gap-2 text-slate-950">
-                    <ImageIcon className="h-4 w-4" />
-                    <p className="text-sm text-slate-900">Logo institucional da plataforma (Master)</p>
+                  <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+                  <div className="flex min-w-0 items-center gap-2 text-slate-950">
+                    <ImageIcon className="h-4 w-4 text-slate-700" />
+                    <p className="min-w-0 break-words text-sm text-slate-900">Logo institucional da plataforma (Master)</p>
                   </div>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-slate-500">
                     Configure o logo exibido no cabeçalho e no rodapé do ambiente Master, sem misturar com a Prefeitura.
                   </p>
-                  <div className="mt-4 grid gap-6 2xl:grid-cols-[minmax(520px,1.15fr)_minmax(340px,0.85fr)]">
+                  <div className="mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(520px,1.15fr)_minmax(340px,0.85fr)]">
                     <div
-                      className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                      className="min-w-0 overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                       style={{ background: `linear-gradient(135deg, ${masterPrimaryColor} 0%, ${darken(masterPrimaryColor, -6)} 58%, ${darken(masterPrimaryColor, -10)} 100%)` }}
                     >
                       <div
@@ -1799,7 +2684,7 @@ export function ConfiguracoesPage() {
                           <p className="text-balance break-words text-[15px] font-semibold leading-tight text-white md:text-[17px] xl:text-[18px]">
                             SIGAPRO
                           </p>
-                          <p className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm" style={{ color: masterAccentColor }}>
+                          <p className="mt-3 max-w-[30ch] break-words text-sm font-normal leading-6 md:text-sm" style={{ color: masterAccentColor }}>
                             Plataforma institucional
                           </p>
                           <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
@@ -1808,10 +2693,10 @@ export function ConfiguracoesPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {draftMasterLogoFiles[0]?.previewUrl ? (
+                    <div className="min-w-0 space-y-3">
+                      {isRenderablePreviewUrl(masterHeaderActiveUrl) ? (
                         <ImageFrameEditor
-                          imageUrl={draftMasterLogoFiles[0].previewUrl}
+                          imageUrl={masterHeaderActiveUrl}
                           scale={draftMasterHeaderConfig.scale}
                           offsetX={draftMasterHeaderConfig.offsetX}
                           offsetY={draftMasterHeaderConfig.offsetY}
@@ -1858,19 +2743,19 @@ export function ConfiguracoesPage() {
                       ) : null}
                     </div>
                   </div>
-                  <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                  <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                     <div
-                      className="rounded-[28px] p-5 shadow-sm"
+                      className="min-w-0 rounded-[28px] p-5 shadow-sm"
                       style={{ background: `linear-gradient(135deg, ${darken(masterPrimaryColor, 2)} 0%, ${masterPrimaryColor} 48%, ${darken(masterPrimaryColor, 10)} 100%)` }}
                     >
                       <div className="flex items-center justify-center py-3">
                         <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {draftMasterLogoFiles[0]?.previewUrl ? (
+                    <div className="min-w-0 space-y-3">
+                      {isRenderablePreviewUrl(masterFooterActiveUrl) ? (
                         <ImageFrameEditor
-                          imageUrl={draftMasterLogoFiles[0].previewUrl}
+                          imageUrl={masterFooterActiveUrl}
                           scale={draftMasterFooterConfig.scale}
                           offsetX={draftMasterFooterConfig.offsetX}
                           offsetY={draftMasterFooterConfig.offsetY}
@@ -1917,17 +2802,28 @@ export function ConfiguracoesPage() {
                       ) : null}
                     </div>
                   </div>
-                  <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                    <FileDropZone
-                      title="Logo da plataforma"
-                      description="Logo exibido no ambiente Master, separado do logo das Prefeituras."
-                      accept="image/*"
-                      multiple={false}
-                      allowPreview
-                      files={draftMasterLogoFiles}
-                      onFilesSelected={setDraftMasterLogoFiles}
-                    />
-                    <div className="space-y-2">
+                  <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                      <FileDropZone
+                        title="Logo do cabeçalho Master"
+                        description="Logo usado no cabeçalho institucional do SIGAPRO."
+                        accept="image/*"
+                        multiple={false}
+                        allowPreview
+                        files={draftMasterHeaderLogoFiles}
+                        onFilesSelected={setDraftMasterHeaderLogoFiles}
+                      />
+                      <FileDropZone
+                        title="Logo do rodapé Master"
+                        description="Logo usado no rodapé institucional do SIGAPRO."
+                        accept="image/*"
+                        multiple={false}
+                        allowPreview
+                        files={draftMasterFooterLogoFiles}
+                        onFilesSelected={setDraftMasterFooterLogoFiles}
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-2">
                       <Label>Texto do rodapé Master</Label>
                       <Textarea
                         rows={3}
@@ -1936,7 +2832,7 @@ export function ConfiguracoesPage() {
                         className="min-h-[90px]"
                         placeholder="SIGAPRO — Plataforma institucional para aprovação de projetos"
                       />
-                      <p className="text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
+                      <p className="break-words text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
                     </div>
                   </div>
                 </div>

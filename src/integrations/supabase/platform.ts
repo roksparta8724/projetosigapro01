@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { uploadFile } from "@/integrations/r2/client";
 import {
   buildProcessDocuments,
   type CreateProcessInput,
@@ -46,9 +47,56 @@ function getMissingColumnName(error: unknown) {
   return match?.[1] ?? null;
 }
 
+function formatSupabaseError(error: unknown) {
+  if (!error || typeof error !== "object") return "Erro desconhecido do Supabase.";
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : "";
+  const details =
+    "details" in error && typeof error.details === "string" ? error.details : "";
+  const hint =
+    "hint" in error && typeof error.hint === "string" ? error.hint : "";
+  const code =
+    "code" in error && typeof error.code === "string" ? error.code : "";
+  const parts = [message, details, hint, code].filter(Boolean);
+  return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do Supabase.";
+}
+
 function normalizeUuid(value: string | null | undefined) {
   if (!value) return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+async function upsertWithColumnRetry(
+  table: string,
+  payload: Record<string, unknown>,
+  onConflict: string,
+) {
+  let currentPayload: Record<string, unknown> = { ...payload };
+  let lastError: { message?: string } | null = null;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await supabase
+      .from(table)
+      .upsert(currentPayload, { onConflict });
+    lastError = result.error;
+
+    if (!lastError) {
+      return result;
+    }
+
+    if (!isMissingColumnError(lastError)) break;
+
+    const missingColumn = getMissingColumnName(lastError);
+    if (!missingColumn || !(missingColumn in currentPayload)) break;
+
+    console.warn(
+      `[SIGAPRO][Supabase] Coluna ausente em ${table}, removendo e tentando novamente`,
+      { missingColumn },
+    );
+    delete currentPayload[missingColumn];
+  }
+
+  return { error: lastError };
 }
 
 function readGeneralString(general: Record<string, unknown>, keys: string[]) {
@@ -73,6 +121,16 @@ function readGeneralNumber(general: Record<string, unknown>, keys: string[], fal
     if (typeof value === "number" && !Number.isNaN(value)) return value;
   }
   return fallback;
+}
+
+function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Timeout: ${label}`));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function buildMunicipalitySlug(value: string | null | undefined) {
@@ -147,6 +205,19 @@ export async function loadRemotePlatformStore() {
     supabase.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
   ]);
 
+  const nonBlockingErrors: unknown[] = [];
+  if (profilesResult.error) {
+    nonBlockingErrors.push(profilesResult.error);
+    console.warn("SIGAPRO: falha ao carregar profiles (ignorado para continuar carregamento).", profilesResult.error);
+  }
+  if (membershipsResult.error) {
+    nonBlockingErrors.push(membershipsResult.error);
+    console.warn(
+      "SIGAPRO: falha ao carregar tenant_memberships (ignorado para continuar carregamento).",
+      membershipsResult.error,
+    );
+  }
+
   const errors = [
     isMissingRelationError(tenantsResult.error, "public.tenants") ? null : tenantsResult.error,
     isMissingRelationError(brandingResult.error, "public.tenant_branding") ? null : brandingResult.error,
@@ -154,8 +225,6 @@ export async function loadRemotePlatformStore() {
     isMissingRelationError(municipalitiesResult.error, "public.municipalities") ? null : municipalitiesResult.error,
     isMissingRelationError(municipalityBrandingResult.error, "public.municipality_branding") ? null : municipalityBrandingResult.error,
     isMissingRelationError(municipalitySettingsResult.error, "public.municipality_settings") ? null : municipalitySettingsResult.error,
-    profilesResult.error,
-    membershipsResult.error,
     rolesResult.error,
     processesResult.error,
     propertiesResult.error,
@@ -796,22 +865,27 @@ export async function createRemoteOwnerRequest(input: {
       notes: input.notes || null,
     })
     .select("*")
-    .single();
+    .limit(1);
 
   if (error) {
     throw error;
   }
 
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) {
+    throw new Error("Falha ao criar solicitacao de responsavel.");
+  }
+
   return {
-    id: data.id,
-    projectId: data.process_id,
-    ownerUserId: data.owner_user_id,
-    professionalUserId: data.professional_user_id,
-    status: data.status ?? "pending",
-    requestedAt: data.requested_at ?? data.created_at ?? new Date().toISOString(),
-    respondedAt: data.responded_at ?? null,
-    respondedBy: data.responded_by ?? null,
-    notes: data.notes ?? undefined,
+    id: row.id,
+    projectId: row.process_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    status: row.status ?? "pending",
+    requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
+    respondedAt: row.responded_at ?? null,
+    respondedBy: row.responded_by ?? null,
+    notes: row.notes ?? undefined,
   };
 }
 
@@ -835,10 +909,15 @@ export async function respondRemoteOwnerRequest(input: {
     })
     .eq("id", input.requestId)
     .select("*")
-    .single();
+    .limit(1);
 
   if (requestError) {
     throw requestError;
+  }
+
+  const requestRow = Array.isArray(requestData) ? requestData[0] : null;
+  if (!requestRow) {
+    throw new Error("Falha ao atualizar solicitacao de responsavel.");
   }
 
   let linkData: any | null = null;
@@ -855,25 +934,25 @@ export async function respondRemoteOwnerRequest(input: {
         linked_by: input.professionalUserId,
       })
       .select("*")
-      .single();
+      .limit(1);
 
     if (error) {
       throw error;
     }
 
-    linkData = data;
+    linkData = Array.isArray(data) ? data[0] : null;
   }
 
   const request = {
-    id: requestData.id,
-    projectId: requestData.process_id,
-    ownerUserId: requestData.owner_user_id,
-    professionalUserId: requestData.professional_user_id,
-    status: requestData.status ?? "pending",
-    requestedAt: requestData.requested_at ?? requestData.created_at ?? new Date().toISOString(),
-    respondedAt: requestData.responded_at ?? null,
-    respondedBy: requestData.responded_by ?? null,
-    notes: requestData.notes ?? undefined,
+    id: requestRow.id,
+    projectId: requestRow.process_id,
+    ownerUserId: requestRow.owner_user_id,
+    professionalUserId: requestRow.professional_user_id,
+    status: requestRow.status ?? "pending",
+    requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
+    respondedAt: requestRow.responded_at ?? null,
+    respondedBy: requestRow.responded_by ?? null,
+    notes: requestRow.notes ?? undefined,
   };
 
   const link = linkData
@@ -905,20 +984,25 @@ export async function setRemoteOwnerChatEnabled(input: {
     .update({ chat_enabled: input.enabled })
     .eq("id", input.linkId)
     .select("*")
-    .single();
+    .limit(1);
 
   if (error) {
     throw error;
   }
 
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) {
+    throw new Error("Falha ao atualizar chat do responsavel.");
+  }
+
   return {
-    id: data.id,
-    projectId: data.project_id,
-    ownerUserId: data.owner_user_id,
-    professionalUserId: data.professional_user_id,
-    chatEnabled: data.chat_enabled ?? true,
-    linkedAt: data.linked_at ?? data.created_at ?? new Date().toISOString(),
-    linkedBy: data.linked_by ?? null,
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    chatEnabled: row.chat_enabled ?? true,
+    linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
+    linkedBy: row.linked_by ?? null,
   };
 }
 
@@ -946,22 +1030,27 @@ export async function createRemoteOwnerMessage(input: {
       created_at: new Date().toISOString(),
     })
     .select("*")
-    .single();
+    .limit(1);
 
   if (error) {
     throw error;
   }
 
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) {
+    throw new Error("Falha ao criar mensagem de responsavel.");
+  }
+
   return {
-    id: data.id,
-    projectId: data.project_id,
-    ownerUserId: data.owner_user_id,
-    professionalUserId: data.professional_user_id,
-    senderUserId: data.sender_user_id,
-    message: data.message,
-    createdAt: data.created_at ?? new Date().toISOString(),
-    readAt: data.read_at ?? null,
-    isSystemMessage: data.is_system_message ?? false,
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    senderUserId: row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
   };
 }
 
@@ -1049,65 +1138,319 @@ export async function uploadFileToStorage(input: {
   }
 
   const safeName = sanitizeFileName(input.file.name);
-  const path = `${scopeId}/${input.folder}/${input.userId}/${crypto.randomUUID()}-${safeName}`;
-  const { error } = await supabase.storage.from(input.bucket).upload(path, input.file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: input.file.type || "application/octet-stream",
+  const objectKey = `municipios/${scopeId}/${input.folder}/${input.userId}/${crypto.randomUUID()}-${safeName}`;
+  const bucket =
+    input.bucket === "process-documents"
+      ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
+      : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+
+  const uploaded = await uploadFile({
+    bucket,
+    objectKey,
+    file: input.file,
   });
 
-  if (error) {
-    if (typeof error.message === "string" && error.message.toLowerCase().includes("bucket not found")) {
-      throw new Error(
-        "Bucket de storage não encontrado. É necessário criar o bucket no Supabase antes do upload.",
-      );
-    }
-    throw error;
-  }
-
-  const { data } = supabase.storage.from(input.bucket).getPublicUrl(path);
   return {
-    path,
-    publicUrl: data.publicUrl,
+    path: uploaded.objectKey,
+    publicUrl: uploaded.publicUrl,
   };
 }
 
 export async function uploadInstitutionalBrandingAsset(input: {
-  tenantId: string;
+  tenantId?: string;
+  subdomain?: string;
   file: File;
-  assetKey?: "logo";
+  /** "header-logo" | "footer-logo" | "logo" */
+  assetKey?: string;
+}) {
+  let scopeId = normalizeUuid(input.tenantId ?? "");
+
+  if (!scopeId && input.subdomain && supabase) {
+    const normalized = buildMunicipalitySlug(input.subdomain);
+    if (normalized) {
+      console.log("[SIGAPRO][R2] Resolvendo municipio por subdomain para upload", {
+        subdomain: normalized,
+      });
+      const { data, error } = await supabase
+        .from("municipalities")
+        .select("id")
+        .eq("subdomain", normalized)
+        .maybeSingle();
+      if (!error && data?.id) {
+        scopeId = data.id;
+      }
+    }
+  }
+
+  if (!scopeId) {
+    const msg =
+      "Escopo municipal invalido para o branding institucional. " +
+      `tenantId=${input.tenantId ?? ""} subdomain=${input.subdomain ?? ""}`;
+    console.error("[SIGAPRO][R2] " + msg);
+    throw new Error(msg);
+  }
+
+  const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
+  const assetKey = input.assetKey ?? "logo";
+  // Caminho: municipios/{id}/branding/{header-logo|footer-logo|logo}.{ext}
+  const objectKey = `municipios/${scopeId}/branding/${assetKey}.${extension}`;
+  const bucket =
+    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+    "sigapro-logos";
+
+  console.log("[SIGAPRO][R2] Iniciando upload do branding", {
+    scopeId,
+    assetKey,
+    objectKey,
+    bucket,
+    fileName: input.file.name,
+    fileSize: input.file.size,
+    mimeType: input.file.type,
+  });
+
+  const uploaded = await uploadFile({
+    bucket,
+    objectKey,
+    file: input.file,
+  });
+
+  const basePublicUrl = (uploaded.publicUrl || "").trim();
+  const publicUrl = basePublicUrl ? `${basePublicUrl}?v=${Date.now()}` : "";
+
+  console.log("[SIGAPRO][R2] Upload concluido", {
+    scopeId,
+    assetKey,
+    objectKey: uploaded.objectKey,
+    publicUrl,
+  });
+
+  return {
+    path: uploaded.objectKey,
+    publicUrl,
+    bucket: uploaded.bucket,
+    objectKey: uploaded.objectKey,
+    fileName: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    fileSize: input.file.size,
+  };
+}
+
+export async function uploadPlatformBrandingAsset(input: {
+  file: File;
+  /** "header-logo" | "footer-logo" | "logo" */
+  assetKey?: string;
+}) {
+  const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
+  const assetKey = input.assetKey ?? "master-logo";
+  const objectKey = `platform/branding/${assetKey}.${extension}`;
+  const bucket =
+    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+    "sigapro-logos";
+
+  console.log("[SIGAPRO][R2] Iniciando upload do branding master", {
+    assetKey,
+    objectKey,
+    bucket,
+    fileName: input.file.name,
+    fileSize: input.file.size,
+    mimeType: input.file.type,
+  });
+
+  const uploaded = await uploadFile({
+    bucket,
+    objectKey,
+    file: input.file,
+  });
+
+  const basePublicUrl = (uploaded.publicUrl || "").trim();
+  const publicUrl = basePublicUrl ? `${basePublicUrl}?v=${Date.now()}` : "";
+
+  console.log("[SIGAPRO][R2] Upload master concluido", {
+    assetKey,
+    objectKey: uploaded.objectKey,
+    publicUrl,
+  });
+
+  return {
+    path: uploaded.objectKey,
+    publicUrl,
+    bucket: uploaded.bucket,
+    objectKey: uploaded.objectKey,
+    fileName: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    fileSize: input.file.size,
+  };
+}
+
+const PLATFORM_BRANDING_KEY = "sigapro";
+let platformBrandingUnavailable = false;
+
+export type PlatformBrandingRecord = {
+  platformKey: string;
+  headerLogoUrl: string;
+  headerLogoObjectKey: string;
+  headerLogoFileName: string;
+  headerLogoMimeType: string;
+  footerLogoUrl: string;
+  footerLogoObjectKey: string;
+  footerLogoFileName: string;
+  footerLogoMimeType: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
+function mapPlatformBranding(record: any): PlatformBrandingRecord {
+  return {
+    platformKey: record.platform_key ?? PLATFORM_BRANDING_KEY,
+    headerLogoUrl: record.header_logo_url ?? "",
+    headerLogoObjectKey: record.header_logo_object_key ?? "",
+    headerLogoFileName: record.header_logo_file_name ?? "",
+    headerLogoMimeType: record.header_logo_mime_type ?? "",
+    footerLogoUrl: record.footer_logo_url ?? "",
+    footerLogoObjectKey: record.footer_logo_object_key ?? "",
+    footerLogoFileName: record.footer_logo_file_name ?? "",
+    footerLogoMimeType: record.footer_logo_mime_type ?? "",
+    updatedAt: record.updated_at ?? "",
+    updatedBy: record.updated_by ?? "",
+  };
+}
+
+export async function loadPlatformBranding(): Promise<PlatformBrandingRecord | null> {
+  if (!supabase) return null;
+  if (platformBrandingUnavailable) return null;
+  const { data, error } = await supabase
+    .from("platform_branding")
+    .select("*")
+    .eq("platform_key", PLATFORM_BRANDING_KEY)
+    .limit(1);
+
+  if (error) {
+    if ("status" in error && error.status === 404) {
+      platformBrandingUnavailable = true;
+      return null;
+    }
+    if (isMissingRelationError(error, "public.platform_branding")) {
+      platformBrandingUnavailable = true;
+      return null;
+    }
+    console.warn("[PlatformBranding] Falha ao carregar", { error });
+    return null;
+  }
+
+  if (!data || data.length === 0) return null;
+  platformBrandingUnavailable = false;
+  return mapPlatformBranding(data[0]);
+}
+
+export async function savePlatformBranding(input: {
+  variant: "header" | "footer";
+  objectKey: string;
+  fileName: string;
+  mimeType: string;
+  publicUrl?: string;
+  updatedBy?: string;
 }) {
   if (!supabase) {
     throw new Error("Supabase indisponivel.");
   }
 
-  const scopeId = normalizeUuid(input.tenantId);
-  if (!scopeId) {
-    throw new Error("Escopo municipal invalido para o branding institucional.");
+  const normalizedObjectKey = input.objectKey?.trim();
+  if (!normalizedObjectKey) {
+    throw new Error("Object key do logo da plataforma não informado.");
   }
 
-  const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
-  const path = `${scopeId}/branding/${input.assetKey ?? "logo"}.${extension}`;
-  const { error } = await supabase.storage.from("institutional-branding").upload(path, input.file, {
-    cacheControl: "3600",
-    upsert: true,
-    contentType: input.file.type || "application/octet-stream",
-  });
+  const payload: Record<string, unknown> = {
+    platform_key: PLATFORM_BRANDING_KEY,
+    updated_at: new Date().toISOString(),
+    updated_by: input.updatedBy ?? null,
+  };
+
+  if (input.variant === "header") {
+    payload.header_logo_url = input.publicUrl ?? null;
+    payload.header_logo_object_key = normalizedObjectKey;
+    payload.header_logo_file_name = input.fileName;
+    payload.header_logo_mime_type = input.mimeType;
+  } else {
+    payload.footer_logo_url = input.publicUrl ?? null;
+    payload.footer_logo_object_key = normalizedObjectKey;
+    payload.footer_logo_file_name = input.fileName;
+    payload.footer_logo_mime_type = input.mimeType;
+  }
+
+  console.log("[PlatformBrandingSave] Payload", { payload, variant: input.variant });
+
+  const result = await upsertWithColumnRetry("platform_branding", payload, "platform_key");
+
+  if (result.error) {
+    if (isMissingRelationError(result.error, "public.platform_branding")) {
+      throw new Error("Tabela platform_branding inexistente.");
+    }
+    throw result.error;
+  }
+  platformBrandingUnavailable = false;
+
+  return result.data ?? null;
+}
+
+export async function getMunicipalityBrandingSafe(municipalityId: string) {
+  console.log("[DIAGNOSTICO] Buscando branding para:", municipalityId);
+
+  if (!supabase) {
+    console.error("[DIAGNOSTICO] Supabase indisponivel.");
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("municipality_branding")
+      .select("*")
+      .eq("municipality_id", municipalityId)
+      .limit(1);
+
+  console.log("[DIAGNOSTICO] Resultado bruto:", { data, error });
 
   if (error) {
-    if (typeof error.message === "string" && error.message.toLowerCase().includes("bucket not found")) {
-      throw new Error(
-        "Bucket institucional não encontrado no Supabase. Crie o bucket 'institutional-branding' e tente novamente.",
-      );
-    }
-    throw new Error(error.message || "Falha ao enviar a imagem do logo institucional.");
+    console.error("[DIAGNOSTICO] ERRO SUPABASE:", error);
+    return null;
   }
 
-  const { data } = supabase.storage.from("institutional-branding").getPublicUrl(path);
-  return {
-    path,
-    publicUrl: `${data.publicUrl}?v=${Date.now()}`,
-  };
+  if (data && data.length > 0) {
+    console.log("[BrandingLoad] Branding encontrado", {
+      municipalityId,
+      headerLogoObjectKey: data[0]?.header_logo_object_key,
+      footerLogoObjectKey: data[0]?.footer_logo_object_key,
+    });
+  }
+
+    if (!data || data.length === 0) {
+      console.warn("[DIAGNOSTICO] Nenhum branding encontrado");
+
+      const { data: created, error: createError } = await supabase
+        .from("municipality_branding")
+        .insert([
+          {
+            municipality_id: municipalityId,
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select("*")
+        .limit(1);
+
+      console.log("[DIAGNOSTICO] Criado:", { created, createError });
+
+      if (createError) {
+        console.error("[DIAGNOSTICO] ERRO CREATE:", createError);
+        return null;
+      }
+
+      return created?.[0] ?? null;
+    }
+
+    return data[0];
+  } catch (err) {
+    console.error("[DIAGNOSTICO] ERRO GERAL:", err);
+    return null;
+  }
 }
 
 export async function saveRemoteProfile(profile: UserProfile) {
@@ -1295,24 +1638,77 @@ export async function upsertRemoteTenant(input: {
 export async function saveRemoteInstitutionSettings(
   settings: TenantSettings & {
     institutionId?: string | null;
+    // campos extras injetados pelo fluxo de branding
+    headerLogoUrl?: string;
+    footerLogoUrl?: string;
+    headerLogoObjectKey?: string;
+    footerLogoObjectKey?: string;
+    headerLogoFileName?: string;
+    footerLogoFileName?: string;
+    headerLogoMimeType?: string;
+    footerLogoMimeType?: string;
+  },
+  options?: {
+    skipMunicipalityUpdate?: boolean;
+    skipMunicipalitySettings?: boolean;
   },
 ) {
   if (!supabase) {
     throw new Error("Supabase indisponivel.");
   }
 
-  const remoteTenantId = normalizeUuid(settings.institutionId ?? settings.tenantId);
+  const remoteTenantId = normalizeUuid(
+    settings.institutionId ?? settings.tenantId,
+  );
   if (!remoteTenantId) {
-    return;
+    console.error(
+      "[SIGAPRO][Supabase] saveRemoteInstitutionSettings: tenantId invalido",
+      {
+        institutionId: settings.institutionId,
+        tenantId: settings.tenantId,
+      },
+    );
+    throw new Error("Tenant inválido para salvar o branding institucional.");
   }
 
+  console.log("[SIGAPRO][Supabase] Salvando branding institucional", {
+    remoteTenantId,
+    logoUrl: settings.logoUrl,
+    headerLogoUrl: settings.headerLogoUrl,
+    footerLogoUrl: settings.footerLogoUrl,
+    logoStorageProvider: settings.logoStorageProvider,
+    headerLogoObjectKey: settings.headerLogoObjectKey,
+    footerLogoObjectKey: settings.footerLogoObjectKey,
+  });
+
+  // ------------------------------------------------------------------
+  // 1. municipality_branding — inclui header/footer logo separados
+  // ------------------------------------------------------------------
+  const municipalityBrandingPayload: Record<string, unknown> = {
+    municipality_id: remoteTenantId,
+    // logo por variante
+    header_logo_url: settings.headerLogoUrl || null,
+    header_logo_object_key: settings.headerLogoObjectKey || null,
+    header_logo_file_name: settings.headerLogoFileName || null,
+    header_logo_mime_type: settings.headerLogoMimeType || null,
+    footer_logo_url: settings.footerLogoUrl || null,
+    footer_logo_object_key: settings.footerLogoObjectKey || null,
+    footer_logo_file_name: settings.footerLogoFileName || null,
+    footer_logo_mime_type: settings.footerLogoMimeType || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // ------------------------------------------------------------------
+  // 2. municipality_settings — geral_settings inclui escalas por variante
+  // ------------------------------------------------------------------
   const municipalitySettingsPayload = {
     municipality_id: remoteTenantId,
     protocol_prefix: settings.protocoloPrefixo || null,
     guide_prefix: settings.guiaPrefixo || null,
     timezone: "America/Sao_Paulo",
     locale: "pt-BR",
-    require_professional_registration: settings.registroProfissionalObrigatorio ?? true,
+    require_professional_registration:
+      settings.registroProfissionalObrigatorio ?? true,
     allow_digital_protocol: true,
     allow_walkin_protocol: false,
     general_settings: {
@@ -1353,20 +1749,31 @@ export async function saveRemoteInstitutionSettings(
       fee_final_approval: settings.taxaAprovacaoFinal ?? 0,
       taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
       approval_rate_profiles: settings.approvalRateProfiles ?? null,
+      // escalas por variante no general_settings para leitura futura
+      logo_scale: settings.logoScale ?? 1,
+      logo_offset_x: settings.logoOffsetX ?? 0,
+      logo_offset_y: settings.logoOffsetY ?? 0,
+      header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
+      header_logo_offset_x:
+        settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+      header_logo_offset_y:
+        settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+      footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
+      footer_logo_offset_x:
+        settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+      footer_logo_offset_y:
+        settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+      logo_storage_provider: settings.logoStorageProvider || null,
+      logo_bucket: settings.logoBucket || null,
+      logo_object_key: settings.logoObjectKey || null,
+      logo_file_name: settings.logoFileName || null,
+      logo_file_size: settings.logoFileSize ?? null,
     },
   };
 
-  const municipalityBrandingPayload = {
-    municipality_id: remoteTenantId,
-    logo_url: settings.logoUrl || null,
-    coat_of_arms_url: settings.brasaoUrl || null,
-    primary_color: null,
-    secondary_color: null,
-    accent_color: null,
-    official_header_text: settings.secretariaResponsavel || null,
-    official_footer_text: settings.resumoPlanoDiretor || null,
-  };
-
+  // ------------------------------------------------------------------
+  // 3. municipalities — dados gerais da prefeitura
+  // ------------------------------------------------------------------
   const municipalityUpdatePayload = {
     id: remoteTenantId,
     secretariat_name: settings.secretariaResponsavel || null,
@@ -1376,23 +1783,130 @@ export async function saveRemoteInstitutionSettings(
     custom_domain: settings.site || null,
   };
 
-  const municipalityUpdateResult = await supabase.from("municipalities").upsert(municipalityUpdatePayload, { onConflict: "id" });
-  const municipalitySettingsResult = await supabase
-    .from("municipality_settings")
-    .upsert(municipalitySettingsPayload, { onConflict: "municipality_id" });
-  const municipalityBrandingResult = await supabase
-    .from("municipality_branding")
-    .upsert(municipalityBrandingPayload, { onConflict: "municipality_id" });
+  // Executa as três operações
+  const municipalityUpdateResult = options?.skipMunicipalityUpdate
+    ? { error: null }
+    : await withTimeout(
+        upsertWithColumnRetry("municipalities", municipalityUpdatePayload, "id"),
+        "municipalities upsert",
+        12000,
+      );
+
+  const municipalitySettingsResult = options?.skipMunicipalitySettings
+    ? { error: null }
+    : await withTimeout(
+        upsertWithColumnRetry(
+          "municipality_settings",
+          municipalitySettingsPayload,
+          "municipality_id",
+        ),
+        "municipality_settings upsert",
+        12000,
+      );
+
+  // municipality_branding com retry para colunas ausentes (colunas header/footer
+  // podem não existir em bancos mais antigos — graceful degradation)
+  const upsertMunicipalityBranding = async () => {
+    let currentPayload: Record<string, unknown> = {
+      ...municipalityBrandingPayload,
+    };
+    let lastError: { message?: string } | null = null;
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const result = await supabase
+        .from("municipality_branding")
+        .upsert(currentPayload, { onConflict: "municipality_id" });
+      lastError = result.error;
+
+      if (!lastError) {
+        console.log(
+          "[SIGAPRO][Supabase] municipality_branding salvo com sucesso",
+          { attempt },
+        );
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("sigapro-branding-updated", {
+              detail: { municipalityId: remoteTenantId },
+            }),
+          );
+        }
+        return result;
+      }
+
+      if (!isMissingColumnError(lastError)) break;
+
+      const missingColumn = getMissingColumnName(lastError);
+      if (!missingColumn || !(missingColumn in currentPayload)) break;
+
+      console.warn(
+        "[SIGAPRO][Supabase] Coluna ausente em municipality_branding, removendo e tentando novamente",
+        { missingColumn },
+      );
+      delete currentPayload[missingColumn];
+    }
+
+    return { error: lastError };
+  };
+
+  const municipalityBrandingResult = await withTimeout(
+    upsertMunicipalityBranding(),
+    "municipality_branding upsert",
+    12000,
+  );
+
+  const municipalityUpdateMissing = isMissingRelationError(
+    municipalityUpdateResult.error,
+    "public.municipalities",
+  );
+  const municipalitySettingsMissing =
+    options?.skipMunicipalitySettings
+      ? false
+      : isMissingRelationError(
+          municipalitySettingsResult.error,
+          "public.municipality_settings",
+        );
+  const municipalityBrandingMissing = isMissingRelationError(
+    municipalityBrandingResult.error,
+    "public.municipality_branding",
+  );
 
   const municipalityErrors = [
-    isMissingRelationError(municipalityUpdateResult.error, "public.municipalities") ? null : municipalityUpdateResult.error,
-    isMissingRelationError(municipalitySettingsResult.error, "public.municipality_settings") ? null : municipalitySettingsResult.error,
-    isMissingRelationError(municipalityBrandingResult.error, "public.municipality_branding") ? null : municipalityBrandingResult.error,
+    municipalityUpdateMissing ? null : municipalityUpdateResult.error,
+    municipalitySettingsMissing ? null : municipalitySettingsResult.error,
+    municipalityBrandingMissing ? null : municipalityBrandingResult.error,
   ].filter(Boolean);
 
   if (municipalityErrors.length === 0) {
+    console.log(
+      "[SIGAPRO][Supabase] Branding salvo com sucesso via municipalities",
+      {
+        remoteTenantId,
+      },
+    );
     return;
   }
+
+  const onlyMissingRelations =
+    municipalityUpdateMissing &&
+    municipalitySettingsMissing &&
+    municipalityBrandingMissing;
+
+  if (!onlyMissingRelations) {
+    const firstError = municipalityErrors[0];
+    const formatted = formatSupabaseError(firstError);
+    console.error("[SIGAPRO][Supabase] Falha ao salvar branding", {
+      remoteTenantId,
+      error: formatted,
+    });
+    throw new Error(formatted);
+  }
+
+  // ------------------------------------------------------------------
+  // Fallback: tenant_settings / tenant_branding (schema legado)
+  // ------------------------------------------------------------------
+  console.warn(
+    "[SIGAPRO][Supabase] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
+  );
 
   const settingsPayload = {
     tenant_id: remoteTenantId,
@@ -1435,86 +1949,103 @@ export async function saveRemoteInstitutionSettings(
     logo_offset_x: settings.logoOffsetX ?? 0,
     logo_offset_y: settings.logoOffsetY ?? 0,
     header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
-    header_logo_offset_x: settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
-    header_logo_offset_y: settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    header_logo_offset_x:
+      settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    header_logo_offset_y:
+      settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
     footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
-    footer_logo_offset_x: settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
-    footer_logo_offset_y: settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    footer_logo_offset_x:
+      settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    footer_logo_offset_y:
+      settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
     logo_alt: settings.logoAlt || null,
     logo_updated_at: settings.logoUpdatedAt || null,
     logo_updated_by: normalizeUuid(settings.logoUpdatedBy),
     logo_frame_mode: settings.logoFrameMode || "soft-square",
     logo_fit_mode: settings.logoFitMode || "contain",
-    header_logo_frame_mode: settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
-    header_logo_fit_mode: settings.headerLogoFitMode || settings.logoFitMode || "contain",
-    footer_logo_frame_mode: settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
-    footer_logo_fit_mode: settings.footerLogoFitMode || settings.logoFitMode || "contain",
+    header_logo_frame_mode:
+      settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    header_logo_fit_mode:
+      settings.headerLogoFitMode || settings.logoFitMode || "contain",
+    footer_logo_frame_mode:
+      settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    footer_logo_fit_mode:
+      settings.footerLogoFitMode || settings.logoFitMode || "contain",
     taxa_protocolo: settings.taxaProtocolo ?? 35.24,
     taxa_iss_por_metro_quadrado: settings.taxaIssPorMetroQuadrado ?? 0,
     taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
-    registro_profissional_obrigatorio: settings.registroProfissionalObrigatorio ?? true,
+    registro_profissional_obrigatorio:
+      settings.registroProfissionalObrigatorio ?? true,
   };
 
-  const { error } = await supabase.from("tenant_settings").upsert(settingsPayload, { onConflict: "tenant_id" });
+  const { error: settingsError } = await supabase
+    .from("tenant_settings")
+    .upsert(settingsPayload, { onConflict: "tenant_id" });
 
-  if (!error) {
-    return;
-  }
+  if (!settingsError) return;
 
-  if (!isMissingRelationError(error, "public.tenant_settings")) {
-    throw error;
+  if (!isMissingRelationError(settingsError, "public.tenant_settings")) {
+    throw settingsError;
   }
 
   const brandingFallbackPayload = {
     tenant_id: remoteTenantId,
     logo_url: settings.logoUrl || null,
-    primary_color: null,
-    accent_color: null,
-    hero_title: null,
     hero_subtitle: settings.secretariaResponsavel || null,
     logo_scale: settings.logoScale ?? 1,
     logo_offset_x: settings.logoOffsetX ?? 0,
     logo_offset_y: settings.logoOffsetY ?? 0,
     header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
-    header_logo_offset_x: settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
-    header_logo_offset_y: settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    header_logo_offset_x:
+      settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    header_logo_offset_y:
+      settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
     footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
-    footer_logo_offset_x: settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
-    footer_logo_offset_y: settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    footer_logo_offset_x:
+      settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    footer_logo_offset_y:
+      settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
     logo_alt: settings.logoAlt || null,
     logo_updated_at: settings.logoUpdatedAt || null,
     logo_updated_by: normalizeUuid(settings.logoUpdatedBy),
     logo_frame_mode: settings.logoFrameMode || "soft-square",
     logo_fit_mode: settings.logoFitMode || "contain",
-    header_logo_frame_mode: settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
-    header_logo_fit_mode: settings.headerLogoFitMode || settings.logoFitMode || "contain",
-    footer_logo_frame_mode: settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
-    footer_logo_fit_mode: settings.footerLogoFitMode || settings.logoFitMode || "contain",
+    header_logo_frame_mode:
+      settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    header_logo_fit_mode:
+      settings.headerLogoFitMode || settings.logoFitMode || "contain",
+    footer_logo_frame_mode:
+      settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    footer_logo_fit_mode:
+      settings.footerLogoFitMode || settings.logoFitMode || "contain",
   };
 
-  const { error: brandingError } = await supabase.from("tenant_branding").upsert(brandingFallbackPayload, {
-    onConflict: "tenant_id",
-  });
+  const { error: brandingError } = await supabase
+    .from("tenant_branding")
+    .upsert(brandingFallbackPayload, { onConflict: "tenant_id" });
 
   if (brandingError && isMissingColumnError(brandingError)) {
-    const { error: legacyBrandingError } = await supabase.from("tenant_branding").upsert(
-      {
-        tenant_id: remoteTenantId,
-        logo_url: settings.logoUrl || null,
-        hero_subtitle: settings.secretariaResponsavel || null,
-      },
-      { onConflict: "tenant_id" },
+    const { error: legacyBrandingError } = await supabase
+      .from("tenant_branding")
+      .upsert(
+        {
+          tenant_id: remoteTenantId,
+          logo_url: settings.logoUrl || null,
+          hero_subtitle: settings.secretariaResponsavel || null,
+        },
+        { onConflict: "tenant_id" },
+      );
+
+    if (!legacyBrandingError) return;
+    throw new Error(
+      legacyBrandingError.message || "Falha ao salvar o branding institucional.",
     );
-
-    if (!legacyBrandingError) {
-      return;
-    }
-
-    throw new Error(legacyBrandingError.message || "Falha ao salvar o branding institucional.");
   }
 
   if (brandingError) {
-    throw new Error(brandingError.message || "Falha ao salvar o branding institucional.");
+    throw new Error(
+      brandingError.message || "Falha ao salvar o branding institucional.",
+    );
   }
 }
 

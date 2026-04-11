@@ -6,6 +6,7 @@ import {
   IdCard,
   KeyRound,
   Mail,
+  Settings2,
   ShieldPlus,
   UserRound,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { saveRemoteProfile, uploadFileToStorage } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
@@ -37,6 +39,8 @@ import {
   saveMasterBranding,
   updateMasterBranding,
 } from "@/lib/masterBranding";
+import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { loadPlatformBranding, savePlatformBranding, uploadPlatformBrandingAsset } from "@/integrations/supabase/platform";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
 
@@ -54,6 +58,23 @@ function imageFiles(url: string, label: string): UploadedFileItem[] {
     : [];
 }
 
+function sameFileList(a: UploadedFileItem[], b: UploadedFileItem[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i]?.previewUrl !== b[i]?.previewUrl) return false;
+  }
+  return true;
+}
+
+function isRenderablePreviewUrl(value?: string | null) {
+  if (!value) return false;
+  return (
+    value.startsWith("http") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  );
+}
+
 type ProfileSection =
   | "visao-geral"
   | "dados-pessoais"
@@ -68,6 +89,7 @@ export function PerfilPage() {
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
   const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
+  const { hiddenItems, loading: menuPrefsLoading, setItemHidden } = useUserMenuPreferences();
   const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
   const brandingUpdatedBy = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.id)
     ? session.id
@@ -86,9 +108,15 @@ export function PerfilPage() {
   const hydratedDraftRef = useRef(false);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
-  const [masterLogoFiles, setMasterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
-  const [draftMasterLogoFiles, setDraftMasterLogoFiles] = useState<UploadedFileItem[]>(
-    imageFiles(masterBranding.logoUrl ?? "", "master-logo"),
+  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const platformBrandingLoadedRef = useRef(false);
+  const [masterHeaderPersistedUrl, setMasterHeaderPersistedUrl] = useState("");
+  const [masterFooterPersistedUrl, setMasterFooterPersistedUrl] = useState("");
+  const [draftMasterHeaderLogoFiles, setDraftMasterHeaderLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-header-logo"),
+  );
+  const [draftMasterFooterLogoFiles, setDraftMasterFooterLogoFiles] = useState<UploadedFileItem[]>(
+    imageFiles(isRenderablePreviewUrl(masterBranding.logoUrl) ? masterBranding.logoUrl : "", "master-footer-logo"),
   );
   const [masterFooterText, setMasterFooterText] = useState(masterBranding.footerText ?? "");
   const [draftMasterHeaderConfig, setDraftMasterHeaderConfig] = useState({
@@ -104,6 +132,28 @@ export function PerfilPage() {
   const [masterHeaderStatus, setMasterHeaderStatus] = useState("");
   const [masterFooterStatus, setMasterFooterStatus] = useState("");
   const [masterLogoSaving, setMasterLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
+  const withTimeoutLogged = async <T,>(label: string, promise: Promise<T>, ms = 20000): Promise<T> => {
+    console.log("[FinalState] Iniciando etapa", { label, ms });
+    try {
+      return await new Promise<T>((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          reject(new Error(`Timeout: ${label}`));
+        }, ms);
+        promise
+          .then((result) => {
+            window.clearTimeout(timer);
+            resolve(result);
+          })
+          .catch((error) => {
+            window.clearTimeout(timer);
+            reject(error);
+          });
+      });
+    } catch (error) {
+      console.error("[Timeout]", { label, error });
+      throw error;
+    }
+  };
   const [form, setForm] = useState({
     fullName: session.name,
     email: session.email,
@@ -134,6 +184,107 @@ export function PerfilPage() {
     nextPassword: "",
     confirmPassword: "",
   });
+
+  const menuPreferencesCatalog: {
+    key: MenuPreferenceKey;
+    label: string;
+    description: string;
+  }[] = [
+    { key: "notifications", label: "Notificações", description: "Alertas e avisos institucionais." },
+    { key: "history", label: "Histórico", description: "Linha do tempo das atividades do usuário." },
+    { key: "legislation", label: "Legislação", description: "Referências e normas da prefeitura." },
+    { key: "finance", label: "Financeiro", description: "Acesso rápido às rotinas financeiras." },
+    { key: "external", label: "Acesso Externo", description: "Portal para protocolos de profissionais externos." },
+    { key: "protocols", label: "Protocolos", description: "Atalhos de fluxo e criação de protocolos." },
+    { key: "analysis", label: "Análise", description: "Fila de análise técnica e etapas de revisão." },
+  ];
+
+  useEffect(() => {
+    if (!isMasterRole) {
+      platformBrandingLoadedRef.current = false;
+      return;
+    }
+    if (platformBrandingLoadedRef.current) return;
+    platformBrandingLoadedRef.current = true;
+    let active = true;
+    const loadRemote = async () => {
+      try {
+        const remote = await loadPlatformBranding();
+        if (active) setPlatformBranding(remote);
+      } catch {
+        if (active) setPlatformBranding(null);
+      }
+    };
+    void loadRemote();
+    return () => {
+      active = false;
+    };
+  }, [isMasterRole]);
+
+  useEffect(() => {
+    if (!isMasterRole) return;
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
+    const allowPublicFallback =
+      String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+    const resolveUrl = async (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) return "";
+      if (trimmed.startsWith("http")) {
+        const extractedKey = getObjectKeyFromPublicUrl(trimmed);
+        if (extractedKey) {
+          try {
+            return await getSignedUrlForObject({ bucket, objectKey: extractedKey });
+          } catch {
+            return allowPublicFallback ? trimmed : "";
+          }
+        }
+        return allowPublicFallback ? trimmed : "";
+      }
+      try {
+        return await getSignedUrlForObject({ bucket, objectKey: trimmed });
+      } catch {
+        if (!allowPublicFallback) return "";
+        const publicUrl = getPublicUrl(trimmed);
+        return publicUrl || "";
+      }
+    };
+
+    const headerRaw =
+      platformBranding?.headerLogoObjectKey || platformBranding?.headerLogoUrl || "";
+    const footerRaw =
+      platformBranding?.footerLogoObjectKey || platformBranding?.footerLogoUrl || "";
+
+    const hasLocalHeader = Boolean(draftMasterHeaderLogoFiles[0]?.file);
+    const hasLocalFooter = Boolean(draftMasterFooterLogoFiles[0]?.file);
+    const currentHeaderPreview = draftMasterHeaderLogoFiles[0]?.previewUrl ?? "";
+    const currentFooterPreview = draftMasterFooterLogoFiles[0]?.previewUrl ?? "";
+
+    void resolveUrl(headerRaw).then((url) => {
+      if (url && url !== masterHeaderPersistedUrl) {
+        setMasterHeaderPersistedUrl(url);
+      }
+      if (!hasLocalHeader && !isRenderablePreviewUrl(currentHeaderPreview) && url) {
+        setDraftMasterHeaderLogoFiles(imageFiles(url, "master-header-logo"));
+      }
+    });
+
+    void resolveUrl(footerRaw).then((url) => {
+      if (url && url !== masterFooterPersistedUrl) {
+        setMasterFooterPersistedUrl(url);
+      }
+      if (!hasLocalFooter && !isRenderablePreviewUrl(currentFooterPreview) && url) {
+        setDraftMasterFooterLogoFiles(imageFiles(url, "master-footer-logo"));
+      }
+    });
+  }, [
+    draftMasterFooterLogoFiles,
+    draftMasterHeaderLogoFiles,
+    isMasterRole,
+    masterFooterPersistedUrl,
+    masterHeaderPersistedUrl,
+    platformBranding,
+  ]);
 
   useEffect(() => {
     if (!profile) return;
@@ -175,8 +326,6 @@ export function PerfilPage() {
   }, [profile]);
 
   useEffect(() => {
-    setMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
-    setDraftMasterLogoFiles(imageFiles(masterBranding.logoUrl ?? "", "master-logo"));
     setDraftMasterHeaderConfig({
       scale: masterBranding.headerLogoScale ?? 1,
       offsetX: masterBranding.headerLogoOffsetX ?? 0,
@@ -188,7 +337,7 @@ export function PerfilPage() {
       offsetY: masterBranding.footerLogoOffsetY ?? 0,
     });
     setMasterFooterText(masterBranding.footerText ?? "");
-  }, [masterBranding.logoUrl]);
+  }, [masterBranding]);
 
   useEffect(() => {
     setAccountForm((current) => ({
@@ -332,10 +481,22 @@ export function PerfilPage() {
       setDraftMasterHeaderConfig({ scale, offsetX, offsetY });
     };
 
-  const previewMasterBrandingBase = useMemo(() => {
-    const draftLogoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
-    return updateMasterBranding(masterBranding, {
-      logoUrl: draftLogoUrl,
+  const masterHeaderActiveUrl = useMemo(() => {
+    const localPreview = draftMasterHeaderLogoFiles[0]?.previewUrl ?? "";
+    const safeLocal = isRenderablePreviewUrl(localPreview) ? localPreview : "";
+    return safeLocal || masterHeaderPersistedUrl;
+  }, [draftMasterHeaderLogoFiles, masterHeaderPersistedUrl]);
+
+  const masterFooterActiveUrl = useMemo(() => {
+    const localPreview = draftMasterFooterLogoFiles[0]?.previewUrl ?? "";
+    const safeLocal = isRenderablePreviewUrl(localPreview) ? localPreview : "";
+    return safeLocal || masterFooterPersistedUrl;
+  }, [draftMasterFooterLogoFiles, masterFooterPersistedUrl]);
+
+  const previewMasterHeaderBranding = useMemo(() => {
+    const draftLogoUrl = masterHeaderActiveUrl || "";
+    const nextState = updateMasterBranding(masterBranding, {
+      logoUrl: isRenderablePreviewUrl(draftLogoUrl) ? draftLogoUrl : masterBranding.logoUrl,
       footerText: masterFooterText,
       headerLogoScale: draftMasterHeaderConfig.scale,
       headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
@@ -344,23 +505,47 @@ export function PerfilPage() {
       footerLogoOffsetX: draftMasterFooterConfig.offsetX,
       footerLogoOffsetY: draftMasterFooterConfig.offsetY,
     });
-  }, [draftMasterFooterConfig, draftMasterHeaderConfig, draftMasterLogoFiles, masterBranding, masterFooterText]);
+    return getMasterInstitutionBranding(nextState, "header");
+  }, [
+    draftMasterFooterConfig,
+    draftMasterHeaderConfig,
+    masterBranding,
+    masterFooterText,
+    masterHeaderActiveUrl,
+  ]);
 
-  const previewMasterHeaderBranding = useMemo(
-    () => getMasterInstitutionBranding(previewMasterBrandingBase, "header"),
-    [previewMasterBrandingBase],
-  );
-  const previewMasterFooterBranding = useMemo(
-    () => getMasterInstitutionBranding(previewMasterBrandingBase, "footer"),
-    [previewMasterBrandingBase],
-  );
+  const previewMasterFooterBranding = useMemo(() => {
+    const draftLogoUrl = masterFooterActiveUrl || "";
+    const nextState = updateMasterBranding(masterBranding, {
+      logoUrl: isRenderablePreviewUrl(draftLogoUrl) ? draftLogoUrl : masterBranding.logoUrl,
+      footerText: masterFooterText,
+      headerLogoScale: draftMasterHeaderConfig.scale,
+      headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
+      headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
+      footerLogoScale: draftMasterFooterConfig.scale,
+      footerLogoOffsetX: draftMasterFooterConfig.offsetX,
+      footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+    });
+    return getMasterInstitutionBranding(nextState, "footer");
+  }, [
+    draftMasterFooterConfig,
+    draftMasterHeaderConfig,
+    masterBranding,
+    masterFooterText,
+    masterFooterActiveUrl,
+  ]);
 
   const handleConfirmMasterLogo = async (variant: InstitutionalLogoConfigVariant) => {
     try {
       setMasterHeaderStatus("");
       setMasterFooterStatus("");
       setMasterLogoSaving(variant);
-      const logoUrl = draftMasterLogoFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+      const draftFiles = variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
+      let logoUrl = draftFiles[0]?.previewUrl ?? masterBranding.logoUrl ?? "";
+      let nextObjectKey = "";
+      let nextFileName = "";
+      let nextMimeType = "";
+      let nextPublicUrl = "";
 
       if (!logoUrl) {
         const message = "Envie o logo institucional da plataforma para continuar.";
@@ -372,8 +557,99 @@ export function PerfilPage() {
         return;
       }
 
+      if (draftFiles[0]?.file) {
+        const assetKey = variant === "footer" ? "footer-logo" : "header-logo";
+        const uploaded = await withTimeoutLogged(
+          "upload master",
+          uploadPlatformBrandingAsset({
+            file: draftFiles[0].file,
+            assetKey,
+          }),
+          30000,
+        );
+        const allowPublicFallback =
+          String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+        if (allowPublicFallback && uploaded.publicUrl) {
+          logoUrl = uploaded.publicUrl;
+        }
+        nextObjectKey = uploaded.objectKey;
+        nextFileName = uploaded.fileName;
+        nextMimeType = uploaded.mimeType;
+        nextPublicUrl = allowPublicFallback ? uploaded.publicUrl : "";
+        console.log("[AssetUpload] Master logo salvo", { variant, objectKey: uploaded.objectKey });
+      }
+
+      const existingObjectKey =
+        platformBranding && variant === "header"
+          ? platformBranding.headerLogoObjectKey || ""
+          : platformBranding?.footerLogoObjectKey || "";
+      const existingFileName =
+        platformBranding && variant === "header"
+          ? platformBranding.headerLogoFileName || ""
+          : platformBranding?.footerLogoFileName || "";
+      const existingMimeType =
+        platformBranding && variant === "header"
+          ? platformBranding.headerLogoMimeType || ""
+          : platformBranding?.footerLogoMimeType || "";
+      const existingPublicUrl =
+        platformBranding && variant === "header"
+          ? platformBranding.headerLogoUrl || ""
+          : platformBranding?.footerLogoUrl || "";
+
+      if (!nextPublicUrl) {
+        nextPublicUrl = existingPublicUrl;
+      }
+
+      const finalObjectKey = nextObjectKey || existingObjectKey;
+      if (!finalObjectKey) {
+        throw new Error("Envie o arquivo do logo da plataforma para concluir.");
+      }
+
+      console.log("[BrandingScope] Master save", { variant, scopeType: "platform" });
+      await withTimeoutLogged(
+        "platform_branding upsert",
+        savePlatformBranding({
+          variant,
+          objectKey: finalObjectKey,
+          fileName: nextFileName || draftFiles[0]?.file?.name || existingFileName || "",
+          mimeType: nextMimeType || draftFiles[0]?.file?.type || existingMimeType || "application/octet-stream",
+          publicUrl: nextPublicUrl || "",
+          updatedBy: brandingUpdatedBy,
+        }),
+        20000,
+      );
+
+      if (!nextPublicUrl) {
+        try {
+          nextPublicUrl = await getSignedUrlForObject({
+            bucket:
+              (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+              "sigapro-logos",
+            objectKey: finalObjectKey,
+          });
+        } catch {
+          nextPublicUrl = "";
+        }
+      }
+
+      if (isRenderablePreviewUrl(nextPublicUrl)) {
+        if (variant === "footer") {
+          setMasterFooterPersistedUrl(nextPublicUrl);
+        } else {
+          setMasterHeaderPersistedUrl(nextPublicUrl);
+        }
+      }
+
+      try {
+        const remote = await withTimeoutLogged("reload platform_branding", loadPlatformBranding(), 15000);
+        setPlatformBranding(remote);
+      } catch {
+        // no-op
+      }
+
+      const persistedUrl = nextPublicUrl || (logoUrl.startsWith("http") ? logoUrl : "");
       const updated = updateMasterBranding(masterBranding, {
-        logoUrl,
+        logoUrl: persistedUrl,
         logoAlt: "Logo institucional do SIGAPRO",
         logoUpdatedAt: new Date().toISOString(),
         logoUpdatedBy: brandingUpdatedBy,
@@ -387,8 +663,18 @@ export function PerfilPage() {
       });
 
       setMasterBranding(updated);
-      setMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
-      setDraftMasterLogoFiles(imageFiles(updated.logoUrl ?? "", "master-logo"));
+      const nextLogoPreview =
+        (isRenderablePreviewUrl(logoUrl) ? logoUrl : "") ||
+        nextPublicUrl ||
+        updated.logoUrl ||
+        "";
+      if (isRenderablePreviewUrl(nextLogoPreview)) {
+        if (variant === "footer") {
+          setDraftMasterFooterLogoFiles(imageFiles(nextLogoPreview, "master-footer-logo"));
+        } else {
+          setDraftMasterHeaderLogoFiles(imageFiles(nextLogoPreview, "master-header-logo"));
+        }
+      }
       saveMasterBranding(updated);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("sigapro-master-branding-updated"));
@@ -653,6 +939,41 @@ export function PerfilPage() {
               />
             </PageStatsRow>
 
+            <SectionCard
+              title="Preferências do menu"
+              description="Escolha quais atalhos opcionais aparecem no menu lateral. Itens essenciais permanecem visíveis."
+              icon={Settings2}
+            >
+              <div className="space-y-3">
+                {menuPreferencesCatalog.map((item) => {
+                  const isHidden = hiddenItems.includes(item.key);
+                  return (
+                    <div
+                      key={item.key}
+                      className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                        <p className="text-xs text-slate-500">{item.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">
+                          {isHidden ? "Oculto" : "Visível"}
+                        </span>
+                        <Switch
+                          checked={!isHidden}
+                          disabled={menuPrefsLoading}
+                          onCheckedChange={async (checked) => {
+                            await setItemHidden(item.key, !checked);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+
             <PageMainGrid>
               <PageMainContent>
                 <SectionCard title="Resumo do perfil" description="Identidade, vínculo institucional e dados mais usados na rotina.">
@@ -865,7 +1186,7 @@ export function PerfilPage() {
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterHeaderBranding} fallbackLabel="SIGAPRO" variant="header" />
                             <div className="min-w-[120px]">
-                              <p className="text-sm font-semibold text-white">SIGAPRO</p>
+                              <p className="break-words text-sm font-semibold text-white">SIGAPRO</p>
                               <p className="text-xs text-slate-300">Ambiente Master</p>
                             </div>
                           </div>
@@ -874,18 +1195,18 @@ export function PerfilPage() {
 
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                         <FileDropZone
-                          title="Logo da plataforma (Master)"
-                          description="Logo exclusivo do Master, sem misturar com Prefeituras."
+                          title="Logo do cabeçalho Master"
+                          description="Logo usado no cabeçalho institucional do SIGAPRO."
                           accept="image/*"
                           multiple={false}
                           allowPreview
-                          files={draftMasterLogoFiles}
-                          onFilesSelected={setDraftMasterLogoFiles}
+                          files={draftMasterHeaderLogoFiles}
+                          onFilesSelected={setDraftMasterHeaderLogoFiles}
                         />
                         <div className="space-y-3">
-                          {draftMasterLogoFiles[0]?.previewUrl ? (
+                          {isRenderablePreviewUrl(masterHeaderActiveUrl) ? (
                             <ImageFrameEditor
-                              imageUrl={draftMasterLogoFiles[0].previewUrl}
+                              imageUrl={masterHeaderActiveUrl}
                               scale={draftMasterHeaderConfig.scale}
                               offsetX={draftMasterHeaderConfig.offsetX}
                               offsetY={draftMasterHeaderConfig.offsetY}
@@ -935,16 +1256,25 @@ export function PerfilPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
-                            <p className="max-w-[220px] text-xs text-slate-300">{masterFooterText || "SIGAPRO — Plataforma institucional"}</p>
+                            <p className="max-w-[220px] break-words text-xs text-slate-300">{masterFooterText || "SIGAPRO — Plataforma institucional"}</p>
                           </div>
                         </div>
                       </div>
 
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                         <div className="space-y-3">
-                          {draftMasterLogoFiles[0]?.previewUrl ? (
+                          <FileDropZone
+                            title="Logo do rodapé Master"
+                            description="Logo usado no rodapé institucional do SIGAPRO."
+                            accept="image/*"
+                            multiple={false}
+                            allowPreview
+                            files={draftMasterFooterLogoFiles}
+                            onFilesSelected={setDraftMasterFooterLogoFiles}
+                          />
+                          {isRenderablePreviewUrl(masterFooterActiveUrl) ? (
                             <ImageFrameEditor
-                              imageUrl={draftMasterLogoFiles[0].previewUrl}
+                              imageUrl={masterFooterActiveUrl}
                               scale={draftMasterFooterConfig.scale}
                               offsetX={draftMasterFooterConfig.offsetX}
                               offsetY={draftMasterFooterConfig.offsetY}
@@ -994,7 +1324,7 @@ export function PerfilPage() {
                             className="min-h-[96px]"
                             placeholder="SIGAPRO — Plataforma institucional de projetos"
                           />
-                          <p className="text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
+                          <p className="break-words text-xs text-slate-500">Esse texto aparece no rodapé institucional do ambiente Master.</p>
                         </div>
                       </div>
                     </div>

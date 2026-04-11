@@ -8,6 +8,8 @@ import {
   defaultIssRateProfiles,
   type TenantSettings,
 } from "@/lib/platform";
+import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { loadPlatformBranding } from "@/integrations/supabase/platform";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding } from "@/lib/masterBranding";
 
@@ -82,78 +84,174 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const { institutions, getInstitutionSettings } = usePlatformData();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const [masterBrandingState, setMasterBrandingState] = useState(() => loadMasterBranding());
-  const resolvedInstitutionId = tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
-  const shouldUseMasterBranding =
-    isMaster &&
-    !tenantId &&
-    !municipality?.id &&
-    !scopeId &&
-    !session.municipalityId &&
-    !session.tenantId;
+  const [resolvedMasterHeaderLogoUrl, setResolvedMasterHeaderLogoUrl] = useState<string>("");
+  const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>("");
+  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+
+  const resolvedInstitutionId = isMaster
+    ? ""
+    : tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
+  const shouldUseMasterBranding = isMaster;
+
   const institution = municipality
     ? {
         id: municipality.id,
         name: municipality.name,
       }
     : institutions.find((item) => item.id === resolvedInstitutionId) ?? null;
+
   const institutionSettings =
     tenantSettingsCompat ??
     getInstitutionSettings(resolvedInstitutionId) ??
     (resolvedInstitutionId ? buildEmptyTenantSettings(resolvedInstitutionId) : null);
+
   const officialHeaderText =
     municipalityBranding?.officialHeaderText ??
     municipality?.secretariatName ??
     institutionSettings?.secretariaResponsavel ??
     institution?.name ??
     "Instituição";
+
   const officialFooterText =
     municipalityBranding?.officialFooterText ??
     institutionSettings?.resumoPlanoDiretor ??
-    "SIGAPRO — Plataforma institucional para aprovação de projetos";
+    "SIGAPRO — Sistema integrado de gestão e aprovação de projetos";
 
+  const resolvedHeaderText = shouldUseMasterBranding
+    ? "Sistema integrado de gestão e aprovação de projetos"
+    : officialHeaderText;
   const resolvedFooterText = shouldUseMasterBranding
-    ? masterBrandingState.footerText || officialFooterText
+    ? masterBrandingState.footerText || "SIGAPRO — Sistema integrado de gestão e aprovação de projetos"
     : officialFooterText;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const handler = () => setMasterBrandingState(loadMasterBranding());
+    const handler = () => {
+      setMasterBrandingState(loadMasterBranding());
+      if (shouldUseMasterBranding) {
+        loadPlatformBranding().then(setPlatformBranding).catch(() => setPlatformBranding(null));
+      }
+    };
     window.addEventListener("sigapro-master-branding-updated", handler as EventListener);
     return () => window.removeEventListener("sigapro-master-branding-updated", handler as EventListener);
-  }, []);
+  }, [shouldUseMasterBranding]);
+
+  useEffect(() => {
+    if (!shouldUseMasterBranding) return;
+    let active = true;
+    const loadRemote = async () => {
+      try {
+        const remote = await loadPlatformBranding();
+        if (active) setPlatformBranding(remote);
+      } catch {
+        if (active) setPlatformBranding(null);
+      }
+    };
+    void loadRemote();
+    return () => {
+      active = false;
+    };
+  }, [shouldUseMasterBranding]);
+
+  useEffect(() => {
+    if (!shouldUseMasterBranding) return;
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
+    const resolveLogo = async (raw: string, setter: (value: string) => void) => {
+      const trimmed = raw.trim();
+      if (!trimmed || trimmed.startsWith("http")) {
+        setter(trimmed);
+        return;
+      }
+      try {
+        const publicUrl = getPublicUrl(trimmed);
+        if (publicUrl) {
+          setter(publicUrl);
+          return;
+        }
+        const signedUrl = await getSignedUrlForObject({ bucket, objectKey: trimmed });
+        setter(signedUrl || "");
+      } catch {
+        setter("");
+      }
+    };
+
+    const headerRaw =
+      platformBranding?.headerLogoObjectKey ||
+      platformBranding?.headerLogoUrl ||
+      masterBrandingState.logoUrl ||
+      "";
+    const footerRaw =
+      platformBranding?.footerLogoObjectKey ||
+      platformBranding?.footerLogoUrl ||
+      masterBrandingState.logoUrl ||
+      "";
+
+    void resolveLogo(headerRaw, setResolvedMasterHeaderLogoUrl);
+    void resolveLogo(footerRaw, setResolvedMasterFooterLogoUrl);
+  }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
 
   const headerBranding = useMemo(() => {
     if (shouldUseMasterBranding) {
-      return getMasterInstitutionBranding(masterBrandingState, "header");
+      const masterBranding = getMasterInstitutionBranding(masterBrandingState, "header");
+      return {
+        ...masterBranding,
+        logoUrl: resolvedMasterHeaderLogoUrl || masterBranding.logoUrl,
+      };
     }
-    return getInstitutionBranding(
+    const base = getInstitutionBranding(
       institutionSettings,
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "header",
     );
-  }, [institution?.name, institutionSettings, masterBrandingState, shouldUseMasterBranding]);
+    const brandingUrl = municipalityBranding?.headerLogoUrl || municipalityBranding?.logoUrl || "";
+    return {
+      ...base,
+      logoUrl: brandingUrl || base.logoUrl,
+    };
+  }, [
+    institution?.name,
+    institutionSettings,
+    masterBrandingState,
+    resolvedMasterHeaderLogoUrl,
+    shouldUseMasterBranding,
+    municipalityBranding?.headerLogoUrl,
+    municipalityBranding?.logoUrl,
+  ]);
 
   const footerBranding = useMemo(() => {
     if (shouldUseMasterBranding) {
-      return getMasterInstitutionBranding(masterBrandingState, "footer");
+      const masterBranding = getMasterInstitutionBranding(masterBrandingState, "footer");
+      return {
+        ...masterBranding,
+        logoUrl: resolvedMasterFooterLogoUrl || masterBranding.logoUrl,
+      };
     }
-    return getInstitutionBranding(
+    const base = getInstitutionBranding(
       institutionSettings,
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "footer",
     );
-  }, [institution?.name, institutionSettings, masterBrandingState, shouldUseMasterBranding]);
+    const brandingUrl = municipalityBranding?.footerLogoUrl || municipalityBranding?.logoUrl || "";
+    return {
+      ...base,
+      logoUrl: brandingUrl || base.logoUrl,
+    };
+  }, [
+    institution?.name,
+    institutionSettings,
+    masterBrandingState,
+    resolvedMasterFooterLogoUrl,
+    shouldUseMasterBranding,
+    municipalityBranding?.footerLogoUrl,
+    municipalityBranding?.logoUrl,
+  ]);
 
   return {
-    tenant: institution,
-    tenantSettings: institutionSettings,
-    institution,
-    institutionSettings,
-    branding: headerBranding,
     headerBranding,
     footerBranding,
-    officialHeaderText,
+    officialHeaderText: resolvedHeaderText,
     officialFooterText: resolvedFooterText,
-    canEditBranding: can(session, "manage_tenant_branding"),
+    canManageTenantSettings: can(session, "manage_tenant_branding"),
   };
 }

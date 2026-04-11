@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
@@ -17,18 +18,48 @@ export function PermissionRoute({
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const { isAuthenticated, signOut, authenticatedEmail, authenticatedUserId } = useAuthGateway();
+  const { isAuthenticated, signOut, authenticatedUserId } = useAuthGateway();
+  const bootstrap = useAppBootstrap();
   const { sessionUsers } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
+  const isPlatformScope = bootstrap.scopeType === "platform";
 
-  if (!isAuthenticated) {
+  console.log("[PermissionRoute] Render", {
+    loading: tenant.loading,
+    bootstrapLoading: bootstrap.loading,
+    isReady: bootstrap.isReady,
+    isAuthenticated,
+    role: session.role,
+    municipalityId: tenant.municipalityId,
+    scopeType: bootstrap.scopeType,
+  });
+
+  const shouldBlockForLoad =
+    bootstrap.loading || !bootstrap.isReady || (!isPlatformScope && tenant.loading);
+
+  if (shouldBlockForLoad) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+        <Card className="max-w-xl rounded-[28px] border-slate-200">
+          <CardContent className="p-8 text-sm text-slate-600">
+            Carregando contexto institucional...
+            {bootstrap.error ? (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                {bootstrap.error}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && bootstrap.isReady) {
     return <Navigate to="/acesso" replace />;
   }
 
-  const authenticatedUser =
-    sessionUsers.find((item) => item.id === authenticatedUserId) ??
-    sessionUsers.find((item) => item.email.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase());
+  const authenticatedUser = sessionUsers.find((item) => item.id === authenticatedUserId);
   const isActuallyBlocked =
     authenticatedUser?.accountStatus === "blocked" || authenticatedUser?.accountStatus === "inactive";
 
@@ -177,4 +208,3 @@ function resolveAllowedArea(session: { role: string }) {
       return "/perfil";
   }
 }
-

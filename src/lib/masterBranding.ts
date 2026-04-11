@@ -30,7 +30,7 @@ const defaultMasterBranding: MasterBrandingState = {
   logoAlt: "Logo institucional do SIGAPRO",
   logoUpdatedAt: "",
   logoUpdatedBy: "",
-  footerText: "SIGAPRO — Plataforma institucional para aprovação de projetos",
+  footerText: "SIGAPRO — Sistema integrado de gestão e aprovação de projetos",
   logoScale: 1,
   logoOffsetX: 0,
   logoOffsetY: 0,
@@ -48,6 +48,23 @@ const defaultMasterBranding: MasterBrandingState = {
   footerLogoFitMode: "contain",
 };
 
+function isRenderableLogoUrl(value?: string | null) {
+  if (!value) return false;
+  return (
+    value.startsWith("http") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  );
+}
+
+function sanitizeBranding(input: MasterBrandingState): MasterBrandingState {
+  const sanitized = { ...input };
+  if (!isRenderableLogoUrl(sanitized.logoUrl)) {
+    sanitized.logoUrl = "";
+  }
+  return sanitized;
+}
+
 export function loadMasterBranding(): MasterBrandingState {
   if (typeof window === "undefined") {
     return { ...defaultMasterBranding };
@@ -57,7 +74,7 @@ export function loadMasterBranding(): MasterBrandingState {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...defaultMasterBranding };
     const parsed = JSON.parse(raw) as Partial<MasterBrandingState>;
-    return { ...defaultMasterBranding, ...parsed };
+    return sanitizeBranding({ ...defaultMasterBranding, ...parsed });
   } catch {
     return { ...defaultMasterBranding };
   }

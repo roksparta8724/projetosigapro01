@@ -1,0 +1,1 @@
+select schemaname, tablename, policyname, roles, cmd, qual, with_check from pg_policies where schemaname in ('public','storage') and tablename in ('municipality_branding','municipality_settings','municipalities','objects') order by schemaname, tablename, policyname;

@@ -90,7 +90,7 @@ export function SigaproLogo({
               compact ? "max-w-[170px] text-[8px]" : "max-w-[260px] text-[10px]",
             )}
           >
-            Sistema Integrado de Gestão e Aprovação de Projetos
+            Sistema integrado de gestão e aprovação de projetos
           </div>
         </div>
       ) : null}

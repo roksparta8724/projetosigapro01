@@ -98,7 +98,9 @@ export function FileDropZone({
       <div
         className={cn(
           "rounded-[24px] border border-dashed p-6 transition",
-          dragging ? "border-slate-900 bg-slate-50" : "border-slate-300 bg-white",
+          dragging
+            ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900/60"
+            : "border-slate-300 bg-white dark:border-slate-700/70 dark:bg-slate-950/40",
         )}
         onDragEnter={(event) => {
           event.preventDefault();
@@ -116,10 +118,15 @@ export function FileDropZone({
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 max-w-2xl">
-            <p className="break-words text-base font-semibold leading-tight text-slate-900">{title}</p>
-            <p className="mt-1 break-words text-sm leading-6 text-slate-500">{description}</p>
+            <p className="break-words text-base font-semibold leading-tight text-slate-900 dark:text-slate-100">{title}</p>
+            <p className="mt-1 break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
           </div>
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full text-slate-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/60"
+            onClick={() => inputRef.current?.click()}
+          >
             <UploadCloud className="mr-2 h-4 w-4" />
             Selecionar arquivo
           </Button>
@@ -138,17 +145,17 @@ export function FileDropZone({
       {files.length > 0 ? (
         <div className="grid gap-4">
           {files.map((file) => (
-            <div key={file.id} className="rounded-2xl border border-slate-200 p-4">
+            <div key={file.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700/60 dark:bg-slate-950/30">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                   {file.mimeType.startsWith("image/") ? (
-                    <FileImage className="h-5 w-5 text-slate-700" />
+                    <FileImage className="h-5 w-5 text-slate-700 dark:text-slate-200" />
                   ) : (
-                    <FileText className="h-5 w-5 text-slate-700" />
+                    <FileText className="h-5 w-5 text-slate-700 dark:text-slate-200" />
                   )}
                   <div className="min-w-0">
-                    <p className="max-w-[520px] break-words text-sm font-medium leading-6 text-slate-900">{file.fileName}</p>
-                    <p className="break-words text-sm text-slate-500">
+                    <p className="max-w-[520px] break-words text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">{file.fileName}</p>
+                    <p className="break-words text-sm text-slate-500 dark:text-slate-300">
                       {file.mimeType} - {file.sizeLabel}
                     </p>
                   </div>
@@ -159,13 +166,18 @@ export function FileDropZone({
                     <a
                       href={file.previewUrl}
                       download={file.fileName}
-                      className="inline-flex items-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
+                      className="inline-flex items-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-100"
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </a>
                   ) : null}
-                  <Button type="button" variant="outline" className="rounded-full" onClick={() => inputRef.current?.click()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full text-slate-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/60"
+                    onClick={() => inputRef.current?.click()}
+                  >
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     Substituir
                   </Button>
@@ -177,7 +189,7 @@ export function FileDropZone({
               </div>
 
               {allowPreview && file.previewUrl ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50">
                   {file.mimeType === "application/pdf" ? (
                     <iframe src={file.previewUrl} title={file.fileName} className="h-72 w-full" />
                   ) : (

@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { loadMunicipalityBundleByUserId } from "@/integrations/supabase/municipality";
 import { useTenant } from "@/hooks/useTenant";
+import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { getMunicipalityBrandingSafe } from "@/integrations/supabase/platform";
 import {
   buildTenantSettingsFromMunicipality,
   getMunicipalityTheme,
@@ -33,16 +34,20 @@ interface MunicipalityContextValue {
 const MunicipalityContext = createContext<MunicipalityContextValue | null>(null);
 
 export function MunicipalityProvider({ children }: { children: React.ReactNode }) {
-  const { authenticatedUserId } = useAuthGateway();
+  const bootstrap = useAppBootstrap();
   const { session } = usePlatformSession();
   const { institutions, getInstitutionSettings } = usePlatformData();
   const tenant = useTenant();
-  const [bundle, setBundle] = useState<{
-    municipality: Municipality | null;
-    branding: MunicipalityBranding | null;
-    settings: MunicipalitySettings | null;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const bundle =
+    bootstrap.scopeType === "platform" ? null : bootstrap.municipalityBundle ?? tenant.municipalityBundle ?? null;
+  const loading = bootstrap.loading || tenant.loading;
+  const [resolvedBranding, setResolvedBranding] = useState<MunicipalityBranding | null>(null);
+  const [brandingReloadToken, setBrandingReloadToken] = useState(0);
+  const brandingResolveRef = useRef<{ headerKey: string; footerKey: string }>({
+    headerKey: "",
+    footerKey: "",
+  });
+  const brandingFetchRef = useRef<{ id: string; inFlight: boolean }>({ id: "", inFlight: false });
 
   const activeInstitutionId =
     tenant.municipalityId ?? bundle?.municipality?.id ?? session.municipalityId ?? session.tenantId ?? null;
@@ -50,38 +55,157 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
   const fallbackInstitutionSettings = getInstitutionSettings(activeInstitutionId);
 
   useEffect(() => {
-    let active = true;
+    if (typeof window === "undefined") return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ municipalityId?: string }>).detail;
+      if (detail?.municipalityId && detail.municipalityId !== bundle?.municipality?.id) return;
+      console.log("[BrandingLoad] Evento de branding atualizado recebido");
+      brandingFetchRef.current = { id: "", inFlight: false };
+      brandingResolveRef.current = { headerKey: "", footerKey: "" };
+      setResolvedBranding(null);
+      setBrandingReloadToken((current) => current + 1);
+    };
+    window.addEventListener("sigapro-branding-updated", handler as EventListener);
+    return () => window.removeEventListener("sigapro-branding-updated", handler as EventListener);
+  }, [bundle?.municipality?.id]);
 
-    const run = async () => {
-      if (tenant.mode === "tenant") {
-        if (!active) return;
-        setBundle(tenant.municipalityBundle);
-        setLoading(tenant.loading);
+  useEffect(() => {
+    if (bootstrap.scopeType === "platform") {
+      setResolvedBranding(null);
+      return;
+    }
+    const branding = bundle?.branding ?? null;
+    if (!branding) {
+      const municipalityId = bundle?.municipality?.id || tenant.municipalityId || null;
+      if (!municipalityId || brandingFetchRef.current.inFlight || brandingFetchRef.current.id === municipalityId) {
+        setResolvedBranding(null);
         return;
       }
+      brandingFetchRef.current = { id: municipalityId, inFlight: true };
+      console.log("[BrandingLoad] Branding ausente no bundle, buscando direto", { municipalityId });
+      void (async () => {
+        try {
+          const fetched = await getMunicipalityBrandingSafe(municipalityId);
+          if (!fetched) {
+            setResolvedBranding(null);
+            return;
+          }
+          const headerKey = (fetched as MunicipalityBranding).headerLogoObjectKey || "";
+          const footerKey = (fetched as MunicipalityBranding).footerLogoObjectKey || "";
+          const hasPublicBase = Boolean(getPublicUrl("test"));
+          let next = { ...(fetched as MunicipalityBranding) };
+          const bucket =
+            (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+            "sigapro-logos";
+          if (headerKey) {
+            const publicUrl = hasPublicBase ? getPublicUrl(headerKey) : "";
+            const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: headerKey }));
+            if (signedUrl) {
+              next = { ...next, headerLogoUrl: signedUrl, logoUrl: next.logoUrl || signedUrl };
+            }
+          }
+          if (footerKey) {
+            const publicUrl = hasPublicBase ? getPublicUrl(footerKey) : "";
+            const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: footerKey }));
+            if (signedUrl) {
+              next = { ...next, footerLogoUrl: signedUrl, logoUrl: next.logoUrl || signedUrl };
+            }
+          }
+          setResolvedBranding(next);
+        } catch (error) {
+          console.warn("[BrandingLoad] Falha ao buscar branding direto", error);
+          setResolvedBranding(null);
+        } finally {
+          brandingFetchRef.current.inFlight = false;
+        }
+      })();
+      return;
+    }
 
-      setLoading(true);
+    const headerKey = branding.headerLogoObjectKey || "";
+    const footerKey = branding.footerLogoObjectKey || "";
+    const hasPublicBase = Boolean(getPublicUrl("test"));
+
+    if (!headerKey && !footerKey) {
+      setResolvedBranding(null);
+      return;
+    }
+
+    if (
+      brandingResolveRef.current.headerKey === headerKey &&
+      brandingResolveRef.current.footerKey === footerKey
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    console.log("[BrandingLoad] Resolvendo URLs do branding", {
+      headerKey,
+      footerKey,
+      hasPublicBase,
+    });
+
+    const resolveSigned = async () => {
+      let next = { ...branding };
       try {
-        const nextBundle = await loadMunicipalityBundleByUserId(authenticatedUserId);
-        if (!active) return;
-        setBundle(nextBundle);
-      } catch {
-        if (!active) return;
-        setBundle(null);
-      } finally {
-        if (active) setLoading(false);
+        const bucket =
+          (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+          "sigapro-logos";
+
+        if (headerKey) {
+          const publicUrl = hasPublicBase ? getPublicUrl(headerKey) : "";
+          const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: headerKey }));
+          if (signedUrl) {
+            next = {
+              ...next,
+              headerLogoUrl: signedUrl,
+              logoUrl: next.logoUrl || signedUrl,
+            };
+          }
+        }
+
+        if (footerKey) {
+          const publicUrl = hasPublicBase ? getPublicUrl(footerKey) : "";
+          const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: footerKey }));
+          if (signedUrl) {
+            next = {
+              ...next,
+              footerLogoUrl: signedUrl,
+              logoUrl: next.logoUrl || signedUrl,
+            };
+          }
+        }
+      } catch (error) {
+        console.warn("[Municipality] Falha ao resolver URL assinada do logo", error);
       }
+
+      if (!active) return;
+      brandingResolveRef.current = { headerKey, footerKey };
+      console.log("[BrandingLoad] URLs resolvidas", {
+        headerLogoUrl: next.headerLogoUrl,
+        footerLogoUrl: next.footerLogoUrl,
+      });
+      setResolvedBranding(next);
     };
 
-    void run();
+    void resolveSigned();
+
     return () => {
       active = false;
     };
-  }, [authenticatedUserId, tenant.loading, tenant.mode, tenant.municipalityBundle]);
+  }, [
+    bootstrap.scopeType,
+    bundle?.branding?.headerLogoObjectKey,
+    bundle?.branding?.footerLogoObjectKey,
+    bundle?.municipality?.id,
+    tenant.municipalityId,
+    brandingReloadToken,
+  ]);
 
   const value = useMemo<MunicipalityContextValue>(() => {
     const municipality = bundle?.municipality ?? null;
-    const branding = bundle?.branding ?? null;
+    const branding = resolvedBranding ?? bundle?.branding ?? null;
     const settings = bundle?.settings ?? null;
     const tenantSettingsCompat = buildTenantSettingsFromMunicipality(
       municipality,

@@ -82,7 +82,32 @@ export function AcessoPage() {
     setSubmitting(true);
     setError("");
 
-    const result = await signIn(email, password);
+    const withTimeout = async <T,>(promise: Promise<T>, ms = 12000): Promise<T> => {
+      let timer: number | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = window.setTimeout(() => {
+          reject(new Error("Tempo limite ao autenticar. Verifique a conexão e tente novamente."));
+        }, ms);
+      });
+      try {
+        return await Promise.race([promise, timeout]);
+      } finally {
+        if (timer) window.clearTimeout(timer);
+      }
+    };
+
+    let result: Awaited<ReturnType<typeof signIn>>;
+    try {
+      console.log("[SIGAPRO][Acesso] Iniciando login", { email });
+      result = await withTimeout(signIn(email, password));
+      console.log("[SIGAPRO][Acesso] Resultado login", result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao autenticar.";
+      console.error("[SIGAPRO][Acesso] Erro login", error);
+      setError(message);
+      setSubmitting(false);
+      return;
+    }
 
     if (!result.ok) {
       setError(result.message ?? "Não foi possível entrar.");

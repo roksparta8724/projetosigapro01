@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { AuthGatewayProvider } from "@/hooks/useAuthGateway";
+import { AppBootstrapProvider } from "@/hooks/useAppBootstrap";
 import { PlatformSessionProvider } from "@/hooks/usePlatformSession";
 import { PlatformDataProvider } from "@/hooks/usePlatformData";
 import { MunicipalityProvider } from "@/hooks/useMunicipality";
@@ -12,6 +13,7 @@ import { AcessoPage } from "@/pages/saas/AcessoPage";
 import { LandingPage } from "@/pages/saas/LandingPage";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
+import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
 import { AnalystDeskPage } from "@/pages/saas/AnalystDeskPage";
 import { FinanceDeskPage } from "@/pages/saas/FinanceDeskPage";
 import { FinanceProtocolsPage } from "@/pages/saas/FinanceProtocolsPage";
@@ -41,26 +43,28 @@ import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 
 const App = () => {
   return (
-    <AuthGatewayProvider>
-      <PlatformDataProvider>
-        <PlatformSessionProvider>
-          <TenantProvider>
-            <MunicipalityProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <ScrollToTop />
-                  <AppErrorBoundary>
-                    <AppRoutes />
-                  </AppErrorBoundary>
-                </BrowserRouter>
-              </TooltipProvider>
-            </MunicipalityProvider>
-          </TenantProvider>
-        </PlatformSessionProvider>
-      </PlatformDataProvider>
-    </AuthGatewayProvider>
+    <AppBootstrapProvider>
+      <AuthGatewayProvider>
+        <PlatformDataProvider>
+          <PlatformSessionProvider>
+            <TenantProvider>
+              <MunicipalityProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <ScrollToTop />
+                    <AppErrorBoundary>
+                      <AppRoutes />
+                    </AppErrorBoundary>
+                  </BrowserRouter>
+                </TooltipProvider>
+              </MunicipalityProvider>
+            </TenantProvider>
+          </PlatformSessionProvider>
+        </PlatformDataProvider>
+      </AuthGatewayProvider>
+    </AppBootstrapProvider>
   );
 };
 
@@ -82,6 +86,14 @@ const AppRoutes = () => {
       <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
       <Route path="/apresentacao" element={<LandingPage />} />
       <Route path="/inicio" element={<Navigate to="/acesso" replace />} />
+      <Route
+        path="/dashboard"
+        element={
+          <PermissionRoute permission="manage_own_profile">
+            <DashboardHomePage />
+          </PermissionRoute>
+        }
+      />
       <Route
         path="/master"
         element={

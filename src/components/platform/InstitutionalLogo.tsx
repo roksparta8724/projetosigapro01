@@ -48,6 +48,10 @@ export function InstitutionalLogo({
     .join("") || "SG";
 
   useEffect(() => {
+    console.log("[LogoRender] Renderizando logo", {
+      variant,
+      logoUrl: branding.logoUrl,
+    });
     if (!branding.logoUrl) {
       setImageFailed(false);
       return;

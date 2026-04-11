@@ -15,9 +15,14 @@ export interface InstitutionalBranding {
   logoFitMode: "contain" | "cover";
 }
 
-function pickVariantSettings(settings: TenantSettings | null | undefined, variant: InstitutionalLogoConfigVariant) {
+function pickVariantSettings(
+  settings: TenantSettings | null | undefined,
+  variant: InstitutionalLogoConfigVariant,
+) {
   if (variant === "footer") {
     return {
+      // Prefere URL específica do footer, cai para logoUrl geral
+      logoUrl: (settings as any)?.footerLogoUrl || settings?.logoUrl || "",
       scale: settings?.footerLogoScale,
       offsetX: settings?.footerLogoOffsetX,
       offsetY: settings?.footerLogoOffsetY,
@@ -27,6 +32,8 @@ function pickVariantSettings(settings: TenantSettings | null | undefined, varian
   }
 
   return {
+    // Prefere URL específica do header, cai para logoUrl geral
+    logoUrl: (settings as any)?.headerLogoUrl || settings?.logoUrl || "",
     scale: settings?.headerLogoScale ?? settings?.logoScale,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY,
@@ -45,7 +52,7 @@ export function getInstitutionBranding(
 
   return {
     tenantId: settings?.tenantId ?? "",
-    logoUrl: settings?.logoUrl || fallbackLogo,
+    logoUrl: selected.logoUrl || fallbackLogo,
     logoScale: selected.scale ?? 1,
     logoOffsetX: selected.offsetX ?? 0,
     logoOffsetY: selected.offsetY ?? 0,
@@ -73,20 +80,18 @@ export function updateInstitutionBranding(
   const nextOffsetY = branding.logoOffsetY ?? current.logoOffsetY;
   const nextFrameMode = branding.logoFrameMode ?? current.logoFrameMode;
   const nextFitMode = branding.logoFitMode ?? current.logoFitMode;
+  const nextLogoUrl = branding.logoUrl ?? settings.logoUrl ?? current.logoUrl;
 
-  return {
-    ...settings,
-    logoUrl: branding.logoUrl ?? settings.logoUrl ?? current.logoUrl,
-    logoAlt: branding.logoAlt ?? settings.logoAlt ?? current.logoAlt,
-    logoUpdatedAt: branding.logoUpdatedAt ?? settings.logoUpdatedAt ?? current.logoUpdatedAt,
-    logoUpdatedBy: branding.logoUpdatedBy ?? settings.logoUpdatedBy ?? current.logoUpdatedBy,
-    ...(variant === "header"
+  const variantSpecific =
+    variant === "header"
       ? {
+          headerLogoUrl: nextLogoUrl,
           headerLogoScale: nextScale,
           headerLogoOffsetX: nextOffsetX,
           headerLogoOffsetY: nextOffsetY,
           headerLogoFrameMode: nextFrameMode,
           headerLogoFitMode: nextFitMode,
+          // retrocompatibilidade: campos genéricos seguem o header
           logoScale: nextScale,
           logoOffsetX: nextOffsetX,
           logoOffsetY: nextOffsetY,
@@ -94,11 +99,27 @@ export function updateInstitutionBranding(
           logoFitMode: nextFitMode,
         }
       : {
+          footerLogoUrl: nextLogoUrl,
           footerLogoScale: nextScale,
           footerLogoOffsetX: nextOffsetX,
           footerLogoOffsetY: nextOffsetY,
           footerLogoFrameMode: nextFrameMode,
           footerLogoFitMode: nextFitMode,
-        }),
-  };
+        };
+
+  return {
+    ...settings,
+    // logoUrl genérico = sempre o mesmo arquivo (o arquivo é único, só o frame difere)
+    logoUrl: nextLogoUrl,
+    logoAlt: branding.logoAlt ?? settings.logoAlt ?? current.logoAlt,
+    logoUpdatedAt:
+      branding.logoUpdatedAt ??
+      settings.logoUpdatedAt ??
+      current.logoUpdatedAt,
+    logoUpdatedBy:
+      branding.logoUpdatedBy ??
+      settings.logoUpdatedBy ??
+      current.logoUpdatedBy,
+    ...variantSpecific,
+  } as TenantSettings;
 }

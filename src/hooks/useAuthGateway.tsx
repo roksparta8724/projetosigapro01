@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
-import { sessionUsers, type AccountStatus, type SessionUser, type UserRole } from "@/lib/platform";
+import { createContext, useContext, useMemo } from "react";
+import { sessionUsers, type AccountStatus, type SessionUser } from "@/lib/platform";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
 interface AuthGatewayContextValue {
   isAuthenticated: boolean;
@@ -8,29 +8,17 @@ interface AuthGatewayContextValue {
   authenticatedUserId: string | null;
   authenticatedRole: string | null;
   authenticatedEmail: string | null;
-  signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string }>;
+  authenticatedMunicipalityId: string | null;
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{ ok: boolean; message?: string; role?: string }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
 }
 
-const demoCredentials: Record<string, { password: string; userId: string; role: string }> = {
-  "roksparta02@gmail.com": { password: "Sigapro@2026", userId: "u-master", role: "master_admin" },
-  "camila@campolimpopaulista.sp.gov.br": { password: "Prefeitura@2026", userId: "u-admin-clp", role: "prefeitura_admin" },
-  "marcelo@campolimpopaulista.sp.gov.br": { password: "Analise@2026", userId: "u-analyst-clp", role: "analista" },
-  "fernanda@campolimpopaulista.sp.gov.br": { password: "Financeiro@2026", userId: "u-fin-clp", role: "financeiro" },
-  "patricia@estudiomoraes.com.br": { password: "Profissional@2026", userId: "u-ext-1", role: "profissional_externo" },
-  "sergio@dominio.com": { password: "Consulta@2026", userId: "u-owner-1", role: "property_owner" },
-};
-
-const MASTER_EMAIL = "roksparta02@gmail.com";
-const MASTER_NAME = "Jonatas Rodrigues";
-
-const STORAGE_KEY = "sigapro-auth-gateway";
-const LEGACY_SUPABASE_STORAGE_KEY = "sigapro-auth";
-const SUPABASE_STORAGE_KEY = "sigapro-supabase-auth";
-const DYNAMIC_CREDENTIALS_KEY = "sigapro-demo-credentials";
 const PLATFORM_STORE_KEY = "sigapro-platform-store";
 
 const AuthGatewayContext = createContext<AuthGatewayContextValue | null>(null);
@@ -40,16 +28,13 @@ const authGatewayFallback: AuthGatewayContextValue = {
   authenticatedUserId: null,
   authenticatedRole: null,
   authenticatedEmail: null,
+  authenticatedMunicipalityId: null,
   signIn: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
-  resetPassword: async (_email: string) => ({ ok: false, message: "Autenticacao indisponivel no momento." }),
+  resetPassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   updateEmail: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   updatePassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   signOut: async () => {},
 };
-
-function normalizeEmail(email: string | null | undefined) {
-  return email?.trim().toLowerCase() ?? "";
-}
 
 function readCurrentSessionUsers() {
   if (typeof window === "undefined") {
@@ -66,14 +51,10 @@ function readCurrentSessionUsers() {
   }
 }
 
-function resolveStoredUser(email: string | null | undefined, userId?: string | null) {
-  const normalized = normalizeEmail(email);
+function resolveStoredUser(_email: string | null | undefined, userId?: string | null) {
+  if (!userId) return undefined;
   const users = readCurrentSessionUsers();
-  return (
-    users.find((item) => (userId ? item.id === userId : false)) ??
-    users.find((item) => normalizeEmail(item.email) === normalized) ??
-    sessionUsers.find((item) => normalizeEmail(item.email) === normalized)
-  );
+  return users.find((item) => item.id === userId) ?? sessionUsers.find((item) => item.id === userId);
 }
 
 function isAdministrativeBlocked(status: AccountStatus | undefined) {
@@ -82,353 +63,31 @@ function isAdministrativeBlocked(status: AccountStatus | undefined) {
 
 function blockedAccountMessage(status: AccountStatus | undefined) {
   return status === "inactive"
-    ? "Esta conta foi desativada administrativamente. Entre em contato com a gestao do sistema."
-    : "Esta conta esta bloqueada administrativamente. Entre em contato com a gestao do sistema.";
+    ? "Esta conta foi desativada administrativamente. Entre em contato com a gestão do sistema."
+    : "Esta conta está bloqueada administrativamente. Entre em contato com a gestão do sistema.";
 }
 
-function mapDbRoleCodeToAppRole(code: string | null | undefined): UserRole | null {
-  if (!code) return null;
-  const c = code.trim();
-  const aliases: Record<string, UserRole> = {
-    master_admin: "master_admin",
-    admin_master: "master_admin",
-    master_ops: "master_ops",
-    prefeitura_admin: "prefeitura_admin",
-    admin_municipality: "prefeitura_admin",
-    prefeitura_supervisor: "prefeitura_supervisor",
-    analista: "analista",
-    analyst: "analista",
-    financeiro: "financeiro",
-    financial: "financeiro",
-    setor_intersetorial: "setor_intersetorial",
-    fiscal: "fiscal",
-    profissional_externo: "profissional_externo",
-    professional_external: "profissional_externo",
-    proprietario_consulta: "proprietario_consulta",
-    property_owner: "property_owner",
-  };
-  return aliases[c] ?? aliases[c.toLowerCase()] ?? null;
-}
+function useAuthGatewayValue(): AuthGatewayContextValue {
+  const bootstrap = useAppBootstrap();
 
-async function ensureMasterProfile(userId: string | null | undefined, email?: string | null) {
-  if (!supabase || !userId) return;
-  if (normalizeEmail(email) !== MASTER_EMAIL) return;
-
-  try {
-    await supabase.from("profiles").upsert(
-      {
-        id: userId,
-        user_id: userId,
-        full_name: MASTER_NAME,
-        email: MASTER_EMAIL,
-      },
-      { onConflict: "user_id" },
-    );
-  } catch {
-    // noop: perfil segue carregando pelas regras atuais
-  }
-}
-
-export function AuthGatewayProvider({ children }: { children: React.ReactNode }) {
-  const persisted = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
-  const parsed = persisted ? JSON.parse(persisted) : null;
-  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(parsed?.userId ?? null);
-  const [authenticatedRole, setAuthenticatedRole] = useState<string | null>(parsed?.role ?? null);
-  const [authenticatedEmail, setAuthenticatedEmail] = useState<string | null>(parsed?.email ?? null);
-  const [loading] = useState(false);
-
-  useEffect(() => {
-    if (!hasSupabaseEnv || !supabase) return;
-
-    if (typeof window !== "undefined") {
-      const legacy = window.localStorage.getItem(LEGACY_SUPABASE_STORAGE_KEY);
-      if (legacy && !legacy.includes("access_token")) {
-        window.localStorage.removeItem(LEGACY_SUPABASE_STORAGE_KEY);
-      }
-    }
-
-    const resolveRole = (email?: string | null, fallbackRole?: string | null) => {
-      const normalized = email?.trim().toLowerCase() || "";
-      const fallbackProfile = sessionUsers.find((item) => item.email.toLowerCase() === normalized);
-      return fallbackRole || fallbackProfile?.role || "profissional_externo";
-    };
-
-    const resolveProfileRole = async (userId: string, email?: string | null) => {
-      if (!supabase) return resolveRole(email, null);
-      try {
-        const membershipResult = await supabase
-          .from("tenant_memberships")
-          .select("roles(code)")
-          .eq("user_id", userId)
-          .eq("is_active", true)
-          .is("deleted_at", null)
-          .limit(1)
-          .maybeSingle();
-        const nested = membershipResult.data?.roles;
-        const code =
-          nested && typeof nested === "object" && nested !== null && "code" in nested
-            ? String((nested as { code: string }).code)
-            : null;
-        const fromMembership = mapDbRoleCodeToAppRole(code);
-        if (fromMembership) return fromMembership;
-      } catch {
-        // fall through
-      }
-      try {
-        const { data, error } = await supabase.from("profiles").select("role").eq("user_id", userId).maybeSingle();
-        if (!error && data?.role) {
-          const fromProfile = mapDbRoleCodeToAppRole(String(data.role));
-          if (fromProfile) return fromProfile;
-        }
-      } catch {
-        // fall through
-      }
-      return resolveRole(email, null);
-    };
-
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session?.user) return;
-      const userResult = await supabase.auth.getUser();
-      if (!userResult.data.user) {
-        await supabase.auth.signOut();
-        return;
-      }
-      const role =
-        (data.session.user.app_metadata?.role as string | undefined) ??
-        (await resolveProfileRole(data.session.user.id, data.session.user.email));
-      await ensureMasterProfile(data.session.user.id, data.session.user.email);
-      const payload = { userId: data.session.user.id, role, email: data.session.user.email?.trim().toLowerCase() ?? null };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      setAuthenticatedUserId(payload.userId);
-      setAuthenticatedRole(payload.role);
-      setAuthenticatedEmail(payload.email);
-    });
-
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session?.user) {
-        localStorage.removeItem(STORAGE_KEY);
-        setAuthenticatedUserId(null);
-        setAuthenticatedRole(null);
-        setAuthenticatedEmail(null);
-        return;
-      }
-
-      const role =
-        (session.user.app_metadata?.role as string | undefined) ??
-        (await resolveProfileRole(session.user.id, session.user.email));
-      await ensureMasterProfile(session.user.id, session.user.email);
-      const payload = { userId: session.user.id, role, email: session.user.email?.trim().toLowerCase() ?? null };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      setAuthenticatedUserId(payload.userId);
-      setAuthenticatedRole(payload.role);
-      setAuthenticatedEmail(payload.email);
-    });
-
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  const value = useMemo<AuthGatewayContextValue>(
+  return useMemo<AuthGatewayContextValue>(
     () => ({
-      isAuthenticated: Boolean(authenticatedUserId),
-      loading,
-      authenticatedUserId,
-      authenticatedRole,
-      authenticatedEmail,
-      signIn: async (email, password) => {
-        const normalized = normalizeEmail(email);
-        const masterCredential = demoCredentials["roksparta02@gmail.com"];
-
-        if (hasSupabaseEnv && supabase) {
-          const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password });
-          if (!error && data.user) {
-            const userResult = await supabase.auth.getUser();
-            if (!userResult.data.user) {
-              return { ok: false, message: "Não foi possível validar a sessão. Tente novamente." };
-            }
-            await ensureMasterProfile(data.user.id, data.user.email);
-            const fallbackProfile = resolveStoredUser(normalized, data.user.id);
-            if (isAdministrativeBlocked(fallbackProfile?.accountStatus)) {
-              await supabase.auth.signOut();
-              return {
-                ok: false,
-                message: blockedAccountMessage(fallbackProfile?.accountStatus),
-              };
-            }
-            const payload = {
-              userId: data.user.id,
-              role: (data.user.app_metadata?.role as string | undefined) ?? fallbackProfile?.role ?? "profissional_externo",
-              email: normalized,
-            };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-            setAuthenticatedUserId(payload.userId);
-            setAuthenticatedRole(payload.role);
-            setAuthenticatedEmail(payload.email);
-            return { ok: true, role: payload.role };
-          }
-
-          return {
-            ok: false,
-            message: error?.message || "Não foi possível autenticar no Supabase.",
-          };
-        }
-
-        if (normalized === "roksparta02@gmail.com" && password === masterCredential.password) {
-          const fallbackProfile = resolveStoredUser(normalized, masterCredential.userId);
-          if (isAdministrativeBlocked(fallbackProfile?.accountStatus)) {
-            return { ok: false, message: blockedAccountMessage(fallbackProfile?.accountStatus) };
-          }
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ userId: masterCredential.userId, role: masterCredential.role, email: normalized }));
-          setAuthenticatedUserId(masterCredential.userId);
-          setAuthenticatedRole(masterCredential.role);
-          setAuthenticatedEmail(normalized);
-          return { ok: true, role: masterCredential.role };
-        }
-
-        const dynamicCredentialsRaw = localStorage.getItem(DYNAMIC_CREDENTIALS_KEY);
-        const dynamicCredentials = dynamicCredentialsRaw
-          ? (JSON.parse(dynamicCredentialsRaw) as Record<string, { password: string; userId: string; role: string }>)
-          : {};
-
-        const credential = dynamicCredentials[normalized] ?? demoCredentials[normalized];
-        if (!credential || credential.password !== password) {
-          return { ok: false, message: "E-mail ou senha invalidos." };
-        }
-
-        const fallbackProfile = resolveStoredUser(normalized, credential.userId);
-        if (isAdministrativeBlocked(fallbackProfile?.accountStatus)) {
-          return { ok: false, message: blockedAccountMessage(fallbackProfile?.accountStatus) };
-        }
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ userId: credential.userId, role: credential.role, email: normalized }));
-        setAuthenticatedUserId(credential.userId);
-        setAuthenticatedRole(credential.role);
-        setAuthenticatedEmail(normalized);
-        return { ok: true, role: credential.role };
-      },
-      resetPassword: async (email) => {
-        const normalized = email.trim().toLowerCase();
-        if (!normalized) {
-          return { ok: false, message: "Informe um e-mail valido." };
-        }
-
-        if (hasSupabaseEnv && supabase) {
-          const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-            redirectTo: `${window.location.origin}/recuperar-senha`,
-          });
-          if (error) {
-            return { ok: false, message: error.message || "Nao foi possivel enviar o e-mail de recuperacao." };
-          }
-          return {
-            ok: true,
-            message:
-              "Se existir uma conta para este e-mail, enviamos um link seguro para redefinir a senha. Verifique a caixa de entrada e o spam.",
-          };
-        }
-
-        return {
-          ok: false,
-          message:
-            "A recuperacao de senha por link no e-mail exige o Supabase configurado (VITE_SUPABASE_URL e chave anonima). No modo demonstracao local, use as credenciais de teste na tela de acesso.",
-        };
-      },
-      updateEmail: async (email) => {
-        const normalized = email.trim().toLowerCase();
-        if (!normalized) {
-          return { ok: false, message: "Informe um e-mail valido." };
-        }
-
-        if (hasSupabaseEnv && supabase) {
-          const { error } = await supabase.auth.updateUser({ email: normalized });
-          if (error) {
-            return { ok: false, message: error.message || "Não foi possível atualizar o e-mail." };
-          }
-
-          const nextPayload = {
-            userId: authenticatedUserId,
-            role: authenticatedRole,
-            email: normalized,
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPayload));
-          setAuthenticatedEmail(normalized);
-          return {
-            ok: true,
-            message: "Solicitacao de troca de e-mail enviada. Confirme o novo endereco para concluir a alteracao.",
-          };
-        }
-
-        const existingDynamicRaw = localStorage.getItem(DYNAMIC_CREDENTIALS_KEY);
-        const existingDynamic = existingDynamicRaw
-          ? (JSON.parse(existingDynamicRaw) as Record<string, { password: string; userId: string; role: string }>)
-          : {};
-        const currentEmail = authenticatedEmail?.trim().toLowerCase() ?? "";
-        const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
-        if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "Não foi possível localizar a conta atual." };
-        }
-
-        const nextDynamic = { ...existingDynamic };
-        delete nextDynamic[currentEmail];
-        nextDynamic[normalized] = currentCredential;
-        localStorage.setItem(DYNAMIC_CREDENTIALS_KEY, JSON.stringify(nextDynamic));
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ userId: currentCredential.userId, role: currentCredential.role, email: normalized }),
-        );
-        setAuthenticatedEmail(normalized);
-        return { ok: true, message: "E-mail atualizado com sucesso." };
-      },
-      updatePassword: async (password) => {
-        if (!password || password.trim().length < 8) {
-          return { ok: false, message: "A nova senha deve ter pelo menos 8 caracteres." };
-        }
-
-        if (hasSupabaseEnv && supabase) {
-          const { error } = await supabase.auth.updateUser({ password });
-          if (error) {
-            return { ok: false, message: error.message || "Não foi possível atualizar a senha." };
-          }
-          return { ok: true, message: "Senha atualizada com sucesso." };
-        }
-
-        const currentEmail = authenticatedEmail?.trim().toLowerCase() ?? "";
-        const existingDynamicRaw = localStorage.getItem(DYNAMIC_CREDENTIALS_KEY);
-        const existingDynamic = existingDynamicRaw
-          ? (JSON.parse(existingDynamicRaw) as Record<string, { password: string; userId: string; role: string }>)
-          : {};
-        const currentCredential = existingDynamic[currentEmail] ?? demoCredentials[currentEmail];
-        if (!currentCredential || !currentEmail) {
-          return { ok: false, message: "Não foi possível localizar a conta atual." };
-        }
-
-        localStorage.setItem(
-          DYNAMIC_CREDENTIALS_KEY,
-          JSON.stringify({
-            ...existingDynamic,
-            [currentEmail]: {
-              ...currentCredential,
-              password,
-            },
-          }),
-        );
-        return { ok: true, message: "Senha atualizada com sucesso." };
-      },
+      isAuthenticated: Boolean(bootstrap.authUserId),
+      loading: bootstrap.loading,
+      authenticatedUserId: bootstrap.authUserId,
+      authenticatedRole: bootstrap.role,
+      authenticatedEmail: bootstrap.authEmail,
+      authenticatedMunicipalityId:
+        bootstrap.scopeType === "platform" ? null : bootstrap.profile?.municipalityId ?? null,
+      signIn: bootstrap.signIn,
+      resetPassword: bootstrap.resetPassword,
+      updateEmail: bootstrap.updateEmail,
+      updatePassword: bootstrap.updatePassword,
       signOut: async () => {
-        try {
-          if (hasSupabaseEnv && supabase) {
-            await Promise.race([
-              supabase.auth.signOut(),
-              new Promise((resolve) => setTimeout(resolve, 1200)),
-            ]);
-          }
-        } catch {
-          // keep local cleanup even if remote signOut fails
-        }
+        console.log("[Logout] signOut start");
+        await bootstrap.signOut();
+        console.log("[Logout] signOut result");
         if (typeof window !== "undefined") {
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem(PLATFORM_STORE_KEY);
-          localStorage.removeItem(SUPABASE_STORAGE_KEY);
-          localStorage.removeItem(LEGACY_SUPABASE_STORAGE_KEY);
-          localStorage.removeItem("sigapro-layout-theme");
           try {
             for (let i = localStorage.length - 1; i >= 0; i -= 1) {
               const key = localStorage.key(i);
@@ -437,22 +96,36 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
               }
             }
           } catch {
-            // ignore storage cleanup errors
+            // ignore
           }
+          window.location.replace("/acesso");
         }
-        setAuthenticatedUserId(null);
-        setAuthenticatedRole(null);
-        setAuthenticatedEmail(null);
       },
     }),
-    [authenticatedEmail, authenticatedRole, authenticatedUserId, loading],
+    [
+      bootstrap.authEmail,
+      bootstrap.authUserId,
+      bootstrap.loading,
+      bootstrap.profile?.municipalityId,
+      bootstrap.resetPassword,
+      bootstrap.role,
+      bootstrap.signIn,
+      bootstrap.signOut,
+      bootstrap.updateEmail,
+      bootstrap.updatePassword,
+      bootstrap.scopeType,
+    ],
   );
+}
 
+export function AuthGatewayProvider({ children }: { children: React.ReactNode }) {
+  const value = useAuthGatewayValue();
   return <AuthGatewayContext.Provider value={value}>{children}</AuthGatewayContext.Provider>;
 }
 
 export function useAuthGateway() {
   const context = useContext(AuthGatewayContext);
-  return context ?? authGatewayFallback;
+  return context ?? useAuthGatewayValue();
 }
 
+export { authGatewayFallback, resolveStoredUser, isAdministrativeBlocked, blockedAccountMessage };

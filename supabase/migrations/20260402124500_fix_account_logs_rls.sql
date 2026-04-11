@@ -3,6 +3,10 @@ alter table public.account_logs enable row level security;
 drop policy if exists "admin full access logs" on public.account_logs;
 drop policy if exists "user view own logs" on public.account_logs;
 drop policy if exists "account_logs_insert_self_or_admin" on public.account_logs;
+drop policy if exists "account_logs_read_scope" on public.account_logs;
+drop policy if exists "account_logs_insert_scope" on public.account_logs;
+drop policy if exists "account_logs_manage_scope" on public.account_logs;
+drop policy if exists "account_logs_delete_scope" on public.account_logs;
 
 create policy "account_logs_read_scope"
 on public.account_logs

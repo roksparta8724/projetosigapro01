@@ -21,7 +21,7 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
   }
 
   componentDidCatch(error: Error) {
-    console.error("SIGAPRO runtime error:", error);
+    console.error("[ErrorBoundary] SIGAPRO runtime error:", error);
   }
 
   render() {
