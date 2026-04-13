@@ -156,10 +156,34 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return;
           }
           console.warn("[Bootstrap] Sem usuário autenticado");
+          const devPreferredName =
+            (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) || "";
+          if (resolution.mode === "tenant") {
+            const tenantBundle = await loadCurrentMunicipalityBundle({
+              hostname: resolution.hostname,
+              subdomain: resolution.subdomain,
+              isLocalhost: resolution.isLocalhost,
+              preferredName: devPreferredName,
+            });
+            if (!active) return;
+            setAuthUserId(null);
+            setAuthEmail(null);
+            setRole(null);
+            setProfile(null);
+            setScopeType("municipality");
+            setMunicipalityBundle(tenantBundle);
+            setIsReady(true);
+            console.log("[Bootstrap] Tenant publico carregado sem auth", {
+              municipalityId: tenantBundle?.municipality?.id ?? null,
+              subdomain: resolution.subdomain,
+            });
+            return;
+          }
           setAuthUserId(null);
           setAuthEmail(null);
           setRole(null);
           setProfile(null);
+          setScopeType("platform");
           setMunicipalityBundle(null);
           setIsReady(true);
           return;
@@ -290,7 +314,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                   hostname: resolution.hostname,
                   subdomain: resolution.subdomain,
                   isLocalhost: resolution.isLocalhost,
-                  preferredName: "Campo Limpo Paulista",
+                  preferredName:
+                    (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
+                    "",
                 });
           setMunicipalityBundle(next);
         } finally {
