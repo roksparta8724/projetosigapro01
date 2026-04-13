@@ -18,6 +18,19 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
+function sanitizeAccessKeyId(value: string) {
+  const normalized = value.replace(/\s+/g, "");
+  const hexOnly = normalized.replace(/[^a-fA-F0-9]/g, "");
+  if (hexOnly.length >= 32) {
+    return hexOnly.slice(0, 32);
+  }
+  return normalized;
+}
+
+function sanitizeSecret(value: string) {
+  return value.replace(/\s+/g, "");
+}
+
 function getAllowedBuckets() {
   return new Set<string>([
     readEnv("R2_BUCKET_LOGOS") || "sigapro-logos",
@@ -70,14 +83,15 @@ export default async function handler(req: Req, res: Res) {
 
   try {
     const endpoint = readEnv("R2_ENDPOINT");
-    const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
-    const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
+    const accessKeyId = sanitizeAccessKeyId(readEnv("R2_ACCESS_KEY_ID"));
+    const secretAccessKey = sanitizeSecret(readEnv("R2_SECRET_ACCESS_KEY"));
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
 
     console.log("[ProdAudit][R2Sign] env", {
       hasEndpoint: Boolean(endpoint),
       hasAccessKeyId: Boolean(accessKeyId),
       hasSecret: Boolean(secretAccessKey),
+      accessKeyLength: accessKeyId.length,
     });
 
     if (!envOk) {
