@@ -29,8 +29,7 @@ export function ClientePortalPage() {
   }
 
   const settings = getInstitutionSettings(match.id);
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const publicLink = buildInstitutionClientLink(origin, match, settings);
+  const publicLink = buildInstitutionClientLink("", match, settings);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#09111a_0%,#0f2338_35%,#eef4f8_35%,#f8fafc_100%)] px-4 py-8">

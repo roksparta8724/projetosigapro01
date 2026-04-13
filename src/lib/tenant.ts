@@ -7,6 +7,7 @@ export interface TenantResolution {
   subdomain: string | null;
   isReserved: boolean;
   isLocalhost: boolean;
+  isRootDomain: boolean;
 }
 
 const RESERVED_SUBDOMAINS = new Set([
@@ -65,6 +66,7 @@ export function resolveTenantFromHostname(hostname: string, search?: string): Te
     normalized === "localhost" ||
     normalized === "127.0.0.1" ||
     normalized.endsWith(".localhost");
+  const isRootDomain = normalized === rootDomain || normalized === `www.${rootDomain}`;
 
   const params = new URLSearchParams(search ?? "");
   const forcedTenant = params.get("tenant") || params.get("subdomain");
@@ -78,6 +80,16 @@ export function resolveTenantFromHostname(hostname: string, search?: string): Te
   const isReserved = isReservedSubdomain(subdomain);
   const mode: TenantResolutionMode = subdomain && !isReserved ? "tenant" : "root";
 
+  console.log("[TenantResolver] Hostname resolvido", {
+    hostname: normalized,
+    rootDomain,
+    isLocalhost,
+    isRootDomain,
+    subdomain,
+    mode,
+    isReserved,
+  });
+
   return {
     mode,
     hostname: normalized,
@@ -85,6 +97,7 @@ export function resolveTenantFromHostname(hostname: string, search?: string): Te
     subdomain,
     isReserved,
     isLocalhost,
+    isRootDomain,
   };
 }
 

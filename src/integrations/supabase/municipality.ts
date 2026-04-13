@@ -148,6 +148,96 @@ function buildSubdomainOrFilter(candidate: string) {
   return `${subdomainClause},slug.ilike.${candidate},${customDomainClause}`;
 }
 
+function normalizeHostLabel(hostname: string) {
+  return hostname.trim().toLowerCase().replace(/^www\./, "");
+}
+
+function buildHostCandidates(hostname: string) {
+  const normalized = normalizeHostLabel(hostname);
+  if (!normalized) return [];
+  const rootDomain = getRootDomain();
+  const candidates = new Set<string>();
+
+  candidates.add(normalized);
+  if (rootDomain && normalized.endsWith(`.${rootDomain}`)) {
+    const label = normalized.slice(0, normalized.length - rootDomain.length - 1);
+    if (label) candidates.add(label);
+  } else if (!normalized.includes(".") && rootDomain) {
+    candidates.add(`${normalized}.${rootDomain}`);
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+async function resolveMunicipalityRecordByHost(params: {
+  hostname?: string | null;
+  subdomain?: string | null;
+}) {
+  if (!hasSupabaseEnv || !supabase) return null;
+
+  const normalizedHost = params.hostname ? normalizeHostLabel(params.hostname) : "";
+  const candidates = new Set<string>();
+
+  if (params.subdomain) {
+    buildSubdomainCandidates(params.subdomain).forEach((item) => candidates.add(item));
+  }
+  if (normalizedHost) {
+    buildHostCandidates(normalizedHost).forEach((item) => candidates.add(item));
+  }
+
+  if (candidates.size === 0) return null;
+
+  const list = Array.from(candidates);
+  console.log("[TenantQuery] Buscando municipio por host/subdominio", {
+    hostname: normalizedHost || params.hostname,
+    subdomain: params.subdomain,
+    candidates: list,
+  });
+
+  // 1) Tentativa exata
+  for (const candidate of list) {
+    const result = await supabase
+      .from("municipalities")
+      .select("*")
+      .or(`custom_domain.eq.${candidate},subdomain.eq.${candidate},slug.eq.${candidate}`)
+      .maybeSingle();
+
+    if (result.error) {
+      if (!isMissingRelationError(result.error, "public.municipalities")) throw result.error;
+    }
+
+    if (result.data) {
+      console.log("[TenantMatch] Municipio encontrado (exato)", { candidate, id: result.data.id });
+      return result.data;
+    }
+  }
+
+  // 2) Tentativa flexível (ilike)
+  for (const candidate of list) {
+    const result = await supabase
+      .from("municipalities")
+      .select("*")
+      .or(buildSubdomainOrFilter(candidate))
+      .maybeSingle();
+
+    if (result.error) {
+      if (!isMissingRelationError(result.error, "public.municipalities")) throw result.error;
+    }
+
+    if (result.data) {
+      console.log("[TenantMatch] Municipio encontrado (ilike)", { candidate, id: result.data.id });
+      return result.data;
+    }
+  }
+
+  console.warn("[TenantNotFound] Municipio nao encontrado para host/subdominio", {
+    hostname: normalizedHost || params.hostname,
+    subdomain: params.subdomain,
+    candidates: list,
+  });
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Variáveis de ambiente de dev
 // ---------------------------------------------------------------------------
@@ -390,7 +480,7 @@ export async function resolveCurrentMunicipalityId(options: {
 }): Promise<{ id: string | null; source: string }> {
   const { hostname, subdomain, isLocalhost, preferredName } = options;
 
-  console.log("[SIGAPRO] resolveCurrentMunicipalityId", {
+  console.log("[TenantResolver] resolveCurrentMunicipalityId", {
     hostname,
     subdomain,
     isLocalhost,
@@ -401,30 +491,27 @@ export async function resolveCurrentMunicipalityId(options: {
   if (isLocalhost) {
     const devId = await resolveDevMunicipalityId();
     if (devId) {
-      console.log("[SIGAPRO] Municipio resolvido via dev-env", { devId });
+      console.log("[TenantResolver] Municipio resolvido via dev-env", { devId });
       return { id: devId, source: "dev-env" };
     }
     const fallbackId = await resolveDefaultMunicipalityId(preferredName ?? null);
-    console.log("[SIGAPRO] Municipio resolvido via dev-fallback", {
+    console.log("[TenantResolver] Municipio resolvido via dev-fallback", {
       fallbackId,
     });
     return { id: fallbackId, source: "dev-fallback" };
   }
 
-  if (subdomain) {
-    const id = await resolveMunicipalityIdBySubdomain(subdomain);
-    console.log("[SIGAPRO] Municipio resolvido via subdomain", { subdomain, id });
-    return { id, source: "subdomain" };
+  const record = await resolveMunicipalityRecordByHost({ hostname, subdomain });
+  if (record?.id) {
+    console.log("[TenantResolver] Municipio resolvido via host/subdomain", {
+      hostname,
+      subdomain,
+      id: record.id,
+    });
+    return { id: record.id, source: "host" };
   }
 
-  if (hostname) {
-    const bundle = await loadMunicipalityBundleByHostname(hostname);
-    const id = bundle?.municipality?.id ?? null;
-    console.log("[SIGAPRO] Municipio resolvido via hostname", { hostname, id });
-    return { id, source: "hostname" };
-  }
-
-  console.warn("[SIGAPRO] Nao foi possivel resolver municipio", options);
+  console.warn("[TenantNotFound] Nao foi possivel resolver municipio", options);
   return { id: null, source: "unknown" };
 }
 
@@ -435,23 +522,20 @@ export async function loadCurrentMunicipalityBundle(options: {
   preferredName?: string | null;
 }): Promise<MunicipalityBundle | null> {
   const result = await resolveCurrentMunicipalityId(options);
-  if (result.id) {
-    return loadMunicipalityBundleById(result.id);
-  }
+  if (result.id) return loadMunicipalityBundleById(result.id);
 
-  if (options.isLocalhost) {
-    return loadDevMunicipalityBundle();
-  }
+  if (options.isLocalhost) return loadDevMunicipalityBundle();
 
-  if (options.subdomain) {
-    return loadMunicipalityBundleBySubdomain(options.subdomain);
-  }
+  const record = await resolveMunicipalityRecordByHost({
+    hostname: options.hostname,
+    subdomain: options.subdomain,
+  });
 
-  if (options.hostname) {
-    return loadMunicipalityBundleByHostname(options.hostname);
-  }
+  if (!record?.id) return null;
 
-  return null;
+  const municipality = mapMunicipality(record);
+  const { branding, settings } = await loadBrandingAndSettings(municipality.id);
+  return { municipality, branding, settings };
 }
 
 export async function resolveCurrentMunicipality(options: {

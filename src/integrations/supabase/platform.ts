@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/integrations/r2/client";
+import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
   type CreateProcessInput,
@@ -380,7 +381,12 @@ export async function loadRemotePlatformStore() {
       resumoPlanoDiretor: settings?.resumo_plano_diretor ?? "",
       resumoUsoSolo: settings?.resumo_uso_solo ?? "",
       leisComplementares: settings?.leis_complementares ?? "",
-      linkPortalCliente: settings?.link_portal_cliente ?? (tenant.subdomain ? `https://${tenant.subdomain}` : ""),
+      linkPortalCliente:
+        settings?.link_portal_cliente ??
+        buildMunicipalityPortalUrl({
+          subdomain: tenant.subdomain,
+          customDomain: tenant.customDomain,
+        }),
       protocoloPrefixo: settings?.protocolo_prefixo ?? "SIG",
       guiaPrefixo: settings?.guia_prefixo ?? "DAM",
       chavePix: settings?.chave_pix ?? "",
@@ -391,7 +397,12 @@ export async function loadRemotePlatformStore() {
       monthlyFee: Number(settings?.monthly_fee ?? 0),
       setupFee: Number(settings?.setup_fee ?? 0),
       signatureMode: settings?.signature_mode ?? "eletronica",
-      clientDeliveryLink: settings?.client_delivery_link ?? (tenant.subdomain ? `https://${tenant.subdomain}` : ""),
+      clientDeliveryLink:
+        settings?.client_delivery_link ??
+        buildMunicipalityPortalUrl({
+          subdomain: tenant.subdomain,
+          customDomain: tenant.customDomain,
+        }),
       logoScale: Number(settings?.logo_scale ?? branding?.logo_scale ?? branding?.header_logo_scale ?? 1),
       logoOffsetX: Number(settings?.logo_offset_x ?? branding?.logo_offset_x ?? branding?.header_logo_offset_x ?? 0),
       logoOffsetY: Number(settings?.logo_offset_y ?? branding?.logo_offset_y ?? branding?.header_logo_offset_y ?? 0),
@@ -506,7 +517,10 @@ export async function loadRemotePlatformStore() {
       leisComplementares: typeof general.leis_complementares === "string" ? general.leis_complementares : "",
       linkPortalCliente:
         (typeof general.link_portal_cliente === "string" && general.link_portal_cliente) ||
-        (municipality.subdomain ? `https://${municipality.subdomain}` : municipality.custom_domain ?? ""),
+        buildMunicipalityPortalUrl({
+          subdomain: municipality.subdomain,
+          customDomain: municipality.custom_domain ?? "",
+        }),
       protocoloPrefixo: settings?.protocol_prefix ?? "SIG",
       guiaPrefixo: settings?.guide_prefix ?? "DAM",
       chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
@@ -523,7 +537,10 @@ export async function loadRemotePlatformStore() {
           : "eletronica",
       clientDeliveryLink:
         (typeof general.client_delivery_link === "string" && general.client_delivery_link) ||
-        (municipality.subdomain ? `https://${municipality.subdomain}` : municipality.custom_domain ?? ""),
+        buildMunicipalityPortalUrl({
+          subdomain: municipality.subdomain,
+          customDomain: municipality.custom_domain ?? "",
+        }),
       logoScale: typeof general.logo_scale === "number" ? general.logo_scale : 1,
       logoOffsetX: typeof general.logo_offset_x === "number" ? general.logo_offset_x : 0,
       logoOffsetY: typeof general.logo_offset_y === "number" ? general.logo_offset_y : 0,

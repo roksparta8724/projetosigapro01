@@ -22,6 +22,7 @@ import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { loadMunicipalityCatalog } from "@/integrations/supabase/municipality";
 import { saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/supabase/platform";
 import { buildTenantFromMunicipalityBundle } from "@/lib/municipality";
+import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type SessionUser, type UserRole } from "@/lib/platform";
 
 type SignatureMode = "eletronica" | "manual" | "icp_brasil";
@@ -62,8 +63,8 @@ const normalizeSubdomainInput = (value: string) => {
   const firstLabel = withoutPath.split(".")[0] ?? "";
   return normalizeSlug(firstLabel);
 };
-const buildTenantLink = (subdomain: string) =>
-  normalizeSlug(subdomain) ? `https://${normalizeSlug(subdomain)}.sigapro.app` : "";
+const buildTenantLink = (subdomain: string, customDomain?: string) =>
+  buildMunicipalityPortalUrl({ subdomain: normalizeSlug(subdomain), customDomain });
 const getStatusTone = (status: AccountStatus) => status === "blocked" ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400" : status === "inactive" ? "border-slate-300 bg-slate-100 text-slate-600" : "border-emerald-200 bg-emerald-50 text-emerald-700";
 const getStatusLabel = (status: AccountStatus) => status === "blocked" ? "Bloqueado" : status === "inactive" ? "Inativo" : "Ativo";
 const getInstitutionBadgeTone = (status: Institution["status"]) => status === "suspenso" ? "border-red-200 bg-red-50 text-red-600 dark:text-red-400" : status === "implantacao" ? "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400" : "border-green-200 bg-green-50 text-green-600 dark:text-green-400";
@@ -190,7 +191,7 @@ export function MasterAdminPage() {
     if (!activeTenant) { setForm(emptyTenantForm); setAdmins([createAdminDraft()]); return; }
     const settings = getInstitutionSettings(activeTenant.id);
     const prefeituraAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === activeTenant.id || user.municipalityId === activeTenant.id) && user.role === "prefeitura_admin");
-    setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: settings?.contractStart ?? "", contractEnd: settings?.contractEnd ?? "", monthlyFee: settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
+    setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: settings?.contractStart ?? "", contractEnd: settings?.contractEnd ?? "", monthlyFee: settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain, settings?.site), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
     setAdmins(prefeituraAdmins.length > 0 ? prefeituraAdmins.map((user) => ({ id: `admin-${user.id}`, email: user.email, fullName: user.name, title: user.title, accessLevel: user.accessLevel >= 3 ? 3 : 2 })) : [createAdminDraft()]);
   }, [activeTenant, getInstitutionSettings, knownAdministrativeUsers]);
 
@@ -224,7 +225,20 @@ export function MasterAdminPage() {
   const removeAdminRow = (id: string) => setAdmins((current) => (current.length > 1 ? current.filter((item) => item.id !== id) : current));
   const applyKnownAdminEmail = (draftId: string, email: string) => { const known = availableAdminEmails.find((user) => user.email.trim().toLowerCase() === email.trim().toLowerCase()); if (!known) return; updateAdminRow(draftId, "email", known.email); updateAdminRow(draftId, "fullName", known.name); updateAdminRow(draftId, "title", known.title || roleSuggestedTitles.prefeitura_admin); updateAdminRow(draftId, "accessLevel", known.accessLevel >= 3 ? 3 : 2); };
   const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-  const handleCopyLink = async (subdomain: string) => { const link = buildTenantLink(subdomain); if (!link) { setStatusMessage("Defina um subdomínio para copiar o portal do cliente."); return; } try { await navigator.clipboard.writeText(link); setStatusMessage("Link do cliente copiado com sucesso."); } catch { setStatusMessage(`Link do cliente: ${link}`); } };
+  const handleCopyLink = async (subdomain: string, customDomain?: string) => {
+    const link = buildTenantLink(subdomain, customDomain);
+    if (!link) {
+      setStatusMessage("Defina um subdomínio para copiar o portal do cliente.");
+      return;
+    }
+    console.log("[CopyPortalLink] Copiando link do portal", { subdomain, customDomain, link });
+    try {
+      await navigator.clipboard.writeText(link);
+      setStatusMessage("Link do cliente copiado com sucesso.");
+    } catch {
+      setStatusMessage(`Link do cliente: ${link}`);
+    }
+  };
   const handleMasterStatusToggle = (user: SessionUser) => { if (user.id === "u-master" && user.role === "master_admin") { setStatusMessage("A conta raiz do master não pode ser bloqueada."); return; } if (user.accountStatus === "blocked") { if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return; const updated = setUserAccountStatus({ userId: user.id, status: "active", actor: "master" }); if (updated) setStatusMessage(`Conta de ${updated.name} reativada.`); return; } const reason = window.prompt(`Informe o motivo do bloqueio de ${user.name}:`, user.blockReason || "Bloqueio administrativo"); if (reason === null) return; const updated = setUserAccountStatus({ userId: user.id, status: "blocked", actor: "master", reason }); if (updated) setStatusMessage(`Conta de ${updated.name} bloqueada.`); };
   const handleMasterDelete = (user: SessionUser) => { if (user.id === "u-master" && user.role === "master_admin") { setStatusMessage("A conta raiz do master não pode ser desativada."); return; } if (!window.confirm(`Deseja desativar a conta de ${user.name}?`)) return; const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente"); if (reason === null) return; const updated = deleteUserAccount({ userId: user.id, actor: "master", reason }); if (updated) setStatusMessage(`Conta de ${updated.name} marcada como inativa.`); };
   const handleMasterEdit = (user: SessionUser) => { const nextName = window.prompt("Nome do usuário:", user.name); if (nextName === null) return; const nextTitle = window.prompt("Cargo / título:", user.title || roleSuggestedTitles[user.role]); if (nextTitle === null) return; const nextRole = window.prompt(`Perfil (${Object.keys(roleLabels).join(", ")}):`, user.role) as UserRole | null; if (nextRole === null) return; if (!(nextRole in roleLabels)) { setStatusMessage("Perfil informado é inválido."); return; } const nextAccessRaw = window.prompt("Nível de acesso (1, 2 ou 3):", String(user.accessLevel)); if (nextAccessRaw === null) return; const nextAccess = Number(nextAccessRaw); if (![1, 2, 3].includes(nextAccess)) { setStatusMessage("Nível de acesso inválido."); return; } const updated = updateTenantUser(user.id, { name: nextName.trim(), title: nextTitle.trim(), role: nextRole, accessLevel: nextAccess as 1 | 2 | 3 }); if (updated) setStatusMessage(`Dados de ${updated.name} atualizados.`); };
@@ -270,7 +284,7 @@ export function MasterAdminPage() {
       return;
     }
     if (!normalizedSubdomain) {
-      setStatusMessage("Informe um subdomínio válido (apenas o nome, sem .sigapro.com.br).");
+      setStatusMessage("Informe um subdomínio válido (apenas o nome, sem .sigapromunicipal.com.br).");
       setSaving(false);
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -313,7 +327,7 @@ export function MasterAdminPage() {
         }
       }
 
-      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "" };
+      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "" };
       if (hasSupabaseEnv && !remoteSyncError) {
         try {
           await withRetry(() => withTimeout(saveRemoteInstitutionSettings(nextSettings)));
@@ -370,7 +384,7 @@ export function MasterAdminPage() {
   const renderInstitutionCard = (tenant: Institution) => {
     const settings = getInstitutionSettings(tenant.id);
     const tenantAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === tenant.id || user.municipalityId === tenant.id) && user.role === "prefeitura_admin");
-    const portalLink = settings?.clientDeliveryLink || settings?.linkPortalCliente || buildTenantLink(tenant.subdomain) || "Não definido";
+    const portalLink = settings?.clientDeliveryLink || settings?.linkPortalCliente || buildTenantLink(tenant.subdomain, settings?.site) || "Não definido";
     return (
       <div key={tenant.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -398,7 +412,7 @@ export function MasterAdminPage() {
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleSelectTenant(tenant.id)}>
               Gerenciar
             </Button>
-            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain)}>
+            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site)}>
               <Copy className="mr-2 h-4 w-4 text-sky-200" />
               Copiar link
             </Button>
@@ -565,9 +579,9 @@ export function MasterAdminPage() {
                         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Entrega comercial</p>
                         <p
                           className="mt-3 text-[1.05rem] font-semibold leading-6 tracking-[-0.02em] text-slate-950 sig-url-display"
-                          title={form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
-                        >
-                          {form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
+                          title={form.clientDeliveryLink || buildTenantLink(form.subdomain, form.site) || "Link pendente"}
+                          >
+                          {form.clientDeliveryLink || buildTenantLink(form.subdomain, form.site) || "Link pendente"}
                         </p>
                         <p className="pt-3 text-sm leading-6 text-slate-500">Portal e acesso institucional.</p>
                       </div>
@@ -619,7 +633,7 @@ export function MasterAdminPage() {
                             className="sig-admin-input sig-admin-input-wrap resize-none border-0 bg-transparent text-[13px] font-medium leading-5 tracking-[-0.01em] text-slate-900 shadow-none"
                           />
                         </div>
-                        <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapro.com.br.</p>
+                        <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapromunicipal.com.br.</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Link de entrega</Label>
@@ -789,13 +803,13 @@ export function MasterAdminPage() {
                   <div className="sig-dark-panel rounded-[22px] border border-slate-200 px-4 py-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Portal</p>
-                      <Button type="button" variant="outline" className="sig-dark-action-btn h-8 rounded-full px-3 text-xs text-slate-50" onClick={() => handleCopyLink(form.subdomain)}>
+                      <Button type="button" variant="outline" className="sig-dark-action-btn h-8 rounded-full px-3 text-xs text-slate-50" onClick={() => handleCopyLink(form.subdomain, form.site)}>
                         <Copy className="mr-1.5 h-3.5 w-3.5 text-sky-200" />
                         Copiar
                       </Button>
                     </div>
-                    <p className="mt-3 text-[13px] font-semibold leading-6 text-slate-950 sig-url-display" title={form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}>
-                      {form.clientDeliveryLink || buildTenantLink(form.subdomain) || "Link pendente"}
+                    <p className="mt-3 text-[13px] font-semibold leading-6 text-slate-950 sig-url-display" title={form.clientDeliveryLink || buildTenantLink(form.subdomain, form.site) || "Link pendente"}>
+                      {form.clientDeliveryLink || buildTenantLink(form.subdomain, form.site) || "Link pendente"}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-500">Acesso institucional publicado para a conta ativa.</p>
                   </div>

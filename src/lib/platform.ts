@@ -1,4 +1,6 @@
-﻿export type UserRole =
+﻿import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+
+export type UserRole =
   | "master_admin"
   | "master_ops"
   | "prefeitura_admin"
@@ -1113,7 +1115,7 @@ export const tenants: Tenant[] = [
     users: 6,
     processes: 3,
     revenue: 186800,
-    subdomain: "campolimpopaulista.sigapro.com.br",
+    subdomain: "campolimpopaulista",
     theme: { primary: "#0f3557", accent: "#178f78" },
   },
 ];
@@ -1138,7 +1140,7 @@ export const tenantSettings: TenantSettings[] = [
     resumoPlanoDiretor: "Plano diretor com foco em adensamento controlado, sustentabilidade e qualificacao dos eixos urbanos.",
     resumoUsoSolo: "Uso e ocupacao do solo com parametros para zona mista, residencial, comercial e de protecao ambiental.",
     leisComplementares: "Lei complementar 120/2024, codigo de obras municipal e normas de acessibilidade.",
-    linkPortalCliente: "https://sigapro.com.br/campolimpopaulista",
+    linkPortalCliente: "https://campolimpopaulista.sigapromunicipal.com.br",
     protocoloPrefixo: "PMCLP",
     guiaPrefixo: "DAM-CLP",
     chavePix: "pix@campolimpopaulista.sp.gov.br",
@@ -1153,7 +1155,7 @@ export const tenantSettings: TenantSettings[] = [
     monthlyFee: 1290,
     setupFee: 3500,
     signatureMode: "eletronica",
-    clientDeliveryLink: "https://campolimpopaulista.sigapro.com.br",
+    clientDeliveryLink: "https://campolimpopaulista.sigapromunicipal.com.br",
     logoScale: 1,
     logoOffsetX: 0,
     logoOffsetY: 0,
@@ -1998,9 +2000,13 @@ export function getTenantClientSlug(tenant: Tenant, settings?: TenantSettings) {
   );
 }
 
-export function buildTenantClientLink(origin: string, tenant: Tenant, settings?: TenantSettings) {
+export function buildTenantClientLink(_origin: string, tenant: Tenant, settings?: TenantSettings) {
   const slug = getTenantClientSlug(tenant, settings);
-  return `${origin.replace(/\/$/, "")}/cliente/${slug}`;
+  const customDomain = settings?.site || "";
+  return buildMunicipalityPortalUrl({
+    subdomain: slug || tenant.subdomain,
+    customDomain,
+  });
 }
 
 export const getInstitutionClientSlug = getTenantClientSlug;

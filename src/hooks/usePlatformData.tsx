@@ -44,6 +44,7 @@ import {
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   createRemoteOwnerMessage,
@@ -683,7 +684,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                 resumoPlanoDiretor: "",
                 resumoUsoSolo: "",
                 leisComplementares: "",
-                linkPortalCliente: `https://sigapro.com.br/${input.subdomain || tenantId}`,
+                linkPortalCliente: buildMunicipalityPortalUrl({
+                  subdomain: input.subdomain || "",
+                }),
                 protocoloPrefixo: "PM",
                 guiaPrefixo: "DAM",
                 chavePix: "",
@@ -698,7 +701,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                 monthlyFee: 0,
                 setupFee: 0,
                 signatureMode: "eletronica",
-                clientDeliveryLink: `https://${input.subdomain || tenantId}`,
+                clientDeliveryLink: buildMunicipalityPortalUrl({
+                  subdomain: input.subdomain || "",
+                }),
                 planoDiretorArquivoNome: "",
                 planoDiretorArquivoUrl: "",
                 usoSoloArquivoNome: "",

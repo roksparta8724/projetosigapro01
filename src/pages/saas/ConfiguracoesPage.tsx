@@ -50,6 +50,7 @@ import {
   updateMasterBranding,
 } from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
+import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { can, desktopThemePresets, mobileThemePresets } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
@@ -534,6 +535,13 @@ export function ConfiguracoesPage() {
     logoOffsetX: settings?.logoOffsetX ?? 0,
     logoOffsetY: settings?.logoOffsetY ?? 0,
   });
+  const publicPortalLink =
+    buildMunicipalityPortalUrl({
+      subdomain: tenantForm.subdomain || tenant?.subdomain || municipality?.subdomain || "",
+      customDomain: municipality?.customDomain || settingsForm.site || "",
+    }) ||
+    settingsForm.linkPortalCliente ||
+    "";
   const [accountForm, setAccountForm] = useState({
     currentEmail: authenticatedEmail ?? session.email,
     nextEmail: authenticatedEmail ?? session.email,
@@ -1755,7 +1763,7 @@ export function ConfiguracoesPage() {
       return;
     }
     if (!normalizedSubdomain) {
-      setStatus("Informe um subdomínio válido (somente o nome, sem .sigapro.com.br).");
+      setStatus("Informe um subdomínio válido (somente o nome, sem .sigapromunicipal.com.br).");
       return;
     }
     if (tenantForm.subdomain !== normalizedSubdomain) {
@@ -2133,7 +2141,7 @@ export function ConfiguracoesPage() {
               <div>
                 <p className="sig-label">Portal institucional</p>
                 <p className="sig-fit-title mt-2 break-all text-sm font-semibold leading-6 text-slate-900">
-                  {tenantForm.subdomain || settingsForm.linkPortalCliente || "Não configurado"}
+                  {publicPortalLink || "Não configurado"}
                 </p>
               </div>
               <p className="text-sm text-slate-500">Endereço público de atendimento.</p>
@@ -2418,7 +2426,7 @@ export function ConfiguracoesPage() {
                   placeholder="campolimpo"
                   className="min-h-[54px] resize-none text-[13px] leading-5"
                 />
-                <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapro.com.br.</p>
+                <p className="text-xs text-slate-500">Use apenas o subdomínio, sem .sigapromunicipal.com.br.</p>
               </div>
             </div>
 
