@@ -41,11 +41,12 @@ export function PermissionRoute({
   if (shouldBlockForLoad) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-        <Card className="max-w-xl rounded-[28px] border-slate-200">
+        <Card className="max-w-xl rounded-[28px] border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
           <CardContent className="p-8 text-sm text-slate-600">
-            Carregando contexto institucional...
+            <p className="text-base font-semibold text-slate-900">Carregando ambiente...</p>
+            <p className="mt-2 text-sm text-slate-500">Estamos preparando seus dados com segurança.</p>
             {bootstrap.error ? (
-              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                 {bootstrap.error}
               </div>
             ) : null}
@@ -141,7 +142,7 @@ export function PermissionRoute({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <Card className="max-w-xl rounded-[28px] border-slate-200">
+      <Card className="max-w-xl rounded-[28px] border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
         <CardContent className="p-8">
           <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
             <LockKeyhole className="h-6 w-6" />

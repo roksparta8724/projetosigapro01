@@ -18,12 +18,12 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "sig-ui-card rounded-[22px] border border-dashed border-slate-200 bg-slate-50/85 px-5 py-8 text-center shadow-sm",
+        "sig-ui-card rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-6 py-9 text-center shadow-sm",
         className,
       )}
     >
-      <div className="sig-section-icon mx-auto flex h-11 w-11 items-center justify-center rounded-[14px] border border-slate-200 bg-white text-[#3b82f6] shadow-sm">
-        <Icon className="h-4.5 w-4.5" />
+      <div className="sig-section-icon mx-auto flex h-12 w-12 items-center justify-center rounded-[15px] border border-slate-200 bg-white text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+        <Icon className="h-5 w-5" />
       </div>
       <p className="mt-4 text-sm font-semibold text-slate-950">{title}</p>
       <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-6 text-slate-500">{description}</p>

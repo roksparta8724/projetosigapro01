@@ -192,6 +192,40 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
+  const [lockedHeaderBranding, setLockedHeaderBranding] = useState(headerBranding);
+  const [lockedFooterBranding, setLockedFooterBranding] = useState(footerBranding);
+
+  useEffect(() => {
+    if (headerBranding?.logoUrl || headerBranding?.headerLogoUrl || headerBranding?.coatOfArmsUrl) {
+      setLockedHeaderBranding(headerBranding);
+    }
+  }, [headerBranding]);
+
+  useEffect(() => {
+    if (footerBranding?.logoUrl || footerBranding?.footerLogoUrl || footerBranding?.coatOfArmsUrl) {
+      setLockedFooterBranding(footerBranding);
+    }
+  }, [footerBranding]);
+
+  useEffect(() => {
+    const url =
+      lockedHeaderBranding?.headerLogoUrl ||
+      lockedHeaderBranding?.logoUrl ||
+      lockedHeaderBranding?.coatOfArmsUrl;
+    if (!url) return;
+    const image = new Image();
+    image.src = url;
+  }, [lockedHeaderBranding]);
+
+  useEffect(() => {
+    const url =
+      lockedFooterBranding?.footerLogoUrl ||
+      lockedFooterBranding?.logoUrl ||
+      lockedFooterBranding?.coatOfArmsUrl;
+    if (!url) return;
+    const image = new Image();
+    image.src = url;
+  }, [lockedFooterBranding]);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -1095,7 +1129,18 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7">
                     <div className="shrink-0">
                       <InstitutionalLogo
-                        branding={headerBranding}
+                        branding={{
+                          ...lockedHeaderBranding,
+                          logoUrl:
+                            lockedHeaderBranding?.headerLogoUrl ||
+                            lockedHeaderBranding?.logoUrl ||
+                            "",
+                          logoScale: lockedHeaderBranding?.headerLogoScale ?? lockedHeaderBranding?.logoScale ?? 1,
+                          logoOffsetX: lockedHeaderBranding?.headerLogoOffsetX ?? lockedHeaderBranding?.logoOffsetX ?? 0,
+                          logoOffsetY: lockedHeaderBranding?.headerLogoOffsetY ?? lockedHeaderBranding?.logoOffsetY ?? 0,
+                          logoFitMode: lockedHeaderBranding?.headerLogoFitMode ?? lockedHeaderBranding?.logoFitMode,
+                          logoFrameMode: lockedHeaderBranding?.headerLogoFrameMode ?? lockedHeaderBranding?.logoFrameMode,
+                        }}
                         fallbackLabel={institutionDisplayName}
                         variant="header"
                         className="mx-auto md:mx-0"
@@ -1160,7 +1205,18 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <div className="grid items-center gap-8 md:grid-cols-2 xl:grid-cols-[220px_minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(0,0.95fr)]">
               <div className="flex justify-center xl:justify-start xl:pl-3">
                 <InstitutionalLogo
-                  branding={footerBranding}
+                  branding={{
+                    ...lockedFooterBranding,
+                    logoUrl:
+                      lockedFooterBranding?.footerLogoUrl ||
+                      lockedFooterBranding?.logoUrl ||
+                      "",
+                    logoScale: lockedFooterBranding?.footerLogoScale ?? lockedFooterBranding?.logoScale ?? 1,
+                    logoOffsetX: lockedFooterBranding?.footerLogoOffsetX ?? lockedFooterBranding?.logoOffsetX ?? 0,
+                    logoOffsetY: lockedFooterBranding?.footerLogoOffsetY ?? lockedFooterBranding?.logoOffsetY ?? 0,
+                    logoFitMode: lockedFooterBranding?.footerLogoFitMode ?? lockedFooterBranding?.logoFitMode,
+                    logoFrameMode: lockedFooterBranding?.footerLogoFrameMode ?? lockedFooterBranding?.logoFrameMode,
+                  }}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   className="mt-3"

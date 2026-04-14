@@ -19,6 +19,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
+import { useAppBootstrap } from "@/hooks/useAppBootstrap";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const institutionalHighlights = [
   {
@@ -48,6 +50,7 @@ export function AcessoPage() {
   const { authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
   const { institutions, getInstitutionSettings, sessionUsers } = usePlatformData();
   const tenant = useTenant();
+  const bootstrap = useAppBootstrap();
   const [searchParams] = useSearchParams();
 
   const tenantSlug = searchParams.get("tenant");
@@ -66,6 +69,12 @@ export function AcessoPage() {
                 getInstitutionSettings(institution.id)
               ) === tenantSlug
           ) ?? null;
+
+  const branding = tenant.municipalityBundle?.branding ?? null;
+  const institutionName = selectedInstitution?.name ?? tenant.municipalityName ?? null;
+  const headerLogo = branding?.headerLogoUrl || branding?.logoUrl || null;
+  const lockedLogo = headerLogo;
+  const lockedInstitutionName = institutionName;
 
   const [email, setEmail] = useState(hasSupabaseEnv ? "" : "roksparta02@gmail.com");
   const [password, setPassword] = useState(hasSupabaseEnv ? "" : "Sigapro@2026");
@@ -190,26 +199,39 @@ export function AcessoPage() {
 
                 <div className="grid w-full max-w-[760px] grid-cols-[140px_minmax(0,1fr)] items-center gap-6 rounded-[30px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.06)_100%)] px-6 py-5 shadow-[0_18px_40px_rgba(2,6,23,0.18)] backdrop-blur-[10px]">
                   <div className="flex h-[140px] w-[140px] shrink-0 items-center justify-center rounded-[28px] bg-white p-4 shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
-                    <SigaproLogo
-                      bare
-                      compact
-                      showInternalWordmark
-                      className="scale-[2.3]"
-                    />
+                    {lockedLogo ? (
+                      <img
+                        src={lockedLogo}
+                        alt={lockedInstitutionName ? `Logo institucional de ${lockedInstitutionName}` : "Logo institucional"}
+                        className="h-full w-full rounded-[20px] object-contain"
+                      />
+                    ) : (
+                      <SigaproLogo
+                        bare
+                        compact
+                        showInternalWordmark
+                        className="scale-[2.3]"
+                      />
+                    )}
                   </div>
 
                   <div className="min-w-0">
                     <p className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-white min-[1200px]:text-[32px]">
-                      SIGAPRO
+                      {tenant.mode === "tenant" ? "SIGAPRO" : "SIGAPRO"}
                     </p>
 
                     <p className="mt-2 max-w-[520px] text-[11px] font-semibold uppercase leading-[1.55] tracking-[0.14em] text-slate-200 min-[1200px]:text-[12px]">
                       Sistema integrado de gestão e aprovação de projetos
                     </p>
 
-                    {selectedInstitution ? (
+                    {bootstrap.stage === "resolving_tenant" ? (
+                      <div className="mt-2 space-y-2">
+                        <Skeleton className="h-3 w-40 rounded-full bg-white/20" />
+                        <Skeleton className="h-3 w-28 rounded-full bg-white/15" />
+                      </div>
+                    ) : lockedInstitutionName ? (
                       <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                        {selectedInstitution.name}
+                        {lockedInstitutionName}
                       </p>
                     ) : null}
                   </div>

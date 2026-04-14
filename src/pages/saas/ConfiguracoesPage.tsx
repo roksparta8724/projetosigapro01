@@ -155,6 +155,8 @@ export function ConfiguracoesPage() {
   const platformBrandingLoadedRef = useRef(false);
   const [masterHeaderPersistedUrl, setMasterHeaderPersistedUrl] = useState("");
   const [masterFooterPersistedUrl, setMasterFooterPersistedUrl] = useState("");
+  const [masterHeaderLockedUrl, setMasterHeaderLockedUrl] = useState("");
+  const [masterFooterLockedUrl, setMasterFooterLockedUrl] = useState("");
   const [tenantForm, setTenantForm] = useState({
     name: activeInstitution?.name ?? "",
     city: tenant?.city ?? "",
@@ -826,8 +828,8 @@ export function ConfiguracoesPage() {
     const isLocalPreview = Boolean(entry?.file) || url.startsWith("blob:") || url.startsWith("data:");
     return isLocalPreview && isRenderablePreviewUrl(url) ? url : "";
   }, [draftMasterFooterLogoFiles]);
-  const masterHeaderActiveUrl = masterHeaderPreviewUrl || masterHeaderPersistedUrl;
-  const masterFooterActiveUrl = masterFooterPreviewUrl || masterFooterPersistedUrl;
+  const masterHeaderActiveUrl = masterHeaderPreviewUrl || masterHeaderLockedUrl || masterHeaderPersistedUrl;
+  const masterFooterActiveUrl = masterFooterPreviewUrl || masterFooterLockedUrl || masterFooterPersistedUrl;
 
   const previewMasterHeaderBranding = useMemo(() => {
     const draftLogoUrl = masterHeaderActiveUrl || "";
@@ -998,6 +1000,9 @@ export function ConfiguracoesPage() {
       if (url && url !== masterHeaderPersistedUrl) {
         setMasterHeaderPersistedUrl(url);
       }
+      if (url && !masterHeaderLockedUrl) {
+        setMasterHeaderLockedUrl(url);
+      }
       if (!hasLocalHeader && !isRenderablePreviewUrl(currentHeaderPreview) && url) {
         setDraftMasterHeaderLogoFiles(imageFiles(url, "master-header-logo"));
       }
@@ -1006,6 +1011,9 @@ export function ConfiguracoesPage() {
     void resolveUrl(footerRaw).then((url) => {
       if (url && url !== masterFooterPersistedUrl) {
         setMasterFooterPersistedUrl(url);
+      }
+      if (url && !masterFooterLockedUrl) {
+        setMasterFooterLockedUrl(url);
       }
       if (!hasLocalFooter && !isRenderablePreviewUrl(currentFooterPreview) && url) {
         setDraftMasterFooterLogoFiles(imageFiles(url, "master-footer-logo"));
@@ -1018,6 +1026,8 @@ export function ConfiguracoesPage() {
     draftMasterFooterLogoFiles,
     masterHeaderPersistedUrl,
     masterFooterPersistedUrl,
+    masterHeaderLockedUrl,
+    masterFooterLockedUrl,
   ]);
 
   const handleConfirmMasterLogo = async (variant: InstitutionalLogoConfigVariant) => {
@@ -1141,8 +1151,10 @@ export function ConfiguracoesPage() {
       if (isRenderablePreviewUrl(nextPublicUrl)) {
         if (variant === "footer") {
           setMasterFooterPersistedUrl(nextPublicUrl);
+          setMasterFooterLockedUrl(nextPublicUrl);
         } else {
           setMasterHeaderPersistedUrl(nextPublicUrl);
+          setMasterHeaderLockedUrl(nextPublicUrl);
         }
       }
 

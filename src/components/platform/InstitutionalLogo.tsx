@@ -56,9 +56,11 @@ export function InstitutionalLogo({
     .join("") || "SG";
 
   useEffect(() => {
-    setStableLogoUrl(isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "");
-    setImageFailed(false);
-  }, [branding.tenantId]);
+    if (isRenderableUrl(branding.logoUrl)) {
+      setStableLogoUrl(branding.logoUrl);
+      setImageFailed(false);
+    }
+  }, [branding.logoUrl, branding.tenantId]);
 
   useEffect(() => {
     console.log("[LogoRender] Renderizando logo", {
@@ -148,6 +150,7 @@ export function InstitutionalLogo({
               width: `${imageMetrics.width}px`,
               height: `${imageMetrics.height}px`,
               transform: `translate(calc(-50% + ${branding.logoOffsetX}px), calc(-50% + ${branding.logoOffsetY}px))`,
+              transformOrigin: "center",
             }}
           />
         ) : (

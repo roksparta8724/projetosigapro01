@@ -71,7 +71,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         (resolution.mode === "tenant" || (!resolution.isLocalhost && !isRootDomainHost(resolution.hostname))) &&
         !resolution.isReserved &&
         !loading &&
-        !municipality,
+        (bootstrap.stage === "tenant_not_found" || (!municipality && bootstrap.isReady)),
       hostname: resolution.hostname,
     };
   }, [bundle, loading, resolution.hostname, resolution.isReserved, resolution.mode, resolution.subdomain]);

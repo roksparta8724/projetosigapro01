@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTenant } from "@/hooks/useTenant";
 import { getRootDomain } from "@/lib/tenant";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function TenantNotFoundPage() {
   const tenant = useTenant();
@@ -26,15 +27,25 @@ export function TenantNotFoundPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0f1b28] px-6 py-16 text-slate-100">
-      <Card className="w-full max-w-[520px] rounded-[28px] border border-white/10 bg-[#152437] text-white shadow-[0_40px_120px_rgba(6,15,23,0.45)]">
+      <Card className="w-full max-w-[620px] rounded-[32px] border border-white/10 bg-[#152437] text-white shadow-[0_40px_120px_rgba(6,15,23,0.45)]">
         <CardContent className="space-y-5 p-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-sky-100">
-            <Building2 className="h-6 w-6" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-sky-100">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300/80">
+                  Ambiente institucional
+                </p>
+                <h1 className="text-xl font-semibold text-white">{title}</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-300">
+              Sigapro
+            </div>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-xl font-semibold text-white">{title}</h1>
-            <p className="text-sm leading-relaxed text-slate-200/90">{message}</p>
-          </div>
+          <p className="text-sm leading-relaxed text-slate-200/90">{message}</p>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
             <p>
               Domínio principal: <span className="font-semibold text-white">{rootDomain}</span>
@@ -49,6 +60,40 @@ export function TenantNotFoundPage() {
                 Status: <span className="font-semibold text-white">{tenant.municipalityStatus}</span>
               </p>
             ) : null}
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-300/80">Verificação</p>
+              <p className="mt-2 text-sm text-white">Tenant não localizado</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-300/80">Status</p>
+              <p className="mt-2 text-sm text-white">{tenant.inactive ? "Suspenso" : "Não encontrado"}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-300/80">Suporte</p>
+              <p className="mt-2 text-sm text-white">Solicite link correto</p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-300/90">
+            <p>
+              Diagnóstico: aguardou resolução completa do tenant antes de exibir esta tela.
+            </p>
+            <p className="mt-1">
+              Se o subdomínio existir no banco, revise os logs com prefixos [TenantResolver], [MunicipalityQuery] e
+              [TenantMatch].
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-slate-300/80">
+              <span>Checklist</span>
+              <span>Verificação</span>
+            </div>
+            <div className="mt-3 grid gap-2">
+              <Skeleton className="h-3 w-2/3 rounded-full bg-white/10" />
+              <Skeleton className="h-3 w-1/2 rounded-full bg-white/10" />
+              <Skeleton className="h-3 w-3/4 rounded-full bg-white/10" />
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="h-11 rounded-full bg-white text-slate-900 hover:bg-slate-100">

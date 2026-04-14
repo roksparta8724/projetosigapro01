@@ -149,8 +149,8 @@
   .sig-page-title {
     display: block;
     min-width: 0;
-    font-size: 1.125rem;
-    line-height: 1.2;
+    font-size: 1.25rem;
+    line-height: 1.22;
     font-weight: 600;
     letter-spacing: -0.012em;
     color: hsl(var(--foreground));
@@ -175,8 +175,8 @@
   .sig-section-title {
     display: block;
     min-width: 0;
-    font-size: 0.98rem;
-    line-height: 1.3;
+    font-size: 1.02rem;
+    line-height: 1.32;
     font-weight: 600;
     color: hsl(var(--foreground));
     max-width: 42ch;
@@ -466,6 +466,17 @@
     height: auto;
   }
 
+  .sig-fade-enter {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  .sig-fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+
 
   [data-layout-mode="default"] .sig-main-shell .text-slate-400,
   [data-layout-mode="default"] .sig-main-shell .text-slate-500 {
@@ -583,20 +594,20 @@
   [data-layout-mode="default"] .sig-main-shell .sig-ui-card,
   [data-layout-mode="default"] .sig-main-shell .sig-stat-card,
   [data-layout-mode="default"] .sig-main-shell .sig-metric-card {
-    background: linear-gradient(180deg, #f6f9fd 0%, #e7eff7 100%);
-    border-color: rgba(100, 116, 139, 0.36);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-color: rgba(226, 232, 240, 0.9);
     box-shadow:
-      0 14px 32px rgba(15, 23, 42, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+      0 12px 26px rgba(15, 23, 42, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
   }
 
   [data-layout-mode="default"] .sig-main-shell .sig-dark-panel,
   [data-layout-mode="default"] .sig-main-shell .sig-inverse-panel {
-    background: linear-gradient(180deg, #f3f7fc 0%, #e4edf6 100%);
-    border-color: rgba(100, 116, 139, 0.32);
+    background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+    border-color: rgba(226, 232, 240, 0.85);
     box-shadow:
-      0 12px 26px rgba(15, 23, 42, 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      0 10px 22px rgba(15, 23, 42, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.88);
   }
 
   [data-layout-mode="default"] .sig-main-shell :is(div, section, article, li).rounded-2xl.border[class*="bg-white"]:not([role="button"]),
@@ -607,22 +618,22 @@
   [data-layout-mode="default"] .sig-main-shell :is(div, section, article, li).rounded-\[20px\].border[class*="bg-slate-50"]:not([role="button"]),
   [data-layout-mode="default"] .sig-main-shell :is(div, section, article, li).rounded-\[24px\].border[class*="bg-slate-50"]:not([role="button"]),
   [data-layout-mode="default"] .sig-main-shell :is(div, section, article, li).rounded-\[28px\].border[class*="bg-slate-50"]:not([role="button"]) {
-    background: linear-gradient(180deg, #f8fbfe 0%, #edf3f8 100%);
-    border-color: rgba(148, 163, 184, 0.3);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-color: rgba(226, 232, 240, 0.8);
     box-shadow:
-      0 10px 24px rgba(15, 23, 42, 0.05),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      0 10px 22px rgba(15, 23, 42, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
   [data-layout-mode="default"] .sig-main-shell .border-slate-200,
   [data-layout-mode="default"] .sig-main-shell .border-slate-200\/90,
   [data-layout-mode="default"] .sig-main-shell .border-slate-200\/80,
   [data-layout-mode="default"] .sig-main-shell .border-slate-100 {
-    border-color: rgba(100, 116, 139, 0.34);
+    border-color: rgba(226, 232, 240, 0.9);
   }
 
   [data-layout-mode="default"] .sig-main-shell .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(148, 163, 184, 0.16);
+    border-color: rgba(226, 232, 240, 0.6);
   }
 
   [data-layout-mode="default"] .sig-main-shell .ring-1.ring-white\/70,

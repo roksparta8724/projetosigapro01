@@ -19,6 +19,15 @@ interface AppBootstrapProfile {
 interface AppBootstrapState {
   loading: boolean;
   isReady: boolean;
+  stage:
+    | "detecting_host"
+    | "resolving_tenant"
+    | "tenant_resolved"
+    | "tenant_not_found"
+    | "bootstrapping_auth"
+    | "bootstrapping_profile"
+    | "ready"
+    | "bootstrap_error";
   error: string | null;
   authUserId: string | null;
   authEmail: string | null;
@@ -97,6 +106,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 export function AppBootstrapProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
+  const [stage, setStage] = useState<AppBootstrapState["stage"]>("detecting_host");
   const [error, setError] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
@@ -134,9 +144,19 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setLoading(true);
       }
       setError(null);
+      setStage("detecting_host");
 
       try {
         console.log("[Bootstrap] Iniciando", { event: event ?? authEventRef.current });
+        console.log("[HostDetection] Estado do host", {
+          hostname: resolution.hostname,
+          subdomain: resolution.subdomain,
+          rootDomain: resolution.rootDomain,
+          isLocalhost: resolution.isLocalhost,
+          mode: resolution.mode,
+          isReserved: resolution.isReserved,
+        });
+        setStage("bootstrapping_auth");
         const userResult = await supabase.auth.getUser();
         const authUser = userResult.data.user ?? null;
         if (!active) return;
@@ -159,6 +179,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           const devPreferredName =
             (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) || "";
           if (resolution.mode === "tenant") {
+            setStage("resolving_tenant");
             const tenantBundle = await loadCurrentMunicipalityBundle({
               hostname: resolution.hostname,
               subdomain: resolution.subdomain,
@@ -166,6 +187,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
               preferredName: devPreferredName,
             });
             if (!active) return;
+            console.log("[TenantLookup] Resultado sem auth", {
+              found: Boolean(tenantBundle?.municipality?.id),
+              municipalityId: tenantBundle?.municipality?.id ?? null,
+              subdomain: resolution.subdomain,
+            });
+            setStage(tenantBundle?.municipality ? "tenant_resolved" : "tenant_not_found");
             setAuthUserId(null);
             setAuthEmail(null);
             setRole(null);
@@ -173,6 +200,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             setScopeType("municipality");
             setMunicipalityBundle(tenantBundle);
             setIsReady(true);
+            setStage(tenantBundle?.municipality ? "ready" : "tenant_not_found");
             console.log("[Bootstrap] Tenant publico carregado sem auth", {
               municipalityId: tenantBundle?.municipality?.id ?? null,
               subdomain: resolution.subdomain,
@@ -186,9 +214,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setScopeType("platform");
           setMunicipalityBundle(null);
           setIsReady(true);
+          setStage("ready");
           return;
         }
 
+        setStage("bootstrapping_profile");
         const nextProfile = await loadProfileByUserId(authUser.id);
         const mappedRole =
           mapDbRoleCodeToAppRole(nextProfile?.role) ??
@@ -204,6 +234,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
         let nextBundle: MunicipalityBundle | null = null;
         if (nextScopeType !== "platform") {
+          setStage("resolving_tenant");
           if (nextProfile?.municipalityId) {
             nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
           } else {
@@ -216,6 +247,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                 "",
             });
           }
+          console.log("[TenantLookup] Resultado com auth", {
+            found: Boolean(nextBundle?.municipality?.id),
+            municipalityId: nextBundle?.municipality?.id ?? null,
+            subdomain: resolution.subdomain,
+          });
+          setStage(nextBundle?.municipality ? "tenant_resolved" : "tenant_not_found");
         }
 
         if (!active) return;
@@ -234,6 +271,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           municipalityBundle: nextBundle,
         };
         setIsReady(true);
+        setStage("ready");
         console.log("[Bootstrap] Concluido", {
           authUserId: authUser.id,
           role: mappedRole,
@@ -247,6 +285,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (!active) return;
         setError(message);
         setIsReady(true);
+        setStage("bootstrap_error");
         if (lastStableRef.current.authUserId) {
           console.warn("[Bootstrap] Mantendo estado estável após erro");
           setAuthUserId(lastStableRef.current.authUserId);
@@ -290,6 +329,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     () => ({
       loading,
       isReady,
+      stage,
       error,
       authUserId,
       authEmail,
@@ -378,6 +418,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           municipalityBundle: null,
         };
         setLoading(true);
+        setStage("bootstrapping_auth");
         try {
           if (hasSupabaseEnv && supabase) {
             await Promise.race([
@@ -399,6 +440,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setMunicipalityBundle(null);
           setError(null);
           setIsReady(true);
+          setStage("ready");
           setLoading(false);
           console.log("[Logout] signOut done (bootstrap)");
         }

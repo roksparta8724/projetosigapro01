@@ -67,8 +67,21 @@ export function ImageFrameEditor({
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 1, height: 1 });
 
+  const isRenderableUrl = (value?: string | null) => {
+    if (!value) return false;
+    return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
+  };
+
+  const [stableImageUrl, setStableImageUrl] = useState<string>(imageUrl);
+
   useEffect(() => {
-    if (!imageUrl) return;
+    if (isRenderableUrl(imageUrl)) {
+      setStableImageUrl(imageUrl);
+    }
+  }, [imageUrl]);
+
+  useEffect(() => {
+    if (!stableImageUrl) return;
     const image = new window.Image();
     image.onload = () => {
       setNaturalSize({
@@ -76,8 +89,8 @@ export function ImageFrameEditor({
         height: image.naturalHeight || 1,
       });
     };
-    image.src = imageUrl;
-  }, [imageUrl]);
+    image.src = stableImageUrl;
+  }, [stableImageUrl]);
 
   useEffect(() => {
     const element = frameRef.current;
@@ -267,9 +280,9 @@ export function ImageFrameEditor({
             onWheel={handleWheel}
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(15,23,42,0.08)_100%)]" />
-            {imageUrl ? (
+            {stableImageUrl && isRenderableUrl(stableImageUrl) ? (
               <img
-                src={imageUrl}
+                src={stableImageUrl}
                 alt="Preview"
                 draggable={false}
                 className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
@@ -277,6 +290,7 @@ export function ImageFrameEditor({
                   width: `${metrics.width}px`,
                   height: `${metrics.height}px`,
                   transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
+                  transformOrigin: "center",
                 }}
               />
             ) : (

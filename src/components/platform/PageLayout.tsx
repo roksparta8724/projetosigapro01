@@ -11,7 +11,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-0 pb-6 sm:gap-5 md:gap-6 xl:px-2 2xl:max-w-[1700px]",
+        "mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-1 pb-8 sm:gap-6 sm:px-2 md:gap-7 md:px-3 xl:px-4 2xl:max-w-[1700px]",
       className,
     )}
   >
@@ -40,7 +40,7 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        "sig-page-header relative overflow-hidden rounded-[26px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfd_100%)] p-5 shadow-[0_12px_28px_rgba(15,23,42,0.055)] ring-1 ring-white/70 md:p-6",
+        "sig-page-header relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-[0_14px_28px_rgba(15,23,42,0.07)] md:p-6",
         className,
       )}
     >
@@ -49,8 +49,8 @@ export function PageHeader({
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#f4f8fc_100%)] text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.06)] backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
-                <Icon className="h-4.5 w-4.5" />
+              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
+                <Icon className="h-5 w-5" />
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">
@@ -86,7 +86,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -117,7 +117,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_28px_rgba(15,23,42,0.055)] ring-1 ring-white/70 transition duration-200 md:p-6",
+        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_12px_26px_rgba(15,23,42,0.06)] transition duration-200 md:p-6",
         className,
       )}
     >
@@ -125,8 +125,8 @@ export function SectionCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#f4f8fc_100%)] text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.055)] dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
-                <Icon className="h-4 w-4" />
+              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
+                <Icon className="h-4.5 w-4.5" />
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">
