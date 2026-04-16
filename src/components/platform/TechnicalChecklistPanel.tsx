@@ -12,14 +12,14 @@ interface TechnicalChecklistPanelProps {
 function badgeForDecision(decision: TechnicalChecklistResultItem["decision"]) {
   switch (decision) {
     case "de_acordo":
-      return <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">De acordo</Badge>;
+      return <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-400/12 dark:text-emerald-200">De acordo</Badge>;
     case "apresentar":
-      return <Badge className="rounded-full bg-amber-100 text-amber-600 dark:text-amber-400 hover:bg-amber-100">Apresentar</Badge>;
+      return <Badge className="rounded-full bg-amber-100 text-amber-700 dark:bg-amber-400/12 dark:text-amber-200 hover:bg-amber-100">Apresentar</Badge>;
     case "corrigir":
-      return <Badge className="rounded-full border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/10">Corrigir</Badge>;
+      return <Badge className="rounded-full border border-red-500/20 bg-red-500/10 text-red-600 dark:bg-red-400/12 dark:text-red-200 hover:bg-red-500/10">Corrigir</Badge>;
     default:
       return (
-        <Badge variant="outline" className="rounded-full border-slate-300 text-slate-600">
+        <Badge variant="outline" className="rounded-full border-slate-300 text-slate-600 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-100">
           Pendente
         </Badge>
       );
@@ -48,17 +48,17 @@ export function TechnicalChecklistPanel({
 
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-emerald-700">Itens conformes</p>
-            <p className="mt-2 text-lg font-semibold leading-tight text-emerald-800">{summary.ok}</p>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-400/16 dark:bg-emerald-400/10">
+            <p className="text-xs uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-200">Itens conformes</p>
+            <p className="mt-2 text-lg font-semibold leading-tight text-emerald-800 dark:text-emerald-100">{summary.ok}</p>
           </div>
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">Itens a apresentar</p>
-            <p className="mt-2 text-lg font-semibold leading-tight text-amber-600 dark:text-amber-400">{summary.present}</p>
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 dark:border-amber-400/16 dark:bg-amber-400/10">
+            <p className="text-xs uppercase tracking-[0.16em] text-amber-700 dark:text-amber-200">Itens a apresentar</p>
+            <p className="mt-2 text-lg font-semibold leading-tight text-amber-700 dark:text-amber-100">{summary.present}</p>
           </div>
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-red-600 dark:text-red-400">Itens a corrigir</p>
-            <p className="mt-2 text-lg font-semibold leading-tight text-red-600 dark:text-red-400">{summary.fix}</p>
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 dark:border-rose-400/16 dark:bg-rose-400/10">
+            <p className="text-xs uppercase tracking-[0.16em] text-red-600 dark:text-red-200">Itens a corrigir</p>
+            <p className="mt-2 text-lg font-semibold leading-tight text-red-600 dark:text-red-100">{summary.fix}</p>
           </div>
         </div>
 

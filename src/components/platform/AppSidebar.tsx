@@ -115,11 +115,11 @@ function SidebarInner({
                             "sig-sidebar-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200",
                             active
                               ? darkSurface
-                                ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                                : "border-slate-300 bg-slate-50 text-slate-950"
-                              : darkSurface
-                                ? "border-white/8 bg-white/[0.025] text-slate-300 group-hover:border-white/10 group-hover:bg-white/[0.05] group-hover:text-white"
-                                : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
+                              ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                              : "border-slate-300 bg-slate-50 text-slate-950"
+                            : darkSurface
+                              ? "border-white/8 bg-white/[0.025] text-sky-100/80 group-hover:border-white/10 group-hover:bg-white/[0.05] group-hover:text-sky-100"
+                              : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                           )}
                         >
                           <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -144,7 +144,7 @@ function SidebarInner({
                             className={cn(
                               "h-4 w-4 transition",
                               isExpanded ? "rotate-180" : "rotate-0",
-                              active ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500",
+                              active ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500",
                             )}
                           />
                         ) : null}
@@ -178,9 +178,9 @@ function SidebarInner({
                                   )}
                                 >
                                   {ChildIcon ? (
-                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500")} />
+                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRight className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-slate-400/80" : "text-slate-500")} />
+                                    <ChevronRight className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
                                   )}
                                   <span className="min-w-0 flex-1 truncate">{child.label}</span>
                                 </Link>
@@ -248,7 +248,7 @@ export function AppSidebar({
           className={cn(
             "relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch transition-[width] duration-200 lg:sticky lg:top-[56px] lg:flex lg:flex-col",
             expanded
-              ? "w-[276px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
+              ? "w-[264px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
               : "w-0 overflow-hidden after:hidden",
             className,
         )}

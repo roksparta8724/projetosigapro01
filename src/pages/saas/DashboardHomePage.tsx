@@ -13,7 +13,7 @@ import {
   Users2,
   Wallet,
 } from "lucide-react";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
@@ -92,7 +92,7 @@ export function DashboardHomePage() {
   );
 
   const chartConfig = {
-    total: { label: "Processos", color: "hsl(var(--primary))" },
+    total: { label: "Processos", color: "#60a5fa" },
   };
 
   const masterMetrics = useMemo(() => {
@@ -324,10 +324,18 @@ export function DashboardHomePage() {
                 <div className="h-[260px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <BarChart data={isMaster ? masterStatusChart : tenantStatusChart}>
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="total" fill="var(--color-total)" radius={[6, 6, 0, 0]} />
+                      <defs>
+                        <linearGradient id="sigapro-dashboard-bar" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#7dd3fc" />
+                          <stop offset="55%" stopColor="#60a5fa" />
+                          <stop offset="100%" stopColor="#2563eb" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} minTickGap={10} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} width={30} />
+                      <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
+                      <Bar dataKey="total" fill="url(#sigapro-dashboard-bar)" radius={[10, 10, 0, 0]} maxBarSize={34} />
                     </BarChart>
                   </ChartContainer>
                 </div>

@@ -198,7 +198,7 @@ export function MovementHistoryPage() {
           <SectionCard title="Pesquisa e filtros" description="Localize protocolos, unidades, prioridades e marcadores sem poluir a visão principal." icon={Filter}>
             <div className="space-y-3">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="sig-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
                 <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por protocolo, assunto, origem, destino ou responsável" className="sig-dispatch-field h-12 rounded-2xl pl-11" />
               </div>
               <div className="grid gap-3 xl:grid-cols-4">

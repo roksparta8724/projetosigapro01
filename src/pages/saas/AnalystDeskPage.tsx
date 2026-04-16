@@ -447,7 +447,7 @@ export function AnalystDeskPage() {
                 icon={ListTodo}
                 actions={
                   <div className="relative w-full max-w-xl">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Search className="sig-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
                     <Input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
@@ -577,7 +577,7 @@ export function AnalystDeskPage() {
             icon={ListTodo}
             actions={
               <div className="relative w-full max-w-xl">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="sig-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}

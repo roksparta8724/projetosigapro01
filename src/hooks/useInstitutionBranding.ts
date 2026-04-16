@@ -110,10 +110,16 @@ export function useInstitutionBranding(tenantId?: string | null) {
   );
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
 
-  const resolvedInstitutionId = isMaster
-    ? ""
-    : tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
-  const shouldUseMasterBranding = isMaster;
+  const requestedInstitutionId =
+    tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
+  const shouldUseMasterBranding =
+    isMaster &&
+    !tenantId &&
+    !municipality?.id &&
+    !scopeId &&
+    !session.municipalityId &&
+    !session.tenantId;
+  const resolvedInstitutionId = shouldUseMasterBranding ? "" : requestedInstitutionId;
 
   const institution = municipality
     ? {

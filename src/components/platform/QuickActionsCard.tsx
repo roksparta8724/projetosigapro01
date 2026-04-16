@@ -25,14 +25,14 @@ export function QuickActionsCard({
         {actions.map((action) => {
           const Icon = action.icon;
           return action.href ? (
-            <Button key={action.id} asChild variant="outline" className="sig-dark-action-btn h-12 w-full justify-start rounded-2xl px-4 text-left sm:h-11">
+            <Button key={action.id} asChild variant="outline" className="sig-dark-action-btn h-12 w-full justify-start rounded-2xl px-4 text-left sm:h-11 [&_svg]:text-current [&_svg]:stroke-current">
               <a href={action.href}>
                 <Icon className="mr-2 h-4 w-4 shrink-0" />
                 {action.label}
               </a>
             </Button>
           ) : (
-            <Button key={action.id} type="button" variant="outline" className="sig-dark-action-btn h-12 w-full justify-start rounded-2xl px-4 text-left sm:h-11" onClick={action.onClick}>
+            <Button key={action.id} type="button" variant="outline" className="sig-dark-action-btn h-12 w-full justify-start rounded-2xl px-4 text-left sm:h-11 [&_svg]:text-current [&_svg]:stroke-current" onClick={action.onClick}>
               <Icon className="mr-2 h-4 w-4 shrink-0" />
               {action.label}
             </Button>

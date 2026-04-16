@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm leading-snug", className)} {...props} />
+    <div className="sig-table-scroll relative w-full overflow-x-auto overflow-y-hidden">
+      <table ref={ref} className={cn("min-w-full w-full caption-bottom text-sm leading-snug [table-layout:auto]", className)} {...props} />
     </div>
   ),
 );
@@ -46,7 +46,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-11 px-4 text-left align-middle text-xs font-normal uppercase tracking-[0.08em] text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-11 px-4 text-left align-top text-xs font-normal uppercase tracking-[0.08em] text-muted-foreground whitespace-normal break-words [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -57,7 +57,7 @@ TableHead.displayName = "TableHead";
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
   ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn("p-4 align-middle text-sm font-normal leading-snug text-slate-700 [&:has([role=checkbox])]:pr-0", className)} {...props} />
+    <td ref={ref} className={cn("min-w-0 p-4 align-top text-sm font-normal leading-snug text-slate-700 whitespace-normal break-words [&:has([role=checkbox])]:pr-0", className)} {...props} />
   ),
 );
 TableCell.displayName = "TableCell";

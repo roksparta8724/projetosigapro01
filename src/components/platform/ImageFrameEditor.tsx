@@ -296,7 +296,7 @@ export function ImageFrameEditor({
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
                 <ImageIcon className="h-6 w-6 text-slate-400/80" />
-                <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Preview</span>
+                <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Preview</span>
               </div>
             )}
           </div>
@@ -307,7 +307,7 @@ export function ImageFrameEditor({
         <p className="text-sm text-slate-600 dark:text-slate-200">
           Zoom atual: <span className="font-semibold text-slate-950 dark:text-slate-100">{scale.toFixed(2)}x</span>
         </p>
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
           {wheelZoomRequiresModifier ? "Arraste + Ctrl Scroll" : "Arraste + Scroll"}
         </p>
       </div>

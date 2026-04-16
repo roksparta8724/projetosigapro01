@@ -40,12 +40,12 @@ export function StatCard({
         </div>
         <div
           className={cn(
-            "sig-stat-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border shadow-[0_10px_20px_rgba(15,23,42,0.08)]",
-            tone === "emerald" && "border-emerald-200 bg-emerald-50 text-emerald-700",
-            tone === "blue" && "border-sky-200 bg-sky-50 text-sky-700",
-            tone === "amber" && "border-amber-200 bg-amber-50 text-amber-700",
-            tone === "rose" && "border-rose-200 bg-rose-50 text-rose-700",
-            tone === "default" && "border-slate-200 bg-slate-100 text-slate-700",
+            "sig-stat-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border shadow-[0_10px_20px_rgba(15,23,42,0.08)] dark:shadow-[0_12px_26px_rgba(2,6,23,0.18)]",
+            tone === "emerald" && "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200",
+            tone === "blue" && "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200",
+            tone === "amber" && "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200",
+            tone === "rose" && "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
+            tone === "default" && "border-slate-200 bg-slate-100 text-slate-700 dark:border-white/12 dark:bg-white/[0.06] dark:text-slate-100",
           )}
         >
           <Icon className="h-4.5 w-4.5" />

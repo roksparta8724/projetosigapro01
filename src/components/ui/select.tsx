@@ -17,14 +17,14 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm font-normal leading-snug text-slate-900 ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-200 dark:[&>svg]:text-slate-300 [&>span]:line-clamp-1 [&>span]:block [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
+      "flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm font-normal leading-snug text-slate-900 ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-200 [&>span]:line-clamp-1 [&>span]:block [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
       className,
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
+      <ChevronDown className="h-4 w-4 text-current opacity-50 dark:opacity-90" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -105,14 +105,14 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-lg py-2 pl-8 pr-2 text-sm font-normal leading-snug text-slate-700 outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:text-slate-200 dark:data-[disabled]:text-slate-500 focus:bg-accent focus:text-accent-foreground dark:focus:bg-white/[0.08] dark:focus:text-slate-100",
+      "relative flex w-full cursor-default select-none items-center rounded-lg py-2 pl-8 pr-2 text-sm font-normal leading-snug text-slate-700 outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:text-slate-200 focus:bg-accent focus:text-accent-foreground dark:focus:bg-white/[0.08] dark:focus:text-slate-100",
       className,
     )}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
+        <Check className="h-4 w-4 text-current" />
       </SelectPrimitive.ItemIndicator>
     </span>
 

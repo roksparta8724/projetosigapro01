@@ -49,7 +49,7 @@ export function PageHeader({
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
+              <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
                 <Icon className="h-5 w-5" />
               </div>
             ) : null}
@@ -86,7 +86,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-4 xl:auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5 min-[1500px]:grid-cols-4 min-[1500px]:auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -125,7 +125,7 @@ export function SectionCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-sky-200">
+              <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
                 <Icon className="h-4.5 w-4.5" />
               </div>
             ) : null}
@@ -156,7 +156,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2.1fr)_minmax(360px,0.95fr)] xl:items-start 2xl:grid-cols-[minmax(0,2.25fr)_minmax(400px,1fr)]",
+        "sig-main-grid grid grid-cols-1 gap-6 min-[1480px]:grid-cols-[minmax(0,2.1fr)_minmax(320px,0.92fr)] min-[1480px]:items-start min-[1680px]:grid-cols-[minmax(0,2.25fr)_minmax(380px,1fr)]",
         className,
       )}
     >

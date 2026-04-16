@@ -27,7 +27,7 @@ export function TableCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+              <div className="sig-section-icon flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
                 <Icon className="h-4.5 w-4.5" />
               </div>
             ) : null}

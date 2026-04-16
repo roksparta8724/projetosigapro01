@@ -5,7 +5,7 @@ import type { InstitutionalBranding } from "@/lib/institutionBranding";
 interface InstitutionalLogoProps {
   branding: InstitutionalBranding;
   fallbackLabel?: string;
-  variant?: "header" | "footer" | "preview";
+  variant?: "header" | "footer" | "preview" | "compact" | "login";
   className?: string;
   viewportClassName?: string;
 }
@@ -25,6 +25,16 @@ const variantClasses = {
     frame: "w-full rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm",
     viewport: "h-[126px] w-full rounded-[18px] bg-white",
     placeholder: "text-[32px]",
+  },
+  compact: {
+    frame: "h-[40px] w-[40px] rounded-[12px] border border-slate-200 bg-white p-1 shadow-[0_10px_20px_rgba(15,23,42,0.16)]",
+    viewport: "h-full w-full rounded-[9px] bg-white",
+    placeholder: "text-[13px]",
+  },
+  login: {
+    frame: "h-full w-full rounded-[20px] border-0 bg-transparent p-0 shadow-none",
+    viewport: "h-full w-full rounded-[20px] bg-white",
+    placeholder: "text-[30px]",
   },
 } as const;
 
@@ -56,26 +66,20 @@ export function InstitutionalLogo({
     .join("") || "SG";
 
   useEffect(() => {
-    if (isRenderableUrl(branding.logoUrl)) {
-      setStableLogoUrl(branding.logoUrl);
-      setImageFailed(false);
+    const nextLogoUrl = isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "";
+    setStableLogoUrl(nextLogoUrl);
+    setImageFailed(false);
+    if (!nextLogoUrl) {
+      setImageLoadedUrl("");
+      setNaturalSize({ width: 1, height: 1 });
     }
   }, [branding.logoUrl, branding.tenantId]);
 
   useEffect(() => {
-    console.log("[LogoRender] Renderizando logo", {
-      variant,
-      logoUrl: branding.logoUrl,
-    });
-    if (!isRenderableUrl(branding.logoUrl)) return;
-    if (branding.logoUrl === stableLogoUrl) return;
-
-    setStableLogoUrl(branding.logoUrl);
-    setImageFailed(false);
-  }, [branding.logoUrl, stableLogoUrl, variant]);
-
-  useEffect(() => {
-    if (!stableLogoUrl) return;
+    if (!stableLogoUrl) {
+      setImageLoadedUrl("");
+      return;
+    }
     if (stableLogoUrl === imageLoadedUrl) return;
     const image = new window.Image();
     image.onload = () => {
@@ -87,7 +91,8 @@ export function InstitutionalLogo({
       setImageLoadedUrl(stableLogoUrl);
     };
     image.onerror = () => {
-      if (!imageLoadedUrl) setImageFailed(true);
+      setImageFailed(true);
+      setImageLoadedUrl("");
     };
     image.src = stableLogoUrl;
   }, [stableLogoUrl, imageLoadedUrl]);
@@ -125,7 +130,7 @@ export function InstitutionalLogo({
     };
   }, [branding.logoFitMode, branding.logoScale, naturalSize.height, naturalSize.width, viewportSize.height, viewportSize.width]);
 
-  const displayUrl = imageLoadedUrl;
+  const displayUrl = imageLoadedUrl === stableLogoUrl ? imageLoadedUrl : "";
   const shouldRenderImage = !!displayUrl && !imageFailed;
 
   return (

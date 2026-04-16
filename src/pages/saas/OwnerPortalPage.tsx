@@ -139,7 +139,7 @@ export function OwnerPortalPage() {
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)]">
                   <div className="space-y-3">
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Search className="sig-search-icon pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                       <Input
                         value={protocolSearch}
                         onChange={(event) => setProtocolSearch(event.target.value)}
