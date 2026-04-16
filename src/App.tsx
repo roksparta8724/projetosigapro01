@@ -41,8 +41,9 @@ import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { ScrollToTop } from "@/components/platform/ScrollToTop";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
-import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingFallback } from "@/components/platform/LoadingFallback";
+import { shouldShowPublicLanding } from "@/lib/tenant";
+import { AppLoadingState } from "@/components/platform/AppLoadingState";
 
 const App = () => {
   return (
@@ -76,6 +77,8 @@ export default App;
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
   const [loadingPhase, setLoadingPhase] = useState<"initial" | "preparing" | "timeout">("initial");
+  const [hasDisplayedReadyState, setHasDisplayedReadyState] = useState(false);
+  const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
 
   const shouldHoldForBootstrap =
     bootstrap.stage === "detecting_host" ||
@@ -100,7 +103,21 @@ const AppRoutes = () => {
     };
   }, [shouldHoldForBootstrap]);
 
-  if (shouldHoldForBootstrap) {
+  useEffect(() => {
+    if (bootstrap.isReady) {
+      setHasDisplayedReadyState(true);
+    }
+  }, [bootstrap.isReady]);
+
+  const holdBranding = bootstrap.municipalityBundle?.branding ?? null;
+  const holdLogo = holdBranding?.headerLogoUrl || holdBranding?.logoUrl || "";
+  const holdName = bootstrap.municipalityBundle?.municipality?.name || "SIGAPRO";
+  const stageLabel =
+    loadingPhase === "preparing" ? "Preparando seus dados..." : "Carregando ambiente...";
+  const showBlockingBootstrap = shouldHoldForBootstrap && !hasDisplayedReadyState;
+  const showOverlayBootstrap = shouldHoldForBootstrap && hasDisplayedReadyState;
+
+  if (showBlockingBootstrap) {
     if (loadingPhase === "timeout") {
       return (
         <LoadingFallback
@@ -111,111 +128,13 @@ const AppRoutes = () => {
       );
     }
 
-    const holdBranding = bootstrap.municipalityBundle?.branding ?? null;
-    const holdLogo = holdBranding?.headerLogoUrl || holdBranding?.logoUrl || "";
-    const holdName = bootstrap.municipalityBundle?.municipality?.name || "SIGAPRO";
-    const stageLabel =
-      loadingPhase === "preparing" ? "Preparando seus dados..." : "Carregando ambiente...";
-
     return (
-      <div className="min-h-screen bg-slate-100 sig-fade-enter sig-fade-enter-active">
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-3">
-              {holdLogo ? (
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm">
-                  <img src={holdLogo} alt={holdName} className="h-full w-full object-contain" />
-                </div>
-              ) : (
-                <Skeleton className="h-10 w-10 rounded-2xl" />
-              )}
-              <div className="hidden flex-col gap-2 sm:flex">
-                <Skeleton className="h-3 w-28 rounded-full" />
-                <Skeleton className="h-2.5 w-44 rounded-full" />
-              </div>
-            </div>
-
-            <div className="hidden w-full max-w-[360px] sm:block">
-              <Skeleton className="h-9 w-full rounded-2xl" />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-9 w-9 rounded-full" />
-              <Skeleton className="h-9 w-9 rounded-full" />
-              <Skeleton className="h-9 w-9 rounded-full" />
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-8 sm:px-6">
-          <div className="mb-6 rounded-[28px] border border-slate-200 bg-white/80 px-6 py-5 shadow-[0_16px_40px_rgba(15,23,42,0.10)]">
-            <div className="flex items-center gap-4">
-              {holdLogo ? (
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm">
-                  <img src={holdLogo} alt={holdName} className="h-full w-full object-contain" />
-                </div>
-              ) : (
-                <Skeleton className="h-12 w-12 rounded-2xl" />
-              )}
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className="h-3 w-36 rounded-full" />
-                <Skeleton className="h-4 w-2/3 rounded-full" />
-              </div>
-              <Skeleton className="hidden h-9 w-36 rounded-full sm:block" />
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.45fr)]">
-            <div className="space-y-6">
-              <div className="rounded-[32px] border border-slate-200 bg-white/90 p-8 shadow-[0_32px_80px_rgba(15,23,42,0.12)]">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                    <span className="text-sm font-semibold tracking-[0.2em]">SIG</span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      Bootstrap institucional
-                    </p>
-                    <h1 className="text-lg font-semibold text-slate-900">{stageLabel}</h1>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-3">
-                  <Skeleton className="h-4 w-2/3 rounded-full" />
-                  <Skeleton className="h-4 w-1/2 rounded-full" />
-                  <Skeleton className="h-4 w-3/4 rounded-full" />
-                </div>
-
-                <div className="mt-8 grid gap-3 md:grid-cols-3">
-                  <Skeleton className="h-20 rounded-2xl" />
-                  <Skeleton className="h-20 rounded-2xl" />
-                  <Skeleton className="h-20 rounded-2xl" />
-                </div>
-
-                <div className="mt-6 flex items-center justify-between">
-                  <Skeleton className="h-3 w-40 rounded-full" />
-                  <Skeleton className="h-3 w-24 rounded-full" />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_22px_60px_rgba(15,23,42,0.14)]">
-                <div className="space-y-3">
-                  <Skeleton className="h-3 w-28 rounded-full" />
-                  <Skeleton className="h-10 w-full rounded-2xl" />
-                  <Skeleton className="h-10 w-full rounded-2xl" />
-                  <Skeleton className="h-10 w-full rounded-2xl" />
-                </div>
-                <div className="mt-6 space-y-2">
-                  <Skeleton className="h-3 w-3/4 rounded-full" />
-                  <Skeleton className="h-3 w-1/2 rounded-full" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppLoadingState
+        title={stageLabel}
+        description="Preparando o ambiente institucional com mais estabilidade visual."
+        municipalityName={holdName}
+        logoUrl={holdLogo}
+      />
     );
   }
 
@@ -237,14 +156,29 @@ const AppRoutes = () => {
 
   return (
     <div className="sig-fade-enter sig-fade-enter-active">
+      {showOverlayBootstrap ? (
+        <AppLoadingState
+          variant="overlay"
+          title={stageLabel}
+          description="Atualizando contexto e permissões sem interromper a navegação."
+          municipalityName={holdName}
+          logoUrl={holdLogo}
+        />
+      ) : null}
       <Routes>
-        <Route path="/" element={<Navigate to="/acesso" replace />} />
+        <Route
+          path="/"
+          element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}
+        />
         <Route path="/cliente/:tenantSlug" element={<ClientePortalPage />} />
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-        <Route path="/apresentacao" element={<LandingPage />} />
-        <Route path="/inicio" element={<Navigate to="/acesso" replace />} />
+        <Route
+          path="/apresentacao"
+          element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}
+        />
+        <Route path="/inicio" element={<Navigate to="/" replace />} />
 
         <Route
           path="/dashboard"

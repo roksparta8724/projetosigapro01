@@ -9,6 +9,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { can } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
+import { AppLoadingState } from "@/components/platform/AppLoadingState";
 
 export function PermissionRoute({
   permission,
@@ -36,23 +37,24 @@ export function PermissionRoute({
   });
 
   const shouldBlockForLoad =
-    bootstrap.loading || !bootstrap.isReady || (!isPlatformScope && tenant.loading);
+    !bootstrap.isReady ||
+    (!isPlatformScope &&
+      tenant.mode === "tenant" &&
+      tenant.loading &&
+      !tenant.municipalityId);
 
   if (shouldBlockForLoad) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-        <Card className="max-w-xl rounded-[28px] border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <CardContent className="p-8 text-sm text-slate-600">
-            <p className="text-base font-semibold text-slate-900">Carregando ambiente...</p>
-            <p className="mt-2 text-sm text-slate-500">Estamos preparando seus dados com segurança.</p>
-            {bootstrap.error ? (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                {bootstrap.error}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+      <AppLoadingState
+        title="Carregando ambiente"
+        description="Validando acesso, permissoes e contexto institucional."
+        municipalityName={tenant.municipalityName}
+        logoUrl={
+          tenant.municipalityBundle?.branding?.headerLogoUrl ||
+          tenant.municipalityBundle?.branding?.logoUrl ||
+          ""
+        }
+      />
     );
   }
 
@@ -83,10 +85,10 @@ export function PermissionRoute({
               <LockKeyhole className="h-6 w-6" />
             </div>
             <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
-              Prefeitura temporariamente indisponível
+              Prefeitura temporariamente indisponivel
             </h1>
             <p className="mt-3 text-sm text-slate-600">
-              O acesso a esta Prefeitura está suspenso ou em implantação. Aguarde a liberação oficial para continuar.
+              O acesso a esta Prefeitura esta suspenso ou em implantacao. Aguarde a liberacao oficial para continuar.
             </p>
             <div className="mt-6 flex gap-3">
               <Button asChild variant="outline">
@@ -108,10 +110,10 @@ export function PermissionRoute({
               <LockKeyhole className="h-6 w-6" />
             </div>
             <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
-              Acesso restrito à Prefeitura vinculada
+              Acesso restrito a Prefeitura vinculada
             </h1>
             <p className="mt-3 text-sm text-slate-600">
-              Esta conta não está vinculada à Prefeitura deste subdomínio. Entre com uma conta autorizada ou volte para
+              Esta conta nao esta vinculada a Prefeitura deste subdominio. Entre com uma conta autorizada ou volte para
               o acesso principal.
             </p>
             <div className="mt-6 flex gap-3">
@@ -148,21 +150,21 @@ export function PermissionRoute({
             <LockKeyhole className="h-6 w-6" />
           </div>
           <h1 className="max-w-md break-words text-xl font-semibold leading-tight text-slate-900">
-            {isActuallyBlocked ? "Conta bloqueada administrativamente" : "Área indisponível para este perfil"}
+            {isActuallyBlocked ? "Conta bloqueada administrativamente" : "Area indisponivel para este perfil"}
           </h1>
           {isActuallyBlocked ? (
             <p className="mt-3 text-sm text-slate-600">
-              Esta conta foi marcada como{" "}
-              {authenticatedUser?.accountStatus === "inactive" ? "inativa" : "bloqueada"} por um administrador.
+              Esta conta foi marcada como {authenticatedUser?.accountStatus === "inactive" ? "inativa" : "bloqueada"}{" "}
+              por um administrador.
               {authenticatedUser?.blockReason ? ` Motivo registrado: ${authenticatedUser.blockReason}.` : ""}
             </p>
           ) : (
             <>
               <p className="mt-3 text-sm text-slate-600">
-                Esta área exige um perfil diferente do seu acesso atual. Isso não significa bloqueio da conta.
+                Esta area exige um perfil diferente do seu acesso atual. Isso nao significa bloqueio da conta.
               </p>
               <p className="mt-2 text-sm text-slate-500">
-                Se você quiser entrar com outra conta, acesse novamente para trocar de usuário.
+                Se voce quiser entrar com outra conta, acesse novamente para trocar de usuario.
               </p>
             </>
           )}
@@ -177,7 +179,7 @@ export function PermissionRoute({
               Entrar com outra conta
             </Button>
             <Button asChild variant="outline">
-              <Link to={fallbackPath}>{isActuallyBlocked ? "Voltar ao acesso" : "Ir para uma área permitida"}</Link>
+              <Link to={fallbackPath}>{isActuallyBlocked ? "Voltar ao acesso" : "Ir para uma area permitida"}</Link>
             </Button>
           </div>
         </CardContent>

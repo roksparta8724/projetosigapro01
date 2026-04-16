@@ -20,7 +20,6 @@ import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const institutionalHighlights = [
   {
@@ -225,10 +224,9 @@ export function AcessoPage() {
                     </p>
 
                     {bootstrap.stage === "resolving_tenant" ? (
-                      <div className="mt-2 space-y-2">
-                        <Skeleton className="h-3 w-40 rounded-full bg-white/20" />
-                        <Skeleton className="h-3 w-28 rounded-full bg-white/15" />
-                      </div>
+                      <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
+                        Preparando ambiente institucional
+                      </p>
                     ) : lockedInstitutionName ? (
                       <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
                         {lockedInstitutionName}

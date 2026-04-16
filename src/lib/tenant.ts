@@ -113,3 +113,7 @@ export function isRootDomainHost(hostname: string) {
   const normalized = normalizeHostname(hostname);
   return normalized === rootDomain || normalized === `www.${rootDomain}`;
 }
+
+export function shouldShowPublicLanding(resolution: TenantResolution) {
+  return resolution.mode === "root" && (resolution.isRootDomain || resolution.isLocalhost);
+}

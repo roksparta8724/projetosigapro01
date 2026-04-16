@@ -1,197 +1,765 @@
-import { ArrowRight, BadgeCheck, Building2, Cable, Landmark, Shield, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Blocks,
+  Building2,
+  CheckCircle2,
+  ClipboardCheck,
+  CreditCard,
+  FileCheck2,
+  FileStack,
+  Landmark,
+  Layers3,
+  LayoutPanelTop,
+  MessageSquareMore,
+  Network,
+  ScrollText,
+  SearchCheck,
+  ShieldCheck,
+  Sparkles,
+  Users2,
+} from "lucide-react";
 import { Link } from "react-router-dom";
+import { LandingFAQ } from "@/components/landing/LandingFAQ";
+import { LandingFooter } from "@/components/landing/LandingFooter";
+import { LandingHeader } from "@/components/landing/LandingHeader";
+import { LandingReveal } from "@/components/landing/LandingReveal";
+import { LandingSectionTitle } from "@/components/landing/LandingSectionTitle";
+import { LandingSEO } from "@/components/landing/LandingSEO";
+import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { platformModules } from "@/lib/platform";
-import { usePlatformData } from "@/hooks/usePlatformData";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { id: "como-funciona", label: "Como funciona" },
+  { id: "beneficios", label: "Beneficios" },
+  { id: "modulos", label: "Modulos" },
+  { id: "perfis", label: "Perfis" },
+  { id: "diferenciais", label: "Diferenciais" },
+  { id: "faq", label: "FAQ" },
+  { id: "contato", label: "Contato" },
+] as const;
+
+const credibilityItems = [
+  {
+    title: "Protocolo digital",
+    description: "Entrada de projetos, documentos e requerimentos em um fluxo unico.",
+    icon: ScrollText,
+  },
+  {
+    title: "Analise organizada",
+    description: "Triagem, pareceres e exigencias com leitura mais clara por etapa.",
+    icon: SearchCheck,
+  },
+  {
+    title: "Rastreabilidade",
+    description: "Historico de status, movimentacoes e decisoes em ambiente institucional.",
+    icon: Network,
+  },
+  {
+    title: "Gestao documental",
+    description: "Checklist, revisoes e anexos com mais controle para Prefeitura e profissional.",
+    icon: FileStack,
+  },
+] as const;
+
+const processSteps = [
+  { title: "Protocolo do projeto", description: "Cadastro do empreendimento e dos responsaveis.", icon: ScrollText },
+  { title: "Envio dos documentos", description: "Checklist digital com anexos e conferencias iniciais.", icon: FileStack },
+  { title: "Pagamento e validacao", description: "Taxas vinculadas ao processo com controle mais simples.", icon: CreditCard },
+  { title: "Analise tecnica", description: "Fila setorial, pareceres e distribuicao interna.", icon: SearchCheck },
+  { title: "Comunique-se", description: "Exigencias e ajustes tratados no proprio fluxo.", icon: MessageSquareMore },
+  { title: "Aprovacao final", description: "Decisao consolidada com historico e rastreabilidade.", icon: BadgeCheck },
+] as const;
+
+const benefits = [
+  { title: "Menos papel", description: "Documentos, mensagens e validacoes concentrados em ambiente digital.", icon: FileStack },
+  { title: "Mais agilidade", description: "Reduz atritos entre protocolo, financeiro, analise e decisao.", icon: Sparkles },
+  { title: "Mais controle", description: "Etapas, usuarios e historico com leitura institucional consistente.", icon: ShieldCheck },
+  { title: "Menos retrabalho", description: "Checklist e comunique-se organizam retorno e reapresentacao.", icon: ClipboardCheck },
+  { title: "Transparencia operacional", description: "Status, exigencias e andamento acessiveis com mais clareza.", icon: Landmark },
+  { title: "Experiencia melhor", description: "Fluxo mais simples para Prefeitura, engenheiros e arquitetos.", icon: Users2 },
+] as const;
+
+const features = [
+  { title: "Protocolo digital", description: "Abertura completa do processo em ambiente web.", icon: ScrollText },
+  { title: "Gestao documental", description: "Checklist, anexos e revisoes por etapa.", icon: FileStack },
+  { title: "Controle de taxas", description: "Emissao, acompanhamento e validacao financeira.", icon: CreditCard },
+  { title: "Analise tecnica", description: "Pareceres, fila setorial e acompanhamento interno.", icon: SearchCheck },
+  { title: "Historico do processo", description: "Linha do tempo com status e movimentacoes.", icon: Network },
+  { title: "Comunique-se", description: "Exigencias formais e retorno do profissional.", icon: MessageSquareMore },
+  { title: "Multi-tenant municipal", description: "Ambientes separados por Prefeitura com governanca.", icon: Building2 },
+  { title: "Painel administrativo", description: "Parametros, usuarios e identidade institucional.", icon: Blocks },
+] as const;
+
+const audienceGroups = [
+  {
+    title: "Para profissionais externos",
+    description: "Cadastro, protocolo e acompanhamento online com mais previsibilidade.",
+    tone: "light" as const,
+    icon: Users2,
+    items: [
+      "Envio de projeto e documentos em um fluxo claro.",
+      "Leitura direta da etapa atual e das exigencias.",
+      "Resposta ao comunique-se sem perder contexto.",
+      "Historico do processo disponivel para consulta.",
+    ],
+  },
+  {
+    title: "Para equipes da Prefeitura",
+    description: "Triagem, analise e decisao com mais organizacao institucional.",
+    tone: "dark" as const,
+    icon: Building2,
+    items: [
+      "Distribuicao entre setores e fila tecnica organizada.",
+      "Controle por municipio, etapa e usuario responsavel.",
+      "Pareceres e exigencias registrados no proprio processo.",
+      "Mais governanca para atendimento e aprovacao final.",
+    ],
+  },
+] as const;
+
+const differentiators = [
+  { title: "Identidade por municipio", description: "A plataforma pode refletir a presenca institucional de cada Prefeitura.", icon: LayoutPanelTop },
+  { title: "Fluxo digital completo", description: "Da entrada do projeto ate a decisao final no mesmo ambiente.", icon: Layers3 },
+  { title: "Arquitetura escalavel", description: "Base preparada para novas rotinas, modulos e crescimento operacional.", icon: Building2 },
+  { title: "Comunicacao estruturada", description: "Mensagens e exigencias vinculadas ao processo, sem dispersao.", icon: MessageSquareMore },
+  { title: "Rastreabilidade institucional", description: "Historico de status, pareceres e movimentacoes com mais clareza.", icon: FileCheck2 },
+  { title: "Experiencia contemporanea", description: "Interface limpa, objetiva e adequada a operacao publica moderna.", icon: Sparkles },
+] as const;
+
+const faqItems = [
+  {
+    question: "O que e o SIGAPRO?",
+    answer:
+      "O SIGAPRO e uma plataforma institucional para protocolo, tramitacao, analise e aprovacao de projetos urbanos em ambiente digital.",
+  },
+  {
+    question: "Quem pode utilizar a plataforma?",
+    answer:
+      "A solucao atende Prefeituras, engenheiros, arquitetos, profissionais externos, equipes tecnicas, protocolo, financeiro e gestores municipais.",
+  },
+  {
+    question: "O sistema atende diferentes Prefeituras?",
+    answer:
+      "Sim. O produto foi estruturado para operacao multi-tenant, com ambientes e configuracoes organizados por municipio.",
+  },
+  {
+    question: "E possivel acompanhar o processo online?",
+    answer:
+      "Sim. O andamento pode ser acompanhado por etapa, status, exigencias e historico conforme o perfil de acesso.",
+  },
+  {
+    question: "O envio de documentos e digital?",
+    answer:
+      "Sim. O protocolo contempla anexos, checklist documental e reapresentacao de arquivos dentro do mesmo fluxo.",
+  },
+  {
+    question: "A analise fica rastreavel?",
+    answer:
+      "Sim. Pareceres, exigencias, movimentacoes e decisoes permanecem registrados com mais clareza operacional.",
+  },
+] as const;
+
+const heroPillars = [
+  "Protocolo digital com leitura institucional.",
+  "Fluxo mais claro para Prefeitura e profissional.",
+] as const;
+
+const heroStats = [
+  { label: "Fluxo unificado", value: "Protocolo, taxa e parecer no mesmo ambiente." },
+  { label: "Controle municipal", value: "Historico por etapa, setor e decisao final." },
+] as const;
+
+const showcaseHighlights = [
+  "Painel simplificado com foco em status, etapa e checklist.",
+  "Documentos e exigencias apresentados sem poluicao visual.",
+  "Leitura executiva adequada para produto institucional premium.",
+] as const;
+
+function HeroPanelCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-900">{value}</p>
+    </div>
+  );
+}
 
 export function LandingPage() {
-  const { cmsSections, source } = usePlatformData() as any;
-
-  const sourceLabel =
-    String(source) === "live" ? "Base real" : "Base de demonstração";
-
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#03101c_0%,#081a2b_34%,#edf3f8_34%,#f8fafc_100%)]">
+    <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-900 [font-family:Inter,sans-serif]">
+      <LandingSEO faqItems={faqItems} />
+      <LandingHeader navItems={navItems} />
 
-      {/* HERO */}
-      <section className="mx-auto max-w-[1440px] px-4 pb-16 pt-6 text-white lg:px-8 lg:pb-24 lg:pt-10">
-        <div className="rounded-[36px] border border-white/15 bg-[linear-gradient(135deg,rgba(6,25,44,0.92)_0%,rgba(7,22,38,0.88)_55%,rgba(9,30,52,0.85)_100%)] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.45)] backdrop-blur-xl lg:p-10">
-
-          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
-
-            {/* TEXTO */}
-            <div className="max-w-4xl">
-              <Badge className="rounded-full border border-emerald-300/30 bg-emerald-400/20 px-4 py-1 text-[0.75rem] font-medium tracking-[0.18em] text-emerald-50">
-                SIGAPRO · SISTEMA INSTITUCIONAL
-              </Badge>
-
-              <h1 className="mt-6 max-w-5xl text-4xl font-semibold leading-[1.05] text-white lg:text-6xl">
-                Aprovação digital de projetos com padrão institucional e operação integrada.
-              </h1>
-
-              <p className="mt-6 max-w-3xl text-base leading-8 text-slate-100 lg:text-lg">
-                O SIGAPRO conecta protocolo, análise técnica, tramitação entre setores,
-                guias de pagamento e acompanhamento externo em uma experiência única,
-                confiável e pronta para a rotina da Prefeitura.
-              </p>
-
-              <p className="mt-5 text-xs font-medium uppercase tracking-[0.28em] text-emerald-100">
-                Fonte de dados: {sourceLabel}
-              </p>
-            </div>
-
-            {/* CARDS DIREITA */}
-            <div className="grid gap-4 text-sm text-slate-100 lg:max-w-[420px]">
-
-              <div className="rounded-2xl border border-white/15 bg-[#0b2540]/85 px-4 py-3 leading-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-                Administrador geral acompanha a plataforma sem expor conteúdo sigiloso.
-              </div>
-
-              <div className="rounded-2xl border border-white/15 bg-[#0b2540]/85 px-4 py-3 leading-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-                Acesso externo isolado entre profissionais.
-              </div>
-
-              <div className="rounded-2xl border border-white/15 bg-[#0b2540]/85 px-4 py-3 leading-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-                Configuração de leis, identidade visual e documentos por prefeitura.
-              </div>
-
-            </div>
+      <main className="overflow-hidden">
+        <section
+          id="hero"
+          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#f9fbfe_0%,#eef3f9_56%,#f5f7fb_100%)] pt-28 sm:pt-32"
+        >
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_42%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.06),transparent_30%)]" />
+            <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          {/* BOTÕES */}
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Button
-              asChild
-              size="lg"
-              className="rounded-full bg-emerald-500 px-6 text-white shadow-xl shadow-emerald-900/30 hover:bg-emerald-600"
-            >
-              <Link to="/acesso">
-                Entrar no sistema
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+          <div className="relative mx-auto max-w-[1240px] px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+            <div className="grid gap-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(460px,0.85fr)] lg:items-center xl:gap-18">
+              <LandingReveal className="max-w-[570px]">
+                <Badge className="rounded-full border border-blue-200 bg-white/92 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] text-blue-900 shadow-sm hover:bg-white/92">
+                  PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
+                </Badge>
 
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="rounded-full border-white/20 bg-white/5 px-6 text-white hover:bg-white/10"
-            >
-              <Link to="/master">Abrir visão administrativa</Link>
-            </Button>
-          </div>
+                <h1 className="mt-6 max-w-[11.5ch] text-balance text-[2.65rem] font-semibold leading-[1.02] tracking-[-0.05em] text-slate-950 sm:text-[3.1rem] lg:text-[3.8rem]">
+                  Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
+                </h1>
 
-        </div>
-      </section>
+                <p className="mt-6 max-w-[54ch] text-[1.02rem] leading-8 text-slate-600 sm:text-lg">
+                  O SIGAPRO organiza protocolo, documentos, taxas, analise tecnica e aprovacao em uma experiencia institucional limpa, segura e pronta para operacao publica.
+                </p>
 
-      {/* CONTEÚDO */}
-      <section className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 lg:grid-cols-[1.25fr,0.75fr] lg:px-8">
-
-        <Card className="rounded-[28px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
-          <CardHeader>
-            <CardTitle className="text-2xl font-semibold text-slate-900">
-              Capacidades do SIGAPRO
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            {platformModules.map((module) => (
-              <div
-                key={module.name}
-                className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 transition-all duration-200 hover:-translate-y-1 hover:bg-white hover:shadow-xl"
-              >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                  <Sparkles className="h-5 w-5" />
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="h-12 rounded-full bg-slate-950 px-7 text-sm font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
+                  >
+                    <a href="#contato">
+                      Solicitar demonstracao
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="h-12 rounded-full border-slate-300 bg-white/90 px-7 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                  >
+                    <Link to="/acesso">Acessar sistema</Link>
+                  </Button>
                 </div>
 
-                <h3 className="text-lg font-semibold text-slate-900">{module.name}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-700">{module.description}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                <div className="mt-9 grid gap-3 sm:max-w-[520px] sm:grid-cols-2">
+                  {heroPillars.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-[24px] border border-white/90 bg-white/90 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </span>
+                        <p className="text-sm font-medium leading-6 text-slate-700">{item}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </LandingReveal>
 
-        <div className="grid gap-6">
+              <LandingReveal delay={0.06} className="lg:justify-self-end">
+                <div className="mx-auto w-full max-w-[540px] rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-[0_28px_72px_rgba(15,23,42,0.09)] backdrop-blur sm:p-5">
+                  <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {heroStats.map((item) => (
+                        <HeroPanelCard
+                          key={item.label}
+                          label={item.label}
+                          value={item.value}
+                        />
+                      ))}
+                    </div>
 
-          <Card className="rounded-[28px] border border-slate-200 bg-white shadow-md">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-900">
-                Diretrizes da plataforma
-              </CardTitle>
-            </CardHeader>
+                    <div className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                      <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                            <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.72]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">Painel institucional</p>
+                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Fluxo urbano digital</p>
+                          </div>
+                        </div>
+                        <Badge className="w-fit rounded-full bg-blue-50 px-3 py-1 text-blue-800 hover:bg-blue-50">
+                          Comunique-se emitido
+                        </Badge>
+                      </div>
 
-            <CardContent className="space-y-3 text-sm text-slate-700">
+                      <div className="mt-5 grid gap-4">
+                        <div className="rounded-[24px] border border-slate-200 bg-slate-50/85 p-4">
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Processo em destaque</p>
+                              <p className="mt-2 text-lg font-semibold text-slate-950">Aprovacao de projeto arquitetonico</p>
+                              <p className="mt-2 text-sm leading-6 text-slate-600">
+                                Fluxo municipal com taxa vinculada, analise tecnica e retorno formal ao responsavel.
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                              <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                Protocolo SIG-URB-2026-0184
+                              </span>
+                              <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                Urbanismo Municipal
+                              </span>
+                            </div>
+                          </div>
 
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-                <Shield className="h-5 w-5 text-slate-900" />
-                Perfis separados para administrador, prefeitura, análise, financeiro e externo.
-              </div>
+                          <div className="mt-5 grid gap-3 md:grid-cols-3">
+                            {[
+                              ["Etapa atual", "Analise tecnica"],
+                              ["Taxa municipal", "Guia validada"],
+                              ["Parecer", "Retorno emitido"],
+                            ].map(([label, value]) => (
+                              <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                                <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
 
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-                <Cable className="h-5 w-5 text-slate-900" />
-                Integração com protocolo, arrecadação e autenticação municipal.
-              </div>
+                        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Etapas principais</p>
+                            <div className="mt-4 space-y-3">
+                              {[
+                                "Protocolo recebido",
+                                "Taxa validada",
+                                "Analise tecnica",
+                                "Aguardando retorno ao comunique-se",
+                              ].map((item) => (
+                                <div key={item} className="flex items-center gap-3">
+                                  <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-700" />
+                                  <p className="text-sm font-medium text-slate-700">{item}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
 
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-                <BadgeCheck className="h-5 w-5 text-slate-900" />
-                Estrutura pronta para comercialização como SaaS institucional.
-              </div>
-
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[28px] border border-slate-200 bg-white shadow-md">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-900">
-                Conteúdo institucional
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent className="space-y-3">
-              {cmsSections.map((entry) => (
-                <div key={entry.title} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">{entry.title}</p>
-                    <Badge variant="outline">{entry.status}</Badge>
+                          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Documentos</p>
+                            <div className="mt-4 space-y-2.5">
+                              {[
+                                "Projeto arquitetonico",
+                                "Memorial descritivo",
+                                "ART ou RRT",
+                              ].map((item) => (
+                                <div
+                                  key={item}
+                                  className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700"
+                                >
+                                  {item}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-5 rounded-[20px] border border-blue-100 bg-blue-50/80 px-4 py-3">
+                              <p className="text-sm font-semibold text-blue-900">Comunique-se ativo</p>
+                              <p className="mt-1 text-sm leading-6 text-blue-800/80">
+                                Solicita ajuste no memorial e nova prancha assinada.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm text-slate-700">{entry.content}</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </LandingReveal>
+            </div>
+          </div>
+        </section>
 
-          <Card className="rounded-[28px] border border-slate-200 bg-white shadow-md">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-900">
-                Personalização por prefeitura
-              </CardTitle>
-            </CardHeader>
+        <section className="border-b border-slate-200/80 bg-white/82 py-10 sm:py-12">
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {credibilityItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <LandingReveal key={item.title} delay={index * 0.03}>
+                    <article className="h-full rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_36px_rgba(15,23,42,0.04)]">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <h2 className="mt-4 text-lg font-semibold text-slate-950">{item.title}</h2>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-            <CardContent className="space-y-3 text-sm text-slate-700">
+        <section id="como-funciona" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Como funciona"
+              title="Uma jornada clara do protocolo inicial ate a aprovacao final."
+              description="O processo foi apresentado com mais leveza visual para reforcar entendimento rapido, sem excesso de informacao."
+            />
 
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
-                  <Landmark className="h-4 w-4" />
-                  Identidade institucional
+            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {processSteps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <LandingReveal key={step.title} delay={index * 0.04}>
+                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="text-sm font-semibold text-slate-400">0{index + 1}</span>
+                      </div>
+                      <h3 className="mt-5 text-xl font-semibold tracking-[-0.03em] text-slate-950">{step.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">{step.description}</p>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="beneficios"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f2f6fb_100%)] py-20 sm:py-24 lg:py-28"
+        >
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Beneficios"
+              title="Mais organizacao institucional, menos retrabalho e uma experiencia muito mais clara."
+              description="Os cards foram simplificados para ganhar consistencia, leitura e acabamento premium."
+            />
+
+            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {benefits.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <LandingReveal key={item.title} delay={index * 0.03}>
+                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white px-6 py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] transition-transform duration-300 hover:-translate-y-0.5">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <h3 className="mt-5 text-xl font-semibold text-slate-950">{item.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="modulos" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Modulos e recursos"
+              title="Capacidades centrais do SIGAPRO apresentadas com mais foco e menos ruido visual."
+              description="A leitura desta grade foi reduzida ao essencial para comunicar valor com mais elegancia."
+            />
+
+            <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {features.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <LandingReveal key={feature.title} delay={index * 0.02}>
+                    <article className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_38px_rgba(15,23,42,0.04)]">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <h3 className="mt-4 text-lg font-semibold text-slate-950">{feature.title}</h3>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">{feature.description}</p>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="perfis"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f7faff_0%,#edf3f9_100%)] py-20 sm:py-24 lg:py-28"
+        >
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Perfis de uso"
+              title="Uma plataforma preparada para a rotina da Prefeitura e para a jornada do profissional externo."
+              description="A separacao dos perfis foi refinada para reforcar valor de uso sem criar excesso de blocos."
+            />
+
+            <div className="mt-12 grid gap-6 lg:grid-cols-2">
+              {audienceGroups.map((group, index) => {
+                const Icon = group.icon;
+                return (
+                  <LandingReveal key={group.title} delay={index * 0.05}>
+                    <article
+                      className={cn(
+                        "h-full rounded-[32px] border p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)]",
+                        group.tone === "light" ? "border-slate-200 bg-white" : "border-slate-900 bg-slate-950 text-white",
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span
+                          className={cn(
+                            "flex h-14 w-14 items-center justify-center rounded-2xl",
+                            group.tone === "light" ? "bg-blue-50 text-blue-800" : "bg-white/10 text-white",
+                          )}
+                        >
+                          <Icon className="h-6 w-6" />
+                        </span>
+                        <div>
+                          <h3 className={cn("text-2xl font-semibold tracking-[-0.03em]", group.tone === "light" ? "text-slate-950" : "text-white")}>
+                            {group.title}
+                          </h3>
+                          <p className={cn("mt-2 text-sm leading-7", group.tone === "light" ? "text-slate-600" : "text-slate-300")}>
+                            {group.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 space-y-3">
+                        {group.items.map((item) => (
+                          <div
+                            key={item}
+                            className={cn(
+                              "flex items-start gap-3 rounded-[22px] border px-4 py-4",
+                              group.tone === "light" ? "border-slate-200 bg-slate-50/85" : "border-white/10 bg-white/5",
+                            )}
+                          >
+                            <CheckCircle2 className={cn("mt-0.5 h-5 w-5 shrink-0", group.tone === "light" ? "text-blue-800" : "text-sky-300")} />
+                            <p className={cn("text-sm leading-6", group.tone === "light" ? "text-slate-700" : "text-slate-200")}>
+                              {item}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 sm:py-24 lg:py-28">
+          <div className="mx-auto grid max-w-[1240px] gap-8 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
+            <LandingReveal>
+              <div className="max-w-[560px]">
+                <LandingSectionTitle
+                  eyebrow="Painel do sistema"
+                  title="Um painel visual mais limpo para transmitir maturidade e alto valor percebido."
+                  description="A composicao foi redesenhada para parecer um produto real, com foco em clareza, status e hierarquia operacional."
+                />
+
+                <div className="mt-8 space-y-3">
+                  {showcaseHighlights.map((item) => (
+                    <div key={item} className="flex items-start gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" />
+                      <p className="text-sm leading-6 text-slate-700">{item}</p>
+                    </div>
+                  ))}
                 </div>
-                Brasão, cores, textos e layout customizado por município.
               </div>
+            </LandingReveal>
 
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
-                  <Building2 className="h-4 w-4" />
-                  Regras urbanísticas
+            <LandingReveal delay={0.06}>
+              <article className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-[0_28px_74px_rgba(15,23,42,0.08)] sm:p-6">
+                <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white">
+                  <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Workspace institucional</p>
+                      <h2 className="mt-2 text-2xl font-semibold text-white">Operacao urbana em ambiente digital</h2>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">
+                      SIGAPRO
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-4">
+                    <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
+                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm font-semibold text-white">Visao do processo</p>
+                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                          {[
+                            ["Protocolo", "SIG-URB-2026-0184"],
+                            ["Etapa atual", "Analise tecnica"],
+                            ["Status", "Comunique-se aberto"],
+                            ["Setor", "Urbanismo municipal"],
+                          ].map(([label, value]) => (
+                            <div key={label} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+                              <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm font-semibold text-white">Checklist essencial</p>
+                        <div className="mt-4 space-y-3">
+                          {["Projeto arquitetonico", "Memorial descritivo", "ART ou RRT"].map((item) => (
+                            <div key={item} className="flex items-center gap-3">
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-sky-300" />
+                              <span className="text-sm text-slate-200">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-5 rounded-[20px] border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                          <p className="text-sm font-semibold text-emerald-200">Taxa validada e parecer tecnico registrado.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-white">Resumo institucional</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-300">
+                            Painel com protocolo, taxa, analise, comunique-se e rastreabilidade do fluxo municipal.
+                          </p>
+                        </div>
+                        <ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-sky-300" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                Plano diretor, checklist documental e parâmetros locais.
+              </article>
+            </LandingReveal>
+          </div>
+        </section>
+
+        <section
+          id="diferenciais"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-white/88 py-20 sm:py-24 lg:py-28"
+        >
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Diferenciais"
+              title="Diferenciais apresentados de forma mais objetiva, refinada e comercial."
+              description="A secao foi reequilibrada para reforcar valor percebido sem excesso de texto ou densidade visual."
+            />
+
+            <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {differentiators.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <LandingReveal key={item.title} delay={index * 0.03}>
+                    <article className="flex h-full items-start gap-4 rounded-[28px] border border-slate-200 bg-slate-50/85 px-5 py-5">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-950">{item.title}</h3>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                      </div>
+                    </article>
+                  </LandingReveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-[980px] px-4 sm:px-6 lg:px-8">
+            <LandingSectionTitle
+              eyebrow="Perguntas frequentes"
+              title="FAQ institucional com leitura clara para decisao comercial e mecanismos de busca."
+              description="As respostas abaixo mantem a clareza do produto sem transformar a pagina em um bloco de texto."
+              align="center"
+            />
+
+            <LandingReveal className="mt-10">
+              <LandingFAQ items={faqItems} />
+            </LandingReveal>
+          </div>
+        </section>
+
+        <section
+          id="contato"
+          className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#162238_100%)] py-20 text-white sm:py-24 lg:py-28"
+        >
+          <div className="mx-auto grid max-w-[1240px] gap-8 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:px-8">
+            <LandingReveal>
+              <div className="max-w-[580px]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chamada comercial</p>
+                <h2 className="mt-4 max-w-[14ch] text-balance text-4xl font-semibold leading-[1.04] tracking-[-0.05em] text-white sm:text-[3.25rem]">
+                  Um produto institucional pronto para demonstracao e operacao real.
+                </h2>
+                <p className="mt-5 max-w-[56ch] text-base leading-8 text-slate-300">
+                  A landing foi reorganizada para vender o SIGAPRO com mais clareza, autoridade e acabamento visual, mantendo o acesso operacional em fluxo separado.
+                </p>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  {[
+                    "Camada publica premium, mais clara e mais elegante.",
+                    "Narrativa comercial alinhada a produto institucional.",
+                    "Estrutura responsiva com menos ruido visual.",
+                    "Leitura semantica consistente para SEO e IA.",
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-3 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" />
+                      <p className="text-sm leading-6 text-slate-200">{item}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </LandingReveal>
 
-            </CardContent>
-          </Card>
+            <LandingReveal delay={0.06}>
+              <div className="rounded-[34px] border border-white/10 bg-white/5 p-7 shadow-[0_30px_90px_rgba(0,0,0,0.22)] backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Solicitar demonstracao</p>
+                <h3 className="mt-3 max-w-[18ch] text-2xl font-semibold text-white">
+                  Apresente o SIGAPRO com uma camada publica a altura do produto.
+                </h3>
+                <p className="mt-4 text-sm leading-7 text-slate-300">
+                  Direcione o visitante para a demonstracao institucional e mantenha o acesso ao sistema em uma experiencia objetiva.
+                </p>
 
-        </div>
-      </section>
+                <div className="mt-8 space-y-3">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="h-12 w-full rounded-full bg-white px-6 text-sm font-semibold text-slate-950 hover:bg-slate-100"
+                  >
+                    <a href="mailto:contato@sigapro.govtech?subject=Solicitacao%20de%20demonstracao%20SIGAPRO">
+                      Solicitar demonstracao
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="h-12 w-full rounded-full border-white/15 bg-white/5 px-6 text-sm font-semibold text-white hover:bg-white/10"
+                  >
+                    <Link to="/acesso">Acessar sistema</Link>
+                  </Button>
+                </div>
+
+                <div className="mt-8 rounded-[24px] border border-white/10 bg-slate-950/40 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Contato institucional</p>
+                  <div className="mt-4 space-y-2 text-sm leading-7 text-slate-200">
+                    <p>Apresentacao para Prefeituras, diretorias tecnicas e operacao urbana.</p>
+                    <p>Email comercial: contato@sigapro.govtech</p>
+                    <p>Fluxo recomendado: demonstracao, validacao de escopo e acesso ao ambiente.</p>
+                  </div>
+                </div>
+              </div>
+            </LandingReveal>
+          </div>
+        </section>
+      </main>
+
+      <LandingFooter navItems={navItems} />
     </div>
   );
 }
