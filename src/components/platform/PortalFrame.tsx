@@ -2,6 +2,7 @@
   Bell,
   BookOpenText,
   Building2,
+  Check,
   ChevronDown,
   FileText,
   History,
@@ -13,7 +14,9 @@
   Menu,
   MonitorCog,
   Palette,
+  PencilLine,
   Phone,
+  Power,
   ScrollText,
   Search,
   Settings2,
@@ -25,6 +28,7 @@
   FileBarChart2,
   Trash2,
   Flag,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -58,9 +62,8 @@ import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, 
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
-import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { formatMarkerLabel, useMarkerPresets } from "@/hooks/useMarkerPresets";
+import { SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
   title: string;
@@ -118,6 +121,17 @@ const navItems = [
 ];
 
 const managementNavItems = ["/master", "/prefeitura", "/configuracoes"];
+
+const MARKER_COLOR_OPTIONS = [
+  { value: "#3b82f6", label: "Fluxo azul" },
+  { value: "#14b8a6", label: "Triagem verde-azulada" },
+  { value: "#8b5cf6", label: "Análise violeta" },
+  { value: "#f59e0b", label: "Atenção âmbar" },
+  { value: "#ef4444", label: "Urgência coral" },
+  { value: "#22c55e", label: "Aprovado verde" },
+  { value: "#0ea5e9", label: "Protocolo céu" },
+  { value: "#64748b", label: "Neutro institucional" },
+];
 const operationalNavItems = [
   "/dashboard",
   "/prefeitura/protocolos",
@@ -184,10 +198,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [markerEmoji, setMarkerEmoji] = useState("🚩");
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerColor, setMarkerColor] = useState("#3b82f6");
   const [markerSavePulse, setMarkerSavePulse] = useState(false);
+  const [pendingMarkerRemovalId, setPendingMarkerRemovalId] = useState<string | null>(null);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+  const [editingMarkerLabel, setEditingMarkerLabel] = useState("");
+  const [editingMarkerColor, setEditingMarkerColor] = useState("#3b82f6");
   const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -205,7 +222,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
   const { source, loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
   const { isItemVisible } = useUserMenuPreferences();
-  const { presets: markerPresets, addPreset, removePreset } = useMarkerPresets();
+  const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
@@ -345,6 +362,22 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       }),
     [bookmarkedProcesses],
   );
+  const systemMarkerPresets = useMemo(
+    () => markerPresets.filter((preset) => preset.system || SYSTEM_MARKER_IDS.has(preset.id)),
+    [markerPresets],
+  );
+  const customMarkerPresets = useMemo(
+    () => markerPresets.filter((preset) => !(preset.system || SYSTEM_MARKER_IDS.has(preset.id))),
+    [markerPresets],
+  );
+  const activeMarkerCount = useMemo(
+    () => markerPresets.filter((preset) => preset.active).length,
+    [markerPresets],
+  );
+  const inactiveMarkerCount = markerPresets.length - activeMarkerCount;
+  const recentMarkerEntries = useMemo(() => bookmarkedMarkers.slice(0, 6), [bookmarkedMarkers]);
+  const selectedMarkerColorLabel =
+    MARKER_COLOR_OPTIONS.find((option) => option.value === markerColor)?.label ?? "Cor personalizada";
   const notificationCount = visibleTenantProcesses.reduce(
     (count, process) => count + (process.messages?.length ?? 0) + (process.dispatches?.length ?? 0),
     0,
@@ -438,6 +471,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   }, [filteredSearchItems]);
 
   const displayUserName = userProfile?.fullName?.trim() || session.name;
+  const topbarAvatarInitials = useMemo(() => {
+    const safe = displayUserName.trim();
+    if (!safe) return "SG";
+    const parts = safe.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+  }, [displayUserName]);
   const roleLabel = userProfile?.professionalType?.trim() || roleLabels[session.role];
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
   const institutionDisplaySubtitle = officialHeaderText || tenantSettings?.secretariaResponsavel || "Departamento responsável";
@@ -463,10 +503,46 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const activeThemePresetId = activeThemePreset?.id ?? null;
   const inverseMainTheme = inverseThemeHint || !!activeThemePreset?.inverseMain;
   const darkTopbar = inverseMainTheme || isDarkSurface(primaryColor, 0.7);
-  const topbarBrandTitle = isMasterUser ? "SIGAPRO" : institutionDisplayName;
-  const topbarBrandSubtitle = isMasterUser
-    ? "Sistema integrado de gestão e aprovação de projetos"
-    : institutionDisplaySubtitle || "Ambiente institucional";
+  const topbarBrandTitle = "SIGAPRO";
+  const topbarBrandSubtitle = "Sistema integrado de gestão e aprovação de projetos";
+  const topbarGhostButton = "sig-topbar-control sig-topbar-ghost";
+const topbarSearchButton = "sig-topbar-control sig-topbar-searchbar";
+const topbarIconButton = "sig-topbar-control sig-topbar-icon-button";
+const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
+  const accountContextLabel = isMasterUser ? "Master" : "Ambiente ativo";
+  const accountContextDescription = isMasterUser
+    ? "Governança central da plataforma"
+    : institutionDisplayName;
+  const accountStatusLabel = loading ? "Sincronizando" : "Conta ativa";
+
+  const resetMarkerEditor = () => {
+    setEditingMarkerId(null);
+    setEditingMarkerLabel("");
+    setEditingMarkerColor("#3b82f6");
+  };
+
+  const startMarkerEdit = (preset: MarkerPreset) => {
+    setEditingMarkerId(preset.id);
+    setEditingMarkerLabel(preset.label);
+    setEditingMarkerColor(preset.color || "#3b82f6");
+    setPendingMarkerRemovalId(null);
+  };
+
+  const saveMarkerEdit = (presetId: string) => {
+    const nextLabel = editingMarkerLabel.trim();
+    if (!nextLabel) return;
+    updatePreset(presetId, { label: nextLabel, color: editingMarkerColor });
+    resetMarkerEditor();
+  };
+
+  const getMarkerDescription = (preset: MarkerPreset) => {
+    const description = preset.description?.trim();
+    if (description) return description;
+    if (preset.system) return "Disponivel para filtros rapidos, triagens e destaques institucionais.";
+    return preset.active
+      ? "Marcador personalizado ativo para organizar etapas, exigencias e prioridades."
+      : "Marcador personalizado pausado. Reative quando quiser voltar a usa-lo.";
+  };
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -524,6 +600,164 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     const profileRole = profile?.professionalType?.trim() || roleLabels[item.role];
     return `${profileName} - ${profileRole}`;
   };
+  const renderMarkerCard = (preset: MarkerPreset, sectionLabel: string) => {
+    const isEditing = editingMarkerId === preset.id;
+    const isPendingRemoval = pendingMarkerRemovalId === preset.id;
+    const statusLabel = preset.active ? "Ativo" : "Inativo";
+    const badgeLabel = preset.system ? "Sistema" : "Personalizado";
+
+    return (
+      <div
+        key={preset.id}
+        className={cn(
+          "sig-marker-item rounded-[18px] border px-3 py-3",
+          !preset.active && "sig-marker-item-inactive",
+        )}
+        title={preset.label}
+      >
+        {isEditing ? (
+          <div className="sig-marker-editor space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+                <Flag
+                  className="h-4 w-4 sig-flag-glow sig-flag-filled"
+                  style={{ color: editingMarkerColor || "#3b82f6", fill: editingMarkerColor || "#3b82f6" }}
+                />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Editar marcador</p>
+                <p className="mt-1 text-[12px] leading-5 text-slate-500">
+                  Atualize o nome e a cor sem perder o historico de uso.
+                </p>
+              </div>
+            </div>
+
+            <Input
+              value={editingMarkerLabel}
+              onChange={(event) => setEditingMarkerLabel(event.target.value)}
+              placeholder="Nome do marcador"
+              className="sig-marker-input h-10 rounded-[14px] border-slate-200 bg-white/90 px-3 text-[13px]"
+            />
+
+            <div className="grid grid-cols-4 gap-2">
+              {MARKER_COLOR_OPTIONS.map((option) => {
+                const isActiveOption = option.value === editingMarkerColor;
+                return (
+                  <button
+                    key={`${preset.id}-${option.value}`}
+                    type="button"
+                    className={cn(
+                      "sig-marker-swatch rounded-[14px] border px-2.5 py-2 text-left transition",
+                      isActiveOption && "sig-marker-swatch-active",
+                    )}
+                    onClick={() => setEditingMarkerColor(option.value)}
+                    aria-label={`Selecionar ${option.label}`}
+                    title={option.label}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-[0_0_0_2px_rgba(255,255,255,0.06)]"
+                        style={{ backgroundColor: option.value }}
+                      />
+                      <span className="truncate text-[11px] font-medium">{option.label.replace(/^.*\s/, "")}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                className="sig-marker-inline-action sig-marker-inline-action-muted"
+                onClick={resetMarkerEditor}
+              >
+                <X className="h-3.5 w-3.5" />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="sig-marker-inline-action sig-marker-inline-action-primary"
+                onClick={() => saveMarkerEdit(preset.id)}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Salvar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3">
+            <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+              <Flag
+                className="h-4 w-4 sig-flag-glow sig-flag-filled"
+                style={{ color: preset.color || "#3b82f6", fill: preset.color || "#3b82f6" }}
+              />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-[13px] font-semibold text-slate-900">{preset.label}</p>
+                <span className={cn("sig-marker-status inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]", preset.active ? "sig-marker-status-active" : "sig-marker-status-inactive")}>
+                  {statusLabel}
+                </span>
+                <span className="sig-marker-item-badge inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                  {badgeLabel}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">{getMarkerDescription(preset)}</p>
+              <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                {sectionLabel}
+              </p>
+            </div>
+
+            <div className="sig-marker-actions flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                className="sig-marker-action"
+                onClick={() => startMarkerEdit(preset)}
+                aria-label="Editar marcador"
+                title="Editar marcador"
+              >
+                <PencilLine className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className={cn("sig-marker-action", !preset.active && "sig-marker-action-active")}
+                onClick={() => {
+                  togglePresetActive(preset.id);
+                  setPendingMarkerRemovalId(null);
+                }}
+                aria-label={preset.active ? "Desativar marcador" : "Ativar marcador"}
+                title={preset.active ? "Desativar marcador" : "Ativar marcador"}
+              >
+                <Power className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "sig-marker-delete inline-flex h-9 w-9 items-center justify-center rounded-[12px] transition",
+                  isPendingRemoval && "sig-marker-delete-pending",
+                )}
+                onClick={() => {
+                  if (isPendingRemoval) {
+                    removePreset(preset.id);
+                    if (editingMarkerId === preset.id) resetMarkerEditor();
+                    setPendingMarkerRemovalId(null);
+                    return;
+                  }
+                  setPendingMarkerRemovalId(preset.id);
+                }}
+                aria-label={isPendingRemoval ? "Confirmar exclusao do marcador" : "Excluir marcador"}
+                title={isPendingRemoval ? "Confirmar exclusao" : "Excluir marcador"}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
   const SectionGlyph = location.pathname.startsWith("/prefeitura/financeiro")
     ? Wallet
     : location.pathname.startsWith("/prefeitura/protocolos")
@@ -554,7 +788,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       style={
         {
           backgroundColor: pageBackground,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "264px" : "0px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "264px" : "92px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -571,44 +805,36 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       }
     >
       <div
-        className="fixed inset-x-0 top-0 z-50 h-[54px] shadow-[0_18px_40px_rgba(15,23,42,0.12)] lg:h-[62px]"
+        className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
-          borderBottom: `1px solid ${withAlpha(darken(primaryColor, 10), "0.36")}`,
-          background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 52%, ${bannerMid} 100%)`,
+          borderBottomColor: withAlpha(accentColor, "0.08"),
+          background: `linear-gradient(180deg, ${withAlpha(darken(primaryColor, 26), "0.985")} 0%, ${withAlpha(darken(primaryColor, 22), "0.965")} 48%, ${withAlpha(darken(primaryColor, 19), "0.948")} 100%)`,
+          boxShadow: `0 16px 30px ${withAlpha("#020617", "0.11")}`,
         }}
       >
-          <div className="flex h-full items-center justify-between gap-2 px-3 lg:gap-4 lg:px-6 xl:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="sig-topbar-shell flex min-h-[66px] items-center gap-3 px-3 sm:px-4 lg:min-h-[74px] lg:gap-4 lg:px-6 2xl:px-8">
+          <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border border-white/14 bg-white/10 text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:bg-white/16 lg:hidden"
+              className="inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/10 lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-              {isMasterUser ? (
-                <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px] border border-slate-200 bg-white p-1 shadow-[0_10px_20px_rgba(15,23,42,0.18)]">
-                  <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.78]" />
-                </div>
-              ) : (
-                <InstitutionalLogo
-                  branding={{
-                    ...headerBranding,
-                    logoUrl: resolvedHeaderLogoUrl,
-                  }}
-                  fallbackLabel={institutionDisplayName}
-                  variant="compact"
-                />
-              )}
-              <div className="min-w-0">
-                <p className={cn("sig-fit-title text-[11px] font-semibold uppercase tracking-[0.1em] leading-none", darkTopbar ? "text-white" : "text-slate-900")}>
-                  {topbarBrandTitle}
-                </p>
-                <p className={cn("sig-fit-copy mt-0.5 max-w-[220px] text-[12px] font-medium leading-[1.2] text-white/90 lg:max-w-[320px]", darkTopbar ? "text-white/90" : "text-slate-700")}>
-                  {topbarBrandSubtitle}
-                </p>
+            <div className="sig-topbar-brand-logo flex h-[56px] w-[56px] items-center justify-center">
+              <div className="sig-topbar-brand-badge flex items-center justify-center">
+                <img src="/sigapro-topbar-logo.png" alt="SIGAPRO" className="sig-topbar-brand-image" />
               </div>
+            </div>
+            <div className="min-w-0">
+              <p className="sig-topbar-brand-title text-[11px] font-semibold uppercase tracking-[0.14em] leading-none lg:text-[12px]">
+                {topbarBrandTitle}
+              </p>
+              <p className="sig-topbar-brand-subtitle mt-1 max-w-[220px] text-[11px] font-medium leading-[1.28] lg:max-w-[320px] lg:text-[12px]">
+                {topbarBrandSubtitle}
+              </p>
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:hidden">
@@ -616,261 +842,347 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               type="button"
               onClick={() => navigate("/notificacoes")}
               className={cn(
-                "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border shadow-sm transition",
-                darkTopbar
-                  ? "sig-topbar-dark border-white/14 bg-white/10 text-white hover:bg-white/18"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                topbarIconButton,
               )}
               aria-label="Notificações"
             >
-              <Bell className="h-4 w-4 text-[#facc15] drop-shadow-[0_2px_6px_rgba(15,23,42,0.55)]" />
+              <Bell className="h-4 w-4 text-amber-200 drop-shadow-[0_2px_6px_rgba(15,23,42,0.32)]" />
             </button>
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="flex h-[34px] items-center rounded-[14px] border border-white/14 bg-white/10 px-1.5 text-white shadow-sm transition hover:bg-white/16"
+              className={cn(
+                "flex h-[34px] items-center rounded-[16px] px-1.5 transition duration-200 hover:-translate-y-[1px]",
+                topbarGhostButton,
+              )}
               aria-label="Meu perfil"
             >
-              <UserAvatar
-                name={displayUserName}
-                imageUrl={userProfile?.avatarUrl}
-                size="sm"
-                className="border-white/14 bg-white/12"
-              />
+              <div
+                className="sig-topbar-avatar-chip inline-flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: "linear-gradient(180deg, #ffffff 0%, #dbe4ef 100%)", color: "#0f172a" }}
+              >
+                {topbarAvatarInitials}
+              </div>
             </button>
           </div>
 
-          <div className="hidden min-w-0 shrink items-center justify-end gap-2.5 lg:flex lg:flex-1">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(
-                "h-[42px] rounded-[14px] px-3.5 text-[13px] shadow-[0_8px_18px_rgba(15,23,42,0.12)]",
-                darkTopbar
-                  ? "sig-topbar-dark border border-white/14 bg-white/10 text-white hover:bg-white/16"
-                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950",
-              )}
-              onClick={() => setSidebarExpanded((current) => !current)}
-            >
-              <Menu className="mr-2 h-4 w-4" />
-              Menu
-            </Button>
+          <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
+            <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
+              <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
+                <div className="sig-topbar-brand-logo flex h-[68px] w-[68px] items-center justify-center">
+                  <div className="sig-topbar-brand-badge flex items-center justify-center">
+                    <img src="/sigapro-topbar-logo.png" alt="SIGAPRO" className="sig-topbar-brand-image" />
+                  </div>
+                </div>
+                <div className="sig-topbar-brand-copy min-w-0">
+                  <p className="sig-topbar-brand-title text-[13px] font-semibold uppercase tracking-[0.16em] leading-none">
+                    {topbarBrandTitle}
+                  </p>
+                  <p
+                    className="sig-topbar-brand-subtitle mt-1 max-w-[330px] overflow-hidden text-[12px] font-medium leading-[1.28] text-ellipsis whitespace-nowrap xl:max-w-[420px]"
+                    title={topbarBrandSubtitle}
+                  >
+                    {topbarBrandSubtitle}
+                  </p>
+                </div>
+              </div>
 
-            <div className="relative w-full max-w-[360px] flex-1">
-              <button
-                type="button"
-                onClick={() => setCommandOpen(true)}
-                className={cn(
-                  "group flex h-[42px] w-full items-center gap-2 rounded-[16px] border px-3 text-[13px] shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition",
-                  darkTopbar
-                    ? "sig-topbar-dark border-white/16 bg-white/8 text-white/90 hover:bg-white/14"
-                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                )}
-                aria-label="Busca global"
-              >
-                <span
+              <div className="sig-topbar-search-wrap relative w-full max-w-[360px] xl:max-w-[420px]">
+                <button
+                  type="button"
+                  onClick={() => setCommandOpen(true)}
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full border",
-                    darkTopbar ? "border-white/12 bg-white/12 text-white/90" : "border-slate-200 bg-slate-100 text-slate-600",
+                    "sig-topbar-search sig-topbar-search-trigger group flex h-[44px] w-full items-center gap-3 rounded-[16px] px-4 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none",
+                    topbarSearchButton,
                   )}
+                  aria-label="Busca global"
                 >
-                  <Search className="h-4 w-4" />
-                </span>
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate text-left text-[13px] font-semibold tracking-[0.02em]",
-                    darkTopbar ? "text-white/90" : "text-slate-700",
-                  )}
-                >
-                  Pesquisar
-                </span>
-              </button>
+                  <span className="sig-topbar-search-icon inline-flex h-9 w-9 items-center justify-center rounded-[12px] bg-white/[0.05] text-sky-100 transition group-hover:bg-white/[0.09] group-hover:text-white">
+                    <Search className="h-4 w-4" />
+                  </span>
+                  <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-medium tracking-[0.01em] text-white/90">
+                    Pesquisar
+                  </span>
+                  <span className="sig-topbar-search-hint hidden items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline-flex">
+                    Ctrl K
+                  </span>
+                </button>
+              </div>
             </div>
 
+            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5">
             <button
               type="button"
-              onClick={() => navigate("/notificacoes")}
               className={cn(
-                "inline-flex h-[42px] items-center gap-2 rounded-[14px] px-3 text-xs shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
-                darkTopbar
-                  ? "sig-topbar-dark border border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 ring-1 ring-slate-200/60",
+                "sig-topbar-menu-trigger inline-flex h-[42px] items-center gap-2.5 rounded-[15px] px-3.5 text-[13px] font-medium transition duration-200 hover:-translate-y-[1px]",
+                topbarGhostButton,
               )}
-              aria-label="Notificações"
-              title="Notificações"
+              onClick={() => setSidebarExpanded((current) => !current)}
+              aria-label="Alternar menu lateral"
             >
-              <Bell
-                className={cn(
-                  "h-4.5 w-4.5 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
-                  darkTopbar ? "text-amber-200" : "text-amber-500",
-                )}
-                aria-hidden="true"
-              />
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px]", darkTopbar ? "bg-white/18 text-white" : "bg-slate-100 text-slate-600")}>
-                {notificationCount}
+              <span className="sig-topbar-menu-icon inline-flex h-9 w-9 items-center justify-center rounded-[12px]">
+                <Menu className="h-4 w-4" />
               </span>
+              <span className="font-semibold tracking-[0.01em]">Menu</span>
             </button>
+            <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
+              <button
+                type="button"
+                onClick={() => navigate("/notificacoes")}
+                className={cn(
+                  "sig-topbar-action-trigger relative inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  topbarIconButton,
+                )}
+                aria-label="Notificações"
+                title="Notificações"
+              >
+                <Bell className="h-4 w-4 text-amber-200 drop-shadow-[0_2px_6px_rgba(15,23,42,0.18)]" aria-hidden="true" />
+                <span className="sig-topbar-notification-badge absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                  {notificationCount}
+                </span>
+              </button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "inline-flex h-[42px] w-[42px] items-center justify-center rounded-[14px] border text-xs shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
-                    darkTopbar
-                      ? "sig-topbar-dark border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200/60",
-                  )}
-                  aria-label="Marcadores"
-                  title="Marcadores"
-                >
-                  <Flag
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
                     className={cn(
-                      "h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled sig-flag-grad drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
-                      darkTopbar ? "text-sky-200" : "text-slate-700",
+                      "sig-topbar-action-trigger inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                      topbarIconButton,
                     )}
-                    style={{ fill: darkTopbar ? "#bae6fd" : "#334155" }}
-                  />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="sig-marker-panel w-[min(100vw-24px,340px)] rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_24px_48px_rgba(15,42,68,0.2)]">
-                <DropdownMenuLabel className="px-1 py-1">
-                  <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Marcadores</p>
-                  <p className="mt-1 text-[12px] text-slate-500">Acesso rápido aos seus processos marcados.</p>
+                    aria-label="Marcadores"
+                    title="Marcadores"
+                  >
+                    <Flag
+                      className="h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled sig-flag-grad drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)] text-sky-200"
+                      style={{ fill: "#bae6fd" }}
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={10} className="sig-marker-panel max-h-[min(78vh,720px)] w-[min(100vw-24px,416px)] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_28px_60px_rgba(15,42,68,0.22)]">
+                <DropdownMenuLabel className="px-0 py-0">
+                  <div className="sig-marker-header rounded-[22px] border px-4 py-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="sig-marker-header-icon flex h-11 w-11 items-center justify-center rounded-[16px] border">
+                        <Flag className="h-5 w-5 sig-flag-glow-strong sig-flag-filled text-sky-300" style={{ fill: "#7dd3fc" }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores</p>
+                            <p className="mt-1 text-[13px] leading-5 text-slate-500">
+                              Gerencie atalhos visuais com status real, edicao rapida e rastreabilidade coerente.
+                            </p>
+                          </div>
+                          <div className="sig-marker-header-badge shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                            {activeMarkerCount} ativos
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {systemMarkerPresets.length > 0 ? (
+                            <span className="sig-marker-meta-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                              <Layers className="h-3.5 w-3.5" />
+                              {systemMarkerPresets.length} do sistema
+                            </span>
+                          ) : null}
+                          {customMarkerPresets.length > 0 ? (
+                            <span className="sig-marker-meta-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                              <PlusCircle className="h-3.5 w-3.5" />
+                              {customMarkerPresets.length} personalizados
+                            </span>
+                          ) : null}
+                          {inactiveMarkerCount > 0 ? (
+                            <span className="sig-marker-meta-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                              <Power className="h-3.5 w-3.5" />
+                              {inactiveMarkerCount} inativos
+                            </span>
+                          ) : null}
+                          {recentMarkerEntries.length > 0 ? (
+                            <span className="sig-marker-meta-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                              <History className="h-3.5 w-3.5" />
+                              {recentMarkerEntries.length} em uso
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="space-y-3">
-                  <div className="rounded-[16px] border border-slate-200 bg-slate-50/60 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Criar marcador</p>
-                    <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)_58px] gap-2">
-                      <button
-                        type="button"
-                        aria-label="Bandeira do marcador"
-                        className="flex h-11 w-[52px] items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm"
-                        onClick={() => setMarkerEmoji("🚩")}
-                      >
+
+                <div className="mt-3 space-y-3">
+                  <section className="sig-marker-composer rounded-[22px] border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Novo marcador</p>
+                        <p className="mt-1 text-[12px] leading-5 text-slate-500">
+                          Crie um rotulo institucional para destacar etapas, exigencias e prioridades reais da tramitacao.
+                        </p>
+                      </div>
+                      {markerSavePulse ? (
+                        <span className="sig-marker-success inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                          Salvo
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="sig-marker-preview mt-4 flex items-center gap-3 rounded-[18px] border px-3 py-3">
+                      <span className="sig-marker-preview-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
                         <Flag
-                          className={cn(
-                            "h-5 w-5 sig-flag-glow-strong sig-flag-filled sig-flag-grad",
-                            markerSavePulse && "sig-flag-pulse",
-                          )}
+                          className={cn("h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled", markerSavePulse && "sig-flag-pulse")}
                           style={{ color: markerColor, fill: markerColor }}
                         />
-                      </button>
-                      <Input
-                        value={markerLabel}
-                        onChange={(event) => setMarkerLabel(event.target.value)}
-                        placeholder="Nome do marcador"
-                        className="h-11 rounded-xl"
-                      />
-                      <Input
-                        type="color"
-                        value={markerColor}
-                        onChange={(event) => setMarkerColor(event.target.value)}
-                        className="h-11 w-full rounded-xl p-1"
-                      />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold text-slate-900">{markerLabel.trim() || "Novo marcador institucional"}</p>
+                        <p className="mt-1 text-[11px] text-slate-500">{selectedMarkerColorLabel}</p>
+                      </div>
                     </div>
+
+                    <Input
+                      value={markerLabel}
+                      onChange={(event) => setMarkerLabel(event.target.value)}
+                      placeholder="Ex.: Prioridade de despacho"
+                      className="sig-marker-input mt-3 h-11 rounded-[16px] border-slate-200 bg-white/90 px-3 text-[13px]"
+                    />
+
+                    <div className="mt-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Paleta institucional</p>
+                      <div className="mt-2 grid grid-cols-4 gap-2">
+                        {MARKER_COLOR_OPTIONS.map((option) => {
+                          const isActive = option.value === markerColor;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={cn(
+                                "sig-marker-swatch group rounded-[16px] border px-2.5 py-2 text-left transition",
+                                isActive && "sig-marker-swatch-active",
+                              )}
+                              onClick={() => setMarkerColor(option.value)}
+                              aria-label={`Selecionar ${option.label}`}
+                              title={option.label}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-[0_0_0_2px_rgba(255,255,255,0.06)]" style={{ backgroundColor: option.value }} />
+                                <span className="truncate text-[11px] font-medium">{option.label.replace(/^.*\s/, "")}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <Button
                       type="button"
-                      variant="outline"
-                      className={cn("mt-2 h-9 rounded-full text-[12px]", markerSavePulse && "sig-flag-pulse")}
+                      className={cn(
+                        "sig-marker-save-btn mt-4 h-10 w-full rounded-[16px] text-[12px] font-semibold",
+                        markerSavePulse && "sig-flag-pulse",
+                      )}
                       onClick={() => {
-                        if (!markerLabel.trim()) return;
-                        addPreset({ label: markerLabel.trim(), emoji: markerEmoji.trim() || "🚩", color: markerColor });
+                        const nextLabel = markerLabel.trim();
+                        if (!nextLabel) return;
+                        addPreset({
+                          label: nextLabel,
+                          emoji: "",
+                          color: markerColor,
+                          description: "Marcador personalizado da operacao municipal.",
+                        });
                         setMarkerLabel("");
+                        setPendingMarkerRemovalId(null);
+                        resetMarkerEditor();
                         setMarkerSavePulse(true);
-                        window.setTimeout(() => setMarkerSavePulse(false), 520);
+                        window.setTimeout(() => setMarkerSavePulse(false), 640);
                       }}
                     >
+                      <PlusCircle className="mr-2 h-4 w-4" />
                       Salvar marcador
                     </Button>
-                  </div>
+                  </section>
 
-                <div className="grid gap-2">
-                  {markerPresets.map((preset) => (
-                    <div
-                      key={preset.id}
-                      className="flex items-center justify-between rounded-[14px] border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
-                      title={preset.label}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] text-base">
-                          <Flag
-                            className="h-4 w-4 sig-flag-glow sig-flag-filled"
-                            style={{ color: preset.color || "#3b82f6", fill: preset.color || "#3b82f6" }}
-                          />
-                        </span>
-                        <span className="font-medium">{preset.label}</span>
-                      </span>
-                      <button
-                        type="button"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        onClick={() => removePreset(preset.id)}
-                        aria-label="Remover marcador"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                  {systemMarkerPresets.length > 0 ? (
+                    <section className="space-y-2">
+                      <div className="flex items-center gap-2 px-1">
+                        <Layers className="h-4 w-4 text-sky-300" />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores do sistema</p>
+                      </div>
+                      <div className="space-y-2">
+                        {systemMarkerPresets.map((preset) => renderMarkerCard(preset, "Base institucional"))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  <section className="space-y-2">
+                    <div className="flex items-center gap-2 px-1">
+                      <ListChecks className="h-4 w-4 text-sky-300" />
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores personalizados</p>
                     </div>
-                  ))}
-                </div>
-                </div>
-
-                <div className="mt-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Marcados recentes</p>
-                  <div className="mt-2 space-y-2">
-                    {bookmarkedMarkers.length === 0 ? (
-                      <div className="rounded-[12px] border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-500">
-                        Nenhum marcador ainda.
+                    {customMarkerPresets.length === 0 ? (
+                      <div className="sig-marker-empty rounded-[18px] border border-dashed px-3 py-4 text-[12px] text-slate-500">
+                        Nenhum marcador personalizado cadastrado neste usuario.
                       </div>
                     ) : (
-                      bookmarkedMarkers.slice(0, 6).map(({ process, marker }) => (
-                        <DropdownMenuItem
-                          key={process.id}
-                          className="rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
-                          onClick={() => navigate(`/processos/${process.id}`)}
-                          title={marker.label || process.title}
-                        >
-                          <span className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-[12px]">
-                            <Flag
-                              className="h-4 w-4 sig-flag-glow sig-flag-filled"
-                              style={{ color: marker.color ?? "#3b82f6", fill: marker.color ?? "#3b82f6" }}
-                            />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>
-                            <span className="block text-xs text-slate-500">{marker.label || process.title}</span>
-                          </span>
-                          <span className="ml-auto h-2.5 w-2.5 rounded-full" style={{ backgroundColor: marker.color }} />
-                        </DropdownMenuItem>
-                      ))
+                      <div className="space-y-2">
+                        {customMarkerPresets.map((preset) => renderMarkerCard(preset, "Gestao personalizada"))}
+                      </div>
                     )}
-                  </div>
+                  </section>
+
+                  <section className="space-y-2">
+                    <div className="flex items-center gap-2 px-1">
+                      <History className="h-4 w-4 text-sky-300" />
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores em uso</p>
+                    </div>
+                    {recentMarkerEntries.length === 0 ? (
+                      <div className="sig-marker-empty rounded-[18px] border border-dashed px-3 py-4 text-[12px] text-slate-500">
+                        Nenhum processo marcado recentemente neste contexto.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {recentMarkerEntries.map(({ process, marker }) => (
+                          <DropdownMenuItem
+                            key={process.id}
+                            className="sig-marker-recent group rounded-[18px] border px-3 py-3 text-[13px] text-slate-700"
+                            onClick={() => navigate(`/processos/${process.id}`)}
+                            title={marker.label || process.title}
+                          >
+                            <span className="sig-marker-item-icon mr-3 inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+                              <Flag className="h-4 w-4 sig-flag-glow sig-flag-filled" style={{ color: marker.color ?? "#3b82f6", fill: marker.color ?? "#3b82f6" }} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>
+                              <span className="mt-1 block text-xs text-slate-500">{marker.label || process.title}</span>
+                            </span>
+                            <span className="ml-auto flex flex-col items-end gap-1">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: marker.color }} />
+                              <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">Abrir</span>
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 </div>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex h-[42px] items-center gap-2 rounded-[14px] px-3 shadow-[0_12px_26px_rgba(15,23,42,0.18)] transition backdrop-blur",
-                    darkTopbar
-                      ? "sig-topbar-dark border border-white/18 bg-white/12 text-white hover:bg-white/20 ring-1 ring-white/10"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200/60",
-                  )}
-                  aria-label="Selecionar tema"
-                  title={activeThemePreset?.label || "Tema"}
-                >
-                  <Palette
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
                     className={cn(
-                      "h-4.5 w-4.5 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]",
-                      darkTopbar ? "text-white/95" : "text-slate-700",
+                      "sig-topbar-action-trigger inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                      topbarIconButton,
                     )}
-                    aria-hidden="true"
-                  />
-                </button>
-              </DropdownMenuTrigger>
+                    aria-label="Selecionar tema"
+                    title={activeThemePreset?.label || "Tema"}
+                  >
+                    <Palette
+                      className="h-4.5 w-4.5 text-white/92 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
                 <DropdownMenuLabel className="px-3 py-2">
                   <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Tema do layout</p>
@@ -914,103 +1226,255 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
+            <div className="sig-topbar-separator h-9 w-px shrink-0" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "flex h-[42px] items-center gap-2 rounded-[14px] px-2.5 pr-3 shadow-[0_14px_28px_rgba(15,23,42,0.2)] transition hover:-translate-y-[1px]",
-                    darkTopbar
-                      ? "sig-topbar-dark !border-white/18 !bg-white/12 !text-white hover:!bg-white/20 ring-1 ring-white/10"
-                      : "!border-slate-200 !bg-white !text-slate-900 hover:!bg-slate-50 ring-1 ring-slate-200/60",
+                    "sig-topbar-profile-cluster flex h-[46px] items-center gap-3 rounded-[16px] px-2.5 pr-3 transition duration-200 hover:-translate-y-[1px]",
+                    topbarProfileButton,
                   )}
                 >
-                  <UserAvatar
-                    name={displayUserName}
-                    imageUrl={userProfile?.avatarUrl}
-                    size="md"
-                    className={cn("bg-white", darkTopbar ? "border-white/22" : "border-slate-200")}
-                  />
-                  <ChevronDown className={cn("h-4 w-4", darkTopbar ? "!text-white/80" : "!text-slate-600")} />
+                  <div
+                    className="sig-topbar-avatar-chip inline-flex h-10 w-10 items-center justify-center rounded-full"
+                    style={{ background: "linear-gradient(180deg, #ffffff 0%, #dbe4ef 100%)", color: "#0f172a" }}
+                  >
+                    {topbarAvatarInitials}
+                  </div>
+                  <div className="hidden min-w-0 text-left xl:block">
+                    <p className="sig-topbar-profile-name sig-fit-title text-[13px] font-semibold leading-tight" title={displayUserName}>
+                      {displayUserName}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                      <p className="sig-topbar-profile-meta sig-fit-copy text-[10px] font-medium uppercase tracking-[0.14em]">
+                        {accountStatusLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 !text-slate-700/80" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[min(100vw-24px,320px)] rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_26px_56px_rgba(15,42,68,0.24)]">
-                <DropdownMenuLabel className="px-3 py-3">
-                  <div className="flex items-start gap-3 rounded-[18px] border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                    <UserAvatar name={displayUserName} imageUrl={userProfile?.avatarUrl} size="md" />
-                    <div className="min-w-0">
-                      <p className="sig-fit-title text-sm font-semibold text-slate-900" title={displayUserName}>
-                        {displayUserName}
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">{roleLabel}</p>
-                      {session.email ? <p className="mt-1 text-[11px] text-slate-400">{session.email}</p> : null}
+              <DropdownMenuContent
+                align="end"
+                sideOffset={10}
+                className={cn(
+                  "w-[min(100vw-24px,360px)] rounded-[28px] border p-2.5 shadow-[0_28px_64px_rgba(15,42,68,0.26)] backdrop-blur-xl",
+                  darkTopbar
+                    ? "border-white/12 bg-[linear-gradient(180deg,rgba(8,22,38,0.98)_0%,rgba(10,28,47,0.96)_100%)] text-slate-100"
+                    : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
+                )}
+              >
+                <DropdownMenuLabel className="px-0 py-0">
+                  <div
+                    className={cn(
+                      "rounded-[22px] border px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                      darkTopbar
+                        ? "border-white/10 bg-[linear-gradient(135deg,rgba(20,88,143,0.24)_0%,rgba(10,25,42,0.74)_100%)]"
+                        : "border-slate-200 bg-[linear-gradient(135deg,rgba(219,234,254,0.72)_0%,rgba(255,255,255,0.94)_58%,rgba(241,245,249,0.92)_100%)]",
+                    )}
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div className="relative shrink-0">
+                        <UserAvatar
+                          name={displayUserName}
+                          imageUrl={userProfile?.avatarUrl}
+                          size="lg"
+                          className={cn(
+                            "sig-topbar-user-avatar !text-[#17324a] ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",
+                            darkTopbar ? "border-white/18 ring-white/8" : "border-white ring-slate-100",
+                          )}
+                          fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                        />
+                        <span className={cn("absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2", darkTopbar ? "border-[#0d2237] bg-emerald-300" : "border-white bg-emerald-500")} />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className={cn("sig-fit-title text-[15px] font-semibold leading-tight", darkTopbar ? "text-white" : "text-slate-950")} title={displayUserName}>
+                            {displayUserName}
+                          </p>
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                              darkTopbar
+                                ? "border-sky-300/18 bg-sky-300/12 text-sky-100"
+                                : "border-slate-200 bg-white/90 text-slate-600",
+                            )}
+                          >
+                            {accountContextLabel}
+                          </span>
+                        </div>
+
+                        <p className={cn("mt-2 inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-medium", darkTopbar ? "bg-white/10 text-slate-100" : "bg-slate-900/[0.045] text-slate-700")}>
+                          {roleLabel}
+                        </p>
+
+                        {session.email ? (
+                          <p className={cn("sig-fit-copy mt-2 text-[12px] leading-5", darkTopbar ? "text-slate-300" : "text-slate-500")} title={session.email}>
+                            {session.email}
+                          </p>
+                        ) : null}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]", darkTopbar ? "bg-emerald-400/10 text-emerald-200" : "bg-emerald-50 text-emerald-700")}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", darkTopbar ? "bg-emerald-300" : "bg-emerald-500")} />
+                            {accountStatusLabel}
+                          </span>
+                          <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium", darkTopbar ? "bg-white/8 text-slate-300" : "bg-white/80 text-slate-500")}>
+                            {accountContextDescription}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/perfil")}>
-                  <span className={cn("mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] transition", darkTopbar ? "bg-white/10 text-sky-100 group-hover:bg-white/16 group-hover:text-white" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-900")}>
-                    <UserRound className="h-4.5 w-4.5" />
-                  </span>
-                  Meu Perfil
-                </DropdownMenuItem>
-                {can(session, "manage_tenant_branding") ? (
-                  <DropdownMenuItem className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700" onClick={() => navigate("/configuracoes")}>
-                    <span className={cn("mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] transition", darkTopbar ? "bg-white/10 text-sky-100 group-hover:bg-white/16 group-hover:text-white" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-900")}>
-                      <Settings2 className="h-4.5 w-4.5" />
+
+                <div className="px-1 pt-3">
+                  <p className={cn("px-2 text-[10px] font-semibold uppercase tracking-[0.18em]", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                    Ações principais
+                  </p>
+                </div>
+
+                <div className="mt-2 space-y-1">
+                  <DropdownMenuItem
+                    className={cn(
+                      "group rounded-[18px] px-3 py-3 text-left text-[13px]",
+                      darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                    )}
+                    onClick={() => navigate("/perfil")}
+                  >
+                    <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-white/10 bg-white/8 text-sky-100 group-hover:border-white/14 group-hover:bg-white/12 group-hover:text-white" : "border-slate-200 bg-white text-slate-600 group-hover:border-slate-300 group-hover:bg-slate-100 group-hover:text-slate-900")}>
+                      <UserRound className="h-[18px] w-[18px]" />
                     </span>
-                    Configurações
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")}>
+                        Meu perfil
+                      </span>
+                      <span className={cn("sig-fit-copy mt-1 block text-[11px] leading-5", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                        Dados pessoais, avatar e identidade da conta.
+                      </span>
+                    </span>
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem
-                  className="group rounded-[12px] px-3 py-2.5 text-[13px] text-slate-700"
-                  onClick={async () => {
-                    await handleSignOut("/acesso");
-                  }}
-                >
-                  <span className={cn("mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] transition", darkTopbar ? "bg-white/10 text-sky-100 group-hover:bg-white/16 group-hover:text-white" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-900")}>
-                    <LayoutDashboard className="h-4.5 w-4.5" />
-                  </span>
-                  Entrar com outra conta
-                </DropdownMenuItem>
+
+                  {can(session, "manage_tenant_branding") ? (
+                    <DropdownMenuItem
+                      className={cn(
+                        "group rounded-[18px] px-3 py-3 text-left text-[13px]",
+                        darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                      )}
+                      onClick={() => navigate("/configuracoes")}
+                    >
+                      <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-white/10 bg-white/8 text-sky-100 group-hover:border-white/14 group-hover:bg-white/12 group-hover:text-white" : "border-slate-200 bg-white text-slate-600 group-hover:border-slate-300 group-hover:bg-slate-100 group-hover:text-slate-900")}>
+                        <Settings2 className="h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")}>
+                          Configurações
+                        </span>
+                        <span className={cn("sig-fit-copy mt-1 block text-[11px] leading-5", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                          Branding, parâmetros e preferências operacionais.
+                        </span>
+                      </span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  <DropdownMenuItem
+                    className={cn(
+                      "group rounded-[18px] px-3 py-3 text-left text-[13px]",
+                      darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                    )}
+                    onClick={async () => {
+                      await handleSignOut("/acesso");
+                    }}
+                  >
+                    <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-white/10 bg-white/8 text-sky-100 group-hover:border-white/14 group-hover:bg-white/12 group-hover:text-white" : "border-slate-200 bg-white text-slate-600 group-hover:border-slate-300 group-hover:bg-slate-100 group-hover:text-slate-900")}>
+                      <LayoutDashboard className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")}>
+                        Trocar conta
+                      </span>
+                      <span className={cn("sig-fit-copy mt-1 block text-[11px] leading-5", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                        Retorna ao acesso para entrar com outra credencial.
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                </div>
+
                 {sessions.length > 1 ? (
                   <>
-                    <DropdownMenuSeparator />
-                    {sessions.map((item) => (
-                      <DropdownMenuItem
-                        key={item.id}
-                        className={cn(
-                          "group rounded-[12px] px-3 py-2.5 text-[13px]",
-                          item.id === session.id ? "bg-slate-100 text-slate-950" : "text-slate-700",
-                        )}
-                        onClick={() => setActiveSession(item.id)}
-                      >
-                        <span className={cn("mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] transition", darkTopbar ? "bg-white/10 text-sky-100 group-hover:bg-white/16 group-hover:text-white" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-900")}>
-                          <UserRound className="h-4.5 w-4.5" />
-                        </span>
-                        <span className="sig-fit-title" title={getSessionDisplayLabel(item)}>
-                          {getSessionDisplayLabel(item)}
-                        </span>
-                      </DropdownMenuItem>
-                    ))}
-                </>
+                    <DropdownMenuSeparator className={cn("mx-2 my-3", darkTopbar ? "bg-white/10" : "bg-slate-200")} />
+                    <div className="px-3 pb-1">
+                      <p className={cn("text-[10px] font-semibold uppercase tracking-[0.18em]", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                        Contas disponíveis
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      {sessions.map((item) => (
+                        <DropdownMenuItem
+                          key={item.id}
+                          className={cn(
+                            "group rounded-[16px] px-3 py-2.5 text-left text-[13px]",
+                            darkTopbar
+                              ? item.id === session.id
+                                ? "bg-white/10 text-white"
+                                : "text-slate-200 focus:bg-white/8"
+                              : item.id === session.id
+                                ? "bg-slate-100 text-slate-950"
+                                : "text-slate-700 focus:bg-slate-100/90",
+                          )}
+                          onClick={() => setActiveSession(item.id)}
+                        >
+                          <span className={cn("mr-3 flex h-9 w-9 items-center justify-center rounded-[12px] border transition", darkTopbar ? "border-white/10 bg-white/8 text-sky-100" : "border-slate-200 bg-white text-slate-600")}>
+                            <UserRound className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")} title={getSessionDisplayLabel(item)}>
+                              {getSessionDisplayLabel(item)}
+                            </span>
+                            <span className={cn("mt-1 block text-[11px]", darkTopbar ? "text-slate-400" : "text-slate-500")}>
+                              {item.id === session.id ? "Sessão em uso" : "Trocar para esta conta"}
+                            </span>
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </>
                 ) : null}
-                <DropdownMenuSeparator />
+
+                <DropdownMenuSeparator className={cn("mx-2 my-3", darkTopbar ? "bg-white/10" : "bg-slate-200")} />
+
                 <DropdownMenuItem
-                  className="group rounded-[12px] px-3 py-2.5 text-[13px] text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                  className={cn(
+                    "group rounded-[18px] px-3 py-3 text-left text-[13px]",
+                    darkTopbar
+                      ? "text-rose-100 focus:bg-rose-400/10"
+                      : "text-rose-700 focus:bg-rose-50",
+                  )}
                   onClick={async () => {
                     await handleSignOut("/acesso");
                   }}
                 >
-                  <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-[10px] bg-red-50 text-red-500 transition group-hover:bg-red-100 group-hover:text-red-600">
-                    <LogOut className="h-4.5 w-4.5" />
+                  <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-rose-300/16 bg-rose-400/10 text-rose-200 group-hover:bg-rose-400/14 group-hover:text-rose-100" : "border-rose-200 bg-rose-50 text-rose-500 group-hover:bg-rose-100 group-hover:text-rose-600")}>
+                    <LogOut className="h-[18px] w-[18px]" />
                   </span>
-                  Sair
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-rose-100" : "text-rose-700")}>
+                      Sair
+                    </span>
+                    <span className={cn("mt-1 block text-[11px] leading-5", darkTopbar ? "text-rose-200/72" : "text-rose-500")}>
+                      Encerrar a sessão atual com segurança.
+                    </span>
+                  </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
@@ -1050,7 +1514,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         </CommandList>
       </CommandDialog>
 
-      <div className="flex min-h-screen pt-[54px] lg:pt-[62px]">
+      <div className="flex min-h-screen pt-[78px] lg:pt-[92px]">
         <AppSidebar
           pathname={location.pathname}
           groups={sidebarGroups}
@@ -1060,13 +1524,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           inverseMain={inverseMainTheme}
           darkSurface={darkSidebar}
           footer={
-            <div className="space-y-3">
+            <div className={cn("space-y-3", !sidebarExpanded && "space-y-2")}>
                 <SidebarProfilePanel
                   name={displayUserName}
                   role={roleLabel}
                   email={session.email}
                   imageUrl={userProfile?.avatarUrl}
                   statusLabel={loading ? "" : source === "local" ? "dados persistidos" : "ambiente remoto"}
+                  compact={!sidebarExpanded}
                   onClick={() => navigate("/perfil")}
                   darkSurface={darkSidebar}
                 />
@@ -1076,16 +1541,18 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 variant="outline"
                 className={cn(
                   "h-10 w-full rounded-[14px] px-3 text-[12px] font-semibold shadow-sm transition-all duration-200",
+                  !sidebarExpanded && "px-0",
                   darkSidebar
                     ? "border-rose-400/20 bg-[linear-gradient(180deg,rgba(127,29,29,0.88)_0%,rgba(136,19,55,0.82)_100%)] text-rose-50 hover:bg-[linear-gradient(180deg,rgba(153,27,27,0.92)_0%,rgba(157,23,77,0.88)_100%)] hover:text-white"
                     : "border-slate-900/85 bg-slate-900 text-white hover:bg-slate-800 hover:text-white",
                 )}
+                title={!sidebarExpanded ? "Sair" : undefined}
                 onClick={async () => {
                   await handleSignOut("/acesso");
                 }}
               >
-                <LogOut className={cn("mr-2 h-[13px] w-[13px]", darkSidebar ? "!text-rose-50" : "!text-white/90")} />
-                Sair
+                <LogOut className={cn("h-[13px] w-[13px]", sidebarExpanded && "mr-2", darkSidebar ? "!text-rose-50" : "!text-white/90")} />
+                {sidebarExpanded ? "Sair" : null}
               </Button>
             </div>
           }

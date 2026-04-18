@@ -13,7 +13,7 @@ type LandingFooterProps = {
 export function LandingFooter({ navItems }: LandingFooterProps) {
   return (
     <footer className="border-t border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f8fc_100%)]">
-      <div className="mx-auto grid w-full max-w-[1280px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.75fr_0.85fr] lg:px-8">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.75fr_0.85fr] lg:px-8 xl:px-10">
         <div>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
@@ -61,7 +61,7 @@ export function LandingFooter({ navItems }: LandingFooterProps) {
       </div>
 
       <div className="border-t border-slate-200">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 xl:px-10">
           <p>SIGAPRO. Todos os direitos reservados.</p>
           <p>Software institucional para operacao urbana, protocolo digital e governanca municipal.</p>
         </div>

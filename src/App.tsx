@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -39,7 +39,6 @@ import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
-import { ScrollToTop } from "@/components/platform/ScrollToTop";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { LoadingFallback } from "@/components/platform/LoadingFallback";
 import { shouldShowPublicLanding } from "@/lib/tenant";
@@ -57,7 +56,6 @@ const App = () => {
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>
-                    <ScrollToTop />
                     <AppErrorBoundary>
                       <AppRoutes />
                     </AppErrorBoundary>
@@ -76,6 +74,7 @@ export default App;
 
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
+  const location = useLocation();
   const [loadingPhase, setLoadingPhase] = useState<"initial" | "preparing" | "timeout">("initial");
   const [hasDisplayedReadyState, setHasDisplayedReadyState] = useState(false);
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
@@ -112,6 +111,14 @@ const AppRoutes = () => {
   const holdBranding = bootstrap.municipalityBundle?.branding ?? null;
   const holdLogo = holdBranding?.headerLogoUrl || holdBranding?.logoUrl || "";
   const holdName = bootstrap.municipalityBundle?.municipality?.name || "SIGAPRO";
+  const isSystemBrandingRoute =
+    location.pathname === "/" ||
+    location.pathname === "/apresentacao" ||
+    location.pathname === "/acesso" ||
+    location.pathname === "/criar-conta" ||
+    location.pathname === "/recuperar-senha";
+  const loadingBrandName = isSystemBrandingRoute ? null : holdName;
+  const loadingBrandLogo = isSystemBrandingRoute ? null : holdLogo;
   const stageLabel =
     loadingPhase === "preparing" ? "Preparando seus dados..." : "Carregando ambiente...";
   const showBlockingBootstrap = shouldHoldForBootstrap && !hasDisplayedReadyState;
@@ -132,8 +139,8 @@ const AppRoutes = () => {
       <AppLoadingState
         title={stageLabel}
         description="Preparando o ambiente institucional com mais estabilidade visual."
-        municipalityName={holdName}
-        logoUrl={holdLogo}
+        municipalityName={loadingBrandName}
+        logoUrl={loadingBrandLogo}
       />
     );
   }
@@ -161,8 +168,8 @@ const AppRoutes = () => {
           variant="overlay"
           title={stageLabel}
           description="Atualizando contexto e permissões sem interromper a navegação."
-          municipalityName={holdName}
-          logoUrl={holdLogo}
+          municipalityName={loadingBrandName}
+          logoUrl={loadingBrandLogo}
         />
       ) : null}
       <Routes>

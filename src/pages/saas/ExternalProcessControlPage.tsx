@@ -232,11 +232,12 @@ export function ExternalProcessControlPage() {
           />
         </StatsCards>
 
-        <MainGrid className="xl:grid-cols-1">
+        <MainGrid className="xl:grid-cols-1 min-[1480px]:grid-cols-1 min-[1680px]:grid-cols-1">
           <MainContent>
             <SectionPanel
               title="Processos em acompanhamento"
               description="Filtre por protocolo, etapa e status para localizar rapidamente cada processo."
+              className="min-w-0"
               actions={
                 <div className="mt-2 grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_210px_220px_200px]">
                   <div className="relative min-w-0">
@@ -409,14 +410,15 @@ export function ExternalProcessControlPage() {
               ) : null}
             </SectionPanel>
 
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
               <SectionPanel
                 title="Pendências do profissional"
                 description="Exigências que precisam de retorno, complementação ou novo envio de documento."
+                className="h-full min-w-0"
                 contentClassName="space-y-3"
               >
                 {requirementCount === 0 ? (
-                  <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
+                  <div className="sig-dark-panel flex min-h-[164px] items-center rounded-[10px] border border-dashed border-slate-300 p-5 text-[14px] leading-6 text-slate-600">
                     Nenhuma pendência aberta no momento.
                   </div>
                 ) : (
@@ -425,8 +427,8 @@ export function ExternalProcessControlPage() {
                     .slice(0, 4)
                     .map((process) => (
                       <div key={`req-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm text-slate-700">
-                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
-                        <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                        <p className="text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
+                        <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{process.title}</p>
                         <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
                           Exigência pendente
                         </p>
@@ -438,17 +440,18 @@ export function ExternalProcessControlPage() {
               <SectionPanel
                 title="Últimas movimentações"
                 description="Processos atualizados recentemente para acompanhamento rápido."
+                className="h-full min-w-0"
                 contentClassName="space-y-3"
               >
                 {recentMovements.length === 0 ? (
-                  <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-[14px] leading-6 text-slate-600">
+                  <div className="sig-dark-panel flex min-h-[164px] items-center rounded-[10px] border border-dashed border-slate-300 p-5 text-[14px] leading-6 text-slate-600">
                     Nenhuma movimentação recente encontrada.
                   </div>
                 ) : (
                   recentMovements.map((process) => (
                     <div key={`recent-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="truncate text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
-                      <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                      <p className="text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
+                      <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{process.title}</p>
                       <p className="mt-2 text-[12px] uppercase tracking-[0.08em] text-slate-500">
                         Etapa: {process.sla?.currentStage || "Em andamento"}
                       </p>

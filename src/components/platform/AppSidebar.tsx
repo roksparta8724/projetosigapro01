@@ -19,6 +19,7 @@ type SidebarInnerProps = {
   pathname: string;
   groups: AppSidebarGroup[];
   footer?: React.ReactNode;
+  expanded?: boolean;
   darkSurface?: boolean;
   onNavigate?: () => void;
   showClose?: boolean;
@@ -31,6 +32,7 @@ function SidebarInner({
   pathname,
   groups,
   footer,
+  expanded = true,
   darkSurface = true,
   onNavigate,
   showClose = false,
@@ -39,7 +41,10 @@ function SidebarInner({
   onToggleItem,
 }: SidebarInnerProps) {
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--sig-sidebar-fill,#0d1526)]">
+    <div
+      className="flex h-full min-h-0 flex-col bg-[var(--sig-sidebar-fill,#0d1526)]"
+      data-sidebar-expanded={expanded ? "true" : "false"}
+    >
       {showClose ? (
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <div>
@@ -66,13 +71,24 @@ function SidebarInner({
         </div>
       ) : null}
 
-      <div className="sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-3", expanded ? "px-3" : "px-2")}>
         <nav className="space-y-2">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
 
             return (
               <div key={group.title} className="space-y-2">
+                <div
+                  className={cn(
+                    "overflow-hidden px-2 transition-all duration-200 ease-out",
+                    expanded ? "max-h-8 opacity-100" : "max-h-0 opacity-0",
+                  )}
+                  aria-hidden={!expanded}
+                >
+                  <p className={cn("truncate text-[10px] font-semibold uppercase tracking-[0.18em]", darkSurface ? "text-slate-400/90" : "text-slate-500")}>
+                    {group.title}
+                  </p>
+                </div>
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
                   const isChildActive = item.children?.some((child) => pathname === child.to || pathname.startsWith(`${child.to}/`));
@@ -86,16 +102,18 @@ function SidebarInner({
                       <Link
                         to={item.to}
                         onClick={(event) => {
-                          if (hasChildren && onToggleItem) {
+                          if (hasChildren && expanded && onToggleItem) {
                             event.preventDefault();
                             onToggleItem(item.to);
                           } else {
                             onNavigate?.();
                           }
                         }}
+                        title={!expanded ? item.label : undefined}
                         data-sidebar-active={active ? "true" : "false"}
                         className={cn(
-                          "group flex min-h-[44px] items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm leading-5 transition-all duration-200 ease-out hover:shadow-[0_6px_16px_rgba(2,6,23,0.18)]",
+                          "group flex items-center rounded-xl text-sm leading-5 transition-all duration-300 ease-out hover:shadow-[0_6px_16px_rgba(2,6,23,0.18)]",
+                          expanded ? "min-h-[46px] gap-3 px-2.5 py-2.5" : "mx-auto min-h-[48px] w-[48px] justify-center gap-0 px-0 py-0",
                           active
                             ? darkSurface
                               ? "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(32,78,125,0.98)_0%,rgba(59,130,246,0.92)_100%)] text-white"
@@ -109,10 +127,11 @@ function SidebarInner({
                             ? { boxShadow: "inset 2px 0 0 rgba(15,23,42,0.95)" }
                             : { boxShadow: "none" }
                         }
-                      >
+                        >
                         <span
                           className={cn(
-                            "sig-sidebar-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200",
+                            "sig-sidebar-icon flex shrink-0 items-center justify-center rounded-lg border transition-all duration-300",
+                            expanded ? "h-7 w-7" : "h-9 w-9 rounded-xl",
                             active
                               ? darkSurface
                               ? "border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -122,24 +141,32 @@ function SidebarInner({
                               : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                           )}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <Icon className={cn("shrink-0", expanded ? "h-3.5 w-3.5" : "h-4 w-4")} />
                         </span>
                         <span
                           className={cn(
-                            "sig-sidebar-label min-w-0 flex-1 sig-fit-title text-[13px] leading-5 tracking-[0.003em]",
-                            active
-                              ? darkSurface
-                                ? "font-semibold text-white"
-                                : "font-semibold text-slate-950"
-                              : darkSurface
-                                ? "font-medium text-slate-200"
-                                : "font-medium text-slate-800",
+                            "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
+                            expanded ? "min-w-0 flex-1 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
                           )}
-                          title={item.label}
+                          aria-hidden={!expanded}
                         >
-                          {item.label}
+                          <span
+                            className={cn(
+                              "block sig-fit-title text-[13px] leading-5 tracking-[0.003em]",
+                              active
+                                ? darkSurface
+                                  ? "font-semibold text-white"
+                                  : "font-semibold text-slate-950"
+                                : darkSurface
+                                  ? "font-medium text-slate-200"
+                                  : "font-medium text-slate-800",
+                            )}
+                            title={item.label}
+                          >
+                            {item.label}
+                          </span>
                         </span>
-                        {hasChildren ? (
+                        {hasChildren && expanded ? (
                           <ChevronDown
                             className={cn(
                               "h-4 w-4 transition",
@@ -150,7 +177,7 @@ function SidebarInner({
                         ) : null}
                       </Link>
 
-                      {hasChildren && isExpanded ? (
+                      {hasChildren && expanded && isExpanded ? (
                         <div
                           className={cn(
                             "ml-6 border-l pl-3",
@@ -198,7 +225,7 @@ function SidebarInner({
         </nav>
       </div>
 
-      {footer ? <div className="mt-auto shrink-0 px-3 pb-4 pt-4">{footer}</div> : null}
+      {footer ? <div className={cn("mt-auto shrink-0 pb-4 pt-4 transition-all duration-300 ease-out", expanded ? "px-3" : "px-2")}>{footer}</div> : null}
     </div>
   );
 }
@@ -246,10 +273,10 @@ export function AppSidebar({
     <>
         <aside
           className={cn(
-            "relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch transition-[width] duration-200 lg:sticky lg:top-[56px] lg:flex lg:flex-col",
+            "relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch overflow-hidden transition-[width] duration-300 ease-out lg:sticky lg:top-[56px] lg:flex lg:flex-col",
             expanded
               ? "w-[264px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/12"
-              : "w-0 overflow-hidden after:hidden",
+              : "w-[92px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10",
             className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
@@ -259,6 +286,7 @@ export function AppSidebar({
           pathname={pathname}
           groups={groups}
           footer={footer}
+          expanded={expanded}
           darkSurface={darkSurface}
           expandedItems={expandedItems}
           onToggleItem={(itemKey) =>
@@ -296,6 +324,7 @@ export function AppSidebar({
             pathname={pathname}
             groups={groups}
             footer={footer}
+            expanded
             darkSurface={darkSurface}
             onNavigate={onMobileClose}
             showClose

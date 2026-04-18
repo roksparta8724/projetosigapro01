@@ -291,7 +291,7 @@ export function FinanceProtocolsPage() {
           actions={<FinanceSectionNav />}
         />
 
-        <PageStatsRow className="xl:grid-cols-3">
+        <PageStatsRow className="xl:grid-cols-3 min-[1500px]:grid-cols-3 xl:gap-6 [&>*]:min-w-0 [&>*]:min-h-[164px]">
           <StatCard
             label="Guias de recolhimento"
             value={String(paymentGuides.length)}

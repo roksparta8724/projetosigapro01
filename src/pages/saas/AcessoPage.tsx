@@ -16,9 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
-import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
-import { getInstitutionClientSlug, isInstitutionPubliclyAvailable } from "@/lib/platform";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
@@ -48,7 +46,7 @@ const institutionalHighlights = [
 export function AcessoPage() {
   const navigate = useNavigate();
   const { authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
-  const { institutions, getInstitutionSettings, sessionUsers } = usePlatformData();
+  const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
   const bootstrap = useAppBootstrap();
   const [searchParams] = useSearchParams();
@@ -56,42 +54,6 @@ export function AcessoPage() {
   const tenantSlug = searchParams.get("tenant");
   const tenantQuery =
     tenant.mode === "tenant" || !tenantSlug ? "" : `?tenant=${tenantSlug}`;
-
-  const selectedInstitution =
-    tenant.mode === "tenant"
-      ? tenant.municipalityBundle?.municipality ?? null
-      : institutions
-          .filter((institution) => isInstitutionPubliclyAvailable(institution))
-          .find(
-            (institution) =>
-              getInstitutionClientSlug(
-                institution,
-                getInstitutionSettings(institution.id)
-              ) === tenantSlug
-          ) ?? null;
-
-  const branding = tenant.municipalityBundle?.branding ?? null;
-  const institutionName = selectedInstitution?.name ?? tenant.municipalityName ?? null;
-  const headerLogo = branding?.headerLogoUrl || branding?.logoUrl || null;
-  const lockedLogo = headerLogo;
-  const lockedInstitutionName = institutionName;
-  const tenantAccessBranding =
-    tenant.mode === "tenant" || Boolean(lockedInstitutionName)
-      ? {
-          tenantId: selectedInstitution?.id ?? tenant.municipalityId ?? tenantSlug ?? "tenant-access",
-          logoUrl: lockedLogo || "",
-          logoScale: 1,
-          logoOffsetX: 0,
-          logoOffsetY: 0,
-          logoAlt: lockedInstitutionName
-            ? `Logo institucional de ${lockedInstitutionName}`
-            : "Logo institucional da Prefeitura",
-          logoUpdatedAt: "",
-          logoUpdatedBy: "",
-          logoFrameMode: "soft-square" as const,
-          logoFitMode: "contain" as const,
-        }
-      : null;
 
   const [email, setEmail] = useState(hasSupabaseEnv ? "" : "roksparta02@gmail.com");
   const [password, setPassword] = useState(hasSupabaseEnv ? "" : "Sigapro@2026");
@@ -216,40 +178,26 @@ export function AcessoPage() {
 
                 <div className="grid w-full max-w-[760px] grid-cols-[140px_minmax(0,1fr)] items-center gap-6 rounded-[30px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.06)_100%)] px-6 py-5 shadow-[0_18px_40px_rgba(2,6,23,0.18)] backdrop-blur-[10px]">
                   <div className="flex h-[140px] w-[140px] shrink-0 items-center justify-center rounded-[28px] bg-white p-4 shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
-                    {tenantAccessBranding ? (
-                      <InstitutionalLogo
-                        branding={tenantAccessBranding}
-                        fallbackLabel={lockedInstitutionName || "Prefeitura"}
-                        variant="login"
-                      />
-                    ) : (
-                      <SigaproLogo
-                        bare
-                        compact
-                        showInternalWordmark
-                        className="scale-[2.3]"
-                      />
-                    )}
+                    <SigaproLogo
+                      bare
+                      compact
+                      showInternalWordmark
+                      className="scale-[2.3]"
+                    />
                   </div>
 
                   <div className="min-w-0">
                     <p className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-white min-[1200px]:text-[32px]">
-                      {tenantAccessBranding ? lockedInstitutionName || "Prefeitura" : "SIGAPRO"}
+                      SIGAPRO
                     </p>
 
                     <p className="mt-2 max-w-[520px] text-[11px] font-semibold uppercase leading-[1.55] tracking-[0.14em] text-slate-200 min-[1200px]:text-[12px]">
-                      {tenantAccessBranding
-                        ? "Acesso institucional ao ambiente municipal"
-                        : "Sistema integrado de gestão e aprovação de projetos"}
+                      Sistema integrado de gestão e aprovação de projetos
                     </p>
 
                     {bootstrap.stage === "resolving_tenant" ? (
                       <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
                         Preparando ambiente institucional
-                      </p>
-                    ) : lockedInstitutionName ? (
-                      <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                        {lockedInstitutionName}
                       </p>
                     ) : null}
                   </div>
@@ -301,26 +249,7 @@ export function AcessoPage() {
                 <div className="w-full max-w-[392px] min-[1200px]:max-w-[424px]">
                   <div className="mb-5 flex items-center justify-center lg:hidden">
                     <div className="inline-flex items-center gap-3 rounded-[24px] border border-slate-200 bg-white/92 px-4 py-3 shadow-xl backdrop-blur">
-                      {tenantAccessBranding ? (
-                        <>
-                          <InstitutionalLogo
-                            branding={tenantAccessBranding}
-                            fallbackLabel={lockedInstitutionName || "Prefeitura"}
-                            variant="compact"
-                            className="border-none bg-transparent p-0 shadow-none"
-                          />
-                          <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950" title={lockedInstitutionName || "Prefeitura"}>
-                              {lockedInstitutionName || "Prefeitura"}
-                            </p>
-                            <p className="sig-fit-copy mt-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
-                              Acesso institucional
-                            </p>
-                          </div>
-                        </>
-                      ) : (
-                        <SigaproLogo compact showInternalWordmark />
-                      )}
+                      <SigaproLogo compact showInternalWordmark />
                     </div>
                   </div>
 

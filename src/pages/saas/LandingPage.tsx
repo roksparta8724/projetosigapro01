@@ -186,9 +186,9 @@ function HeroPanelCard({
   value: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+    <div className="flex min-h-[116px] flex-col justify-between rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.045)] sm:px-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-semibold leading-6 text-slate-900">{value}</p>
+      <p className="mt-3 text-sm font-semibold leading-6 text-slate-900 sm:text-[15px]">{value}</p>
     </div>
   );
 }
@@ -209,18 +209,18 @@ export function LandingPage() {
             <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          <div className="relative mx-auto max-w-[1240px] px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
-            <div className="grid gap-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(460px,0.85fr)] lg:items-center xl:gap-18">
-              <LandingReveal className="max-w-[570px]">
+          <div className="relative mx-auto max-w-[1320px] px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28 xl:px-10">
+            <div className="grid gap-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,0.88fr)] lg:items-center xl:gap-16">
+              <LandingReveal className="max-w-[610px]">
                 <Badge className="rounded-full border border-blue-200 bg-white/92 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] text-blue-900 shadow-sm hover:bg-white/92">
                   PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
                 </Badge>
 
-                <h1 className="mt-6 max-w-[11.5ch] text-balance text-[2.65rem] font-semibold leading-[1.02] tracking-[-0.05em] text-slate-950 sm:text-[3.1rem] lg:text-[3.8rem]">
+                <h1 className="mt-6 max-w-[12.5ch] text-balance text-[2.55rem] font-semibold leading-[1.04] tracking-[-0.048em] text-slate-950 sm:text-[3rem] lg:text-[3.45rem] xl:text-[3.7rem]">
                   Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
                 </h1>
 
-                <p className="mt-6 max-w-[54ch] text-[1.02rem] leading-8 text-slate-600 sm:text-lg">
+                <p className="mt-6 max-w-[56ch] text-[1rem] leading-8 text-slate-600 sm:text-[1.05rem]">
                   O SIGAPRO organiza protocolo, documentos, taxas, analise tecnica e aprovacao em uma experiencia institucional limpa, segura e pronta para operacao publica.
                 </p>
 
@@ -245,11 +245,11 @@ export function LandingPage() {
                   </Button>
                 </div>
 
-                <div className="mt-9 grid gap-3 sm:max-w-[520px] sm:grid-cols-2">
+                <div className="mt-10 grid gap-3 sm:max-w-[540px] sm:grid-cols-2">
                   {heroPillars.map((item) => (
                     <div
                       key={item}
-                      className="rounded-[24px] border border-white/90 bg-white/90 px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]"
+                      className="rounded-[24px] border border-white/90 bg-white/92 px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]"
                     >
                       <div className="flex items-start gap-3">
                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
@@ -263,8 +263,8 @@ export function LandingPage() {
               </LandingReveal>
 
               <LandingReveal delay={0.06} className="lg:justify-self-end">
-                <div className="mx-auto w-full max-w-[540px] rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-[0_28px_72px_rgba(15,23,42,0.09)] backdrop-blur sm:p-5">
-                  <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5">
+                <div className="mx-auto w-full max-w-[580px] rounded-[36px] border border-white/80 bg-white/92 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
+                  <div className="rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5 lg:p-6">
                     <div className="grid gap-3 sm:grid-cols-2">
                       {heroStats.map((item) => (
                         <HeroPanelCard
@@ -275,7 +275,7 @@ export function LandingPage() {
                       ))}
                     </div>
 
-                    <div className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                    <div className="mt-4 rounded-[30px] border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.05)] sm:p-5 lg:p-6">
                       <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
@@ -292,12 +292,12 @@ export function LandingPage() {
                       </div>
 
                       <div className="mt-5 grid gap-4">
-                        <div className="rounded-[24px] border border-slate-200 bg-slate-50/85 p-4">
+                        <div className="rounded-[26px] border border-slate-200 bg-slate-50/85 p-4 sm:p-5">
                           <div className="flex flex-col gap-3">
                             <div>
                               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Processo em destaque</p>
-                              <p className="mt-2 text-lg font-semibold text-slate-950">Aprovacao de projeto arquitetonico</p>
-                              <p className="mt-2 text-sm leading-6 text-slate-600">
+                              <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">Aprovacao de projeto arquitetonico</p>
+                              <p className="mt-2 max-w-[56ch] text-sm leading-6 text-slate-600">
                                 Fluxo municipal com taxa vinculada, analise tecnica e retorno formal ao responsavel.
                               </p>
                             </div>
@@ -311,13 +311,13 @@ export function LandingPage() {
                             </div>
                           </div>
 
-                          <div className="mt-5 grid gap-3 md:grid-cols-3">
+                          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                             {[
                               ["Etapa atual", "Analise tecnica"],
                               ["Taxa municipal", "Guia validada"],
                               ["Parecer", "Retorno emitido"],
                             ].map(([label, value]) => (
-                              <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                              <div key={label} className="rounded-[20px] border border-slate-200 bg-white px-4 py-4">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
                                 <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
                               </div>
@@ -325,8 +325,8 @@ export function LandingPage() {
                           </div>
                         </div>
 
-                        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-                          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                        <div className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
+                          <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Etapas principais</p>
                             <div className="mt-4 space-y-3">
                               {[
@@ -343,7 +343,7 @@ export function LandingPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                          <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Documentos</p>
                             <div className="mt-4 space-y-2.5">
                               {[
@@ -353,7 +353,7 @@ export function LandingPage() {
                               ].map((item) => (
                                 <div
                                   key={item}
-                                  className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700"
+                                  className="rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700"
                                 >
                                   {item}
                                 </div>
@@ -377,7 +377,7 @@ export function LandingPage() {
         </section>
 
         <section className="border-b border-slate-200/80 bg-white/82 py-10 sm:py-12">
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {credibilityItems.map((item, index) => {
                 const Icon = item.icon;
@@ -398,7 +398,7 @@ export function LandingPage() {
         </section>
 
         <section id="como-funciona" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <LandingSectionTitle
               eyebrow="Como funciona"
               title="Uma jornada clara do protocolo inicial ate a aprovacao final."
@@ -410,7 +410,7 @@ export function LandingPage() {
                 const Icon = step.icon;
                 return (
                   <LandingReveal key={step.title} delay={index * 0.04}>
-                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
+                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.05)] sm:p-7">
                       <div className="flex items-center justify-between">
                         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
                           <Icon className="h-5 w-5" />
@@ -431,7 +431,7 @@ export function LandingPage() {
           id="beneficios"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f2f6fb_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <LandingSectionTitle
               eyebrow="Beneficios"
               title="Mais organizacao institucional, menos retrabalho e uma experiencia muito mais clara."
@@ -443,7 +443,7 @@ export function LandingPage() {
                 const Icon = item.icon;
                 return (
                   <LandingReveal key={item.title} delay={index * 0.03}>
-                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white px-6 py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] transition-transform duration-300 hover:-translate-y-0.5">
+                    <article className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-white px-6 py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] transition-transform duration-300 hover:-translate-y-0.5 sm:px-7 sm:py-7">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
                         <Icon className="h-5 w-5" />
                       </div>
@@ -458,19 +458,19 @@ export function LandingPage() {
         </section>
 
         <section id="modulos" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <LandingSectionTitle
               eyebrow="Modulos e recursos"
               title="Capacidades centrais do SIGAPRO apresentadas com mais foco e menos ruido visual."
               description="A leitura desta grade foi reduzida ao essencial para comunicar valor com mais elegancia."
             />
 
-            <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {features.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
                   <LandingReveal key={feature.title} delay={index * 0.02}>
-                    <article className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_38px_rgba(15,23,42,0.04)]">
+                    <article className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_38px_rgba(15,23,42,0.04)] sm:px-6 sm:py-6">
                       <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
                         <Icon className="h-5 w-5" />
                       </span>
@@ -488,7 +488,7 @@ export function LandingPage() {
           id="perfis"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f7faff_0%,#edf3f9_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <LandingSectionTitle
               eyebrow="Perfis de uso"
               title="Uma plataforma preparada para a rotina da Prefeitura e para a jornada do profissional externo."
@@ -502,7 +502,7 @@ export function LandingPage() {
                   <LandingReveal key={group.title} delay={index * 0.05}>
                     <article
                       className={cn(
-                        "h-full rounded-[32px] border p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)]",
+                        "h-full rounded-[32px] border p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-7 lg:p-8",
                         group.tone === "light" ? "border-slate-200 bg-white" : "border-slate-900 bg-slate-950 text-white",
                       )}
                     >
@@ -550,7 +550,7 @@ export function LandingPage() {
         </section>
 
         <section className="py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto grid max-w-[1240px] gap-8 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
+          <div className="mx-auto grid max-w-[1320px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8 xl:px-10">
             <LandingReveal>
               <div className="max-w-[560px]">
                 <LandingSectionTitle
@@ -571,8 +571,8 @@ export function LandingPage() {
             </LandingReveal>
 
             <LandingReveal delay={0.06}>
-              <article className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-[0_28px_74px_rgba(15,23,42,0.08)] sm:p-6">
-                <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white">
+              <article className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-[0_28px_74px_rgba(15,23,42,0.08)] sm:p-6 lg:p-7">
+                <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white sm:p-6">
                   <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Workspace institucional</p>
@@ -584,10 +584,10 @@ export function LandingPage() {
                   </div>
 
                   <div className="mt-5 grid gap-4">
-                    <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
-                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                    <div className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
+                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 sm:p-5">
                         <p className="text-sm font-semibold text-white">Visao do processo</p>
-                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
                           {[
                             ["Protocolo", "SIG-URB-2026-0184"],
                             ["Etapa atual", "Analise tecnica"],
@@ -602,7 +602,7 @@ export function LandingPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                      <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 sm:p-5">
                         <p className="text-sm font-semibold text-white">Checklist essencial</p>
                         <div className="mt-4 space-y-3">
                           {["Projeto arquitetonico", "Memorial descritivo", "ART ou RRT"].map((item) => (
@@ -618,7 +618,7 @@ export function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                    <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 sm:p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm font-semibold text-white">Resumo institucional</p>
@@ -640,19 +640,19 @@ export function LandingPage() {
           id="diferenciais"
           className="scroll-mt-28 border-y border-slate-200/80 bg-white/88 py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <LandingSectionTitle
               eyebrow="Diferenciais"
               title="Diferenciais apresentados de forma mais objetiva, refinada e comercial."
               description="A secao foi reequilibrada para reforcar valor percebido sem excesso de texto ou densidade visual."
             />
 
-            <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {differentiators.map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <LandingReveal key={item.title} delay={index * 0.03}>
-                    <article className="flex h-full items-start gap-4 rounded-[28px] border border-slate-200 bg-slate-50/85 px-5 py-5">
+                    <article className="flex h-full items-start gap-4 rounded-[28px] border border-slate-200 bg-slate-50/85 px-5 py-5 sm:px-6 sm:py-6">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
                         <Icon className="h-5 w-5" />
                       </span>
@@ -687,7 +687,7 @@ export function LandingPage() {
           id="contato"
           className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#162238_100%)] py-20 text-white sm:py-24 lg:py-28"
         >
-          <div className="mx-auto grid max-w-[1240px] gap-8 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:px-8">
+          <div className="mx-auto grid max-w-[1320px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.98fr_1.02fr] lg:items-center lg:px-8 xl:px-10">
             <LandingReveal>
               <div className="max-w-[580px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chamada comercial</p>

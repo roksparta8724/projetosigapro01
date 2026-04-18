@@ -13,29 +13,36 @@ export function SigaproLogo({
   bare?: boolean;
   showInternalWordmark?: boolean;
 }) {
+  const iconOnly = !showInternalWordmark;
   const iconSize = bare
     ? compact
-      ? "h-[42px] w-[42px]"
-      : "h-[84px] w-[84px]"
+      ? "h-[60px] w-[60px]"
+      : "h-[92px] w-[92px]"
     : compact
-      ? "h-[56px] w-[56px]"
-      : "h-[126px] w-[126px]";
+      ? "h-[60px] w-[60px]"
+      : "h-[124px] w-[124px]";
 
   return (
-    <div className={cn("flex items-center gap-3", centered && "flex-col justify-center text-center", className)}>
+    <div className={cn("sigapro-logo flex items-center gap-3", centered && "flex-col justify-center text-center", className)}>
       <div
         className={cn(
-          "flex shrink-0 items-center justify-center",
+          "sigapro-logo-frame flex shrink-0 items-center justify-center overflow-visible",
           bare
             ? compact
-              ? "h-[40px] w-[40px]"
-              : "h-[104px] w-[104px]"
+              ? "h-[60px] w-[60px]"
+              : "h-[108px] w-[108px]"
             : compact
-              ? "h-[64px] w-[64px] rounded-[18px] bg-white p-1.5 shadow-[0_18px_34px_rgba(7,18,31,0.16)]"
-              : "h-[138px] w-[138px] rounded-[34px] bg-white p-2.5 shadow-[0_18px_34px_rgba(7,18,31,0.16)]",
+              ? "h-[72px] w-[72px] rounded-[22px] bg-white p-[6px] shadow-[0_18px_34px_rgba(7,18,31,0.16)]"
+              : "h-[138px] w-[138px] rounded-[34px] bg-white p-[10px] shadow-[0_18px_34px_rgba(7,18,31,0.16)]",
         )}
       >
-        <svg viewBox="0 0 144 144" className={cn("shrink-0", iconSize)} aria-hidden="true">
+        <svg
+          viewBox={iconOnly ? "14 12 108 114" : "0 0 144 144"}
+          preserveAspectRatio="xMidYMid meet"
+          className={cn("sigapro-logo-art block shrink-0", iconSize)}
+          shapeRendering="geometricPrecision"
+          aria-hidden="true"
+        >
           <defs>
             <linearGradient id="sigaproGreenMain" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#2b9c6b" />
@@ -90,7 +97,7 @@ export function SigaproLogo({
               compact ? "max-w-[170px] text-[8px]" : "max-w-[260px] text-[10px]",
             )}
           >
-            Sistema integrado de gestão e aprovação de projetos
+            Sistema integrado de gestao e aprovacao de projetos
           </div>
         </div>
       ) : null}

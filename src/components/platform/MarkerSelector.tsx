@@ -25,18 +25,18 @@ type MarkerSelectorProps = {
 export function MarkerSelector({ processId, tags = [], actor, className, triggerClassName }: MarkerSelectorProps) {
   const { presets, addPreset, removePreset } = useMarkerPresets();
   const { addProcessMarkerWithColor, removeProcessMarker } = usePlatformData();
-  const [emoji, setEmoji] = useState("🚩");
   const [label, setLabel] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [flagPulse, setFlagPulse] = useState(false);
   const [savePulse, setSavePulse] = useState(false);
 
   const markers = useMemo(() => tags.map((tag) => ({ tag, ...parseMarker(tag) })), [tags]);
+  const activePresets = useMemo(() => presets.filter((preset) => preset.active), [presets]);
 
   const handleAddPreset = () => {
     const trimmed = label.trim();
     if (!trimmed) return;
-    addPreset({ label: trimmed, emoji: emoji.trim() || "🚩", color });
+    addPreset({ label: trimmed, emoji: "", color, description: "Marcador personalizado do usuario." });
     setLabel("");
     setFlagPulse(true);
     setSavePulse(true);
@@ -74,7 +74,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
       >
         <DropdownMenuLabel className="px-1 py-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Marcadores</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">Acesso rápido aos seus processos marcados</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">Acesso rapido aos seus processos marcados</p>
           <p className="mt-1 text-xs text-slate-500">Organize prioridades com etiquetas visuais.</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="my-3" />
@@ -112,9 +112,9 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
         )}
 
         <div className="mt-3 rounded-[16px] border border-slate-200/80 bg-slate-50/80 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores rápidos</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores ativos</p>
           <div className="mt-2 grid gap-2">
-            {presets.map((preset) => {
+            {activePresets.map((preset) => {
               const composedLabel = formatMarkerLabel(preset);
               const isApplied = markers.some((marker) => marker.label.toLowerCase() === composedLabel.toLowerCase());
               return (
@@ -173,7 +173,6 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               type="button"
               aria-label="Bandeira do marcador"
               className="flex h-11 w-[52px] items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm"
-              onClick={() => setEmoji("🚩")}
             >
               <Flag
                 className={cn(

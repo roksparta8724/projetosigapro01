@@ -52,29 +52,32 @@ export function UserAvatar({
     <Avatar
       className={cn(
         sizeClasses[size],
-        "shrink-0 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
+        "sig-user-avatar-root shrink-0 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
         className,
       )}
-      title={title || name || "Usuário"}
+      title={title || name || "Usuario"}
     >
       {showImage ? (
         <AvatarImage
           src={imageUrl ?? undefined}
-          alt={name || "Usuário"}
-          className={cn("h-full w-full object-cover", imageClassName)}
+          alt={name || "Usuario"}
+          className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
           onError={() => setImageFailed(true)}
         />
       ) : null}
       <AvatarFallback
+        style={{ color: "#0f172a" }}
         className={cn(
-          "bg-[linear-gradient(180deg,#f8fbff_0%,#dde7f1_100%)] font-semibold text-[#16324a]",
+          "sig-user-avatar-fallback bg-[linear-gradient(180deg,#f8fbff_0%,#dbe6f1_100%)] font-semibold !text-[#0f172a]",
           fallbackClassName,
         )}
       >
         {initials ? (
-          <span className="leading-none">{initials}</span>
+          <strong className="sig-user-avatar-initials block leading-none !text-[#0f172a]" style={{ color: "#0f172a" }}>
+            {initials}
+          </strong>
         ) : (
-          <UserRound className="h-[52%] w-[52%] text-[#4F6478]" />
+          <UserRound className="sig-user-avatar-icon h-[52%] w-[52%] !text-[#334155]" style={{ color: "#334155" }} />
         )}
       </AvatarFallback>
     </Avatar>
