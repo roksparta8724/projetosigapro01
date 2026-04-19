@@ -1,12 +1,22 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, CircleDashed, FilePlus2, FileStack, Landmark, ShieldCheck, UploadCloud, UserSquare2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  CircleDashed,
+  FilePlus2,
+  FileStack,
+  Landmark,
+  ShieldCheck,
+  UploadCloud,
+  UserSquare2,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
-import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
+import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,14 +59,14 @@ function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "re
   if (normalized.includes("proprietario") || normalized.includes("responsavel tecnico")) {
     return {
       category: "pessoais",
-      description: "Documento de identificacao das partes envolvidas no protocolo.",
+      description: "Documento de identificação das partes envolvidas no protocolo.",
     };
   }
 
   if (normalized.includes("iptu") || normalized.includes("matricula") || normalized.includes("imovel")) {
     return {
       category: "imovel",
-      description: "Documento de vinculacao do projeto ao imovel e ao cadastro municipal.",
+      description: "Documento de vinculação do projeto ao imóvel e ao cadastro municipal.",
     };
   }
 
@@ -75,7 +85,7 @@ function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "re
 
   return {
     category: "complementares",
-    description: "Documento complementar ou anuencia adicional vinculada ao processo.",
+    description: "Documento complementar ou anuência adicional vinculada ao processo.",
   };
 }
 
@@ -86,15 +96,40 @@ const groupMeta = {
   complementares: { title: "Documentos complementares", icon: ShieldCheck },
 } as const;
 
+function SoftInfoCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "amber";
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 shadow-sm ${
+        tone === "amber"
+          ? "border-amber-200/40 bg-amber-50 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/12 dark:text-amber-100"
+          : "border-slate-200/80 bg-slate-50 dark:border-white/12 dark:bg-white/[0.04]"
+      }`}
+    >
+      <p className="sig-label">{label}</p>
+      <p className="mt-2 text-[15px] font-medium leading-6 text-slate-800 dark:text-slate-100">{value}</p>
+    </div>
+  );
+}
+
 export function ProtocolarProjetoPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { createProcess, getInstitutionSettings, getUserProfile } = usePlatformData();
+
   const profile = getUserProfile(session.id);
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
@@ -109,6 +144,7 @@ export function ProtocolarProjetoPage() {
 
   useEffect(() => {
     const draft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
+
     if (draft) {
       setDraftNumber(draft.draftNumber);
       setFiles(toStoredUploadedFiles(draft.files));
@@ -132,7 +168,11 @@ export function ProtocolarProjetoPage() {
     }));
   }, [effectiveScopeId, profile, session.email, session.id, session.name, session.tenantId]);
 
-  const checklistTemplate = useMemo(() => getChecklistTemplate(form.tipo, effectiveScopeId), [form.tipo, effectiveScopeId]);
+  const checklistTemplate = useMemo(
+    () => getChecklistTemplate(form.tipo, effectiveScopeId),
+    [form.tipo, effectiveScopeId],
+  );
+
   const documentItems = useMemo<UploadDocumentItem[]>(
     () =>
       checklistTemplate?.items.map((item) => ({
@@ -141,7 +181,7 @@ export function ProtocolarProjetoPage() {
         ...describeDocument(item.label),
       })) ?? [
         { label: "RG e CPF ou CNH do Proprietário", required: true, ...describeDocument("RG e CPF ou CNH do Proprietário") },
-        { label: "RG e CPF ou CNH do Responsável", required: true, ...describeDocument("RG e CPF ou CNH do Responsável") },
+        { label: "RG e CPF ou CNH do Responsável Técnico", required: true, ...describeDocument("RG e CPF ou CNH do Responsável Técnico") },
         { label: "IPTU", required: true, ...describeDocument("IPTU") },
         { label: "Matrícula do Imóvel", required: true, ...describeDocument("Matrícula do Imóvel") },
         { label: "Procuração, quando houver", required: false, ...describeDocument("Procuração, quando houver") },
@@ -149,7 +189,11 @@ export function ProtocolarProjetoPage() {
         { label: "Projeto Arquitetônico", required: true, ...describeDocument("Projeto Arquitetônico") },
         { label: "Memorial Descritivo", required: true, ...describeDocument("Memorial Descritivo") },
         { label: "Levantamento Planialtimétrico", required: true, ...describeDocument("Levantamento Planialtimétrico") },
-        { label: "Documentos Ambientais e Anuências Complementares", required: false, ...describeDocument("Documentos Ambientais e Anuências Complementares") },
+        {
+          label: "Documentos Ambientais e Anuências Complementares",
+          required: false,
+          ...describeDocument("Documentos Ambientais e Anuências Complementares"),
+        },
       ],
     [checklistTemplate],
   );
@@ -166,15 +210,27 @@ export function ProtocolarProjetoPage() {
     [documentItems],
   );
 
-  const uploadedDocumentCount = useMemo(() => Object.values(files).reduce((sum, current) => sum + current.length, 0), [files]);
-  const requiredDocuments = useMemo(() => documentItems.filter((item) => item.required), [documentItems]);
-  const missingRequired = useMemo(() => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0), [files, requiredDocuments]);
+  const uploadedDocumentCount = useMemo(
+    () => Object.values(files).reduce((sum, current) => sum + current.length, 0),
+    [files],
+  );
+
+  const requiredDocuments = useMemo(
+    () => documentItems.filter((item) => item.required),
+    [documentItems],
+  );
+
+  const missingRequired = useMemo(
+    () => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0),
+    [files, requiredDocuments],
+  );
+
   const isExternalFlow = location.pathname.startsWith("/externo");
   const activeTab = getExternalTabByPath(location.pathname);
 
   const protocolSummary = useMemo(
     () => [
-      { label: "Pre-protocolo", value: draftNumber },
+      { label: "Pré-protocolo", value: draftNumber },
       { label: "Projeto", value: form.titulo || "Não preenchido" },
       { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
       { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
@@ -186,7 +242,7 @@ export function ProtocolarProjetoPage() {
 
   const statusCards = useMemo(
     () => [
-      { label: "Obrigatorios enviados", value: `${requiredDocuments.length - missingRequired.length}/${requiredDocuments.length}` },
+      { label: "Obrigatórios enviados", value: `${requiredDocuments.length - missingRequired.length}/${requiredDocuments.length}` },
       { label: "Total anexado", value: String(uploadedDocumentCount) },
       { label: "Pendências", value: String(missingRequired.length) },
     ],
@@ -224,12 +280,12 @@ export function ProtocolarProjetoPage() {
     }
 
     if (!form.titulo || !form.tipo || !form.endereco || !form.iptu || !form.matricula || !form.proprietario || !form.documento) {
-      setStatus("Preencha os dados obrigatorios do projeto, do imovel e do proprietario.");
+      setStatus("Preencha os dados obrigatórios do projeto, do imóvel e do proprietário.");
       return;
     }
 
     if (missingRequired.length > 0) {
-      setStatus(`Faltam documentos obrigatorios: ${missingRequired.map((item) => item.label).join(", ")}.`);
+      setStatus(`Faltam documentos obrigatórios: ${missingRequired.map((item) => item.label).join(", ")}.`);
       return;
     }
 
@@ -267,8 +323,12 @@ export function ProtocolarProjetoPage() {
       try {
         documents = await Promise.all(
           documents.map(async (document) => {
-            const originalFile = findFilesForLabel(document.label).find((item) => item.fileName === document.fileName && item.file)?.file;
+            const originalFile = findFilesForLabel(document.label).find(
+              (item) => item.fileName === document.fileName && item.file,
+            )?.file;
+
             if (!originalFile) return document;
+
             const uploaded = await uploadFileToStorage({
               bucket: "process-documents",
               tenantId: effectiveScopeId,
@@ -306,6 +366,7 @@ export function ProtocolarProjetoPage() {
         });
 
         const issuedAt = new Date().toISOString();
+
         remoteSeed = {
           processId: remoteProcess.process_id,
           protocol: remoteProcess.protocol_number,
@@ -316,7 +377,11 @@ export function ProtocolarProjetoPage() {
           expiresAt: new Date(new Date(issuedAt).getTime() + 60 * 60 * 1000).toISOString(),
         };
       } catch (remoteError) {
-        setStatus(remoteError instanceof Error ? remoteError.message : "Falha ao gravar o protocolo no Supabase. O sistema vai manter o fluxo local.");
+        setStatus(
+          remoteError instanceof Error
+            ? remoteError.message
+            : "Falha ao gravar o protocolo no Supabase. O sistema vai manter o fluxo local.",
+        );
       }
     }
 
@@ -351,233 +416,260 @@ export function ProtocolarProjetoPage() {
   return (
     <PortalFrame eyebrow="Novo protocolo" title="Protocolar projeto">
       <PageShell>
-      <form className="sig-page-shell" onSubmit={handleSubmit}>
-        <PageHero
-          eyebrow="Abertura de novo protocolo"
-          title="Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
-          description="Os dados do profissional e da prefeitura ja entram reaproveitados. Preencha o necessario, acompanhe as pendencias e protocole quando tudo estiver validado."
-          icon={FilePlus2}
-          actions={
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo")}>
-              &larr; Voltar para o painel
-            </Button>
-          }
-        />
-
-        {isExternalFlow ? (
-          <InternalTabs
-            items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
-            value={activeTab.value}
-            onChange={(value) => {
-              const target = externalTabs.find((tab) => tab.value === value);
-              if (target) navigate(target.route);
-            }}
-            className="mb-4"
+        <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
+          <PageHero
+            eyebrow="Abertura de novo protocolo"
+            title="Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
+            description="Os dados do profissional e da prefeitura já entram reaproveitados. Preencha o necessário, acompanhe as pendências e protocole quando tudo estiver validado."
+            icon={FilePlus2}
+            actions={
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo")}>
+                ← Voltar para o painel
+              </Button>
+            }
           />
-        ) : null}
 
-        <PageStatsRow>
-          {statusCards.map((item, index) => (
-            <StatCard
-              key={item.label}
-              label={item.label}
-              value={item.value}
-              description={index === 0 ? "Progresso dos obrigatorios desta abertura" : index === 1 ? "Arquivos enviados para compor o protocolo" : "Itens ainda exigidos antes da confirmacao"}
-              icon={index === 0 ? CheckCircle2 : index === 1 ? UploadCloud : AlertCircle}
-              tone={index === 0 ? "emerald" : index === 1 ? "blue" : "amber"}
-              valueClassName="text-xl md:text-2xl"
+          {isExternalFlow ? (
+            <InternalTabs
+              items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
+              value={activeTab.value}
+              onChange={(value) => {
+                const target = externalTabs.find((tab) => tab.value === value);
+                if (target) navigate(target.route);
+              }}
+              className="mb-2"
             />
-          ))}
-        </PageStatsRow>
+          ) : null}
 
-        <PageMainGrid>
-          <PageSideContent className="xl:col-span-4">
-            <SectionCard title="Resumo do protocolo" description="Visão consolidada do que será protocolado antes do envio final." icon={FilePlus2} contentClassName="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-              {protocolSummary.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-slate-50 p-4">
-                  <p className="sig-label">{item.label}</p>
-                  <p className="mt-2 text-[15px] font-medium leading-6 text-slate-800">{item.value}</p>
-                </div>
-              ))}
-            </SectionCard>
+          <PageStatsRow className="xl:grid-cols-3">
+            {statusCards.map((item, index) => (
+              <StatCard
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                description={
+                  index === 0
+                    ? "Progresso dos obrigatórios desta abertura"
+                    : index === 1
+                      ? "Arquivos enviados para compor o protocolo"
+                      : "Itens ainda exigidos antes da confirmação"
+                }
+                icon={index === 0 ? CheckCircle2 : index === 1 ? UploadCloud : AlertCircle}
+                tone={index === 0 ? "emerald" : index === 1 ? "blue" : "amber"}
+                valueClassName="text-xl md:text-2xl"
+              />
+            ))}
+          </PageStatsRow>
 
-            <SectionCard
-              title="Dados reaproveitados e orientacoes"
-              description="Informacoes carregadas automaticamente para acelerar a abertura do protocolo."
-              icon={UserSquare2}
-              contentClassName="grid gap-3 text-[15px] leading-6 text-slate-600"
-            >
-              <div className="rounded-2xl bg-slate-50 p-4">Profissional: {form.profissional || "Não preenchido"}</div>
-              <div className="rounded-2xl bg-slate-50 p-4">Registro: {form.registro || "Atualize em Meu Perfil"}</div>
-              <div className="rounded-2xl bg-slate-50 p-4">Telefone: {form.telefone || "Atualize em Meu Perfil"}</div>
-              <div className="rounded-2xl bg-slate-50 p-4">E-mail: {form.email || "Atualize em Meu Perfil"}</div>
-              <div className="rounded-2xl bg-slate-50 p-4">Secretaria responsável: {tenantSettings?.secretariaResponsavel || "Não configurada"}</div>
-              <div className="rounded-2xl bg-amber-50 p-4 text-amber-900">
-                Os dados do perfil tecnico e as orientacoes da prefeitura ja entram reaproveitados para agilizar o protocolo.
+          <SectionCard
+            title="Resumo do protocolo"
+            description="Visão consolidada do que será protocolado antes do envio final."
+            icon={FilePlus2}
+            contentClassName="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+          >
+            {protocolSummary.map((item) => (
+              <SoftInfoCard key={item.label} label={item.label} value={item.value} />
+            ))}
+          </SectionCard>
+
+          <SectionCard
+            title="Dados do projeto e do imóvel"
+            description="Preencha os dados essenciais para vincular o protocolo ao responsável, ao proprietário e ao imóvel."
+            icon={Landmark}
+            contentClassName="space-y-5"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Título do projeto</Label>
+                <Input value={form.titulo} onChange={(event) => setField("titulo", event.target.value)} />
               </div>
-            </SectionCard>
+              <div className="space-y-2">
+                <Label>Tipo de processo</Label>
+                <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
+                <datalist id="sigapro-process-types">
+                  {processTypeCatalog.map((type) => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
 
-            <SectionCard title="Status do envio" description="Acompanhe obrigatorios enviados, anexos totais e pendencias antes de protocolar." icon={ShieldCheck} contentClassName="grid gap-3 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Endereço do imóvel</Label>
+              <Input value={form.endereco} onChange={(event) => setField("endereco", event.target.value)} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>IPTU</Label>
+                <Input value={form.iptu} onChange={(event) => setField("iptu", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Matrícula</Label>
+                <Input value={form.matricula} onChange={(event) => setField("matricula", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Área em m²</Label>
+                <Input value={form.area} onChange={(event) => setField("area", event.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-2">
+                <Label>Lote</Label>
+                <Input value={form.lote} onChange={(event) => setField("lote", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Quadra</Label>
+                <Input value={form.quadra} onChange={(event) => setField("quadra", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Uso do imóvel</Label>
+                <Input value={form.uso} onChange={(event) => setField("uso", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Padrão construtivo</Label>
+                <Input
+                  list="padroes-construtivos"
+                  value={form.padraoConstrutivo}
+                  onChange={(event) => setField("padraoConstrutivo", event.target.value)}
+                  placeholder="Médio"
+                />
+                <datalist id="padroes-construtivos">
+                  <option value="luxo" />
+                  <option value="primeira" />
+                  <option value="medio" />
+                  <option value="economico" />
+                </datalist>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nome do proprietário</Label>
+                <Input value={form.proprietario} onChange={(event) => setField("proprietario", event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Documento do proprietário</Label>
+                <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observações técnicas</Label>
+              <Textarea rows={4} value={form.observacoes} onChange={(event) => setField("observacoes", event.target.value)} />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Dados reaproveitados e orientações"
+            description="Informações carregadas automaticamente para acelerar a abertura do protocolo."
+            icon={UserSquare2}
+            contentClassName="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+          >
+            <SoftInfoCard label="Profissional" value={form.profissional || "Não preenchido"} />
+            <SoftInfoCard label="Registro" value={form.registro || "Atualize em Meu Perfil"} />
+            <SoftInfoCard label="Telefone" value={form.telefone || "Atualize em Meu Perfil"} />
+            <SoftInfoCard label="E-mail" value={form.email || "Não informado"} />
+            <SoftInfoCard label="Secretaria responsável" value={tenantSettings?.secretariaResponsavel || "Não configurada"} />
+            <SoftInfoCard
+              label="Orientação"
+              value="Os dados do perfil técnico e as orientações da prefeitura já entram reaproveitados para agilizar o protocolo."
+              tone="amber"
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Status do envio"
+            description="Acompanhe obrigatórios enviados, anexos totais e pendências antes de protocolar."
+            icon={ShieldCheck}
+            contentClassName="space-y-4"
+          >
+            <div className="grid gap-3 md:grid-cols-3">
               {statusCards.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-slate-50 p-4">
+                <div key={item.label} className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-white/12 dark:bg-white/[0.04]">
                   <p className="sig-label">{item.label}</p>
-                  <p className="mt-2 text-xl font-semibold leading-8 text-slate-950">{item.value}</p>
+                  <p className="mt-2 text-xl font-semibold leading-8 text-slate-950 dark:text-white">{item.value}</p>
                 </div>
               ))}
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 md:col-span-3">
-                <p className="sig-label">Pendências atuais</p>
-                <div className="mt-3 space-y-2">
-                  {missingRequired.length === 0 ? (
-                    <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Todos os documentos obrigatórios já foram anexados.
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/12 dark:bg-white/[0.04]">
+              <p className="sig-label">Pendências atuais</p>
+              <div className="mt-3 space-y-2">
+                {missingRequired.length === 0 ? (
+                  <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    Todos os documentos obrigatórios já foram anexados.
+                  </div>
+                ) : (
+                  missingRequired.map((item) => (
+                    <div key={item.label} className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-300">
+                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                      {item.label}
                     </div>
-                  ) : (
-                    missingRequired.map((item) => (
-                      <div key={item.label} className="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
-                        <AlertCircle className="h-4 w-4" />
-                        {item.label}
-                      </div>
-                    ))
-                  )}
-                </div>
+                  ))
+                )}
               </div>
-            </SectionCard>
-          </PageSideContent>
+            </div>
+          </SectionCard>
 
-          <PageMainContent className="xl:col-span-8">
-            <SectionCard
-              title="Dados do projeto e do imovel"
-              description="Preencha os dados essenciais para vincular o protocolo ao responsavel, ao proprietario e ao imovel."
-              icon={Landmark}
-              contentClassName="space-y-5"
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Título do projeto</Label>
-                  <Input value={form.titulo} onChange={(event) => setField("titulo", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo de Processo</Label>
-                  <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
-                  <datalist id="sigapro-process-types">
-                    {processTypeCatalog.map((type) => (
-                      <option key={type} value={type} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
+          <SectionCard
+            title="Upload de documentos"
+            description="Envie os documentos por grupo, confira o status de cada item e substitua arquivos antes da confirmação final."
+            icon={UploadCloud}
+            contentClassName="space-y-8"
+          >
+            {(Object.keys(groupedDocuments) as Array<keyof typeof groupedDocuments>).map((groupKey) => {
+              const documents = groupedDocuments[groupKey];
+              const meta = groupMeta[groupKey];
 
-              <div className="space-y-2">
-                <Label>Endereço do imóvel</Label>
-                <Input value={form.endereco} onChange={(event) => setField("endereco", event.target.value)} />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>IPTU</Label>
-                  <Input value={form.iptu} onChange={(event) => setField("iptu", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Matrícula</Label>
-                  <Input value={form.matricula} onChange={(event) => setField("matricula", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Área em m²</Label>
-                  <Input value={form.area} onChange={(event) => setField("area", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="space-y-2">
-                  <Label>Lote</Label>
-                  <Input value={form.lote} onChange={(event) => setField("lote", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Quadra</Label>
-                  <Input value={form.quadra} onChange={(event) => setField("quadra", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Uso do imóvel</Label>
-                  <Input value={form.uso} onChange={(event) => setField("uso", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Padrão construtivo</Label>
-                  <Input
-                    list="padroes-construtivos"
-                    value={form.padraoConstrutivo}
-                    onChange={(event) => setField("padraoConstrutivo", event.target.value)}
-                    placeholder="Médio"
-                  />
-                  <datalist id="padroes-construtivos">
-                    <option value="luxo" />
-                    <option value="primeira" />
-                    <option value="medio" />
-                    <option value="economico" />
-                  </datalist>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Nome do proprietário</Label>
-                  <Input value={form.proprietario} onChange={(event) => setField("proprietario", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Documento do proprietário</Label>
-                  <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações técnicas</Label>
-                <Textarea rows={4} value={form.observacoes} onChange={(event) => setField("observacoes", event.target.value)} />
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Upload de documentos"
-              description="Envie os documentos por grupo, confira o status de cada item e substitua arquivos antes da confirmação final."
-              icon={UploadCloud}
-              contentClassName="space-y-6"
-            >
-              {(Object.keys(groupedDocuments) as Array<keyof typeof groupedDocuments>).map((groupKey) => {
-                const documents = groupedDocuments[groupKey];
-                const meta = groupMeta[groupKey];
-
-                return (
-                  <div key={groupKey} className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <meta.icon className="h-4 w-4 text-slate-700" />
-                      <p className="text-lg font-semibold text-slate-950">{meta.title}</p>
+              return (
+                <div key={groupKey} className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-sky-200 bg-sky-50 text-sky-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-sky-400/24 dark:bg-sky-400/12 dark:text-sky-200">
+                      <meta.icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold text-slate-950 dark:text-white">{meta.title}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
+                        {documents.length} {documents.length === 1 ? "item vinculado" : "itens vinculados"} para esta etapa do protocolo.
+                      </p>
                     </div>
+                  </div>
 
+                  <div className="grid gap-4 xl:grid-cols-2">
                     {documents.map((item) => {
-                      const itemStatus = (files[item.label]?.length ?? 0) > 0 ? "enviado" : item.required ? "pendente" : "nao_enviado";
+                      const itemStatus =
+                        (files[item.label]?.length ?? 0) > 0 ? "enviado" : item.required ? "pendente" : "nao_enviado";
 
                       return (
-                        <div key={item.label} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-                          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                            <div className="min-w-0">
+                        <div
+                          key={item.label}
+                          className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/12 dark:bg-white/[0.04]"
+                        >
+                          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 {itemStatus === "enviado" ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
                                 ) : itemStatus === "pendente" ? (
-                                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
                                 ) : (
-                                  <CircleDashed className="h-4 w-4 text-slate-400" />
+                                  <CircleDashed className="h-4 w-4 text-slate-400 dark:text-sky-200" />
                                 )}
-                                <p className="text-base font-semibold text-slate-950">{item.label}</p>
+                                <p className="text-base font-semibold text-slate-950 dark:text-white">{item.label}</p>
                               </div>
-                              <p className="mt-2 text-[15px] leading-6 text-slate-600">{item.description}</p>
+                              <p className="mt-2 text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
+
                             <span
                               className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
                                 itemStatus === "enviado"
-                                  ? "bg-emerald-50 text-emerald-700"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200"
                                   : itemStatus === "pendente"
-                                    ? "bg-amber-50 text-amber-600 dark:text-amber-400"
-                                    : "bg-slate-100 text-slate-500"
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200"
+                                    : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-300"
                               }`}
                             >
                               {itemStatus === "enviado" ? "Enviado" : itemStatus === "pendente" ? "Pendente" : "Não enviado"}
@@ -597,33 +689,37 @@ export function ProtocolarProjetoPage() {
                       );
                     })}
                   </div>
-                );
-              })}
-            </SectionCard>
-          </PageMainContent>
-        </PageMainGrid>
+                </div>
+              );
+            })}
+          </SectionCard>
 
-        {status ? <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">{status}</div> : null}
+          {status ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
+              {status}
+            </div>
+          ) : null}
 
-        <SectionCard
-          title="Acoes finais"
-          description="Salve o rascunho para continuar depois ou conclua o protocolo quando tudo estiver validado."
-          icon={ShieldCheck}
-          contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
-        >
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
-            Voltar
-          </Button>
-          <div className="flex flex-col gap-3 md:flex-row">
-            <Button type="button" variant="outline" className="rounded-full" onClick={handleSaveDraft}>
-              Salvar rascunho
+          <SectionCard
+            title="Ações finais"
+            description="Salve o rascunho para continuar depois ou conclua o protocolo quando tudo estiver validado."
+            icon={ShieldCheck}
+            contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+          >
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
+              Voltar
             </Button>
-            <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900" disabled={submitting}>
-              {submitting ? "Protocolando projeto..." : "Protocolar projeto"}
-            </Button>
-          </div>
-        </SectionCard>
-      </form>
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <Button type="button" variant="outline" className="rounded-full" onClick={handleSaveDraft}>
+                Salvar rascunho
+              </Button>
+              <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting}>
+                {submitting ? "Protocolando projeto..." : "Protocolar projeto"}
+              </Button>
+            </div>
+          </SectionCard>
+        </form>
       </PageShell>
     </PortalFrame>
   );

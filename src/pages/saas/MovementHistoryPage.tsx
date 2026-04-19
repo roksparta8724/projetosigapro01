@@ -182,7 +182,7 @@ export function MovementHistoryPage() {
 
   return (
     <PortalFrame eyebrow="Controle de processos" title="Mesa institucional de tramitação">
-      <PageShell className="sig-contrast-strong">
+      <PageShell className="sig-history-page sig-contrast-strong">
         <PageHeader eyebrow="Controle oficial" title="Recebimentos, despachos e rastreabilidade" description="Organize a tramitação por unidade com leitura executiva, filtros claros e áreas próprias para operação em lote." icon={Workflow} />
 
         <PageStatsRow className="xl:grid-cols-4">
@@ -198,26 +198,26 @@ export function MovementHistoryPage() {
           <SectionCard title="Pesquisa e filtros" description="Localize protocolos, unidades, prioridades e marcadores sem poluir a visão principal." icon={Filter}>
             <div className="space-y-3">
               <div className="relative">
-                <Search className="sig-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
+                <Search className="sig-history-search-icon sig-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "#38bdf8", stroke: "#38bdf8" }} />
                 <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por protocolo, assunto, origem, destino ou responsável" className="sig-dispatch-field h-12 rounded-2xl pl-11" />
               </div>
               <div className="grid gap-3 xl:grid-cols-4">
                 <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "todas" | DispatchPriority)}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Prioridade" /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as prioridades</SelectItem><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="alta">Alta</SelectItem><SelectItem value="critica">Crítica</SelectItem></SelectContent></Select>
                 <Select value={unitFilter} onValueChange={setUnitFilter}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Unidade" /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as unidades</SelectItem>{sectorOptions.map((sector) => <SelectItem key={sector} value={sector}>{sector}</SelectItem>)}</SelectContent></Select>
                 <Select value={markerFilter} onValueChange={setMarkerFilter}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Marcador" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os marcadores</SelectItem>{markerOptions.map((marker) => <SelectItem key={marker} value={marker}>{marker}</SelectItem>)}</SelectContent></Select>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => { setPriorityFilter("todas"); setUnitFilter("todas"); setMarkerFilter("todos"); setSearch(""); }}>Limpar filtros</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-muted-btn rounded-full" onClick={() => { setPriorityFilter("todas"); setUnitFilter("todas"); setMarkerFilter("todos"); setSearch(""); }}>Limpar filtros</Button>
               </div>
             </div>
           </SectionCard>
         ) : null}
 
         {showBatchPanel ? (
-          <SectionCard title="Operação em lote" description="Receba, devolva, atribua e despache múltiplos processos sem misturar essa área com a visão executiva." icon={ArrowRightLeft} actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="rounded-full" onClick={selectAllVisible}>Selecionar visíveis</Button><Button type="button" variant="outline" className="rounded-full" onClick={clearSelection}>Limpar seleção</Button></div>}>
+          <SectionCard title="Operação em lote" description="Receba, devolva, atribua e despache múltiplos processos sem misturar essa área com a visão executiva." icon={ArrowRightLeft} actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="sig-history-outline-btn sig-history-muted-btn rounded-full" onClick={selectAllVisible}>Selecionar visíveis</Button><Button type="button" variant="outline" className="sig-history-outline-btn sig-history-muted-btn rounded-full" onClick={clearSelection}>Limpar seleção</Button></div>}>
             <div className="space-y-3">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{selectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
-                <Button type="button" variant="outline" className="rounded-full" onClick={handleBatchReceive} disabled={selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={handleBatchComplete} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchReceive} disabled={selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchComplete} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 <Select value={selectedTemplateId} onValueChange={(value) => { setSelectedTemplateId(value); const template = dispatchTemplates.find((item) => item.id === value); if (template) setBatchSubject(template.title); }}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Texto padrão do despacho" /></SelectTrigger><SelectContent>{dispatchTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>)}</SelectContent></Select>
@@ -228,18 +228,18 @@ export function MovementHistoryPage() {
                 <Input value={batchSubject} onChange={(event) => setBatchSubject(event.target.value)} placeholder="Assunto institucional do despacho" className="sig-dispatch-field" />
                 <Select value={batchAssignedTo} onValueChange={(value) => setBatchAssignedTo(value === "__sem_atribuicao__" ? "" : value)}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Responsável de destino" /></SelectTrigger><SelectContent><SelectItem value="__sem_atribuicao__">Sem atribuição imediata</SelectItem>{unitUsers.map((user) => <SelectItem key={user.id} value={user.name}>{user.name} - {user.title}</SelectItem>)}</SelectContent></Select>
                 <Input type="date" value={batchDueDate} onChange={(event) => setBatchDueDate(event.target.value)} className="sig-dispatch-field" />
-                <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleBatchDispatch} disabled={selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
+                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleBatchDispatch} disabled={selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                 <Input value={checkpoint} onChange={(event) => setCheckpoint(event.target.value)} placeholder="Definir ponto de controle" className="sig-dispatch-field" />
                 <Input value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Motivo da devolução" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="rounded-full" onClick={handleSetCheckpoint} disabled={selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={handleBatchReturn} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleSetCheckpoint} disabled={selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchReturn} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <Input value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Motivo do sobrestamento administrativo" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => handleOnHold(true)} disabled={selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => handleOnHold(false)} disabled={selectedProcessIds.length === 0}>Reativar fluxo</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => handleOnHold(true)} disabled={selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => handleOnHold(false)} disabled={selectedProcessIds.length === 0}>Reativar fluxo</Button>
               </div>
             </div>
           </SectionCard>

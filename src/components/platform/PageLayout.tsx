@@ -203,7 +203,7 @@ export function InternalSectionNav({
         className,
       )}
   >
-      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-5">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:[grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] md:overflow-visible md:px-0 md:pb-0">
         {items.map((item) => {
           const active = item.value === value;
           return (

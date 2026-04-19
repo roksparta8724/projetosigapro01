@@ -1849,6 +1849,124 @@
     color: #cdd8ea !important;
   }
 
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-search-icon,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-search-icon {
+    color: #38bdf8 !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field {
+    background: linear-gradient(180deg, rgba(38, 51, 71, 0.96) 0%, rgba(31, 44, 62, 0.94) 100%) !important;
+    border-color: rgba(124, 156, 194, 0.22) !important;
+    color: #eef4ff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field:hover {
+    border-color: rgba(125, 211, 252, 0.28) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field:focus,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field:focus-visible,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field[data-state="open"] {
+    border-color: rgba(56, 189, 248, 0.38) !important;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 0 0 4px rgba(14, 165, 233, 0.08) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field span,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field [data-placeholder],
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field [data-state],
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field [data-radix-select-value] {
+    color: #eef4ff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field [data-placeholder] {
+    color: #c6d4e8 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field::placeholder,
+  [data-layout-mode="inverse-main"] .sig-history-page input.sig-dispatch-field::placeholder,
+  [data-layout-mode="inverse-main"] .sig-history-page textarea.sig-dispatch-field::placeholder {
+    color: #c6d4e8 !important;
+    opacity: 1 !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field svg,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-dispatch-field button svg {
+    color: #38bdf8 !important;
+    stroke: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page button {
+    color: #eef4ff;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-muted-btn {
+    color: #edf3fc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-action-btn {
+    color: #edf3fc !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page button svg {
+    color: currentColor !important;
+    stroke: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-outline-btn {
+    border-color: rgba(124, 156, 194, 0.18) !important;
+    background: linear-gradient(180deg, rgba(48, 59, 76, 0.92) 0%, rgba(40, 51, 67, 0.92) 100%) !important;
+    color: #e7eef9 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-outline-btn:hover:not(:disabled) {
+    border-color: rgba(125, 211, 252, 0.24) !important;
+    background: linear-gradient(180deg, rgba(56, 69, 88, 0.96) 0%, rgba(46, 58, 76, 0.95) 100%) !important;
+    color: #f8fbff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-primary-btn {
+    background: linear-gradient(135deg, #1d5c95 0%, #174a78 100%) !important;
+    color: #f8fbff !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-primary-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #246ba9 0%, #1b578d 100%) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-action-btn:not(:disabled) svg,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-muted-btn:not(:disabled) svg {
+    color: #38bdf8 !important;
+    stroke: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page button:disabled {
+    opacity: 1 !important;
+    color: rgba(214, 227, 245, 0.76) !important;
+    -webkit-text-fill-color: rgba(214, 227, 245, 0.76) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page button:disabled svg {
+    color: rgba(56, 189, 248, 0.88) !important;
+    stroke: currentColor !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-action-btn:disabled,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-muted-btn:disabled {
+    color: rgba(214, 227, 245, 0.76) !important;
+    -webkit-text-fill-color: rgba(214, 227, 245, 0.76) !important;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-action-btn:disabled svg,
+  [data-layout-mode="inverse-main"] .sig-history-page .sig-history-muted-btn:disabled svg {
+    color: rgba(56, 189, 248, 0.88) !important;
+    stroke: currentColor !important;
+  }
+
   [data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-ghost-btn:hover {
     background: rgba(14, 28, 46, 0.9) !important;
     color: #f8fafc !important;
