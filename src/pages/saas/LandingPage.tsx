@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  BarChart3,
   BadgeCheck,
   Blocks,
   Building2,
@@ -17,18 +18,20 @@ import {
   SearchCheck,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   Users2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { LandingFAQ } from "@/components/landing/LandingFAQ";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingReveal } from "@/components/landing/LandingReveal";
 import { LandingSectionTitle } from "@/components/landing/LandingSectionTitle";
 import { LandingSEO } from "@/components/landing/LandingSEO";
-import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -172,6 +175,46 @@ const heroStats = [
   { label: "Controle municipal", value: "Historico por etapa, setor e decisao final." },
 ] as const;
 
+const heroExecutiveMetrics = [
+  { label: "Protocolos", value: "128", helper: "Em andamento no painel executivo" },
+  { label: "Exigencias", value: "16", helper: "Pendencias aguardando retorno tecnico" },
+  { label: "Taxas", value: "94%", helper: "Fluxo financeiro validado no trimestre" },
+] as const;
+
+const heroExecutiveFocus = [
+  "Fila tecnica com prioridades e responsaveis definidos.",
+  "Comunique-se e checklist visiveis no mesmo painel.",
+  "Historico recente e leitura operacional consolidada.",
+] as const;
+
+const heroStatusBars = [
+  { name: "Triagem", total: 34 },
+  { name: "Analise", total: 52 },
+  { name: "Exigencia", total: 16 },
+  { name: "Conclusao", total: 26 },
+] as const;
+
+const heroOperationalShare = [
+  { name: "Em andamento", value: 58, fill: "#3b82f6" },
+  { name: "Concluidos", value: 28, fill: "#22c55e" },
+  { name: "Pendencias", value: 14, fill: "#f59e0b" },
+] as const;
+
+const heroVolumeTrend = [
+  { month: "Jan", total: 42 },
+  { month: "Fev", total: 48 },
+  { month: "Mar", total: 51 },
+  { month: "Abr", total: 57 },
+  { month: "Mai", total: 63 },
+  { month: "Jun", total: 68 },
+] as const;
+
+const heroOperationalHealth = [
+  { label: "SLA dentro do prazo", value: "92%", progress: 92, detail: "Etapas tecnicas atendidas no tempo previsto." },
+  { label: "Taxas conciliadas", value: "94%", progress: 94, detail: "Leitura financeira sincronizada no fluxo." },
+  { label: "Controle de pendencias", value: "81%", progress: 81, detail: "Exigencias com retorno planejado e rastreavel." },
+] as const;
+
 const showcaseHighlights = [
   "Painel simplificado com foco em status, etapa e checklist.",
   "Documentos e exigencias apresentados sem poluicao visual.",
@@ -186,14 +229,48 @@ function HeroPanelCard({
   value: string;
 }) {
   return (
-    <div className="flex min-h-[116px] flex-col justify-between rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.045)] sm:px-5">
+    <div className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.045)] sm:px-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-900 sm:text-[15px]">{value}</p>
     </div>
   );
 }
 
+function LandingDemoChartCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  className,
+}: {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0 rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]", className)}>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-800">
+          <Icon className="h-4.5 w-4.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-950">{title}</p>
+          <p className="mt-1 text-[13px] leading-6 text-slate-600">{description}</p>
+        </div>
+      </div>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
 export function LandingPage() {
+  const heroChartConfig = {
+    total: { label: "Volume", color: "#3b82f6" },
+    value: { label: "Participacao", color: "#60a5fa" },
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
@@ -202,16 +279,16 @@ export function LandingPage() {
       <main className="overflow-hidden">
         <section
           id="hero"
-          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#f9fbfe_0%,#eef3f9_56%,#f5f7fb_100%)] pt-28 sm:pt-32"
+          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#f9fbfe_0%,#eef3f9_56%,#f5f7fb_100%)] pt-24 sm:pt-28"
         >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_42%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.06),transparent_30%)]" />
             <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          <div className="relative mx-auto max-w-[1320px] px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28 xl:px-10">
-            <div className="grid gap-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,0.88fr)] lg:items-center xl:gap-16">
-              <LandingReveal className="max-w-[610px]">
+          <div className="relative mx-auto max-w-[1440px] px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24 xl:px-10 2xl:px-12">
+            <div className="grid gap-10 xl:grid-cols-[minmax(0,1.06fr)_minmax(420px,0.94fr)] xl:items-start xl:gap-12 2xl:gap-14">
+              <LandingReveal className="min-w-0 max-w-none">
                 <Badge className="rounded-full border border-blue-200 bg-white/92 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] text-blue-900 shadow-sm hover:bg-white/92">
                   PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
                 </Badge>
@@ -245,7 +322,7 @@ export function LandingPage() {
                   </Button>
                 </div>
 
-                <div className="mt-10 grid gap-3 sm:max-w-[540px] sm:grid-cols-2">
+                <div className="mt-10 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
                   {heroPillars.map((item) => (
                     <div
                       key={item}
@@ -260,12 +337,22 @@ export function LandingPage() {
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                  {heroExecutiveMetrics.map((item) => (
+                    <div key={item.label} className="flex min-h-[136px] min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white/94 px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+                      <p className="mt-4 text-[1.8rem] font-semibold leading-none text-slate-950">{item.value}</p>
+                      <p className="mt-4 text-[13px] leading-6 text-slate-600">{item.helper}</p>
+                    </div>
+                  ))}
+                </div>
               </LandingReveal>
 
-              <LandingReveal delay={0.06} className="lg:justify-self-end">
-                <div className="mx-auto w-full max-w-[580px] rounded-[36px] border border-white/80 bg-white/92 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
+              <LandingReveal delay={0.06} className="min-w-0">
+                <div className="mx-auto w-full max-w-[640px] rounded-[36px] border border-white/80 bg-white/94 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
                   <div className="rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5 lg:p-6">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
                       {heroStats.map((item) => (
                         <HeroPanelCard
                           key={item.label}
@@ -278,8 +365,12 @@ export function LandingPage() {
                     <div className="mt-4 rounded-[30px] border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.05)] sm:p-5 lg:p-6">
                       <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
-                            <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.72]" />
+                          <div className="flex h-[50px] w-[50px] items-center justify-center overflow-hidden rounded-[18px] bg-white shadow-[0_16px_30px_rgba(15,23,42,0.14)] ring-1 ring-slate-200">
+                            <img
+                              src="/favicon-sigapro.svg"
+                              alt="SIGAPRO"
+                              className="h-full w-full object-contain p-[6px]"
+                            />
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-slate-950">Painel institucional</p>
@@ -291,10 +382,10 @@ export function LandingPage() {
                         </Badge>
                       </div>
 
-                      <div className="mt-5 grid gap-4">
-                        <div className="rounded-[26px] border border-slate-200 bg-slate-50/85 p-4 sm:p-5">
-                          <div className="flex flex-col gap-3">
-                            <div>
+                        <div className="mt-5 grid gap-4">
+                          <div className="rounded-[26px] border border-slate-200 bg-slate-50/85 p-4 sm:p-5">
+                            <div className="flex flex-col gap-3">
+                              <div>
                               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Processo em destaque</p>
                               <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">Aprovacao de projeto arquitetonico</p>
                               <p className="mt-2 max-w-[56ch] text-sm leading-6 text-slate-600">
@@ -311,7 +402,7 @@ export function LandingPage() {
                             </div>
                           </div>
 
-                          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                          <div className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(148px,1fr))]">
                             {[
                               ["Etapa atual", "Analise tecnica"],
                               ["Taxa municipal", "Guia validada"],
@@ -325,7 +416,7 @@ export function LandingPage() {
                           </div>
                         </div>
 
-                        <div className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
+                        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
                           <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Etapas principais</p>
                             <div className="mt-4 space-y-3">
@@ -373,12 +464,165 @@ export function LandingPage() {
                 </div>
               </LandingReveal>
             </div>
+
+            <LandingReveal delay={0.08} className="mt-8 xl:mt-10">
+              <div className="grid gap-4 xl:grid-cols-4">
+                <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] backdrop-blur xl:col-span-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Visao executiva</p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">Resumo do dashboard institucional</p>
+                    </div>
+                    <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-900">
+                      Operacao diaria
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+                    {heroExecutiveMetrics.map((item) => (
+                      <div key={item.label} className="flex min-h-[148px] min-w-0 flex-col rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] px-4 py-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+                        <p className="mt-4 text-[1.7rem] font-semibold leading-none text-slate-950">{item.value}</p>
+                        <p className="mt-4 text-[13px] leading-6 text-slate-600">{item.helper}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)]">
+                  <div className="border-b border-slate-200 pb-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Distribuicao operacional</p>
+                    <p className="mt-2 text-[15px] font-semibold text-slate-950">Composicao atual do fluxo municipal.</p>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <div className="mx-auto h-[138px] w-[138px] sm:h-[152px] sm:w-[152px]" data-chart>
+                      <ChartContainer config={heroChartConfig} className="h-full w-full">
+                        <PieChart>
+                          <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                          <Pie
+                            data={heroOperationalShare}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={40}
+                            outerRadius={62}
+                            paddingAngle={3}
+                            stroke="none"
+                          >
+                            {heroOperationalShare.map((item) => (
+                              <Cell key={item.name} fill={item.fill} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ChartContainer>
+                    </div>
+                    <div className="min-w-0 space-y-2.5">
+                      {heroOperationalShare.map((item) => (
+                        <div key={item.name} className="flex items-center justify-between gap-3 rounded-[16px] border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />
+                            <span className="truncate text-[13px] font-medium text-slate-700">{item.name}</span>
+                          </div>
+                          <span className="text-[13px] font-semibold text-slate-950">{item.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)]">
+                  <div className="border-b border-slate-200 pb-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Saude operacional</p>
+                    <p className="mt-2 text-[15px] font-semibold text-slate-950">Indicadores de estabilidade e ritmo do painel.</p>
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    {heroOperationalHealth.map((item) => (
+                      <div key={item.label} className="rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[12px] font-semibold text-slate-800">{item.label}</p>
+                          <span className="text-sm font-semibold text-slate-950">{item.value}</span>
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-slate-200">
+                          <div
+                            className="h-2 rounded-full bg-[linear-gradient(90deg,#2563eb_0%,#60a5fa_100%)]"
+                            style={{ width: `${item.progress}%` }}
+                          />
+                        </div>
+                        <p className="mt-3 text-[13px] leading-6 text-slate-600">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <LandingDemoChartCard
+                  title="Status dos processos"
+                  description="Distribuicao realista das etapas mais acompanhadas no ambiente institucional."
+                  icon={BarChart3}
+                  className="xl:col-span-2"
+                >
+                  <div className="h-[196px] sm:h-[220px]" data-chart>
+                    <ChartContainer config={heroChartConfig} className="h-full w-full">
+                      <BarChart data={heroStatusBars} margin={{ top: 10, right: 4, left: -20, bottom: 0 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.35} />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
+                        <YAxis tickLine={false} axisLine={false} width={28} />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                        <Bar dataKey="total" radius={[10, 10, 4, 4]} fill="#3b82f6" />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </LandingDemoChartCard>
+
+                <LandingDemoChartCard
+                  title="Evolucao mensal"
+                  description="Tendencia simulada de entrada e consolidacao operacional ao longo do semestre."
+                  icon={TrendingUp}
+                >
+                  <div className="h-[196px] sm:h-[220px]" data-chart>
+                    <ChartContainer config={heroChartConfig} className="h-full w-full">
+                      <AreaChart data={heroVolumeTrend} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="landingTrendFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.36} />
+                            <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
+                        <YAxis hide />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                        <Area type="monotone" dataKey="total" stroke="#2563eb" strokeWidth={2.5} fill="url(#landingTrendFill)" />
+                      </AreaChart>
+                    </ChartContainer>
+                  </div>
+                </LandingDemoChartCard>
+
+                <div className="min-w-0 rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_30px_rgba(15,23,42,0.045)]">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-800">
+                      <CheckCircle2 className="h-4.5 w-4.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-950">Prioridades do painel</p>
+                      <p className="mt-1 text-[13px] leading-6 text-slate-600">Bloco complementar para orientar decisao rapida, checklist e acompanhamento institucional.</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {heroExecutiveFocus.map((item) => (
+                      <div key={item} className="flex min-w-0 items-start gap-3 rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-4">
+                        <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-blue-700" />
+                        <p className="min-w-0 text-sm leading-6 text-slate-700">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </LandingReveal>
           </div>
         </section>
 
         <section className="border-b border-slate-200/80 bg-white/82 py-10 sm:py-12">
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
               {credibilityItems.map((item, index) => {
                 const Icon = item.icon;
                 return (
@@ -398,14 +642,14 @@ export function LandingPage() {
         </section>
 
         <section id="como-funciona" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <LandingSectionTitle
               eyebrow="Como funciona"
               title="Uma jornada clara do protocolo inicial ate a aprovacao final."
               description="O processo foi apresentado com mais leveza visual para reforcar entendimento rapido, sem excesso de informacao."
             />
 
-            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-12 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
               {processSteps.map((step, index) => {
                 const Icon = step.icon;
                 return (
@@ -431,14 +675,14 @@ export function LandingPage() {
           id="beneficios"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f2f6fb_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <LandingSectionTitle
               eyebrow="Beneficios"
               title="Mais organizacao institucional, menos retrabalho e uma experiencia muito mais clara."
               description="Os cards foram simplificados para ganhar consistencia, leitura e acabamento premium."
             />
 
-            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-12 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
               {benefits.map((item, index) => {
                 const Icon = item.icon;
                 return (
@@ -458,14 +702,14 @@ export function LandingPage() {
         </section>
 
         <section id="modulos" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <LandingSectionTitle
               eyebrow="Modulos e recursos"
               title="Capacidades centrais do SIGAPRO apresentadas com mais foco e menos ruido visual."
               description="A leitura desta grade foi reduzida ao essencial para comunicar valor com mais elegancia."
             />
 
-            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-12 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(250px,1fr))]">
               {features.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
@@ -488,14 +732,14 @@ export function LandingPage() {
           id="perfis"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f7faff_0%,#edf3f9_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <LandingSectionTitle
               eyebrow="Perfis de uso"
               title="Uma plataforma preparada para a rotina da Prefeitura e para a jornada do profissional externo."
               description="A separacao dos perfis foi refinada para reforcar valor de uso sem criar excesso de blocos."
             />
 
-            <div className="mt-12 grid gap-6 lg:grid-cols-2">
+            <div className="mt-12 grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
               {audienceGroups.map((group, index) => {
                 const Icon = group.icon;
                 return (
@@ -550,9 +794,9 @@ export function LandingPage() {
         </section>
 
         <section className="py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto grid max-w-[1320px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8 xl:px-10">
+          <div className="mx-auto grid max-w-[1440px] gap-10 px-4 sm:px-6 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] xl:items-center lg:px-8 xl:px-10 2xl:px-12">
             <LandingReveal>
-              <div className="max-w-[560px]">
+              <div className="max-w-[620px]">
                 <LandingSectionTitle
                   eyebrow="Painel do sistema"
                   title="Um painel visual mais limpo para transmitir maturidade e alto valor percebido."
@@ -570,7 +814,7 @@ export function LandingPage() {
               </div>
             </LandingReveal>
 
-            <LandingReveal delay={0.06}>
+            <LandingReveal delay={0.06} className="min-w-0">
               <article className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-[0_28px_74px_rgba(15,23,42,0.08)] sm:p-6 lg:p-7">
                 <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white sm:p-6">
                   <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -584,10 +828,10 @@ export function LandingPage() {
                   </div>
 
                   <div className="mt-5 grid gap-4">
-                    <div className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
+                    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                       <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 sm:p-5">
                         <p className="text-sm font-semibold text-white">Visao do processo</p>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
                           {[
                             ["Protocolo", "SIG-URB-2026-0184"],
                             ["Etapa atual", "Analise tecnica"],
@@ -640,14 +884,14 @@ export function LandingPage() {
           id="diferenciais"
           className="scroll-mt-28 border-y border-slate-200/80 bg-white/88 py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <LandingSectionTitle
               eyebrow="Diferenciais"
               title="Diferenciais apresentados de forma mais objetiva, refinada e comercial."
               description="A secao foi reequilibrada para reforcar valor percebido sem excesso de texto ou densidade visual."
             />
 
-            <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-12 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
               {differentiators.map((item, index) => {
                 const Icon = item.icon;
                 return (
@@ -687,7 +931,7 @@ export function LandingPage() {
           id="contato"
           className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#162238_100%)] py-20 text-white sm:py-24 lg:py-28"
         >
-          <div className="mx-auto grid max-w-[1320px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.98fr_1.02fr] lg:items-center lg:px-8 xl:px-10">
+          <div className="mx-auto grid max-w-[1440px] gap-10 px-4 sm:px-6 xl:grid-cols-[minmax(320px,0.96fr)_minmax(0,1.04fr)] xl:items-center lg:px-8 xl:px-10 2xl:px-12">
             <LandingReveal>
               <div className="max-w-[580px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chamada comercial</p>

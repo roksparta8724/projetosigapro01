@@ -14,7 +14,7 @@ export function LandingSectionTitle({
   align = "left",
 }: LandingSectionTitleProps) {
   return (
-    <div className={cn("max-w-[760px]", align === "center" && "mx-auto text-center")}>
+    <div className={cn("max-w-[860px]", align === "center" && "mx-auto text-center")}>
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-800">{eyebrow}</p>
       <h2 className="mt-4 text-balance text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-slate-950 sm:text-[2.35rem] lg:text-[2.55rem]">
         {title}

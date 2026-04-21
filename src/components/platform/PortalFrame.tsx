@@ -471,13 +471,19 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   }, [filteredSearchItems]);
 
   const displayUserName = userProfile?.fullName?.trim() || session.name;
-  const topbarAvatarInitials = useMemo(() => {
-    const safe = displayUserName.trim();
-    if (!safe) return "SG";
-    const parts = safe.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
-  }, [displayUserName]);
+  const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null;
+  const topbarAvatarImageStyle = useMemo<React.CSSProperties | undefined>(() => {
+    if (!topbarAvatarImageUrl) return undefined;
+
+    const scale = Number(userProfile?.avatarScale ?? 1);
+    const offsetX = Number(userProfile?.avatarOffsetX ?? 0);
+    const offsetY = Number(userProfile?.avatarOffsetY ?? 0);
+
+    return {
+      transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+      transformOrigin: "center center",
+    };
+  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
   const roleLabel = userProfile?.professionalType?.trim() || roleLabels[session.role];
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
   const institutionDisplaySubtitle = officialHeaderText || tenantSettings?.secretariaResponsavel || "Departamento responsável";
@@ -858,12 +864,14 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
               )}
               aria-label="Meu perfil"
             >
-              <div
-                className="sig-topbar-avatar-chip inline-flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ background: "linear-gradient(180deg, #ffffff 0%, #dbe4ef 100%)", color: "#0f172a" }}
-              >
-                {topbarAvatarInitials}
-              </div>
+              <UserAvatar
+                name={displayUserName}
+                imageUrl={topbarAvatarImageUrl}
+                imageStyle={topbarAvatarImageStyle}
+                size="sm"
+                className="sig-topbar-user-avatar"
+                fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+              />
             </button>
           </div>
 
@@ -1239,12 +1247,14 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                     topbarProfileButton,
                   )}
                 >
-                  <div
-                    className="sig-topbar-avatar-chip inline-flex h-10 w-10 items-center justify-center rounded-full"
-                    style={{ background: "linear-gradient(180deg, #ffffff 0%, #dbe4ef 100%)", color: "#0f172a" }}
-                  >
-                    {topbarAvatarInitials}
-                  </div>
+                  <UserAvatar
+                    name={displayUserName}
+                    imageUrl={topbarAvatarImageUrl}
+                    imageStyle={topbarAvatarImageStyle}
+                    size="md"
+                    className="sig-topbar-user-avatar"
+                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                  />
                   <div className="hidden min-w-0 text-left xl:block">
                     <p className="sig-topbar-profile-name sig-fit-title text-[13px] font-semibold leading-tight" title={displayUserName}>
                       {displayUserName}
@@ -1282,7 +1292,8 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                       <div className="relative shrink-0">
                         <UserAvatar
                           name={displayUserName}
-                          imageUrl={userProfile?.avatarUrl}
+                          imageUrl={topbarAvatarImageUrl}
+                          imageStyle={topbarAvatarImageStyle}
                           size="lg"
                           className={cn(
                             "sig-topbar-user-avatar !text-[#17324a] ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",

@@ -94,13 +94,13 @@ export function FileDropZone({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 min-w-0">
       <div
         className={cn(
-          "rounded-[24px] border border-dashed p-6 transition",
+          "min-w-0 overflow-hidden rounded-[24px] border border-dashed p-4 transition sm:p-5 lg:p-6",
           dragging
-            ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900/60"
-            : "border-slate-300 bg-white dark:border-slate-700/70 dark:bg-slate-950/40",
+            ? "border-sky-500 bg-sky-50/80 dark:border-sky-300 dark:bg-sky-400/10"
+            : "border-slate-300 bg-white dark:border-white/12 dark:bg-white/[0.03]",
         )}
         onDragEnter={(event) => {
           event.preventDefault();
@@ -116,20 +116,22 @@ export function FileDropZone({
         }}
         onDrop={handleDrop}
       >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 max-w-2xl">
-            <p className="break-words text-base font-semibold leading-tight text-slate-900 dark:text-slate-100">{title}</p>
-            <p className="mt-1 break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
+        <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm font-semibold leading-6 text-slate-900 dark:text-white sm:text-base">{title}</p>
+            <p className="mt-1 max-w-2xl break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full text-slate-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/60"
-            onClick={() => inputRef.current?.click()}
-          >
-            <UploadCloud className="mr-2 h-4 w-4" />
-            Selecionar arquivo
-          </Button>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap xl:w-auto xl:max-w-[240px] xl:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
+              onClick={() => inputRef.current?.click()}
+            >
+              <UploadCloud className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
+              <span className="whitespace-normal text-center sm:whitespace-nowrap">Selecionar arquivo</span>
+            </Button>
+          </div>
         </div>
 
         <input
@@ -145,51 +147,56 @@ export function FileDropZone({
       {files.length > 0 ? (
         <div className="grid gap-4">
           {files.map((file) => (
-            <div key={file.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700/60 dark:bg-slate-950/30">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
+            <div key={file.id} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 p-4 dark:border-white/12 dark:bg-white/[0.03]">
+              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
                   {file.mimeType.startsWith("image/") ? (
-                    <FileImage className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+                    <FileImage className="mt-0.5 h-5 w-5 shrink-0 text-sky-600 dark:text-sky-200" />
                   ) : (
-                    <FileText className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+                    <FileText className="mt-0.5 h-5 w-5 shrink-0 text-sky-600 dark:text-sky-200" />
                   )}
-                  <div className="min-w-0">
-                    <p className="max-w-[520px] break-words text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">{file.fileName}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="max-w-full break-words text-sm font-medium leading-6 text-slate-900 dark:text-white">{file.fileName}</p>
                     <p className="break-words text-sm text-slate-500 dark:text-slate-300">
                       {file.mimeType} - {file.sizeLabel}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap xl:max-w-[360px] xl:justify-end">
                   {file.previewUrl ? (
                     <a
                       href={file.previewUrl}
                       download={file.fileName}
-                      className="inline-flex items-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-100"
+                      className="inline-flex min-h-[42px] w-full items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
+                      <Download className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
+                      <span className="whitespace-normal text-center sm:whitespace-nowrap">Download</span>
                     </a>
                   ) : null}
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-full text-slate-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900/60"
+                    className="min-h-[42px] w-full rounded-full text-slate-700 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={() => inputRef.current?.click()}
                   >
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    Substituir
+                    <RefreshCcw className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
+                    <span className="whitespace-normal text-center sm:whitespace-nowrap">Substituir</span>
                   </Button>
-                  <Button type="button" variant="outline" className="rounded-full text-red-600 dark:text-red-400" onClick={() => removeFile(file.id)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-[42px] w-full rounded-full text-red-600 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
+                    onClick={() => removeFile(file.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="whitespace-normal text-center sm:whitespace-nowrap">Excluir</span>
                   </Button>
                 </div>
               </div>
 
               {allowPreview && file.previewUrl ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/12 dark:bg-slate-900/50">
                   {file.mimeType === "application/pdf" ? (
                     <iframe src={file.previewUrl} title={file.fileName} className="h-72 w-full" />
                   ) : (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ interface UserAvatarProps {
   size?: UserAvatarSize;
   className?: string;
   imageClassName?: string;
+  imageStyle?: CSSProperties;
   fallbackClassName?: string;
   title?: string;
 }
@@ -36,6 +37,7 @@ export function UserAvatar({
   size = "md",
   className,
   imageClassName,
+  imageStyle,
   fallbackClassName,
   title,
 }: UserAvatarProps) {
@@ -62,6 +64,7 @@ export function UserAvatar({
           src={imageUrl ?? undefined}
           alt={name || "Usuario"}
           className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
+          style={imageStyle}
           onError={() => setImageFailed(true)}
         />
       ) : null}

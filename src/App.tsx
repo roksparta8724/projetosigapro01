@@ -196,6 +196,38 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/dashboard/processos"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <DashboardHomePage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/dashboard/financeiro"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <DashboardHomePage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/dashboard/usuarios"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <DashboardHomePage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/dashboard/operacional"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <DashboardHomePage />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/master"
           element={
             <PermissionRoute permission="view_master_dashboard">

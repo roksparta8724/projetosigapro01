@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Link } from "react-router-dom";
-import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -37,18 +36,22 @@ export function LandingHeader({ navItems }: LandingHeaderProps) {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="mx-auto w-full max-w-[1320px] px-4 pt-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto w-full max-w-[1440px] px-4 pt-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div
           className={cn(
-            "flex items-center justify-between rounded-full border px-4 py-3.5 transition-all duration-300 sm:px-5",
+            "flex items-center justify-between rounded-full border px-4 py-3 transition-all duration-300 sm:px-5",
             scrolled
-              ? "border-white/10 bg-[linear-gradient(135deg,rgba(10,37,64,0.94),rgba(18,72,123,0.92))] shadow-[0_18px_46px_rgba(8,25,47,0.26)] backdrop-blur-xl"
-              : "border-blue-900/20 bg-[linear-gradient(135deg,rgba(17,44,77,0.88),rgba(24,85,140,0.84))] shadow-[0_14px_34px_rgba(8,25,47,0.18)] backdrop-blur-md",
+              ? "border-white/10 bg-[linear-gradient(135deg,rgba(11,29,49,0.95),rgba(23,53,87,0.92))] shadow-[0_20px_48px_rgba(8,25,47,0.24)] backdrop-blur-xl"
+              : "border-[#163657]/20 bg-[linear-gradient(135deg,rgba(15,34,57,0.9),rgba(27,58,94,0.86))] shadow-[0_16px_38px_rgba(8,25,47,0.18)] backdrop-blur-md",
           )}
         >
-          <Link to="/" className="flex min-w-0 items-center gap-3" aria-label="SIGAPRO">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/14 text-white shadow-sm ring-1 ring-white/10">
-              <SigaproLogo bare compact showInternalWordmark={false} className="scale-[0.72]" />
+          <Link to="/" className="flex min-w-0 items-center gap-3.5" aria-label="SIGAPRO">
+            <div className="flex aspect-square h-[58px] w-[58px] min-h-[58px] min-w-[58px] flex-none items-center justify-center rounded-[19px] bg-white p-[5px] shadow-[0_16px_32px_rgba(2,6,23,0.18)] ring-1 ring-white/75">
+              <img
+                src="/favicon-sigapro.svg"
+                alt="SIGAPRO"
+                className="block h-full w-full rounded-[14px] object-contain"
+              />
             </div>
 
             <div className="min-w-0">

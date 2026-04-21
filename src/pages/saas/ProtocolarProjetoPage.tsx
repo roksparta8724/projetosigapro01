@@ -626,7 +626,7 @@ export function ProtocolarProjetoPage() {
 
               return (
                 <div key={groupKey} className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
                     <span className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-sky-200 bg-sky-50 text-sky-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-sky-400/24 dark:bg-sky-400/12 dark:text-sky-200">
                       <meta.icon className="h-[18px] w-[18px]" />
                     </span>
@@ -638,17 +638,17 @@ export function ProtocolarProjetoPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    {documents.map((item) => {
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {documents.map((item) => {
                       const itemStatus =
                         (files[item.label]?.length ?? 0) > 0 ? "enviado" : item.required ? "pendente" : "nao_enviado";
 
                       return (
                         <div
                           key={item.label}
-                          className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/12 dark:bg-white/[0.04]"
+                          className="flex min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/12 dark:bg-white/[0.04] sm:p-5"
                         >
-                          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                          <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 {itemStatus === "enviado" ? (
@@ -658,9 +658,9 @@ export function ProtocolarProjetoPage() {
                                 ) : (
                                   <CircleDashed className="h-4 w-4 text-slate-400 dark:text-sky-200" />
                                 )}
-                                <p className="text-base font-semibold text-slate-950 dark:text-white">{item.label}</p>
+                                <p className="min-w-0 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{item.label}</p>
                               </div>
-                              <p className="mt-2 text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
+                              <p className="mt-2 break-words text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
 
                             <span
