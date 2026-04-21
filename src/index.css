@@ -358,6 +358,41 @@
     -webkit-box-orient: vertical;
   }
 
+  .sig-chart-surface {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+  }
+
+  .sig-chart-surface .recharts-responsive-container {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .sig-chart-surface .recharts-wrapper,
+  .sig-chart-surface .recharts-surface {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .sig-chart-surface .recharts-default-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1rem;
+    white-space: normal;
+  }
+
+  .sig-chart-surface .recharts-legend-item {
+    margin-right: 0 !important;
+  }
+
+  .sig-chart-surface .recharts-cartesian-axis-tick text,
+  .sig-chart-surface .recharts-text {
+    font-size: 12px;
+  }
+
   .sig-dark-action-btn {
     background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%) !important;
     border-color: rgba(203, 213, 225, 0.92) !important;
@@ -823,38 +858,38 @@
     color: #cdd8ea !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-950,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-900,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-800,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-700,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-600,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-500,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-slate-400,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-950,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-900,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-800,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-700,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-600,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-500,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-gray-400,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-950,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-900,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-800,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-700,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-600,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-500,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-zinc-400,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-muted-foreground,
-  [data-layout-mode="inverse-main"] .sig-main-shell svg.text-black {
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-900"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-800"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-600"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-500"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-slate-400"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-900"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-800"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-600"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-500"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-gray-400"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-900"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-800"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-600"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-500"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-zinc-400"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-muted-foreground"],
+  [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="text-black"] {
     color: color-mix(in srgb, var(--sig-inverse-icon) 86%, #dbeafe 14%) !important;
     stroke: currentColor !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-700 svg,
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-600 svg,
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-500 svg,
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-slate-400 svg,
-  [data-layout-mode="inverse-main"] .sig-main-shell .text-muted-foreground svg {
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-slate-700"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-slate-600"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-slate-500"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-slate-400"] svg,
+  [data-layout-mode="inverse-main"] .sig-main-shell [class*="text-muted-foreground"] svg {
     color: color-mix(in srgb, var(--sig-inverse-icon) 86%, #dbeafe 14%) !important;
     stroke: currentColor !important;
   }
@@ -1137,12 +1172,12 @@
     color: inherit !important;
   }
 
-  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-700,
-  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-900,
-  [data-layout-mode="inverse-main"] .sig-main-shell a.text-slate-950,
-  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-700,
-  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-900,
-  [data-layout-mode="inverse-main"] .sig-main-shell button.text-slate-950 {
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="text-slate-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="text-slate-900"],
+  [data-layout-mode="inverse-main"] .sig-main-shell a[class*="text-slate-950"],
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="text-slate-700"],
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="text-slate-900"],
+  [data-layout-mode="inverse-main"] .sig-main-shell button[class*="text-slate-950"] {
     color: #9cc6ff !important;
   }
 

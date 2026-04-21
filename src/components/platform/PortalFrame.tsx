@@ -229,18 +229,20 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
   const resolvedHeaderLogoUrl = resolveBrandingLogoUrl(headerBranding as Record<string, unknown>, "header");
   const resolvedFooterLogoUrl = resolveBrandingLogoUrl(footerBranding as Record<string, unknown>, "footer");
-
-  useEffect(() => {
-    if (!resolvedHeaderLogoUrl) return;
-    const image = new Image();
-    image.src = resolvedHeaderLogoUrl;
-  }, [resolvedHeaderLogoUrl]);
-
-  useEffect(() => {
-    if (!resolvedFooterLogoUrl) return;
-    const image = new Image();
-    image.src = resolvedFooterLogoUrl;
-  }, [resolvedFooterLogoUrl]);
+  const stableHeaderBranding = useMemo(
+    () => ({
+      ...headerBranding,
+      logoUrl: resolvedHeaderLogoUrl || headerBranding.logoUrl,
+    }),
+    [headerBranding, resolvedHeaderLogoUrl],
+  );
+  const stableFooterBranding = useMemo(
+    () => ({
+      ...footerBranding,
+      logoUrl: resolvedFooterLogoUrl || footerBranding.logoUrl,
+    }),
+    [footerBranding, resolvedFooterLogoUrl],
+  );
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -1623,10 +1625,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7">
                     <div className="shrink-0">
                       <InstitutionalLogo
-                        branding={{
-                          ...headerBranding,
-                          logoUrl: resolvedHeaderLogoUrl,
-                        }}
+                        branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
                         variant="header"
                         className="mx-auto md:mx-0"
@@ -1691,10 +1690,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
             <div className="grid items-center gap-8 md:grid-cols-2 xl:grid-cols-[220px_minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(0,0.95fr)]">
               <div className="flex justify-center xl:justify-start xl:pl-3">
                 <InstitutionalLogo
-                  branding={{
-                    ...footerBranding,
-                    logoUrl: resolvedFooterLogoUrl,
-                  }}
+                  branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   className="mt-3"

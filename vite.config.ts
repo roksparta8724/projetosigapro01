@@ -334,5 +334,53 @@ export default defineConfig(({ mode }) => {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+
+          if (id.includes("react-router-dom") || id.includes("react-dom") || id.includes("\\react\\") || id.includes("/react/")) {
+            return "vendor-react";
+          }
+
+          if (id.includes("@radix-ui")) {
+            return "vendor-radix";
+          }
+
+          if (id.includes("recharts")) {
+            return "vendor-charts";
+          }
+
+          if (id.includes("@supabase")) {
+            return "vendor-supabase";
+          }
+
+          if (
+            id.includes("react-hook-form") ||
+            id.includes("@hookform") ||
+            id.includes("zod") ||
+            id.includes("date-fns")
+          ) {
+            return "vendor-forms";
+          }
+
+          if (
+            id.includes("framer-motion") ||
+            id.includes("embla-carousel-react") ||
+            id.includes("react-resizable-panels")
+          ) {
+            return "vendor-motion";
+          }
+
+          if (id.includes("lucide-react")) {
+            return "vendor-icons";
+          }
+
+          return "vendor";
+        },
+      },
+    },
+  },
   };
 });

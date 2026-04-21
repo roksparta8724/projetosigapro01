@@ -328,11 +328,11 @@ function DistributionCard({
       {data.length === 0 ? (
         <EmptyState title="Sem dados para distribuicao" description="Assim que houver volume suficiente, o grafico sera preenchido automaticamente." icon={AlertTriangle} />
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(220px,0.8fr)] lg:items-center">
-          <div className="h-[260px]">
-            <ChartContainer config={chartConfig} className="h-full w-full">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(220px,0.85fr)] xl:items-center">
+          <div className="min-w-0">
+            <ChartContainer config={chartConfig} className="mx-auto w-full max-w-[320px]" ratio={1} minHeight={240} maxHeight={320}>
               <PieChart>
-                <Pie data={data} dataKey="total" nameKey="label" innerRadius={64} outerRadius={96} paddingAngle={3}>
+                <Pie data={data} dataKey="total" nameKey="label" innerRadius="52%" outerRadius="84%" paddingAngle={3}>
                   {data.map((entry, index) => (
                     <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
                   ))}
@@ -341,14 +341,14 @@ function DistributionCard({
               </PieChart>
             </ChartContainer>
           </div>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {data.map((item, index) => (
-              <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
+              <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} />
-                  <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-100">{item.label}</p>
+                  <p className="min-w-0 break-words text-sm font-medium text-slate-700 dark:text-slate-100">{item.label}</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-950 dark:text-white">{item.total}</p>
+                <p className="shrink-0 text-sm font-semibold text-slate-950 dark:text-white">{item.total}</p>
               </div>
             ))}
           </div>
@@ -636,13 +636,13 @@ export function DashboardHomePage() {
         ))}
       </SectionCard>
 
-      <PageStatsRow className="xl:grid-cols-4">
+      <PageStatsRow>
         {overviewMetrics.map((item) => (
           <MetricCard key={item.title} {...item} />
         ))}
       </PageStatsRow>
 
-      <PageMainGrid className="min-[1480px]:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.92fr)] min-[1680px]:grid-cols-[minmax(0,1.52fr)_minmax(390px,0.95fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.9fr)] min-[1680px]:grid-cols-[minmax(0,1.52fr)_minmax(360px,0.95fr)]">
         <PageMainContent>
           <TableCard
             title={isExternal ? "Ritmo recente da sua carteira" : "Ritmo operacional recente"}
@@ -652,8 +652,8 @@ export function DashboardHomePage() {
             {activitySeries.every((item) => item.total === 0) ? (
               <EmptyState title="Sem atividade recente" description="Quando houver novas movimentacoes, o painel temporal sera preenchido automaticamente." icon={Activity} />
             ) : (
-              <div className="h-[300px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
+              <div className="min-w-0">
+                <ChartContainer config={chartConfig} className="w-full" ratio={2.2} minHeight={260} maxHeight={340}>
                   <AreaChart data={activitySeries} margin={{ left: 2, right: 8, top: 12, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sigapro-dashboard-area-overview" x1="0" y1="0" x2="0" y2="1">
@@ -663,7 +663,7 @@ export function DashboardHomePage() {
                     </defs>
                     <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} width={28} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
                     <Area type="monotone" dataKey="total" stroke="#60a5fa" strokeWidth={3} fill="url(#sigapro-dashboard-area-overview)" activeDot={{ r: 5, fill: "#93c5fd" }} />
                   </AreaChart>
@@ -672,7 +672,7 @@ export function DashboardHomePage() {
             )}
           </TableCard>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <DistributionCard
               title="Distribuicao por status"
               description="Leitura sintetica do volume atual por etapa do fluxo."
@@ -749,16 +749,16 @@ export function DashboardHomePage() {
 
   const renderProcesses = () => (
     <div className="space-y-6">
-      <PageStatsRow className="xl:grid-cols-4">
+      <PageStatsRow>
         <MetricCard title="Em andamento" value={`${inProgressCount}`} helper="Processos ativos no fluxo atual." icon={FileText} tone="blue" />
         <MetricCard title="Concluidos" value={`${completedCount}`} helper="Protocolos encerrados no recorte." icon={CheckCircle2} tone="emerald" />
         <MetricCard title="Exigencias" value={`${displayProcesses.filter((process) => process.status === "exigencia").length}`} helper="Itens em exigencia formal." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Reapresentacao" value={`${displayProcesses.filter((process) => process.status === "reapresentacao").length}`} helper="Protocolos retornados para nova submissao." icon={ArrowRight} tone="amber" />
       </PageStatsRow>
 
-      <PageMainGrid className="min-[1480px]:grid-cols-[minmax(0,1.38fr)_minmax(360px,0.92fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.34fr)_minmax(300px,0.92fr)]">
         <PageMainContent>
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Distribuicao por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
             <DistributionCard title="Distribuicao por tipo" description="Tipos mais frequentes na operacao atual." icon={LayoutDashboard} data={typeChart} />
           </div>
@@ -767,8 +767,8 @@ export function DashboardHomePage() {
             {activitySeries.every((item) => item.total === 0) ? (
               <EmptyState title="Sem evolucao registrada" description="Ainda nao ha eventos suficientes para compor a leitura temporal." icon={Activity} />
             ) : (
-              <div className="h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
+              <div className="min-w-0">
+                <ChartContainer config={chartConfig} className="w-full" ratio={2.15} minHeight={270} maxHeight={360}>
                   <AreaChart data={activitySeries} margin={{ left: 2, right: 8, top: 12, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sigapro-dashboard-area-processes" x1="0" y1="0" x2="0" y2="1">
@@ -778,7 +778,7 @@ export function DashboardHomePage() {
                     </defs>
                     <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} width={28} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
                     <Area type="monotone" dataKey="total" stroke="#34d399" strokeWidth={3} fill="url(#sigapro-dashboard-area-processes)" activeDot={{ r: 5, fill: "#86efac" }} />
                   </AreaChart>
@@ -813,29 +813,29 @@ export function DashboardHomePage() {
 
   const renderFinance = () => (
     <div className="space-y-6">
-      <PageStatsRow className="xl:grid-cols-4">
+      <PageStatsRow>
         <MetricCard title="Guias emitidas" value={`${displayProcesses.filter((process) => process.status === "guia_emitida").length}`} helper="Guias geradas no recorte atual." icon={Wallet} tone="amber" />
         <MetricCard title="Pagamentos pendentes" value={`${pendingPayments}`} helper="Aguardando compensacao no sistema." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Pagamentos confirmados" value={`${displayProcesses.filter((process) => process.status === "pagamento_confirmado").length}`} helper="Guias compensadas e registradas." icon={CheckCircle2} tone="emerald" />
         <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante financeiro total monitorado." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
 
-      <PageMainGrid className="min-[1480px]:grid-cols-[minmax(0,1.28fr)_minmax(360px,0.98fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.24fr)_minmax(300px,0.98fr)]">
         <PageMainContent>
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Situacao financeira" description="Comparativo entre guias emitidas, pendentes e compensadas." icon={Wallet} data={financeSituationChart} />
             <TableCard title="Comparativo de guias" description="Volume financeiro por situacao do fluxo de arrecadacao." icon={BarChart3}>
               {financeSituationChart.length === 0 ? (
                 <EmptyState title="Sem informacoes financeiras" description="Nao ha guias suficientes para compor o painel comparativo." icon={Wallet} />
               ) : (
-                <div className="h-[300px]">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
+                <div className="min-w-0">
+                  <ChartContainer config={chartConfig} className="w-full" ratio={2.15} minHeight={250} maxHeight={340}>
                     <BarChart data={financeSituationChart} margin={{ left: 6, right: 6, top: 12, bottom: 0 }}>
                       <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} minTickGap={10} />
-                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} width={30} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
-                      <Bar dataKey="total" radius={[10, 10, 0, 0]} maxBarSize={38}>
+                      <Bar dataKey="total" radius={[10, 10, 0, 0]}>
                         {financeSituationChart.map((entry, index) => (
                           <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
                         ))}
@@ -878,16 +878,16 @@ export function DashboardHomePage() {
 
   const renderUsers = () => (
     <div className="space-y-6">
-      <PageStatsRow className="xl:grid-cols-4">
+      <PageStatsRow>
         <MetricCard title="Usuarios monitorados" value={`${scopedUsers.length}`} helper="Contas disponiveis no escopo atual." icon={Users2} tone="blue" />
         <MetricCard title="Ativos" value={`${activeUsers}`} helper="Usuarios com conta ativa." icon={ShieldCheck} tone="emerald" />
         <MetricCard title="Bloqueados" value={`${blockedUsers}`} helper="Contas com restricao operacional." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Administradores" value={`${adminUsers}`} helper="Perfis com governanca elevada." icon={Building2} tone="amber" />
       </PageStatsRow>
 
-      <PageMainGrid className="min-[1480px]:grid-cols-[minmax(0,1.2fr)_minmax(360px,1fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,1fr)]">
         <PageMainContent>
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Distribuicao por perfil" description="Leitura dos perfis mais relevantes no recorte atual." icon={Users2} data={roleChart} />
             <DistributionCard title="Situacao das contas" description="Usuarios ativos, bloqueados e inativos no escopo atual." icon={ShieldCheck} data={accountStatusChart} />
           </div>
@@ -906,14 +906,14 @@ export function DashboardHomePage() {
 
   const renderOperational = () => (
     <div className="space-y-6">
-      <PageStatsRow className="xl:grid-cols-4">
+      <PageStatsRow>
         <MetricCard title="Risco de SLA" value={`${breachedCount}`} helper="Processos com prazo vencido." icon={Timer} tone="amber" />
         <MetricCard title="Exigencias abertas" value={`${openRequirements}`} helper="Pendencias formais aguardando acao." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Despachos" value={`${totalDispatches}`} helper="Fluxos intersetoriais registrados." icon={ArrowRight} tone="blue" />
         <MetricCard title="Mensagens" value={`${totalMessages}`} helper="Interacoes trocadas no universo visivel." icon={Activity} tone="default" />
       </PageStatsRow>
 
-      <PageMainGrid className="min-[1480px]:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.95fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.95fr)]">
         <PageMainContent>
           <SectionCard title="Saude operacional detalhada" description="Risco, prazo, acao e equilibrio da operacao atual." icon={Activity} contentClassName="grid gap-4 md:grid-cols-2">
             {healthSignals.map((signal) => (

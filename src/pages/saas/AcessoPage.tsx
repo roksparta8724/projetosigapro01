@@ -4,8 +4,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  LogOut,
-  MoveRight,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -21,7 +19,6 @@ import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
-import { roleLabels } from "@/lib/platform";
 
 const institutionalHighlights = [
   {
@@ -63,7 +60,6 @@ export function AcessoPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const activeRoleLabel = authenticatedRole ? roleLabels[authenticatedRole] ?? "Usuário autenticado" : "Usuário autenticado";
   const activeDestination = resolveRedirect(authenticatedRole);
 
   const handleSubmit = async (event: FormEvent) => {
@@ -87,12 +83,9 @@ export function AcessoPage() {
 
     let result: Awaited<ReturnType<typeof signIn>>;
     try {
-      console.log("[SIGAPRO][Acesso] Iniciando login", { email });
       result = await withTimeout(signIn(email, password));
-      console.log("[SIGAPRO][Acesso] Resultado login", result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao autenticar.";
-      console.error("[SIGAPRO][Acesso] Erro login", error);
       setError(message);
       setSubmitting(false);
       return;
@@ -273,70 +266,42 @@ export function AcessoPage() {
                           Acesse seu ambiente institucional com suas credenciais já vinculadas ao SIGAPRO.
                         </p>
                       </div>
-                    </CardHeader>
 
-                    <CardContent className="px-9 pb-9 pt-7">
                       {isAuthenticated ? (
-                        <div className="w-full space-y-6">
-                          <div className="rounded-[24px] border border-emerald-200 bg-[linear-gradient(180deg,#f7fffb_0%,#effaf4_100%)] p-5 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
-                            <div className="flex items-start gap-3">
-                              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-emerald-100 text-emerald-700">
-                                <BadgeCheck className="h-5 w-5" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                                  Sessão detectada
-                                </p>
-                                <p className="mt-2 text-[1.1rem] font-semibold leading-tight text-slate-950">
-                                  Sua autenticação já está válida neste navegador.
-                                </p>
-                                <p className="mt-2 text-sm leading-7 text-slate-600">
-                                  Revise a conta ativa antes de entrar no ambiente interno ou troque de credencial com segurança.
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="mt-5 rounded-[20px] border border-emerald-200/80 bg-white px-4 py-4">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Conta ativa</p>
-                              <p className="mt-2 break-all text-sm font-semibold text-slate-950">
-                                {authenticatedEmail || email}
-                              </p>
-                              <p className="mt-1 text-sm text-slate-600">{activeRoleLabel}</p>
-                            </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                              Sessão ativa no navegador
+                            </p>
+                            <p className="mt-1 truncate text-sm text-slate-700">{authenticatedEmail || email}</p>
                           </div>
-
-                          <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
-                              className="h-12 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                              size="sm"
+                              className="h-9 rounded-[12px] bg-slate-900 px-3 text-white hover:bg-slate-800"
                               onClick={() => navigate(activeDestination, { replace: true })}
                             >
-                              Continuar para o sistema
-                              <MoveRight className="h-4 w-4" />
+                              Continuar
                             </Button>
-
                             <Button
                               type="button"
+                              size="sm"
                               variant="outline"
-                              className="h-12 rounded-lg border"
+                              className="h-9 rounded-[12px] border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
                               onClick={async () => {
                                 await signOut();
                               }}
                             >
-                              Entrar com outra conta
-                              <LogOut className="h-4 w-4" />
+                              Trocar conta
                             </Button>
                           </div>
-
-                          <div className="rounded-xl border bg-muted/40 p-4">
-                            <p className="text-sm font-medium">Fluxo de acesso protegido</p>
-                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                              O ambiente interno só é liberado após validação da sessão ativa. Para trocar de usuário, encerre esta sessão primeiro.
-                            </p>
-                          </div>
                         </div>
-                      ) : (
-                        <form className="w-full space-y-6" onSubmit={handleSubmit}>
+                      ) : null}
+                    </CardHeader>
+
+                    <CardContent className="px-9 pb-9 pt-7">
+                        <form className="w-full space-y-6 border-t border-slate-200 pt-7" onSubmit={handleSubmit}>
                           <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium text-slate-500">
                               E-mail
@@ -418,7 +383,6 @@ export function AcessoPage() {
                             <span className="font-medium">SIGAPRO →</span>
                           </div>
                         </form>
-                      )}
                     </CardContent>
                   </Card>
                 </div>

@@ -48,7 +48,7 @@ export function SidebarProfilePanel({
             {role}
           </p>
           {email ? (
-            <p className={cn("mt-1 sig-fit-copy text-[11px]", darkSurface ? "text-white/72" : "text-slate-600")} title={email}>
+            <p className={cn("mt-1 sig-fit-copy text-[11px] font-medium", darkSurface ? "text-slate-200" : "text-slate-600")} title={email}>
               {email}
             </p>
           ) : null}

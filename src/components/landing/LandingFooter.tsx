@@ -6,9 +6,10 @@ type NavItem = {
 
 type LandingFooterProps = {
   navItems: readonly NavItem[];
+  onOpenDemo: () => void;
 };
 
-export function LandingFooter({ navItems }: LandingFooterProps) {
+export function LandingFooter({ navItems, onOpenDemo }: LandingFooterProps) {
   return (
     <footer className="border-t border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f8fc_100%)]">
       <div className="mx-auto grid w-full max-w-[1440px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.75fr_0.85fr] lg:px-8 xl:px-10 2xl:px-12">
@@ -52,9 +53,9 @@ export function LandingFooter({ navItems }: LandingFooterProps) {
             <Link to="/acesso" className="block font-medium text-slate-700 hover:text-slate-950">
               Acessar sistema
             </Link>
-            <a href="#contato" className="block font-medium text-slate-700 hover:text-slate-950">
+            <button type="button" onClick={onOpenDemo} className="block font-medium text-slate-700 transition-colors hover:text-slate-950">
               Solicitar demonstracao
-            </a>
+            </button>
             <a href="mailto:contato@sigapro.govtech" className="block font-medium text-slate-700 hover:text-slate-950">
               contato@sigapro.govtech
             </a>

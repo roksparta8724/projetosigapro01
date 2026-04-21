@@ -12,6 +12,13 @@ import { TenantProvider } from "@/hooks/useTenant";
 import { PermissionRoute } from "@/components/platform/PermissionRoute";
 import { AcessoPage } from "@/pages/saas/AcessoPage";
 import { LandingPage } from "@/pages/saas/LandingPage";
+import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
+import { CriarContaPage } from "@/pages/saas/CriarContaPage";
+import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
+import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
+import { LoadingFallback } from "@/components/platform/LoadingFallback";
+import { shouldShowPublicLanding } from "@/lib/tenant";
+import { AppLoadingState } from "@/components/platform/AppLoadingState";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
@@ -35,14 +42,7 @@ import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
 import { LegislationPage } from "@/pages/saas/LegislationPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
-import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
-import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
-import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
-import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
-import { LoadingFallback } from "@/components/platform/LoadingFallback";
-import { shouldShowPublicLanding } from "@/lib/tenant";
-import { AppLoadingState } from "@/components/platform/AppLoadingState";
 
 const App = () => {
   return (
@@ -129,7 +129,7 @@ const AppRoutes = () => {
       return (
         <LoadingFallback
           title="Tempo de carregamento excedido"
-          description="Não conseguimos concluir a inicialização agora. Verifique sua conexão e tente novamente."
+          description="Nao conseguimos concluir a inicializacao agora. Verifique sua conexao e tente novamente."
           onRetry={() => window.location.reload()}
         />
       );
@@ -145,8 +145,6 @@ const AppRoutes = () => {
     );
   }
 
-  // AQUI ESTÁ A CORREÇÃO PRINCIPAL:
-  // usa o bootstrap como fonte de verdade para tenant not found.
   if (bootstrap.stage === "tenant_not_found") {
     return <TenantNotFoundPage />;
   }
@@ -155,7 +153,7 @@ const AppRoutes = () => {
     return (
       <LoadingFallback
         title="Falha ao iniciar o ambiente"
-        description={bootstrap.error || "Não foi possível concluir a inicialização do sistema."}
+        description={bootstrap.error || "Nao foi possivel concluir a inicializacao do sistema."}
         onRetry={() => window.location.reload()}
       />
     );
@@ -167,7 +165,7 @@ const AppRoutes = () => {
         <AppLoadingState
           variant="overlay"
           title={stageLabel}
-          description="Atualizando contexto e permissões sem interromper a navegação."
+          description="Atualizando contexto e permissoes sem interromper a navegacao."
           municipalityName={loadingBrandName}
           logoUrl={loadingBrandLogo}
         />

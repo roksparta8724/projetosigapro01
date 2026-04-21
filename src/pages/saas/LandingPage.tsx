@@ -21,8 +21,10 @@ import {
   TrendingUp,
   Users2,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
 import { LandingFAQ } from "@/components/landing/LandingFAQ";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
@@ -266,6 +268,7 @@ function LandingDemoChartCard({
 }
 
 export function LandingPage() {
+  const [demoModalOpen, setDemoModalOpen] = useState(false);
   const heroChartConfig = {
     total: { label: "Volume", color: "#3b82f6" },
     value: { label: "Participacao", color: "#60a5fa" },
@@ -274,7 +277,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
-      <LandingHeader navItems={navItems} />
+      <LandingHeader navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
+      <LandingDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
 
       <main className="overflow-hidden">
         <section
@@ -303,14 +307,13 @@ export function LandingPage() {
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Button
-                    asChild
+                    type="button"
                     size="lg"
                     className="h-12 rounded-full bg-slate-950 px-7 text-sm font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
+                    onClick={() => setDemoModalOpen(true)}
                   >
-                    <a href="#contato">
-                      Solicitar demonstracao
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                    Solicitar demonstracao
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button
                     asChild
@@ -466,7 +469,7 @@ export function LandingPage() {
             </div>
 
             <LandingReveal delay={0.08} className="mt-8 xl:mt-10">
-              <div className="grid gap-4 xl:grid-cols-4">
+              <div className="grid gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] backdrop-blur xl:col-span-2">
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
                     <div className="min-w-0">
@@ -495,16 +498,16 @@ export function LandingPage() {
                     <p className="mt-2 text-[15px] font-semibold text-slate-950">Composicao atual do fluxo municipal.</p>
                   </div>
                   <div className="mt-4 flex flex-col gap-4">
-                    <div className="mx-auto h-[138px] w-[138px] sm:h-[152px] sm:w-[152px]" data-chart>
-                      <ChartContainer config={heroChartConfig} className="h-full w-full">
+                    <div className="mx-auto w-full max-w-[168px]" data-chart>
+                      <ChartContainer config={heroChartConfig} className="w-full" ratio={1} minHeight={138} maxHeight={168}>
                         <PieChart>
                           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                           <Pie
                             data={heroOperationalShare}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={40}
-                            outerRadius={62}
+                            innerRadius="54%"
+                            outerRadius="84%"
                             paddingAngle={3}
                             stroke="none"
                           >
@@ -520,9 +523,9 @@ export function LandingPage() {
                         <div key={item.name} className="flex items-center justify-between gap-3 rounded-[16px] border border-slate-200 bg-slate-50/80 px-3 py-2.5">
                           <div className="flex min-w-0 items-center gap-2.5">
                             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />
-                            <span className="truncate text-[13px] font-medium text-slate-700">{item.name}</span>
+                            <span className="min-w-0 break-words text-[13px] font-medium text-slate-700">{item.name}</span>
                           </div>
-                          <span className="text-[13px] font-semibold text-slate-950">{item.value}%</span>
+                          <span className="shrink-0 text-[13px] font-semibold text-slate-950">{item.value}%</span>
                         </div>
                       ))}
                     </div>
@@ -559,12 +562,12 @@ export function LandingPage() {
                   icon={BarChart3}
                   className="xl:col-span-2"
                 >
-                  <div className="h-[196px] sm:h-[220px]" data-chart>
-                    <ChartContainer config={heroChartConfig} className="h-full w-full">
-                      <BarChart data={heroStatusBars} margin={{ top: 10, right: 4, left: -20, bottom: 0 }}>
+                  <div className="min-w-0" data-chart>
+                    <ChartContainer config={heroChartConfig} className="w-full" ratio={2.05} minHeight={196} maxHeight={240}>
+                      <BarChart data={heroStatusBars} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.35} />
                         <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
-                        <YAxis tickLine={false} axisLine={false} width={28} />
+                        <YAxis tickLine={false} axisLine={false} />
                         <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                         <Bar dataKey="total" radius={[10, 10, 4, 4]} fill="#3b82f6" />
                       </BarChart>
@@ -577,9 +580,9 @@ export function LandingPage() {
                   description="Tendencia simulada de entrada e consolidacao operacional ao longo do semestre."
                   icon={TrendingUp}
                 >
-                  <div className="h-[196px] sm:h-[220px]" data-chart>
-                    <ChartContainer config={heroChartConfig} className="h-full w-full">
-                      <AreaChart data={heroVolumeTrend} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
+                  <div className="min-w-0" data-chart>
+                    <ChartContainer config={heroChartConfig} className="w-full" ratio={2.05} minHeight={196} maxHeight={240}>
+                      <AreaChart data={heroVolumeTrend} margin={{ top: 12, right: 6, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="landingTrendFill" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.36} />
@@ -970,14 +973,13 @@ export function LandingPage() {
 
                 <div className="mt-8 space-y-3">
                   <Button
-                    asChild
+                    type="button"
                     size="lg"
                     className="h-12 w-full rounded-full bg-white px-6 text-sm font-semibold text-slate-950 hover:bg-slate-100"
+                    onClick={() => setDemoModalOpen(true)}
                   >
-                    <a href="mailto:contato@sigapro.govtech?subject=Solicitacao%20de%20demonstracao%20SIGAPRO">
-                      Solicitar demonstracao
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                    Solicitar demonstracao
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button
                     asChild
@@ -1003,7 +1005,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <LandingFooter navItems={navItems} />
+      <LandingFooter navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
     </div>
   );
 }

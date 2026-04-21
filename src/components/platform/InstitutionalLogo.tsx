@@ -38,6 +38,11 @@ const variantClasses = {
   },
 } as const;
 
+function isRenderableUrl(value?: string | null) {
+  if (!value) return false;
+  return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
+}
+
 export function InstitutionalLogo({
   branding,
   fallbackLabel = "Prefeitura",
@@ -46,18 +51,13 @@ export function InstitutionalLogo({
   viewportClassName,
 }: InstitutionalLogoProps) {
   const classes = variantClasses[variant];
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const [naturalSize, setNaturalSize] = useState({ width: 1, height: 1 });
-  const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [imageFailed, setImageFailed] = useState(false);
-  const [imageLoadedUrl, setImageLoadedUrl] = useState<string>("");
-  const isRenderableUrl = (value?: string | null) => {
-    if (!value) return false;
-    return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
-  };
   const [stableLogoUrl, setStableLogoUrl] = useState<string>(
     isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "",
   );
+  const contextKeyRef = useRef(`${variant}:${branding.tenantId || "global"}`);
+  const lastResolvedUrlRef = useRef(stableLogoUrl);
+
   const initials = fallbackLabel
     .split(" ")
     .filter(Boolean)
@@ -66,77 +66,41 @@ export function InstitutionalLogo({
     .join("") || "SG";
 
   useEffect(() => {
+    const nextContextKey = `${variant}:${branding.tenantId || "global"}`;
     const nextLogoUrl = isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "";
-    setStableLogoUrl(nextLogoUrl);
-    setImageFailed(false);
-    if (!nextLogoUrl) {
-      setImageLoadedUrl("");
-      setNaturalSize({ width: 1, height: 1 });
-    }
-  }, [branding.logoUrl, branding.tenantId]);
+    const sameContext = contextKeyRef.current === nextContextKey;
 
-  useEffect(() => {
-    if (!stableLogoUrl) {
-      setImageLoadedUrl("");
+    contextKeyRef.current = nextContextKey;
+    setImageFailed(false);
+
+    if (sameContext) {
+      if (nextLogoUrl) {
+        lastResolvedUrlRef.current = nextLogoUrl;
+        setStableLogoUrl(nextLogoUrl);
+      } else if (lastResolvedUrlRef.current) {
+        setStableLogoUrl(lastResolvedUrlRef.current);
+      }
       return;
     }
-    if (stableLogoUrl === imageLoadedUrl) return;
-    const image = new window.Image();
-    image.onload = () => {
-      setImageFailed(false);
-      setNaturalSize({
-        width: image.naturalWidth || 1,
-        height: image.naturalHeight || 1,
-      });
-      setImageLoadedUrl(stableLogoUrl);
-    };
-    image.onerror = () => {
-      setImageFailed(true);
-      setImageLoadedUrl("");
-    };
-    image.src = stableLogoUrl;
-  }, [stableLogoUrl, imageLoadedUrl]);
 
-  useEffect(() => {
-    const element = viewportRef.current;
-    if (!element) return;
+    lastResolvedUrlRef.current = nextLogoUrl;
+    setStableLogoUrl(nextLogoUrl);
+  }, [branding.logoUrl, branding.tenantId, variant]);
 
-    const updateSize = () => {
-      const rect = element.getBoundingClientRect();
-      setViewportSize({
-        width: Math.max(rect.width, 1),
-        height: Math.max(rect.height, 1),
-      });
-    };
+  const imageStyle = useMemo<React.CSSProperties>(
+    () => ({
+      objectFit: branding.logoFitMode ?? "contain",
+      transform: `translate(${branding.logoOffsetX || 0}px, ${branding.logoOffsetY || 0}px) scale(${branding.logoScale ?? 1})`,
+      transformOrigin: "center center",
+    }),
+    [branding.logoFitMode, branding.logoOffsetX, branding.logoOffsetY, branding.logoScale],
+  );
 
-    updateSize();
-
-    const observer = new ResizeObserver(() => updateSize());
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const imageMetrics = useMemo(() => {
-    const fitMode = branding.logoFitMode ?? "contain";
-    const baseScale =
-      fitMode === "cover"
-        ? Math.max(viewportSize.width / naturalSize.width, viewportSize.height / naturalSize.height)
-        : Math.min(viewportSize.width / naturalSize.width, viewportSize.height / naturalSize.height);
-    const renderScale = baseScale * (branding.logoScale ?? 1);
-
-    return {
-      width: naturalSize.width * renderScale,
-      height: naturalSize.height * renderScale,
-    };
-  }, [branding.logoFitMode, branding.logoScale, naturalSize.height, naturalSize.width, viewportSize.height, viewportSize.width]);
-
-  const displayUrl = imageLoadedUrl === stableLogoUrl ? imageLoadedUrl : "";
-  const shouldRenderImage = !!displayUrl && !imageFailed;
+  const shouldRenderImage = Boolean(stableLogoUrl) && !imageFailed;
 
   return (
     <div className={cn("flex items-center justify-center", classes.frame, className)}>
       <div
-        ref={viewportRef}
         className={cn(
           "relative flex w-full items-center justify-center overflow-hidden",
           branding.logoFrameMode === "rounded" ? "rounded-[26px]" : classes.viewport,
@@ -145,18 +109,16 @@ export function InstitutionalLogo({
       >
         {shouldRenderImage ? (
           <img
-            src={displayUrl}
+            src={stableLogoUrl}
             alt={branding.logoAlt || fallbackLabel}
-            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+            className="pointer-events-none absolute inset-0 h-full w-full select-none"
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
             onError={() => {
-              if (!stableLogoUrl) setImageFailed(true);
+              setImageFailed(true);
             }}
-            style={{
-              width: `${imageMetrics.width}px`,
-              height: `${imageMetrics.height}px`,
-              transform: `translate(calc(-50% + ${branding.logoOffsetX}px), calc(-50% + ${branding.logoOffsetY}px))`,
-              transformOrigin: "center",
-            }}
+            style={imageStyle}
           />
         ) : (
           <div className={cn("flex h-full w-full items-center justify-center font-extrabold text-[#0F2A44]", classes.placeholder)}>

@@ -19,9 +19,10 @@ type NavItem = {
 
 type LandingHeaderProps = {
   navItems: readonly NavItem[];
+  onOpenDemo: () => void;
 };
 
-export function LandingHeader({ navItems }: LandingHeaderProps) {
+export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -76,11 +77,11 @@ export function LandingHeader({ navItems }: LandingHeaderProps) {
 
           <div className="hidden items-center gap-3 xl:flex">
             <Button
-              asChild
               variant="outline"
               className="h-11 rounded-full border-white/15 bg-white/8 px-5 text-sm font-semibold text-white hover:bg-white/14"
+              onClick={onOpenDemo}
             >
-              <a href="#contato">Solicitar demonstracao</a>
+              Solicitar demonstracao
             </Button>
             <Button asChild className="h-11 rounded-full bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
@@ -121,10 +122,15 @@ export function LandingHeader({ navItems }: LandingHeaderProps) {
               </div>
 
               <div className="mt-8 space-y-3">
-                <Button asChild className="h-12 w-full rounded-full bg-slate-950 text-sm font-semibold hover:bg-slate-900">
-                  <a href="#contato" onClick={() => setOpen(false)}>
-                    Solicitar demonstracao
-                  </a>
+                <Button
+                  type="button"
+                  className="h-12 w-full rounded-full bg-slate-950 text-sm font-semibold hover:bg-slate-900"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenDemo();
+                  }}
+                >
+                  Solicitar demonstracao
                 </Button>
                 <Button
                   asChild

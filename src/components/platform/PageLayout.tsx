@@ -86,7 +86,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5 min-[1500px]:grid-cols-4 min-[1500px]:auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))] items-stretch gap-4 md:gap-5 auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -156,7 +156,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid grid-cols-1 gap-6 min-[1480px]:grid-cols-[minmax(0,2.1fr)_minmax(320px,0.92fr)] min-[1480px]:items-start min-[1680px]:grid-cols-[minmax(0,2.25fr)_minmax(380px,1fr)]",
+        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2.1fr)_minmax(280px,0.92fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.25fr)_minmax(360px,1fr)]",
         className,
       )}
     >
