@@ -46,11 +46,11 @@ export function LandingHeader({ navItems }: LandingHeaderProps) {
           )}
         >
           <Link to="/" className="flex min-w-0 items-center gap-3.5" aria-label="SIGAPRO">
-            <div className="flex aspect-square h-[58px] w-[58px] min-h-[58px] min-w-[58px] flex-none items-center justify-center rounded-[19px] bg-white p-[5px] shadow-[0_16px_32px_rgba(2,6,23,0.18)] ring-1 ring-white/75">
+            <div className="flex aspect-square h-[62px] w-[62px] min-h-[62px] min-w-[62px] flex-none items-center justify-center rounded-[20px] bg-white p-[7px] shadow-[0_18px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/80">
               <img
                 src="/favicon-sigapro.svg"
                 alt="SIGAPRO"
-                className="block h-full w-full rounded-[14px] object-contain"
+                className="block h-full w-full rounded-[15px] object-contain"
               />
             </div>
 

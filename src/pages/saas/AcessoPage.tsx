@@ -4,11 +4,13 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  LogOut,
+  MoveRight,
   ShieldCheck,
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
+import { roleLabels } from "@/lib/platform";
 
 const institutionalHighlights = [
   {
@@ -45,7 +48,7 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
+  const { authenticatedEmail, authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
   const bootstrap = useAppBootstrap();
@@ -60,10 +63,8 @@ export function AcessoPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  if (isAuthenticated) {
-    return <Navigate to={resolveRedirect(authenticatedRole)} replace />;
-  }
+  const activeRoleLabel = authenticatedRole ? roleLabels[authenticatedRole] ?? "Usuário autenticado" : "Usuário autenticado";
+  const activeDestination = resolveRedirect(authenticatedRole);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -275,88 +276,149 @@ export function AcessoPage() {
                     </CardHeader>
 
                     <CardContent className="px-9 pb-9 pt-7">
-                      <form className="w-full space-y-6" onSubmit={handleSubmit}>
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium text-slate-500">
-                            E-mail
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(event) => setEmail(event.target.value)}
-                            className="h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                          />
-                        </div>
+                      {isAuthenticated ? (
+                        <div className="w-full space-y-6">
+                          <div className="rounded-[24px] border border-emerald-200 bg-[linear-gradient(180deg,#f7fffb_0%,#effaf4_100%)] p-5 shadow-[0_16px_32px_rgba(15,23,42,0.06)]">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-emerald-100 text-emerald-700">
+                                <BadgeCheck className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                                  Sessão detectada
+                                </p>
+                                <p className="mt-2 text-[1.1rem] font-semibold leading-tight text-slate-950">
+                                  Sua autenticação já está válida neste navegador.
+                                </p>
+                                <p className="mt-2 text-sm leading-7 text-slate-600">
+                                  Revise a conta ativa antes de entrar no ambiente interno ou troque de credencial com segurança.
+                                </p>
+                              </div>
+                            </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="senha" className="text-sm font-medium text-slate-500">
-                            Senha
-                          </Label>
+                            <div className="mt-5 rounded-[20px] border border-emerald-200/80 bg-white px-4 py-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Conta ativa</p>
+                              <p className="mt-2 break-all text-sm font-semibold text-slate-950">
+                                {authenticatedEmail || email}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600">{activeRoleLabel}</p>
+                            </div>
+                          </div>
 
-                          <div className="relative">
-                            <Input
-                              id="senha"
-                              type={showPassword ? "text" : "password"}
-                              value={password}
-                              onChange={(event) => setPassword(event.target.value)}
-                              className="h-12 w-full rounded-lg border border-slate-300 px-4 py-3 pr-11 text-slate-900 shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                            />
-
-                            <button
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Button
                               type="button"
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
-                              onClick={() => setShowPassword((value) => !value)}
+                              className="h-12 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                              onClick={() => navigate(activeDestination, { replace: true })}
                             >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
+                              Continuar para o sistema
+                              <MoveRight className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-12 rounded-lg border"
+                              onClick={async () => {
+                                await signOut();
+                              }}
+                            >
+                              Entrar com outra conta
+                              <LogOut className="h-4 w-4" />
+                            </Button>
                           </div>
 
-                          <div className="text-right text-sm text-muted-foreground">
-                            <Link to={`/recuperar-senha${tenantQuery}`}>Esqueceu a senha?</Link>
+                          <div className="rounded-xl border bg-muted/40 p-4">
+                            <p className="text-sm font-medium">Fluxo de acesso protegido</p>
+                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                              O ambiente interno só é liberado após validação da sessão ativa. Para trocar de usuário, encerre esta sessão primeiro.
+                            </p>
                           </div>
                         </div>
-
-                        {error ? (
-                          <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                            {error}
+                      ) : (
+                        <form className="w-full space-y-6" onSubmit={handleSubmit}>
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-sm font-medium text-slate-500">
+                              E-mail
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={email}
+                              onChange={(event) => setEmail(event.target.value)}
+                              className="h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                            />
                           </div>
-                        ) : null}
 
-                        <Button
-                          type="submit"
-                          className="h-12 w-full rounded-lg bg-slate-900 text-white hover:bg-slate-800"
-                          disabled={submitting}
-                        >
-                          {submitting ? "Validando acesso..." : "Acessar ambiente"}
-                        </Button>
+                          <div className="space-y-2">
+                            <Label htmlFor="senha" className="text-sm font-medium text-slate-500">
+                              Senha
+                            </Label>
 
-                        <Button
-                          asChild
-                          type="button"
-                          variant="outline"
-                          className="h-12 w-full rounded-lg border"
-                        >
-                          <Link to={`/criar-conta${tenantQuery}`}>Criar conta</Link>
-                        </Button>
+                            <div className="relative">
+                              <Input
+                                id="senha"
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                className="h-12 w-full rounded-lg border border-slate-300 px-4 py-3 pr-11 text-slate-900 shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                              />
 
-                        <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
-                          <p className="text-sm font-medium">Acesso inicial</p>
-                          <p className="text-sm leading-relaxed text-muted-foreground">
-                            Profissionais externos podem criar a própria conta. Usuários internos da
-                            Prefeitura são cadastrados pelo administrador municipal.
-                          </p>
-                        </div>
+                              <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
+                                onClick={() => setShowPassword((value) => !value)}
+                              >
+                                {showPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
 
-                        <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Ambiente institucional protegido</span>
-                          <span className="font-medium">SIGAPRO →</span>
-                        </div>
-                      </form>
+                            <div className="text-right text-sm text-muted-foreground">
+                              <Link to={`/recuperar-senha${tenantQuery}`}>Esqueceu a senha?</Link>
+                            </div>
+                          </div>
+
+                          {error ? (
+                            <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                              {error}
+                            </div>
+                          ) : null}
+
+                          <Button
+                            type="submit"
+                            className="h-12 w-full rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                            disabled={submitting}
+                          >
+                            {submitting ? "Validando acesso..." : "Acessar ambiente"}
+                          </Button>
+
+                          <Button
+                            asChild
+                            type="button"
+                            variant="outline"
+                            className="h-12 w-full rounded-lg border"
+                          >
+                            <Link to={`/criar-conta${tenantQuery}`}>Criar conta</Link>
+                          </Button>
+
+                          <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
+                            <p className="text-sm font-medium">Acesso inicial</p>
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                              Profissionais externos podem criar a própria conta. Usuários internos da
+                              Prefeitura são cadastrados pelo administrador municipal.
+                            </p>
+                          </div>
+
+                          <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Ambiente institucional protegido</span>
+                            <span className="font-medium">SIGAPRO →</span>
+                          </div>
+                        </form>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
