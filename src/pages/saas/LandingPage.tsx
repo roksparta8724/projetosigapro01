@@ -291,18 +291,18 @@ export function LandingPage() {
             <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          <div className="relative mx-auto max-w-[1440px] px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24 xl:px-10 2xl:px-12">
-            <div className="grid gap-10 xl:grid-cols-[minmax(0,1.06fr)_minmax(420px,0.94fr)] xl:items-start xl:gap-12 2xl:gap-14">
+          <div className="relative mx-auto max-w-[1580px] px-4 pb-16 sm:px-6 lg:px-7 lg:pb-24 xl:px-8 2xl:px-10">
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(560px,0.98fr)] xl:items-start xl:gap-10 2xl:gap-12">
               <LandingReveal className="min-w-0 max-w-none">
                 <Badge className="rounded-full border border-blue-200 bg-white/92 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] text-blue-900 shadow-sm hover:bg-white/92">
                   PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
                 </Badge>
 
-                <h1 className="mt-6 max-w-[12.5ch] text-balance text-[2.55rem] font-semibold leading-[1.04] tracking-[-0.048em] text-slate-950 sm:text-[3rem] lg:text-[3.45rem] xl:text-[3.7rem]">
+                <h1 className="mt-6 max-w-[13.8ch] text-balance text-[2.7rem] font-semibold leading-[1.03] tracking-[-0.05em] text-slate-950 sm:text-[3.12rem] lg:text-[3.55rem] xl:text-[3.92rem]">
                   Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
                 </h1>
 
-                <p className="mt-6 max-w-[56ch] text-[1rem] leading-8 text-slate-600 sm:text-[1.05rem]">
+                <p className="mt-6 max-w-[60ch] text-[1.02rem] leading-8 text-slate-600 sm:text-[1.08rem]">
                   O SIGAPRO organiza protocolo, documentos, taxas, analise tecnica e aprovacao em uma experiencia institucional limpa, segura e pronta para operacao publica.
                 </p>
 
@@ -354,7 +354,7 @@ export function LandingPage() {
               </LandingReveal>
 
               <LandingReveal delay={0.06} className="min-w-0">
-                <div className="mx-auto w-full max-w-[640px] rounded-[36px] border border-white/80 bg-white/94 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
+                <div className="mx-auto w-full max-w-[760px] rounded-[36px] border border-white/80 bg-white/94 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
                   <div className="rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5 lg:p-6">
                     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
                       {heroStats.map((item) => (
@@ -625,7 +625,7 @@ export function LandingPage() {
         </section>
 
         <section className="border-b border-slate-200/80 bg-white/82 py-10 sm:py-12">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
               {credibilityItems.map((item, index) => {
                 const Icon = item.icon;
@@ -646,7 +646,7 @@ export function LandingPage() {
         </section>
 
         <section id="como-funciona" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Como funciona"
               title="Uma jornada clara do protocolo inicial ate a aprovacao final."
@@ -679,7 +679,7 @@ export function LandingPage() {
           id="beneficios"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f2f6fb_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Beneficios"
               title="Mais organizacao institucional, menos retrabalho e uma experiencia muito mais clara."
@@ -706,7 +706,7 @@ export function LandingPage() {
         </section>
 
         <section id="modulos" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Modulos e recursos"
               title="Capacidades centrais do SIGAPRO apresentadas com mais foco e menos ruido visual."
@@ -736,7 +736,7 @@ export function LandingPage() {
           id="perfis"
           className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f7faff_0%,#edf3f9_100%)] py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Perfis de uso"
               title="Uma plataforma preparada para a rotina da Prefeitura e para a jornada do profissional externo."
@@ -798,7 +798,7 @@ export function LandingPage() {
         </section>
 
         <section className="py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto grid max-w-[1440px] gap-10 px-4 sm:px-6 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] xl:items-center lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto grid max-w-[1580px] gap-8 px-4 sm:px-6 xl:grid-cols-[minmax(360px,0.86fr)_minmax(0,1.14fr)] xl:items-center lg:px-7 xl:px-8 2xl:px-10">
             <LandingReveal>
               <div className="max-w-[620px]">
                 <LandingSectionTitle
@@ -888,7 +888,7 @@ export function LandingPage() {
           id="diferenciais"
           className="scroll-mt-28 border-y border-slate-200/80 bg-white/88 py-20 sm:py-24 lg:py-28"
         >
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Diferenciais"
               title="Diferenciais apresentados de forma mais objetiva, refinada e comercial."
@@ -917,7 +917,7 @@ export function LandingPage() {
         </section>
 
         <section id="faq" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[980px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-7">
             <LandingSectionTitle
               eyebrow="Perguntas frequentes"
               title="FAQ institucional com leitura clara para decisao comercial e mecanismos de busca."
@@ -935,7 +935,7 @@ export function LandingPage() {
           id="contato"
           className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#162238_100%)] py-20 text-white sm:py-24 lg:py-28"
         >
-          <div className="mx-auto grid max-w-[1440px] gap-10 px-4 sm:px-6 xl:grid-cols-[minmax(320px,0.96fr)_minmax(0,1.04fr)] xl:items-center lg:px-8 xl:px-10 2xl:px-12">
+          <div className="mx-auto grid max-w-[1580px] gap-8 px-4 sm:px-6 xl:grid-cols-[minmax(360px,1fr)_minmax(0,1fr)] xl:items-center lg:px-7 xl:px-8 2xl:px-10">
             <LandingReveal>
               <div className="max-w-[580px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chamada comercial</p>

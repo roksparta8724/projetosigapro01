@@ -13,7 +13,7 @@ type LandingFooterProps = {
 export function LandingFooter({ navItems, onOpenDemo }: LandingFooterProps) {
   return (
     <footer className="border-t border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f8fc_100%)]">
-      <div className="mx-auto grid w-full max-w-[1440px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.75fr_0.85fr] lg:px-8 xl:px-10 2xl:px-12">
+      <div className="mx-auto grid w-full max-w-[1580px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.24fr_0.74fr_0.82fr] lg:px-7 xl:px-8 2xl:px-10">
         <div>
           <div className="flex items-center gap-3.5">
             <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-white p-[5px] shadow-[0_18px_36px_rgba(15,23,42,0.12)] ring-1 ring-slate-200">
@@ -65,7 +65,7 @@ export function LandingFooter({ navItems, onOpenDemo }: LandingFooterProps) {
       </div>
 
       <div className="border-t border-slate-200">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 xl:px-10 2xl:px-12">
+        <div className="mx-auto flex w-full max-w-[1580px] flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-7 xl:px-8 2xl:px-10">
           <p>SIGAPRO. Todos os direitos reservados.</p>
           <p>Software institucional para operacao urbana, protocolo digital e governanca municipal.</p>
         </div>
