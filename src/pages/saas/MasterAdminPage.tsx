@@ -192,18 +192,28 @@ export function MasterAdminPage() {
     const settings = getInstitutionSettings(activeTenant.id);
     const prefeituraAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === activeTenant.id || user.municipalityId === activeTenant.id) && user.role === "prefeitura_admin");
     setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: settings?.contractStart ?? "", contractEnd: settings?.contractEnd ?? "", monthlyFee: settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain, settings?.site), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
-    setAdmins(prefeituraAdmins.length > 0 ? prefeituraAdmins.map((user) => ({ id: `admin-${user.id}`, email: user.email, fullName: user.name, title: user.title, accessLevel: user.accessLevel >= 3 ? 3 : 2 })) : [createAdminDraft()]);
+    setAdmins(
+      prefeituraAdmins.length > 0
+        ? prefeituraAdmins.map((user) => ({ id: `admin-${user.id}`, email: user.email, fullName: user.name, title: user.title, accessLevel: user.accessLevel >= 3 ? 3 : 2 }))
+        : (settings?.adminContacts?.length ?? 0) > 0
+          ? settings!.adminContacts!.map((admin) => ({ id: `admin-contact-${admin.email}`, email: admin.email, fullName: admin.fullName, title: admin.title, accessLevel: admin.accessLevel >= 3 ? 3 : 2 }))
+          : [createAdminDraft()],
+    );
   }, [activeTenant, getInstitutionSettings, knownAdministrativeUsers]);
 
   const platformAlerts = useMemo(() => {
     const suspendedCount = institutionCatalog.filter((tenant) => tenant.status === "suspenso").length;
-    const withoutAdmin = institutionCatalog.filter((tenant) => !knownAdministrativeUsers.some((user) => (user.tenantId === tenant.id || user.municipalityId === tenant.id) && user.role === "prefeitura_admin")).length;
+    const withoutAdmin = institutionCatalog.filter((tenant) => {
+      const hasLinkedAdmin = knownAdministrativeUsers.some((user) => (user.tenantId === tenant.id || user.municipalityId === tenant.id) && user.role === "prefeitura_admin");
+      const savedContacts = getInstitutionSettings(tenant.id)?.adminContacts ?? [];
+      return !hasLinkedAdmin && savedContacts.length === 0;
+    }).length;
     return [
       { id: "suspended", title: "Contas suspensas", description: suspendedCount > 0 ? `${suspendedCount} prefeitura${suspendedCount > 1 ? "s" : ""} com status suspenso.` : "Nenhuma Prefeitura suspensa no momento.", tone: suspendedCount > 0 ? ("danger" as const) : ("success" as const) },
       { id: "without-admin", title: "Gestão sem administrador", description: withoutAdmin > 0 ? `${withoutAdmin} prefeitura${withoutAdmin > 1 ? "s" : ""} sem administrador principal vinculado.` : "Todas as prefeituras possuem gestor principal.", tone: withoutAdmin > 0 ? ("warning" as const) : ("success" as const) },
       { id: "environment", title: "Ambiente da plataforma", description: hasSupabaseEnv ? "Supabase conectado e sincronização remota ativa." : "Modo local ativo para homologação e simulação.", tone: hasSupabaseEnv ? ("success" as const) : ("default" as const) },
     ];
-  }, [institutionCatalog, knownAdministrativeUsers]);
+  }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
 
   const filteredSystemUsers = useMemo(() => {
     const term = userSearch.trim().toLowerCase();

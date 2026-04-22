@@ -38,17 +38,17 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="mx-auto w-full max-w-[1580px] px-4 pt-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
+      <div className="mx-auto w-full max-w-[1660px] px-4 pt-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
         <div
           className={cn(
-            "flex items-center justify-between rounded-full border px-4 py-3 transition-all duration-300 sm:px-5",
+            "flex items-center justify-between rounded-full border px-4 py-3.5 transition-all duration-300 sm:px-5 lg:px-6",
             scrolled
               ? "border-white/10 bg-[linear-gradient(135deg,rgba(11,29,49,0.95),rgba(23,53,87,0.92))] shadow-[0_20px_48px_rgba(8,25,47,0.24)] backdrop-blur-xl"
               : "border-[#163657]/20 bg-[linear-gradient(135deg,rgba(15,34,57,0.9),rgba(27,58,94,0.86))] shadow-[0_16px_38px_rgba(8,25,47,0.18)] backdrop-blur-md",
           )}
         >
-          <Link to="/" className="flex min-w-0 items-center gap-3.5" aria-label="SIGAPRO">
-            <div className="flex aspect-square h-[62px] w-[62px] min-h-[62px] min-w-[62px] flex-none items-center justify-center rounded-[20px] bg-white p-[7px] shadow-[0_18px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/80">
+          <Link to="/" className="flex min-w-0 items-center gap-4" aria-label="SIGAPRO">
+            <div className="flex aspect-square h-[66px] w-[66px] min-h-[66px] min-w-[66px] flex-none items-center justify-center rounded-[22px] bg-white p-[7px] shadow-[0_18px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/80">
               <img
                 src={getPublicAssetUrl("favicon-sigapro.svg")}
                 alt="SIGAPRO"
@@ -57,19 +57,19 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
             </div>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-[0.08em] text-white">SIGAPRO</p>
-              <p className="hidden truncate text-[11px] font-medium uppercase tracking-[0.16em] text-blue-100/80 sm:block">
+              <p className="truncate text-[15px] font-semibold tracking-[0.08em] text-white">SIGAPRO</p>
+              <p className="hidden truncate text-[11.5px] font-medium uppercase tracking-[0.16em] text-blue-100/80 sm:block">
                 Plataforma institucional de projetos
               </p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 xl:flex" aria-label="Navegacao principal">
+          <nav className="hidden items-center gap-1.5 xl:flex" aria-label="Navegacao principal">
             {navItems.map((item) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                className="rounded-full px-3.5 py-2 text-[13px] font-medium text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-full px-4 py-2.5 text-[13.5px] font-medium text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {item.label}
               </a>
@@ -79,12 +79,12 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
           <div className="hidden items-center gap-3 xl:flex">
             <Button
               variant="outline"
-              className="h-11 rounded-full border-white/15 bg-white/8 px-5 text-sm font-semibold text-white hover:bg-white/14"
+              className="h-12 rounded-full border-white/15 bg-white/8 px-5.5 text-sm font-semibold text-white hover:bg-white/14"
               onClick={onOpenDemo}
             >
               Solicitar demonstracao
             </Button>
-            <Button asChild className="h-11 rounded-full bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
+            <Button asChild className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
             </Button>
           </div>

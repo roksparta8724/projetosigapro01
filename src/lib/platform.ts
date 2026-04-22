@@ -204,6 +204,13 @@ export interface MunicipalApprovalRateProfile {
   rate: number;
 }
 
+export interface InstitutionAdminContact {
+  email: string;
+  fullName: string;
+  title: string;
+  accessLevel: 2 | 3;
+}
+
 export interface TenantSettings {
   tenantId: string;
   cnpj: string;
@@ -289,6 +296,7 @@ export interface TenantSettings {
   usoSoloArquivoUrl: string;
   leisArquivoNome: string;
   leisArquivoUrl: string;
+  adminContacts?: InstitutionAdminContact[];
 }
 
 export type InstitutionSettings = TenantSettings;

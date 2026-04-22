@@ -34,6 +34,15 @@ function isUuid(value?: string | null) {
   );
 }
 
+function resolveMunicipalityRecordName(record: Record<string, any>) {
+  return (
+    (typeof record.display_name === "string" && record.display_name.trim()) ||
+    (typeof record.official_name === "string" && record.official_name.trim()) ||
+    (typeof record.name === "string" && record.name.trim()) ||
+    ""
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -41,15 +50,15 @@ function isUuid(value?: string | null) {
 function mapMunicipality(record: any): Municipality {
   return {
     id: record.id,
-    name: record.name ?? "",
+    name: resolveMunicipalityRecordName(record),
     state: record.state ?? "",
     slug: record.slug ?? "",
     subdomain: record.subdomain ?? "",
     customDomain: record.custom_domain ?? "",
     status: record.status ?? "active",
     secretariatName: record.secretariat_name ?? "",
-    email: record.email ?? "",
-    phone: record.phone ?? "",
+    email: record.email ?? record.contact_email ?? "",
+    phone: record.phone ?? record.contact_phone ?? "",
     address: record.address ?? "",
     createdAt: record.created_at ?? "",
     updatedAt: record.updated_at ?? "",

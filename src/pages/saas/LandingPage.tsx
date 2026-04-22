@@ -291,72 +291,72 @@ export function LandingPage() {
             <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          <div className="relative mx-auto max-w-[1580px] px-4 pb-16 sm:px-6 lg:px-7 lg:pb-24 xl:px-8 2xl:px-10">
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(560px,0.98fr)] xl:items-start xl:gap-10 2xl:gap-12">
+          <div className="relative mx-auto max-w-[1660px] px-4 pb-18 sm:px-6 lg:px-7 lg:pb-24 xl:px-8 2xl:px-10">
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.14fr)_minmax(640px,1fr)] xl:items-start xl:gap-9 2xl:gap-11">
               <LandingReveal className="min-w-0 max-w-none">
-                <Badge className="rounded-full border border-blue-200 bg-white/92 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] text-blue-900 shadow-sm hover:bg-white/92">
+                <Badge className="rounded-full border border-blue-200 bg-white/92 px-4.5 py-2 text-[10.5px] font-semibold tracking-[0.22em] text-blue-900 shadow-sm hover:bg-white/92">
                   PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
                 </Badge>
 
-                <h1 className="mt-6 max-w-[13.8ch] text-balance text-[2.7rem] font-semibold leading-[1.03] tracking-[-0.05em] text-slate-950 sm:text-[3.12rem] lg:text-[3.55rem] xl:text-[3.92rem]">
+                <h1 className="mt-6 max-w-[14.6ch] text-balance text-[2.92rem] font-semibold leading-[0.99] tracking-[-0.058em] text-slate-950 sm:text-[3.28rem] lg:text-[3.84rem] xl:text-[4.38rem]">
                   Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
                 </h1>
 
-                <p className="mt-6 max-w-[60ch] text-[1.02rem] leading-8 text-slate-600 sm:text-[1.08rem]">
+                <p className="mt-6 max-w-[62ch] text-[1.06rem] leading-8 text-slate-600 sm:text-[1.12rem]">
                   O SIGAPRO organiza protocolo, documentos, taxas, analise tecnica e aprovacao em uma experiencia institucional limpa, segura e pronta para operacao publica.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="mt-9 flex flex-col gap-3.5 sm:flex-row sm:items-center">
                   <Button
                     type="button"
                     size="lg"
-                    className="h-12 rounded-full bg-slate-950 px-7 text-sm font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
+                    className="h-13 rounded-full bg-slate-950 px-8 text-[15px] font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
                     onClick={() => setDemoModalOpen(true)}
                   >
                     Solicitar demonstracao
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-[18px] w-[18px]" />
                   </Button>
                   <Button
                     asChild
                     size="lg"
                     variant="outline"
-                    className="h-12 rounded-full border-slate-300 bg-white/90 px-7 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    className="h-13 rounded-full border-slate-300 bg-white/90 px-8 text-[15px] font-semibold text-slate-900 hover:bg-slate-50"
                   >
                     <Link to="/acesso">Acessar sistema</Link>
                   </Button>
                 </div>
 
-                <div className="mt-10 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+                <div className="mt-10 grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                   {heroPillars.map((item) => (
                     <div
                       key={item}
-                      className="rounded-[24px] border border-white/90 bg-white/92 px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]"
+                      className="rounded-[24px] border border-white/90 bg-white/92 px-5 py-4.5 shadow-[0_14px_30px_rgba(15,23,42,0.045)]"
                     >
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                          <CheckCircle2 className="h-4 w-4" />
+                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                          <CheckCircle2 className="h-4.5 w-4.5" />
                         </span>
-                        <p className="text-sm font-medium leading-6 text-slate-700">{item}</p>
+                        <p className="text-[15px] font-medium leading-6 text-slate-700">{item}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                <div className="mt-6 grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(196px,1fr))]">
                   {heroExecutiveMetrics.map((item) => (
-                    <div key={item.label} className="flex min-h-[136px] min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white/94 px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
+                    <div key={item.label} className="flex min-h-[152px] min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white/94 px-5 py-4.5 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
-                      <p className="mt-4 text-[1.8rem] font-semibold leading-none text-slate-950">{item.value}</p>
-                      <p className="mt-4 text-[13px] leading-6 text-slate-600">{item.helper}</p>
+                      <p className="mt-4 text-[2rem] font-semibold leading-none text-slate-950">{item.value}</p>
+                      <p className="mt-4 text-[13.5px] leading-6 text-slate-600">{item.helper}</p>
                     </div>
                   ))}
                 </div>
               </LandingReveal>
 
               <LandingReveal delay={0.06} className="min-w-0">
-                <div className="mx-auto w-full max-w-[760px] rounded-[36px] border border-white/80 bg-white/94 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
-                  <div className="rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5 lg:p-6">
-                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                <div className="mx-auto w-full max-w-[860px] rounded-[38px] border border-white/80 bg-white/94 p-4 shadow-[0_30px_78px_rgba(15,23,42,0.1)] backdrop-blur sm:p-5 lg:p-6">
+                  <div className="rounded-[32px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 sm:p-5 lg:p-6">
+                    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
                       {heroStats.map((item) => (
                         <HeroPanelCard
                           key={item.label}
@@ -469,8 +469,8 @@ export function LandingPage() {
               </LandingReveal>
             </div>
 
-            <LandingReveal delay={0.08} className="mt-8 xl:mt-10">
-              <div className="grid gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+            <LandingReveal delay={0.08} className="mt-9 xl:mt-11">
+              <div className="grid gap-4.5 xl:grid-cols-[minmax(0,1.22fr)_minmax(0,0.92fr)_minmax(0,0.92fr)] 2xl:grid-cols-[minmax(0,1.22fr)_minmax(0,0.92fr)_minmax(0,0.92fr)_minmax(0,0.94fr)]">
                 <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] backdrop-blur xl:col-span-2">
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
                     <div className="min-w-0">

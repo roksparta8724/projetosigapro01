@@ -4,6 +4,7 @@ import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
   type CreateProcessInput,
+  type InstitutionAdminContact,
   type OwnerProfessionalMessage,
   type OwnerProjectLink,
   type OwnerProjectRequest,
@@ -143,6 +144,104 @@ function buildMunicipalitySlug(value: string | null | undefined) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return normalized || null;
+}
+
+function normalizeMunicipalityStatus(status: string | null | undefined) {
+  if (status === "suspenso" || status === "inactive" || status === "blocked") {
+    return "inactive";
+  }
+  if (status === "implantacao" || status === "implementation") {
+    return "implementation";
+  }
+  return "active";
+}
+
+function resolveMunicipalityName(record: Record<string, any>) {
+  return (
+    (typeof record.display_name === "string" && record.display_name.trim()) ||
+    (typeof record.official_name === "string" && record.official_name.trim()) ||
+    (typeof record.name === "string" && record.name.trim()) ||
+    ""
+  );
+}
+
+function resolveMunicipalityCity(record: Record<string, any>, general?: Record<string, unknown>) {
+  return (
+    (typeof record.city === "string" && record.city.trim()) ||
+    (typeof general?.city === "string" && general.city.trim()) ||
+    resolveMunicipalityName(record)
+  );
+}
+
+function resolveMunicipalityEmail(record: Record<string, any>) {
+  return (
+    (typeof record.email === "string" && record.email.trim()) ||
+    (typeof record.contact_email === "string" && record.contact_email.trim()) ||
+    ""
+  );
+}
+
+function resolveMunicipalityPhone(record: Record<string, any>) {
+  return (
+    (typeof record.phone === "string" && record.phone.trim()) ||
+    (typeof record.contact_phone === "string" && record.contact_phone.trim()) ||
+    ""
+  );
+}
+
+function normalizeAdminContacts(value: unknown): InstitutionAdminContact[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    .map((item) => {
+      const email = typeof item.email === "string" ? item.email.trim().toLowerCase() : "";
+      const fullName =
+        typeof item.fullName === "string"
+          ? item.fullName.trim()
+          : typeof item.full_name === "string"
+            ? item.full_name.trim()
+            : "";
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const rawLevel =
+        typeof item.accessLevel === "number"
+          ? item.accessLevel
+          : typeof item.access_level === "number"
+            ? item.access_level
+            : 3;
+
+      return {
+        email,
+        fullName,
+        title,
+        accessLevel: rawLevel >= 3 ? 3 : 2,
+      } satisfies InstitutionAdminContact;
+    })
+    .filter((item) => item.email && item.fullName);
+}
+
+function normalizeMunicipalityStorageFolder(folder: string, bucket: "process-documents" | "profile-assets" | "institutional-branding") {
+  const normalized = buildMunicipalitySlug(folder) || "files";
+
+  if (bucket === "profile-assets") {
+    return normalized === "avatars" ? "profiles/avatars" : `profiles/${normalized}`;
+  }
+
+  const aliases: Record<string, string> = {
+    protocolos: "protocols",
+    protocolo: "protocols",
+    analise: "analysis",
+    analises: "analysis",
+    anexos: "attachments",
+    anexo: "attachments",
+    documentos: "documents",
+    documento: "documents",
+    branding: "branding",
+    avatar: "profiles/avatars",
+    avatars: "profiles/avatars",
+  };
+
+  return aliases[normalized] || normalized;
 }
 
 function roleToAccessLevel(role: string): 1 | 2 | 3 {
@@ -427,6 +526,7 @@ export async function loadRemotePlatformStore() {
       usoSoloArquivoUrl: settings?.uso_solo_arquivo_url ?? "",
       leisArquivoNome: settings?.leis_arquivo_nome ?? "",
       leisArquivoUrl: settings?.leis_arquivo_url ?? "",
+      adminContacts: normalizeAdminContacts(legacyExtra.admin_contacts),
       taxaProtocolo: Number(settings?.taxa_protocolo ?? 35.24),
       taxaIssPorMetroQuadrado: Number(settings?.taxa_iss_por_metro_quadrado ?? 0),
       issRateProfiles:
@@ -449,6 +549,8 @@ export async function loadRemotePlatformStore() {
       settings?.general_settings && typeof settings.general_settings === "object"
         ? (settings.general_settings as Record<string, unknown>)
         : {};
+    const municipalityName = resolveMunicipalityName(municipality);
+    const municipalityCity = resolveMunicipalityCity(municipality, general);
     const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
     const municipalityProcesses = (processesResult.data ?? []).filter(
       (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
@@ -466,8 +568,8 @@ export async function loadRemotePlatformStore() {
 
     return {
       id: municipality.id,
-      name: municipality.name,
-      city: typeof general.city === "string" ? general.city : municipality.name,
+      name: municipalityName,
+      city: municipalityCity,
       state: municipality.state,
       status:
         municipality.status === "blocked" || municipality.status === "inactive"
@@ -495,13 +597,17 @@ export async function loadRemotePlatformStore() {
       settings?.general_settings && typeof settings.general_settings === "object"
         ? (settings.general_settings as Record<string, unknown>)
         : {};
+    const municipalityName = resolveMunicipalityName(municipality);
 
     return {
       tenantId: municipality.id,
-      cnpj: typeof general.cnpj === "string" ? general.cnpj : "",
+      cnpj:
+        (typeof general.cnpj === "string" && general.cnpj) ||
+        (typeof municipality.cnpj === "string" ? municipality.cnpj : "") ||
+        "",
       endereco: municipality.address ?? "",
-      telefone: municipality.phone ?? "",
-      email: municipality.email ?? "",
+      telefone: resolveMunicipalityPhone(municipality),
+      email: resolveMunicipalityEmail(municipality),
       site: municipality.custom_domain ?? (typeof general.site === "string" ? general.site : ""),
       secretariaResponsavel: municipality.secretariat_name ?? "",
       diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
@@ -525,7 +631,7 @@ export async function loadRemotePlatformStore() {
       guiaPrefixo: settings?.guide_prefix ?? "DAM",
       chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
       beneficiarioArrecadacao:
-        readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipality.name,
+        readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipalityName,
       contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
       contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
       contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
@@ -550,7 +656,7 @@ export async function loadRemotePlatformStore() {
       footerLogoScale: typeof general.footer_logo_scale === "number" ? general.footer_logo_scale : 1,
       footerLogoOffsetX: typeof general.footer_logo_offset_x === "number" ? general.footer_logo_offset_x : 0,
       footerLogoOffsetY: typeof general.footer_logo_offset_y === "number" ? general.footer_logo_offset_y : 0,
-      logoAlt: `Logo institucional de ${municipality.name}`,
+      logoAlt: `Logo institucional de ${municipalityName}`,
       logoUpdatedAt: branding?.updated_at ?? "",
       logoUpdatedBy: "",
       logoFrameMode: "soft-square",
@@ -568,6 +674,7 @@ export async function loadRemotePlatformStore() {
       usoSoloArquivoUrl: readGeneralOptionalString(general, ["uso_solo_arquivo_url", "zoning_file_url"]),
       leisArquivoNome: readGeneralOptionalString(general, ["leis_arquivo_nome", "complementary_laws_file_name"]),
       leisArquivoUrl: readGeneralOptionalString(general, ["leis_arquivo_url", "complementary_laws_file_url"]),
+      adminContacts: normalizeAdminContacts(general.admin_contacts),
       taxaProtocolo: readGeneralNumber(general, ["taxa_protocolo", "fee_protocol"], 35.24),
       taxaIssPorMetroQuadrado: readGeneralNumber(general, ["taxa_iss_por_metro_quadrado", "fee_iss_m2"], 0),
       issRateProfiles:
@@ -1155,7 +1262,8 @@ export async function uploadFileToStorage(input: {
   }
 
   const safeName = sanitizeFileName(input.file.name);
-  const objectKey = `municipios/${scopeId}/${input.folder}/${input.userId}/${crypto.randomUUID()}-${safeName}`;
+  const folder = normalizeMunicipalityStorageFolder(input.folder, input.bucket);
+  const objectKey = `municipalities/${scopeId}/${folder}/${input.userId}/${crypto.randomUUID()}-${safeName}`;
   const bucket =
     input.bucket === "process-documents"
       ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
@@ -1209,8 +1317,8 @@ export async function uploadInstitutionalBrandingAsset(input: {
 
   const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
   const assetKey = input.assetKey ?? "logo";
-  // Caminho: municipios/{id}/branding/{header-logo|footer-logo|logo}.{ext}
-  const objectKey = `municipios/${scopeId}/branding/${assetKey}.${extension}`;
+  // Caminho: municipalities/{id}/branding/{header-logo|footer-logo|logo}.{ext}
+  const objectKey = `municipalities/${scopeId}/branding/${assetKey}.${extension}`;
   const bucket =
     (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
     "sigapro-logos";
@@ -1546,49 +1654,71 @@ export async function upsertRemoteInstitution(input: {
     throw new Error("Supabase indisponivel.");
   }
 
+  const normalizedName = input.name.trim();
+  const normalizedCity = input.city.trim();
+  const normalizedState = input.state.trim().toUpperCase();
+  const normalizedSubdomain = buildMunicipalitySlug(input.subdomain);
+
+  if (!normalizedName) {
+    throw new Error("O nome da prefeitura é obrigatório para sincronizar com o Supabase.");
+  }
+
+  if (!normalizedCity) {
+    throw new Error("A cidade da prefeitura é obrigatória para sincronizar com o Supabase.");
+  }
+
+  if (!normalizedState) {
+    throw new Error("O estado da prefeitura é obrigatório para sincronizar com o Supabase.");
+  }
+
   const tenantId = normalizeUuid(input.institutionId ?? input.tenantId) ?? crypto.randomUUID();
   const municipalitySlug = buildMunicipalitySlug(input.subdomain || input.city || input.name);
 
-  const municipalityPayload = {
+  const municipalityPayload: Record<string, unknown> = {
     id: tenantId,
-    name: input.name,
-    state: input.state,
+    name: normalizedName,
+    official_name: normalizedName,
+    display_name: normalizedName,
+    city: normalizedCity,
+    state: normalizedState,
     slug: municipalitySlug,
-    subdomain: buildMunicipalitySlug(input.subdomain),
-    status:
-      input.status === "suspenso"
-        ? "inactive"
-        : input.status === "implantacao"
-          ? "implementation"
-          : "active",
+    subdomain: normalizedSubdomain,
+    status: normalizeMunicipalityStatus(input.status),
     secretariat_name: input.secretariat || null,
     email: null,
+    contact_email: null,
     phone: null,
+    contact_phone: null,
     address: null,
+    updated_at: new Date().toISOString(),
   };
 
-  const { error: municipalityError } = await supabase
-    .from("municipalities")
-    .upsert(municipalityPayload, { onConflict: "id" });
+  const { error: municipalityError } = await upsertWithColumnRetry(
+    "municipalities",
+    municipalityPayload,
+    "id",
+  );
 
   if (!municipalityError) {
-    const { error: municipalityBrandingError } = await supabase.from("municipality_branding").upsert(
+    const { error: municipalityBrandingError } = await upsertWithColumnRetry(
+      "municipality_branding",
       {
         municipality_id: tenantId,
         primary_color: input.primaryColor,
         accent_color: input.accentColor,
-        official_header_text: input.name,
+        official_header_text: normalizedName,
       },
-      { onConflict: "municipality_id" },
+      "municipality_id",
     );
 
-    const { error: municipalitySettingsError } = await supabase.from("municipality_settings").upsert(
+    const { error: municipalitySettingsError } = await upsertWithColumnRetry(
+      "municipality_settings",
       {
         municipality_id: tenantId,
         protocol_prefix: "PM",
         guide_prefix: "DAM",
       },
-      { onConflict: "municipality_id" },
+      "municipality_id",
     );
 
     const municipalityErrors = [
@@ -1610,13 +1740,13 @@ export async function upsertRemoteInstitution(input: {
   const { error: tenantError } = await supabase.from("tenants").upsert(
     {
       id: tenantId,
-      legal_name: input.name,
-      display_name: input.name,
+      legal_name: normalizedName,
+      display_name: normalizedName,
       cnpj: input.cnpj,
-      city: input.city,
-      state: input.state,
+      city: normalizedCity,
+      state: normalizedState,
       status: input.status,
-      subdomain: input.subdomain || municipalitySlug,
+      subdomain: normalizedSubdomain || municipalitySlug,
     },
     { onConflict: "id" },
   );
@@ -1729,6 +1859,7 @@ export async function saveRemoteInstitutionSettings(
     allow_digital_protocol: true,
     allow_walkin_protocol: false,
     general_settings: {
+      admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
       site: settings.site || null,
       directorship: settings.diretoriaResponsavel || null,
@@ -1795,7 +1926,9 @@ export async function saveRemoteInstitutionSettings(
     id: remoteTenantId,
     secretariat_name: settings.secretariaResponsavel || null,
     email: settings.email || null,
+    contact_email: settings.email || null,
     phone: settings.telefone || null,
+    contact_phone: settings.telefone || null,
     address: settings.endereco || null,
     custom_domain: settings.site || null,
   };
