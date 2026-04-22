@@ -1,4 +1,4 @@
-﻿import React, { forwardRef } from "react";
+import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 type PrefeituraData = {
@@ -894,7 +894,7 @@ function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   };
 }
 
-export const GuiaRecolhimentoOficial = forwardRef<
+export const GuiaRecolhimentoOficial = React.forwardRef<
   HTMLDivElement,
   GuiaRecolhimentoOficialProps
 >(function GuiaRecolhimentoOficial(

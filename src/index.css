@@ -2415,6 +2415,12 @@
     opacity: 0.92;
   }
 
+  .sig-analysis-search-icon {
+    color: #38bdf8 !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
   @media (max-width: 1440px) {
     .sig-page-shell {
       gap: 1rem;
@@ -2617,6 +2623,12 @@
     color: var(--sig-inverse-icon-strong) !important;
     stroke: currentColor !important;
     opacity: 0.96;
+  }
+
+  [data-layout-mode="inverse-main"] .sig-analysis-search-icon {
+    color: #38bdf8 !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell svg[class*="pointer-events-none"][class*="absolute"][class*="text-slate-400"],
