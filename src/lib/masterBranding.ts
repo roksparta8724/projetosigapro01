@@ -1,4 +1,5 @@
 import type { InstitutionalBranding, InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import { isRenderableAssetUrl } from "@/lib/assetUrl";
 
 export type MasterBrandingState = {
   logoUrl: string;
@@ -53,12 +54,7 @@ const defaultMasterBranding: MasterBrandingState = {
 };
 
 function isRenderableLogoUrl(value?: string | null) {
-  if (!value) return false;
-  return (
-    value.startsWith("http") ||
-    value.startsWith("data:") ||
-    value.startsWith("blob:")
-  );
+  return isRenderableAssetUrl(value);
 }
 
 function sanitizeBranding(input: MasterBrandingState): MasterBrandingState {

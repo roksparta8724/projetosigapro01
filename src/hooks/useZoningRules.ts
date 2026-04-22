@@ -53,11 +53,11 @@ export function useZoningRules(municipalityId: string | null) {
   const [source, setSource] = useState<DataSource>("local");
   const [error, setError] = useState<string | null>(null);
 
-  const loadLocal = useCallback(() => {
+  const loadLocal = useCallback((fallbackError?: string | null) => {
     if (!municipalityId) {
       setRules([]);
       setSource("local");
-      setError(null);
+      setError(fallbackError ?? null);
       setLoading(false);
       return;
     }
@@ -68,7 +68,7 @@ export function useZoningRules(municipalityId: string | null) {
 
     setRules(localRules);
     setSource("local");
-    setError(null);
+    setError(fallbackError ?? null);
     setLoading(false);
   }, [municipalityId]);
 
@@ -94,8 +94,7 @@ export function useZoningRules(municipalityId: string | null) {
       setSource("remote");
       setError(null);
     } catch (remoteError) {
-      setError(normalizeRemoteError(remoteError));
-      loadLocal();
+      loadLocal(normalizeRemoteError(remoteError));
       return;
     } finally {
       setLoading(false);

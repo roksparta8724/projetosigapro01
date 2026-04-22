@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { getPublicAssetUrl } from "@/lib/assetUrl";
 type NavItem = {
   id: string;
   label: string;
@@ -17,7 +18,7 @@ export function LandingFooter({ navItems, onOpenDemo }: LandingFooterProps) {
           <div className="flex items-center gap-3.5">
             <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-white p-[5px] shadow-[0_18px_36px_rgba(15,23,42,0.12)] ring-1 ring-slate-200">
               <img
-                src="/favicon-sigapro.svg"
+                src={getPublicAssetUrl("favicon-sigapro.svg")}
                 alt="SIGAPRO"
                 className="h-full w-full rounded-[15px] object-contain"
               />

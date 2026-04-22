@@ -1,5 +1,7 @@
-import { BookOpenText, ExternalLink, Landmark, ScrollText } from "lucide-react";
+import { BookOpenText, ExternalLink, Landmark, Layers3, ScrollText } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/platform/EmptyState";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -236,6 +238,7 @@ export function LegislationPage() {
                   { id: "pd", label: "Abrir Plano Diretor", icon: BookOpenText, href: items[0].fileUrl || "#" },
                   { id: "uso", label: "Abrir uso do solo", icon: ScrollText, href: items[1].fileUrl || "#" },
                   { id: "leis", label: "Abrir leis complementares", icon: Landmark, href: items[2].fileUrl || "#" },
+                  { id: "zoneamento", label: "Abrir zoneamento", icon: Layers3, href: "/legislacao/zoneamento" },
                 ].filter((item) => item.href !== "#")}
               />
 
@@ -254,6 +257,18 @@ export function LegislationPage() {
                   <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
                     <p className="sig-label">Fonte institucional</p>
                     <p className="mt-2 text-sm font-semibold text-slate-950">{officialReference}</p>
+                  </div>
+                  <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
+                    <p className="sig-label">Zoneamento urbano</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Consulte as zonas da Prefeitura, parametros urbanisticos e usos permitidos em um painel dedicado.
+                    </p>
+                    <Button asChild variant="outline" className="mt-4 rounded-full">
+                      <Link to="/legislacao/zoneamento">
+                        <Layers3 className="mr-2 h-4 w-4" />
+                        Abrir modulo
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               </SectionCard>

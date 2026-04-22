@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo } from "react";
 import type { MunicipalityBundle } from "@/lib/municipality";
+import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { isRootDomainHost, resolveTenantFromLocation } from "@/lib/tenant";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
@@ -31,7 +32,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
 
     const branding = bundle?.branding ?? null;
-    const faviconUrl = branding?.logoUrl || branding?.coatOfArmsUrl || "/favicon-sigapro.svg";
+    const faviconUrl =
+      resolveAssetUrl(branding?.logoUrl || branding?.coatOfArmsUrl || "") ||
+      getPublicAssetUrl("favicon-sigapro.svg");
     const link =
       document.querySelector<HTMLLinkElement>("link[rel='icon']") ||
       document.querySelector<HTMLLinkElement>("link[rel='shortcut icon']");

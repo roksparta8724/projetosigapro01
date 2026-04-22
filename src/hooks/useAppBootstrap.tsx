@@ -8,6 +8,8 @@ import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import type { UserRole } from "@/lib/platform";
 
+const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
+
 interface AppBootstrapProfile {
   userId: string;
   role: string | null;
@@ -74,6 +76,69 @@ function mapDbRoleCodeToAppRole(code: string | null | undefined): UserRole | nul
   return aliases[c] ?? aliases[c.toLowerCase()] ?? null;
 }
 
+type BootstrapSnapshot = {
+  hostname: string;
+  mode: ReturnType<typeof resolveTenantFromLocation>["mode"];
+  subdomain: string | null;
+  scopeType: "platform" | "municipality" | "external";
+  authUserId: string | null;
+  authEmail: string | null;
+  role: UserRole | null;
+  profile: AppBootstrapProfile | null;
+  municipalityBundle: MunicipalityBundle | null;
+  cachedAt: number;
+};
+
+function readBootstrapSnapshot(
+  resolution: ReturnType<typeof resolveTenantFromLocation>,
+): BootstrapSnapshot | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<BootstrapSnapshot>;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.hostname !== resolution.hostname) return null;
+    if (parsed.mode !== resolution.mode) return null;
+    if ((parsed.subdomain ?? null) !== (resolution.subdomain ?? null)) return null;
+    if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
+      return null;
+    }
+
+    return {
+      hostname: parsed.hostname ?? resolution.hostname,
+      mode: (parsed.mode ?? resolution.mode) as BootstrapSnapshot["mode"],
+      subdomain: parsed.subdomain ?? null,
+      scopeType: (parsed.scopeType ?? "municipality") as BootstrapSnapshot["scopeType"],
+      authUserId: parsed.authUserId ?? null,
+      authEmail: parsed.authEmail ?? null,
+      role: (parsed.role ?? null) as UserRole | null,
+      profile: parsed.profile ?? null,
+      municipalityBundle: parsed.municipalityBundle ?? null,
+      cachedAt: parsed.cachedAt ?? Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (!snapshot) {
+      window.localStorage.removeItem(BOOTSTRAP_CACHE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // noop
+  }
+}
+
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
@@ -104,29 +169,72 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 }
 
 export function AppBootstrapProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [isReady, setIsReady] = useState(false);
-  const [stage, setStage] = useState<AppBootstrapState["stage"]>("detecting_host");
-  const [error, setError] = useState<string | null>(null);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
-  const [authEmail, setAuthEmail] = useState<string | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [profile, setProfile] = useState<AppBootstrapProfile | null>(null);
-  const [scopeType, setScopeType] = useState<"platform" | "municipality" | "external">("municipality");
-  const [municipalityBundle, setMunicipalityBundle] = useState<MunicipalityBundle | null>(null);
   const [resolution] = useState(() => resolveTenantFromLocation());
+  const cachedSnapshotRef = useRef<BootstrapSnapshot | null>(readBootstrapSnapshot(resolveTenantFromLocation()));
+  const cachedSnapshot = cachedSnapshotRef.current;
+  const [loading, setLoading] = useState(!cachedSnapshot);
+  const [isReady, setIsReady] = useState(Boolean(cachedSnapshot));
+  const [stage, setStage] = useState<AppBootstrapState["stage"]>(cachedSnapshot ? "ready" : "detecting_host");
+  const [error, setError] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(cachedSnapshot?.authUserId ?? null);
+  const [authEmail, setAuthEmail] = useState<string | null>(cachedSnapshot?.authEmail ?? null);
+  const [role, setRole] = useState<UserRole | null>(cachedSnapshot?.role ?? null);
+  const [profile, setProfile] = useState<AppBootstrapProfile | null>(cachedSnapshot?.profile ?? null);
+  const [scopeType, setScopeType] = useState<"platform" | "municipality" | "external">(
+    cachedSnapshot?.scopeType ?? "municipality",
+  );
+  const [municipalityBundle, setMunicipalityBundle] = useState<MunicipalityBundle | null>(
+    cachedSnapshot?.municipalityBundle ?? null,
+  );
   const runningRef = useRef(false);
-  const initializedRef = useRef(false);
-  const lastAuthUserIdRef = useRef<string | null>(null);
+  const initializedRef = useRef(Boolean(cachedSnapshot));
+  const lastAuthUserIdRef = useRef<string | null>(cachedSnapshot?.authUserId ?? null);
   const refreshRef = useRef(false);
   const lastStableRef = useRef({
-    authUserId: null as string | null,
-    authEmail: null as string | null,
-    role: null as UserRole | null,
-    profile: null as AppBootstrapProfile | null,
-    municipalityBundle: null as MunicipalityBundle | null,
+    authUserId: cachedSnapshot?.authUserId ?? null,
+    authEmail: cachedSnapshot?.authEmail ?? null,
+    role: cachedSnapshot?.role ?? null,
+    profile: cachedSnapshot?.profile ?? null,
+    municipalityBundle: cachedSnapshot?.municipalityBundle ?? null,
   });
   const authEventRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isReady || stage !== "ready") return;
+
+    const hasStableContext =
+      Boolean(authUserId) || Boolean(municipalityBundle?.municipality?.id) || scopeType === "platform";
+
+    if (!hasStableContext) {
+      writeBootstrapSnapshot(null);
+      return;
+    }
+
+    writeBootstrapSnapshot({
+      hostname: resolution.hostname,
+      mode: resolution.mode,
+      subdomain: resolution.subdomain ?? null,
+      scopeType,
+      authUserId,
+      authEmail,
+      role,
+      profile,
+      municipalityBundle,
+      cachedAt: Date.now(),
+    });
+  }, [
+    authEmail,
+    authUserId,
+    isReady,
+    municipalityBundle,
+    profile,
+    resolution.hostname,
+    resolution.mode,
+    resolution.subdomain,
+    role,
+    scopeType,
+    stage,
+  ]);
 
   useEffect(() => {
     if (!hasSupabaseEnv || !supabase) {
@@ -284,9 +392,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         console.error("[Bootstrap] Erro", { message });
         if (!active) return;
         setError(message);
-        setIsReady(true);
-        setStage("bootstrap_error");
-        if (lastStableRef.current.authUserId) {
+        if (lastStableRef.current.authUserId || lastStableRef.current.municipalityBundle?.municipality?.id) {
           console.warn("[Bootstrap] Mantendo estado estável após erro");
           setAuthUserId(lastStableRef.current.authUserId);
           setAuthEmail(lastStableRef.current.authEmail);
@@ -298,6 +404,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
               ? "platform"
               : "municipality",
           );
+          setIsReady(true);
+          setStage("ready");
+        } else {
+          setIsReady(true);
+          setStage("bootstrap_error");
         }
       } finally {
         if (active) setLoading(false);
@@ -417,6 +528,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           profile: null,
           municipalityBundle: null,
         };
+        writeBootstrapSnapshot(null);
         setLoading(true);
         setStage("bootstrapping_auth");
         try {

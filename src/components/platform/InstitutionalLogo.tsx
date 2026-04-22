@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
@@ -39,8 +40,7 @@ const variantClasses = {
 } as const;
 
 function isRenderableUrl(value?: string | null) {
-  if (!value) return false;
-  return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
+  return Boolean(resolveAssetUrl(value));
 }
 
 export function InstitutionalLogo({
@@ -53,7 +53,7 @@ export function InstitutionalLogo({
   const classes = variantClasses[variant];
   const [imageFailed, setImageFailed] = useState(false);
   const [stableLogoUrl, setStableLogoUrl] = useState<string>(
-    isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "",
+    resolveAssetUrl(branding.logoUrl),
   );
   const contextKeyRef = useRef(`${variant}:${branding.tenantId || "global"}`);
   const lastResolvedUrlRef = useRef(stableLogoUrl);
@@ -67,7 +67,7 @@ export function InstitutionalLogo({
 
   useEffect(() => {
     const nextContextKey = `${variant}:${branding.tenantId || "global"}`;
-    const nextLogoUrl = isRenderableUrl(branding.logoUrl) ? branding.logoUrl : "";
+    const nextLogoUrl = resolveAssetUrl(branding.logoUrl);
     const sameContext = contextKeyRef.current === nextContextKey;
 
     contextKeyRef.current = nextContextKey;

@@ -18,7 +18,6 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
-import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
 const institutionalHighlights = [
   {
@@ -48,7 +47,6 @@ export function AcessoPage() {
   const { authenticatedEmail, authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
-  const bootstrap = useAppBootstrap();
   const [searchParams] = useSearchParams();
 
   const tenantSlug = searchParams.get("tenant");
@@ -188,12 +186,6 @@ export function AcessoPage() {
                     <p className="mt-2 max-w-[520px] text-[11px] font-semibold uppercase leading-[1.55] tracking-[0.14em] text-slate-200 min-[1200px]:text-[12px]">
                       Sistema integrado de gestão e aprovação de projetos
                     </p>
-
-                    {bootstrap.stage === "resolving_tenant" ? (
-                      <p className="sig-fit-title mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                        Preparando ambiente institucional
-                      </p>
-                    ) : null}
                   </div>
                 </div>
 

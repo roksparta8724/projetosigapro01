@@ -12,8 +12,8 @@ type AppLoadingStateProps = {
 };
 
 export function AppLoadingState({
-  title = "Carregando ambiente",
-  description = "Preparando a experiencia institucional do SIGAPRO.",
+  title = "SIGAPRO",
+  description = "Preparando a interface institucional.",
   municipalityName,
   logoUrl,
   variant = "fullscreen",

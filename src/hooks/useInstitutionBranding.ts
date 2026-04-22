@@ -10,6 +10,7 @@ import {
 } from "@/lib/platform";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { loadPlatformBranding } from "@/integrations/supabase/platform";
+import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding } from "@/lib/masterBranding";
 
@@ -191,6 +192,13 @@ export function useInstitutionBranding(tenantId?: string | null) {
         setter("");
         return;
       }
+      if (!trimmed.startsWith("http")) {
+        const resolvedLocalAsset = resolveAssetUrl(trimmed);
+        if (resolvedLocalAsset) {
+          setter(resolvedLocalAsset);
+          return;
+        }
+      }
       if (trimmed.startsWith("http")) {
         // Para o Master, nunca usamos URL pública direta. Tentamos resolver o object_key.
         try {
@@ -198,13 +206,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
           const objectKey = url.pathname.replace(/^\/+/, "");
           if (objectKey) {
             const signedUrl = await getSignedUrlForObjectStrict({ bucket, objectKey });
-            setter(signedUrl || "");
-            return;
+            if (signedUrl) {
+              setter(signedUrl);
+              return;
+            }
           }
         } catch {
           // ignore
         }
-        setter("");
+        setter(resolveAssetUrl(trimmed) || trimmed);
         return;
       }
 

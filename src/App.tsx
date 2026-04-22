@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,7 +17,6 @@ import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { LoadingFallback } from "@/components/platform/LoadingFallback";
 import { shouldShowPublicLanding } from "@/lib/tenant";
-import { AppLoadingState } from "@/components/platform/AppLoadingState";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
@@ -40,6 +38,7 @@ import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
 import { NotificationsPage } from "@/pages/saas/NotificationsPage";
 import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
 import { LegislationPage } from "@/pages/saas/LegislationPage";
+import { ZoningPage } from "@/pages/saas/ZoningPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
@@ -75,73 +74,25 @@ export default App;
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
   const location = useLocation();
-  const [loadingPhase, setLoadingPhase] = useState<"initial" | "preparing" | "timeout">("initial");
-  const [hasDisplayedReadyState, setHasDisplayedReadyState] = useState(false);
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
-
-  const shouldHoldForBootstrap =
-    bootstrap.stage === "detecting_host" ||
-    bootstrap.stage === "resolving_tenant" ||
-    bootstrap.stage === "tenant_resolved" ||
-    bootstrap.stage === "bootstrapping_auth" ||
-    bootstrap.stage === "bootstrapping_profile";
-
-  useEffect(() => {
-    if (!shouldHoldForBootstrap) {
-      setLoadingPhase("initial");
-      return;
-    }
-
-    setLoadingPhase("initial");
-    const preparingTimer = window.setTimeout(() => setLoadingPhase("preparing"), 1500);
-    const timeoutTimer = window.setTimeout(() => setLoadingPhase("timeout"), 3000);
-
-    return () => {
-      window.clearTimeout(preparingTimer);
-      window.clearTimeout(timeoutTimer);
-    };
-  }, [shouldHoldForBootstrap]);
-
-  useEffect(() => {
-    if (bootstrap.isReady) {
-      setHasDisplayedReadyState(true);
-    }
-  }, [bootstrap.isReady]);
-
-  const holdBranding = bootstrap.municipalityBundle?.branding ?? null;
-  const holdLogo = holdBranding?.headerLogoUrl || holdBranding?.logoUrl || "";
-  const holdName = bootstrap.municipalityBundle?.municipality?.name || "SIGAPRO";
-  const isSystemBrandingRoute =
+  const isPublicRoute =
     location.pathname === "/" ||
     location.pathname === "/apresentacao" ||
     location.pathname === "/acesso" ||
     location.pathname === "/criar-conta" ||
     location.pathname === "/recuperar-senha";
-  const loadingBrandName = isSystemBrandingRoute ? null : holdName;
-  const loadingBrandLogo = isSystemBrandingRoute ? null : holdLogo;
-  const stageLabel =
-    loadingPhase === "preparing" ? "Preparando seus dados..." : "Carregando ambiente...";
-  const showBlockingBootstrap = shouldHoldForBootstrap && !hasDisplayedReadyState;
-  const showOverlayBootstrap = shouldHoldForBootstrap && hasDisplayedReadyState;
 
-  if (showBlockingBootstrap) {
-    if (loadingPhase === "timeout") {
-      return (
-        <LoadingFallback
-          title="Tempo de carregamento excedido"
-          description="Nao conseguimos concluir a inicializacao agora. Verifique sua conexao e tente novamente."
-          onRetry={() => window.location.reload()}
-        />
-      );
-    }
-
+  if (!bootstrap.isReady && !isPublicRoute) {
     return (
-      <AppLoadingState
-        title={stageLabel}
-        description="Preparando o ambiente institucional com mais estabilidade visual."
-        municipalityName={loadingBrandName}
-        logoUrl={loadingBrandLogo}
-      />
+      <div className="min-h-screen bg-[#091322] text-slate-100">
+        <div className="h-[92px] border-b border-white/6 bg-[linear-gradient(180deg,rgba(10,20,34,0.98)_0%,rgba(11,24,40,0.96)_100%)] backdrop-blur-xl" />
+        <div className="flex min-h-[calc(100vh-92px)]">
+          <aside className="hidden w-[278px] border-r border-white/6 bg-[linear-gradient(180deg,rgba(8,18,31,0.98)_0%,rgba(9,20,34,1)_100%)] lg:block" />
+          <main className="flex-1 bg-[linear-gradient(180deg,#edf3f9_0%,#e7eef7_100%)] px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 2xl:px-8">
+            <div className="h-full min-h-[calc(100vh-132px)] rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.98)_100%)] shadow-[0_20px_44px_rgba(15,23,42,0.08)]" />
+          </main>
+        </div>
+      </div>
     );
   }
 
@@ -161,15 +112,6 @@ const AppRoutes = () => {
 
   return (
     <div className="sig-fade-enter sig-fade-enter-active">
-      {showOverlayBootstrap ? (
-        <AppLoadingState
-          variant="overlay"
-          title={stageLabel}
-          description="Atualizando contexto e permissoes sem interromper a navegacao."
-          municipalityName={loadingBrandName}
-          logoUrl={loadingBrandLogo}
-        />
-      ) : null}
       <Routes>
         <Route
           path="/"
@@ -318,6 +260,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <LegislationPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/legislacao/zoneamento"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <ZoningPage />
             </PermissionRoute>
           }
         />

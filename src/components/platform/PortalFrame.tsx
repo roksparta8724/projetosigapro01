@@ -58,6 +58,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
+import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -101,7 +102,17 @@ const navItems = [
   },
   { key: "notifications", to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
   { key: "history", to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
-  { key: "legislation", to: "/legislacao", label: "Legislação", icon: BookOpenText, permission: "manage_own_profile" as Permission },
+  {
+    key: "legislation",
+    to: "/legislacao",
+    label: "Legislação",
+    icon: BookOpenText,
+    permission: "manage_own_profile" as Permission,
+    children: [
+      { to: "/legislacao", label: "Visão geral", icon: BookOpenText },
+      { to: "/legislacao/zoneamento", label: "Zoneamento", icon: Layers },
+    ],
+  },
   {
       key: "external",
       to: "/externo",
@@ -832,7 +843,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
             </button>
             <div className="sig-topbar-brand-logo flex h-[56px] w-[56px] items-center justify-center">
               <div className="sig-topbar-brand-badge flex items-center justify-center">
-                <img src="/favicon-sigapro.svg" alt="SIGAPRO" className="sig-topbar-brand-image" />
+                <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
               </div>
             </div>
             <div className="min-w-0">
@@ -882,7 +893,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
                 <div className="sig-topbar-brand-logo flex h-[68px] w-[68px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
-                    <img src="/favicon-sigapro.svg" alt="SIGAPRO" className="sig-topbar-brand-image" />
+                    <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
                   </div>
                 </div>
                 <div className="sig-topbar-brand-copy min-w-0">

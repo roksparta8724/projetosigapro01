@@ -34,6 +34,7 @@ import { LandingSEO } from "@/components/landing/LandingSEO";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -370,7 +371,7 @@ export function LandingPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex h-[50px] w-[50px] items-center justify-center overflow-hidden rounded-[18px] bg-white shadow-[0_16px_30px_rgba(15,23,42,0.14)] ring-1 ring-slate-200">
                             <img
-                              src="/favicon-sigapro.svg"
+                              src={getPublicAssetUrl("favicon-sigapro.svg")}
                               alt="SIGAPRO"
                               className="h-full w-full object-contain p-[6px]"
                             />

@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -49,7 +50,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
           <Link to="/" className="flex min-w-0 items-center gap-3.5" aria-label="SIGAPRO">
             <div className="flex aspect-square h-[62px] w-[62px] min-h-[62px] min-w-[62px] flex-none items-center justify-center rounded-[20px] bg-white p-[7px] shadow-[0_18px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/80">
               <img
-                src="/favicon-sigapro.svg"
+                src={getPublicAssetUrl("favicon-sigapro.svg")}
                 alt="SIGAPRO"
                 className="block h-full w-full rounded-[15px] object-contain"
               />

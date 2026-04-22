@@ -9,7 +9,6 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { can } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
-import { AppLoadingState } from "@/components/platform/AppLoadingState";
 
 export function PermissionRoute({
   permission,
@@ -44,18 +43,7 @@ export function PermissionRoute({
       !tenant.municipalityId);
 
   if (shouldBlockForLoad) {
-    return (
-      <AppLoadingState
-        title="Carregando ambiente"
-        description="Validando acesso, permissoes e contexto institucional."
-        municipalityName={tenant.municipalityName}
-        logoUrl={
-          tenant.municipalityBundle?.branding?.headerLogoUrl ||
-          tenant.municipalityBundle?.branding?.logoUrl ||
-          ""
-        }
-      />
-    );
+    return null;
   }
 
   if (!isAuthenticated && bootstrap.isReady) {

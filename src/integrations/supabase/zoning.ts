@@ -38,7 +38,7 @@ function mapRowToRule(row: Record<string, unknown>): ZoningRule {
 
 function mapRuleToPayload(rule: ZoningRuleInput) {
   return {
-    id: rule.id,
+    ...(rule.id ? { id: rule.id } : {}),
     municipality_id: rule.municipalityId,
     nome: rule.nome,
     tipo: rule.tipo,
