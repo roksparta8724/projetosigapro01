@@ -5,17 +5,26 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  Headphones,
   Layers3,
+  Loader2,
   MessageSquareMore,
   SearchCheck,
+  Send,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { saveDemoContactRequest } from "@/integrations/supabase/platform";
 
 type LandingDemoModalProps = {
   open: boolean;
@@ -66,8 +75,70 @@ const demoChartConfig = {
   value: { label: "Participação", color: "#93c5fd" },
 };
 
+const initialContactForm = {
+  fullName: "",
+  email: "",
+  phone: "",
+  organization: "",
+  roleTitle: "",
+  message: "",
+};
+
 export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) {
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactForm, setContactForm] = useState(initialContactForm);
+  const [contactStatus, setContactStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [contactError, setContactError] = useState("");
+
+  const updateContactField = (field: keyof typeof initialContactForm, value: string) => {
+    setContactForm((current) => ({ ...current, [field]: value }));
+    if (contactStatus === "error") {
+      setContactStatus("idle");
+      setContactError("");
+    }
+  };
+
+  const handleContactSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const payload = {
+      fullName: contactForm.fullName.trim(),
+      email: contactForm.email.trim().toLowerCase(),
+      phone: contactForm.phone.trim(),
+      organization: contactForm.organization.trim(),
+      roleTitle: contactForm.roleTitle.trim(),
+      message: contactForm.message.trim(),
+      origin: "demo_modal_contact",
+      interest: "apresentacao_sigapro",
+    };
+
+    if (!payload.fullName || !payload.email || !payload.phone || !payload.organization || !payload.roleTitle) {
+      setContactStatus("error");
+      setContactError("Preencha os campos obrigatorios para solicitar o contato comercial.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+      setContactStatus("error");
+      setContactError("Informe um e-mail institucional valido.");
+      return;
+    }
+
+    setContactStatus("sending");
+    setContactError("");
+
+    try {
+      await saveDemoContactRequest(payload);
+      setContactStatus("success");
+      setContactForm(initialContactForm);
+    } catch (error) {
+      setContactStatus("error");
+      setContactError(error instanceof Error ? error.message : "Nao foi possivel enviar a solicitacao agora.");
+    }
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[min(80vw,1320px)] max-w-none overflow-hidden border-white/70 bg-[linear-gradient(180deg,rgba(249,251,255,0.98)_0%,rgba(238,244,252,0.98)_100%)] p-0 shadow-[0_36px_120px_rgba(15,23,42,0.28)] sm:rounded-[32px]">
         <div className="max-h-[88vh] overflow-y-auto">
@@ -306,10 +377,8 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-12 rounded-full border-slate-300 bg-white px-6 text-sm font-semibold text-slate-900 hover:bg-slate-50">
-                  <a href="mailto:contato@sigapro.govtech?subject=Solicitacao%20de%20demonstracao%20SIGAPRO">
-                    Falar com atendimento
-                  </a>
+                <Button type="button" variant="outline" className="h-12 rounded-full border-slate-300 bg-white px-6 text-sm font-semibold text-slate-900 hover:bg-slate-50" onClick={() => setContactOpen(true)}>
+                  Falar com atendimento
                 </Button>
                 <Button type="button" variant="outline" className="h-12 rounded-full border-slate-300 bg-slate-50 px-6 text-sm font-semibold text-slate-700 hover:bg-slate-100" onClick={() => onOpenChange(false)}>
                   Fechar
@@ -320,5 +389,107 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
         </div>
       </DialogContent>
     </Dialog>
+
+      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+        <DialogContent className="w-[min(92vw,760px)] max-w-none overflow-hidden border-white/80 bg-white p-0 shadow-[0_36px_120px_rgba(15,23,42,0.26)] sm:rounded-[32px]">
+          <div className="grid min-h-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_34%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]">
+            <div className="border-b border-slate-200/80 px-6 py-6 sm:px-8">
+              <DialogHeader className="space-y-3 text-left">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-slate-950 text-white shadow-[0_16px_34px_rgba(15,23,42,0.20)]">
+                    <Headphones className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <Badge className="mb-3 w-fit rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-800 hover:bg-blue-50">
+                      Atendimento institucional
+                    </Badge>
+                    <DialogTitle className="text-[1.75rem] font-semibold leading-tight tracking-[-0.04em] text-slate-950">
+                      Solicitar contato comercial
+                    </DialogTitle>
+                    <DialogDescription className="mt-2 max-w-[64ch] text-sm leading-7 text-slate-600">
+                      Nossa equipe entrara em contato para apresentar a plataforma, tirar duvidas e orientar a melhor forma de implantacao do SIGAPRO.
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+            </div>
+
+            <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <form className="min-w-0 space-y-4" onSubmit={handleContactSubmit}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-contact-name">Nome completo</Label>
+                    <Input id="demo-contact-name" value={contactForm.fullName} onChange={(event) => updateContactField("fullName", event.target.value)} placeholder="Nome do responsavel" className="h-12 rounded-2xl border-slate-200 bg-white" autoComplete="name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-contact-email">E-mail institucional</Label>
+                    <Input id="demo-contact-email" type="email" value={contactForm.email} onChange={(event) => updateContactField("email", event.target.value)} placeholder="nome@prefeitura.gov.br" className="h-12 rounded-2xl border-slate-200 bg-white" autoComplete="email" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-contact-phone">Telefone / WhatsApp</Label>
+                    <Input id="demo-contact-phone" value={contactForm.phone} onChange={(event) => updateContactField("phone", event.target.value)} placeholder="(00) 00000-0000" className="h-12 rounded-2xl border-slate-200 bg-white" autoComplete="tel" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-contact-organization">Orgao / Prefeitura</Label>
+                    <Input id="demo-contact-organization" value={contactForm.organization} onChange={(event) => updateContactField("organization", event.target.value)} placeholder="Prefeitura ou secretaria" className="h-12 rounded-2xl border-slate-200 bg-white" autoComplete="organization" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="demo-contact-role">Cargo</Label>
+                  <Input id="demo-contact-role" value={contactForm.roleTitle} onChange={(event) => updateContactField("roleTitle", event.target.value)} placeholder="Cargo ou area de atuacao" className="h-12 rounded-2xl border-slate-200 bg-white" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="demo-contact-message">Mensagem opcional</Label>
+                  <Textarea id="demo-contact-message" value={contactForm.message} onChange={(event) => updateContactField("message", event.target.value)} placeholder="Conte brevemente o contexto da Prefeitura ou a duvida principal." className="min-h-[118px] resize-none rounded-2xl border-slate-200 bg-white leading-6" />
+                </div>
+
+                {contactStatus === "success" ? (
+                  <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-800">
+                    Solicitação enviada com sucesso. Nossa equipe comercial entrará em contato em breve.
+                  </div>
+                ) : null}
+
+                {contactStatus === "error" ? (
+                  <div className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium leading-6 text-rose-800">
+                    {contactError}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+                  <Button type="submit" disabled={contactStatus === "sending"} className="h-12 rounded-full bg-slate-950 px-6 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.18)] hover:bg-slate-900">
+                    {contactStatus === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Solicitar contato
+                  </Button>
+                  <Button type="button" variant="outline" className="h-12 rounded-full border-slate-300 bg-white px-6 text-sm font-semibold text-slate-800 hover:bg-slate-50" onClick={() => setContactOpen(false)}>
+                    Voltar
+                  </Button>
+                </div>
+              </form>
+
+              <aside className="min-w-0 rounded-[26px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_20px_48px_rgba(15,23,42,0.14)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-sky-200">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200">Solicitacao vinculada</p>
+                <h3 className="mt-2 text-lg font-semibold leading-7 text-white">Demonstracao institucional do SIGAPRO</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  O contato sera registrado como interesse comercial da demonstracao, com prioridade para prefeituras, diretorias tecnicas e equipes de implantacao.
+                </p>
+                <div className="mt-5 space-y-3">
+                  {["Retorno comercial em ate 1 dia util.", "Apresentacao consultiva do fluxo institucional.", "Orientacao sobre implantacao, planos e proximos passos."].map((item) => (
+                    <div key={item} className="flex min-w-0 items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm leading-6 text-slate-200">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+                      <span className="min-w-0">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

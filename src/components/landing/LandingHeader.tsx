@@ -47,7 +47,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               : "border-[#163657]/20 bg-[linear-gradient(135deg,rgba(15,34,57,0.9),rgba(27,58,94,0.86))] shadow-[0_16px_38px_rgba(8,25,47,0.18)] backdrop-blur-md",
           )}
         >
-          <Link to="/" className="flex min-w-0 items-center gap-4" aria-label="SIGAPRO">
+          <Link to="/" className="flex min-w-0 items-center gap-3.5 xl:gap-4" aria-label="SIGAPRO">
             <div className="flex aspect-square h-[66px] w-[66px] min-h-[66px] min-w-[66px] flex-none items-center justify-center rounded-[22px] bg-white p-[7px] shadow-[0_18px_34px_rgba(2,6,23,0.2)] ring-1 ring-white/80">
               <img
                 src={getPublicAssetUrl("favicon-sigapro.svg")}
@@ -57,9 +57,9 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
             </div>
 
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold tracking-[0.08em] text-white">SIGAPRO</p>
-              <p className="hidden truncate text-[11.5px] font-medium uppercase tracking-[0.16em] text-blue-100/80 sm:block">
-                Plataforma institucional de projetos
+              <p className="truncate text-[14px] font-semibold tracking-[0.08em] text-white sm:text-[14.5px]">SIGAPRO</p>
+              <p className="hidden max-w-[280px] text-[9.8px] font-semibold uppercase leading-[1.35] tracking-[0.18em] text-blue-50/95 sm:block lg:max-w-[320px] xl:max-w-[350px] 2xl:max-w-none">
+                SISTEMA INTEGRADO DE GESTAO E APROVACAO DE PROJETOS
               </p>
             </div>
           </Link>
@@ -69,7 +69,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                className="rounded-full px-4 py-2.5 text-[13.5px] font-medium text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-full px-3.5 py-2.5 text-[12.5px] font-medium text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white 2xl:px-4 2xl:text-[13px]"
               >
                 {item.label}
               </a>
@@ -82,7 +82,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               className="h-12 rounded-full border-white/15 bg-white/8 px-5.5 text-sm font-semibold text-white hover:bg-white/14"
               onClick={onOpenDemo}
             >
-              Solicitar demonstracao
+              Solicitar demonstração
             </Button>
             <Button asChild className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
@@ -105,7 +105,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               <SheetHeader className="text-left">
                 <SheetTitle className="text-slate-950">SIGAPRO</SheetTitle>
                 <SheetDescription className="leading-6 text-slate-600">
-                  Navegacao institucional da pagina publica.
+                  Navegação institucional da página pública.
                 </SheetDescription>
               </SheetHeader>
 
@@ -131,7 +131,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
                     onOpenDemo();
                   }}
                 >
-                  Solicitar demonstracao
+                  Solicitar demonstração
                 </Button>
                 <Button
                   asChild

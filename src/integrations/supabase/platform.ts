@@ -2532,6 +2532,54 @@ export async function saveRemoteCommercialMaterial(material: CommercialMaterialP
   return String(data?.id ?? "");
 }
 
+export type DemoContactRequestPayload = {
+  fullName: string;
+  email: string;
+  phone: string;
+  organization: string;
+  roleTitle: string;
+  message?: string;
+  origin?: string;
+  interest?: string;
+};
+
+export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel para registrar a solicitacao.");
+  }
+
+  const payload = {
+    full_name: input.fullName.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: input.phone.trim(),
+    organization: input.organization.trim(),
+    role_title: input.roleTitle.trim(),
+    message: input.message?.trim() || null,
+    origin: input.origin || "demo_modal_contact",
+    interest: input.interest || "apresentacao_sigapro",
+    status: "new",
+    metadata: {
+      source: "landing_demo_modal",
+      submitted_at: new Date().toISOString(),
+    },
+  };
+
+  const { data, error } = await supabase
+    .from("demo_contact_requests")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error, "public.demo_contact_requests")) {
+      throw new Error("A tabela de solicitacoes comerciais ainda nao foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao registrar a solicitacao comercial.");
+  }
+
+  return String(data?.id ?? "");
+}
+
 export async function loadPublicPlansCatalog() {
   if (!supabase) {
     return [] as PlanItem[];

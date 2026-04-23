@@ -39,8 +39,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { id: "como-funciona", label: "Como funciona" },
-  { id: "beneficios", label: "Beneficios" },
-  { id: "modulos", label: "Modulos" },
+  { id: "beneficios", label: "Benefícios" },
+  { id: "modulos", label: "Módulos" },
   { id: "perfis", label: "Perfis" },
   { id: "diferenciais", label: "Diferenciais" },
   { id: "faq", label: "FAQ" },
@@ -169,8 +169,8 @@ const faqItems = [
 ] as const;
 
 const heroPillars = [
-  "Protocolo digital com leitura institucional.",
-  "Fluxo mais claro para Prefeitura e profissional.",
+  "Protocolo digital com leitura institucional clara.",
+  "Fluxo mais elegante para Prefeitura, equipes técnicas e profissionais.",
 ] as const;
 
 const heroStats = [
@@ -180,14 +180,14 @@ const heroStats = [
 
 const heroExecutiveMetrics = [
   { label: "Protocolos", value: "128", helper: "Em andamento no painel executivo" },
-  { label: "Exigencias", value: "16", helper: "Pendencias aguardando retorno tecnico" },
+  { label: "Exigências", value: "16", helper: "Pendências aguardando retorno técnico" },
   { label: "Taxas", value: "94%", helper: "Fluxo financeiro validado no trimestre" },
 ] as const;
 
 const heroExecutiveFocus = [
-  "Fila tecnica com prioridades e responsaveis definidos.",
-  "Comunique-se e checklist visiveis no mesmo painel.",
-  "Historico recente e leitura operacional consolidada.",
+  "Fila técnica com prioridades e responsáveis definidos.",
+  "Comunique-se e checklist visíveis no mesmo painel.",
+  "Histórico recente e leitura operacional consolidada.",
 ] as const;
 
 const heroStatusBars = [
@@ -295,15 +295,15 @@ export function LandingPage() {
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.14fr)_minmax(640px,1fr)] xl:items-start xl:gap-9 2xl:gap-11">
               <LandingReveal className="min-w-0 max-w-none">
                 <Badge className="rounded-full border border-blue-200 bg-white/92 px-4.5 py-2 text-[10.5px] font-semibold tracking-[0.22em] text-blue-900 shadow-sm hover:bg-white/92">
-                  PLATAFORMA INSTITUCIONAL PARA APROVACAO DE PROJETOS
+                  Plataforma institucional para aprovação de projetos
                 </Badge>
 
-                <h1 className="mt-6 max-w-[14.6ch] text-balance text-[2.92rem] font-semibold leading-[0.99] tracking-[-0.058em] text-slate-950 sm:text-[3.28rem] lg:text-[3.84rem] xl:text-[4.38rem]">
-                  Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
+                <h1 className="mt-6 max-w-[14.8ch] text-balance text-[3.02rem] font-semibold leading-[0.98] tracking-[-0.058em] text-slate-950 sm:text-[3.34rem] lg:text-[3.92rem] xl:text-[4.46rem]">
+                  Protocolo e análise de projetos com linguagem digital mais clara para o município.
                 </h1>
 
-                <p className="mt-6 max-w-[62ch] text-[1.06rem] leading-8 text-slate-600 sm:text-[1.12rem]">
-                  O SIGAPRO organiza protocolo, documentos, taxas, analise tecnica e aprovacao em uma experiencia institucional limpa, segura e pronta para operacao publica.
+                <p className="mt-6 max-w-[64ch] text-[1.07rem] leading-8 text-slate-600 sm:text-[1.14rem]">
+                  O SIGAPRO organiza protocolo, documentos, taxas, análise técnica e aprovação em uma experiência institucional mais clara, segura e pronta para a operação pública.
                 </p>
 
                 <div className="mt-9 flex flex-col gap-3.5 sm:flex-row sm:items-center">
@@ -313,7 +313,7 @@ export function LandingPage() {
                     className="h-13 rounded-full bg-slate-950 px-8 text-[15px] font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
                     onClick={() => setDemoModalOpen(true)}
                   >
-                    Solicitar demonstracao
+                    Solicitar demonstração
                     <ArrowRight className="h-[18px] w-[18px]" />
                   </Button>
                   <Button
@@ -391,9 +391,9 @@ export function LandingPage() {
                             <div className="flex flex-col gap-3">
                               <div>
                               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Processo em destaque</p>
-                              <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">Aprovacao de projeto arquitetonico</p>
+                              <p className="mt-2 text-lg font-semibold leading-7 text-slate-950">Aprovação de projeto arquitetônico</p>
                               <p className="mt-2 max-w-[56ch] text-sm leading-6 text-slate-600">
-                                Fluxo municipal com taxa vinculada, analise tecnica e retorno formal ao responsavel.
+                                Fluxo municipal com taxa vinculada, análise técnica e retorno formal ao responsável.
                               </p>
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -963,12 +963,12 @@ export function LandingPage() {
             </LandingReveal>
 
             <LandingReveal delay={0.06}>
-              <div className="rounded-[34px] border border-white/10 bg-white/5 p-7 shadow-[0_30px_90px_rgba(0,0,0,0.22)] backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Solicitar demonstracao</p>
+              <div className="rounded-[34px] border border-white/12 bg-white/[0.07] p-7 shadow-[0_30px_90px_rgba(0,0,0,0.22)] backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/90">Solicitar demonstracao</p>
                 <h3 className="mt-3 max-w-[18ch] text-2xl font-semibold text-white">
                   Apresente o SIGAPRO com uma camada publica a altura do produto.
                 </h3>
-                <p className="mt-4 text-sm leading-7 text-slate-300">
+                <p className="mt-4 text-sm leading-7 text-slate-100/90">
                   Direcione o visitante para a demonstracao institucional e mantenha o acesso ao sistema em uma experiencia objetiva.
                 </p>
 
@@ -992,12 +992,12 @@ export function LandingPage() {
                   </Button>
                 </div>
 
-                <div className="mt-8 rounded-[24px] border border-white/10 bg-slate-950/40 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Contato institucional</p>
-                  <div className="mt-4 space-y-2 text-sm leading-7 text-slate-200">
-                    <p>Apresentacao para Prefeituras, diretorias tecnicas e operacao urbana.</p>
-                    <p>Email comercial: contato@sigapro.govtech</p>
-                    <p>Fluxo recomendado: demonstracao, validacao de escopo e acesso ao ambiente.</p>
+                <div className="mt-8 rounded-[24px] border border-white/14 bg-white/[0.06] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-50">Contato institucional</p>
+                  <div className="mt-4 space-y-2 text-sm leading-7">
+                    <p className="text-slate-50/95">Apresentacao para Prefeituras, diretorias tecnicas e operacao urbana.</p>
+                    <p className="text-slate-50/95">Email comercial: contato@sigapro.govtech</p>
+                    <p className="text-slate-100/90">Fluxo recomendado: demonstracao, validacao de escopo e acesso ao ambiente.</p>
                   </div>
                 </div>
               </div>
