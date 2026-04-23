@@ -19,6 +19,7 @@ export type Permission =
   | "view_master_dashboard"
   | "manage_tenants"
   | "manage_modules"
+  | "manage_commercial_plans"
   | "view_platform_metrics"
   | "manage_tenant_users"
   | "manage_tenant_branding"
@@ -178,6 +179,62 @@ export interface Tenant {
 
 export type Institution = Tenant;
 export type InstitutionStatus = Tenant["status"];
+
+export type PlanBillingCycle = "mensal" | "anual" | "personalizado";
+export type PlanBadgeVariant = "default" | "blue" | "emerald" | "amber" | "rose" | "slate";
+export type PlanContractStatus =
+  | "rascunho"
+  | "ativo"
+  | "trial"
+  | "suspenso"
+  | "upgrade"
+  | "downgrade"
+  | "encerrado";
+
+export interface PlanItem {
+  id: string;
+  accountLevel: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  price: number;
+  billingCycle: PlanBillingCycle;
+  badge: string;
+  badgeVariant: PlanBadgeVariant;
+  featuresIncluded: string[];
+  featuresExcluded: string[];
+  modulesIncluded: string[];
+  maxUsers: number | null;
+  maxProcesses: number | null;
+  maxDepartments: number | null;
+  maxStorageGb: number | null;
+  isFeatured: boolean;
+  isActive: boolean;
+  isPublic: boolean;
+  isInternalOnly: boolean;
+  isCustom: boolean;
+  isVisibleInMaster: boolean;
+  displayOrder: number;
+  accentColor: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientPlanAssignment {
+  id: string;
+  municipalityId: string;
+  planId: string;
+  contractStatus: PlanContractStatus;
+  startsAt: string;
+  endsAt: string;
+  billingCycle: PlanBillingCycle;
+  billingNotes: string;
+  customPrice: number | null;
+  isCustom: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface ThemePreset {
   id: string;
@@ -807,8 +864,8 @@ export const roleSuggestedTitles: Record<UserRole, string> = {
 };
 
 const rolePermissions: Record<UserRole, Permission[]> = {
-  master_admin: ["view_master_dashboard", "manage_tenants", "manage_modules", "view_platform_metrics", "manage_own_profile"],
-  master_ops: ["view_master_dashboard", "manage_tenants", "view_platform_metrics", "manage_own_profile"],
+  master_admin: ["view_master_dashboard", "manage_tenants", "manage_modules", "manage_commercial_plans", "view_platform_metrics", "manage_own_profile"],
+  master_ops: ["view_master_dashboard", "manage_tenants", "manage_commercial_plans", "view_platform_metrics", "manage_own_profile"],
   prefeitura_admin: [
     "manage_tenant_users",
     "manage_tenant_branding",
@@ -1200,10 +1257,169 @@ export const platformModules = [
   { name: "Acesso externo", description: "Protocolos por profissionais externos com isolamento entre usuarios." },
 ];
 
-export const planCatalog = [
-  { name: "Institucional", enabled: false, seats: "Usuários conforme contrato", description: "Plano-base do sistema para entrega a prefeituras." },
-  { name: "Expansao", enabled: false, seats: "Multi secretaria", description: "Fluxos completos com modulos adicionais e integracoes." },
-  { name: "Premium", enabled: false, seats: "Ilimitado", description: "Operação completa com personalização institucional ampliada." },
+export const planCatalog: PlanItem[] = [
+  {
+    id: "plan-basic",
+    accountLevel: "Basic",
+    name: "Basic",
+    subtitle: "Entrada institucional controlada",
+    description: "Fluxo essencial para prefeituras que estão iniciando a digitalização do protocolo e da análise.",
+    price: 1490,
+    billingCycle: "mensal",
+    badge: "",
+    badgeVariant: "slate",
+    featuresIncluded: [
+      "Protocolo digital institucional",
+      "Triagem documental guiada",
+      "Acesso externo para profissionais",
+      "Branding municipal essencial",
+    ],
+    featuresExcluded: [
+      "Módulo financeiro avançado",
+      "Automação ampliada de operação",
+      "Atendimento enterprise dedicado",
+    ],
+    modulesIncluded: ["Protocolo digital", "Configurações", "Acesso externo"],
+    maxUsers: 12,
+    maxProcesses: 250,
+    maxDepartments: 4,
+    maxStorageGb: 20,
+    isFeatured: false,
+    isActive: true,
+    isPublic: true,
+    isInternalOnly: false,
+    isCustom: false,
+    isVisibleInMaster: true,
+    displayOrder: 1,
+    accentColor: "#1d4ed8",
+    notes: "Ideal para municípios com operação inicial e baixa complexidade de análise.",
+    createdAt: "2026-04-01T09:00:00.000Z",
+    updatedAt: "2026-04-18T09:00:00.000Z",
+  },
+  {
+    id: "plan-pro",
+    accountLevel: "Pro",
+    name: "Pro",
+    subtitle: "Operação municipal completa",
+    description: "Plano de tração para prefeituras com análise técnica, financeiro e histórico institucional integrados.",
+    price: 2890,
+    billingCycle: "mensal",
+    badge: "Mais popular",
+    badgeVariant: "blue",
+    featuresIncluded: [
+      "Protocolo, análise e financeiro integrados",
+      "Histórico e trilha operacional",
+      "Filas por responsável e gestão por equipe",
+      "Painéis executivos e alertas",
+    ],
+    featuresExcluded: [
+      "Customizações enterprise profundas",
+    ],
+    modulesIncluded: ["Protocolo digital", "Analise tecnica", "Financeiro", "Configurações", "Acesso externo"],
+    maxUsers: 40,
+    maxProcesses: 1200,
+    maxDepartments: 12,
+    maxStorageGb: 80,
+    isFeatured: true,
+    isActive: true,
+    isPublic: true,
+    isInternalOnly: false,
+    isCustom: false,
+    isVisibleInMaster: true,
+    displayOrder: 2,
+    accentColor: "#0f766e",
+    notes: "Plano recomendado para a maior parte das prefeituras da carteira.",
+    createdAt: "2026-04-01T09:00:00.000Z",
+    updatedAt: "2026-04-18T09:00:00.000Z",
+  },
+  {
+    id: "plan-premium",
+    accountLevel: "Premium",
+    name: "Premium",
+    subtitle: "Governança ampliada e multi-secretaria",
+    description: "Camada premium com maior capacidade operacional, monitoramento gerencial e personalização institucional estendida.",
+    price: 4890,
+    billingCycle: "mensal",
+    badge: "Recomendado",
+    badgeVariant: "emerald",
+    featuresIncluded: [
+      "Tudo do plano Pro",
+      "Operação multi-secretaria",
+      "Dashboards ampliados por área",
+      "Políticas e fluxos institucionais refinados",
+      "Mais capacidade documental e de usuários",
+    ],
+    featuresExcluded: [
+      "SLA enterprise dedicado 24/7",
+    ],
+    modulesIncluded: [...platformModules.map((module) => module.name)],
+    maxUsers: 120,
+    maxProcesses: 5000,
+    maxDepartments: 30,
+    maxStorageGb: 250,
+    isFeatured: false,
+    isActive: true,
+    isPublic: true,
+    isInternalOnly: false,
+    isCustom: false,
+    isVisibleInMaster: true,
+    displayOrder: 3,
+    accentColor: "#7c3aed",
+    notes: "Voltado a cidades com maior volume operacional e necessidade de governança ampliada.",
+    createdAt: "2026-04-01T09:00:00.000Z",
+    updatedAt: "2026-04-18T09:00:00.000Z",
+  },
+  {
+    id: "plan-enterprise",
+    accountLevel: "Enterprise",
+    name: "Enterprise",
+    subtitle: "Estrutura customizada e comercial",
+    description: "Plano corporativo com desenho contratual próprio, camadas extras de atendimento e pacote de implantação dedicado.",
+    price: 0,
+    billingCycle: "personalizado",
+    badge: "Enterprise",
+    badgeVariant: "amber",
+    featuresIncluded: [
+      "Ambiente e módulos configuráveis",
+      "Regras comerciais personalizadas",
+      "Atendimento e implantação dedicados",
+      "Possibilidade de pricing customizado",
+    ],
+    featuresExcluded: [],
+    modulesIncluded: [...platformModules.map((module) => module.name)],
+    maxUsers: null,
+    maxProcesses: null,
+    maxDepartments: null,
+    maxStorageGb: null,
+    isFeatured: false,
+    isActive: true,
+    isPublic: false,
+    isInternalOnly: true,
+    isCustom: true,
+    isVisibleInMaster: true,
+    displayOrder: 4,
+    accentColor: "#b45309",
+    notes: "Usado para propostas comerciais especiais e contratos sob medida.",
+    createdAt: "2026-04-01T09:00:00.000Z",
+    updatedAt: "2026-04-18T09:00:00.000Z",
+  },
+];
+
+export const clientPlanAssignments: ClientPlanAssignment[] = [
+  {
+    id: "assignment-tenant-campo-pro",
+    municipalityId: "tenant-campo",
+    planId: "plan-pro",
+    contractStatus: "ativo",
+    startsAt: "2026-01-10",
+    endsAt: "2027-01-10",
+    billingCycle: "mensal",
+    billingNotes: "Contrato mensal com recorrência ativa e operação em regime padrão.",
+    customPrice: null,
+    isCustom: false,
+    createdAt: "2026-01-10T10:00:00.000Z",
+    updatedAt: "2026-04-18T09:00:00.000Z",
+  },
 ];
 
 export const mobileThemePresets: ThemePreset[] = [
@@ -1713,8 +1929,8 @@ export const processRecords: ProcessRecord[] = [
     status: "triagem",
     ownerName: "Aline Nogueira",
     ownerDocument: "***.877.115-**",
-    technicalLead: "Estudio Vertice",
-    createdBy: "u-ext-1",
+    technicalLead: "Joao Vitor",
+    createdBy: "u-ext-arturer",
     tags: ["multifamiliar", "piloto"],
     address: "Estrada da Serra, 2400 - Vale Verde",
     notes: "Protocolo multifamiliar em triagem documental com parâmetros institucionais ativos.",

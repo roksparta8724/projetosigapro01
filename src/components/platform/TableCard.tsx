@@ -19,19 +19,19 @@ export function TableCard({
   return (
     <section
       className={cn(
-        "sig-ui-card flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_12px_26px_rgba(15,23,42,0.06)] md:p-6",
+        "sig-ui-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_10px_22px_rgba(15,23,42,0.055)] md:p-5",
         className,
       )}
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-3 border-b border-slate-200/70 pb-3.5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon flex h-10 w-10 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
-                <Icon className="h-4.5 w-4.5" />
+              <div className="sig-section-icon flex h-9 w-9 items-center justify-center rounded-[13px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
+                <Icon className="h-4 w-4" />
               </div>
             ) : null}
-            <div className="min-w-0 max-w-[44rem] sig-text-wrap">
+            <div className="min-w-0 max-w-[50rem] sig-text-wrap">
               <p className="sig-section-title line-clamp-2 max-w-[34ch]" title={title}>
                 {title}
               </p>
@@ -49,7 +49,7 @@ export function TableCard({
           </div>
         ) : null}
       </div>
-      <div className="sig-table-content min-w-0 flex-1 pt-5">{children}</div>
+      <div className="sig-table-content min-w-0 flex-1 pt-4">{children}</div>
     </section>
   );
 }

@@ -222,7 +222,7 @@ export function ProtocolReviewPage() {
       <div className="space-y-6">
         <ProtocolStepProgress currentStep={3} />
 
-        <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(300px,0.88fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.9fr)]">
           <Card className="rounded-[28px] border-slate-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">

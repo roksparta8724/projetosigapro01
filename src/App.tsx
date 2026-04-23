@@ -42,6 +42,8 @@ import { ZoningPage } from "@/pages/saas/ZoningPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
+import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
+import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
 
 const App = () => {
   return (
@@ -78,6 +80,7 @@ const AppRoutes = () => {
   const isPublicRoute =
     location.pathname === "/" ||
     location.pathname === "/apresentacao" ||
+    location.pathname === "/planos-publicos" ||
     location.pathname === "/acesso" ||
     location.pathname === "/criar-conta" ||
     location.pathname === "/recuperar-senha";
@@ -118,6 +121,7 @@ const AppRoutes = () => {
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}
         />
         <Route path="/cliente/:tenantSlug" element={<ClientePortalPage />} />
+        <Route path="/planos-publicos" element={<PublicPlansPage />} />
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
@@ -172,6 +176,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="view_master_dashboard">
               <MasterAdminPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/master/planos"
+          element={
+            <PermissionRoute permission="manage_commercial_plans">
+              <MasterPlansPage />
             </PermissionRoute>
           }
         />

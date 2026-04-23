@@ -6,6 +6,7 @@ import {
   calculateIssGuideAmount,
   checklistTemplates as seedChecklistTemplates,
   cmsSections as seedCmsSections,
+  clientPlanAssignments as seedClientPlanAssignments,
   documentTemplates as seedDocumentTemplates,
   getMasterMetrics,
   matchesOwnerDocument,
@@ -21,9 +22,11 @@ import {
   tenants as seedTenants,
   type CreateProcessInput,
   type ChecklistTemplate,
+  type ClientPlanAssignment,
   type FormalRequirement,
   type Institution,
   type InstitutionSettings,
+  type PlanItem,
   type OwnerProfessionalMessage,
   type OwnerProjectLink,
   type OwnerProjectRequest,
@@ -56,7 +59,6 @@ import {
 
 type CmsSection = (typeof seedCmsSections)[number];
 type DocumentTemplate = (typeof seedDocumentTemplates)[number];
-type PlanItem = (typeof seedPlanCatalog)[number];
 type DataSource = "demo" | "local" | "remote";
 
 interface PlatformDataState {
@@ -74,6 +76,7 @@ interface PlatformDataState {
   ownerMessages: OwnerProfessionalMessage[];
   processes: ProcessRecord[];
   plans: PlanItem[];
+  planAssignments: ClientPlanAssignment[];
   cmsSections: CmsSection[];
   checklistTemplates: ChecklistTemplate[];
   documentTemplates: DocumentTemplate[];
@@ -96,6 +99,10 @@ interface PlatformDataState {
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
+  getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
+  upsertPlan: (plan: PlanItem) => PlanItem;
+  duplicatePlan: (planId: string) => PlanItem | null;
+  saveClientPlanAssignment: (assignment: Omit<ClientPlanAssignment, "id" | "createdAt" | "updatedAt"> & { id?: string }) => ClientPlanAssignment;
   createOwnerRequest: (input: {
     processId: string;
     ownerUserId: string;
@@ -180,6 +187,7 @@ interface PlatformStore {
   ownerMessages: OwnerProfessionalMessage[];
   processes: ProcessRecord[];
   plans: PlanItem[];
+  planAssignments: ClientPlanAssignment[];
   cmsSections: CmsSection[];
   checklistTemplates: ChecklistTemplate[];
   documentTemplates: DocumentTemplate[];
@@ -313,6 +321,7 @@ const defaultStore: PlatformStore = {
   ownerMessages: seedOwnerMessages,
   processes: seedProcessRecords,
   plans: seedPlanCatalog,
+  planAssignments: seedClientPlanAssignments,
   cmsSections: seedCmsSections,
   checklistTemplates: seedChecklistTemplates,
   documentTemplates: seedDocumentTemplates,
@@ -328,11 +337,15 @@ const demoState: PlatformDataState = {
   getTenantSettings: (tenantId) => defaultStore.tenantSettings.find((item) => item.tenantId === tenantId),
   getInstitutionSettings: (institutionId) => defaultStore.tenantSettings.find((item) => item.tenantId === institutionId),
   getUserProfile: (userId, email) => findUserProfile(defaultStore.userProfiles, userId, email),
+  getInstitutionPlanAssignment: (institutionId) => defaultStore.planAssignments.find((item) => item.municipalityId === institutionId),
   upsertInstitution: () => defaultStore.tenants[0],
   saveInstitutionSettings: () => undefined,
   removeInstitution: () => undefined,
   createInstitutionUser: () => defaultStore.sessionUsers[0],
   createInstitutionProcess: () => defaultStore.processes[0],
+  upsertPlan: () => defaultStore.plans[0],
+  duplicatePlan: () => defaultStore.plans[0],
+  saveClientPlanAssignment: () => defaultStore.planAssignments[0],
   createOwnerRequest: async () => ({ request: null, error: "Operacao indisponivel." }),
   respondOwnerRequest: async () => null,
   setOwnerChatEnabled: async () => null,
@@ -443,7 +456,8 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
       validProcessIds.has(message.projectId),
     ),
     processes,
-    plans: rawStore.plans ?? (fallbackToDefault ? defaultStore.plans : []),
+    plans: rawStore.plans?.length ? rawStore.plans : fallbackToDefault ? defaultStore.plans : [],
+    planAssignments: rawStore.planAssignments ?? (fallbackToDefault ? defaultStore.planAssignments : []),
     cmsSections: rawStore.cmsSections ?? (fallbackToDefault ? defaultStore.cmsSections : []),
     checklistTemplates: rawStore.checklistTemplates ?? (fallbackToDefault ? defaultStore.checklistTemplates : []),
     documentTemplates: rawStore.documentTemplates ?? (fallbackToDefault ? defaultStore.documentTemplates : []),
@@ -813,6 +827,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           ownerLinks: current.ownerLinks.filter((item) => !removedProcessIds.has(item.projectId)),
           ownerMessages: current.ownerMessages.filter((item) => !removedProcessIds.has(item.projectId)),
           processes: current.processes.filter((item) => item.tenantId !== tenantId),
+          planAssignments: current.planAssignments.filter((item) => item.municipalityId !== tenantId),
         };
       });
     };
@@ -1068,6 +1083,79 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       });
 
       return createdProcess;
+    };
+
+    const upsertPlan: PlatformDataState["upsertPlan"] = (plan) => {
+      const nextPlan: PlanItem = {
+        ...plan,
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateStore((current) => {
+        const plans = current.plans.some((item) => item.id === nextPlan.id)
+          ? current.plans.map((item) => (item.id === nextPlan.id ? nextPlan : item))
+          : [...current.plans, nextPlan];
+
+        return {
+          ...current,
+          plans: [...plans].sort((left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR")),
+        };
+      });
+
+      return nextPlan;
+    };
+
+    const duplicatePlan: PlatformDataState["duplicatePlan"] = (planId) => {
+      const sourcePlan = store.plans.find((item) => item.id === planId);
+      if (!sourcePlan) return null;
+
+      const duplicate: PlanItem = {
+        ...sourcePlan,
+        id: `plan-${crypto.randomUUID()}`,
+        name: `${sourcePlan.name} Cópia`,
+        badge: sourcePlan.badge || "Duplicado",
+        isFeatured: false,
+        displayOrder: store.plans.length + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateStore((current) => ({
+        ...current,
+        plans: [...current.plans, duplicate].sort(
+          (left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR"),
+        ),
+      }));
+
+      return duplicate;
+    };
+
+    const saveClientPlanAssignment: PlatformDataState["saveClientPlanAssignment"] = (assignment) => {
+      const now = new Date().toISOString();
+      const nextAssignment: ClientPlanAssignment = {
+        ...assignment,
+        id: assignment.id ?? `assignment-${crypto.randomUUID()}`,
+        createdAt:
+          store.planAssignments.find((item) => item.id === assignment.id)?.createdAt ??
+          now,
+        updatedAt: now,
+      };
+
+      updateStore((current) => {
+        const linkedPlan = current.plans.find((item) => item.id === nextAssignment.planId);
+        const planAssignments = current.planAssignments.some((item) => item.id === nextAssignment.id)
+          ? current.planAssignments.map((item) => (item.id === nextAssignment.id ? nextAssignment : item))
+          : [nextAssignment, ...current.planAssignments.filter((item) => item.municipalityId !== nextAssignment.municipalityId)];
+        const tenants = current.tenants.map((tenant) =>
+          tenant.id === nextAssignment.municipalityId
+            ? { ...tenant, plan: linkedPlan?.name ?? tenant.plan }
+            : tenant,
+        );
+
+        return { ...current, planAssignments, tenants };
+      });
+
+      return nextAssignment;
     };
 
     const resolveProfessionalId = (process: ProcessRecord) => {
@@ -1400,11 +1488,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       getTenantSettings: (tenantId) => store.tenantSettings.find((item) => item.tenantId === tenantId),
       getInstitutionSettings: (institutionId) => store.tenantSettings.find((item) => item.tenantId === institutionId),
       getUserProfile: (userId, email) => findUserProfile(store.userProfiles, userId, email),
+      getInstitutionPlanAssignment: (institutionId) => store.planAssignments.find((item) => item.municipalityId === institutionId),
       upsertInstitution,
       saveInstitutionSettings,
       removeInstitution,
       createInstitutionUser,
       createInstitutionProcess,
+      upsertPlan,
+      duplicatePlan,
+      saveClientPlanAssignment,
       createOwnerRequest,
       respondOwnerRequest,
       setOwnerChatEnabled,

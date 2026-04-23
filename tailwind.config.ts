@@ -75,6 +75,16 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      spacing: {
+        "4.5": "1.125rem",
+        "5.5": "1.375rem",
+        "8.5": "2.125rem",
+        "10.5": "2.625rem",
+      },
+      lineHeight: {
+        "4.5": "1.125rem",
+        "5.5": "1.375rem",
+      },
       keyframes: {
         "accordion-down": {
           from: {

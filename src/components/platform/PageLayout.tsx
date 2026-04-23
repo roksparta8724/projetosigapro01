@@ -11,7 +11,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-1 pb-8 sm:gap-6 sm:px-2 md:gap-7 md:px-3 xl:px-4 2xl:max-w-[1700px]",
+        "sig-page-shell mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
       className,
     )}
   >
@@ -40,7 +40,7 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        "sig-page-header relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-[0_14px_28px_rgba(15,23,42,0.07)] md:p-6",
+        "sig-page-header relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.06)] md:p-5",
         className,
       )}
     >
@@ -55,11 +55,11 @@ export function PageHeader({
             ) : null}
             <div className="min-w-0 sig-text-wrap">
               {eyebrow ? <p className="sig-section-label">{eyebrow}</p> : null}
-              <h1 className="sig-page-title mt-1.5 max-w-full text-balance" title={title}>
+              <h1 className="sig-page-title mt-1 max-w-full text-balance" title={title}>
                 {title}
               </h1>
               {description ? (
-                <p className="sig-subtitle mt-2 line-clamp-3 max-w-[72ch]" title={description}>
+                <p className="sig-subtitle mt-1.5 line-clamp-3 max-w-[82ch]" title={description}>
                   {description}
                 </p>
               ) : null}
@@ -86,7 +86,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))] items-stretch gap-4 md:gap-5 auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -117,11 +117,11 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_12px_26px_rgba(15,23,42,0.06)] transition duration-200 md:p-6",
+        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition duration-200 md:p-5",
         className,
       )}
     >
-      <div className={cn("flex flex-col gap-3 border-b border-slate-200/90 pb-4 lg:flex-row lg:items-start lg:justify-between", headerClassName)}>
+      <div className={cn("flex flex-col gap-3 border-b border-slate-200/90 pb-3.5 lg:flex-row lg:items-start lg:justify-between", headerClassName)}>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             {Icon ? (
@@ -141,7 +141,7 @@ export function SectionCard({
           </div>
         ) : null}
       </div>
-      <div className={cn("min-w-0 flex-1 pt-5", contentClassName)}>{children}</div>
+      <div className={cn("min-w-0 flex-1 pt-4", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -156,7 +156,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2.1fr)_minmax(280px,0.92fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.25fr)_minmax(360px,1fr)]",
+        "sig-main-grid grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2.35fr)_minmax(260px,0.82fr)] lg:items-start xl:grid-cols-[minmax(0,2.5fr)_minmax(290px,0.84fr)] min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)]",
         className,
       )}
     >
@@ -172,7 +172,7 @@ export function MainContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("sig-main-content min-w-0 flex flex-col gap-5", className)}>{children}</div>;
+  return <div className={cn("sig-main-content min-w-0 flex flex-col gap-4.5", className)}>{children}</div>;
 }
 
 export function SideContent({
@@ -182,7 +182,7 @@ export function SideContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <aside className={cn("sig-side-content min-w-0 flex flex-col gap-5 xl:self-start", className)}>{children}</aside>;
+  return <aside className={cn("sig-side-content min-w-0 flex flex-col gap-4.5 lg:self-start", className)}>{children}</aside>;
 }
 
 export function InternalSectionNav({
@@ -203,7 +203,7 @@ export function InternalSectionNav({
         className,
       )}
   >
-      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:[grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] md:overflow-visible md:px-0 md:pb-0">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] md:overflow-visible md:px-0 md:pb-0">
         {items.map((item) => {
           const active = item.value === value;
           return (
@@ -213,7 +213,7 @@ export function InternalSectionNav({
               onClick={() => onChange(item.value)}
               data-nav-active={active ? "true" : "false"}
               className={cn(
-                "sig-nav-item flex min-h-[72px] min-w-[220px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left transition duration-200 md:min-w-0 md:rounded-[18px] md:py-3.5",
+                "sig-nav-item flex min-h-[68px] min-w-[210px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left transition duration-200 md:min-w-0 md:rounded-[18px]",
                 active
                   ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
                   : "border-slate-200/80 bg-slate-50/92 text-slate-700 hover:border-slate-300 hover:bg-white",

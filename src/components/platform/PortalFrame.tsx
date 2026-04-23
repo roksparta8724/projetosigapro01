@@ -4,6 +4,7 @@
   Building2,
   Check,
   ChevronDown,
+  CreditCard,
   FileText,
   History,
   Landmark,
@@ -31,6 +32,7 @@
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,6 +77,7 @@ interface PortalFrameProps {
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true },
   { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: Building2, permission: "view_master_dashboard" as Permission, essential: true },
+  { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: CreditCard, permission: "manage_commercial_plans" as Permission, essential: true },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true },
   {
     key: "protocols",
@@ -131,7 +134,7 @@ const navItems = [
   { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission, essential: true },
 ];
 
-const managementNavItems = ["/master", "/prefeitura", "/configuracoes"];
+const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/configuracoes"];
 
 const MARKER_COLOR_OPTIONS = [
   { value: "#3b82f6", label: "Fluxo azul" },
@@ -807,7 +810,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
       style={
         {
           backgroundColor: pageBackground,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "264px" : "92px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "270px" : "90px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -823,6 +826,11 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
         } as React.CSSProperties
       }
     >
+      {typeof document !== "undefined" ? createPortal(
+        <div
+          className="sig-topbar-portal-host"
+          data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+        >
       <div
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
@@ -831,7 +839,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           boxShadow: `0 16px 30px ${withAlpha("#020617", "0.11")}`,
         }}
       >
-        <div className="sig-topbar-shell flex min-h-[66px] items-center gap-3 px-3 sm:px-4 lg:min-h-[74px] lg:gap-4 lg:px-6 2xl:px-8">
+        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
           <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4">
             <button
               type="button"
@@ -841,7 +849,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-            <div className="sig-topbar-brand-logo flex h-[56px] w-[56px] items-center justify-center">
+            <div className="sig-topbar-brand-logo flex h-[52px] w-[52px] items-center justify-center">
               <div className="sig-topbar-brand-badge flex items-center justify-center">
                 <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
               </div>
@@ -891,7 +899,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
-                <div className="sig-topbar-brand-logo flex h-[68px] w-[68px] items-center justify-center">
+                <div className="sig-topbar-brand-logo flex h-[62px] w-[62px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
                     <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
                   </div>
@@ -909,12 +917,12 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                 </div>
               </div>
 
-              <div className="sig-topbar-search-wrap relative w-full max-w-[360px] xl:max-w-[420px]">
+              <div className="sig-topbar-search-wrap relative w-full max-w-[340px] xl:max-w-[400px]">
                 <button
                   type="button"
                   onClick={() => setCommandOpen(true)}
                   className={cn(
-                    "sig-topbar-search sig-topbar-search-trigger group flex h-[44px] w-full items-center gap-3 rounded-[16px] px-4 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none",
+                    "sig-topbar-search sig-topbar-search-trigger group flex h-[42px] w-full items-center gap-3 rounded-[16px] px-3.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none",
                     topbarSearchButton,
                   )}
                   aria-label="Busca global"
@@ -936,13 +944,13 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
             <button
               type="button"
               className={cn(
-                "sig-topbar-menu-trigger inline-flex h-[42px] items-center gap-2.5 rounded-[15px] px-3.5 text-[13px] font-medium transition duration-200 hover:-translate-y-[1px]",
+                "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
                 topbarGhostButton,
               )}
               onClick={() => setSidebarExpanded((current) => !current)}
               aria-label="Alternar menu lateral"
             >
-              <span className="sig-topbar-menu-icon inline-flex h-9 w-9 items-center justify-center rounded-[12px]">
+                <span className="sig-topbar-menu-icon inline-flex h-8.5 w-8.5 items-center justify-center rounded-[12px]">
                 <Menu className="h-4 w-4" />
               </span>
               <span className="font-semibold tracking-[0.01em]">Menu</span>
@@ -1502,6 +1510,9 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           </div>
         </div>
       </div>
+        </div>,
+        document.body,
+      ) : null}
 
       <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
         <CommandInput
@@ -1538,7 +1549,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
         </CommandList>
       </CommandDialog>
 
-      <div className="flex min-h-screen pt-[78px] lg:pt-[92px]">
+      <div className="sig-content-frame flex min-h-screen">
         <AppSidebar
           pathname={location.pathname}
           groups={sidebarGroups}
@@ -1582,10 +1593,10 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           }
         />
 
-        <main className="min-w-0 flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 2xl:px-8">
+        <main className="min-w-0 flex-1 px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6">
           <div
             className={cn(
-              "sig-main-shell rounded-[20px] border p-3 shadow-sm sm:rounded-[24px] sm:p-4 md:p-5 lg:p-6",
+              "sig-main-shell rounded-[20px] border p-2.5 shadow-sm sm:rounded-[22px] sm:p-3.5 md:p-4 lg:p-5",
               inverseMainTheme
                 ? "border-white/10 bg-transparent shadow-[0_18px_36px_rgba(2,6,23,0.32)]"
                 : "border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)]",

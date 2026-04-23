@@ -2452,7 +2452,7 @@ export function ConfiguracoesPage() {
                   <p className="text-sm text-slate-900">Logo do cabecalho</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
-                <div className="mt-4 grid gap-6 2xl:grid-cols-[minmax(520px,1.15fr)_minmax(340px,0.85fr)]">
+                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
@@ -2461,7 +2461,7 @@ export function ConfiguracoesPage() {
                       <p className="text-[10px] uppercase tracking-[0.12em] text-[#d4e7f7]">Visual institucional</p>
                       <p className="mt-2 text-sm leading-6 text-white md:text-[15px]">Cabecalho institucional</p>
                     </div>
-                    <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center xl:grid-cols-[240px_minmax(0,1fr)]">
+                    <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
                       <InstitutionalLogo
                         branding={previewHeaderBranding}
                         fallbackLabel={tenantForm.name || "Prefeitura"}

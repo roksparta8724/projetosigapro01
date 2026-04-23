@@ -286,10 +286,10 @@ export function AppSidebar({
     <>
       <aside
         className={cn(
-          "sig-sidebar-shell relative hidden h-[calc(100vh-56px)] shrink-0 self-stretch overflow-hidden transition-[width] duration-300 ease-out lg:sticky lg:top-[56px] lg:flex lg:flex-col",
+          "sig-sidebar-shell relative hidden h-[calc(100vh-68px)] min-h-[calc(100vh-68px)] shrink-0 self-start overflow-hidden transition-[width] duration-300 ease-out lg:sticky lg:top-[68px] lg:flex lg:flex-col",
           expanded
-            ? "w-[286px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
-            : "w-[98px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
+            ? "w-[270px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
+            : "w-[90px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}

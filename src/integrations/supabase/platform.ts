@@ -3,11 +3,13 @@ import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
+  type ClientPlanAssignment,
   type CreateProcessInput,
   type InstitutionAdminContact,
   type OwnerProfessionalMessage,
   type OwnerProjectLink,
   type OwnerProjectRequest,
+  type PlanItem,
   type ProcessRecord,
   type SessionUser,
   type Tenant,
@@ -146,6 +148,15 @@ function buildMunicipalitySlug(value: string | null | undefined) {
   return normalized || null;
 }
 
+function buildPlanCode(plan: Pick<PlanItem, "id" | "name" | "accountLevel">) {
+  return (
+    buildMunicipalitySlug(plan.id) ||
+    buildMunicipalitySlug(plan.accountLevel) ||
+    buildMunicipalitySlug(plan.name) ||
+    `plan-${Date.now()}`
+  );
+}
+
 function normalizeMunicipalityStatus(status: string | null | undefined) {
   if (status === "suspenso" || status === "inactive" || status === "blocked") {
     return "inactive";
@@ -281,6 +292,8 @@ export async function loadRemotePlatformStore() {
     ownerRequestsResult,
     ownerLinksResult,
     ownerMessagesResult,
+    plansResult,
+    planAssignmentsResult,
   ] = await Promise.all([
     supabase.from("tenants").select("*").order("created_at", { ascending: false }),
     supabase.from("tenant_branding").select("*"),
@@ -303,6 +316,8 @@ export async function loadRemotePlatformStore() {
     supabase.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
     supabase.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
     supabase.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
+    supabase.from("plans").select("*"),
+    supabase.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
   ]);
 
   const nonBlockingErrors: unknown[] = [];
@@ -340,6 +355,10 @@ export async function loadRemotePlatformStore() {
     isMissingRelationError(ownerMessagesResult.error, "public.owner_professional_messages")
       ? null
       : ownerMessagesResult.error,
+    isMissingRelationError(plansResult.error, "public.plans") ? null : plansResult.error,
+    isMissingRelationError(planAssignmentsResult.error, "public.client_plan_assignments")
+      ? null
+      : planAssignmentsResult.error,
   ].filter(Boolean);
 
   if (errors.length > 0) {
@@ -432,6 +451,57 @@ export async function loadRemotePlatformStore() {
     isSystemMessage: row.is_system_message ?? false,
   }));
 
+  const plans: PlanItem[] = (plansResult.data ?? []).map((row) => ({
+    id: row.id,
+    accountLevel: row.account_level ?? row.name ?? "Custom",
+    name: row.name ?? "Plano",
+    subtitle: row.subtitle ?? "",
+    description: row.description ?? "",
+    price: Number(row.price ?? 0),
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    badge: row.badge ?? "",
+    badgeVariant: row.badge_variant ?? "default",
+    featuresIncluded: Array.isArray(row.features_included) ? row.features_included : [],
+    featuresExcluded: Array.isArray(row.features_excluded) ? row.features_excluded : [],
+    modulesIncluded: Array.isArray(row.modules_included) ? row.modules_included : [],
+    maxUsers: row.max_users ?? null,
+    maxProcesses: row.max_processes ?? null,
+    maxDepartments: row.max_departments ?? null,
+    maxStorageGb: row.max_storage_gb ?? null,
+    isFeatured: Boolean(row.is_featured ?? false),
+    isActive: Boolean(row.is_active ?? row.is_enabled ?? true),
+    isPublic: Boolean(row.is_public ?? false),
+    isInternalOnly: Boolean(row.is_internal_only ?? false),
+    isCustom: Boolean(row.is_custom ?? false),
+    isVisibleInMaster: Boolean(row.is_visible_in_master ?? true),
+    displayOrder: Number(row.display_order ?? 0),
+    accentColor: row.accent_color ?? "#1d4ed8",
+    notes: row.notes ?? "",
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  }));
+
+  const planAssignments: ClientPlanAssignment[] = (planAssignmentsResult.data ?? []).map((row) => ({
+    id: row.id,
+    municipalityId: row.municipality_id,
+    planId: row.plan_id,
+    contractStatus: row.contract_status ?? "rascunho",
+    startsAt: row.starts_at ?? "",
+    endsAt: row.ends_at ?? "",
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    billingNotes: row.billing_notes ?? "",
+    customPrice: row.custom_price ?? null,
+    isCustom: Boolean(row.is_custom ?? false),
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  }));
+
   const mappedTenantsFromLegacy: Tenant[] = tenantRows.map((tenant) => {
     const branding = brandingByTenant.get(tenant.id);
     const tenantMemberships = (membershipsResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
@@ -443,7 +513,10 @@ export async function loadRemotePlatformStore() {
       city: tenant.city,
       state: tenant.state,
       status: tenant.status === "encerrado" ? "suspenso" : tenant.status,
-      plan: "Plano institucional",
+      plan:
+        plans.find((plan) =>
+          planAssignments.some((assignment) => assignment.municipalityId === tenant.id && assignment.planId === plan.id),
+        )?.name ?? "Plano institucional",
       activeModules: [],
       users: tenantMemberships.length,
       processes: tenantProcesses.length,
@@ -577,7 +650,10 @@ export async function loadRemotePlatformStore() {
           : municipality.status === "implementation"
             ? "implantacao"
             : "ativo",
-      plan: "Plano institucional",
+      plan:
+        plans.find((plan) =>
+          planAssignments.some((assignment) => assignment.municipalityId === municipality.id && assignment.planId === plan.id),
+        )?.name ?? "Plano institucional",
       activeModules,
       users: municipalityProfiles.length,
       processes: municipalityProcesses.length,
@@ -886,6 +962,8 @@ export async function loadRemotePlatformStore() {
     ownerLinks,
     ownerMessages,
     processes,
+    plans,
+    planAssignments,
   };
 }
 
@@ -1637,6 +1715,120 @@ export async function saveRemoteProfile(profile: UserProfile) {
   }
 }
 
+export async function linkExistingUserToMunicipalityAdmin(input: {
+  email: string;
+  municipalityId: string;
+  fullName?: string;
+  title?: string;
+  accessLevel?: 2 | 3;
+}) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const municipalityId = normalizeUuid(input.municipalityId);
+  if (!normalizedEmail) {
+    throw new Error("Informe um e-mail válido para vincular o administrador da prefeitura.");
+  }
+  if (!municipalityId) {
+    throw new Error("Prefeitura inválida para vincular o administrador.");
+  }
+
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("user_id, full_name, email, municipality_id, deleted_at")
+    .eq("email", normalizedEmail)
+    .is("deleted_at", null)
+    .limit(2);
+
+  if (profileError) {
+    throw new Error(profileError.message || "Falha ao localizar o usuário pelo e-mail informado.");
+  }
+
+  const profileRecord = (profileRows ?? [])[0];
+  if (!profileRecord?.user_id) {
+    return {
+      email: normalizedEmail,
+      linked: false,
+      reason: "not_found" as const,
+    };
+  }
+
+  const { data: roleRows, error: roleError } = await supabase
+    .from("roles")
+    .select("id, code, label")
+    .in("code", ["prefeitura_admin", "admin_municipality"])
+    .limit(5);
+
+  if (roleError) {
+    throw new Error(roleError.message || "Falha ao localizar o papel de administrador da prefeitura.");
+  }
+
+  const roleRecord =
+    (roleRows ?? []).find((item) => item.code === "prefeitura_admin") ??
+    (roleRows ?? []).find((item) => item.code === "admin_municipality");
+
+  if (!roleRecord?.id) {
+    throw new Error("O papel de administrador da prefeitura não está disponível no banco.");
+  }
+
+  const title = input.title?.trim() || roleRecord.label || "Administrador da Prefeitura";
+  const accessLevel = input.accessLevel && input.accessLevel >= 3 ? 3 : 2;
+
+  const membershipPayload: Record<string, unknown> = {
+    tenant_id: municipalityId,
+    user_id: profileRecord.user_id,
+    role_id: roleRecord.id,
+    department: title,
+    queue_name: title,
+    level_name: `Nível ${accessLevel}`,
+    is_active: true,
+    deleted_at: null,
+    account_status: "active",
+    blocked_at: null,
+    blocked_by: null,
+    block_reason: null,
+    user_type: "Interno",
+  };
+
+  const { error: membershipError } = await upsertWithColumnRetry(
+    "tenant_memberships",
+    membershipPayload,
+    "tenant_id,user_id,role_id",
+  );
+
+  if (membershipError) {
+    throw new Error(membershipError.message || "Falha ao criar o vínculo institucional do administrador.");
+  }
+
+  const profilePayload: Record<string, unknown> = {
+    user_id: profileRecord.user_id,
+    municipality_id: municipalityId,
+    role: roleRecord.code,
+    email: normalizedEmail,
+    full_name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
+  };
+
+  const { error: profileUpdateError } = await upsertWithColumnRetry(
+    "profiles",
+    profilePayload,
+    "user_id",
+  );
+
+  if (profileUpdateError) {
+    throw new Error(profileUpdateError.message || "Falha ao atualizar o perfil institucional do administrador.");
+  }
+
+  return {
+    email: normalizedEmail,
+    linked: true,
+    userId: profileRecord.user_id,
+    municipalityId,
+    role: roleRecord.code,
+  };
+}
+
 export async function upsertRemoteInstitution(input: {
   institutionId?: string;
   tenantId?: string;
@@ -2197,6 +2389,203 @@ export async function saveRemoteInstitutionSettings(
       brandingError.message || "Falha ao salvar o branding institucional.",
     );
   }
+}
+
+export async function upsertRemotePlan(plan: PlanItem) {
+  if (!supabase) {
+    throw new Error("Supabase indisponível.");
+  }
+
+  const payload: Record<string, unknown> = {
+    id: normalizeUuid(plan.id) ?? plan.id,
+    code: buildPlanCode(plan),
+    account_level: plan.accountLevel,
+    name: plan.name,
+    subtitle: plan.subtitle,
+    description: plan.description,
+    price: plan.price,
+    billing_cycle: plan.billingCycle,
+    badge: plan.badge || null,
+    badge_variant: plan.badgeVariant,
+    features_included: plan.featuresIncluded,
+    features_excluded: plan.featuresExcluded,
+    modules_included: plan.modulesIncluded,
+    max_users: plan.maxUsers,
+    max_processes: plan.maxProcesses,
+    max_departments: plan.maxDepartments,
+    max_storage_gb: plan.maxStorageGb,
+    is_featured: plan.isFeatured,
+    is_active: plan.isActive,
+    is_enabled: plan.isActive,
+    is_public: plan.isPublic,
+    is_internal_only: plan.isInternalOnly,
+    is_custom: plan.isCustom,
+    is_visible_in_master: plan.isVisibleInMaster,
+    display_order: plan.displayOrder,
+    accent_color: plan.accentColor,
+    notes: plan.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await upsertWithColumnRetry("plans", payload, "id");
+
+  if (error) {
+    if (isMissingRelationError(error, "public.plans")) {
+      throw new Error("A tabela de planos ainda não foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o plano.");
+  }
+
+  return plan;
+}
+
+export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssignment) {
+  if (!supabase) {
+    throw new Error("Supabase indisponível.");
+  }
+
+  const payload: Record<string, unknown> = {
+    id: normalizeUuid(assignment.id) ?? assignment.id,
+    municipality_id: assignment.municipalityId,
+    plan_id: assignment.planId,
+    contract_status: assignment.contractStatus,
+    starts_at: assignment.startsAt || null,
+    ends_at: assignment.endsAt || null,
+    billing_cycle: assignment.billingCycle,
+    billing_notes: assignment.billingNotes || null,
+    custom_price: assignment.customPrice,
+    is_custom: assignment.isCustom,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await upsertWithColumnRetry("client_plan_assignments", payload, "id");
+
+  if (error) {
+    if (isMissingRelationError(error, "public.client_plan_assignments")) {
+      throw new Error("A tabela de contratos de planos ainda não foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o vínculo comercial.");
+  }
+
+  return assignment;
+}
+
+export type CommercialMaterialPayload = {
+  planIds: string[];
+  modelType: string;
+  materialType: string;
+  customerName?: string;
+  customerContact?: string;
+  responsibleName?: string;
+  responsibleRole?: string;
+  title: string;
+  subtitle?: string;
+  generatedContent?: Record<string, unknown>;
+  pdfUrl?: string;
+  shareSlug?: string;
+  isPublic?: boolean;
+  status?: "draft" | "active" | "archived";
+  validUntil?: string;
+  notes?: string;
+};
+
+export async function saveRemoteCommercialMaterial(material: CommercialMaterialPayload) {
+  if (!supabase) {
+    throw new Error("Supabase indisponivel.");
+  }
+
+  const userResult = await supabase.auth.getUser();
+  const payload: Record<string, unknown> = {
+    created_by: userResult.data.user?.id ?? null,
+    plan_ids: material.planIds,
+    model_type: material.modelType,
+    material_type: material.materialType,
+    customer_name: material.customerName || null,
+    customer_contact: material.customerContact || null,
+    responsible_name: material.responsibleName || null,
+    responsible_role: material.responsibleRole || null,
+    title: material.title,
+    subtitle: material.subtitle || null,
+    generated_content: material.generatedContent ?? {},
+    pdf_url: material.pdfUrl || null,
+    share_slug: material.shareSlug || null,
+    is_public: material.isPublic ?? false,
+    status: material.status ?? "draft",
+    valid_until: material.validUntil || null,
+    notes: material.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("commercial_materials")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error, "public.commercial_materials")) {
+      throw new Error("A tabela de materiais comerciais ainda nao foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o material comercial.");
+  }
+
+  return String(data?.id ?? "");
+}
+
+export async function loadPublicPlansCatalog() {
+  if (!supabase) {
+    return [] as PlanItem[];
+  }
+
+  const { data, error } = await supabase
+    .from("plans")
+    .select("*")
+    .eq("is_public", true)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    if (isMissingRelationError(error, "public.plans")) {
+      return [] as PlanItem[];
+    }
+    if (isMissingColumnError(error)) {
+      return [] as PlanItem[];
+    }
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    accountLevel: row.account_level ?? row.name ?? "Plano",
+    name: row.name ?? "Plano",
+    subtitle: row.subtitle ?? "",
+    description: row.description ?? "",
+    price: Number(row.price ?? 0),
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    badge: row.badge ?? "",
+    badgeVariant: row.badge_variant ?? "default",
+    featuresIncluded: Array.isArray(row.features_included) ? row.features_included : [],
+    featuresExcluded: Array.isArray(row.features_excluded) ? row.features_excluded : [],
+    modulesIncluded: Array.isArray(row.modules_included) ? row.modules_included : [],
+    maxUsers: row.max_users ?? null,
+    maxProcesses: row.max_processes ?? null,
+    maxDepartments: row.max_departments ?? null,
+    maxStorageGb: row.max_storage_gb ?? null,
+    isFeatured: Boolean(row.is_featured ?? false),
+    isActive: Boolean(row.is_active ?? row.is_enabled ?? true),
+    isPublic: Boolean(row.is_public ?? false),
+    isInternalOnly: Boolean(row.is_internal_only ?? false),
+    isCustom: Boolean(row.is_custom ?? false),
+    isVisibleInMaster: Boolean(row.is_visible_in_master ?? true),
+    displayOrder: Number(row.display_order ?? 0),
+    accentColor: row.accent_color ?? "#1d4ed8",
+    notes: row.notes ?? "",
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  })) as PlanItem[];
 }
 
 export async function saveRemoteTenantSettings(settings: TenantSettings) {

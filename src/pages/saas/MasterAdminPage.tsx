@@ -20,10 +20,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import { loadMunicipalityCatalog } from "@/integrations/supabase/municipality";
-import { saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/supabase/platform";
+import { linkExistingUserToMunicipalityAdmin, saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/supabase/platform";
 import { buildTenantFromMunicipalityBundle } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
-import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type SessionUser, type UserRole } from "@/lib/platform";
+import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type InstitutionAdminContact, type SessionUser, type UserRole } from "@/lib/platform";
 
 type SignatureMode = "eletronica" | "manual" | "icp_brasil";
 type UserGroup = "todos" | "internos" | "externos" | "administradores";
@@ -45,6 +45,16 @@ type PendingTenantSync = {
   settings: Record<string, unknown>;
   updatedAt: string;
 };
+
+const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): InstitutionAdminContact[] =>
+  drafts
+    .map((draft) => ({
+      email: draft.email.trim().toLowerCase(),
+      fullName: draft.fullName.trim(),
+      title: draft.title.trim() || roleSuggestedTitles.prefeitura_admin,
+      accessLevel: draft.accessLevel >= 3 ? 3 : 2,
+    }))
+    .filter((draft) => draft.email || draft.fullName);
 
 const emptyTenantForm = { name: "", city: "", state: "SP", status: "implantacao" as Institution["status"], plan: "Plano institucional", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
 const createAdminDraft = (): AdminContactDraft => ({ id: `admin-${crypto.randomUUID()}`, email: "", fullName: "", title: roleSuggestedTitles.prefeitura_admin, accessLevel: 3 });
@@ -113,7 +123,7 @@ const ensureSupabaseAvailable = async () => {
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
-  const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, removeInstitution, setInstitutionStatus, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, removeInstitution, setInstitutionStatus, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
@@ -158,7 +168,15 @@ export function MasterAdminPage() {
   }, [institutions, remoteInstitutions]);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const knownAdministrativeUsers = useMemo(() => sessionUsers.filter((user) => ["prefeitura_admin", "master_admin", "master_ops", "prefeitura_supervisor"].includes(user.role)), [sessionUsers]);
-  const availableAdminEmails = useMemo(() => { const map = new Map<string, SessionUser>(); knownAdministrativeUsers.forEach((user) => map.set(user.email.trim().toLowerCase(), user)); return [...map.values()]; }, [knownAdministrativeUsers]);
+  const availableKnownUsers = useMemo(() => {
+    const map = new Map<string, SessionUser>();
+    sessionUsers.forEach((user) => {
+      const normalizedEmail = user.email.trim().toLowerCase();
+      if (!normalizedEmail || map.has(normalizedEmail)) return;
+      map.set(normalizedEmail, user);
+    });
+    return [...map.values()];
+  }, [sessionUsers]);
   const activeUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "active").length, [sessionUsers]);
   const blockedUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "blocked").length, [sessionUsers]);
   const adminUsersCount = useMemo(() => sessionUsers.filter((user) => ["master_admin", "master_ops", "prefeitura_admin"].includes(user.role)).length, [sessionUsers]);
@@ -233,7 +251,14 @@ export function MasterAdminPage() {
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   const removeAdminRow = (id: string) => setAdmins((current) => (current.length > 1 ? current.filter((item) => item.id !== id) : current));
-  const applyKnownAdminEmail = (draftId: string, email: string) => { const known = availableAdminEmails.find((user) => user.email.trim().toLowerCase() === email.trim().toLowerCase()); if (!known) return; updateAdminRow(draftId, "email", known.email); updateAdminRow(draftId, "fullName", known.name); updateAdminRow(draftId, "title", known.title || roleSuggestedTitles.prefeitura_admin); updateAdminRow(draftId, "accessLevel", known.accessLevel >= 3 ? 3 : 2); };
+  const applyKnownAdminEmail = (draftId: string, email: string) => {
+    const known = availableKnownUsers.find((user) => user.email.trim().toLowerCase() === email.trim().toLowerCase());
+    if (!known) return;
+    updateAdminRow(draftId, "email", known.email);
+    updateAdminRow(draftId, "fullName", known.name);
+    updateAdminRow(draftId, "title", known.title || roleSuggestedTitles.prefeitura_admin);
+    updateAdminRow(draftId, "accessLevel", known.accessLevel >= 3 ? 3 : 2);
+  };
   const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const handleCopyLink = async (subdomain: string, customDomain?: string) => {
     const link = buildTenantLink(subdomain, customDomain);
@@ -273,10 +298,37 @@ export function MasterAdminPage() {
           }),
         ),
       );
+      const adminContacts = Array.isArray((pendingSync.settings as { adminContacts?: unknown[] }).adminContacts)
+        ? ((pendingSync.settings as { adminContacts?: InstitutionAdminContact[] }).adminContacts ?? [])
+        : [];
+      const unresolvedAdminEmails: string[] = [];
+
       await withRetry(() => withTimeout(saveRemoteInstitutionSettings({ ...pendingSync.settings, tenantId: remoteInstitution.id })));
+
+      for (const admin of adminContacts) {
+        const linked = await withRetry(() =>
+          withTimeout(
+            linkExistingUserToMunicipalityAdmin({
+              email: admin.email,
+              municipalityId: remoteInstitution.id,
+              fullName: admin.fullName,
+              title: admin.title,
+              accessLevel: admin.accessLevel,
+            }),
+          ),
+        );
+        if (!linked.linked && linked.reason === "not_found") {
+          unresolvedAdminEmails.push(admin.email);
+        }
+      }
+
       window.localStorage.removeItem(pendingSyncStorageKey);
       setPendingSync(null);
-      setStatusMessage("Sincronização concluída com o Supabase.");
+      setStatusMessage(
+        unresolvedAdminEmails.length > 0
+          ? `Sincronização concluída. Os contatos ${unresolvedAdminEmails.join(", ")} foram mantidos no cadastro e aguardam conta existente para vínculo automático.`
+          : "Sincronização concluída com o Supabase.",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao sincronizar com o Supabase.";
       setStatusMessage(`Sincronização pendente: ${message}`);
@@ -299,11 +351,41 @@ export function MasterAdminPage() {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
+    if (!form.city.trim() || !form.state.trim()) {
+      setStatusMessage("Informe cidade e UF antes de salvar a Prefeitura.");
+      setSaving(false);
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const normalizedAdminContacts = normalizeAdminContactsFromDrafts(admins);
+    const incompleteAdmin = normalizedAdminContacts.find((admin) => !admin.email || !admin.fullName);
+    if (incompleteAdmin) {
+      setStatusMessage("Preencha nome e e-mail dos administradores informados antes de salvar.");
+      setSaving(false);
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const duplicateAdminEmails = normalizedAdminContacts.reduce<string[]>((duplicates, admin, index, items) => {
+      if (items.findIndex((candidate) => candidate.email === admin.email) !== index && !duplicates.includes(admin.email)) {
+        duplicates.push(admin.email);
+      }
+      return duplicates;
+    }, []);
+    if (duplicateAdminEmails.length > 0) {
+      setStatusMessage(`Existem e-mails repetidos na administração: ${duplicateAdminEmails.join(", ")}.`);
+      setSaving(false);
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     try {
       const currentSettings = activeTenant ? getInstitutionSettings(activeTenant.id) : undefined;
       const slug = normalizedSubdomain;
       let savedTenant = upsertInstitution({ institutionId: selectedTenantId || undefined, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
       let remoteSyncError: string | null = null;
+      let linkedAdminCount = 0;
+      const unresolvedAdminEmails: string[] = [];
 
       if (hasSupabaseEnv) {
         try {
@@ -337,21 +419,34 @@ export function MasterAdminPage() {
         }
       }
 
-      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "" };
+      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "", adminContacts: normalizedAdminContacts };
       if (hasSupabaseEnv && !remoteSyncError) {
         try {
           await withRetry(() => withTimeout(saveRemoteInstitutionSettings(nextSettings)));
+          for (const admin of normalizedAdminContacts) {
+            const linked = await withRetry(() =>
+              withTimeout(
+                linkExistingUserToMunicipalityAdmin({
+                  email: admin.email,
+                  municipalityId: savedTenant.id,
+                  fullName: admin.fullName,
+                  title: admin.title,
+                  accessLevel: admin.accessLevel,
+                }),
+              ),
+            );
+            if (linked.linked) {
+              linkedAdminCount += 1;
+            } else if (linked.reason === "not_found") {
+              unresolvedAdminEmails.push(admin.email);
+            }
+          }
         } catch (error) {
           remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar configurações no Supabase.";
         }
       }
 
       saveInstitutionSettings(nextSettings);
-      admins.filter((admin) => admin.email.trim() && admin.fullName.trim()).forEach((admin) => {
-        const normalizedEmail = admin.email.trim().toLowerCase();
-        const alreadyExists = sessionUsers.some((user) => normalizedEmail === user.email.trim().toLowerCase() && (user.tenantId === savedTenant.id || user.municipalityId === savedTenant.id));
-        if (!alreadyExists) createTenantUser({ tenantId: savedTenant.id, fullName: admin.fullName.trim(), email: normalizedEmail, role: "prefeitura_admin", title: admin.title.trim() || roleSuggestedTitles.prefeitura_admin, accessLevel: admin.accessLevel });
-      });
       setSelectedTenantId(savedTenant.id);
       if (remoteSyncError) {
         const pendingPayload: PendingTenantSync = {
@@ -372,11 +467,19 @@ export function MasterAdminPage() {
         };
         window.localStorage.setItem(pendingSyncStorageKey, JSON.stringify(pendingPayload));
         setPendingSync(pendingPayload);
-        setStatusMessage(`Salvo localmente. Não foi possível sincronizar com o Supabase: ${remoteSyncError}`);
+        setStatusMessage(`Cadastro salvo como rascunho local. A persistência remota falhou: ${remoteSyncError}`);
       } else {
         window.localStorage.removeItem(pendingSyncStorageKey);
         setPendingSync(null);
-        setStatusMessage("Prefeitura salva com sucesso e pronta para operação comercial.");
+        if (normalizedAdminContacts.length === 0) {
+          setStatusMessage("Prefeitura salva com sucesso e pronta para operação comercial.");
+        } else if (unresolvedAdminEmails.length > 0) {
+          setStatusMessage(
+            `Prefeitura salva com sucesso. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
+          );
+        } else {
+          setStatusMessage(`Prefeitura salva com sucesso e ${linkedAdminCount} administrador(es) foram vinculados ao município.`);
+        }
       }
     } catch (error) {
       const message =
@@ -394,6 +497,7 @@ export function MasterAdminPage() {
   const renderInstitutionCard = (tenant: Institution) => {
     const settings = getInstitutionSettings(tenant.id);
     const tenantAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === tenant.id || user.municipalityId === tenant.id) && user.role === "prefeitura_admin");
+    const savedAdminContacts = settings?.adminContacts ?? [];
     const portalLink = settings?.clientDeliveryLink || settings?.linkPortalCliente || buildTenantLink(tenant.subdomain, settings?.site) || "Não definido";
     return (
       <div key={tenant.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -511,6 +615,20 @@ export function MasterAdminPage() {
                 </div>
               );
             })
+          ) : savedAdminContacts.length > 0 ? (
+            savedAdminContacts.slice(0, 3).map((admin) => (
+              <div key={`${tenant.id}-${admin.email}`} className="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2">
+                <UserAvatar name={admin.fullName || admin.email} size="sm" />
+                <div className="min-w-0">
+                  <p className="sig-fit-title text-sm font-semibold text-slate-900" title={admin.fullName || admin.email}>
+                    {admin.fullName || admin.email}
+                  </p>
+                  <p className="sig-fit-copy text-xs text-slate-500" title={admin.email}>
+                    {admin.email}
+                  </p>
+                </div>
+              </div>
+            ))
           ) : (
             <Badge className="rounded-full border border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400 hover:bg-amber-50">
               Sem administrador principal
@@ -528,7 +646,24 @@ export function MasterAdminPage() {
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Console executivo da plataforma">
       <PageShell>
-        <PageHero eyebrow="Governança SaaS" title="Carteira institucional do SIGAPRO" description="Acompanhe base ativa, risco operacional e saúde comercial em uma visão única de governança." icon={ShieldPlus} actions={<Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova prefeitura</Button>} />
+        <PageHero
+          eyebrow="Governança SaaS"
+          title="Carteira institucional do SIGAPRO"
+          description="Acompanhe base ativa, risco operacional e saúde comercial em uma visão única de governança."
+          icon={ShieldPlus}
+          actions={
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate("/master/planos")}>
+                <CreditCard className="mr-2 h-4 w-4 text-sky-200" />
+                Planos e níveis
+              </Button>
+              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={resetForNewInstitution}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova prefeitura
+              </Button>
+            </div>
+          }
+        />
         <InternalSectionNav value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
 
         {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => renderInstitutionCard(tenant))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
@@ -757,7 +892,7 @@ export function MasterAdminPage() {
                               <Label>E-mail</Label>
                               <Input list={`admin-email-options-${admin.id}`} value={admin.email} onChange={(event) => updateAdminRow(admin.id, "email", event.target.value)} onBlur={(event) => applyKnownAdminEmail(admin.id, event.target.value)} className="sig-admin-input" />
                               <datalist id={`admin-email-options-${admin.id}`}>
-                                {availableAdminEmails.map((user) => (
+                                {availableKnownUsers.map((user) => (
                                   <option key={user.id} value={user.email} />
                                 ))}
                               </datalist>

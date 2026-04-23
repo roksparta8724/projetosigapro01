@@ -141,6 +141,7 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
 
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
   if (!supabase) return null;
+
   const { data, error } = await supabase
     .from("profiles")
     .select("user_id, role, municipality_id, email, full_name")
@@ -151,20 +152,73 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error });
     return null;
   }
-  if (!data || data.length === 0) {
+  if (data && data.length > 1) {
+    console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
+  }
+  const record = data?.[0] ?? null;
+
+  const membershipResult = await supabase
+    .from("tenant_memberships")
+    .select("tenant_id, role_id, is_active, deleted_at")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .eq("is_active", true);
+
+  if (membershipResult.error) {
+    console.warn("[Bootstrap][Membership] Falha ao carregar memberships", {
+      userId,
+      error: membershipResult.error,
+    });
+  }
+
+  const memberships = (membershipResult.data ?? []).filter((item) => item.role_id);
+  const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter(Boolean)));
+  let roleCodeFromMembership: string | null = null;
+  let municipalityIdFromMembership: string | null = null;
+
+  if (roleIds.length > 0) {
+    const rolesResult = await supabase.from("roles").select("id, code").in("id", roleIds);
+    if (rolesResult.error) {
+      console.warn("[Bootstrap][Membership] Falha ao resolver roles do vínculo", {
+        userId,
+        error: rolesResult.error,
+      });
+    } else {
+      const rolesById = new Map((rolesResult.data ?? []).map((item) => [item.id, item.code]));
+      const rankedMembership = memberships
+        .map((item) => ({
+          tenantId: item.tenant_id as string | null,
+          roleCode: rolesById.get(item.role_id) ?? null,
+        }))
+        .sort((left, right) => {
+          const rank = (roleCode: string | null) => {
+            const mapped = mapDbRoleCodeToAppRole(roleCode);
+            if (mapped === "master_admin" || mapped === "master_ops" || mapped === "prefeitura_admin") return 4;
+            if (mapped === "prefeitura_supervisor") return 3;
+            if (mapped === "analista" || mapped === "financeiro" || mapped === "setor_intersetorial" || mapped === "fiscal") return 2;
+            if (mapped === "profissional_externo" || mapped === "proprietario_consulta" || mapped === "property_owner") return 1;
+            return 0;
+          };
+
+          return rank(right.roleCode) - rank(left.roleCode);
+        })[0];
+
+      roleCodeFromMembership = rankedMembership?.roleCode ?? null;
+      municipalityIdFromMembership = rankedMembership?.tenantId ?? null;
+    }
+  }
+
+  if (!record && !roleCodeFromMembership && !municipalityIdFromMembership) {
     console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId });
     return null;
   }
-  if (data.length > 1) {
-    console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
-  }
-  const record = data[0];
+
   return {
-    userId: record.user_id,
-    role: record.role ?? null,
-    municipalityId: record.municipality_id ?? null,
-    email: record.email ?? null,
-    fullName: record.full_name ?? null,
+    userId,
+    role: record?.role ?? roleCodeFromMembership,
+    municipalityId: record?.municipality_id ?? municipalityIdFromMembership ?? null,
+    email: record?.email ?? null,
+    fullName: record?.full_name ?? null,
   };
 }
 

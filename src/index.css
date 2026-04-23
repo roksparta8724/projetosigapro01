@@ -61,7 +61,23 @@
   }
 
   .sig-app-frame {
+    min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--sig-page-background, hsl(var(--background)));
+  }
+
+  .sig-content-frame {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: var(--sig-topbar-height-mobile, 72px);
+  }
+
+  @media (min-width: 1024px) {
+    .sig-content-frame {
+      min-height: calc(100vh - 68px);
+      min-height: calc(100dvh - 68px);
+      padding-top: var(--sig-topbar-height, 68px);
+    }
   }
 
   @media (min-width: 1024px) {
@@ -69,8 +85,8 @@
       background-image: linear-gradient(
         90deg,
         var(--sig-sidebar-fill) 0px,
-        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 276px),
-        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 276px),
+        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 270px),
+        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 270px),
         var(--sig-page-background, hsl(var(--background))) 100%
       );
       background-repeat: no-repeat;
@@ -473,11 +489,86 @@
 
   .sig-page-shell {
     display: grid;
-    gap: 1.25rem;
+    gap: 1rem;
     width: 100%;
-    max-width: 1680px;
+    max-width: 1880px;
     margin: 0 auto;
-    padding: 0 0.5rem 0.75rem;
+    padding: 0 0.25rem 0.5rem;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell,
+  [data-layout-mode="inverse-main"] .sig-main-shell {
+    font-size: 13px;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-page-title,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-page-title {
+    font-size: clamp(1.04rem, 0.98rem + 0.34vw, 1.24rem);
+    line-height: 1.14;
+    -webkit-line-clamp: 2;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-section-title,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-title {
+    font-size: 0.97rem;
+    line-height: 1.28;
+    max-width: 48ch;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-subtitle,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-subtitle {
+    font-size: 0.8125rem;
+    line-height: 1.48;
+    max-width: 80ch;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-label,
+  [data-layout-mode="default"] .sig-main-shell .sig-section-label,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-label,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-label {
+    font-size: 0.68rem;
+    line-height: 1.22;
+    letter-spacing: 0.12em;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-body,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-body {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-body-strong,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-body-strong {
+    font-size: 0.89rem;
+    line-height: 1.38;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-meta,
+  [data-layout-mode="default"] .sig-main-shell .sig-aux,
+  [data-layout-mode="default"] .sig-main-shell .sig-email,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-meta,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-aux,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-email {
+    font-size: 0.71rem;
+    line-height: 1.42;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-fit-title,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-fit-title {
+    -webkit-line-clamp: 2;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-fit-copy,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-fit-copy {
+    line-height: 1.48;
+    -webkit-line-clamp: 3;
+  }
+
+  [data-layout-mode="default"] .sig-main-shell .sig-chart-surface .recharts-cartesian-axis-tick text,
+  [data-layout-mode="default"] .sig-main-shell .sig-chart-surface .recharts-text,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-chart-surface .recharts-cartesian-axis-tick text,
+  [data-layout-mode="inverse-main"] .sig-main-shell .sig-chart-surface .recharts-text {
+    font-size: 11px;
   }
 
   .sig-main-shell,
@@ -500,6 +591,32 @@
   .sig-main-shell .flex > * {
     min-width: 0;
     max-width: 100%;
+  }
+
+  .sig-main-shell .sig-metric-card {
+    contain: layout paint;
+  }
+
+  .sig-main-shell .sig-metric-card :is(.sig-metric-title, .sig-metric-value, .sig-metric-helper) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .sig-main-shell .sig-metric-card .sig-metric-title {
+    overflow: hidden;
+  }
+
+  .sig-main-shell .sig-metric-card .sig-metric-value {
+    overflow: hidden;
+  }
+
+  .sig-main-shell .sig-metric-card .sig-metric-helper {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
 
   .sig-main-shell button,
@@ -615,6 +732,7 @@
 
   .sig-sidebar-panel {
     position: relative;
+    min-height: 0;
   }
 
   .sig-sidebar-panel::before {
@@ -2101,10 +2219,10 @@
   }
 
   .sig-premium-admin-form .sig-admin-input {
-    height: 48px;
-    border-radius: 18px;
-    padding-inline: 14px;
-    font-size: 14px;
+    height: 44px;
+    border-radius: 16px;
+    padding-inline: 12px;
+    font-size: 13px;
     line-height: 1.35;
     min-width: 0;
     max-width: 100%;
@@ -2114,8 +2232,8 @@
 
   .sig-premium-admin-form .sig-admin-input-wrap {
     height: auto !important;
-    min-height: 60px;
-    padding-block: 12px;
+    min-height: 54px;
+    padding-block: 10px;
     white-space: pre-wrap;
     overflow: visible !important;
     text-overflow: clip !important;
@@ -2661,11 +2779,11 @@
 
   .sig-premium-admin-form [data-radix-select-trigger].sig-admin-input,
   .sig-premium-admin-form button[role="combobox"].sig-admin-input {
-    padding-inline: 14px;
+    padding-inline: 12px;
   }
 
   .sig-premium-admin-form input[type="date"].sig-admin-input {
-    padding-right: 40px;
+    padding-right: 36px;
   }
 
   @media (max-width: 767px) {
@@ -2924,8 +3042,21 @@
 
 [data-layout-mode="default"] .sig-premium-topbar,
 [data-layout-mode="inverse-main"] .sig-premium-topbar {
+  position: fixed !important;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  min-height: var(--sig-topbar-height-mobile, 72px);
   color: #f8fbff;
   backdrop-filter: blur(18px) saturate(1.08);
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@media (min-width: 1024px) {
+  [data-layout-mode="default"] .sig-premium-topbar,
+  [data-layout-mode="inverse-main"] .sig-premium-topbar {
+    min-height: var(--sig-topbar-height, 68px);
+  }
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-shell,
