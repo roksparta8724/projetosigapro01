@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";

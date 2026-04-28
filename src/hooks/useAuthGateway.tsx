@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useMemo } from "react";
 import { sessionUsers, type AccountStatus, type SessionUser } from "@/lib/platform";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
@@ -125,7 +127,7 @@ export function AuthGatewayProvider({ children }: { children: React.ReactNode })
 
 export function useAuthGateway() {
   const context = useContext(AuthGatewayContext);
-  return context ?? useAuthGatewayValue();
+  return context ?? authGatewayFallback;
 }
 
 export { authGatewayFallback, resolveStoredUser, isAdministrativeBlocked, blockedAccountMessage };

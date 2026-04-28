@@ -50,7 +50,7 @@ function buildPublicUrl(bucket: string, objectKey: string) {
   return "";
 }
 
-function readJsonBody(req: import("http").IncomingMessage): Promise<any> {
+function readJsonBody(req: import("http").IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk) => {
@@ -59,7 +59,7 @@ function readJsonBody(req: import("http").IncomingMessage): Promise<any> {
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
-        resolve(raw ? JSON.parse(raw) : {});
+        resolve(raw ? (JSON.parse(raw) as Record<string, unknown>) : {});
       } catch (error) {
         reject(error);
       }

@@ -75,7 +75,7 @@ async function upsertWithColumnRetry(
   payload: Record<string, unknown>,
   onConflict: string,
 ) {
-  let currentPayload: Record<string, unknown> = { ...payload };
+  const currentPayload: Record<string, unknown> = { ...payload };
   let lastError: { message?: string } | null = null;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -167,7 +167,7 @@ function normalizeMunicipalityStatus(status: string | null | undefined) {
   return "active";
 }
 
-function resolveMunicipalityName(record: Record<string, any>) {
+function resolveMunicipalityName(record: Record<string, unknown>) {
   return (
     (typeof record.display_name === "string" && record.display_name.trim()) ||
     (typeof record.official_name === "string" && record.official_name.trim()) ||
@@ -176,7 +176,7 @@ function resolveMunicipalityName(record: Record<string, any>) {
   );
 }
 
-function resolveMunicipalityCity(record: Record<string, any>, general?: Record<string, unknown>) {
+function resolveMunicipalityCity(record: Record<string, unknown>, general?: Record<string, unknown>) {
   return (
     (typeof record.city === "string" && record.city.trim()) ||
     (typeof general?.city === "string" && general.city.trim()) ||
@@ -184,7 +184,7 @@ function resolveMunicipalityCity(record: Record<string, any>, general?: Record<s
   );
 }
 
-function resolveMunicipalityEmail(record: Record<string, any>) {
+function resolveMunicipalityEmail(record: Record<string, unknown>) {
   return (
     (typeof record.email === "string" && record.email.trim()) ||
     (typeof record.contact_email === "string" && record.contact_email.trim()) ||
@@ -192,7 +192,7 @@ function resolveMunicipalityEmail(record: Record<string, any>) {
   );
 }
 
-function resolveMunicipalityPhone(record: Record<string, any>) {
+function resolveMunicipalityPhone(record: Record<string, unknown>) {
   return (
     (typeof record.phone === "string" && record.phone.trim()) ||
     (typeof record.contact_phone === "string" && record.contact_phone.trim()) ||
@@ -261,7 +261,7 @@ function roleToAccessLevel(role: string): 1 | 2 | 3 {
   return 1;
 }
 
-function municipalityResultData(value: any[] | null | undefined) {
+function municipalityResultData(value: unknown[] | null | undefined) {
   return Array.isArray(value) ? value : [];
 }
 
@@ -374,13 +374,13 @@ export async function loadRemotePlatformStore() {
   const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
   const profileByUser = new Map((profilesResult.data ?? []).map((item) => [item.user_id, item]));
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
-  const guidesByProcess = new Map<string, any>();
-  const partiesByProcess = new Map<string, any[]>();
-  const docsByProcess = new Map<string, any[]>();
-  const requirementsByProcess = new Map<string, any[]>();
-  const auditByProcess = new Map<string, any[]>();
-  const reopenByProcess = new Map<string, any[]>();
-  const movementsByProcess = new Map<string, any[]>();
+  const guidesByProcess = new Map<string, Record<string, unknown>>();
+  const partiesByProcess = new Map<string, Record<string, unknown>[]>();
+  const docsByProcess = new Map<string, Record<string, unknown>[]>();
+  const requirementsByProcess = new Map<string, Record<string, unknown>[]>();
+  const auditByProcess = new Map<string, Record<string, unknown>[]>();
+  const reopenByProcess = new Map<string, Record<string, unknown>[]>();
+  const movementsByProcess = new Map<string, Record<string, unknown>[]>();
   for (const guide of guidesResult.data ?? []) {
     if (!guidesByProcess.has(guide.process_id)) {
       guidesByProcess.set(guide.process_id, guide);
@@ -1122,7 +1122,7 @@ export async function respondRemoteOwnerRequest(input: {
     throw new Error("Falha ao atualizar solicitacao de responsavel.");
   }
 
-  let linkData: any | null = null;
+  let linkData: Record<string, unknown> | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await supabase
@@ -1502,7 +1502,7 @@ export type PlatformBrandingRecord = {
   updatedBy: string;
 };
 
-function mapPlatformBranding(record: any): PlatformBrandingRecord {
+function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingRecord {
   return {
     platformKey: record.platform_key ?? PLATFORM_BRANDING_KEY,
     headerLogoUrl: record.header_logo_url ?? "",
@@ -1687,7 +1687,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
     bio: profile.bio || null,
   };
 
-  let currentPayload = { ...payload };
+  const currentPayload = { ...payload };
   let error: { message?: string } | null = null;
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -2149,7 +2149,7 @@ export async function saveRemoteInstitutionSettings(
   // municipality_branding com retry para colunas ausentes (colunas header/footer
   // podem não existir em bancos mais antigos — graceful degradation)
   const upsertMunicipalityBranding = async () => {
-    let currentPayload: Record<string, unknown> = {
+    const currentPayload: Record<string, unknown> = {
       ...municipalityBrandingPayload,
     };
     let lastError: { message?: string } | null = null;

@@ -15,14 +15,20 @@ export interface InstitutionalBranding {
   logoFitMode: "contain" | "cover";
 }
 
+type TenantSettingsWithVariants = TenantSettings & {
+  headerLogoUrl?: string;
+  footerLogoUrl?: string;
+};
+
 function pickVariantSettings(
   settings: TenantSettings | null | undefined,
   variant: InstitutionalLogoConfigVariant,
 ) {
   if (variant === "footer") {
+    const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
     return {
       // Prefere URL específica do footer, cai para logoUrl geral
-      logoUrl: (settings as any)?.footerLogoUrl || settings?.logoUrl || "",
+      logoUrl: settingsWithVariants?.footerLogoUrl || settings?.logoUrl || "",
       scale: settings?.footerLogoScale,
       offsetX: settings?.footerLogoOffsetX,
       offsetY: settings?.footerLogoOffsetY,
@@ -31,9 +37,10 @@ function pickVariantSettings(
     };
   }
 
+  const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
   return {
     // Prefere URL específica do header, cai para logoUrl geral
-    logoUrl: (settings as any)?.headerLogoUrl || settings?.logoUrl || "",
+    logoUrl: settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "",
     scale: settings?.headerLogoScale ?? settings?.logoScale,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY,

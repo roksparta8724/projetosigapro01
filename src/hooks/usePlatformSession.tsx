@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from "react";
 import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";

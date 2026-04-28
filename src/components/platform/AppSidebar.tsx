@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
 
 export type AppSidebarItem = {
@@ -27,6 +27,14 @@ type SidebarInnerProps = {
   expandedItems?: Record<string, boolean>;
   onToggleItem?: (itemKey: string) => void;
 };
+
+function isRouteActive(pathname: string, route: string) {
+  return pathname === route;
+}
+
+function isParentActive(pathname: string, routeGroup: string) {
+  return pathname === routeGroup || pathname.startsWith(`${routeGroup}/`);
+}
 
 function SidebarInner({
   pathname,
@@ -66,12 +74,12 @@ function SidebarInner({
             )}
             aria-label="Fechar menu"
           >
-            <X className="h-4.5 w-4.5" />
+            <CloseIcon className="h-4.5 w-4.5" />
           </button>
         </div>
       ) : null}
 
-      <div className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-3.5" : "px-2.5")}>
+      <div className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-4 py-4.5" : "px-2.5 py-4")}>
         <nav className="sig-sidebar-nav space-y-3">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
@@ -95,10 +103,11 @@ function SidebarInner({
 
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
-                  const isChildActive = item.children?.some((child) => pathname === child.to || pathname.startsWith(`${child.to}/`));
-                  const isExactActive = pathname === item.to;
-                  const active = hasChildren ? isExactActive || isChildActive : isExactActive;
-                  const isExpanded = expandedItems[item.to] ?? isChildActive ?? false;
+                  const isChildActive = item.children?.some((child) => isRouteActive(pathname, child.to)) ?? false;
+                  const isExactActive = isRouteActive(pathname, item.to);
+                  const parentActive = hasChildren ? isParentActive(pathname, item.to) || isChildActive : isExactActive;
+                  const isExpanded = hasChildren ? (expandedItems[item.to] ?? parentActive) : false;
+                  const sectionOpen = hasChildren && isExpanded;
                   const Icon = item.icon;
 
                   return (
@@ -114,12 +123,12 @@ function SidebarInner({
                           }
                         }}
                         title={!expanded ? item.label : undefined}
-                        data-sidebar-active={active ? "true" : "false"}
+                        data-sidebar-active={parentActive ? "true" : "false"}
                         data-sidebar-collapsed={expanded ? "false" : "true"}
                         className={cn(
                           "sig-sidebar-item group flex items-center text-sm leading-5 transition-all duration-300 ease-out",
-                          expanded ? "min-h-[52px] gap-3.5 rounded-[18px] px-3 py-3" : "mx-auto min-h-[54px] w-[54px] justify-center gap-0 rounded-[18px] px-0 py-0",
-                          active
+                          expanded ? "min-h-[54px] gap-3.5 rounded-[18px] px-3.5 py-3.5" : "mx-auto min-h-[54px] w-[54px] justify-center gap-0 rounded-[18px] px-0 py-0",
+                          parentActive
                             ? darkSurface
                               ? "border border-sky-200/16 bg-[linear-gradient(135deg,rgba(35,66,99,0.98)_0%,rgba(49,104,167,0.94)_100%)] text-white shadow-[0_14px_30px_rgba(2,6,23,0.26)]"
                               : "border border-slate-300 bg-white text-slate-950"
@@ -132,7 +141,7 @@ function SidebarInner({
                           className={cn(
                             "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
                             expanded ? "h-9 w-9 rounded-[14px]" : "h-10 w-10 rounded-[15px]",
-                            active
+                            parentActive
                               ? darkSurface
                                 ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                                 : "border-slate-300 bg-slate-50 text-slate-950"
@@ -153,8 +162,8 @@ function SidebarInner({
                         >
                           <span
                             className={cn(
-                              "block sig-fit-title text-[13px] leading-5 tracking-[0.002em]",
-                              active
+                              "block truncate sig-fit-title text-[13px] leading-5 tracking-[0.002em]",
+                              parentActive
                                 ? darkSurface
                                   ? "font-semibold text-white"
                                   : "font-semibold text-slate-950"
@@ -169,26 +178,33 @@ function SidebarInner({
                         </span>
 
                         {hasChildren && expanded ? (
-                          <ChevronDown
+                          <ChevronDownIcon
                             className={cn(
                               "h-4 w-4 shrink-0 transition",
                               isExpanded ? "rotate-180" : "rotate-0",
-                              active ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500",
+                              parentActive
+                                ? darkSurface
+                                  ? "text-white/90"
+                                  : "text-slate-600"
+                                : darkSurface
+                                  ? "text-sky-200/80"
+                                  : "text-slate-500",
                             )}
                           />
                         ) : null}
                       </Link>
 
-                      {hasChildren && expanded && isExpanded ? (
+                      {hasChildren && expanded ? (
                         <div
                           className={cn(
-                            "sig-sidebar-submenu ml-5 border-l pl-4",
+                            "sig-sidebar-submenu ml-6 overflow-hidden border-l pl-5 transition-all duration-300 ease-out",
+                            sectionOpen ? "max-h-[480px] opacity-100" : "max-h-0 opacity-0 pointer-events-none",
                             darkSurface ? "border-white/10" : "border-slate-200",
                           )}
                         >
                           <div className="space-y-2">
                             {item.children!.map((child) => {
-                              const childActive = pathname === child.to || pathname.startsWith(`${child.to}/`);
+                              const childActive = isRouteActive(pathname, child.to);
                               const ChildIcon = child.icon;
 
                               return (
@@ -197,7 +213,7 @@ function SidebarInner({
                                   to={child.to}
                                   onClick={onNavigate}
                                   className={cn(
-                                    "sig-sidebar-subitem group flex min-h-[40px] items-center gap-2.5 rounded-[14px] px-3 py-2 text-[12px] font-medium transition-all",
+                                    "sig-sidebar-subitem group relative flex min-h-[42px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[12px] font-medium transition-all",
                                     childActive
                                       ? darkSurface
                                         ? "border border-white/14 bg-white/[0.08] text-white shadow-[0_10px_24px_rgba(2,6,23,0.16)]"
@@ -207,10 +223,21 @@ function SidebarInner({
                                         : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950",
                                   )}
                                 >
+                                  <span
+                                    className={cn(
+                                      "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition-all duration-300",
+                                      childActive
+                                        ? darkSurface
+                                          ? "bg-sky-200 shadow-[0_0_16px_rgba(186,230,253,0.45)]"
+                                          : "bg-sky-600"
+                                        : "bg-transparent",
+                                    )}
+                                    aria-hidden="true"
+                                  />
                                   {ChildIcon ? (
                                     <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRight className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
+                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
                                   )}
                                   <span className="min-w-0 flex-1 truncate">{child.label}</span>
                                 </Link>
@@ -272,7 +299,7 @@ export function AppSidebar({
       groups.forEach((group) => {
         group.items.forEach((item) => {
           if (!item.children?.length) return;
-          const shouldExpand = pathname === item.to || pathname.startsWith(`${item.to}/`);
+          const shouldExpand = isParentActive(pathname, item.to);
           if (shouldExpand) {
             next[item.to] = true;
           }
@@ -288,8 +315,8 @@ export function AppSidebar({
         className={cn(
           "sig-sidebar-shell relative hidden h-[calc(100vh-68px)] min-h-[calc(100vh-68px)] shrink-0 self-start overflow-hidden transition-[width] duration-300 ease-out lg:sticky lg:top-[68px] lg:flex lg:flex-col",
           expanded
-            ? "w-[270px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
-            : "w-[90px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
+            ? "w-[304px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
+            : "w-[96px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
@@ -327,7 +354,7 @@ export function AppSidebar({
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 flex h-full w-[min(88vw,332px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
+            "absolute left-0 top-0 flex h-full w-[min(90vw,348px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}

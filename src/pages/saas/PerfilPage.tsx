@@ -32,6 +32,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { saveRemoteProfile, uploadFileToStorage } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
+import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   getMasterInstitutionBranding,
@@ -555,7 +556,7 @@ export function PerfilPage() {
       const draftFiles = variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
       const currentPersisted =
         variant === "footer" ? masterBranding.footerLogoUrl : masterBranding.headerLogoUrl;
-      let logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
+      const logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
       let nextObjectKey = "";
       let nextFileName = "";
       let nextMimeType = "";
@@ -847,25 +848,59 @@ export function PerfilPage() {
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
 
+  const displayFullName = formatDisplayText(form.fullName || session.name, "name", {
+    fallback: "Usuário institucional",
+    maxLength: 38,
+  });
+  const displayProfessionalRole = humanizeRoleLabel(form.professionalType || session.role, "Não informado");
+  const displayTechnicalProfile = formatDisplayText(session.role, "role", {
+    fallback: "Perfil não informado",
+    maxLength: 28,
+  });
+  const displayCurrentEmail = formatDisplayText(accountForm.currentEmail || session.email, "email", {
+    fallback: "E-mail não informado",
+    maxLength: 28,
+  });
+  const displayMunicipalityName = formatDisplayText(municipalityName || tenant?.name, "municipality", {
+    fallback: "Não vinculada",
+    maxLength: 48,
+  });
+  const displaySecretariat = formatDisplayText(tenantSettings?.secretariaResponsavel, "generic", {
+    fallback: "Não informada",
+    maxLength: 42,
+  });
+  const displayInstitutionEmail = formatDisplayText(tenantSettings?.emailContato, "email", {
+    fallback: "Não informado",
+    maxLength: 28,
+  });
+  const displayRegistrationNumber = formatDisplayText(form.registrationNumber, "generic", {
+    fallback: "Não informado",
+    maxLength: 24,
+  });
+  const professionalDataState = form.registrationNumber ? displayRegistrationNumber : "Não informado";
+
   const profileSummary = [
     {
       label: "Nome",
-      value: form.fullName || session.name,
+      value: displayFullName,
       helper: "Identificação principal da conta.",
     },
     {
-      label: "Profissão",
-      value: form.professionalType || "Não informada",
+      label: "Perfil",
+      value: displayProfessionalRole,
       helper: "Exibição nos fluxos institucionais.",
     },
     {
       label: "Contato",
-      value: form.phone || "Telefone não informado",
-      helper: form.email || session.email,
+      value: formatDisplayText(form.phone, "generic", {
+        fallback: "Telefone não informado",
+        maxLength: 26,
+      }),
+      helper: displayCurrentEmail,
     },
     {
       label: "Secretaria",
-      value: tenantSettings?.secretariaResponsavel || "Não informada",
+      value: displaySecretariat,
       helper: "Área institucional associada ao acesso.",
     },
   ] as const;
@@ -887,23 +922,23 @@ export function PerfilPage() {
       {
         id: "perfil",
         title: "Perfil institucional ativo",
-        detail: `Acesso principal com perfil ${session.role}.`,
+        detail: `Acesso principal com perfil ${displayTechnicalProfile}.`,
         at: "Agora",
       },
       {
         id: "conta",
         title: "Canal da conta",
-        detail: accountForm.currentEmail || session.email,
+        detail: displayCurrentEmail,
         at: "Conta atual",
       },
       {
         id: "vinculo",
         title: "Vínculo institucional",
-        detail: municipalityName || tenant?.name || "Sem vínculo institucional ativo",
+        detail: displayMunicipalityName,
         at: "Prefeitura vinculada",
       },
     ],
-    [accountForm.currentEmail, municipalityName, session.email, session.role, tenant?.name],
+    [displayCurrentEmail, displayMunicipalityName, displayTechnicalProfile],
   );
 
   return (
@@ -925,29 +960,41 @@ export function PerfilPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow className="xl:grid-cols-4">
-              <StatCard label="👤 Perfil" value={session.role} description="Permissão ativa na plataforma" icon={ShieldPlus} tone="default" />
               <StatCard
-                label="🏛 Prefeitura vinculada"
-                value={municipalityName || tenant?.name || "Não vinculada"}
+                label="Perfil"
+                value={displayTechnicalProfile}
+                description="Permissão ativa na plataforma"
+                icon={ShieldPlus}
+                tone="default"
+                valueTitle={displayProfessionalRole}
+                valueClassName="line-clamp-1 text-[1.15rem] sm:text-[1.22rem]"
+              />
+              <StatCard
+                label="Prefeitura vinculada"
+                value={displayMunicipalityName}
                 description="Vínculo institucional em uso"
                 icon={Building2}
                 tone="blue"
                 valueTitle={municipalityName || tenant?.name || "Não vinculada"}
+                valueClassName="line-clamp-2 text-[1.08rem] sm:text-[1.16rem]"
               />
               <StatCard
-                label="💼 Dados profissionais"
-                value={form.registrationNumber || "Não informado"}
+                label="Dados profissionais"
+                value={professionalDataState}
                 description="Registro usado nos fluxos técnicos"
                 icon={IdCard}
                 tone="amber"
+                valueTitle={form.registrationNumber || "Não informado"}
+                valueClassName={form.registrationNumber ? "line-clamp-1 text-[1.15rem] sm:text-[1.22rem]" : "line-clamp-1 text-[1.02rem] font-medium text-slate-500 sm:text-[1.08rem]"}
               />
               <StatCard
-                label="🔐 Conta e segurança"
-                value={accountForm.currentEmail || "Sem e-mail"}
+                label="Conta verificada"
+                value={displayCurrentEmail}
                 description="Canal principal da conta"
                 icon={Mail}
                 tone="emerald"
                 valueTitle={accountForm.currentEmail || "Sem e-mail"}
+                valueClassName="line-clamp-1 text-[1.08rem] sm:text-[1.15rem]"
               />
             </PageStatsRow>
 
@@ -993,10 +1040,10 @@ export function PerfilPage() {
                     {profileSummary.map((item) => (
                       <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                         <p className="sig-label">{item.label}</p>
-                        <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={item.value}>
+                        <p className="sig-fit-title mt-2 line-clamp-2 text-base font-semibold leading-6 text-slate-950" title={item.value}>
                           {item.value}
                         </p>
-                        <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={item.helper}>
+                        <p className="sig-fit-copy mt-1 line-clamp-2 text-sm leading-6 text-slate-500" title={item.helper}>
                           {item.helper}
                         </p>
                       </div>
@@ -1030,16 +1077,28 @@ export function PerfilPage() {
 
                     <div className="grid gap-3">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">E-mail da conta</p>
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="sig-label">Conta verificada</p>
+                          <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("conta-seguranca")}>
+                            Editar
+                          </Button>
+                        </div>
                         <p className="sig-fit-copy mt-2 text-sm font-semibold leading-6 text-slate-950" title={accountForm.currentEmail || session.email}>
-                          {accountForm.currentEmail || session.email}
+                          {displayCurrentEmail}
                         </p>
+                        <p className="mt-1 text-sm text-slate-500">E-mail protegido exibido de forma resumida.</p>
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">Prefeitura</p>
-                        <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
-                          {municipalityName || tenant?.name || "Não vinculada"}
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="sig-label">Prefeitura</p>
+                          <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("vinculos")}>
+                            Editar
+                          </Button>
+                        </div>
+                        <p className="sig-fit-title mt-2 line-clamp-2 text-sm font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
+                          {displayMunicipalityName}
                         </p>
+                        <p className="mt-1 text-sm text-slate-500">Vínculo institucional ativo no momento.</p>
                       </div>
                     </div>
                   </div>
@@ -1381,18 +1440,30 @@ export function PerfilPage() {
             <SectionCard title="Situação da conta" description="Resumo do acesso e das credenciais principais." icon={ShieldPlus}>
               <div className="grid gap-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="sig-label">Conta do usuário</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="sig-label">Conta do usuário</p>
+                    <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("conta-seguranca")}>
+                      Editar
+                    </Button>
+                  </div>
                   <p className="sig-fit-copy mt-2 text-sm leading-6 text-slate-900" title={accountForm.currentEmail || "E-mail não informado"}>
-                    {accountForm.currentEmail || "E-mail não informado"}
+                    {displayCurrentEmail}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">Canal principal para autenticação e notificações.</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="sig-label">Nome vinculado</p>
-                  <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={form.fullName || session.name}>
-                    {form.fullName || session.name}
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="sig-label">Nome vinculado</p>
+                    <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("dados-pessoais")}>
+                      Editar
+                    </Button>
+                  </div>
+                  <p className="sig-fit-title mt-2 line-clamp-1 text-base font-semibold leading-6 text-slate-950" title={form.fullName || session.name}>
+                    {displayFullName}
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">{form.professionalType || "Profissão não informada"}</p>
+                  <p className="mt-1 truncate text-sm text-slate-500" title={displayProfessionalRole}>
+                    {displayProfessionalRole}
+                  </p>
                 </div>
               </div>
             </SectionCard>
@@ -1464,9 +1535,14 @@ export function PerfilPage() {
           <SectionCard title="Vínculos institucionais" description="Prefeitura vinculada, secretaria, perfil e relacionamento institucional." icon={Building2}>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="sig-label">Prefeitura vinculada</p>
-                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
-                  {municipalityName || tenant?.name || "Não vinculada"}
+                <div className="flex items-start justify-between gap-3">
+                  <p className="sig-label">Prefeitura vinculada</p>
+                  <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("vinculos")}>
+                    Editar
+                  </Button>
+                </div>
+                <p className="sig-fit-title mt-2 line-clamp-2 text-base font-semibold leading-6 text-slate-950" title={municipalityName || tenant?.name || "Não vinculada"}>
+                  {displayMunicipalityName}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
                   {municipality?.state || tenant?.state
@@ -1475,21 +1551,31 @@ export function PerfilPage() {
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="sig-label">Secretaria</p>
-                <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.secretariaResponsavel || "Não informada"}>
-                  {tenantSettings?.secretariaResponsavel || "Não informada"}
+                <div className="flex items-start justify-between gap-3">
+                  <p className="sig-label">Secretaria</p>
+                  <Button type="button" variant="ghost" className="h-8 rounded-xl px-3 text-[11px] font-semibold text-slate-500 hover:text-slate-900" onClick={() => setSection("vinculos")}>
+                    Editar
+                  </Button>
+                </div>
+                <p className="sig-fit-title mt-2 line-clamp-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.secretariaResponsavel || "Não informada"}>
+                  {displaySecretariat}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Área institucional associada a este acesso.</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Perfil de acesso</p>
-                <p className="mt-2 text-base font-semibold text-slate-950">{session.role}</p>
+                <span
+                  className="mt-2 inline-flex max-w-full items-center rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800"
+                  title={displayProfessionalRole}
+                >
+                  <span className="truncate">{displayTechnicalProfile}</span>
+                </span>
                 <p className="mt-1 text-sm text-slate-500">Permissão ativa na plataforma.</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Contato institucional</p>
                 <p className="sig-fit-copy mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.emailContato || "Não informado"}>
-                  {tenantSettings?.emailContato || "Não informado"}
+                  {displayInstitutionEmail}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Canal principal da comunicação oficial.</p>
               </div>
@@ -1504,8 +1590,8 @@ export function PerfilPage() {
                 <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-950">{item.title}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.detail}</p>
+                      <p className="line-clamp-1 text-sm font-semibold text-slate-950" title={item.title}>{item.title}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-slate-500" title={item.detail}>{item.detail}</p>
                     </div>
                     <span className="shrink-0 text-xs text-slate-400">{item.at}</span>
                   </div>

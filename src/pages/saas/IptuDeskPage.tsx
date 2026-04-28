@@ -112,7 +112,7 @@ export function IptuDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="sig-dark-ghost-btn rounded-full border text-slate-100"
+                  className="rounded-full border border-slate-200 bg-white/96 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
                 >
                   Visão geral
                 </Button>
@@ -121,7 +121,7 @@ export function IptuDeskPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="sig-dark-ghost-btn rounded-full border text-slate-100"
+                  className="rounded-full border border-slate-200 bg-white/96 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
                 >
                   Protocolos e recolhimento
                 </Button>

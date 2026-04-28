@@ -80,7 +80,7 @@ export function ProtocolReviewPage() {
     setSubmitting(true);
     setStatus("");
 
-    let restoredFiles = await restoreUploadedFiles(draft.files);
+    const restoredFiles = await restoreUploadedFiles(draft.files);
     let documents = Object.entries(restoredFiles).flatMap(([label, items]) =>
       items.map((file) => ({
         id: `doc-${crypto.randomUUID()}`,

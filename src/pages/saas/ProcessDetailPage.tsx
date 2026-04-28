@@ -206,16 +206,13 @@ export function ProcessDetailPage() {
     !!viewerDocument &&
     (session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista") &&
     /projeto arquitetonico|memorial/i.test(viewerDocument.label);
-  const flowSteps = useMemo(
-    () => [
-      { key: "dados", label: "Dados da obra", done: true },
-      { key: "responsaveis", label: "Responsaveis", done: true },
-      { key: "documentos", label: "Documentacao", done: uploadedCount > 0 },
-      { key: "analise", label: "Análise Técnica", done: ["analise_tecnica", "deferido"].includes(process.status) },
-      { key: "confirmacao", label: "Confirmacao", done: protocolGuide?.status === "compensada" || process.status === "deferido" },
-    ],
-    [process.status, protocolGuide?.status, uploadedCount],
-  );
+  const flowSteps = [
+    { key: "dados", label: "Dados da obra", done: true },
+    { key: "responsaveis", label: "Responsaveis", done: true },
+    { key: "documentos", label: "Documentacao", done: uploadedCount > 0 },
+    { key: "analise", label: "Análise Técnica", done: ["analise_tecnica", "deferido"].includes(process.status) },
+    { key: "confirmacao", label: "Confirmacao", done: protocolGuide?.status === "compensada" || process.status === "deferido" },
+  ];
   const externalRecipientName = process.technicalLead || process.ownerName;
   const internalRecipients = sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user) && isInternalRole(user.role));
   const processTransitVisibility = process.processControl?.externalTransitView ?? "completo";

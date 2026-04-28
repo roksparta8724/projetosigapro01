@@ -30,6 +30,8 @@ export default function handler(_req: Req, res: Res) {
     hasR2AccountId: Boolean(readEnv("R2_ACCOUNT_ID")),
     hasR2PublicBase: Boolean(readEnv("R2_PUBLIC_BASE_URL")),
     hasR2ApiBase: Boolean(readEnv("VITE_R2_API_BASE")),
+    hasOpenAiApiKey: Boolean(readEnv("OPENAI_API_KEY")),
+    openAiModel: readEnv("OPENAI_MODEL") || "gpt-4.1-mini",
     hasDevMunicipalityId: Boolean(readEnv("VITE_DEV_MUNICIPALITY_ID")),
     hasDevMunicipalitySlug: Boolean(readEnv("VITE_DEV_MUNICIPALITY_SLUG")),
     hasDevMunicipalityName: Boolean(readEnv("VITE_DEV_MUNICIPALITY_NAME")),

@@ -61,6 +61,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
+import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -307,7 +308,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       (preset) =>
         preset.primary === municipalityTheme.primary &&
         preset.accent === municipalityTheme.accent &&
-        (!!preset.inverseMain ? preset.background === municipalityTheme.background : true),
+        (preset.inverseMain ? preset.background === municipalityTheme.background : true),
     ) ??
     desktopThemePresets[0];
   const primaryColor =
@@ -486,7 +487,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     return Array.from(groups.entries());
   }, [filteredSearchItems]);
 
-  const displayUserName = userProfile?.fullName?.trim() || session.name;
+  const fullUserName = userProfile?.fullName?.trim() || session.name || "Usuário institucional";
+  const displayUserName = formatDisplayText(fullUserName, "name", {
+    fallback: "Usuário institucional",
+    maxLength: 34,
+  });
   const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null;
   const topbarAvatarImageStyle = useMemo<React.CSSProperties | undefined>(() => {
     if (!topbarAvatarImageUrl) return undefined;
@@ -500,7 +505,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       transformOrigin: "center center",
     };
   }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
-  const roleLabel = userProfile?.professionalType?.trim() || roleLabels[session.role];
+  const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
+  const displaySessionEmail = formatDisplayText(session.email, "email", {
+    fallback: "E-mail não informado",
+    maxLength: 30,
+  });
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
   const institutionDisplaySubtitle = officialHeaderText || tenantSettings?.secretariaResponsavel || "Departamento responsável";
   const institutionFooterTitle = officialHeaderText || tenantSettings?.secretariaResponsavel || "Secretaria não informada";
@@ -618,8 +627,11 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
   };
   const getSessionDisplayLabel = (item: typeof session) => {
     const profile = getUserProfile(item.id, item.email);
-    const profileName = profile?.fullName?.trim() || item.name;
-    const profileRole = profile?.professionalType?.trim() || roleLabels[item.role];
+    const profileName = formatDisplayText(profile?.fullName?.trim() || item.name, "name", {
+      fallback: "Usuário",
+      maxLength: 24,
+    });
+    const profileRole = humanizeRoleLabel(profile?.professionalType?.trim() || roleLabels[item.role], "Usuário");
     return `${profileName} - ${profileRole}`;
   };
   const renderMarkerCard = (preset: MarkerPreset, sectionLabel: string) => {
@@ -810,7 +822,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
       style={
         {
           backgroundColor: pageBackground,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "270px" : "90px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -916,8 +928,26 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="sig-topbar-search-wrap relative w-full max-w-[340px] xl:max-w-[400px]">
+            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5">
+              <button
+                type="button"
+                className={cn(
+                  "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
+                  topbarGhostButton,
+                )}
+                onClick={() => setSidebarExpanded((current) => !current)}
+                aria-label="Alternar menu lateral"
+                title="Menu"
+              >
+                <span className="sig-topbar-menu-icon inline-flex h-8.5 w-8.5 items-center justify-center rounded-[12px]">
+                  <Menu className="h-4 w-4" />
+                </span>
+                <span className="hidden font-semibold tracking-[0.01em] xl:inline">Menu</span>
+              </button>
+
+              <div className="sig-topbar-search-wrap relative w-[220px] xl:w-[300px] 2xl:w-[340px]">
                 <button
                   type="button"
                   onClick={() => setCommandOpen(true)}
@@ -926,6 +956,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                     topbarSearchButton,
                   )}
                   aria-label="Busca global"
+                  title="Pesquisar"
                 >
                   <span className="sig-topbar-search-icon inline-flex h-9 w-9 items-center justify-center rounded-[12px] bg-white/[0.05] text-sky-100 transition group-hover:bg-white/[0.09] group-hover:text-white">
                     <Search className="h-4 w-4" />
@@ -933,28 +964,12 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                   <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-medium tracking-[0.01em] text-white/90">
                     Pesquisar
                   </span>
-                  <span className="sig-topbar-search-hint hidden items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] xl:inline-flex">
+                  <span className="sig-topbar-search-hint hidden items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] 2xl:inline-flex">
                     Ctrl K
                   </span>
                 </button>
               </div>
-            </div>
 
-            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5">
-            <button
-              type="button"
-              className={cn(
-                "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
-                topbarGhostButton,
-              )}
-              onClick={() => setSidebarExpanded((current) => !current)}
-              aria-label="Alternar menu lateral"
-            >
-                <span className="sig-topbar-menu-icon inline-flex h-8.5 w-8.5 items-center justify-center rounded-[12px]">
-                <Menu className="h-4 w-4" />
-              </span>
-              <span className="font-semibold tracking-[0.01em]">Menu</span>
-            </button>
             <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
               <button
                 type="button"
@@ -1264,9 +1279,11 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                 <button
                   type="button"
                   className={cn(
-                    "sig-topbar-profile-cluster flex h-[46px] items-center gap-3 rounded-[16px] px-2.5 pr-3 transition duration-200 hover:-translate-y-[1px]",
+                    "sig-topbar-profile-cluster flex h-[46px] items-center gap-2 rounded-[16px] px-2.5 pr-2.5 transition duration-200 hover:-translate-y-[1px]",
                     topbarProfileButton,
                   )}
+                  aria-label="Abrir conta do usuário"
+                  title={fullUserName}
                 >
                   <UserAvatar
                     name={displayUserName}
@@ -1276,18 +1293,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                     className="sig-topbar-user-avatar"
                     fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
                   />
-                  <div className="hidden min-w-0 text-left xl:block">
-                    <p className="sig-topbar-profile-name sig-fit-title text-[13px] font-semibold leading-tight" title={displayUserName}>
-                      {displayUserName}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                      <p className="sig-topbar-profile-meta sig-fit-copy text-[10px] font-medium uppercase tracking-[0.14em]">
-                        {accountStatusLabel}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown className="h-4 w-4 !text-slate-700/80" />
+                  <ChevronDown className="h-3.5 w-3.5 !text-slate-700/75" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -1327,7 +1333,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className={cn("sig-fit-title text-[15px] font-semibold leading-tight", darkTopbar ? "text-white" : "text-slate-950")} title={displayUserName}>
+                          <p className={cn("sig-fit-title text-[15px] font-semibold leading-tight", darkTopbar ? "text-white" : "text-slate-950")} title={fullUserName}>
                             {displayUserName}
                           </p>
                           <span
@@ -1348,7 +1354,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
 
                         {session.email ? (
                           <p className={cn("sig-fit-copy mt-2 text-[12px] leading-5", darkTopbar ? "text-slate-300" : "text-slate-500")} title={session.email}>
-                            {session.email}
+                            {displaySessionEmail}
                           </p>
                         ) : null}
 
@@ -1466,7 +1472,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                             <UserRound className="h-4.5 w-4.5" />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")} title={getSessionDisplayLabel(item)}>
+                            <span className={cn("sig-fit-title line-clamp-2 block text-[13px] font-semibold leading-5", darkTopbar ? "text-white" : "text-slate-900")} title={getSessionDisplayLabel(item)}>
                               {getSessionDisplayLabel(item)}
                             </span>
                             <span className={cn("mt-1 block text-[11px]", darkTopbar ? "text-slate-400" : "text-slate-500")}>
@@ -1559,11 +1565,10 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           inverseMain={inverseMainTheme}
           darkSurface={darkSidebar}
           footer={
-            <div className={cn("space-y-3", !sidebarExpanded && "space-y-2")}>
+            <div className={cn("space-y-4", !sidebarExpanded && "space-y-2.5")}>
                 <SidebarProfilePanel
                   name={displayUserName}
                   role={roleLabel}
-                  email={session.email}
                   imageUrl={userProfile?.avatarUrl}
                   statusLabel={loading ? "" : source === "local" ? "dados persistidos" : "ambiente remoto"}
                   compact={!sidebarExpanded}

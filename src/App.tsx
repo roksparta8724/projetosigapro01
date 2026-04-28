@@ -44,6 +44,7 @@ import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
+import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
 
 const App = () => {
   return (
@@ -256,6 +257,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <GlobalSearchPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/assistente-ia"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <AiAssistantPage />
             </PermissionRoute>
           }
         />

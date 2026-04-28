@@ -9,7 +9,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-type Req = import("http").IncomingMessage & { method?: string; body?: any };
+type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
 
 function readEnv(key: string) {
@@ -65,13 +65,13 @@ function json(res: Res, status: number, body: unknown) {
 
 async function readJsonBody(req: Req) {
   if (req.body && typeof req.body === "object") return req.body;
-  return new Promise<any>((resolve, reject) => {
+  return new Promise<Record<string, unknown>>((resolve, reject) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
-        resolve(raw ? JSON.parse(raw) : {});
+        resolve(raw ? (JSON.parse(raw) as Record<string, unknown>) : {});
       } catch (error) {
         reject(error);
       }

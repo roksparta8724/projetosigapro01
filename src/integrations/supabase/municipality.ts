@@ -34,7 +34,7 @@ function isUuid(value?: string | null) {
   );
 }
 
-function resolveMunicipalityRecordName(record: Record<string, any>) {
+function resolveMunicipalityRecordName(record: Record<string, unknown>) {
   return (
     (typeof record.display_name === "string" && record.display_name.trim()) ||
     (typeof record.official_name === "string" && record.official_name.trim()) ||
@@ -47,7 +47,7 @@ function resolveMunicipalityRecordName(record: Record<string, any>) {
 // Mappers
 // ---------------------------------------------------------------------------
 
-function mapMunicipality(record: any): Municipality {
+function mapMunicipality(record: Record<string, unknown>): Municipality {
   return {
     id: record.id,
     name: resolveMunicipalityRecordName(record),
@@ -65,7 +65,7 @@ function mapMunicipality(record: any): Municipality {
   };
 }
 
-function mapMunicipalityBranding(record: any): MunicipalityBranding {
+function mapMunicipalityBranding(record: Record<string, unknown>): MunicipalityBranding {
   // Resolve header logo: prefere campo dedicado, cai para logo_url
   const headerLogoUrl = record.header_logo_url ?? record.logo_url ?? "";
   // Resolve footer logo: prefere campo dedicado, cai para logo_url
@@ -102,7 +102,7 @@ function mapMunicipalityBranding(record: any): MunicipalityBranding {
   };
 }
 
-function mapMunicipalitySettings(record: any): MunicipalitySettings {
+function mapMunicipalitySettings(record: Record<string, unknown>): MunicipalitySettings {
   return {
     id: record.id,
     municipalityId: record.municipality_id,
@@ -921,20 +921,20 @@ export async function loadMunicipalityCatalog(): Promise<MunicipalityBundle[]> {
   if (errors.length > 0) throw errors[0];
 
   const brandingByMunicipality = new Map(
-    (brandingResult.data ?? []).map((record: any) => [
-      record.municipality_id,
-      mapMunicipalityBranding(record),
-    ]),
+    (brandingResult.data ?? []).map((record) => {
+      const normalized = record as Record<string, unknown>;
+      return [normalized.municipality_id, mapMunicipalityBranding(normalized)];
+    }),
   );
   const settingsByMunicipality = new Map(
-    (settingsResult.data ?? []).map((record: any) => [
-      record.municipality_id,
-      mapMunicipalitySettings(record),
-    ]),
+    (settingsResult.data ?? []).map((record) => {
+      const normalized = record as Record<string, unknown>;
+      return [normalized.municipality_id, mapMunicipalitySettings(normalized)];
+    }),
   );
 
-  return (municipalitiesResult.data ?? []).map((record: any) => {
-    const municipality = mapMunicipality(record);
+  return (municipalitiesResult.data ?? []).map((record) => {
+    const municipality = mapMunicipality(record as Record<string, unknown>);
     return {
       municipality,
       branding: brandingByMunicipality.get(municipality.id) ?? null,

@@ -1,4 +1,5 @@
-﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿/* eslint-disable react-hooks/exhaustive-deps */
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -1045,7 +1046,7 @@ export function ConfiguracoesPage() {
         variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
       const currentPersisted =
         variant === "footer" ? masterBranding.footerLogoUrl : masterBranding.headerLogoUrl;
-      let logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
+      const logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
       let nextObjectKey = "";
       let nextFileName = "";
       let nextMimeType = "";
@@ -1484,10 +1485,20 @@ export function ConfiguracoesPage() {
         );
     } else if (hasSupabaseEnv && logoRemovalRequested) {
       // Remoção do logo no R2
+      const settingsWithVariants = settings as (TenantSettings & {
+        headerLogoUrl?: string;
+        footerLogoUrl?: string;
+        headerLogoObjectKey?: string;
+        footerLogoObjectKey?: string;
+        headerLogoFileName?: string;
+        footerLogoFileName?: string;
+        headerLogoMimeType?: string;
+        footerLogoMimeType?: string;
+      }) | null;
       const existingUrl =
         variant === "footer"
-          ? (settings as any)?.footerLogoUrl || settings?.logoUrl || ""
-          : (settings as any)?.headerLogoUrl || settings?.logoUrl || "";
+          ? settingsWithVariants?.footerLogoUrl || settings?.logoUrl || ""
+          : settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "";
         const objectKey = getObjectKeyFromPublicUrl(existingUrl);
         const bucket =
           (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
@@ -1507,8 +1518,8 @@ export function ConfiguracoesPage() {
       // preserva a URL já salva para essa variante
       variantLogoUrl =
         variant === "footer"
-          ? (settings as any)?.footerLogoUrl || settings?.logoUrl || logoUrl
-          : (settings as any)?.headerLogoUrl || settings?.logoUrl || logoUrl;
+          ? settingsWithVariants?.footerLogoUrl || settings?.logoUrl || logoUrl
+          : settingsWithVariants?.headerLogoUrl || settings?.logoUrl || logoUrl;
       persistedVariantUrl =
         publicBase && variantLogoUrl.startsWith(publicBase) ? variantLogoUrl : "";
     }
@@ -1618,19 +1629,19 @@ export function ConfiguracoesPage() {
         : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
       nextSettings.headerLogoFileName = logoRemovalRequested
         ? ""
-        : logoMeta?.fileName ?? (settings as any)?.headerLogoFileName ?? "";
+        : logoMeta?.fileName ?? settingsWithVariants?.headerLogoFileName ?? "";
       nextSettings.headerLogoMimeType = logoRemovalRequested
         ? ""
-        : logoMeta?.mimeType ?? (settings as any)?.headerLogoMimeType ?? "";
+        : logoMeta?.mimeType ?? settingsWithVariants?.headerLogoMimeType ?? "";
           // Preserva footer URL existente
           nextSettings.footerLogoUrl =
-            (settings as any)?.footerLogoUrl || settings?.logoUrl || "";
+            settingsWithVariants?.footerLogoUrl || settings?.logoUrl || "";
           nextSettings.footerLogoObjectKey =
-            (settings as any)?.footerLogoObjectKey || settings?.logoObjectKey || "";
+            settingsWithVariants?.footerLogoObjectKey || settings?.logoObjectKey || "";
           nextSettings.footerLogoFileName =
-            (settings as any)?.footerLogoFileName || "";
+            settingsWithVariants?.footerLogoFileName || "";
           nextSettings.footerLogoMimeType =
-            (settings as any)?.footerLogoMimeType || "";
+            settingsWithVariants?.footerLogoMimeType || "";
     } else {
       nextSettings.footerLogoUrl = variantLogoUrl;
       nextSettings.footerLogoObjectKey = logoRemovalRequested
@@ -1638,19 +1649,19 @@ export function ConfiguracoesPage() {
         : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
       nextSettings.footerLogoFileName = logoRemovalRequested
         ? ""
-        : logoMeta?.fileName ?? (settings as any)?.footerLogoFileName ?? "";
+        : logoMeta?.fileName ?? settingsWithVariants?.footerLogoFileName ?? "";
       nextSettings.footerLogoMimeType = logoRemovalRequested
         ? ""
-        : logoMeta?.mimeType ?? (settings as any)?.footerLogoMimeType ?? "";
+        : logoMeta?.mimeType ?? settingsWithVariants?.footerLogoMimeType ?? "";
           // Preserva header URL existente
           nextSettings.headerLogoUrl =
-            (settings as any)?.headerLogoUrl || settings?.logoUrl || "";
+            settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "";
           nextSettings.headerLogoObjectKey =
-            (settings as any)?.headerLogoObjectKey || settings?.logoObjectKey || "";
+            settingsWithVariants?.headerLogoObjectKey || settings?.logoObjectKey || "";
           nextSettings.headerLogoFileName =
-            (settings as any)?.headerLogoFileName || "";
+            settingsWithVariants?.headerLogoFileName || "";
           nextSettings.headerLogoMimeType =
-            (settings as any)?.headerLogoMimeType || "";
+            settingsWithVariants?.headerLogoMimeType || "";
         }
 
     nextSettings.tenantId = savedTenant.id;
@@ -1836,8 +1847,8 @@ export function ConfiguracoesPage() {
           publicBase && value && value.startsWith(publicBase) ? value : "";
         const nextSettingsForSave = {
           ...nextSettings,
-          headerLogoUrl: sanitizePersistedUrl((nextSettings as any)?.headerLogoUrl),
-          footerLogoUrl: sanitizePersistedUrl((nextSettings as any)?.footerLogoUrl),
+          headerLogoUrl: sanitizePersistedUrl(nextSettings.headerLogoUrl),
+          footerLogoUrl: sanitizePersistedUrl(nextSettings.footerLogoUrl),
         } as typeof nextSettings;
         await withTimeout(
           saveRemoteInstitutionSettings(nextSettingsForSave),

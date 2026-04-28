@@ -85,8 +85,8 @@
       background-image: linear-gradient(
         90deg,
         var(--sig-sidebar-fill) 0px,
-        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 270px),
-        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 270px),
+        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 304px),
+        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 304px),
         var(--sig-page-background, hsl(var(--background))) 100%
       );
       background-repeat: no-repeat;
@@ -776,6 +776,7 @@
 
   .sig-sidebar-submenu {
     margin-top: 0.25rem;
+    min-width: 0;
   }
 
   .sig-sidebar-subitem {
@@ -783,7 +784,7 @@
   }
 
   .sig-sidebar-footer-shell {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, rgba(255, 255, 255, 0.04) 100%);
+    background: var(--sig-sidebar-fill, #0d1526);
   }
 
   .sig-support-grid {

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo } from "react";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";

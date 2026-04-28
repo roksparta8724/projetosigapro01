@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { jsPDF } from "jspdf";
 import {
   ArrowLeft,
   Building2,
@@ -38,9 +37,11 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFile } from "@/integrations/r2/client";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { saveRemoteClientPlanAssignment, saveRemoteCommercialMaterial, upsertRemotePlan } from "@/integrations/supabase/platform";
+import { buildCommercialPdfBlob } from "@/lib/commercialPdf";
 import { cn } from "@/lib/utils";
 import { type ClientPlanAssignment, type PlanBillingCycle, type PlanContractStatus, type PlanItem } from "@/lib/platform";
 
@@ -284,6 +285,7 @@ const slugifyPdfName = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "material-comercial";
 
+/*
 const buildCommercialPdfBlob = ({
   plans,
   materialType,
@@ -625,6 +627,7 @@ const buildPdfHtml = ({
     </html>
   `;
 };
+*/
 
 export function MasterPlansPage() {
   const navigate = useNavigate();
@@ -636,7 +639,10 @@ export function MasterPlansPage() {
     duplicatePlan,
     saveClientPlanAssignment,
     getInstitutionPlanAssignment,
+    getInstitutionSettings,
+    getUserProfile,
   } = usePlatformData();
+  const { session } = usePlatformSession();
   const [view, setView] = useState<PlansView>("visao-geral");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draft, setDraft] = useState<PlanDraft>(() => buildPlanDraft(null));
@@ -656,8 +662,9 @@ export function MasterPlansPage() {
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerContact, setCustomerContact] = useState("");
-  const [responsibleName, setResponsibleName] = useState("Equipe SIGAPRO");
-  const [responsibleRole, setResponsibleRole] = useState("Comercial institucional");
+  const [responsibleName, setResponsibleName] = useState("Direção SIGAPRO");
+  const [responsibleRole, setResponsibleRole] = useState("Diretor responsável SIGAPRO");
+  const [responsibleEmail, setResponsibleEmail] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [proposalValidity, setProposalValidity] = useState("");
   const [commercialObservations, setCommercialObservations] = useState("");
@@ -671,7 +678,10 @@ export function MasterPlansPage() {
         .sort((left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR")),
     [plans],
   );
-  const safeInstitutions = Array.isArray(institutions) ? institutions : [];
+  const safeInstitutions = useMemo(
+    () => (Array.isArray(institutions) ? institutions : []),
+    [institutions],
+  );
   const safeAssignments = Array.isArray(planAssignments) ? planAssignments : [];
   const activePlans = safePlans.filter((plan) => plan.isActive);
   const publicPlans = safePlans.filter((plan) => plan.isActive && plan.isPublic);
@@ -682,6 +692,19 @@ export function MasterPlansPage() {
   const commercialTitle = buildCommercialHeadline(selectedCommercialPlans, commercialMaterialType, customerName);
   const commercialSubtitle = buildCommercialSubtitle(selectedCommercialPlans, commercialTemplateId);
   const commercialHighlights = getPlanHighlights(selectedCommercialPlans);
+  const activeProfile = useMemo(() => getUserProfile(session.id, session.email), [getUserProfile, session.email, session.id]);
+  const selectedInstitution = useMemo(
+    () => safeInstitutions.find((institution) => institution.id === selectedInstitutionId),
+    [safeInstitutions, selectedInstitutionId],
+  );
+  const selectedInstitutionSettings = useMemo(
+    () => getInstitutionSettings(selectedInstitutionId),
+    [getInstitutionSettings, selectedInstitutionId],
+  );
+  const selectedAdministrator = useMemo(
+    () => selectedInstitutionSettings?.adminContacts?.[0],
+    [selectedInstitutionSettings],
+  );
 
   useEffect(() => {
     if (!selectedInstitutionId && safeInstitutions[0]?.id) {
@@ -694,6 +717,20 @@ export function MasterPlansPage() {
       setAssignmentPlanId(safePlans[0].id);
     }
   }, [assignmentPlanId, safePlans]);
+
+  useEffect(() => {
+    const fallbackName = activeProfile?.fullName?.trim() || session.name?.trim() || "Direção SIGAPRO";
+    const fallbackRole = session.title?.trim() || "Diretor responsável SIGAPRO";
+    const fallbackEmail = activeProfile?.email?.trim() || session.email?.trim() || "contato@sigapro.govtech";
+
+    setResponsibleName((current) =>
+      !current.trim() || current === "Equipe SIGAPRO" || current === "Direção SIGAPRO" ? fallbackName : current,
+    );
+    setResponsibleRole((current) =>
+      !current.trim() || current === "Comercial institucional" || current === "Diretor responsável SIGAPRO" ? fallbackRole : current,
+    );
+    setResponsibleEmail((current) => (!current.trim() ? fallbackEmail : current));
+  }, [activeProfile?.email, activeProfile?.fullName, session.email, session.name, session.title]);
 
   useEffect(() => {
     if (!selectedInstitutionId) return;
@@ -715,6 +752,27 @@ export function MasterPlansPage() {
   }, [safePlans, selectedPlanIds.length]);
 
   useEffect(() => {
+    if (!selectedInstitution) return;
+    setCustomerName(selectedInstitution.name || "");
+    setCustomerContact((current) => {
+      if (current.trim() && current !== "Nao informado") return current;
+      return (
+        selectedInstitutionSettings?.email ||
+        selectedInstitutionSettings?.diretoriaEmail ||
+        selectedAdministrator?.email ||
+        selectedInstitutionSettings?.telefone ||
+        "Nao informado"
+      );
+    });
+  }, [
+    selectedAdministrator?.email,
+    selectedInstitution,
+    selectedInstitutionSettings?.diretoriaEmail,
+    selectedInstitutionSettings?.email,
+    selectedInstitutionSettings?.telefone,
+  ]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem("sigapro-commercial-materials");
@@ -728,6 +786,29 @@ export function MasterPlansPage() {
   const assignedMunicipalities = safeAssignments.filter((assignment) =>
     safeInstitutions.some((institution) => institution.id === assignment.municipalityId),
   );
+  const municipalityProfile = selectedInstitution
+    ? {
+        name: selectedInstitution.name || "Nao informado",
+        cnpj: selectedInstitutionSettings?.cnpj || "Nao informado",
+        address: selectedInstitutionSettings?.endereco || "Nao informado",
+        city: selectedInstitution.city || "Nao informado",
+        state: selectedInstitution.state || "Nao informado",
+        phone: selectedInstitutionSettings?.telefone || selectedInstitutionSettings?.diretoriaTelefone || "Nao informado",
+        email: selectedInstitutionSettings?.email || selectedInstitutionSettings?.diretoriaEmail || "Nao informado",
+        secretariat: selectedInstitutionSettings?.secretariaResponsavel || "Nao informado",
+        directorate: selectedInstitutionSettings?.diretoriaResponsavel || "Nao informado",
+        primaryResponsibleName: selectedAdministrator?.fullName || "Nao informado",
+        primaryResponsibleRole: selectedAdministrator?.title || "Nao informado",
+        administratorName: selectedAdministrator?.fullName || "Nao informado",
+        administratorEmail: selectedAdministrator?.email || "Nao informado",
+        status: selectedInstitution.status || "prospeccao",
+        subdomain: selectedInstitution.subdomain || "",
+        plan: selectedInstitution.plan || "Nao informado",
+        activeModules: selectedInstitution.activeModules || [],
+        users: selectedInstitution.users || 0,
+        processes: selectedInstitution.processes || 0,
+      }
+    : null;
   const monthlyRevenue = assignedMunicipalities.reduce((sum, assignment) => {
     const linkedPlan = safePlans.find((item) => item.id === assignment.planId);
     const price = assignment.customPrice ?? linkedPlan?.price ?? 0;
@@ -847,6 +928,10 @@ export function MasterPlansPage() {
   };
 
   const handleSaveCommercialMaterial = async (storage?: { pdfUrl?: string; objectKey?: string }) => {
+    if (!selectedInstitutionId || !selectedInstitution) {
+      setStatusMessage("Selecione uma prefeitura antes de gerar a proposta.");
+      return null;
+    }
     if (selectedCommercialPlans.length === 0) {
       setStatusMessage("Selecione pelo menos um plano para gerar o material comercial.");
       return null;
@@ -921,11 +1006,15 @@ export function MasterPlansPage() {
   };
 
   const handleExportCommercialPdf = async () => {
+    if (!selectedInstitutionId || !selectedInstitution) {
+      setStatusMessage("Selecione uma prefeitura antes de gerar a proposta.");
+      return;
+    }
     if (selectedCommercialPlans.length === 0) {
       setStatusMessage("Selecione pelo menos um plano antes de exportar o PDF.");
       return;
     }
-    const pdfBlob = buildCommercialPdfBlob({
+    const pdfBlob = await buildCommercialPdfBlob({
       plans: selectedCommercialPlans,
       materialType: commercialMaterialType,
       templateTitle: commercialTemplate.title,
@@ -935,10 +1024,12 @@ export function MasterPlansPage() {
       customerContact,
       responsibleName,
       responsibleRole,
+      responsibleEmail,
       customMessage,
       validityDate: proposalValidity,
       observations: commercialObservations,
       hidePrices: hideCommercialPrices,
+      municipalityProfile,
     });
     const slug = `${slugifyPdfName(customerName || commercialTitle)}-${Date.now().toString(36)}`;
     const fileName = `${slug}.pdf`;
@@ -1398,6 +1489,7 @@ export function MasterPlansPage() {
                       <div className="space-y-2"><Label>Contato do cliente</Label><Input value={customerContact} onChange={(event) => setCustomerContact(event.target.value)} placeholder="Secretaria, gestor ou e-mail" /></div>
                       <div className="space-y-2"><Label>Responsavel SIGAPRO</Label><Input value={responsibleName} onChange={(event) => setResponsibleName(event.target.value)} /></div>
                       <div className="space-y-2"><Label>Cargo / assinatura</Label><Input value={responsibleRole} onChange={(event) => setResponsibleRole(event.target.value)} /></div>
+                      <div className="space-y-2"><Label>E-mail institucional da assinatura</Label><Input type="email" value={responsibleEmail} onChange={(event) => setResponsibleEmail(event.target.value)} placeholder="contato@sigapro.govtech" /></div>
                       <div className="space-y-2"><Label>Validade da proposta</Label><Input type="date" value={proposalValidity} onChange={(event) => setProposalValidity(event.target.value)} /></div>
                       <label className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
                         Ocultar valores no material
@@ -1419,18 +1511,18 @@ export function MasterPlansPage() {
 
             <PageSideContent>
               <SectionCard title="Preview premium" description="Visual de como o cliente recebera a proposta." icon={Presentation}>
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_22px_56px_rgba(15,23,42,0.12)]">
-                  <div className="bg-[radial-gradient(circle_at_15%_0%,rgba(56,189,248,0.38),transparent_34%),linear-gradient(135deg,#07111f,#10243a_58%,#0f766e)] p-6 text-white">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-sm font-black tracking-[-0.08em] text-emerald-700">S</div>
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-100">SIGAPRO</p>
-                        <p className="text-xs text-slate-300">Material comercial inteligente</p>
+                  <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_22px_56px_rgba(15,23,42,0.12)]">
+                    <div className="bg-[radial-gradient(circle_at_15%_0%,rgba(56,189,248,0.38),transparent_34%),linear-gradient(135deg,#07111f,#10243a_58%,#0f766e)] p-6 text-white">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-sm font-black tracking-[-0.08em] text-emerald-700">S</div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-100">SIGAPRO</p>
+                          <p className="text-xs text-slate-200">Material comercial inteligente</p>
+                        </div>
                       </div>
+                      <h3 className="mt-8 text-3xl font-semibold tracking-[-0.06em] text-white">{commercialTitle}</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-100">{commercialSubtitle}</p>
                     </div>
-                    <h3 className="mt-8 text-3xl font-semibold tracking-[-0.06em]">{commercialTitle}</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">{commercialSubtitle}</p>
-                  </div>
                   <div className="grid gap-4 p-5">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
