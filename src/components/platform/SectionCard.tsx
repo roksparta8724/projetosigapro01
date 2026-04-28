@@ -1,4 +1,4 @@
-import { type LucideIcon } from "lucide-react";
+import { type ComponentType } from "react";
 import { SectionCard as BaseSectionCard } from "@/components/platform/PageLayout";
 
 export function SectionCard({
@@ -13,7 +13,7 @@ export function SectionCard({
 }: {
   title: string;
   description?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;

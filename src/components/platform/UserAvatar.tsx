@@ -1,5 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { UserRound } from "lucide-react";
+import { UserRound } from "@/components/platform/PremiumIcons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 

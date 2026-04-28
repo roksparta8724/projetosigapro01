@@ -46,6 +46,8 @@ import {
   type InstitutionUserInput,
   type CreateInstitutionProcessInput,
   getProcessPaymentGuides,
+  parseMarker,
+  serializeMarker,
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
@@ -2039,7 +2041,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               return process;
             }
 
-            if (process.tags.some((tag) => tag.toLowerCase() === normalized.toLowerCase())) {
+            if (process.tags.some((tag) => parseMarker(tag).label.toLowerCase() === normalized.toLowerCase())) {
               return process;
             }
 
@@ -2059,14 +2061,26 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!normalized) return;
 
         updateStore((current) => {
-          const serialized = `${normalized}::${color}`;
+          const serialized = serializeMarker(normalized, color);
           const processes = current.processes.map((process) => {
             if (process.id !== processId) return process;
-            if (process.tags.includes(serialized)) return process;
+            const nextTags = [
+              ...process.tags.filter(
+                (tag) => parseMarker(tag).label.toLowerCase() !== normalized.toLowerCase(),
+              ),
+              serialized,
+            ];
+
+            if (
+              nextTags.length === process.tags.length &&
+              nextTags.every((tag, index) => tag === process.tags[index])
+            ) {
+              return process;
+            }
 
             return {
               ...process,
-              tags: [...process.tags, serialized],
+              tags: nextTags,
               timeline: [buildTimelineEntry("Marcador colorido incluido", `Marcador "${normalized}" adicionado ao processo.`, actor), ...process.timeline],
               auditTrail: [buildAuditEntry("perfil", "Marcador colorido", `Marcador ${normalized} salvo com destaque visual.`, actor, true), ...process.auditTrail],
             };
@@ -2080,12 +2094,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           const processes = current.processes.map((process) => {
             if (process.id !== processId) return process;
             if (!process.tags.includes(marker)) return process;
+            const parsedMarker = parseMarker(marker);
 
             return {
               ...process,
               tags: process.tags.filter((tag) => tag !== marker),
-              timeline: [buildTimelineEntry("Marcador removido", `Marcador "${marker.split("::")[0]}" removido do processo.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("perfil", "Marcador removido", `Marcador ${marker.split("::")[0]} removido do processo.`, actor, true), ...process.auditTrail],
+              timeline: [buildTimelineEntry("Marcador removido", `Marcador "${parsedMarker.label}" removido do processo.`, actor), ...process.timeline],
+              auditTrail: [buildAuditEntry("perfil", "Marcador removido", `Marcador ${parsedMarker.label} removido do processo.`, actor, true), ...process.auditTrail],
             };
           });
 

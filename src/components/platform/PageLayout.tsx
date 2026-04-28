@@ -1,4 +1,5 @@
-import { type LucideIcon } from "lucide-react";
+import { type ComponentType } from "react";
+import { AppIcon } from "@/components/platform/AppIcon";
 import { cn } from "@/lib/utils";
 
 export function PageContainer({
@@ -32,7 +33,7 @@ export function PageHeader({
   eyebrow?: string;
   title: string;
   description?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   actions?: React.ReactNode;
   breadcrumb?: React.ReactNode;
   className?: string;
@@ -50,7 +51,7 @@ export function PageHeader({
           <div className="flex items-start gap-3">
             {Icon ? (
               <div className="sig-header-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
-                <Icon className="h-5 w-5" />
+                <AppIcon icon={Icon} className="h-5 w-5" />
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">
@@ -107,7 +108,7 @@ export function SectionCard({
 }: {
   title: string;
   description?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -126,7 +127,7 @@ export function SectionCard({
           <div className="flex items-start gap-3">
             {Icon ? (
               <div className="sig-section-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
-                <Icon className="h-4.5 w-4.5" />
+                <AppIcon icon={Icon} className="h-4.5 w-4.5" />
               </div>
             ) : null}
             <div className="min-w-0 sig-text-wrap">

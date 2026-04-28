@@ -1,4 +1,4 @@
-import { type LucideIcon } from "lucide-react";
+import { type ComponentType } from "react";
 import { PageHeader } from "@/components/platform/PageLayout";
 
 export function PageHero({
@@ -13,7 +13,7 @@ export function PageHero({
   eyebrow?: string;
   title: string;
   description?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   actions?: React.ReactNode;
   breadcrumb?: React.ReactNode;
   className?: string;

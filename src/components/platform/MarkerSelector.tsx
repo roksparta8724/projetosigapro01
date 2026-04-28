@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Flag, PencilLine, Trash2, X } from "lucide-react";
+import { Check, Flag, PencilLine, Trash2, X } from "@/components/platform/PremiumIcons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseMarker } from "@/lib/platform";
-import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
+import { MARKER_COLOR_OPTIONS, useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
 import { usePlatformData } from "@/hooks/usePlatformData";
 
 type MarkerSelectorProps = {
@@ -26,7 +26,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
   const { presets, addPreset, removePreset } = useMarkerPresets();
   const { addProcessMarkerWithColor, removeProcessMarker } = usePlatformData();
   const [label, setLabel] = useState("");
-  const [color, setColor] = useState("#3b82f6");
+  const [color, setColor] = useState("#2563eb");
   const [flagPulse, setFlagPulse] = useState(false);
   const [savePulse, setSavePulse] = useState(false);
 
@@ -58,10 +58,10 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
             triggerClassName,
           )}
         >
-          <Flag
-            className="h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad text-sky-500"
-            style={{ fill: "#38bdf8" }}
-          />
+              <Flag
+                className="h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad text-sky-500"
+                style={{ color: "#38bdf8", fill: "#38bdf8" }}
+              />
           <span>Marcadores</span>
         </button>
       </DropdownMenuTrigger>
@@ -94,7 +94,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                 <span className="flex h-7 w-7 items-center justify-center">
                   <Flag
                     className="h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad"
-                    style={{ color: marker.color || "#3b82f6", fill: marker.color || "#3b82f6" }}
+                    style={{ color: marker.color || "#2563eb", fill: marker.color || "#2563eb" }}
                   />
                 </span>
                 {marker.label}
@@ -132,7 +132,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                     <span className="flex h-8 w-8 items-center justify-center rounded-[10px] text-base shadow-inner">
                       <Flag
                         className="h-4 w-4 sig-flag-glow-strong sig-flag-filled sig-flag-grad"
-                        style={{ color: preset.color || "#3b82f6", fill: preset.color || "#3b82f6" }}
+                        style={{ color: preset.color || "#2563eb", fill: preset.color || "#2563eb" }}
                       />
                     </span>
                     <span className="font-medium">{preset.label}</span>
@@ -168,10 +168,10 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
 
         <div className="mt-3 rounded-[16px] border border-slate-200/80 bg-white p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criar marcador</p>
-          <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)_64px] gap-2">
+          <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)] gap-2">
             <button
               type="button"
-              aria-label="Bandeira do marcador"
+              aria-label="Ícone do marcador"
               className="flex h-11 w-[52px] items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm"
             >
               <Flag
@@ -189,12 +189,37 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               placeholder="Nome do marcador"
               className="h-11 rounded-xl"
             />
-            <Input
-              type="color"
-              value={color}
-              onChange={(event) => setColor(event.target.value)}
-              className="h-11 w-full rounded-xl p-1"
-            />
+          </div>
+          <div className="mt-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">12 cores premium</p>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {MARKER_COLOR_OPTIONS.map((option) => {
+                const isActive = option.value === color;
+                return (
+                  <button
+                    key={`selector-${option.value}`}
+                    type="button"
+                    className={cn(
+                      "sig-marker-swatch group rounded-[16px] border px-2.5 py-2 text-left transition",
+                      isActive && "sig-marker-swatch-active",
+                    )}
+                    onClick={() => setColor(option.value)}
+                    aria-label={`Selecionar ${option.label}`}
+                    title={option.label}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-[10px] border shadow-[0_0_0_2px_rgba(255,255,255,0.06)]"
+                        style={{ backgroundColor: `${option.value}16`, borderColor: `${option.value}38`, color: option.value }}
+                      >
+                        <Flag className="h-3.5 w-3.5" style={{ color: option.value, fill: option.value }} />
+                      </span>
+                      <span className="truncate text-[11px] font-medium">{option.label}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="mt-2 flex items-center justify-start">
             <Button

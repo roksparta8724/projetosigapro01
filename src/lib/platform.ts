@@ -1,4 +1,5 @@
 ﻿import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { getDefaultMarkerPaletteEntry, getMarkerPaletteEntry } from "@/lib/markerPalette";
 
 export type UserRole =
   | "master_admin"
@@ -815,12 +816,21 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
 }
 
 export function serializeMarker(label: string, color: string) {
-  return `${label}::${color}`;
+  const paletteEntry = getMarkerPaletteEntry(color);
+  return `${label}::${paletteEntry.id}`;
 }
 
 export function parseMarker(tag: string) {
-  const [label, color] = tag.includes("::") ? tag.split("::") : [tag, "#1d4ed8"];
-  return { label, color };
+  const [label, rawColor = getDefaultMarkerPaletteEntry().id] = tag.includes("::")
+    ? tag.split("::")
+    : [tag, getDefaultMarkerPaletteEntry().id];
+  const paletteEntry = getMarkerPaletteEntry(rawColor);
+  return {
+    label,
+    color: paletteEntry.value,
+    colorId: paletteEntry.id,
+    palette: paletteEntry,
+  };
 }
 
 export const roleLabels: Record<UserRole, string> = {

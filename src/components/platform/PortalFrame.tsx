@@ -1,4 +1,5 @@
 ﻿import {
+  AccountCard,
   Bell,
   BookOpenText,
   Building2,
@@ -7,6 +8,7 @@
   CreditCard,
   FileText,
   History,
+  IdCard,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -30,7 +32,7 @@
   Trash2,
   Flag,
   X,
-} from "lucide-react";
+} from "@/components/platform/PremiumIcons";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -67,7 +69,7 @@ import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
+import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
   title: string;
@@ -77,8 +79,8 @@ interface PortalFrameProps {
 
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true },
-  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: Building2, permission: "view_master_dashboard" as Permission, essential: true },
-  { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: CreditCard, permission: "manage_commercial_plans" as Permission, essential: true },
+  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true },
+  { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true },
   {
     key: "protocols",
@@ -91,7 +93,7 @@ const navItems = [
       { to: "/prefeitura/protocolos/novo", label: "Novo protocolo", icon: PlusCircle },
     ],
   },
-  { key: "analysis", to: "/prefeitura/analise", label: "Análise", icon: FileText, permission: "review_processes" as Permission },
+  { key: "analysis", to: "/prefeitura/analise", label: "Análise", icon: Search, permission: "review_processes" as Permission },
   {
     key: "finance",
     to: "/prefeitura/financeiro",
@@ -121,7 +123,7 @@ const navItems = [
       key: "external",
       to: "/externo",
       label: "Acesso Externo",
-      icon: LayoutDashboard,
+      icon: IdCard,
       permission: "submit_processes" as Permission,
       children: [
         { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
@@ -132,21 +134,11 @@ const navItems = [
         { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
       ],
     },
-  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Settings2, permission: "manage_tenant_branding" as Permission, essential: true },
+  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true },
 ];
 
 const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/configuracoes"];
 
-const MARKER_COLOR_OPTIONS = [
-  { value: "#3b82f6", label: "Fluxo azul" },
-  { value: "#14b8a6", label: "Triagem verde-azulada" },
-  { value: "#8b5cf6", label: "Análise violeta" },
-  { value: "#f59e0b", label: "Atenção âmbar" },
-  { value: "#ef4444", label: "Urgência coral" },
-  { value: "#22c55e", label: "Aprovado verde" },
-  { value: "#0ea5e9", label: "Protocolo céu" },
-  { value: "#64748b", label: "Neutro institucional" },
-];
 const operationalNavItems = [
   "/dashboard",
   "/prefeitura/protocolos",
@@ -159,6 +151,22 @@ const operationalNavItems = [
 ];
 const financeNavItems = ["/prefeitura/financeiro"];
 const supportNavItems = ["/notificacoes", "/historico", "/legislacao"];
+
+function markerIconSurface(color: string) {
+  return {
+    backgroundColor: `${color}18`,
+    borderColor: `${color}44`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 10px 20px ${color}18`,
+  } as const;
+}
+
+function markerSwatchSurface(color: string) {
+  return {
+    backgroundColor: `${color}16`,
+    borderColor: `${color}38`,
+    color,
+  } as const;
+}
 
 function darken(hex: string, amount: number) {
   const clean = hex.replace("#", "");
@@ -214,12 +222,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [markerLabel, setMarkerLabel] = useState("");
-  const [markerColor, setMarkerColor] = useState("#3b82f6");
+  const [markerColor, setMarkerColor] = useState("#2563eb");
   const [markerSavePulse, setMarkerSavePulse] = useState(false);
   const [pendingMarkerRemovalId, setPendingMarkerRemovalId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [editingMarkerLabel, setEditingMarkerLabel] = useState("");
-  const [editingMarkerColor, setEditingMarkerColor] = useState("#3b82f6");
+  const [editingMarkerColor, setEditingMarkerColor] = useState("#2563eb");
   const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -549,13 +557,13 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
     setEditingMarkerLabel("");
-    setEditingMarkerColor("#3b82f6");
+    setEditingMarkerColor("#2563eb");
   };
 
   const startMarkerEdit = (preset: MarkerPreset) => {
     setEditingMarkerId(preset.id);
     setEditingMarkerLabel(preset.label);
-    setEditingMarkerColor(preset.color || "#3b82f6");
+    setEditingMarkerColor(preset.color || "#2563eb");
     setPendingMarkerRemovalId(null);
   };
 
@@ -652,10 +660,10 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
         {isEditing ? (
           <div className="sig-marker-editor space-y-3">
             <div className="flex items-start gap-3">
-              <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+              <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(editingMarkerColor || "#2563eb")}>
                 <Flag
                   className="h-4 w-4 sig-flag-glow sig-flag-filled"
-                  style={{ color: editingMarkerColor || "#3b82f6", fill: editingMarkerColor || "#3b82f6" }}
+                  style={{ color: editingMarkerColor || "#2563eb", fill: editingMarkerColor || "#2563eb" }}
                 />
               </span>
               <div className="min-w-0 flex-1">
@@ -690,10 +698,12 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                   >
                     <span className="flex items-center gap-2">
                       <span
-                        className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-[0_0_0_2px_rgba(255,255,255,0.06)]"
-                        style={{ backgroundColor: option.value }}
-                      />
-                      <span className="truncate text-[11px] font-medium">{option.label.replace(/^.*\s/, "")}</span>
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-[10px] border shadow-[0_0_0_2px_rgba(255,255,255,0.06)]"
+                        style={markerSwatchSurface(option.value)}
+                      >
+                        <Flag className="h-3.5 w-3.5" style={{ color: option.value, fill: option.value }} />
+                      </span>
+                      <span className="truncate text-[11px] font-medium">{option.label}</span>
                     </span>
                   </button>
                 );
@@ -721,10 +731,10 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           </div>
         ) : (
           <div className="flex items-start gap-3">
-            <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+            <span className="sig-marker-item-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(preset.color || "#2563eb")}>
               <Flag
                 className="h-4 w-4 sig-flag-glow sig-flag-filled"
-                style={{ color: preset.color || "#3b82f6", fill: preset.color || "#3b82f6" }}
+                style={{ color: preset.color || "#2563eb", fill: preset.color || "#2563eb" }}
               />
             </span>
 
@@ -1071,7 +1081,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                     </div>
 
                     <div className="sig-marker-preview mt-4 flex items-center gap-3 rounded-[18px] border px-3 py-3">
-                      <span className="sig-marker-preview-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
+                      <span className="sig-marker-preview-icon inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(markerColor)}>
                         <Flag
                           className={cn("h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled", markerSavePulse && "sig-flag-pulse")}
                           style={{ color: markerColor, fill: markerColor }}
@@ -1108,8 +1118,10 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                               title={option.label}
                             >
                               <span className="flex items-center gap-2">
-                                <span className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-[0_0_0_2px_rgba(255,255,255,0.06)]" style={{ backgroundColor: option.value }} />
-                                <span className="truncate text-[11px] font-medium">{option.label.replace(/^.*\s/, "")}</span>
+                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-[10px] border shadow-[0_0_0_2px_rgba(255,255,255,0.06)]" style={markerSwatchSurface(option.value)}>
+                                  <Flag className="h-3.5 w-3.5" style={{ color: option.value, fill: option.value }} />
+                                </span>
+                                <span className="truncate text-[11px] font-medium">{option.label}</span>
                               </span>
                             </button>
                           );
@@ -1190,8 +1202,8 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                             onClick={() => navigate(`/processos/${process.id}`)}
                             title={marker.label || process.title}
                           >
-                            <span className="sig-marker-item-icon mr-3 inline-flex h-10 w-10 items-center justify-center rounded-[14px] border">
-                              <Flag className="h-4 w-4 sig-flag-glow sig-flag-filled" style={{ color: marker.color ?? "#3b82f6", fill: marker.color ?? "#3b82f6" }} />
+                            <span className="sig-marker-item-icon mr-3 inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(marker.color ?? "#2563eb")}>
+                              <Flag className="h-4 w-4 sig-flag-glow sig-flag-filled" style={{ color: marker.color ?? "#2563eb", fill: marker.color ?? "#2563eb" }} />
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-semibold text-slate-900">{process.protocol}</span>

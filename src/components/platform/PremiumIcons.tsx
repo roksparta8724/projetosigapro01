@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentPropsWithoutRef, ComponentType } from "react";
 import type { IconProps } from "@phosphor-icons/react";
 import {
   Bank as BankPhosphor,
@@ -7,6 +7,8 @@ import {
   Buildings as BuildingsPhosphor,
   CaretDown as CaretDownPhosphor,
   CaretRight as CaretRightPhosphor,
+  Camera as CameraPhosphor,
+  Cardholder as CardholderPhosphor,
   ChartBar as ChartBarPhosphor,
   Check as CheckPhosphor,
   CreditCard as CreditCardPhosphor,
@@ -15,6 +17,8 @@ import {
   FileText as FileTextPhosphor,
   FlagPennant as FlagPennantPhosphor,
   GearSix as GearSixPhosphor,
+  IdentificationCard as IdentificationCardPhosphor,
+  Key as KeyPhosphor,
   List as ListPhosphor,
   ListChecks as ListChecksPhosphor,
   MagnifyingGlass as MagnifyingGlassPhosphor,
@@ -25,9 +29,11 @@ import {
   PlusCircle as PlusCirclePhosphor,
   Power as PowerPhosphor,
   Scroll as ScrollPhosphor,
+  ShieldPlus as ShieldPlusPhosphor,
   SignOut as SignOutPhosphor,
   SquaresFour as SquaresFourPhosphor,
   StackSimple as StackSimplePhosphor,
+  Tag as TagPhosphor,
   Trash as TrashPhosphor,
   UserCircle as UserCirclePhosphor,
   Wallet as WalletPhosphor,
@@ -35,11 +41,12 @@ import {
   ClockCounterClockwise as ClockCounterClockwisePhosphor,
 } from "@phosphor-icons/react";
 
-type PremiumIconComponent = ComponentType<{ className?: string }>;
+type PremiumIconProps = ComponentPropsWithoutRef<"svg"> & { className?: string };
+type PremiumIconComponent = ComponentType<PremiumIconProps>;
 
 function createFilledIcon(Icon: ComponentType<IconProps>): PremiumIconComponent {
-  return function FilledIcon({ className }) {
-    return <Icon weight="fill" className={className} />;
+  return function FilledIcon({ className, ...props }) {
+    return <Icon weight="fill" className={className} {...props} />;
   };
 }
 
@@ -54,6 +61,8 @@ export const ChevronDown = createFilledIcon(CaretDownPhosphor);
 export const ChevronDownIcon = ChevronDown;
 export const ChevronRight = createFilledIcon(CaretRightPhosphor);
 export const ChevronRightIcon = ChevronRight;
+export const Camera = createFilledIcon(CameraPhosphor);
+export const AccountCard = createFilledIcon(CardholderPhosphor);
 export const CreditCard = createFilledIcon(CreditCardPhosphor);
 export const CreditCardIcon = CreditCard;
 export const FileText = createFilledIcon(FileTextPhosphor);
@@ -96,13 +105,16 @@ export const Layers = createFilledIcon(StackSimplePhosphor);
 export const LayersIcon = Layers;
 export const PlusCircle = createFilledIcon(PlusCirclePhosphor);
 export const PlusCircleIcon = PlusCircle;
+export const IdCard = createFilledIcon(IdentificationCardPhosphor);
+export const KeyRound = createFilledIcon(KeyPhosphor);
 export const ListChecks = createFilledIcon(ListChecksPhosphor);
 export const ListChecksFilledIcon = ListChecks;
 export const FileBarChart2 = createFilledIcon(ChartBarPhosphor);
 export const FileBarChart2Icon = FileBarChart2;
+export const ShieldPlus = createFilledIcon(ShieldPlusPhosphor);
 export const Trash2 = createFilledIcon(TrashPhosphor);
 export const Trash2Icon = Trash2;
-export const Flag = createFilledIcon(FlagPennantPhosphor);
+export const Flag = createFilledIcon(TagPhosphor);
 export const FlagIcon = Flag;
 export const X = createFilledIcon(XPhosphor);
 export const CloseIcon = X;
