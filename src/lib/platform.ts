@@ -80,6 +80,10 @@ export interface SessionUser {
 }
 export type InstitutionSessionUser = SessionUser & { institutionId?: string | null };
 
+export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
+export const SIGAPRO_DEFAULT_TENANT_ID = "tenant-campo";
+export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
+
 export interface UserProfile {
   userId: string;
   fullName: string;
@@ -159,6 +163,63 @@ export interface RegistrationRequest {
   createdAt?: string;
 }
 export type InstitutionRegistrationRequest = RegistrationRequest & { institutionId?: string | null };
+
+function normalizeScopedEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() ?? "";
+}
+
+export function isSigaproMasterAccount(input: {
+  email?: string | null;
+  role?: string | null;
+} | string | null | undefined) {
+  if (typeof input === "string" || input == null) {
+    return normalizeScopedEmail(input) === SIGAPRO_MASTER_EMAIL;
+  }
+
+  return (
+    normalizeScopedEmail(input.email) === SIGAPRO_MASTER_EMAIL ||
+    input.role === "master_admin" ||
+    input.role === "master_ops"
+  );
+}
+
+export function resolveDefaultInstitutionScope(input: {
+  email?: string | null;
+  role?: string | null;
+  tenantId?: string | null;
+  municipalityId?: string | null;
+}) {
+  if (isSigaproMasterAccount(input)) {
+    return {
+      tenantId: null,
+      municipalityId: null,
+    };
+  }
+
+  const resolvedScope =
+    input.municipalityId?.trim() ||
+    input.tenantId?.trim() ||
+    SIGAPRO_DEFAULT_TENANT_ID;
+
+  return {
+    tenantId: resolvedScope,
+    municipalityId: resolvedScope,
+  };
+}
+
+export function normalizeSessionUserScope<T extends SessionUser>(user: T): T {
+  return {
+    ...user,
+    ...resolveDefaultInstitutionScope(user),
+  };
+}
+
+export function normalizeRegistrationRequestScope<T extends RegistrationRequest>(request: T): T {
+  return {
+    ...request,
+    ...resolveDefaultInstitutionScope(request),
+  };
+}
 
 export interface Tenant {
   id: string;
@@ -999,7 +1060,7 @@ export const sessionUsers: SessionUser[] = [
     userType: "Usuário externo",
     department: "Consulta",
   },
-];
+].map((user) => normalizeSessionUserScope(user));
 
 export const userProfiles: UserProfile[] = [
   {
@@ -2299,7 +2360,6 @@ export function buildProcessDocuments(
 
   return [...fromTemplate, ...extras];
 }
-
 
 
 

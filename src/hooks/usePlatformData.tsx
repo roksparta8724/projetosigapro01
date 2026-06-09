@@ -13,6 +13,8 @@ import {
   getMasterMetrics,
   matchesOwnerDocument,
   normalizeOwnerDocument,
+  normalizeRegistrationRequestScope,
+  normalizeSessionUserScope,
   planCatalog as seedPlanCatalog,
   ownerLinks as seedOwnerLinks,
   ownerMessages as seedOwnerMessages,
@@ -453,9 +455,9 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
   );
   const validProcessIds = new Set(processes.map((process) => process.id));
 
-  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers).filter(
-    (user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""),
-  );
+  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers)
+    .map((user) => normalizeSessionUserScope(user))
+    .filter((user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""));
   const normalizedUserProfiles = (rawStore.userProfiles ?? (fallbackToDefault ? defaultStore.userProfiles : []));
 
   return {
@@ -464,9 +466,9 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
       .filter((item) => !legacyDemoIds.has(item.tenantId)),
     sessionUsers: normalizedSessionUsers,
     userProfiles: normalizedUserProfiles,
-    registrationRequests: (rawStore.registrationRequests ?? defaultStore.registrationRequests).filter(
-      (request) => !legacyDemoIds.has(request.tenantId) && !legacyDemoIds.has(request.municipalityId ?? ""),
-    ),
+    registrationRequests: (rawStore.registrationRequests ?? defaultStore.registrationRequests)
+      .map((request) => normalizeRegistrationRequestScope(request))
+      .filter((request) => !legacyDemoIds.has(request.tenantId) && !legacyDemoIds.has(request.municipalityId ?? "")),
     ownerRequests: (rawStore.ownerRequests ?? defaultStore.ownerRequests).filter((request) =>
       validProcessIds.has(request.projectId),
     ),
@@ -702,7 +704,14 @@ function syncStore(store: PlatformStore) {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  const normalizedStore: PlatformStore = {
+    ...store,
+    sessionUsers: store.sessionUsers.map((user) => normalizeSessionUserScope(user)),
+    registrationRequests: store.registrationRequests.map((request) =>
+      normalizeRegistrationRequestScope(request),
+    ),
+  };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStore));
 }
 
 function syncAuthUsers(users: SessionUser[]) {
@@ -713,7 +722,7 @@ function syncAuthUsers(users: SessionUser[]) {
   const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
   const parsed = raw ? (JSON.parse(raw) as Record<string, { password: string; userId: string; role: string }>) : {};
 
-  users.forEach((user) => {
+  users.map((user) => normalizeSessionUserScope(user)).forEach((user) => {
     const email = user.email.trim().toLowerCase();
     if (!parsed[email]) {
       parsed[email] = {
@@ -734,7 +743,7 @@ function readCachedPlatformSession(): SessionUser | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionUser;
     if (!parsed?.id || parsed.id === "unknown") return null;
-    return parsed;
+    return normalizeSessionUserScope(parsed);
   } catch {
     return null;
   }
@@ -765,8 +774,9 @@ function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<S
     deletedAt: current?.deletedAt ?? fallback?.deletedAt ?? null,
   };
 
-  window.localStorage.setItem(PLATFORM_SESSION_CACHE_KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated", { detail: next }));
+  const normalizedSession = normalizeSessionUserScope(next);
+  window.localStorage.setItem(PLATFORM_SESSION_CACHE_KEY, JSON.stringify(normalizedSession));
+  window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated", { detail: normalizedSession }));
 }
 
 function getInitialPlatformStoreState() {
@@ -1138,7 +1148,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
     const createInstitutionUser: PlatformDataState["createInstitutionUser"] = (input) => {
       const institutionId = input.institutionId ?? input.tenantId;
-      const user: SessionUser = {
+      const user: SessionUser = normalizeSessionUserScope({
         id: `user-${crypto.randomUUID()}`,
         name: input.fullName,
         role: input.role,
@@ -1161,7 +1171,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         blockedBy: null,
         blockReason: null,
         deletedAt: null,
-      };
+      });
 
       const profile: UserProfile = {
         userId: user.id,
@@ -1843,7 +1853,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               : safeRole === "prefeitura_supervisor"
                 ? 2
                 : 1);
-          const nextUser: SessionUser = {
+          const nextUser: SessionUser = normalizeSessionUserScope({
             id: normalizedProfile.userId,
             name: normalizedProfile.fullName,
             role: safeRole,
@@ -1861,7 +1871,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             blockedBy: existingUser?.blockedBy ?? cachedSession?.blockedBy ?? null,
             blockReason: existingUser?.blockReason ?? cachedSession?.blockReason ?? null,
             deletedAt: existingUser?.deletedAt ?? cachedSession?.deletedAt ?? null,
-          };
+          });
 
           const sessionUsers = existingUser
             ? current.sessionUsers.map((item) => (item.id === normalizedProfile.userId ? nextUser : item))
@@ -1879,12 +1889,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         syncRemoteInBackground("perfil do usuario", () => saveRemoteProfile(normalizedProfile));
       },
       createRegistrationRequest: (input) => {
-        const request: RegistrationRequest = {
+        const request: RegistrationRequest = normalizeRegistrationRequestScope({
           ...input,
           id: `registration-${crypto.randomUUID()}`,
           status: "pendente",
           createdAt: new Date().toLocaleString("pt-BR"),
-        };
+        });
 
         updateStore((current) => ({
           ...current,
@@ -1976,7 +1986,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const request = store.registrationRequests.find((item) => item.id === requestId);
         if (!request) return null;
 
-        const user: SessionUser = {
+        const user: SessionUser = normalizeSessionUserScope({
           id: `user-${crypto.randomUUID()}`,
           name: request.fullName,
           role: request.role,
@@ -1994,7 +2004,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           blockedBy: null,
           blockReason: null,
           deletedAt: null,
-        };
+        });
 
         const profile: UserProfile = {
           userId: user.id,

@@ -1,7 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useMemo } from "react";
-import { sessionUsers, type AccountStatus, type SessionUser } from "@/lib/platform";
+import {
+  normalizeSessionUserScope,
+  sessionUsers,
+  type AccountStatus,
+  type SessionUser,
+} from "@/lib/platform";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
 interface AuthGatewayContextValue {
@@ -47,7 +52,9 @@ function readCurrentSessionUsers() {
     const raw = window.localStorage.getItem(PLATFORM_STORE_KEY);
     if (!raw) return sessionUsers;
     const parsed = JSON.parse(raw) as { sessionUsers?: SessionUser[] };
-    return parsed.sessionUsers?.length ? parsed.sessionUsers : sessionUsers;
+    return parsed.sessionUsers?.length
+      ? parsed.sessionUsers.map((item) => normalizeSessionUserScope(item))
+      : sessionUsers;
   } catch {
     return sessionUsers;
   }
@@ -56,7 +63,10 @@ function readCurrentSessionUsers() {
 function resolveStoredUser(_email: string | null | undefined, userId?: string | null) {
   if (!userId) return undefined;
   const users = readCurrentSessionUsers();
-  return users.find((item) => item.id === userId) ?? sessionUsers.find((item) => item.id === userId);
+  return (
+    users.find((item) => item.id === userId) ??
+    sessionUsers.find((item) => item.id === userId)
+  );
 }
 
 function isAdministrativeBlocked(status: AccountStatus | undefined) {

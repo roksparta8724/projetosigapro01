@@ -22,17 +22,17 @@ import { SigaproLogo } from "@/components/platform/SigaproLogo";
 const institutionalHighlights = [
   {
     title: "Protocolo e triagem",
-    description: "Entrada técnica, conferência documental e controle por fila.",
+    description: "Entrada tecnica, conferencia documental e controle por fila.",
     icon: ShieldCheck,
   },
   {
-    title: "Análise e tramitação",
-    description: "Pareceres, exigências e despacho institucional em fluxo único.",
+    title: "Analise e tramitacao",
+    description: "Pareceres, exigencias e despacho institucional em fluxo unico.",
     icon: Sparkles,
   },
   {
     title: "Financeiro e guias",
-    description: "Cobrança, DAM, ISSQN e acompanhamento operacional integrado.",
+    description: "Cobranca, DAM, ISSQN e acompanhamento operacional integrado.",
     icon: CheckCircle2,
   },
   {
@@ -44,7 +44,7 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { authenticatedEmail, authenticatedRole, isAuthenticated, signIn, signOut } = useAuthGateway();
+  const { signIn, signOut } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
@@ -58,30 +58,15 @@ export function AcessoPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const activeDestination = resolveRedirect(authenticatedRole);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
-    const withTimeout = async <T,>(promise: Promise<T>, ms = 12000): Promise<T> => {
-      let timer: number | undefined;
-      const timeout = new Promise<never>((_, reject) => {
-        timer = window.setTimeout(() => {
-          reject(new Error("Tempo limite ao autenticar. Verifique a conexão e tente novamente."));
-        }, ms);
-      });
-      try {
-        return await Promise.race([promise, timeout]);
-      } finally {
-        if (timer) window.clearTimeout(timer);
-      }
-    };
-
     let result: Awaited<ReturnType<typeof signIn>>;
     try {
-      result = await withTimeout(signIn(email, password));
+      result = await signIn(email, password);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao autenticar.";
       setError(message);
@@ -90,7 +75,7 @@ export function AcessoPage() {
     }
 
     if (!result.ok) {
-      setError(result.message ?? "Não foi possível entrar.");
+      setError(result.message ?? "Nao foi possivel entrar.");
     } else {
       if (
         tenant.mode === "tenant" &&
@@ -126,8 +111,8 @@ export function AcessoPage() {
         if (scopeId && scopeId !== tenant.municipalityId) {
           await signOut();
           setError(
-            `Esta conta não está vinculada à Prefeitura ${
-              tenant.municipalityName ? `de ${tenant.municipalityName}` : "deste subdomínio"
+            `Esta conta nao esta vinculada a Prefeitura ${
+              tenant.municipalityName ? `de ${tenant.municipalityName}` : "deste subdominio"
             }.`
           );
           setSubmitting(false);
@@ -135,7 +120,7 @@ export function AcessoPage() {
         }
       }
 
-      navigate(resolveRedirect(result.role ?? authenticatedRole), { replace: true });
+      navigate(resolveRedirect(result.role ?? null), { replace: true });
     }
 
     setSubmitting(false);
@@ -165,7 +150,7 @@ export function AcessoPage() {
             <section className="min-w-0 overflow-hidden">
               <div className="flex w-full max-w-[760px] flex-col items-start gap-9 min-[1200px]:max-w-[880px] min-[1200px]:gap-10 xl:gap-11">
                 <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/20 bg-white/[0.07] px-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white shadow-[0_10px_28px_rgba(3,8,15,0.16)] backdrop-blur-md">
-                  Plataforma institucional de aprovação de projetos
+                  Plataforma institucional de aprovacao de projetos
                 </div>
 
                 <div className="grid w-full max-w-[760px] grid-cols-[140px_minmax(0,1fr)] items-center gap-6 rounded-[30px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.06)_100%)] px-6 py-5 shadow-[0_18px_40px_rgba(2,6,23,0.18)] backdrop-blur-[10px]">
@@ -184,19 +169,19 @@ export function AcessoPage() {
                     </p>
 
                     <p className="mt-2 max-w-[520px] text-[11px] font-semibold uppercase leading-[1.55] tracking-[0.14em] text-slate-200 min-[1200px]:text-[12px]">
-                      Sistema integrado de gestão e aprovação de projetos
+                      Sistema integrado de gestao e aprovacao de projetos
                     </p>
                   </div>
                 </div>
 
                 <div className="max-w-[860px] space-y-5">
                   <h1 className="max-w-[22ch] text-[clamp(38px,3.15vw,54px)] font-semibold leading-[1.08] tracking-[-0.03em] text-white min-[1200px]:max-w-[26ch] min-[1200px]:text-[clamp(42px,3.45vw,58px)]">
-                    Aprovação digital de projetos com padrão institucional e operação integrada.
+                    Aprovacao digital de projetos com padrao institucional e operacao integrada.
                   </h1>
 
                   <p className="max-w-[700px] text-[15px] leading-[1.82] text-slate-100 min-[1200px]:text-[16px] xl:text-[17px]">
-                    O SIGAPRO conecta protocolo, análise técnica, tramitação entre setores, guias de
-                    pagamento e acompanhamento externo em uma experiência única, confiável e pronta para a
+                    O SIGAPRO conecta protocolo, analise tecnica, tramitacao entre setores, guias de
+                    pagamento e acompanhamento externo em uma experiencia unica, confiavel e pronta para a
                     rotina da Prefeitura.
                   </p>
                 </div>
@@ -255,41 +240,10 @@ export function AcessoPage() {
                         </CardTitle>
 
                         <p className="max-w-md text-[15px] leading-[1.72] text-slate-700">
-                          Acesse seu ambiente institucional com suas credenciais já vinculadas ao SIGAPRO.
+                          Acesse seu ambiente institucional com suas credenciais ja vinculadas ao SIGAPRO.
                         </p>
                       </div>
 
-                      {isAuthenticated ? (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                              Sessão ativa no navegador
-                            </p>
-                            <p className="mt-1 truncate text-sm text-slate-700">{authenticatedEmail || email}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="h-9 rounded-[12px] bg-slate-900 px-3 text-white hover:bg-slate-800"
-                              onClick={() => navigate(activeDestination, { replace: true })}
-                            >
-                              Continuar
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-9 rounded-[12px] border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
-                              onClick={async () => {
-                                await signOut();
-                              }}
-                            >
-                              Trocar conta
-                            </Button>
-                          </div>
-                        </div>
-                      ) : null}
                     </CardHeader>
 
                     <CardContent className="px-9 pb-9 pt-7">
@@ -365,8 +319,8 @@ export function AcessoPage() {
                           <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
                             <p className="text-sm font-medium">Acesso inicial</p>
                             <p className="text-sm leading-relaxed text-muted-foreground">
-                              Profissionais externos podem criar a própria conta. Usuários internos da
-                              Prefeitura são cadastrados pelo administrador municipal.
+                              Profissionais externos podem criar a propria conta. Usuarios internos da
+                              Prefeitura sao cadastrados pelo administrador municipal.
                             </p>
                           </div>
 

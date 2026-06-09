@@ -82,7 +82,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               className="h-12 rounded-full border-white/15 bg-white/8 px-5.5 text-sm font-semibold text-white hover:bg-white/14"
               onClick={onOpenDemo}
             >
-              Solicitar demonstração
+              Solicitar demonstracao
             </Button>
             <Button asChild className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
@@ -105,7 +105,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               <SheetHeader className="text-left">
                 <SheetTitle className="text-slate-950">SIGAPRO</SheetTitle>
                 <SheetDescription className="leading-6 text-slate-600">
-                  Navegação institucional da página pública.
+                  Navegacao institucional da pagina publica.
                 </SheetDescription>
               </SheetHeader>
 
@@ -131,7 +131,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
                     onOpenDemo();
                   }}
                 >
-                  Solicitar demonstração
+                  Solicitar demonstracao
                 </Button>
                 <Button
                   asChild

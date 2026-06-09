@@ -9,7 +9,7 @@ import {
 } from "@/integrations/supabase/municipality";
 import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
-import type { UserRole } from "@/lib/platform";
+import { resolveDefaultInstitutionScope, type UserRole } from "@/lib/platform";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -115,6 +115,25 @@ type StoredPlatformSession = {
   tenantId?: string | null;
 };
 
+function readRoleFromPlatformStore(email: string): UserRole | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem("sigapro-platform-store");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      sessionUsers?: Array<{ email?: string | null; role?: string | null }>;
+    };
+    const normalizedEmail = normalizeEmail(email);
+    const matchedUser = parsed.sessionUsers?.find(
+      (item) => normalizeEmail(item.email) === normalizedEmail,
+    );
+    return mapDbRoleCodeToAppRole(matchedUser?.role);
+  } catch {
+    return null;
+  }
+}
+
 function readBootstrapSnapshot(
   resolution: ReturnType<typeof resolveTenantFromLocation>,
 ): BootstrapSnapshot | null {
@@ -158,7 +177,16 @@ function readPlatformSessionSnapshot(): StoredPlatformSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredPlatformSession;
     if (!parsed?.id || parsed.id === "unknown") return null;
-    return parsed;
+    const normalizedScope = resolveDefaultInstitutionScope({
+      email: parsed.email,
+      role: parsed.role,
+      tenantId: parsed.tenantId,
+      municipalityId: parsed.municipalityId,
+    });
+    return {
+      ...parsed,
+      ...normalizedScope,
+    };
   } catch {
     return null;
   }
@@ -215,7 +243,13 @@ function readWarmBootstrapSnapshot(
     mapDbRoleCodeToAppRole(storedSession?.role) ??
     null;
   const email = normalizeEmail(storedUser?.email ?? storedSession?.email ?? null);
-  const municipalityId = storedSession?.municipalityId ?? storedSession?.tenantId ?? null;
+  const normalizedScope = resolveDefaultInstitutionScope({
+    email,
+    role,
+    tenantId: storedSession?.tenantId ?? null,
+    municipalityId: storedSession?.municipalityId ?? null,
+  });
+  const municipalityId = normalizedScope.municipalityId;
   const fullName =
     storedUser?.user_metadata?.full_name ||
     storedUser?.user_metadata?.name ||
@@ -670,7 +704,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (signInError || !data.user) {
           return { ok: false, message: signInError?.message || "Falha ao autenticar." };
         }
-        return { ok: true };
+        const mappedRole =
+          mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
+          readRoleFromPlatformStore(normalized) ??
+          "profissional_externo";
+        return { ok: true, role: mappedRole };
       },
       resetPassword: async (email) => {
         if (!hasSupabaseEnv || !supabase) {
