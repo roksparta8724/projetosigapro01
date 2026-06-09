@@ -8,12 +8,12 @@ import {
 export type MarkerPreset = {
   id: string;
   label: string;
-  emoji: string;
-  colorId: string;
-  color: string;
-  description: string;
-  active: boolean;
-  system: boolean;
+  emoji?: string;
+  colorId?: string;
+  color?: string;
+  description?: string;
+  active?: boolean;
+  system?: boolean;
 };
 
 export type NewMarkerPreset = {

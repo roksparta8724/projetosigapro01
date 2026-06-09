@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -15,7 +15,6 @@ import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
-import { LoadingFallback } from "@/components/platform/LoadingFallback";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
@@ -76,46 +75,29 @@ export default App;
 
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
-  const location = useLocation();
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
-  const isPublicRoute =
-    location.pathname === "/" ||
-    location.pathname === "/apresentacao" ||
-    location.pathname === "/planos-publicos" ||
-    location.pathname === "/acesso" ||
-    location.pathname === "/criar-conta" ||
-    location.pathname === "/recuperar-senha";
+  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
+  const isPublicEntryPath =
+    pathname === "/" ||
+    pathname === "/inicio" ||
+    pathname === "/apresentacao" ||
+    pathname === "/acesso" ||
+    pathname === "/criar-conta" ||
+    pathname === "/recuperar-senha" ||
+    pathname.startsWith("/cliente/");
+  const canPromoteBootstrapScreen =
+    bootstrap.isReady &&
+    !bootstrap.loading &&
+    !bootstrap.authUserId &&
+    !bootstrap.profile?.userId;
 
-  if (!bootstrap.isReady && !isPublicRoute) {
-    return (
-      <div className="min-h-screen bg-[#091322] text-slate-100">
-        <div className="h-[92px] border-b border-white/6 bg-[linear-gradient(180deg,rgba(10,20,34,0.98)_0%,rgba(11,24,40,0.96)_100%)] backdrop-blur-xl" />
-        <div className="flex min-h-[calc(100vh-92px)]">
-          <aside className="hidden w-[278px] border-r border-white/6 bg-[linear-gradient(180deg,rgba(8,18,31,0.98)_0%,rgba(9,20,34,1)_100%)] lg:block" />
-          <main className="flex-1 bg-[linear-gradient(180deg,#edf3f9_0%,#e7eef7_100%)] px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 2xl:px-8">
-            <div className="h-full min-h-[calc(100vh-132px)] rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.98)_100%)] shadow-[0_20px_44px_rgba(15,23,42,0.08)]" />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (bootstrap.stage === "tenant_not_found") {
+  // Blindagem: o AppShell interno nunca pode ser substituido por tela full-screen de bootstrap.
+  if (isPublicEntryPath && canPromoteBootstrapScreen && bootstrap.stage === "tenant_not_found") {
     return <TenantNotFoundPage />;
   }
 
-  if (bootstrap.stage === "bootstrap_error") {
-    return (
-      <LoadingFallback
-        title="Falha ao iniciar o ambiente"
-        description={bootstrap.error || "Nao foi possivel concluir a inicializacao do sistema."}
-        onRetry={() => window.location.reload()}
-      />
-    );
-  }
-
+  // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
-    <div className="sig-fade-enter sig-fade-enter-active">
       <Routes>
         <Route
           path="/"
@@ -367,6 +349,5 @@ const AppRoutes = () => {
         <Route path="/processos/:processId" element={<ProcessDetailPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-    </div>
   );
 };

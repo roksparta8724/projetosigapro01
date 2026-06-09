@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import {
   loadCurrentMunicipalityBundle,
   loadMunicipalityBundleById,
@@ -11,6 +12,7 @@ import type { MunicipalityBundle } from "@/lib/municipality";
 import type { UserRole } from "@/lib/platform";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
+const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 
 interface AppBootstrapProfile {
   userId: string;
@@ -23,6 +25,7 @@ interface AppBootstrapProfile {
 interface AppBootstrapState {
   loading: boolean;
   isReady: boolean;
+  authResolved: boolean;
   stage:
     | "detecting_host"
     | "resolving_tenant"
@@ -91,6 +94,27 @@ type BootstrapSnapshot = {
   cachedAt: number;
 };
 
+type StoredSupabaseUser = {
+  id?: string | null;
+  email?: string | null;
+  app_metadata?: {
+    role?: string | null;
+  } | null;
+  user_metadata?: {
+    full_name?: string | null;
+    name?: string | null;
+  } | null;
+};
+
+type StoredPlatformSession = {
+  id?: string | null;
+  name?: string | null;
+  role?: string | null;
+  email?: string | null;
+  municipalityId?: string | null;
+  tenantId?: string | null;
+};
+
 function readBootstrapSnapshot(
   resolution: ReturnType<typeof resolveTenantFromLocation>,
 ): BootstrapSnapshot | null {
@@ -124,6 +148,98 @@ function readBootstrapSnapshot(
   } catch {
     return null;
   }
+}
+
+function readPlatformSessionSnapshot(): StoredPlatformSession | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(PLATFORM_SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredPlatformSession;
+    if (!parsed?.id || parsed.id === "unknown") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredSupabaseUser(): StoredSupabaseUser | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith("sb-")) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as {
+        user?: StoredSupabaseUser | null;
+        currentSession?: { user?: StoredSupabaseUser | null } | null;
+        session?: { user?: StoredSupabaseUser | null } | null;
+        data?: { session?: { user?: StoredSupabaseUser | null } | null } | null;
+      };
+      const user =
+        parsed?.user ??
+        parsed?.currentSession?.user ??
+        parsed?.session?.user ??
+        parsed?.data?.session?.user ??
+        null;
+      if (user?.id) return user;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function resolveScopeType(role: UserRole | null): "platform" | "municipality" | "external" {
+  if (role === "master_admin" || role === "master_ops") return "platform";
+  if (role === "profissional_externo" || role === "proprietario_consulta" || role === "property_owner") {
+    return "external";
+  }
+  return "municipality";
+}
+
+function readWarmBootstrapSnapshot(
+  resolution: ReturnType<typeof resolveTenantFromLocation>,
+): BootstrapSnapshot | null {
+  const storedUser = readStoredSupabaseUser();
+  const storedSession = readPlatformSessionSnapshot();
+  const userId = storedUser?.id ?? storedSession?.id ?? null;
+  if (!userId) return null;
+
+  const role =
+    mapDbRoleCodeToAppRole(storedUser?.app_metadata?.role) ??
+    mapDbRoleCodeToAppRole(storedSession?.role) ??
+    null;
+  const email = normalizeEmail(storedUser?.email ?? storedSession?.email ?? null);
+  const municipalityId = storedSession?.municipalityId ?? storedSession?.tenantId ?? null;
+  const fullName =
+    storedUser?.user_metadata?.full_name ||
+    storedUser?.user_metadata?.name ||
+    storedSession?.name ||
+    null;
+
+  return {
+    hostname: resolution.hostname,
+    mode: resolution.mode,
+    subdomain: resolution.subdomain ?? null,
+    scopeType: resolveScopeType(role),
+    authUserId: userId,
+    authEmail: email,
+    role,
+    profile: {
+      userId,
+      role,
+      municipalityId,
+      email,
+      fullName,
+    },
+    municipalityBundle: null,
+    cachedAt: Date.now(),
+  };
 }
 
 function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
@@ -226,10 +342,13 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 
 export function AppBootstrapProvider({ children }: { children: React.ReactNode }) {
   const [resolution] = useState(() => resolveTenantFromLocation());
-  const cachedSnapshotRef = useRef<BootstrapSnapshot | null>(readBootstrapSnapshot(resolveTenantFromLocation()));
+  const cachedSnapshotRef = useRef<BootstrapSnapshot | null>(
+    readBootstrapSnapshot(resolution) ?? readWarmBootstrapSnapshot(resolution),
+  );
   const cachedSnapshot = cachedSnapshotRef.current;
   const [loading, setLoading] = useState(!cachedSnapshot);
   const [isReady, setIsReady] = useState(Boolean(cachedSnapshot));
+  const [authResolved, setAuthResolved] = useState(Boolean(cachedSnapshot?.authUserId));
   const [stage, setStage] = useState<AppBootstrapState["stage"]>(cachedSnapshot ? "ready" : "detecting_host");
   const [error, setError] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(cachedSnapshot?.authUserId ?? null);
@@ -243,6 +362,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     cachedSnapshot?.municipalityBundle ?? null,
   );
   const runningRef = useRef(false);
+  const pendingBootstrapRef = useRef<{ event?: string | null; sessionUserOverride?: User | null } | null>(null);
   const initializedRef = useRef(Boolean(cachedSnapshot));
   const lastAuthUserIdRef = useRef<string | null>(cachedSnapshot?.authUserId ?? null);
   const refreshRef = useRef(false);
@@ -296,13 +416,17 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     if (!hasSupabaseEnv || !supabase) {
       setLoading(false);
       setIsReady(true);
+      setAuthResolved(true);
       return;
     }
 
     let active = true;
 
-    const runBootstrap = async (event?: string | null) => {
-      if (runningRef.current) return;
+    const runBootstrap = async (event?: string | null, sessionUserOverride?: User | null) => {
+      if (runningRef.current) {
+        pendingBootstrapRef.current = { event, sessionUserOverride };
+        return;
+      }
       runningRef.current = true;
       if (!initializedRef.current) {
         setLoading(true);
@@ -311,64 +435,72 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       setStage("detecting_host");
 
       try {
-        console.log("[Bootstrap] Iniciando", { event: event ?? authEventRef.current });
-        console.log("[HostDetection] Estado do host", {
-          hostname: resolution.hostname,
-          subdomain: resolution.subdomain,
-          rootDomain: resolution.rootDomain,
-          isLocalhost: resolution.isLocalhost,
-          mode: resolution.mode,
-          isReserved: resolution.isReserved,
-        });
         setStage("bootstrapping_auth");
-        const userResult = await supabase.auth.getUser();
-        const authUser = userResult.data.user ?? null;
+        const sessionUser =
+          sessionUserOverride !== undefined
+            ? sessionUserOverride
+            : (await supabase.auth.getSession()).data.session?.user ?? null;
+        const userResult =
+          sessionUser || event === "SIGNED_OUT"
+            ? null
+            : await supabase.auth.getUser();
+        const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!active) return;
 
         if (event === "TOKEN_REFRESHED" && authUser?.id && lastAuthUserIdRef.current === authUser.id) {
-          console.log("[Bootstrap] Refresh token sem mudanca de usuario");
           setIsReady(true);
           return;
         }
 
         if (!authUser) {
-          if (authEventRef.current && authEventRef.current !== "SIGNED_OUT") {
+          const hasStableAuthenticatedState = Boolean(lastStableRef.current.authUserId);
+          const shouldPreserveStableState =
+            event !== "SIGNED_OUT" && hasStableAuthenticatedState;
+
+          if (shouldPreserveStableState) {
             console.warn("[Bootstrap] Auth transitório sem user, preservando estado", {
-              event: authEventRef.current,
+              event: event ?? authEventRef.current,
             });
+            setAuthUserId(lastStableRef.current.authUserId);
+            setAuthEmail(lastStableRef.current.authEmail);
+            setRole(lastStableRef.current.role);
+            setProfile(lastStableRef.current.profile);
+            setMunicipalityBundle(lastStableRef.current.municipalityBundle);
+            setScopeType(
+              lastStableRef.current.role === "master_admin" || lastStableRef.current.role === "master_ops"
+                ? "platform"
+                : lastStableRef.current.authUserId
+                  ? "municipality"
+                  : scopeType,
+            );
             setIsReady(true);
+            setStage("ready");
+            setLoading(false);
+            setAuthResolved(true);
             return;
           }
           console.warn("[Bootstrap] Sem usuário autenticado");
           const devPreferredName =
             (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) || "";
-          if (resolution.mode === "tenant") {
-            setStage("resolving_tenant");
-            const tenantBundle = await loadCurrentMunicipalityBundle({
-              hostname: resolution.hostname,
-              subdomain: resolution.subdomain,
-              isLocalhost: resolution.isLocalhost,
-              preferredName: devPreferredName,
-            });
-            if (!active) return;
-            console.log("[TenantLookup] Resultado sem auth", {
-              found: Boolean(tenantBundle?.municipality?.id),
-              municipalityId: tenantBundle?.municipality?.id ?? null,
-              subdomain: resolution.subdomain,
-            });
-            setStage(tenantBundle?.municipality ? "tenant_resolved" : "tenant_not_found");
-            setAuthUserId(null);
-            setAuthEmail(null);
-            setRole(null);
-            setProfile(null);
-            setScopeType("municipality");
+        if (resolution.mode === "tenant") {
+          setStage("resolving_tenant");
+          const tenantBundle = await loadCurrentMunicipalityBundle({
+            hostname: resolution.hostname,
+            subdomain: resolution.subdomain,
+            isLocalhost: resolution.isLocalhost,
+            preferredName: devPreferredName,
+          });
+          if (!active) return;
+          setAuthUserId(null);
+          setAuthEmail(null);
+          setRole(null);
+          setProfile(null);
+          setScopeType("municipality");
             setMunicipalityBundle(tenantBundle);
             setIsReady(true);
             setStage(tenantBundle?.municipality ? "ready" : "tenant_not_found");
-            console.log("[Bootstrap] Tenant publico carregado sem auth", {
-              municipalityId: tenantBundle?.municipality?.id ?? null,
-              subdomain: resolution.subdomain,
-            });
+            setAuthResolved(true);
+            initializedRef.current = true;
             return;
           }
           setAuthUserId(null);
@@ -379,6 +511,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setMunicipalityBundle(null);
           setIsReady(true);
           setStage("ready");
+          setAuthResolved(true);
+          initializedRef.current = true;
           return;
         }
 
@@ -411,12 +545,6 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                 "",
             });
           }
-          console.log("[TenantLookup] Resultado com auth", {
-            found: Boolean(nextBundle?.municipality?.id),
-            municipalityId: nextBundle?.municipality?.id ?? null,
-            subdomain: resolution.subdomain,
-          });
-          setStage(nextBundle?.municipality ? "tenant_resolved" : "tenant_not_found");
         }
 
         if (!active) return;
@@ -436,12 +564,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         };
         setIsReady(true);
         setStage("ready");
-        console.log("[Bootstrap] Concluido", {
-          authUserId: authUser.id,
-          role: mappedRole,
-          scopeType: nextScopeType,
-          municipalityId: nextBundle?.municipality?.id ?? null,
-        });
+        setAuthResolved(true);
         initializedRef.current = true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Falha no bootstrap";
@@ -462,27 +585,31 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           );
           setIsReady(true);
           setStage("ready");
+          setAuthResolved(true);
         } else {
           setIsReady(true);
           setStage("bootstrap_error");
+          setAuthResolved(true);
         }
       } finally {
         if (active) setLoading(false);
         runningRef.current = false;
+        const pendingBootstrap = pendingBootstrapRef.current;
+        if (active && pendingBootstrap) {
+          pendingBootstrapRef.current = null;
+          void runBootstrap(pendingBootstrap.event, pendingBootstrap.sessionUserOverride);
+        }
       }
     };
 
-    void runBootstrap("INITIAL_SESSION");
-
-    const { data } = supabase.auth.onAuthStateChange(async (event) => {
-      console.log("[Auth] onAuthStateChange", { event });
+    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
       authEventRef.current = event;
       if (event === "TOKEN_REFRESHED") {
-        await runBootstrap(event);
+        await runBootstrap(event, session?.user ?? null);
         return;
       }
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "INITIAL_SESSION") {
-        await runBootstrap(event);
+        await runBootstrap(event, session?.user ?? null);
       }
     });
 
@@ -496,6 +623,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     () => ({
       loading,
       isReady,
+      authResolved,
       stage,
       error,
       authUserId,
@@ -573,7 +701,6 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         return { ok: true, message: "Senha atualizada." };
       },
       signOut: async () => {
-        console.log("[Logout] signOut start (bootstrap)");
         authEventRef.current = "SIGNED_OUT";
         lastAuthUserIdRef.current = null;
         initializedRef.current = false;
@@ -610,11 +737,10 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setIsReady(true);
           setStage("ready");
           setLoading(false);
-          console.log("[Logout] signOut done (bootstrap)");
         }
       },
     }),
-    [authEmail, authUserId, error, isReady, loading, municipalityBundle, profile, resolution, role, scopeType],
+    [authEmail, authResolved, authUserId, error, isReady, loading, municipalityBundle, profile, resolution, role, scopeType],
   );
 
   return <AppBootstrapContext.Provider value={value}>{children}</AppBootstrapContext.Provider>;

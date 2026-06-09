@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,8 @@ type SidebarInnerProps = {
   onClose?: () => void;
   expandedItems?: Record<string, boolean>;
   onToggleItem?: (itemKey: string) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
+  activeItemRef?: (node: HTMLAnchorElement | HTMLButtonElement | null) => void;
 };
 
 function isRouteActive(pathname: string, route: string) {
@@ -47,6 +49,8 @@ function SidebarInner({
   onClose,
   expandedItems = {},
   onToggleItem,
+  scrollContainerRef,
+  activeItemRef,
 }: SidebarInnerProps) {
   return (
     <div
@@ -79,28 +83,16 @@ function SidebarInner({
         </div>
       ) : null}
 
-      <div className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-4 py-4.5" : "px-2.5 py-4")}>
-        <nav className="sig-sidebar-nav space-y-3">
+      <div
+        ref={scrollContainerRef}
+        className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-4 py-4.5" : "px-2.5 py-4")}
+      >
+        <nav className="sig-sidebar-nav space-y-0">
           {groups.map((group) => {
             if (group.items.length === 0) return null;
 
             return (
-              <div key={group.title} className="sig-sidebar-group space-y-2.5">
-                <div
-                  className={cn(
-                    "sig-sidebar-group-header overflow-hidden transition-all duration-200 ease-out",
-                    expanded ? "max-h-10 px-1 opacity-100" : "max-h-0 px-0 opacity-0",
-                  )}
-                  aria-hidden={!expanded}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={cn("h-px flex-1", darkSurface ? "bg-white/10" : "bg-slate-200")} />
-                    <p className={cn("sig-sidebar-group-title shrink-0 truncate text-[10px] font-semibold uppercase tracking-[0.18em]", darkSurface ? "text-slate-400/85" : "text-slate-500")}>
-                      {group.title}
-                    </p>
-                  </div>
-                </div>
-
+              <div key={group.title} className="sig-sidebar-group space-y-2">
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
                   const isChildActive = item.children?.some((child) => isRouteActive(pathname, child.to)) ?? false;
@@ -109,100 +101,152 @@ function SidebarInner({
                   const isExpanded = hasChildren ? (expandedItems[item.to] ?? parentActive) : false;
                   const sectionOpen = hasChildren && isExpanded;
                   const Icon = item.icon;
+                  const shouldBindActiveRef = parentActive || isExactActive;
+
+                  const itemClassName = cn(
+                    "sig-sidebar-item group flex items-center justify-start text-left text-sm leading-5 transition-all duration-300 ease-out",
+                    expanded
+                      ? "w-full min-h-[58px] gap-3 rounded-[18px] px-3.5 py-3"
+                      : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
+                    parentActive
+                      ? darkSurface
+                        ? "border border-sky-200/16 bg-[linear-gradient(135deg,rgba(35,66,99,0.98)_0%,rgba(49,104,167,0.94)_100%)] text-white shadow-[0_14px_30px_rgba(2,6,23,0.26)]"
+                        : "border border-slate-300 bg-white text-slate-950"
+                      : darkSurface
+                        ? "border border-white/[0.06] text-slate-300 hover:border-white/10 hover:bg-white/[0.045] hover:text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
+                        : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-black/[0.04] hover:text-slate-950",
+                  );
 
                   return (
-                    <div key={item.to} className="sig-sidebar-item-shell space-y-1.5">
-                      <Link
-                        to={item.to}
-                        onClick={(event) => {
-                          if (hasChildren && expanded && onToggleItem) {
-                            event.preventDefault();
-                            onToggleItem(item.to);
-                          } else {
-                            onNavigate?.();
-                          }
-                        }}
-                        title={!expanded ? item.label : undefined}
-                        data-sidebar-active={parentActive ? "true" : "false"}
-                        data-sidebar-collapsed={expanded ? "false" : "true"}
-                        className={cn(
-                          "sig-sidebar-item group flex items-center text-sm leading-5 transition-all duration-300 ease-out",
-                          expanded ? "min-h-[54px] gap-3.5 rounded-[18px] px-3.5 py-3.5" : "mx-auto min-h-[54px] w-[54px] justify-center gap-0 rounded-[18px] px-0 py-0",
-                          parentActive
-                            ? darkSurface
-                              ? "border border-sky-200/16 bg-[linear-gradient(135deg,rgba(35,66,99,0.98)_0%,rgba(49,104,167,0.94)_100%)] text-white shadow-[0_14px_30px_rgba(2,6,23,0.26)]"
-                              : "border border-slate-300 bg-white text-slate-950"
-                            : darkSurface
-                              ? "border border-white/[0.06] text-slate-300 hover:border-white/10 hover:bg-white/[0.045] hover:text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
-                              : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-black/[0.04] hover:text-slate-950",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
-                            expanded ? "h-9 w-9 rounded-[14px]" : "h-10 w-10 rounded-[15px]",
-                            parentActive
-                              ? darkSurface
-                                ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                                : "border-slate-300 bg-slate-50 text-slate-950"
-                              : darkSurface
-                                ? "border-white/8 bg-white/[0.03] text-sky-100/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-sky-50"
-                                : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
-                          )}
-                        >
-                          <Icon className={cn("shrink-0", expanded ? "h-[17px] w-[17px]" : "h-[18px] w-[18px]")} />
-                        </span>
-
-                        <span
-                          className={cn(
-                            "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
-                            expanded ? "min-w-0 flex-1 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
-                          )}
-                          aria-hidden={!expanded}
+                    <div key={item.to} className="sig-sidebar-item-shell">
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          ref={shouldBindActiveRef ? activeItemRef : undefined}
+                          onClick={() => onToggleItem?.(item.to)}
+                          title={!expanded ? item.label : undefined}
+                          aria-expanded={isExpanded}
+                          data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sidebar-collapsed={expanded ? "false" : "true"}
+                          className={itemClassName}
                         >
                           <span
                             className={cn(
-                              "block truncate sig-fit-title text-[13px] leading-5 tracking-[0.002em]",
+                              "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
+                              expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
-                                  ? "font-semibold text-white"
-                                  : "font-semibold text-slate-950"
+                                  ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                                  : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "font-medium text-slate-200"
-                                  : "font-medium text-slate-800",
+                                  ? "border-white/8 bg-white/[0.03] text-sky-100/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-sky-50"
+                                  : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
-                            title={item.label}
                           >
-                            {item.label}
+                            <Icon className={cn("shrink-0", expanded ? "h-[17px] w-[17px]" : "h-[18px] w-[18px]")} />
                           </span>
-                        </span>
 
-                        {hasChildren && expanded ? (
-                          <ChevronDownIcon
+                          <span
                             className={cn(
-                              "h-4 w-4 shrink-0 transition",
-                              isExpanded ? "rotate-180" : "rotate-0",
+                              "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
+                              expanded ? "min-w-0 flex-1 basis-0 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
+                            )}
+                            aria-hidden={!expanded}
+                          >
+                            <span
+                              className={cn(
+                                "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
+                                parentActive
+                                  ? darkSurface
+                                    ? "font-semibold text-white"
+                                    : "font-semibold text-slate-950"
+                                  : darkSurface
+                                    ? "font-medium text-slate-200"
+                                    : "font-medium text-slate-800",
+                              )}
+                              title={item.label}
+                            >
+                              {item.label}
+                            </span>
+                          </span>
+
+                          {expanded ? (
+                            <ChevronDownIcon
+                              className={cn(
+                                "h-4 w-4 shrink-0 transition",
+                                isExpanded ? "rotate-180" : "rotate-0",
+                                parentActive
+                                  ? darkSurface
+                                    ? "text-white/90"
+                                    : "text-slate-600"
+                                  : darkSurface
+                                    ? "text-sky-200/80"
+                                    : "text-slate-500",
+                              )}
+                            />
+                          ) : null}
+                        </button>
+                      ) : (
+                        <Link
+                          ref={shouldBindActiveRef ? activeItemRef : undefined}
+                          to={item.to}
+                          onClick={onNavigate}
+                          title={!expanded ? item.label : undefined}
+                          data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sidebar-collapsed={expanded ? "false" : "true"}
+                          className={itemClassName}
+                        >
+                          <span
+                            className={cn(
+                              "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
+                              expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
-                                  ? "text-white/90"
-                                  : "text-slate-600"
+                                  ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                                  : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "text-sky-200/80"
-                                  : "text-slate-500",
+                                  ? "border-white/8 bg-white/[0.03] text-sky-100/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-sky-50"
+                                  : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
-                          />
-                        ) : null}
-                      </Link>
+                          >
+                            <Icon className={cn("shrink-0", expanded ? "h-[17px] w-[17px]" : "h-[18px] w-[18px]")} />
+                          </span>
+
+                          <span
+                            className={cn(
+                              "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
+                              expanded ? "min-w-0 flex-1 basis-0 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
+                            )}
+                            aria-hidden={!expanded}
+                          >
+                            <span
+                              className={cn(
+                                "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
+                                parentActive
+                                  ? darkSurface
+                                    ? "font-semibold text-white"
+                                    : "font-semibold text-slate-950"
+                                  : darkSurface
+                                    ? "font-medium text-slate-200"
+                                    : "font-medium text-slate-800",
+                              )}
+                              title={item.label}
+                            >
+                              {item.label}
+                            </span>
+                          </span>
+                        </Link>
+                      )}
 
                       {hasChildren && expanded ? (
                         <div
                           className={cn(
-                            "sig-sidebar-submenu ml-6 overflow-hidden border-l pl-5 transition-all duration-300 ease-out",
-                            sectionOpen ? "max-h-[480px] opacity-100" : "max-h-0 opacity-0 pointer-events-none",
+                            "sig-sidebar-submenu ml-5 overflow-hidden border-l pl-4 transition-all duration-300 ease-out",
+                            sectionOpen ? "mt-2 max-h-[480px] opacity-100" : "mt-0 max-h-0 opacity-0 pointer-events-none",
                             darkSurface ? "border-white/10" : "border-slate-200",
                           )}
                         >
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {item.children!.map((child) => {
                               const childActive = isRouteActive(pathname, child.to);
                               const ChildIcon = child.icon;
@@ -210,10 +254,11 @@ function SidebarInner({
                               return (
                                 <Link
                                   key={child.to}
+                                  ref={childActive ? activeItemRef : undefined}
                                   to={child.to}
                                   onClick={onNavigate}
                                   className={cn(
-                                    "sig-sidebar-subitem group relative flex min-h-[42px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[12px] font-medium transition-all",
+                                    "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
                                     childActive
                                       ? darkSurface
                                         ? "border border-white/14 bg-white/[0.08] text-white shadow-[0_10px_24px_rgba(2,6,23,0.16)]"
@@ -292,22 +337,79 @@ export function AppSidebar({
   onMobileClose?: () => void;
 }) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const desktopScrollRef = useRef<HTMLDivElement | null>(null);
+  const mobileScrollRef = useRef<HTMLDivElement | null>(null);
+  const activeItemNodeRef = useRef<HTMLAnchorElement | HTMLButtonElement | null>(null);
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+  const pendingNearestRevealRef = useRef(false);
+  const activeScrollContainerRef = mobileOpen ? mobileScrollRef : desktopScrollRef;
+
+  const captureScroll = useCallback(() => {
+    const node = activeScrollContainerRef.current;
+    if (!node) return;
+    pendingScrollRestoreRef.current = node.scrollTop;
+  }, [activeScrollContainerRef]);
+
+  const restoreScroll = useCallback(() => {
+    const node = activeScrollContainerRef.current;
+    if (!node) return;
+    const nextScrollTop = pendingScrollRestoreRef.current;
+    if (typeof nextScrollTop === "number") {
+      node.scrollTop = nextScrollTop;
+      pendingScrollRestoreRef.current = null;
+    }
+    if (!pendingNearestRevealRef.current || !activeItemNodeRef.current) return;
+    pendingNearestRevealRef.current = false;
+    const activeRect = activeItemNodeRef.current.getBoundingClientRect();
+    const containerRect = node.getBoundingClientRect();
+    const isAbove = activeRect.top < containerRect.top;
+    const isBelow = activeRect.bottom > containerRect.bottom;
+    if (isAbove || isBelow) {
+      activeItemNodeRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [activeScrollContainerRef]);
+
+  const handleActiveItemRef = useCallback((node: HTMLAnchorElement | HTMLButtonElement | null) => {
+    if (node) {
+      activeItemNodeRef.current = node;
+    }
+  }, []);
+
+  const handleNavigate = useCallback(() => {
+    captureScroll();
+    pendingNearestRevealRef.current = true;
+    onMobileClose?.();
+  }, [captureScroll, onMobileClose]);
 
   useEffect(() => {
     setExpandedItems((current) => {
       const next = { ...current };
+      let changed = false;
       groups.forEach((group) => {
         group.items.forEach((item) => {
           if (!item.children?.length) return;
           const shouldExpand = isParentActive(pathname, item.to);
-          if (shouldExpand) {
+          if (shouldExpand && !next[item.to]) {
             next[item.to] = true;
+            changed = true;
           }
         });
       });
-      return next;
+      return changed ? next : current;
     });
   }, [groups, pathname]);
+
+  useEffect(() => {
+    pendingNearestRevealRef.current = true;
+  }, [pathname]);
+
+  useLayoutEffect(() => {
+    if (pendingScrollRestoreRef.current === null && !pendingNearestRevealRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      restoreScroll();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [expandedItems, pathname, restoreScroll]);
 
   return (
     <>
@@ -320,7 +422,7 @@ export function AppSidebar({
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
-        style={{ background: "var(--sig-sidebar-fill, #0d1526)" }}
+      style={{ background: "var(--sig-sidebar-fill, var(--sig-sidebar))" }}
       >
         <SidebarInner
           pathname={pathname}
@@ -328,13 +430,17 @@ export function AppSidebar({
           footer={footer}
           expanded={expanded}
           darkSurface={darkSurface}
+          onNavigate={handleNavigate}
+          scrollContainerRef={desktopScrollRef}
+          activeItemRef={handleActiveItemRef}
           expandedItems={expandedItems}
-          onToggleItem={(itemKey) =>
+          onToggleItem={(itemKey) => {
+            captureScroll();
             setExpandedItems((current) => ({
               ...current,
               [itemKey]: !current[itemKey],
-            }))
-          }
+            }));
+          }}
         />
       </aside>
 
@@ -358,7 +464,7 @@ export function AppSidebar({
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
-          style={{ background: "var(--sig-sidebar-fill, #0d1526)" }}
+          style={{ background: "var(--sig-sidebar-fill, var(--sig-sidebar))" }}
         >
           <SidebarInner
             pathname={pathname}
@@ -366,16 +472,19 @@ export function AppSidebar({
             footer={footer}
             expanded
             darkSurface={darkSurface}
-            onNavigate={onMobileClose}
+            onNavigate={handleNavigate}
             showClose
             onClose={onMobileClose}
+            scrollContainerRef={mobileScrollRef}
+            activeItemRef={handleActiveItemRef}
             expandedItems={expandedItems}
-            onToggleItem={(itemKey) =>
+            onToggleItem={(itemKey) => {
+              captureScroll();
               setExpandedItems((current) => ({
                 ...current,
                 [itemKey]: !current[itemKey],
-              }))
-            }
+              }));
+            }}
           />
         </aside>
       </div>

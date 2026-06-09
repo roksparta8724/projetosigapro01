@@ -58,7 +58,12 @@ import {
   createRemoteOwnerRequest,
   loadRemotePlatformStore,
   respondRemoteOwnerRequest,
+  saveRemoteClientPlanAssignment,
+  saveRemoteInstitutionSettings,
+  saveRemoteProfile,
   setRemoteOwnerChatEnabled,
+  upsertRemoteInstitution,
+  upsertRemotePlan,
 } from "@/integrations/supabase/platform";
 
 type CmsSection = (typeof seedCmsSections)[number];
@@ -298,13 +303,25 @@ function mergeRecordsByTenantId<T extends { tenantId: string }>(
   return Array.from(merged.values());
 }
 
-function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, _email?: string | null | undefined) {
-  if (!userId) return undefined;
-  return profiles.find((item) => item.userId === userId);
+function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, email?: string | null | undefined) {
+  const id = userId && userId !== "unknown" ? userId : "";
+  if (id) {
+    const profile = profiles.find((item) => item.userId === id);
+    if (profile) return profile;
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return undefined;
+  return profiles.find((item) => normalizeEmail(item.email) === normalizedEmail);
 }
 
 const STORAGE_KEY = "sigapro-platform-store";
 const AUTH_STORAGE_KEY = "sigapro-demo-credentials";
+const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+const DELETED_RECORDS_KEY = "sigapro-platform-deleted-records";
+type DeletedRecords = {
+  institutions: string[];
+};
 const LEGACY_DEMO_TENANT_NAMES = new Set([
   "prefeitura de jardim da serra",
   "prefeitura jardim da serra",
@@ -486,6 +503,201 @@ function readStore(): PlatformStore {
   }
 }
 
+function readPersistedStore(): PlatformStore | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PlatformStore>;
+    return buildSanitizedStore(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function readDeletedRecords(): DeletedRecords {
+  if (typeof window === "undefined") {
+    return { institutions: [] };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DELETED_RECORDS_KEY);
+    if (!raw) return { institutions: [] };
+    const parsed = JSON.parse(raw) as Partial<DeletedRecords>;
+    return {
+      institutions: Array.isArray(parsed.institutions) ? parsed.institutions : [],
+    };
+  } catch {
+    return { institutions: [] };
+  }
+}
+
+function markInstitutionDeleted(institutionId: string) {
+  if (typeof window === "undefined" || !institutionId) return;
+  const current = readDeletedRecords();
+  if (current.institutions.includes(institutionId)) return;
+  window.localStorage.setItem(
+    DELETED_RECORDS_KEY,
+    JSON.stringify({
+      ...current,
+      institutions: [institutionId, ...current.institutions],
+    }),
+  );
+}
+
+function recordTimestamp(record: Record<string, unknown>) {
+  const candidates = ["updatedAt", "updated_at", "createdAt", "created_at", "logoUpdatedAt", "lastAccessAt"];
+  for (const key of candidates) {
+    const value = record[key];
+    if (typeof value !== "string" || !value.trim()) continue;
+    const time = Date.parse(value);
+    if (!Number.isNaN(time)) return time;
+  }
+  return 0;
+}
+
+function mergeRecordsByKey<T extends Record<string, unknown>>(
+  localRecords: T[],
+  remoteRecords: T[],
+  keyGetter: (item: T) => string | null | undefined,
+) {
+  const merged = new Map<string, T>();
+
+  remoteRecords.forEach((record) => {
+    const key = keyGetter(record);
+    if (!key) return;
+    merged.set(key, record);
+  });
+
+  localRecords.forEach((record) => {
+    const key = keyGetter(record);
+    if (!key) return;
+    const current = merged.get(key);
+    if (!current) {
+      merged.set(key, record);
+      return;
+    }
+
+    const localTime = recordTimestamp(record);
+    const remoteTime = recordTimestamp(current);
+    merged.set(key, localTime === 0 || localTime >= remoteTime ? record : current);
+  });
+
+  return Array.from(merged.values());
+}
+
+function mergeLocalAndRemoteStores(localStore: PlatformStore | null, remoteStore: PlatformStore): PlatformStore {
+  if (!localStore) return remoteStore;
+
+  const deleted = readDeletedRecords();
+  const deletedInstitutions = new Set(deleted.institutions);
+  const notDeletedInstitution = (institutionId: string | null | undefined) =>
+    !institutionId || !deletedInstitutions.has(institutionId);
+
+  const remoteFiltered: PlatformStore = {
+    ...remoteStore,
+    tenants: remoteStore.tenants.filter((item) => notDeletedInstitution(item.id)),
+    tenantSettings: remoteStore.tenantSettings.filter((item) => notDeletedInstitution(item.tenantId)),
+    sessionUsers: remoteStore.sessionUsers.filter((item) => notDeletedInstitution(item.tenantId ?? item.municipalityId)),
+    userProfiles: remoteStore.userProfiles.filter((profile) => {
+      const user = remoteStore.sessionUsers.find((item) => item.id === profile.userId);
+      return notDeletedInstitution(user?.tenantId ?? user?.municipalityId);
+    }),
+    registrationRequests: remoteStore.registrationRequests.filter((item) => notDeletedInstitution(item.tenantId)),
+    ownerRequests: remoteStore.ownerRequests,
+    ownerLinks: remoteStore.ownerLinks,
+    ownerMessages: remoteStore.ownerMessages,
+    processes: remoteStore.processes.filter((item) => notDeletedInstitution(item.tenantId ?? item.municipalityId)),
+    planAssignments: remoteStore.planAssignments.filter((item) => notDeletedInstitution(item.municipalityId)),
+  };
+
+  return buildSanitizedStore(
+    {
+      tenants: mergeRecordsByKey(
+        localStore.tenants as unknown as Record<string, unknown>[],
+        remoteFiltered.tenants as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as Tenant[],
+      tenantSettings: mergeRecordsByKey(
+        localStore.tenantSettings as unknown as Record<string, unknown>[],
+        remoteFiltered.tenantSettings as unknown as Record<string, unknown>[],
+        (item) => item.tenantId as string,
+      ) as unknown as InstitutionSettings[],
+      sessionUsers: mergeRecordsByKey(
+        localStore.sessionUsers as unknown as Record<string, unknown>[],
+        remoteFiltered.sessionUsers as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as SessionUser[],
+      userProfiles: mergeUserProfiles(localStore.userProfiles, remoteFiltered.userProfiles),
+      registrationRequests: mergeRecordsByKey(
+        localStore.registrationRequests as unknown as Record<string, unknown>[],
+        remoteFiltered.registrationRequests as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as RegistrationRequest[],
+      ownerRequests: mergeRecordsByKey(
+        localStore.ownerRequests as unknown as Record<string, unknown>[],
+        remoteFiltered.ownerRequests as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as OwnerProjectRequest[],
+      ownerLinks: mergeRecordsByKey(
+        localStore.ownerLinks as unknown as Record<string, unknown>[],
+        remoteFiltered.ownerLinks as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as OwnerProjectLink[],
+      ownerMessages: mergeRecordsByKey(
+        localStore.ownerMessages as unknown as Record<string, unknown>[],
+        remoteFiltered.ownerMessages as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as OwnerProfessionalMessage[],
+      processes: mergeRecordsByKey(
+        localStore.processes as unknown as Record<string, unknown>[],
+        remoteFiltered.processes as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as ProcessRecord[],
+      plans: mergeRecordsByKey(
+        localStore.plans as unknown as Record<string, unknown>[],
+        remoteFiltered.plans as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as PlanItem[],
+      planAssignments: mergeRecordsByKey(
+        localStore.planAssignments as unknown as Record<string, unknown>[],
+        remoteFiltered.planAssignments as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as ClientPlanAssignment[],
+      cmsSections: mergeRecordsByKey(
+        localStore.cmsSections as unknown as Record<string, unknown>[],
+        remoteFiltered.cmsSections as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as CmsSection[],
+      checklistTemplates: mergeRecordsByKey(
+        localStore.checklistTemplates as unknown as Record<string, unknown>[],
+        remoteFiltered.checklistTemplates as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as ChecklistTemplate[],
+      documentTemplates: mergeRecordsByKey(
+        localStore.documentTemplates as unknown as Record<string, unknown>[],
+        remoteFiltered.documentTemplates as unknown as Record<string, unknown>[],
+        (item) => item.id as string,
+      ) as unknown as DocumentTemplate[],
+    },
+    false,
+  );
+}
+
+function syncRemoteInBackground(label: string, operation: () => Promise<unknown>) {
+  if (!hasSupabaseEnv || !supabase) return;
+  void operation().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[SIGAPRO][Persistencia] ${label} ficou salvo localmente e pendente no remoto.`, { message });
+  });
+}
+
 function syncStore(store: PlatformStore) {
   if (typeof window === "undefined") {
     return;
@@ -513,6 +725,56 @@ function syncAuthUsers(users: SessionUser[]) {
   });
 
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+}
+
+function readCachedPlatformSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PLATFORM_SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionUser;
+    if (!parsed?.id || parsed.id === "unknown") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<SessionUser>) {
+  if (typeof window === "undefined" || !profile.userId || profile.userId === "unknown") return;
+  const current = readCachedPlatformSession();
+  if (current?.id && current.id !== profile.userId) return;
+
+  const next: SessionUser = {
+    id: profile.userId,
+    name: profile.fullName.trim() || current?.name || fallback?.name || "Usuário autenticado",
+    role: current?.role ?? fallback?.role ?? "profissional_externo",
+    accessLevel: current?.accessLevel ?? fallback?.accessLevel ?? 1,
+    tenantId: current?.tenantId ?? fallback?.tenantId ?? null,
+    municipalityId: current?.municipalityId ?? fallback?.municipalityId ?? null,
+    title: current?.title ?? fallback?.title ?? "Profissional Externo",
+    email: normalizeEmail(profile.email || current?.email || fallback?.email),
+    accountStatus: current?.accountStatus ?? fallback?.accountStatus ?? "active",
+    userType: current?.userType ?? fallback?.userType ?? "Usuário",
+    department: current?.department ?? fallback?.department ?? "",
+    createdAt: current?.createdAt ?? fallback?.createdAt ?? "",
+    lastAccessAt: current?.lastAccessAt ?? fallback?.lastAccessAt ?? "",
+    blockedAt: current?.blockedAt ?? fallback?.blockedAt ?? null,
+    blockedBy: current?.blockedBy ?? fallback?.blockedBy ?? null,
+    blockReason: current?.blockReason ?? fallback?.blockReason ?? null,
+    deletedAt: current?.deletedAt ?? fallback?.deletedAt ?? null,
+  };
+
+  window.localStorage.setItem(PLATFORM_SESSION_CACHE_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated", { detail: next }));
+}
+
+function getInitialPlatformStoreState() {
+  const initialStore = readStore();
+  return {
+    store: initialStore,
+    source: initialStore === defaultStore ? ("demo" as const) : ("local" as const),
+  };
 }
 
 function toSizeLabel(size: number) {
@@ -560,10 +822,20 @@ function isAuthError(error: unknown) {
 }
 
 export function PlatformDataProvider({ children }: { children: React.ReactNode }) {
-  const { authenticatedUserId, loading: authLoading } = useAuthGateway();
-  const [store, setStore] = useState<PlatformStore>(defaultStore);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<DataSource>("demo");
+  const {
+    authenticatedEmail,
+    authenticatedMunicipalityId,
+    authenticatedRole,
+    authenticatedUserId,
+    loading: authLoading,
+  } = useAuthGateway();
+  const initialStateRef = useRef<ReturnType<typeof getInitialPlatformStoreState> | null>(null);
+  if (!initialStateRef.current) {
+    initialStateRef.current = getInitialPlatformStoreState();
+  }
+  const [store, setStore] = useState<PlatformStore>(() => initialStateRef.current?.store ?? defaultStore);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const lastFetchedUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -590,14 +862,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      setLoading(true);
+      // Mantem a UI com o ultimo estado valido enquanto sincroniza o remoto.
+      setLoading(false);
       try {
         const remote = await loadRemotePlatformStore();
         const sanitized = buildSanitizedStore(remote, false);
+        const localSnapshot = readPersistedStore();
+        const merged = mergeLocalAndRemoteStores(localSnapshot, sanitized);
         if (!active) return;
-        setStore(sanitized);
-        syncStore(sanitized);
-        syncAuthUsers(sanitized.sessionUsers);
+        setStore(merged);
+        syncStore(merged);
+        syncAuthUsers(merged.sessionUsers);
         setSource("remote");
         lastFetchedUserId.current = authenticatedUserId;
       } catch (error) {
@@ -750,6 +1025,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, tenants, tenantSettings };
       });
 
+      syncRemoteInBackground("prefeitura", () =>
+        upsertRemoteInstitution({
+          institutionId: tenantId,
+          name: input.name,
+          city: input.city,
+          state: input.state,
+          status: input.status,
+          subdomain: input.subdomain,
+          cnpj: store.tenantSettings.find((item) => item.tenantId === tenantId)?.cnpj ?? "",
+          primaryColor: input.primaryColor,
+          accentColor: input.accentColor,
+          secretariat: store.tenantSettings.find((item) => item.tenantId === tenantId)?.secretariaResponsavel ?? "",
+        }),
+      );
+
       return nextTenant;
     };
     const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = (settings) => {
@@ -810,8 +1100,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return { ...current, tenantSettings, processes };
       });
+
+      syncRemoteInBackground("configuracoes institucionais", () =>
+        saveRemoteInstitutionSettings(settings as unknown as Parameters<typeof saveRemoteInstitutionSettings>[0]),
+      );
     };
     const removeInstitution: PlatformDataState["removeInstitution"] = (tenantId) => {
+      markInstitutionDeleted(tenantId);
       updateStore((current) => {
         const removedProcessIds = new Set(
           current.processes.filter((item) => item.tenantId === tenantId).map((item) => item.id),
@@ -1106,6 +1401,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
+      syncRemoteInBackground("plano comercial", () => upsertRemotePlan(nextPlan));
+
       return nextPlan;
     };
 
@@ -1130,6 +1427,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           (left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR"),
         ),
       }));
+
+      syncRemoteInBackground("plano duplicado", () => upsertRemotePlan(duplicate));
 
       return duplicate;
     };
@@ -1158,6 +1457,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return { ...current, planAssignments, tenants };
       });
+
+      syncRemoteInBackground("vinculo comercial", () => saveRemoteClientPlanAssignment(nextAssignment));
 
       return nextAssignment;
     };
@@ -1520,17 +1821,62 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       saveTenantSettings: (settings) => saveInstitutionSettings(settings),
       removeTenant: (tenantId) => removeInstitution(tenantId),
       saveUserProfile: (profile) => {
+        const normalizedProfile: UserProfile = {
+          ...profile,
+          fullName: profile.fullName.trim() || "Usuário autenticado",
+          email: normalizeEmail(profile.email || authenticatedEmail),
+        };
         updateStore((current) => {
-          const userProfiles = current.userProfiles.some((item) => item.userId === profile.userId)
-            ? current.userProfiles.map((item) => (item.userId === profile.userId ? profile : item))
-            : [profile, ...current.userProfiles];
+          const userProfiles = current.userProfiles.some((item) => item.userId === normalizedProfile.userId)
+            ? current.userProfiles.map((item) => (item.userId === normalizedProfile.userId ? normalizedProfile : item))
+            : [normalizedProfile, ...current.userProfiles];
 
-          const sessionUsers = current.sessionUsers.map((item) =>
-            item.id === profile.userId ? { ...item, name: profile.fullName, email: profile.email } : item,
-          );
+          const cachedSession = readCachedPlatformSession();
+          const existingUser = current.sessionUsers.find((item) => item.id === normalizedProfile.userId);
+          const safeRole =
+            (existingUser?.role ?? cachedSession?.role ?? authenticatedRole ?? "profissional_externo") as SessionUser["role"];
+          const safeAccessLevel =
+            existingUser?.accessLevel ??
+            cachedSession?.accessLevel ??
+            (safeRole === "master_admin" || safeRole === "prefeitura_admin"
+              ? 3
+              : safeRole === "prefeitura_supervisor"
+                ? 2
+                : 1);
+          const nextUser: SessionUser = {
+            id: normalizedProfile.userId,
+            name: normalizedProfile.fullName,
+            role: safeRole,
+            accessLevel: safeAccessLevel,
+            tenantId: existingUser?.tenantId ?? cachedSession?.tenantId ?? authenticatedMunicipalityId ?? null,
+            municipalityId: existingUser?.municipalityId ?? cachedSession?.municipalityId ?? authenticatedMunicipalityId ?? null,
+            title: existingUser?.title ?? cachedSession?.title ?? "Profissional Externo",
+            email: normalizedProfile.email,
+            accountStatus: existingUser?.accountStatus ?? cachedSession?.accountStatus ?? "active",
+            userType: existingUser?.userType ?? cachedSession?.userType ?? "Usuário",
+            department: existingUser?.department ?? cachedSession?.department ?? "",
+            createdAt: existingUser?.createdAt ?? cachedSession?.createdAt ?? "",
+            lastAccessAt: existingUser?.lastAccessAt ?? cachedSession?.lastAccessAt ?? "",
+            blockedAt: existingUser?.blockedAt ?? cachedSession?.blockedAt ?? null,
+            blockedBy: existingUser?.blockedBy ?? cachedSession?.blockedBy ?? null,
+            blockReason: existingUser?.blockReason ?? cachedSession?.blockReason ?? null,
+            deletedAt: existingUser?.deletedAt ?? cachedSession?.deletedAt ?? null,
+          };
+
+          const sessionUsers = existingUser
+            ? current.sessionUsers.map((item) => (item.id === normalizedProfile.userId ? nextUser : item))
+            : [nextUser, ...current.sessionUsers];
 
           return { ...current, userProfiles, sessionUsers };
         });
+
+        syncProfileToPlatformSession(normalizedProfile, {
+          role: authenticatedRole as SessionUser["role"],
+          email: authenticatedEmail ?? undefined,
+          municipalityId: authenticatedMunicipalityId ?? null,
+          tenantId: authenticatedMunicipalityId ?? null,
+        });
+        syncRemoteInBackground("perfil do usuario", () => saveRemoteProfile(normalizedProfile));
       },
       createRegistrationRequest: (input) => {
         const request: RegistrationRequest = {
@@ -1572,6 +1918,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               : profile,
           ),
         }));
+
+        const nextProfile = store.userProfiles.find((profile) => profile.userId === userId);
+        if (nextProfile) {
+          syncRemoteInBackground("perfil do usuario", () =>
+            saveRemoteProfile({
+              ...nextProfile,
+              fullName: input.name ?? nextProfile.fullName,
+              email: input.email ?? nextProfile.email,
+              professionalType: input.userType ?? nextProfile.professionalType,
+            }),
+          );
+        }
 
         return nextUser;
       },
@@ -2441,7 +2799,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         });
       },
     };
-  }, [loading, source, store]);
+  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, loading, source, store]);
 
   return <PlatformDataContext.Provider value={value}>{children}</PlatformDataContext.Provider>;
 }

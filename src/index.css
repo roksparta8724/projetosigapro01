@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 210 29% 97%;
+    --background: 0 0% 100%;
     --foreground: 0 0% 10%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
@@ -34,6 +34,16 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 209 45% 24%;
     --sidebar-ring: 209 49% 37%;
+    --sig-bg: var(--sig-initial-bg, #f3faf7);
+    --sig-surface: #fbfdff;
+    --sig-card: #ffffff;
+    --sig-border: rgba(226, 232, 240, 0.92);
+    --sig-text: #0f172a;
+    --sig-muted: #475569;
+    --sig-primary: #163b63;
+    --sig-primary-soft: rgba(37, 99, 235, 0.1);
+    --sig-sidebar: #123f32;
+    --sig-topbar: #0d3f30;
   }
 
   * {
@@ -42,6 +52,9 @@
 
   html {
     scroll-behavior: smooth;
+    min-height: 100%;
+    height: 100%;
+    background-color: var(--sig-bg);
   }
 
   body {
@@ -54,16 +67,21 @@
     font-feature-settings: "liga" 1, "kern" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100%;
+    background-color: var(--sig-bg);
   }
 
   #root {
     min-height: 100vh;
+    min-height: 100dvh;
+    height: 100%;
+    background-color: var(--sig-bg);
   }
 
   .sig-app-frame {
     min-height: 100vh;
     min-height: 100dvh;
-    background-color: var(--sig-page-background, hsl(var(--background)));
+    background-color: var(--sig-page-background, var(--sig-bg));
   }
 
   .sig-content-frame {
@@ -86,8 +104,8 @@
         90deg,
         var(--sig-sidebar-fill) 0px,
         var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 304px),
-        var(--sig-page-background, hsl(var(--background))) var(--sig-sidebar-stripe-width, 304px),
-        var(--sig-page-background, hsl(var(--background))) 100%
+        var(--sig-page-background, var(--sig-bg)) var(--sig-sidebar-stripe-width, 304px),
+        var(--sig-page-background, var(--sig-bg)) 100%
       );
       background-repeat: no-repeat;
     }
@@ -468,8 +486,8 @@
   }
 
   .sig-soft-card {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.92);
+    background: var(--sig-card);
+    border: 1px solid var(--sig-border);
     box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
     border-radius: 24px;
   }
@@ -481,8 +499,8 @@
   }
 
   .sig-strong-card {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.96);
+    background: var(--sig-card);
+    border: 1px solid var(--sig-border);
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06), 0 1px 0 rgba(255, 255, 255, 0.95) inset;
     border-radius: 24px;
   }
@@ -672,16 +690,34 @@
   }
 
   .sig-fade-enter {
-    opacity: 0;
-    transform: translateY(6px);
+    opacity: 1;
+    transform: none;
   }
 
   .sig-fade-enter-active {
     opacity: 1;
-    transform: translateY(0);
-    transition: opacity 220ms ease, transform 220ms ease;
+    transform: none;
+    transition: none;
   }
 
+  html[data-sigapro-booting="true"] *,
+  html[data-sigapro-booting="true"] *::before,
+  html[data-sigapro-booting="true"] *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  html[data-sigapro-booting="true"] .sig-app-frame,
+  html[data-sigapro-booting="true"] .sig-content-frame,
+  html[data-sigapro-booting="true"] .sig-premium-topbar,
+  html[data-sigapro-booting="true"] .sig-sidebar-shell,
+  html[data-sigapro-booting="true"] .sig-main-shell {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 
   [data-layout-mode="default"] .sig-main-shell .text-slate-400,
   [data-layout-mode="default"] .sig-main-shell .text-slate-500 {
@@ -727,7 +763,7 @@
   .sig-sidebar-shell {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 14%),
-      var(--sig-sidebar-fill, #0d1526);
+      var(--sig-sidebar-fill, var(--sig-sidebar));
   }
 
   .sig-sidebar-panel {
@@ -755,7 +791,7 @@
   }
 
   .sig-sidebar-group + .sig-sidebar-group {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
   }
 
   .sig-sidebar-group-title {
@@ -784,7 +820,7 @@
   }
 
   .sig-sidebar-footer-shell {
-    background: var(--sig-sidebar-fill, #0d1526);
+    background: var(--sig-sidebar-fill, var(--sig-sidebar));
   }
 
   .sig-support-grid {
@@ -3049,8 +3085,8 @@
   min-height: var(--sig-topbar-height-mobile, 72px);
   color: #f8fbff;
   backdrop-filter: blur(18px) saturate(1.08);
-  transform: translateZ(0);
-  will-change: transform;
+  transform: none;
+  will-change: auto;
 }
 
 @media (min-width: 1024px) {
@@ -3343,7 +3379,7 @@
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  gap: 0.25rem;
+  gap: 0.35rem;
   padding: 0 !important;
 }
 
@@ -3354,6 +3390,12 @@
   border: 1px solid rgba(191, 219, 254, 0.06) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
   box-shadow: 0 8px 16px rgba(2, 6, 23, 0.05) !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 15px !important;
+  color: rgba(248, 251, 255, 0.94) !important;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-action-trigger:hover,
@@ -3367,6 +3409,18 @@
   border-color: rgba(191, 219, 254, 0.14) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
   box-shadow: 0 10px 20px rgba(2, 6, 23, 0.08) !important;
+}
+
+[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-action-trigger svg,
+[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-action-trigger svg,
+[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-icon-button svg,
+[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-icon-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: currentColor !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+  filter: none !important;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-notification-badge,

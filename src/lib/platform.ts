@@ -64,7 +64,7 @@ export interface SessionUser {
   name: string;
   role: UserRole;
   accessLevel: 1 | 2 | 3;
-  tenantId: string | null;
+  tenantId?: string | null;
   municipalityId?: string | null;
   title: string;
   email: string;
@@ -136,7 +136,7 @@ export interface OwnerProfessionalMessage {
   professionalUserId: string;
   senderUserId: string;
   message: string;
-  createdAt: string;
+  createdAt?: string;
   readAt?: string | null;
   isSystemMessage?: boolean;
 }
@@ -156,7 +156,7 @@ export interface RegistrationRequest {
   avatarUrl: string;
   bio: string;
   status: "pendente" | "aprovado" | "rejeitado";
-  createdAt: string;
+  createdAt?: string;
 }
 export type InstitutionRegistrationRequest = RegistrationRequest & { institutionId?: string | null };
 
@@ -197,7 +197,7 @@ export interface PlanItem {
   accountLevel: string;
   name: string;
   subtitle: string;
-  description: string;
+  description?: string;
   price: number;
   billingCycle: PlanBillingCycle;
   badge: string;
@@ -217,8 +217,8 @@ export interface PlanItem {
   isVisibleInMaster: boolean;
   displayOrder: number;
   accentColor: string;
-  notes: string;
-  createdAt: string;
+  notes?: string;
+  createdAt?: string;
   updatedAt: string;
 }
 
@@ -233,7 +233,7 @@ export interface ClientPlanAssignment {
   billingNotes: string;
   customPrice: number | null;
   isCustom: boolean;
-  createdAt: string;
+  createdAt?: string;
   updatedAt: string;
 }
 
@@ -400,7 +400,7 @@ export interface ProcessDocument {
 
 export interface ChecklistTemplate {
   id: string;
-  tenantId: string | null;
+  tenantId?: string | null;
   processType: string;
   items: Array<{
     id: string;
@@ -431,16 +431,16 @@ export interface AuditEntry {
 export interface FormalRequirement {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   status: "aberta" | "respondida" | "atendida" | "cancelada";
-  createdAt: string;
+  createdAt?: string;
   dueDate: string;
   createdBy: string;
   targetName: string;
   response?: string;
   respondedAt?: string;
   responseBy?: string;
-  visibility: "interno" | "externo" | "misto";
+  visibility?: "interno" | "externo" | "misto";
 }
 
 export interface SignatureBlock {
@@ -577,7 +577,7 @@ export interface CreateProcessInput {
   ownerDocument: string;
   technicalLead: string;
   tags: string[];
-  notes: string;
+  notes?: string;
   property: {
     registration: string;
     iptu: string;
@@ -1439,7 +1439,7 @@ export const mobileThemePresets: ThemePreset[] = [
     description: "Base clara com azul institucional e leitura municipal.",
     primary: "#163b63",
     accent: "#3b82f6",
-    background: "#f5f8fc",
+    background: "#ffffff",
     inverseMain: false,
   },
   {

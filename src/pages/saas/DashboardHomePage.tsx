@@ -282,7 +282,7 @@ function HealthBar({
   label: string;
   value: number;
   total: number;
-  tone: "blue" | "emerald" | "amber" | "rose";
+  tone?: "blue" | "emerald" | "amber" | "rose";
 }) {
   const percentage = total === 0 ? 0 : Math.min(100, Math.round((value / total) * 100));
   const barClass =

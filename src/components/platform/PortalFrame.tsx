@@ -34,7 +34,6 @@
   X,
 } from "@/components/platform/PremiumIcons";
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,6 +74,28 @@ interface PortalFrameProps {
   title: string;
   eyebrow: string;
   children: React.ReactNode;
+}
+
+type LayoutThemeOverride = {
+  primary?: string;
+  accent?: string;
+  background?: string;
+  inverseMain?: boolean;
+};
+
+const LEGACY_LIGHT_BLUE_BACKGROUNDS = new Set(["#f5f8fc", "#f3f7fb", "#eef4fb", "#eef4fa", "#edf3f9", "#e7eef7"]);
+
+function normalizeLayoutThemeOverride(theme: LayoutThemeOverride | null): LayoutThemeOverride | null {
+  if (!theme) return null;
+  const normalizedBackground = theme.background?.trim().toLowerCase();
+  if (!normalizedBackground || !LEGACY_LIGHT_BLUE_BACKGROUNDS.has(normalizedBackground)) {
+    return theme;
+  }
+
+  return {
+    ...theme,
+    background: theme.inverseMain ? theme.background : "#ffffff",
+  };
 }
 
 const navItems = [
@@ -228,11 +249,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [editingMarkerLabel, setEditingMarkerLabel] = useState("");
   const [editingMarkerColor, setEditingMarkerColor] = useState("#2563eb");
-  const [themeOverride, setThemeOverride] = useState<{ primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null>(() => {
+  const [themeOverride, setThemeOverride] = useState<LayoutThemeOverride | null>(() => {
     if (typeof window === "undefined") return null;
     try {
       const raw = window.localStorage.getItem("sigapro-layout-theme");
-      return raw ? (JSON.parse(raw) as { primary?: string; accent?: string; background?: string; inverseMain?: boolean }) : null;
+      return raw ? normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride) : null;
     } catch {
       return null;
     }
@@ -276,7 +297,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       if (typeof window === "undefined") return;
       try {
         const raw = window.localStorage.getItem("sigapro-layout-theme");
-        setThemeOverride(raw ? (JSON.parse(raw) as { primary?: string; accent?: string; background?: string; inverseMain?: boolean }) : null);
+        setThemeOverride(raw ? normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride) : null);
       } catch {
         setThemeOverride(null);
       }
@@ -302,6 +323,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   }, []);
 
   const availableThemePresets = isMobileViewport ? mobileThemePresets : desktopThemePresets;
+  const defaultSigaproThemePreset =
+    desktopThemePresets.find((preset) => preset.id === "claro-verde") ?? desktopThemePresets[0];
 
   const appliedTheme = themeOverride ?? null;
   const resolvedThemePreset =
@@ -318,21 +341,21 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         preset.accent === municipalityTheme.accent &&
         (preset.inverseMain ? preset.background === municipalityTheme.background : true),
     ) ??
-    desktopThemePresets[0];
+    defaultSigaproThemePreset;
   const primaryColor =
     appliedTheme?.primary ||
     municipalityTheme.primary ||
     ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) ||
     resolvedThemePreset.primary ||
-    "#163b63";
+    "#123f32";
   const accentColor =
     appliedTheme?.accent ||
     municipalityTheme.accent ||
     ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) ||
     resolvedThemePreset.accent ||
-    "#3b82f6";
+    "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
-  const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f5f8fc";
+  const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
   const sidebarBase = primaryColor;
   const sidebarBottom = darken(sidebarBase, 8);
   const sidebarFill = darken(primaryColor, 10);
@@ -528,14 +551,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       (preset) =>
         preset.primary === primaryColor &&
         preset.accent === accentColor &&
-        (preset.background || "#f5f8fc") === pageBackground &&
+        (preset.background || "#ffffff") === pageBackground &&
         !!preset.inverseMain === !!inverseThemeHint,
     ) ??
     desktopThemePresets.find(
       (preset) =>
         preset.primary === primaryColor &&
         preset.accent === accentColor &&
-        (preset.background || "#f5f8fc") === pageBackground &&
+        (preset.background || "#ffffff") === pageBackground &&
         !!preset.inverseMain === !!inverseThemeHint,
     ) ??
     resolvedThemePreset;
@@ -545,9 +568,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const topbarBrandTitle = "SIGAPRO";
   const topbarBrandSubtitle = "Sistema integrado de gestão e aprovação de projetos";
   const topbarGhostButton = "sig-topbar-control sig-topbar-ghost";
-const topbarSearchButton = "sig-topbar-control sig-topbar-searchbar";
-const topbarIconButton = "sig-topbar-control sig-topbar-icon-button";
-const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
+  const topbarSearchButton = "sig-topbar-control sig-topbar-searchbar";
+  const topbarIconButton = "sig-topbar-control sig-topbar-icon-button";
+  const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
+  const topbarUtilityButtonClass =
+    "sig-topbar-action-trigger inline-flex h-[44px] w-[44px] items-center justify-center rounded-[15px] transition duration-200 hover:-translate-y-[1px]";
+  const topbarUtilityIconClass = "h-[18px] w-[18px] text-white/92";
   const accountContextLabel = isMasterUser ? "Master" : "Ambiente ativo";
   const accountContextDescription = isMasterUser
     ? "Governança central da plataforma"
@@ -618,13 +644,18 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
     }
   };
 
-  const applyLayoutTheme = (theme: { primary?: string; accent?: string; background?: string; inverseMain?: boolean } | null) => {
-    setThemeOverride(theme);
+  const applyLayoutTheme = (theme: LayoutThemeOverride | null) => {
+    const normalizedTheme = normalizeLayoutThemeOverride(theme);
+    setThemeOverride(normalizedTheme);
     if (typeof window === "undefined") return;
 
     try {
-      if (theme?.primary || theme?.accent || theme?.background) {
-        window.localStorage.setItem("sigapro-layout-theme", JSON.stringify(theme));
+      document.documentElement.style.setProperty(
+        "--sig-initial-bg",
+        normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7",
+      );
+      if (normalizedTheme?.primary || normalizedTheme?.accent || normalizedTheme?.background) {
+        window.localStorage.setItem("sigapro-layout-theme", JSON.stringify(normalizedTheme));
       } else {
         window.localStorage.removeItem("sigapro-layout-theme");
       }
@@ -848,8 +879,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
         } as React.CSSProperties
       }
     >
-      {typeof document !== "undefined" ? createPortal(
-        <div
+      <div
           className="sig-topbar-portal-host"
           data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
         >
@@ -887,17 +917,17 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => navigate("/notificacoes")}
-              className={cn(
-                "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
-                topbarIconButton,
-              )}
-              aria-label="Notificações"
-            >
-              <Bell className="h-4 w-4 text-amber-200 drop-shadow-[0_2px_6px_rgba(15,23,42,0.32)]" />
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate("/notificacoes")}
+                className={cn(
+                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  topbarIconButton,
+                )}
+                aria-label="Notificações"
+              >
+                <Bell className="h-[18px] w-[18px] text-white/92" />
+              </button>
             <button
               type="button"
               onClick={() => navigate("/perfil")}
@@ -981,37 +1011,35 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
               </div>
 
             <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
-              <button
-                type="button"
-                onClick={() => navigate("/notificacoes")}
-                className={cn(
-                  "sig-topbar-action-trigger relative inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
-                  topbarIconButton,
-                )}
-                aria-label="Notificações"
-                title="Notificações"
-              >
-                <Bell className="h-4 w-4 text-amber-200 drop-shadow-[0_2px_6px_rgba(15,23,42,0.18)]" aria-hidden="true" />
-                <span className="sig-topbar-notification-badge absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                  {notificationCount}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/notificacoes")}
+                  className={cn(
+                    "relative",
+                    topbarUtilityButtonClass,
+                    topbarIconButton,
+                  )}
+                  aria-label="Notificações"
+                  title="Notificações"
+                >
+                  <Bell className={topbarUtilityIconClass} aria-hidden="true" />
+                  <span className="sig-topbar-notification-badge absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                    {notificationCount}
+                  </span>
+                </button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     className={cn(
-                      "sig-topbar-action-trigger inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                      topbarUtilityButtonClass,
                       topbarIconButton,
                     )}
                     aria-label="Marcadores"
                     title="Marcadores"
                   >
-                    <Flag
-                      className="h-4.5 w-4.5 sig-flag-glow-strong sig-flag-filled sig-flag-grad drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)] text-sky-200"
-                      style={{ fill: "#bae6fd" }}
-                    />
+                    <Flag className={topbarUtilityIconClass} />
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={10} className="sig-marker-panel max-h-[min(78vh,720px)] w-[min(100vw-24px,416px)] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_28px_60px_rgba(15,42,68,0.22)]">
@@ -1227,16 +1255,13 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                   <button
                     type="button"
                     className={cn(
-                      "sig-topbar-action-trigger inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                      topbarUtilityButtonClass,
                       topbarIconButton,
                     )}
                     aria-label="Selecionar tema"
                     title={activeThemePreset?.label || "Tema"}
                   >
-                    <Palette
-                      className="h-4.5 w-4.5 text-white/92 drop-shadow-[0_2px_6px_rgba(15,23,42,0.45)]"
-                      aria-hidden="true"
-                    />
+                    <Palette className={topbarUtilityIconClass} aria-hidden="true" />
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
@@ -1266,7 +1291,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
                     <span className="mr-3 flex h-9 w-11 shrink-0 overflow-hidden rounded-[11px] border border-slate-200">
                       <span className="h-full w-[34%]" style={{ backgroundColor: darken(preset.primary, 10) }} />
                       <span className="h-full w-[38%]" style={{ backgroundColor: preset.primary }} />
-                      <span className="h-full w-[28%]" style={{ backgroundColor: preset.background || "#f5f8fc" }} />
+                      <span className="h-full w-[28%]" style={{ backgroundColor: preset.background || "#ffffff" }} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="sig-fit-title block text-[13px] font-medium">{preset.label}</span>
@@ -1528,9 +1553,7 @@ const topbarProfileButton = "sig-topbar-control sig-topbar-profile-trigger";
           </div>
         </div>
       </div>
-        </div>,
-        document.body,
-      ) : null}
+        </div>
 
       <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
         <CommandInput

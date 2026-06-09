@@ -49,7 +49,7 @@ export interface MunicipalWorkflowTransition {
 export interface TechnicalChecklistTemplate {
   id: string;
   tenantId: string;
-  processType: string;
+  processType?: string;
   label: string;
   items: TechnicalChecklistItem[];
 }
@@ -103,7 +103,7 @@ export interface MunicipalFeeRule {
 }
 
 export interface CalculationContext {
-  processType: string;
+  processType?: string;
   builtArea: number;
   occupancyPermitArea?: number;
   constructionStandard?: string;
@@ -115,7 +115,7 @@ export interface CalculationLine {
   id: string;
   code: string;
   label: string;
-  amount: number;
+  amount?: number;
   explanation: string;
 }
 

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 
@@ -10,6 +10,33 @@ interface PlatformSessionContextValue {
 }
 
 const PlatformSessionContext = createContext<PlatformSessionContextValue | null>(null);
+const SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+
+function readCachedSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SessionUser>;
+    if (!parsed.id || parsed.id === "unknown" || !parsed.role) return null;
+    return parsed as SessionUser;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSession(session: SessionUser | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!session || session.id === "unknown") {
+      window.localStorage.removeItem(SESSION_CACHE_KEY);
+      return;
+    }
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
+  } catch {
+    // noop
+  }
+}
 
 function normalizeRole(role: string | null | undefined): SessionUser["role"] {
   const raw = (role ?? "").toLowerCase();
@@ -33,9 +60,32 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authenticatedRole,
     authenticatedUserId,
     authenticatedMunicipalityId,
+    loading: authLoading,
   } = useAuthGateway();
+  const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
+  const [sessionVersion, setSessionVersion] = useState(0);
 
   const session = useMemo<SessionUser>(() => {
+    const cachedSession = cachedSessionRef.current;
+    if (cachedSession && (!authenticatedUserId || cachedSession.id === authenticatedUserId)) {
+      const safeRole = normalizeRole(authenticatedRole ?? cachedSession.role);
+      return {
+        ...cachedSession,
+        id: authenticatedUserId || cachedSession.id,
+        role: safeRole,
+        accessLevel:
+          safeRole === "master_admin" || safeRole === "prefeitura_admin"
+            ? 3
+            : safeRole === "prefeitura_supervisor"
+              ? 2
+              : cachedSession.accessLevel ?? 1,
+        tenantId: authenticatedMunicipalityId ?? cachedSession.tenantId ?? null,
+        municipalityId: authenticatedMunicipalityId ?? cachedSession.municipalityId ?? null,
+        title: roleLabels[safeRole] || cachedSession.title || "Usuário",
+        email: authenticatedEmail || cachedSession.email || "",
+      };
+    }
+
     const safeRole = normalizeRole(authenticatedRole);
     const email = authenticatedEmail || "";
     return {
@@ -66,9 +116,36 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: null,
       deletedAt: null,
     };
-  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId]);
+  }, [authLoading, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
 
-  const candidates = authenticatedUserId ? [session] : [];
+  useEffect(() => {
+    const handleSessionUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<SessionUser>).detail;
+      if (!detail?.id || detail.id === "unknown") return;
+      cachedSessionRef.current = detail;
+      setSessionVersion((current) => current + 1);
+    };
+
+    window.addEventListener("sigapro-platform-session-updated", handleSessionUpdated);
+    return () => {
+      window.removeEventListener("sigapro-platform-session-updated", handleSessionUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authenticatedUserId) {
+      cachedSessionRef.current = session;
+      writeCachedSession(session);
+      return;
+    }
+
+    if (!authLoading && !cachedSessionRef.current) {
+      cachedSessionRef.current = null;
+      writeCachedSession(null);
+    }
+  }, [authLoading, authenticatedUserId, session]);
+
+  const candidates = session.id !== "unknown" ? [session] : [];
 
   return (
     <PlatformSessionContext.Provider

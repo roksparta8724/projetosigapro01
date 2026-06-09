@@ -23,30 +23,15 @@ export function PermissionRoute({
   const { sessionUsers } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
-  const isPlatformScope = bootstrap.scopeType === "platform";
+  const sessionScopeId = session.municipalityId ?? session.tenantId ?? null;
+  const hasStableBootstrapIdentity = Boolean(bootstrap.authUserId || bootstrap.profile?.userId || bootstrap.role);
+  const hasStableTenantIdentity = Boolean(tenant.municipalityId || tenant.municipalityBundle?.municipality?.id || sessionScopeId);
 
-  console.log("[PermissionRoute] Render", {
-    loading: tenant.loading,
-    bootstrapLoading: bootstrap.loading,
-    isReady: bootstrap.isReady,
-    isAuthenticated,
-    role: session.role,
-    municipalityId: tenant.municipalityId,
-    scopeType: bootstrap.scopeType,
-  });
-
-  const shouldBlockForLoad =
-    !bootstrap.isReady ||
-    (!isPlatformScope &&
-      tenant.mode === "tenant" &&
-      tenant.loading &&
-      !tenant.municipalityId);
-
-  if (shouldBlockForLoad) {
-    return null;
+  if (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading) {
+    return <>{children}</>;
   }
 
-  if (!isAuthenticated && bootstrap.isReady) {
+  if (!isAuthenticated && bootstrap.isReady && bootstrap.authResolved) {
     return <Navigate to="/acesso" replace />;
   }
 
@@ -55,7 +40,6 @@ export function PermissionRoute({
     authenticatedUser?.accountStatus === "blocked" || authenticatedUser?.accountStatus === "inactive";
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
-  const sessionScopeId = session.municipalityId ?? session.tenantId ?? null;
   const isTenantMismatch =
     tenant.mode === "tenant" &&
     !tenant.loading &&
@@ -66,7 +50,7 @@ export function PermissionRoute({
 
   if (tenant.mode === "tenant" && tenant.inactive) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-white p-4">
         <Card className="max-w-xl rounded-[28px] border-slate-200">
           <CardContent className="p-8">
             <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
@@ -91,7 +75,7 @@ export function PermissionRoute({
 
   if (isTenantMismatch) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-white p-4">
         <Card className="max-w-xl rounded-[28px] border-slate-200">
           <CardContent className="p-8">
             <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
@@ -131,7 +115,7 @@ export function PermissionRoute({
   const fallbackPath = resolveAllowedArea(session);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <Card className="max-w-xl rounded-[28px] border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
         <CardContent className="p-8">
           <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">

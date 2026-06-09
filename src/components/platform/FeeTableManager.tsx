@@ -55,7 +55,7 @@ function buildPreviewSettings(
     taxaProtocolo: number;
     taxaIssPorMetroQuadrado: number;
     taxaAprovacaoFinal: number;
-    issRateProfiles: MunicipalIssRateProfile[];
+    issRateProfiles?: MunicipalIssRateProfile[];
   },
 ) {
   return {

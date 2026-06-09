@@ -53,7 +53,14 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
 
   const activeInstitutionId =
     tenant.municipalityId ?? bundle?.municipality?.id ?? session.municipalityId ?? session.tenantId ?? null;
-  const institution = institutions.find((item) => item.id === activeInstitutionId) ?? null;
+  const fallbackInstitutionBySubdomain =
+    !activeInstitutionId && tenant.mode === "tenant" && tenant.subdomain
+      ? institutions.find((item) => item.subdomain === tenant.subdomain) ?? null
+      : null;
+  const institution =
+    institutions.find((item) => item.id === activeInstitutionId) ??
+    fallbackInstitutionBySubdomain ??
+    null;
   const fallbackInstitutionSettings = getInstitutionSettings(activeInstitutionId);
 
   useEffect(() => {
@@ -64,7 +71,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
       console.log("[BrandingLoad] Evento de branding atualizado recebido");
       brandingFetchRef.current = { id: "", inFlight: false };
       brandingResolveRef.current = { headerKey: "", footerKey: "" };
-      setResolvedBranding(null);
       setBrandingReloadToken((current) => current + 1);
     };
     window.addEventListener("sigapro-branding-updated", handler as EventListener);
@@ -80,7 +86,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     if (!branding) {
       const municipalityId = bundle?.municipality?.id || tenant.municipalityId || null;
       if (!municipalityId || brandingFetchRef.current.inFlight || brandingFetchRef.current.id === municipalityId) {
-        setResolvedBranding(null);
         return;
       }
       brandingFetchRef.current = { id: municipalityId, inFlight: true };
@@ -89,7 +94,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
         try {
           const fetched = await getMunicipalityBrandingSafe(municipalityId);
           if (!fetched) {
-            setResolvedBranding(null);
             return;
           }
           const headerKey = (fetched as MunicipalityBranding).headerLogoObjectKey || "";
@@ -116,7 +120,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
           setResolvedBranding(next);
         } catch (error) {
           console.warn("[BrandingLoad] Falha ao buscar branding direto", error);
-          setResolvedBranding(null);
         } finally {
           brandingFetchRef.current.inFlight = false;
         }
@@ -129,7 +132,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     const hasPublicBase = Boolean(getPublicUrl("test"));
 
     if (!headerKey && !footerKey) {
-      setResolvedBranding(null);
       return;
     }
 

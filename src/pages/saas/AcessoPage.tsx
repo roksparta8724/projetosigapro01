@@ -1,4 +1,4 @@
-﻿import { FormEvent, useState } from "react";
+import { FormEvent, useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
@@ -372,7 +372,7 @@ export function AcessoPage() {
 
                           <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
                             <span>Ambiente institucional protegido</span>
-                            <span className="font-medium">SIGAPRO →</span>
+                            <span className="font-medium">SIGAPRO</span>
                           </div>
                         </form>
                     </CardContent>

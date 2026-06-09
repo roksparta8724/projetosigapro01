@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { resolveAssetUrl } from "@/lib/assetUrl";
+import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
@@ -39,6 +39,8 @@ const variantClasses = {
   },
 } as const;
 
+const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
+
 function isRenderableUrl(value?: string | null) {
   return Boolean(resolveAssetUrl(value));
 }
@@ -53,21 +55,14 @@ export function InstitutionalLogo({
   const classes = variantClasses[variant];
   const [imageFailed, setImageFailed] = useState(false);
   const [stableLogoUrl, setStableLogoUrl] = useState<string>(
-    resolveAssetUrl(branding.logoUrl),
+    resolveAssetUrl(branding.logoUrl) || SIGAPRO_OFFICIAL_LOGO,
   );
   const contextKeyRef = useRef(`${variant}:${branding.tenantId || "global"}`);
   const lastResolvedUrlRef = useRef(stableLogoUrl);
 
-  const initials = fallbackLabel
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "SG";
-
   useEffect(() => {
     const nextContextKey = `${variant}:${branding.tenantId || "global"}`;
-    const nextLogoUrl = resolveAssetUrl(branding.logoUrl);
+    const nextLogoUrl = resolveAssetUrl(branding.logoUrl) || SIGAPRO_OFFICIAL_LOGO;
     const sameContext = contextKeyRef.current === nextContextKey;
 
     contextKeyRef.current = nextContextKey;
@@ -96,7 +91,7 @@ export function InstitutionalLogo({
     [branding.logoFitMode, branding.logoOffsetX, branding.logoOffsetY, branding.logoScale],
   );
 
-  const shouldRenderImage = Boolean(stableLogoUrl) && !imageFailed;
+  const shouldRenderImage = Boolean(stableLogoUrl);
 
   return (
     <div className={cn("flex items-center justify-center", classes.frame, className)}>
@@ -109,21 +104,29 @@ export function InstitutionalLogo({
       >
         {shouldRenderImage ? (
           <img
-            src={stableLogoUrl}
+            src={imageFailed ? SIGAPRO_OFFICIAL_LOGO : stableLogoUrl}
             alt={branding.logoAlt || fallbackLabel}
             className="pointer-events-none absolute inset-0 h-full w-full select-none"
             loading="eager"
             decoding="sync"
             fetchPriority="high"
             onError={() => {
-              setImageFailed(true);
+              if (stableLogoUrl !== SIGAPRO_OFFICIAL_LOGO) {
+                setImageFailed(true);
+              }
             }}
             style={imageStyle}
           />
         ) : (
-          <div className={cn("flex h-full w-full items-center justify-center font-extrabold text-[#0F2A44]", classes.placeholder)}>
-            {initials}
-          </div>
+          <img
+            src={SIGAPRO_OFFICIAL_LOGO}
+            alt={branding.logoAlt || fallbackLabel}
+            className="pointer-events-none absolute inset-0 h-full w-full select-none"
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
+            style={imageStyle}
+          />
         )}
       </div>
     </div>

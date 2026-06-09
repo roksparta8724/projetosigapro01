@@ -164,8 +164,8 @@ export function getMunicipalityTheme(
   tenant: Tenant | null | undefined,
 ): MunicipalityTheme {
   return {
-    primary: branding?.primaryColor || tenant?.theme.primary || "#0F2A44",
-    accent: branding?.accentColor || tenant?.theme.accent || "#5ee8d9",
+    primary: branding?.primaryColor || tenant?.theme.primary || "#123f32",
+    accent: branding?.accentColor || tenant?.theme.accent || "#22c55e",
   };
 }
 

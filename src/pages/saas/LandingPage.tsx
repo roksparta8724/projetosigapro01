@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Users2,
 } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
@@ -238,7 +238,6 @@ function HeroPanelCard({
     </div>
   );
 }
-
 function LandingDemoChartCard({
   title,
   description,
@@ -274,7 +273,6 @@ export function LandingPage() {
     total: { label: "Volume", color: "#3b82f6" },
     value: { label: "Participacao", color: "#60a5fa" },
   };
-
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />

@@ -16,6 +16,7 @@
     <link rel="shortcut icon" href="%BASE_URL%favicon-sigapro.svg?v=3" />
     <link rel="apple-touch-icon" href="%BASE_URL%favicon.png?v=3" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest" />
+    <link rel="preload" as="image" href="%BASE_URL%sigapro-logo.png" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="SIGAPRO | Plataforma institucional para protocolo e aprovacao de projetos" />
@@ -32,19 +33,56 @@
       content="SIGAPRO | Plataforma institucional para protocolo digital, analise tecnica, tramitacao e aprovacao de projetos urbanos."
     />
     <meta name="twitter:image" content="%BASE_URL%favicon.png?v=3" />
+    <script>
+      (function () {
+        var path = window.location.pathname || "/";
+        var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
+        var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
+        var initialBackground = "#f3faf7";
+
+        if (publicPaths.indexOf(path) >= 0 || path.indexOf("/cliente/") === 0) {
+          initialBackground = "#f5f7fb";
+        } else if (authPaths.indexOf(path) >= 0) {
+          initialBackground = "#06111d";
+        } else {
+          try {
+            var rawTheme = window.localStorage.getItem("sigapro-layout-theme");
+            var theme = rawTheme ? JSON.parse(rawTheme) : null;
+            if (theme && typeof theme.background === "string" && theme.background.trim()) {
+              initialBackground = theme.background.trim();
+            }
+          } catch (error) {
+            initialBackground = "#f3faf7";
+          }
+        }
+
+        document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+        document.documentElement.setAttribute("data-sigapro-booting", "true");
+      })();
+    </script>
     <style>
-      html {
-        background: #091322;
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        background: var(--sig-initial-bg, #f3faf7);
       }
 
       body {
-        margin: 0;
         min-height: 100vh;
-        background: linear-gradient(180deg, rgba(9, 19, 34, 0.98) 0%, rgba(10, 23, 38, 1) 100%);
+        min-height: 100dvh;
+        overflow-x: hidden;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
       }
 
       #root {
         min-height: 100vh;
+        min-height: 100dvh;
       }
     </style>
   </head>

@@ -968,16 +968,16 @@ export async function loadRemotePlatformStore() {
 }
 
 interface RegisterExternalAccountInput {
-  tenantId: string;
-  fullName: string;
+  tenantId?: string;
+  fullName?: string;
   email: string;
   cpfCnpj: string;
   phone: string;
   professionalType: string;
   registrationNumber: string;
   companyName: string;
-  title: string;
-  bio: string;
+  title?: string;
+  bio?: string;
 }
 
 export async function registerRemoteExternalAccount(input: RegisterExternalAccountInput) {
@@ -1011,8 +1011,8 @@ export async function registerRemoteExternalAccount(input: RegisterExternalAccou
 }
 
 export async function registerRemoteOwnerAccount(input: {
-  tenantId: string;
-  fullName: string;
+  tenantId?: string;
+  fullName?: string;
   email: string;
   cpfCnpj: string;
   phone: string;
@@ -1213,7 +1213,7 @@ export async function createRemoteOwnerMessage(input: {
   ownerUserId: string;
   professionalUserId: string;
   senderUserId: string;
-  message: string;
+  message?: string;
   isSystemMessage?: boolean;
 }) {
   if (!supabase) {
@@ -1499,7 +1499,7 @@ export type PlatformBrandingRecord = {
   footerLogoFileName: string;
   footerLogoMimeType: string;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy?: string;
 };
 
 function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingRecord {
@@ -1836,7 +1836,7 @@ export async function upsertRemoteInstitution(input: {
   city: string;
   state: string;
   status: string;
-  subdomain: string;
+  subdomain?: string;
   cnpj: string;
   primaryColor: string;
   accentColor: string;
@@ -1965,7 +1965,7 @@ export async function upsertRemoteTenant(input: {
   city: string;
   state: string;
   status: string;
-  subdomain: string;
+  subdomain?: string;
   cnpj: string;
   primaryColor: string;
   accentColor: string;
@@ -2478,7 +2478,7 @@ export type CommercialMaterialPayload = {
   customerContact?: string;
   responsibleName?: string;
   responsibleRole?: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   generatedContent?: Record<string, unknown>;
   pdfUrl?: string;
@@ -2533,7 +2533,7 @@ export async function saveRemoteCommercialMaterial(material: CommercialMaterialP
 }
 
 export type DemoContactRequestPayload = {
-  fullName: string;
+  fullName?: string;
   email: string;
   phone: string;
   organization: string;

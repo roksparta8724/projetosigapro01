@@ -31,7 +31,7 @@ export interface OfficialPaymentGuideData {
   };
   contributor: {
     registrationNumber: string;
-    document: string;
+    document?: string;
     name: string;
     address: string;
     documentDate: string;

@@ -19,6 +19,7 @@ import { InternalSectionNav } from "@/components/platform/PageLayout";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
+import { UserAvatar } from "@/components/platform/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,8 +43,52 @@ import {
 } from "@/lib/masterBranding";
 import { getObjectKeyFromPublicUrl, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { loadPlatformBranding, savePlatformBranding, uploadPlatformBrandingAsset } from "@/integrations/supabase/platform";
+import type { UserProfile } from "@/lib/platform";
 
 const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
+const PLATFORM_STORE_KEY = "sigapro-platform-store";
+
+function normalizeProfileEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() ?? "";
+}
+
+function normalizeIdentityText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function resolveStoredUserIdByIdentity(input: {
+  emailCandidates?: Array<string | null | undefined>;
+  nameCandidates?: Array<string | null | undefined>;
+}) {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const raw = window.localStorage.getItem(PLATFORM_STORE_KEY);
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as {
+      sessionUsers?: Array<{ id?: string | null; email?: string | null; name?: string | null }>;
+    };
+    const users = parsed.sessionUsers ?? [];
+    const emails = new Set(
+      (input.emailCandidates ?? [])
+        .map((value) => normalizeProfileEmail(value))
+        .filter(Boolean),
+    );
+    const names = new Set(
+      (input.nameCandidates ?? [])
+        .map((value) => normalizeIdentityText(value))
+        .filter(Boolean),
+    );
+
+    const byEmail = users.find((user) => user.id && emails.has(normalizeProfileEmail(user.email)));
+    if (byEmail?.id) return byEmail.id;
+
+    const byName = users.find((user) => user.id && names.has(normalizeIdentityText(user.name)));
+    return byName?.id ?? "";
+  } catch {
+    return "";
+  }
+}
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
   return url
@@ -76,6 +121,86 @@ function isRenderablePreviewUrl(value?: string | null) {
   );
 }
 
+type AvatarCropMetrics = {
+  frameWidth: number;
+  frameHeight: number;
+  naturalWidth: number;
+  naturalHeight: number;
+  baseScale: number;
+  minScale: number;
+  maxScale: number;
+};
+
+function buildAvatarImageStyle(scale: number, offsetX: number, offsetY: number) {
+  return {
+    transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+    transformOrigin: "center center",
+  } as const;
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    if (/^https?:\/\//i.test(src)) {
+      image.crossOrigin = "anonymous";
+    }
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Não foi possível carregar a imagem para recorte."));
+    image.src = src;
+  });
+}
+
+async function createCroppedAvatarFile(input: {
+  sourceUrl: string;
+  fileName: string;
+  mimeType?: string;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  metrics: AvatarCropMetrics;
+  outputSize?: number;
+}) {
+  const outputSize = input.outputSize ?? 512;
+  const image = await loadImageElement(input.sourceUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Não foi possível preparar o recorte da imagem.");
+  }
+
+  const coverScale = Math.max(outputSize / image.naturalWidth, outputSize / image.naturalHeight);
+  const renderScale = coverScale * input.scale;
+  const renderWidth = image.naturalWidth * renderScale;
+  const renderHeight = image.naturalHeight * renderScale;
+  const outputOffsetX = input.offsetX * (outputSize / Math.max(input.metrics.frameWidth, 1));
+  const outputOffsetY = input.offsetY * (outputSize / Math.max(input.metrics.frameHeight, 1));
+  const x = outputSize / 2 - renderWidth / 2 + outputOffsetX;
+  const y = outputSize / 2 - renderHeight / 2 + outputOffsetY;
+
+  context.clearRect(0, 0, outputSize, outputSize);
+  context.drawImage(image, x, y, renderWidth, renderHeight);
+
+  const baseName = input.fileName.replace(/\.[^.]+$/, "") || "avatar";
+  const mimeType = input.mimeType === "image/png" ? "image/png" : "image/webp";
+  const extension = mimeType === "image/png" ? "png" : "webp";
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((result) => resolve(result), mimeType, 0.92);
+  });
+
+  if (!blob) {
+    throw new Error("Não foi possível gerar a versão final do avatar.");
+  }
+
+  return new File([blob], `${baseName}-avatar.${extension}`, {
+    type: mimeType,
+    lastModified: Date.now(),
+  });
+}
+
 type ProfileSection =
   | "visao-geral"
   | "dados-pessoais"
@@ -88,14 +213,16 @@ type ProfileSection =
 export function PerfilPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
-  const { authenticatedEmail, updateEmail, updatePassword } = useAuthGateway();
+  const { authenticatedEmail, authenticatedUserId, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
   const { hiddenItems, loading: menuPrefsLoading, setItemHidden } = useUserMenuPreferences();
   const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
   const brandingUpdatedBy = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.id)
     ? session.id
     : session.email || session.name;
-  const profile = getUserProfile(session.id);
+  const profileLookupEmail = authenticatedEmail || session.email;
+  const profile = getUserProfile(session.id, profileLookupEmail);
+  const profileUserId = session.id !== "unknown" ? session.id : authenticatedUserId || profile?.userId || "";
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -104,8 +231,9 @@ export function PerfilPage() {
   const [accountStatus, setAccountStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
+  const [avatarCropMetrics, setAvatarCropMetrics] = useState<AvatarCropMetrics | null>(null);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
-  const lastAvatarSourceRef = useRef("");
+  const avatarObjectUrlRef = useRef<string | null>(null);
   const hydratedDraftRef = useRef(false);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
@@ -233,6 +361,14 @@ export function PerfilPage() {
   }, [isMasterRole]);
 
   useEffect(() => {
+    return () => {
+      if (avatarObjectUrlRef.current) {
+        URL.revokeObjectURL(avatarObjectUrlRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isMasterRole) return;
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
@@ -355,21 +491,6 @@ export function PerfilPage() {
   }, [authenticatedEmail, session.email]);
 
   useEffect(() => {
-    const previewUrl = avatarFiles[0]?.previewUrl;
-    if (!previewUrl || previewUrl === lastAvatarSourceRef.current) {
-      return;
-    }
-
-    lastAvatarSourceRef.current = previewUrl;
-    setForm((current) => ({
-      ...current,
-      avatarScale: 1.08,
-      avatarOffsetX: 0,
-      avatarOffsetY: 0,
-    }));
-  }, [avatarFiles]);
-
-  useEffect(() => {
     if (hydratedDraftRef.current || typeof window === "undefined") {
       return;
     }
@@ -427,6 +548,42 @@ export function PerfilPage() {
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleAvatarFilesSelected = (files: UploadedFileItem[]) => {
+    const nextFile = files[0];
+    if (!nextFile) {
+      setAvatarFiles([]);
+      setAvatarCropMetrics(null);
+      setForm((current) => ({
+        ...current,
+        avatarUrl: "",
+        avatarScale: 1,
+        avatarOffsetX: 0,
+        avatarOffsetY: 0,
+      }));
+      return;
+    }
+
+    if (!nextFile.mimeType.startsWith("image/")) {
+      setStatus("Selecione uma imagem JPG, PNG ou WEBP para a foto de perfil.");
+      return;
+    }
+
+    if (nextFile.file && nextFile.file.size > 12 * 1024 * 1024) {
+      setStatus("A foto de perfil deve ter no máximo 12 MB.");
+      return;
+    }
+
+    setStatus("");
+    setAvatarFiles(files.slice(0, 1));
+    setAvatarCropMetrics(null);
+    setForm((current) => ({
+      ...current,
+      avatarScale: 1,
+      avatarOffsetX: 0,
+      avatarOffsetY: 0,
+    }));
   };
 
   useEffect(() => {
@@ -782,60 +939,138 @@ export function PerfilPage() {
     setSaving(true);
     setStatus("");
 
-    let avatarUrl = avatarFiles[0]?.previewUrl ?? form.avatarUrl;
-
-    if (hasSupabaseEnv && avatarFiles[0]?.file) {
-      try {
-        const uploaded = await uploadFileToStorage({
-          bucket: "profile-assets",
-          tenantId: activeInstitutionId,
-          userId: session.id,
-          file: avatarFiles[0].file,
-          folder: "avatars",
-        });
-        avatarUrl = uploaded.publicUrl;
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o Supabase.");
+    try {
+      const fallbackUserId = resolveStoredUserIdByIdentity({
+        emailCandidates: [form.email, profile?.email, authenticatedEmail, session.email],
+        nameCandidates: [form.fullName, profile?.fullName, session.name],
+      });
+      const stableSessionUserId = session.id && session.id !== "unknown" ? session.id : "";
+      const userId = profileUserId || stableSessionUserId || fallbackUserId;
+      if (!userId || userId === "unknown") {
+        setStatus("Não foi possível identificar a conta atual para vincular os dados salvos.");
+        return;
       }
-    }
 
-    const nextProfile = {
-      userId: session.id,
-      fullName: form.fullName,
-      email: form.email,
-      phone: form.phone,
-      cpfCnpj: form.cpfCnpj,
-      rg: form.rg,
-      birthDate: form.birthDate,
-      professionalType: form.professionalType,
-      registrationNumber: form.registrationNumber,
-      companyName: form.companyName,
-      addressLine: form.addressLine,
-      addressNumber: form.addressNumber,
-      addressComplement: form.addressComplement,
-      neighborhood: form.neighborhood,
-      city: form.city,
-      state: form.state,
-      zipCode: form.zipCode,
-      avatarUrl,
-      avatarScale: form.avatarScale,
-      avatarOffsetX: form.avatarOffsetX,
-      avatarOffsetY: form.avatarOffsetY,
-      useAvatarInHeader: form.useAvatarInHeader,
-      bio: form.bio,
-    };
+      let avatarUrl = avatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarUploadFile = avatarFiles[0]?.file;
+      let avatarScale = form.avatarScale;
+      let avatarOffsetX = form.avatarOffsetX;
+      let avatarOffsetY = form.avatarOffsetY;
 
-    if (hasSupabaseEnv) {
-      try {
-        await saveRemoteProfile(nextProfile);
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Falha ao salvar o perfil no Supabase.");
+      const avatarSourceUrl = avatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      if (avatarSourceUrl && avatarCropMetrics) {
+        try {
+          const croppedAvatarFile = await createCroppedAvatarFile({
+            sourceUrl: avatarSourceUrl,
+            fileName: avatarFiles[0]?.fileName || "foto-perfil",
+            mimeType: avatarFiles[0]?.file?.type,
+            scale: form.avatarScale,
+            offsetX: form.avatarOffsetX,
+            offsetY: form.avatarOffsetY,
+            metrics: avatarCropMetrics,
+          });
+
+          if (avatarObjectUrlRef.current) {
+            URL.revokeObjectURL(avatarObjectUrlRef.current);
+          }
+
+          const croppedPreviewUrl = URL.createObjectURL(croppedAvatarFile);
+          avatarObjectUrlRef.current = croppedPreviewUrl;
+
+          setAvatarFiles([
+            {
+              id: `avatar-cropped-${crypto.randomUUID()}`,
+              fileName: croppedAvatarFile.name,
+              mimeType: croppedAvatarFile.type,
+              sizeLabel: `${Math.max(1, Math.round(croppedAvatarFile.size / 1024))} KB`,
+              previewUrl: croppedPreviewUrl,
+              file: croppedAvatarFile,
+            },
+          ]);
+
+          avatarUploadFile = croppedAvatarFile;
+          avatarUrl = croppedPreviewUrl;
+          avatarScale = 1;
+          avatarOffsetX = 0;
+          avatarOffsetY = 0;
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Não foi possível preparar a foto recortada.");
+          return;
+        }
       }
-    }
 
-    saveUserProfile(nextProfile);
-    setSaving(false);
-    setStatus((current) => current || "Perfil atualizado com sucesso.");
+      if (hasSupabaseEnv && avatarUploadFile) {
+        try {
+          const uploaded = await uploadFileToStorage({
+            bucket: "profile-assets",
+            tenantId: activeInstitutionId,
+            userId,
+            file: avatarUploadFile,
+            folder: "avatars",
+          });
+          avatarUrl = uploaded.publicUrl;
+          avatarScale = 1;
+          avatarOffsetX = 0;
+          avatarOffsetY = 0;
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o Supabase.");
+        }
+      }
+
+      const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
+      const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
+
+      const nextProfile: UserProfile = {
+        userId,
+        fullName: resolvedFullName,
+        email: resolvedEmail,
+        phone: form.phone,
+        cpfCnpj: form.cpfCnpj,
+        rg: form.rg,
+        birthDate: form.birthDate,
+        professionalType: form.professionalType,
+        registrationNumber: form.registrationNumber,
+        companyName: form.companyName,
+        addressLine: form.addressLine,
+        addressNumber: form.addressNumber,
+        addressComplement: form.addressComplement,
+        neighborhood: form.neighborhood,
+        city: form.city,
+        state: form.state,
+        zipCode: form.zipCode,
+        avatarUrl,
+        avatarScale,
+        avatarOffsetX,
+        avatarOffsetY,
+        useAvatarInHeader: form.useAvatarInHeader,
+        bio: form.bio,
+      };
+
+      saveUserProfile(nextProfile);
+      if (avatarUrl) {
+        setAvatarFiles([
+          {
+            id: `avatar-saved-${crypto.randomUUID()}`,
+            fileName: "foto-perfil",
+            mimeType: "image/*",
+            sizeLabel: "imagem salva",
+            previewUrl: avatarUrl,
+          },
+        ]);
+      }
+      setForm((current) => ({
+        ...current,
+        fullName: resolvedFullName,
+        email: resolvedEmail,
+        avatarUrl,
+        avatarScale,
+        avatarOffsetX,
+        avatarOffsetY,
+      }));
+      setStatus((current) => current || "Perfil atualizado com sucesso.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const navItems = [
@@ -847,6 +1082,12 @@ export function PerfilPage() {
     { value: "vinculos", label: "Vínculos institucionais", helper: "Prefeitura, cargo e papel" },
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
+
+  const avatarPreviewUrl = avatarFiles[0]?.previewUrl || form.avatarUrl || "";
+  const avatarPreviewImageStyle = useMemo(
+    () => buildAvatarImageStyle(form.avatarScale, form.avatarOffsetX, form.avatarOffsetY),
+    [form.avatarOffsetX, form.avatarOffsetY, form.avatarScale],
+  );
 
   const displayFullName = formatDisplayText(form.fullName || session.name, "name", {
     fallback: "Usuário institucional",
@@ -1206,24 +1447,76 @@ export function PerfilPage() {
                 multiple={false}
                 allowPreview
                 files={avatarFiles}
-                onFilesSelected={setAvatarFiles}
+                onFilesSelected={handleAvatarFilesSelected}
+                onFilesRemoved={handleAvatarFilesSelected}
               />
 
               {avatarFiles[0]?.previewUrl ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
-                    <p className="mt-1 text-sm text-slate-500">Ajuste posição e escala da imagem antes de salvar.</p>
+                    <p className="mt-1 text-sm text-slate-500">A foto centraliza automaticamente, preenche o quadro e mantém zoom proporcional sem deformar.</p>
                   </div>
-                  <ImageFrameEditor
-                    imageUrl={avatarFiles[0].previewUrl}
-                    scale={form.avatarScale}
-                    offsetX={form.avatarOffsetX}
-                    offsetY={form.avatarOffsetY}
-                    onChange={updateAvatarFrame}
-                    label="Foto do perfil"
-                    hint="Arraste a imagem no quadro e ajuste com precisão."
-                  />
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                    <ImageFrameEditor
+                      imageUrl={avatarFiles[0].previewUrl}
+                      scale={form.avatarScale}
+                      offsetX={form.avatarOffsetX}
+                      offsetY={form.avatarOffsetY}
+                      onChange={updateAvatarFrame}
+                      onMetricsChange={setAvatarCropMetrics}
+                      label="Foto do perfil"
+                      hint="Arraste para reposicionar, use o zoom para ajustar e mantenha o rosto bem enquadrado."
+                      fitMode="cover"
+                      shape="circle"
+                      viewportClassName="h-[320px] w-[320px] max-w-full"
+                      wrapperClassName="border-slate-200 bg-white"
+                    />
+                    <div className="space-y-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] p-5">
+                      <div>
+                        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Preview final</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">Veja como a foto vai aparecer no perfil e no topo da plataforma.</p>
+                      </div>
+                      <div className="flex items-center gap-4 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
+                        <UserAvatar
+                          name={form.fullName || session.name}
+                          imageUrl={avatarPreviewUrl}
+                          size="xl"
+                          imageStyle={avatarPreviewImageStyle}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-semibold text-slate-950" title={form.fullName || session.name}>
+                            {form.fullName || session.name}
+                          </p>
+                          <p className="mt-1 truncate text-sm text-slate-500" title={displayProfessionalRole}>
+                            {displayProfessionalRole}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-[24px] border border-slate-200 bg-slate-950 p-4 text-white">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Topbar</p>
+                            <p className="mt-1 text-sm text-slate-300">Leitura compacta do avatar institucional.</p>
+                          </div>
+                          <UserAvatar
+                            name={form.fullName || session.name}
+                            imageUrl={avatarPreviewUrl}
+                            size="md"
+                            className="border-white/20 bg-white/10"
+                            imageStyle={avatarPreviewImageStyle}
+                            fallbackClassName="!bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                          />
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-sm font-semibold text-slate-950">Enquadramento premium</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          O recorte final é salvo em alta definição, já otimizado para o avatar da conta.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="pr-4">
                       <p className="text-sm font-semibold text-slate-950">Exibir foto no cabeçalho</p>
