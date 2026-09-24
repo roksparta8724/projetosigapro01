@@ -1014,8 +1014,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 aria-label="Alternar menu lateral"
                 title="Menu"
               >
-                <span className="sig-topbar-menu-icon inline-flex h-8.5 w-8.5 items-center justify-center rounded-[12px]">
-                  <Menu className="h-4 w-4" />
+                <span className="sig-topbar-menu-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px]">
+                  <Menu className="h-[18px] w-[18px]" />
                 </span>
                 <span className="hidden font-semibold tracking-[0.01em] xl:inline">Menu</span>
               </button>
@@ -1031,8 +1031,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   aria-label="Busca global"
                   title="Pesquisar"
                 >
-                  <span className="sig-topbar-search-icon inline-flex h-9 w-9 items-center justify-center rounded-[12px] bg-white/[0.05] text-sky-100 transition group-hover:bg-white/[0.09] group-hover:text-white">
-                    <Search className="h-4 w-4" />
+                  <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
+                    <Search className="h-[18px] w-[18px]" />
                   </span>
                   <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-medium tracking-[0.01em] text-white/90">
                     Pesquisar
@@ -1048,16 +1048,16 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   type="button"
                   onClick={() => navigate("/notificacoes")}
                   className={cn(
-                    "relative",
+                    "sig-topbar-notification-button relative",
                     topbarUtilityButtonClass,
                     topbarIconButton,
                   )}
-                  aria-label="Notificações"
+                  aria-label={`Notificações (${notificationCount})`}
                   title="Notificações"
                 >
                   <Bell className={topbarUtilityIconClass} aria-hidden="true" />
-                  <span className="sig-topbar-notification-badge absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                    {notificationCount}
+                  <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                    {notificationCount > 99 ? "99+" : notificationCount}
                   </span>
                 </button>
 

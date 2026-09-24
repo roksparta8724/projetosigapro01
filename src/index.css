@@ -3348,6 +3348,19 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 :is(.sig-topbar-menu-icon, .sig-topbar-search-icon) {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.82) !important;
+  background: linear-gradient(180deg, #f5fafc 0%, #e1ebf2 100%) !important;
+  color: #183b51 !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 4px 10px rgba(6, 23, 37, 0.12) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 :is(.sig-topbar-menu-trigger, .sig-topbar-search-trigger):is(:hover, :focus-visible) :is(.sig-topbar-menu-icon, .sig-topbar-search-icon) {
+  background: #ffffff !important;
+  color: #0e5870 !important;
+}
+
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-label,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-label {
   color: rgba(248, 251, 255, 0.9) !important;
@@ -3428,12 +3441,15 @@
   stroke: currentColor !important;
 }
 
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-notification-badge,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-notification-badge {
-  background: linear-gradient(180deg, rgba(254, 240, 138, 0.18) 0%, rgba(245, 158, 11, 0.14) 100%) !important;
-  border: 1px solid rgba(253, 224, 71, 0.16);
-  color: #fff7d6 !important;
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-notification-badge {
+  background: #a94f17 !important;
+  border: 1px solid #ffffff;
+  color: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.18);
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar .sig-topbar-notification-button > svg {
+  transform: translate(-2px, 2px);
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-separator,
