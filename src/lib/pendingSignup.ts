@@ -22,7 +22,8 @@ export function readPendingSignup(
   existingMunicipalityId: string | null,
 ): PendingSignup | null {
   if (existingMunicipalityId) return null;
-  if (existingRole && existingRole !== "profissional_externo" && existingRole !== "property_owner") return null;
+  // O gatilho legado cria primeiro um perfil provisório como "profissional".
+  if (existingRole && !["profissional", "profissional_externo", "property_owner"].includes(existingRole)) return null;
 
   const metadata = user.user_metadata ?? {};
   const role = metadata.role;

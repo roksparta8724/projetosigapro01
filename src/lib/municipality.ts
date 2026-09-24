@@ -8,6 +8,7 @@ import {
 export interface Municipality {
   id: string;
   name: string;
+  city: string;
   state: string;
   slug: string;
   subdomain: string;

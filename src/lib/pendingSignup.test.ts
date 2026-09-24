@@ -19,6 +19,13 @@ describe("readPendingSignup", () => {
     });
   });
 
+  it("concludes a signup whose legacy auth trigger created a provisional profile", () => {
+    expect(readPendingSignup(user, "profissional", null)).toMatchObject({
+      tenantId: user.user_metadata.tenant_id,
+      role: "profissional_externo",
+    });
+  });
+
   it("does not rewrite an existing municipal membership", () => {
     expect(readPendingSignup(user, "profissional_externo", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")).toBeNull();
   });

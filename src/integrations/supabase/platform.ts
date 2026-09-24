@@ -1608,6 +1608,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
     company_name: profile.companyName || null,
     address_line: profile.addressLine || null,
     address_number: profile.addressNumber || null,
+    address_complement: profile.addressComplement || null,
     neighborhood: profile.neighborhood || null,
     city: profile.city || null,
     state: profile.state || null,

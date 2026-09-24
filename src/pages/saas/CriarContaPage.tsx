@@ -16,6 +16,7 @@ import {
   saveRemoteProfile,
 } from "@/integrations/supabase/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
+import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import {
   getInstitutionClientSlug,
   isInstitutionPubliclyAvailable,
@@ -59,8 +60,8 @@ export function CriarContaPage() {
         {
           id: tenant.municipalityId,
           name: tenant.municipalityName || "Prefeitura",
-          city: "",
-          state: "",
+          city: tenant.municipalityBundle?.municipality.city || "",
+          state: tenant.municipalityBundle?.municipality.state || "",
           users: 0,
           processes: 0,
           subdomain: tenant.subdomain || "",
@@ -105,7 +106,7 @@ export function CriarContaPage() {
     }
 
     return sorted.filter((institution) => getInstitutionClientSlug(institution) === tenantSlug);
-  }, [institutions, tenantSlug, tenant.mode, tenant.municipalityId, tenant.municipalityName, tenant.subdomain]);
+  }, [institutions, tenantSlug, tenant.mode, tenant.municipalityId, tenant.municipalityName, tenant.municipalityBundle, tenant.subdomain]);
 
   const tenantFromLink =
     availableInstitutions.find((institution) => getInstitutionClientSlug(institution) === tenantSlug)?.id ?? "";
@@ -150,21 +151,23 @@ export function CriarContaPage() {
   useEffect(() => {
     setForm((current) => {
       if (tenant.mode === "tenant" && tenant.municipalityId) {
-        if (current.tenantId === tenant.municipalityId) {
-          return current;
-        }
-        return { ...current, tenantId: tenant.municipalityId };
+        const institution = availableInstitutions[0];
+        const tenantChanged = current.tenantId !== tenant.municipalityId;
+        const city = tenantChanged ? institution?.city || "" : current.city || institution?.city || "";
+        const state = tenantChanged ? institution?.state || "" : current.state || institution?.state || "";
+        if (!tenantChanged && city === current.city && state === current.state) return current;
+        return { ...current, tenantId: tenant.municipalityId, city, state };
       }
 
       const nextTenantId = availableInstitutions.some((institution) => institution.id === current.tenantId)
         ? current.tenantId
         : tenantFromLink || availableInstitutions[0]?.id || "";
 
-      if (nextTenantId === current.tenantId) {
-        return current;
-      }
-
-      return { ...current, tenantId: nextTenantId };
+      const institution = availableInstitutions.find((item) => item.id === nextTenantId);
+      const city = nextTenantId === current.tenantId ? current.city || institution?.city || "" : institution?.city || "";
+      const state = nextTenantId === current.tenantId ? current.state || institution?.state || "" : institution?.state || "";
+      if (nextTenantId === current.tenantId && city === current.city && state === current.state) return current;
+      return { ...current, tenantId: nextTenantId, city, state };
     });
   }, [availableInstitutions, tenant.mode, tenant.municipalityId, tenantFromLink]);
 
@@ -194,8 +197,8 @@ export function CriarContaPage() {
             zipCode: formatCep(cep),
             addressLine: current.addressLine || address.street,
             neighborhood: current.neighborhood || address.neighborhood,
-            city: current.city || address.city,
-            state: current.state || address.state,
+            city: address.city || current.city,
+            state: address.state || current.state,
             addressComplement: current.addressComplement || address.complement,
           }));
           setCepStatus("Endereço preenchido automaticamente pelo CEP.");
@@ -215,7 +218,8 @@ export function CriarContaPage() {
     setError("");
     setStatus("");
 
-    if (!form.tenantId) {
+    if (!form.tenantId || !availableInstitutions.some((item) => item.id === form.tenantId) ||
+        (tenant.mode === "tenant" && tenant.municipalityId !== form.tenantId)) {
       setError("Prefeitura não identificada no link de acesso.");
       return;
     }
@@ -224,7 +228,7 @@ export function CriarContaPage() {
       [form.fullName, "Nome completo"],
       [form.email, "E-mail"],
       [form.phone, "Telefone"],
-      [form.cpfCnpj, "CPF ou CNPJ"],
+      [form.cpfCnpj, "CPF"],
       [form.rg, "RG"],
       [form.birthDate, "Data de nascimento"],
       [form.addressLine, "Endereço"],
@@ -248,6 +252,11 @@ export function CriarContaPage() {
       return;
     }
 
+    if (!isValidCpf(form.cpfCnpj)) {
+      setError("Informe um CPF válido. Cada CPF pode ter apenas uma conta nesta Prefeitura.");
+      return;
+    }
+
     if (form.password.length < 8) {
       setError("A senha deve ter pelo menos 8 caracteres.");
       return;
@@ -268,12 +277,13 @@ export function CriarContaPage() {
     setSubmitting(true);
 
     const normalizedEmail = form.email.trim().toLowerCase();
+    const cpf = normalizeCpf(form.cpfCnpj);
 
     const draftProfile = {
       fullName: form.fullName,
       email: normalizedEmail,
       phone: form.phone,
-      cpfCnpj: form.cpfCnpj,
+      cpfCnpj: cpf,
       rg: form.rg,
       birthDate: form.birthDate,
       professionalType: form.professionalType,
@@ -294,18 +304,20 @@ export function CriarContaPage() {
       bio: form.bio,
     };
 
-    const existingDraftsRaw =
-      typeof window !== "undefined" ? window.localStorage.getItem(SIGNUP_DRAFTS_KEY) : null;
-    const existingDrafts = existingDraftsRaw
-      ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>)
-      : {};
-
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(
-        SIGNUP_DRAFTS_KEY,
-        JSON.stringify({ ...existingDrafts, [normalizedEmail]: draftProfile }),
-      );
-    }
+    const saveSignupDraft = () => {
+      try {
+        const existingDraftsRaw = window.localStorage.getItem(SIGNUP_DRAFTS_KEY);
+        const existingDrafts = existingDraftsRaw
+          ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>)
+          : {};
+        window.localStorage.setItem(
+          SIGNUP_DRAFTS_KEY,
+          JSON.stringify({ ...existingDrafts, [normalizedEmail]: draftProfile }),
+        );
+      } catch {
+        // A conta pode ser criada mesmo quando o armazenamento local estiver indisponível.
+      }
+    };
 
       if (hasSupabaseEnv && supabase) {
         const emailRedirectTo =
@@ -320,7 +332,7 @@ export function CriarContaPage() {
               tenant_id: form.tenantId,
             full_name: form.fullName,
             phone: form.phone,
-            cpf_cnpj: form.cpfCnpj,
+            cpf_cnpj: cpf,
             rg: form.rg,
             birth_date: form.birthDate,
             professional_type: form.professionalType,
@@ -340,7 +352,11 @@ export function CriarContaPage() {
 
       if (signUpError) {
         setSubmitting(false);
-        setError(signUpError.message);
+        setError(
+          /cpf|database error saving new user/i.test(signUpError.message)
+            ? "Não foi possível criar a conta. Se este CPF já está cadastrado nesta Prefeitura, entre na conta existente ou recupere a senha."
+            : signUpError.message,
+        );
         return;
       }
 
@@ -350,6 +366,8 @@ export function CriarContaPage() {
         return;
       }
 
+      saveSignupDraft();
+
       if (data.session) {
         try {
           if (form.role === "property_owner") {
@@ -357,7 +375,7 @@ export function CriarContaPage() {
               tenantId: form.tenantId,
               fullName: form.fullName,
               email: normalizedEmail,
-              cpfCnpj: form.cpfCnpj,
+              cpfCnpj: cpf,
               phone: form.phone,
               title: form.title || roleLabels[form.role],
               bio: form.bio,
@@ -367,7 +385,7 @@ export function CriarContaPage() {
               tenantId: form.tenantId,
               fullName: form.fullName,
               email: normalizedEmail,
-              cpfCnpj: form.cpfCnpj,
+              cpfCnpj: cpf,
               phone: form.phone,
               professionalType: form.professionalType,
               registrationNumber: form.registrationNumber,
@@ -419,12 +437,14 @@ export function CriarContaPage() {
       accessLevel: 1,
     });
 
+    saveSignupDraft();
+
     saveUserProfile({
       userId: user.id,
       fullName: form.fullName,
       email: normalizedEmail,
       phone: form.phone,
-      cpfCnpj: form.cpfCnpj,
+      cpfCnpj: cpf,
       rg: form.rg,
       birthDate: form.birthDate,
       professionalType: form.professionalType,
@@ -488,16 +508,18 @@ export function CriarContaPage() {
           <div className="hidden flex-col justify-between rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,27,46,0.82)_0%,rgba(6,20,36,0.74)_100%)] p-8 backdrop-blur-sm lg:flex">
             <div className="space-y-7">
               <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/18 bg-white/[0.06] px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
-                Cadastro profissional
+                {isOwnerSignup ? "Cadastro de proprietário" : "Cadastro profissional"}
               </div>
 
               <div className="space-y-4">
                 <h1 className="max-w-[11ch] text-[clamp(34px,3.1vw,48px)] font-semibold leading-[0.95] tracking-[-0.06em] text-white">
-                  Crie seu acesso profissional no SIGAPRO.
+                  {isOwnerSignup ? "Crie seu acesso de proprietário no SIGAPRO." : "Crie seu acesso profissional no SIGAPRO."}
                 </h1>
 
                 <p className="max-w-[50ch] text-[15px] leading-7 text-slate-100">
-                  Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura são criados pelo administrador municipal.
+                  {isOwnerSignup
+                    ? "Cadastre-se para acompanhar os projetos do seu imóvel. Usuários internos da Prefeitura são criados pelo administrador municipal."
+                    : "Autoatendimento exclusivo para profissionais externos. Usuários internos da Prefeitura são criados pelo administrador municipal."}
                 </p>
               </div>
             </div>
@@ -516,10 +538,12 @@ export function CriarContaPage() {
               <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,33,53,0.94)_0%,rgba(13,30,48,0.88)_100%)] p-5 text-sm text-slate-100 shadow-[0_18px_40px_rgba(4,12,20,0.18)]">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
                   <IdCard className="h-4 w-4" />
-                  Campos documentais obrigatórios
+                  {isOwnerSignup ? "Identificação obrigatória" : "Campos documentais obrigatórios"}
                 </div>
                 <p className="leading-6 text-slate-100">
-                  Dados pessoais, endereço e registro profissional devem ser preenchidos para finalizar o cadastro.
+                  {isOwnerSignup
+                    ? "Dados pessoais e endereço são necessários para confirmar o seu acesso."
+                    : "Dados pessoais, endereço e registro profissional devem ser preenchidos para finalizar o cadastro."}
                 </p>
               </div>
             </div>
@@ -566,7 +590,16 @@ export function CriarContaPage() {
 
                   <div className="space-y-2">
                     <Label>Tipo de acesso</Label>
-                    <Select value={form.role} onValueChange={(value) => setField("role", value)}>
+                    <Select
+                      value={form.role}
+                      onValueChange={(value: UserRole) => setForm((current) => ({
+                        ...current,
+                        role: value,
+                        ...(value === "property_owner"
+                          ? { professionalType: "", registrationNumber: "", companyName: "", title: "" }
+                          : {}),
+                      }))}
+                    >
                       <SelectTrigger className="h-12 rounded-2xl">
                         <SelectValue placeholder="Selecione o perfil" />
                       </SelectTrigger>
@@ -634,12 +667,18 @@ export function CriarContaPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>CPF ou CNPJ *</Label>
+                    <Label htmlFor="signup-cpf">CPF *</Label>
                     <Input
+                      id="signup-cpf"
                       required
                       value={form.cpfCnpj}
-                      onChange={(event) => setField("cpfCnpj", event.target.value)}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={14}
+                      placeholder="000.000.000-00"
+                      onChange={(event) => setField("cpfCnpj", formatCpf(event.target.value))}
                     />
+                    <p className="text-xs leading-5 text-slate-500">Uma conta por CPF nesta Prefeitura, inclusive entre os dois tipos de acesso.</p>
                   </div>
                 </div>
 
@@ -663,41 +702,45 @@ export function CriarContaPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Tipo profissional {!isOwnerSignup ? "*" : ""}</Label>
-                    <Input
-                      required={!isOwnerSignup}
-                      value={form.professionalType}
-                      onChange={(event) => setField("professionalType", event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Registro profissional {!isOwnerSignup ? "*" : ""}</Label>
-                    <Input
-                      required={!isOwnerSignup}
-                      value={form.registrationNumber}
-                      onChange={(event) => setField("registrationNumber", event.target.value)}
-                    />
-                  </div>
-                </div>
+                {!isOwnerSignup ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Tipo profissional *</Label>
+                        <Input
+                          required
+                          value={form.professionalType}
+                          onChange={(event) => setField("professionalType", event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Registro profissional *</Label>
+                        <Input
+                          required
+                          value={form.registrationNumber}
+                          onChange={(event) => setField("registrationNumber", event.target.value)}
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Empresa, órgão ou escritório</Label>
-                    <Input
-                      value={form.companyName}
-                      onChange={(event) => setField("companyName", event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cargo ou função</Label>
-                    <Input
-                      value={form.title}
-                      onChange={(event) => setField("title", event.target.value)}
-                    />
-                  </div>
-                </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Empresa, órgão ou escritório</Label>
+                        <Input
+                          value={form.companyName}
+                          onChange={(event) => setField("companyName", event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cargo ou função</Label>
+                        <Input
+                          value={form.title}
+                          onChange={(event) => setField("title", event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-[1.35fr,0.65fr]">
                   <div className="space-y-2">
@@ -738,7 +781,7 @@ export function CriarContaPage() {
 
                 <div className="grid gap-4 md:grid-cols-[1fr,0.4fr,0.7fr]">
                   <div className="space-y-2">
-                    <Label>Cidade *</Label>
+                    <Label>Cidade do endereço *</Label>
                     <Input
                       required
                       value={form.city}
@@ -767,6 +810,10 @@ export function CriarContaPage() {
                   </div>
                 </div>
 
+                <p className="text-xs leading-5 text-slate-500">
+                  Cidade e UF vêm da Prefeitura deste subdomínio. Se o seu endereço for em outro município, ajuste-os ou informe o CEP.
+                </p>
+
                 {cepStatus ? (
                   <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-700">
                     {cepStatus}
@@ -774,7 +821,7 @@ export function CriarContaPage() {
                 ) : null}
 
                 <div className="space-y-2">
-                  <Label>Resumo profissional</Label>
+                  <Label>{isOwnerSignup ? "Informações complementares" : "Resumo profissional"}</Label>
                   <Textarea
                     rows={4}
                     value={form.bio}
@@ -817,7 +864,9 @@ export function CriarContaPage() {
                     <IdCard className="h-4 w-4" />
                     Campos obrigatórios
                   </div>
-                  Dados pessoais, endereço e registro profissional devem ser preenchidos para concluir o cadastro.
+                  {isOwnerSignup
+                    ? "Dados pessoais e endereço devem ser preenchidos para concluir o cadastro."
+                    : "Dados pessoais, endereço e registro profissional devem ser preenchidos para concluir o cadastro."}
                 </div>
               </div>
             </CardContent>

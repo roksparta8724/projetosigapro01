@@ -48,9 +48,13 @@ function resolveMunicipalityRecordName(record: Record<string, unknown>) {
 // ---------------------------------------------------------------------------
 
 function mapMunicipality(record: Record<string, unknown>): Municipality {
+  const name = resolveMunicipalityRecordName(record);
   return {
     id: record.id,
-    name: resolveMunicipalityRecordName(record),
+    name,
+    city:
+      (typeof record.city === "string" && record.city.trim()) ||
+      name.replace(/^Prefeitura(?: Municipal)? de\s+/i, "").trim(),
     state: record.state ?? "",
     slug: record.slug ?? "",
     subdomain: record.subdomain ?? "",
