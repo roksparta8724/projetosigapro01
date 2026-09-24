@@ -44,7 +44,7 @@ interface AppBootstrapState {
   municipalityBundle: MunicipalityBundle | null;
   resolution: ReturnType<typeof resolveTenantFromLocation>;
   refreshMunicipalityBundle: (municipalityId?: string | null) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string }>;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string; municipalityId?: string | null }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
@@ -405,6 +405,10 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   const [municipalityBundle, setMunicipalityBundle] = useState<MunicipalityBundle | null>(
     cachedSnapshot?.municipalityBundle ?? null,
   );
+  const [authChange, setAuthChange] = useState<{ event: string; user: User | null } | null>(null);
+  const runBootstrapRef = useRef<((event?: string | null, user?: User | null) => Promise<void>) | null>(null);
+  const manualSignInRef = useRef(false);
+  const bootstrapEpochRef = useRef(0);
   const runningRef = useRef(false);
   const pendingBootstrapRef = useRef<{ event?: string | null; sessionUserOverride?: User | null } | null>(null);
   const initializedRef = useRef(Boolean(cachedSnapshot));
@@ -467,10 +471,13 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     let active = true;
 
     const runBootstrap = async (event?: string | null, sessionUserOverride?: User | null) => {
+      if (manualSignInRef.current) return;
       if (runningRef.current) {
         pendingBootstrapRef.current = { event, sessionUserOverride };
         return;
       }
+      const epoch = bootstrapEpochRef.current;
+      const canApply = () => active && epoch === bootstrapEpochRef.current && !manualSignInRef.current;
       runningRef.current = true;
       if (!initializedRef.current) {
         setLoading(true);
@@ -489,7 +496,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             ? null
             : await supabase.auth.getUser();
         const authUser = sessionUser ?? userResult?.data.user ?? null;
-        if (!active) return;
+        if (!canApply()) return;
 
         if (event === "TOKEN_REFRESHED" && authUser?.id && lastAuthUserIdRef.current === authUser.id) {
           setIsReady(true);
@@ -534,7 +541,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             isLocalhost: resolution.isLocalhost,
             preferredName: devPreferredName,
           });
-          if (!active) return;
+          if (!canApply()) return;
           setAuthUserId(null);
           setAuthEmail(null);
           setRole(null);
@@ -591,7 +598,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           }
         }
 
-        if (!active) return;
+        if (!canApply()) return;
         setAuthUserId(authUser.id);
         setAuthEmail(normalizeEmail(authUser.email));
         setRole(mappedRole);
@@ -613,7 +620,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Falha no bootstrap";
         console.error("[Bootstrap] Erro", { message });
-        if (!active) return;
+        if (!canApply()) return;
         setError(message);
         if (lastStableRef.current.authUserId || lastStableRef.current.municipalityBundle?.municipality?.id) {
           console.warn("[Bootstrap] Mantendo estado estável após erro");
@@ -636,32 +643,36 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setAuthResolved(true);
         }
       } finally {
-        if (active) setLoading(false);
+        if (canApply()) setLoading(false);
         runningRef.current = false;
         const pendingBootstrap = pendingBootstrapRef.current;
-        if (active && pendingBootstrap) {
-          pendingBootstrapRef.current = null;
+        pendingBootstrapRef.current = null;
+        if (active && !manualSignInRef.current && pendingBootstrap) {
           void runBootstrap(pendingBootstrap.event, pendingBootstrap.sessionUserOverride);
         }
       }
     };
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+    runBootstrapRef.current = runBootstrap;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       authEventRef.current = event;
-      if (event === "TOKEN_REFRESHED") {
-        await runBootstrap(event, session?.user ?? null);
-        return;
-      }
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "INITIAL_SESSION") {
-        await runBootstrap(event, session?.user ?? null);
+      if (manualSignInRef.current) return;
+      // Supabase awaits this callback under its auth lock; data loading belongs in the effect below.
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+        setAuthChange({ event, user: session?.user ?? null });
       }
     });
 
     return () => {
       active = false;
+      runBootstrapRef.current = null;
       data.subscription.unsubscribe();
     };
   }, [resolution.hostname, resolution.isLocalhost, resolution.subdomain]);
+
+  useEffect(() => {
+    if (authChange) void runBootstrapRef.current?.(authChange.event, authChange.user);
+  }, [authChange]);
 
   const value = useMemo<AppBootstrapState>(
     () => ({
@@ -707,111 +718,119 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: false, message: "Supabase indisponivel." };
         }
         const normalized = normalizeEmail(email);
-        const currentSession = (await supabase.auth.getSession()).data.session ?? null;
-        const currentEmail = normalizeEmail(currentSession?.user?.email ?? null);
-
-        if (currentSession?.user && currentEmail && currentEmail !== normalized) {
-          writeBootstrapSnapshot(null);
-          clearPlatformSessionSnapshot();
-          lastAuthUserIdRef.current = null;
-          initializedRef.current = false;
-          lastStableRef.current = {
-            authUserId: null,
-            authEmail: null,
-            role: null,
-            profile: null,
-            municipalityBundle: null,
-          };
-          setAuthUserId(null);
-          setAuthEmail(null);
-          setRole(null);
-          setProfile(null);
-          setMunicipalityBundle(null);
-          setAuthResolved(false);
-          await supabase.auth.signOut({ scope: "local" });
-        }
-
+        manualSignInRef.current = true;
+        bootstrapEpochRef.current += 1;
+        setAuthChange(null);
+        pendingBootstrapRef.current = null;
         setLoading(true);
         setError(null);
         setStage("bootstrapping_auth");
+        try {
+          const currentSession = (await supabase.auth.getSession()).data.session ?? null;
+          const currentEmail = normalizeEmail(currentSession?.user?.email ?? null);
 
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: normalized,
-          password,
-        });
-        if (signInError || !data.user) {
+          if (currentSession?.user && currentEmail && currentEmail !== normalized) {
+            const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+            if (signOutError) throw signOutError;
+            writeBootstrapSnapshot(null);
+            clearPlatformSessionSnapshot();
+            lastAuthUserIdRef.current = null;
+            initializedRef.current = false;
+            lastStableRef.current = {
+              authUserId: null,
+              authEmail: null,
+              role: null,
+              profile: null,
+              municipalityBundle: null,
+            };
+            setAuthUserId(null);
+            setAuthEmail(null);
+            setRole(null);
+            setProfile(null);
+            setMunicipalityBundle(null);
+            setAuthResolved(false);
+          }
+
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            email: normalized,
+            password,
+          });
+          if (signInError || !data.user) {
+            return { ok: false, message: signInError?.message || "Falha ao autenticar." };
+          }
+
+          const nextProfile = await loadProfileByUserId(data.user.id);
+          const mappedRole =
+            mapDbRoleCodeToAppRole(nextProfile?.role) ??
+            mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
+            readRoleFromPlatformStore(normalized) ??
+            "profissional_externo";
+          const nextScopeType: "platform" | "municipality" | "external" =
+            mappedRole === "master_admin" || mappedRole === "master_ops"
+              ? "platform"
+              : mappedRole === "profissional_externo" || mappedRole === "proprietario_consulta" || mappedRole === "property_owner"
+                ? "external"
+                : "municipality";
+
+          const resolvedEmail = normalizeEmail(data.user.email);
+          let nextBundle: MunicipalityBundle | null = null;
+
+          if (nextScopeType !== "platform") {
+            if (nextProfile?.municipalityId) {
+              nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
+            } else if (resolution.mode === "tenant") {
+              nextBundle = await loadCurrentMunicipalityBundle({
+                hostname: resolution.hostname,
+                subdomain: resolution.subdomain,
+                isLocalhost: resolution.isLocalhost,
+                preferredName:
+                  (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
+                  "",
+              });
+            }
+          }
+
+          setAuthUserId(data.user.id);
+          setAuthEmail(resolvedEmail);
+          setRole(mappedRole);
+          setProfile(nextProfile);
+          setScopeType(nextScopeType);
+          setMunicipalityBundle(nextBundle);
+          initializedRef.current = true;
+          lastAuthUserIdRef.current = data.user.id;
+          lastStableRef.current = {
+            authUserId: data.user.id,
+            authEmail: resolvedEmail,
+            role: mappedRole,
+            profile: nextProfile,
+            municipalityBundle: nextBundle,
+          };
+
+          writeBootstrapSnapshot({
+            hostname: resolution.hostname,
+            mode: resolution.mode,
+            subdomain: resolution.subdomain ?? null,
+            scopeType: nextScopeType,
+            authUserId: data.user.id,
+            authEmail: resolvedEmail,
+            role: mappedRole,
+            profile: nextProfile,
+            municipalityBundle: nextBundle,
+            cachedAt: Date.now(),
+          });
+
+          return { ok: true, role: mappedRole, municipalityId: nextProfile?.municipalityId ?? null };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Falha ao autenticar.";
+          setError(message);
+          return { ok: false, message };
+        } finally {
+          manualSignInRef.current = false;
           setAuthResolved(true);
           setIsReady(true);
           setStage("ready");
           setLoading(false);
-          return { ok: false, message: signInError?.message || "Falha ao autenticar." };
         }
-
-        const nextProfile = await loadProfileByUserId(data.user.id);
-        const mappedRole =
-          mapDbRoleCodeToAppRole(nextProfile?.role) ??
-          mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
-          readRoleFromPlatformStore(normalized) ??
-          "profissional_externo";
-        const nextScopeType: "platform" | "municipality" | "external" =
-          mappedRole === "master_admin" || mappedRole === "master_ops"
-            ? "platform"
-            : mappedRole === "profissional_externo" || mappedRole === "proprietario_consulta" || mappedRole === "property_owner"
-              ? "external"
-              : "municipality";
-
-        const resolvedEmail = normalizeEmail(data.user.email);
-        let nextBundle: MunicipalityBundle | null = null;
-
-        if (nextScopeType !== "platform") {
-          if (nextProfile?.municipalityId) {
-            nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
-          } else if (resolution.mode === "tenant") {
-            nextBundle = await loadCurrentMunicipalityBundle({
-              hostname: resolution.hostname,
-              subdomain: resolution.subdomain,
-              isLocalhost: resolution.isLocalhost,
-              preferredName:
-                (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
-                "",
-            });
-          }
-        }
-
-        setAuthUserId(data.user.id);
-        setAuthEmail(resolvedEmail);
-        setRole(mappedRole);
-        setProfile(nextProfile);
-        setScopeType(nextScopeType);
-        setMunicipalityBundle(nextBundle);
-        setAuthResolved(true);
-        setIsReady(true);
-        setStage("ready");
-        setLoading(false);
-        initializedRef.current = true;
-        lastAuthUserIdRef.current = data.user.id;
-        lastStableRef.current = {
-          authUserId: data.user.id,
-          authEmail: resolvedEmail,
-          role: mappedRole,
-          profile: nextProfile,
-          municipalityBundle: nextBundle,
-        };
-
-        writeBootstrapSnapshot({
-          hostname: resolution.hostname,
-          mode: resolution.mode,
-          subdomain: resolution.subdomain ?? null,
-          scopeType: nextScopeType,
-          authUserId: data.user.id,
-          authEmail: resolvedEmail,
-          role: mappedRole,
-          profile: nextProfile,
-          municipalityBundle: nextBundle,
-          cachedAt: Date.now(),
-        });
-
-        return { ok: true, role: mappedRole };
       },
       resetPassword: async (email) => {
         if (!hasSupabaseEnv || !supabase) {

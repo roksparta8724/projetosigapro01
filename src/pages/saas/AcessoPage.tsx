@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
 const institutionalHighlights = [
@@ -44,7 +44,7 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { signIn } = useAuthGateway();
+  const { signIn, signOut } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
@@ -64,19 +64,13 @@ export function AcessoPage() {
     setSubmitting(true);
     setError("");
 
-    let result: Awaited<ReturnType<typeof signIn>>;
     try {
-      result = await signIn(email, password);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao autenticar.";
-      setError(message);
-      setSubmitting(false);
-      return;
-    }
+      const result = await signIn(email, password);
+      if (!result.ok) {
+        setError(result.message ?? "Nao foi possivel entrar.");
+        return;
+      }
 
-    if (!result.ok) {
-      setError(result.message ?? "Nao foi possivel entrar.");
-    } else {
       if (
         tenant.mode === "tenant" &&
         tenant.municipalityId &&
@@ -84,23 +78,7 @@ export function AcessoPage() {
         result.role !== "master_ops"
       ) {
         const normalized = email.trim().toLowerCase();
-        let scopeId: string | null = null;
-
-        if (hasSupabaseEnv && supabase) {
-          const { data } = await supabase.auth.getUser();
-          const userId = data.user?.id;
-
-          if (userId) {
-            const profileResult = await supabase
-              .from("profiles")
-              .select("municipality_id")
-              .eq("user_id", userId)
-              .maybeSingle();
-
-            scopeId =
-              (profileResult.data?.municipality_id as string | null | undefined) ?? null;
-          }
-        }
+        let scopeId: string | null = result.municipalityId ?? null;
 
         if (!scopeId) {
           const signedUser =
@@ -115,15 +93,17 @@ export function AcessoPage() {
               tenant.municipalityName ? `de ${tenant.municipalityName}` : "deste subdominio"
             }.`
           );
-          setSubmitting(false);
           return;
         }
       }
 
       navigate(resolveRedirect(result.role ?? null), { replace: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao autenticar.";
+      setError(message);
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   };
 
   return (
