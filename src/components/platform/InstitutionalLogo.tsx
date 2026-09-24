@@ -22,6 +22,14 @@ const variantClasses = {
   login: "h-full w-full p-2",
 } as const;
 
+const masterVariantClasses = {
+  header: "h-[128px] w-[128px]",
+  footer: "h-[144px] w-[144px]",
+  preview: "h-[144px] w-[144px]",
+  compact: "h-10 w-10",
+  login: "h-full w-full",
+} as const;
+
 export function InstitutionalLogo({
   branding,
   fallbackLabel = "Prefeitura",
@@ -44,13 +52,23 @@ export function InstitutionalLogo({
     ? loadedSource.url
     : imageUrl;
   const pendingUrl = imageUrl && imageUrl !== displayUrl ? imageUrl : "";
+  const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(3.5, branding.logoScale)) : 1;
+  // Master crops are authored in a 160px square editor and rendered in proportional square frames.
+  const frameSize = variant === "header" ? 128 : 144;
+  const frameRatio = frameSize / 160;
+  const offsetX = (branding.logoOffsetX || 0) * frameRatio;
+  const offsetY = (branding.logoOffsetY || 0) * frameRatio;
+  const showMasterCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
 
   return (
     <div
       data-logo-context={isMaster ? "sigapro" : "municipality"}
       className={cn(
-        "flex max-w-full shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
-        variantClasses[variant],
+        "flex max-w-full shrink-0 items-center justify-center overflow-hidden",
+        isMaster
+          ? "bg-transparent"
+          : "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
+        isMaster ? masterVariantClasses[variant] : variantClasses[variant],
         className,
       )}
     >
@@ -59,7 +77,8 @@ export function InstitutionalLogo({
           <img
             src={displayUrl}
             alt={branding.logoAlt || fallbackLabel}
-            className="block h-full w-full max-w-full select-none object-contain object-center"
+            className={cn("block h-full w-full max-w-full select-none object-contain object-center", isMaster && "mix-blend-screen")}
+            style={showMasterCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` } : undefined}
             loading="eager"
             decoding="async"
             onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}

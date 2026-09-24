@@ -1582,8 +1582,9 @@ export function PerfilPage() {
                               onChange={updateMasterLogoFrame("header")}
                               label="Enquadramento do cabeçalho"
                               hint="Ajuste o logo para o cabeçalho Master."
+                              darkLogoPreview
                               frameClassName="justify-start"
-                              viewportClassName="h-[128px] w-[180px] rounded-[18px]"
+                              viewportClassName="h-[160px] w-[160px] rounded-[18px]"
                               wrapperClassName="border-slate-200 bg-white"
                             />
                           ) : (
@@ -1650,8 +1651,9 @@ export function PerfilPage() {
                               onChange={updateMasterLogoFrame("footer")}
                               label="Enquadramento do rodapé"
                               hint="Ajuste o logo especificamente para o rodapé Master."
+                              darkLogoPreview
                               frameClassName="justify-start"
-                              viewportClassName="h-[128px] w-[180px] rounded-[18px]"
+                              viewportClassName="h-[160px] w-[160px] rounded-[18px]"
                               wrapperClassName="border-slate-200 bg-white"
                             />
                           ) : (

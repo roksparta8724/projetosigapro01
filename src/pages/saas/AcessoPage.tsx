@@ -155,8 +155,8 @@ export function AcessoPage() {
                 </div>
 
                 <div className="max-w-[860px] space-y-5">
-                  <h1 className="max-w-[22ch] text-[clamp(38px,3.15vw,54px)] font-semibold leading-[1.08] tracking-[-0.03em] text-white min-[1200px]:max-w-[26ch] min-[1200px]:text-[clamp(42px,3.45vw,58px)]">
-                    Aprovacao digital de projetos com padrao institucional e operacao integrada.
+                  <h1 className="sig-public-display max-w-[26ch] text-[clamp(2.15rem,3vw,3.25rem)] text-white">
+                    Aprovação digital de projetos com padrão institucional e operação integrada.
                   </h1>
 
                   <p className="max-w-[700px] text-[15px] leading-[1.82] text-slate-100 min-[1200px]:text-[16px] xl:text-[17px]">

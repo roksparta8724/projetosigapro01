@@ -29,6 +29,7 @@ interface ImageFrameEditorProps {
   minScale?: number;
   maxScale?: number;
   zoomStep?: number;
+  darkLogoPreview?: boolean;
 }
 
 const DEFAULT_MIN_SCALE = 0.35;
@@ -110,6 +111,7 @@ export function ImageFrameEditor({
   minScale,
   maxScale,
   zoomStep = 0.1,
+  darkLogoPreview = false,
 }: ImageFrameEditorProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; pointerId?: number } | null>(null);
@@ -370,17 +372,25 @@ export function ImageFrameEditor({
       </div>
 
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
-        <div className="relative rounded-[34px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]">
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
-              shape === "circle" ? "rounded-full" : "rounded-[26px]",
-            )}
-          />
+        <div className={cn(
+          "relative rounded-[34px]",
+          darkLogoPreview
+            ? "bg-transparent"
+            : "border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]",
+        )}>
+          {!darkLogoPreview ? (
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
+                shape === "circle" ? "rounded-full" : "rounded-[26px]",
+              )}
+            />
+          ) : null}
           <div
             ref={frameRef}
             className={cn(
-              "relative h-[180px] w-[180px] cursor-grab overflow-hidden bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] active:cursor-grabbing dark:bg-slate-50",
+              "relative h-[180px] w-[180px] cursor-grab overflow-hidden active:cursor-grabbing",
+              darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50",
               shape === "circle" ? "rounded-full" : "rounded-[26px]",
               viewportClassName,
             )}
@@ -397,7 +407,7 @@ export function ImageFrameEditor({
                 src={stableImageUrl}
                 alt="Preview"
                 draggable={false}
-                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+                className={cn("pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none", darkLogoPreview && "mix-blend-screen")}
                 style={{
                   width: `${metrics.width}px`,
                   height: `${metrics.height}px`,

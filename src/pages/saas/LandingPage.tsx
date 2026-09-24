@@ -298,8 +298,8 @@ export function LandingPage() {
                       Plataforma institucional para aprovacao de projetos
                     </Badge>
 
-                    <h1 className="mt-6 max-w-[14.8ch] text-balance text-[3.02rem] font-semibold leading-[0.98] tracking-[-0.058em] text-slate-950 sm:text-[3.34rem] lg:text-[3.92rem] xl:text-[4.46rem]">
-                      Protocolo e analise de projetos com linguagem digital mais clara para o municipio.
+                    <h1 className="sig-public-display mt-6 max-w-[21ch] text-[clamp(2.15rem,4vw,3.55rem)] text-slate-950">
+                      Protocolo e análise de projetos com linguagem digital mais clara para o município.
                     </h1>
 
                     <p className="mt-6 max-w-[64ch] text-[1.07rem] leading-8 text-slate-600 sm:text-[1.14rem]">

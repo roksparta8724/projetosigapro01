@@ -38,8 +38,21 @@ describe("InstitutionalLogo", () => {
   });
 
   it("uses the official local asset for an unconfigured master logo", () => {
-    render(<InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} fallbackLabel="SIGAPRO" />);
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("sigapro-logo.png"));
+    const { container } = render(<InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} fallbackLabel="SIGAPRO" />);
+    const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    expect(image).toHaveAttribute("src", expect.stringContaining("sigapro-logo.png"));
+    expect(image).toHaveClass("mix-blend-screen", "object-contain");
+    expect(image).toHaveStyle({ transform: `translate(${40 * 128 / 160}px, ${-20 * 128 / 160}px) scale(2)` });
+    expect(container.firstChild).toHaveClass("bg-transparent");
+    expect(container.firstChild).not.toHaveClass("bg-white", "p-4", "border");
+  });
+
+  it("renders the master footer crop in a proportional square without a white card", () => {
+    const { container } = render(<InstitutionalLogo branding={{ ...branding, tenantId: "master" }} variant="footer" />);
+    const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    expect(container.firstChild).toHaveClass("h-[144px]", "w-[144px]", "bg-transparent");
+    expect(image).toHaveClass("object-contain", "mix-blend-screen");
+    expect(image).toHaveStyle({ transform: `translate(${40 * 144 / 160}px, ${-20 * 144 / 160}px) scale(2)` });
   });
 
   it("retains a valid logo while replacing it, but never across municipalities", () => {
