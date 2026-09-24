@@ -1377,7 +1377,8 @@ export async function uploadPlatformBrandingAsset(input: {
 }) {
   const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
   const assetKey = input.assetKey ?? "master-logo";
-  const objectKey = `platform/branding/${assetKey}.${extension}`;
+  // Each revision gets a new object so a failed metadata save cannot overwrite the live logo.
+  const objectKey = `platform/branding/${assetKey}/${crypto.randomUUID()}.${extension}`;
   const bucket =
     (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
     "sigapro-logos";

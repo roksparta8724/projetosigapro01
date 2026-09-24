@@ -287,6 +287,37 @@ function createR2DevApiPlugin(): Plugin {
             return;
           }
 
+          if (req.url.startsWith("/api/r2-master-logo-source")) {
+            const objectKey = body?.objectKey;
+            if (typeof objectKey !== "string" ||
+              !/^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
+              objectKey.includes("..")) {
+              res.statusCode = 400;
+              res.end("Logo inválido.");
+              return;
+            }
+            const object = await client.send(new GetObjectCommand({
+              Bucket: readEnvValue("R2_BUCKET_LOGOS"),
+              Key: objectKey,
+            }));
+            if (!object.Body || (object.ContentLength ?? 0) > 10 * 1024 * 1024) {
+              res.statusCode = 413;
+              res.end("Logo indisponível ou muito grande.");
+              return;
+            }
+            const bytes = await object.Body.transformToByteArray();
+            if (bytes.length > 10 * 1024 * 1024) {
+              res.statusCode = 413;
+              res.end("Logo muito grande.");
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", object.ContentType?.startsWith("image/") ? object.ContentType : "image/png");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(Buffer.from(bytes));
+            return;
+          }
+
           next();
         } catch (error) {
           const message = error instanceof Error ? error.message : "Erro no upload.";

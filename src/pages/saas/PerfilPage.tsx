@@ -35,6 +35,7 @@ import { saveRemoteProfile } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   getMasterInstitutionBranding,
@@ -200,6 +201,72 @@ async function createCroppedAvatarFile(input: {
     type: mimeType,
     lastModified: Date.now(),
   });
+}
+
+async function createCroppedMasterLogoFile(input: {
+  sourceUrl: string;
+  objectKey?: string;
+  fileName: string;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}) {
+  let sourceUrl = input.sourceUrl;
+  let objectUrl = "";
+  if (input.objectKey) {
+    const response = await fetch("/api/r2-master-logo-source", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectKey: input.objectKey }),
+    });
+    if (!response.ok) throw new Error("Não foi possível ler o logo salvo. Tente selecionar o arquivo novamente.");
+    objectUrl = URL.createObjectURL(await response.blob());
+    sourceUrl = objectUrl;
+  }
+  let image: HTMLImageElement;
+  try {
+    image = await loadImageElement(sourceUrl);
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  }
+  const outputSize = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Não foi possível preparar o logo para salvar.");
+
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = image.naturalWidth;
+  sourceCanvas.height = image.naturalHeight;
+  const sourceContext = sourceCanvas.getContext("2d");
+  if (!sourceContext) throw new Error("Não foi possível analisar a imagem do logo.");
+  sourceContext.drawImage(image, 0, 0);
+  const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+  const whiteFooterHeight = findOpaqueWhiteFooterHeight(pixels, sourceCanvas.width, sourceCanvas.height);
+
+  // Match the square editor's contain geometry so the uploaded image is the approved crop.
+  const crop = calculateMasterLogoCrop({
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    scale: input.scale,
+    offsetX: input.offsetX,
+    offsetY: input.offsetY,
+    outputSize,
+  });
+  context.clearRect(0, 0, outputSize, outputSize);
+  const contentHeight = image.naturalHeight - whiteFooterHeight;
+  const contentRenderHeight = crop.height * (contentHeight / image.naturalHeight);
+  context.drawImage(
+    sourceCanvas,
+    0, 0, image.naturalWidth, contentHeight,
+    crop.x, crop.y + (crop.height - contentRenderHeight) / 2, crop.width, contentRenderHeight,
+  );
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Não foi possível gerar o recorte final do logo.");
+  const baseName = input.fileName.replace(/\.[^.]+$/, "") || "logo-master";
+  return new File([blob], `${baseName}-enquadrado.png`, { type: "image/png", lastModified: Date.now() });
 }
 
 type ProfileSection =
@@ -484,6 +551,15 @@ export function PerfilPage() {
   }, [masterBranding]);
 
   useEffect(() => {
+    if (platformBranding?.headerLogoFileName.endsWith("-enquadrado.png")) {
+      setDraftMasterHeaderConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+    }
+    if (platformBranding?.footerLogoFileName.endsWith("-enquadrado.png")) {
+      setDraftMasterFooterConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+    }
+  }, [platformBranding?.headerLogoFileName, platformBranding?.footerLogoFileName]);
+
+  useEffect(() => {
     setAccountForm((current) => ({
       ...current,
       currentEmail: authenticatedEmail ?? session.email,
@@ -712,9 +788,11 @@ export function PerfilPage() {
       setMasterFooterStatus("");
       setMasterLogoSaving(variant);
       const draftFiles = variant === "footer" ? draftMasterFooterLogoFiles : draftMasterHeaderLogoFiles;
-      const currentPersisted =
-        variant === "footer" ? masterBranding.footerLogoUrl : masterBranding.headerLogoUrl;
-      const logoUrl = draftFiles[0]?.previewUrl ?? currentPersisted ?? masterBranding.logoUrl ?? "";
+      const frame = variant === "footer" ? draftMasterFooterConfig : draftMasterHeaderConfig;
+      const logoUrl = variant === "footer" ? masterFooterActiveUrl : masterHeaderActiveUrl;
+      const existingObjectKey = variant === "footer"
+        ? platformBranding?.footerLogoObjectKey || ""
+        : platformBranding?.headerLogoObjectKey || "";
       let nextObjectKey = "";
       let nextFileName = "";
       let nextMimeType = "";
@@ -729,13 +807,24 @@ export function PerfilPage() {
         }
         return;
       }
+      if (draftFiles[0]?.file && !draftFiles[0].previewUrl) {
+        throw new Error("Não foi possível ler o arquivo selecionado. Selecione a imagem novamente.");
+      }
 
-      if (draftFiles[0]?.file) {
+      if (isRenderablePreviewUrl(logoUrl)) {
+        const croppedFile = await createCroppedMasterLogoFile({
+          sourceUrl: logoUrl,
+          objectKey: draftFiles[0]?.file ? undefined : existingObjectKey,
+          fileName: draftFiles[0]?.fileName || "logo-master",
+          scale: frame.scale,
+          offsetX: frame.offsetX,
+          offsetY: frame.offsetY,
+        });
         const assetKey = variant === "footer" ? "footer-logo" : "header-logo";
         const uploaded = await withTimeoutLogged(
           "upload master",
           uploadPlatformBrandingAsset({
-            file: draftFiles[0].file,
+            file: croppedFile,
             assetKey,
           }),
           30000,
@@ -747,10 +836,6 @@ export function PerfilPage() {
         console.log("[AssetUpload] Master logo salvo", { variant, objectKey: uploaded.objectKey });
       }
 
-      const existingObjectKey =
-        platformBranding && variant === "header"
-          ? platformBranding.headerLogoObjectKey || ""
-          : platformBranding?.footerLogoObjectKey || "";
       const existingFileName =
         platformBranding && variant === "header"
           ? platformBranding.headerLogoFileName || ""
@@ -764,7 +849,7 @@ export function PerfilPage() {
           ? platformBranding.headerLogoUrl || ""
           : platformBranding?.footerLogoUrl || "";
 
-      const nextPublicUrlForSave = nextPublicUrl || existingPublicUrl;
+      const nextPublicUrlForSave = nextObjectKey ? "" : existingPublicUrl;
 
       const finalObjectKey = nextObjectKey || existingObjectKey;
       if (!finalObjectKey) {
@@ -794,7 +879,7 @@ export function PerfilPage() {
             objectKey: finalObjectKey,
           });
         } catch {
-          nextPublicUrl = "";
+          throw new Error("Logo salvo, mas a visualização ainda não pôde ser confirmada. Tente abrir o perfil novamente.");
         }
       }
 
@@ -825,17 +910,16 @@ export function PerfilPage() {
         logoUpdatedAt: new Date().toISOString(),
         logoUpdatedBy: brandingUpdatedBy,
         footerText: masterFooterText,
-        headerLogoScale: draftMasterHeaderConfig.scale,
-        headerLogoOffsetX: draftMasterHeaderConfig.offsetX,
-        headerLogoOffsetY: draftMasterHeaderConfig.offsetY,
-        footerLogoScale: draftMasterFooterConfig.scale,
-        footerLogoOffsetX: draftMasterFooterConfig.offsetX,
-        footerLogoOffsetY: draftMasterFooterConfig.offsetY,
+        headerLogoScale: variant === "header" ? 1 : draftMasterHeaderConfig.scale,
+        headerLogoOffsetX: variant === "header" ? 0 : draftMasterHeaderConfig.offsetX,
+        headerLogoOffsetY: variant === "header" ? 0 : draftMasterHeaderConfig.offsetY,
+        footerLogoScale: variant === "footer" ? 1 : draftMasterFooterConfig.scale,
+        footerLogoOffsetX: variant === "footer" ? 0 : draftMasterFooterConfig.offsetX,
+        footerLogoOffsetY: variant === "footer" ? 0 : draftMasterFooterConfig.offsetY,
       });
 
       setMasterBranding(updated);
       const nextLogoPreview =
-        (isRenderablePreviewUrl(logoUrl) ? logoUrl : "") ||
         nextPublicUrl ||
         updated.logoUrl ||
         "";
@@ -852,9 +936,9 @@ export function PerfilPage() {
       }
 
       if (variant === "footer") {
-        setMasterFooterStatus("Logo do rodapé da plataforma atualizado com sucesso.");
+        setMasterFooterStatus("Enquadramento do rodapé salvo na imagem final.");
       } else {
-        setMasterHeaderStatus("Logo do cabeçalho da plataforma atualizado com sucesso.");
+        setMasterHeaderStatus("Enquadramento do cabeçalho salvo na imagem final.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível atualizar o logo agora.";
