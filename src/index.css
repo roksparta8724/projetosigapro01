@@ -3140,10 +3140,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 62px;
-  width: 62px;
+  height: 54px;
+  width: 54px;
   padding: 2px;
-  border-radius: 20px;
+  border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow:
@@ -3170,10 +3170,10 @@
 @media (max-width: 1023px) {
   [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-brand-badge,
   [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-brand-badge {
-    height: 54px;
-    width: 54px;
+    height: 46px;
+    width: 46px;
     padding: 1.5px;
-    border-radius: 18px;
+    border-radius: 15px;
   }
 
   [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-brand-image,
@@ -3406,6 +3406,26 @@
   fill: currentColor !important;
   stroke: currentColor !important;
   filter: none !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-icon-button {
+  border-color: rgba(255, 255, 255, 0.82) !important;
+  background: linear-gradient(180deg, #f5fafc 0%, #e1ebf2 100%) !important;
+  color: #183b51 !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 6px 14px rgba(6, 23, 37, 0.14) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-icon-button:is(:hover, :focus-visible) {
+  border-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0e5870 !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 8px 18px rgba(6, 23, 37, 0.2) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-icon-button svg {
+  color: currentColor !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-notification-badge,

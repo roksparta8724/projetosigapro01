@@ -906,7 +906,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-            <div className="sig-topbar-brand-logo flex h-[52px] w-[52px] items-center justify-center">
+            <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
               <div className="sig-topbar-brand-badge flex items-center justify-center">
                 <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
               </div>
@@ -984,7 +984,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
-                <div className="sig-topbar-brand-logo flex h-[62px] w-[62px] items-center justify-center">
+                <div className="sig-topbar-brand-logo flex h-[54px] w-[54px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
                     <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
                   </div>
