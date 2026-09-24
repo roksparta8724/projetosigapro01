@@ -12,7 +12,7 @@ window.requestAnimationFrame(() => {
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sigapro-sw.js").catch(() => {
+    navigator.serviceWorker.register("/sigapro-sw.js", { updateViaCache: "none" }).catch(() => {
       // O refresh precisa continuar normal mesmo se o navegador bloquear SW.
     });
   });
