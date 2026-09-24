@@ -7,9 +7,11 @@ import {
   loadCurrentMunicipalityBundle,
   loadMunicipalityBundleById,
 } from "@/integrations/supabase/municipality";
+import { registerRemoteExternalAccount, registerRemoteOwnerAccount } from "@/integrations/supabase/platform";
 import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
-import { resolveDefaultInstitutionScope, type UserRole } from "@/lib/platform";
+import type { UserRole } from "@/lib/platform";
+import { readPendingSignup } from "@/lib/pendingSignup";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -115,25 +117,6 @@ type StoredPlatformSession = {
   tenantId?: string | null;
 };
 
-function readRoleFromPlatformStore(email: string): UserRole | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = window.localStorage.getItem("sigapro-platform-store");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as {
-      sessionUsers?: Array<{ email?: string | null; role?: string | null }>;
-    };
-    const normalizedEmail = normalizeEmail(email);
-    const matchedUser = parsed.sessionUsers?.find(
-      (item) => normalizeEmail(item.email) === normalizedEmail,
-    );
-    return mapDbRoleCodeToAppRole(matchedUser?.role);
-  } catch {
-    return null;
-  }
-}
-
 function readBootstrapSnapshot(
   resolution: ReturnType<typeof resolveTenantFromLocation>,
 ): BootstrapSnapshot | null {
@@ -151,6 +134,7 @@ function readBootstrapSnapshot(
     if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
       return null;
     }
+    if (parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
 
     return {
       hostname: parsed.hostname ?? resolution.hostname,
@@ -177,16 +161,7 @@ function readPlatformSessionSnapshot(): StoredPlatformSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredPlatformSession;
     if (!parsed?.id || parsed.id === "unknown") return null;
-    const normalizedScope = resolveDefaultInstitutionScope({
-      email: parsed.email,
-      role: parsed.role,
-      tenantId: parsed.tenantId,
-      municipalityId: parsed.municipalityId,
-    });
-    return {
-      ...parsed,
-      ...normalizedScope,
-    };
+    return parsed;
   } catch {
     return null;
   }
@@ -206,30 +181,18 @@ function readStoredSupabaseUser(): StoredSupabaseUser | null {
   if (typeof window === "undefined") return null;
 
   try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || !key.startsWith("sb-")) continue;
-      const raw = window.localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as {
-        user?: StoredSupabaseUser | null;
-        currentSession?: { user?: StoredSupabaseUser | null } | null;
-        session?: { user?: StoredSupabaseUser | null } | null;
-        data?: { session?: { user?: StoredSupabaseUser | null } | null } | null;
-      };
-      const user =
-        parsed?.user ??
-        parsed?.currentSession?.user ??
-        parsed?.session?.user ??
-        parsed?.data?.session?.user ??
-        null;
-      if (user?.id) return user;
-    }
+    const raw = window.localStorage.getItem("sigapro-supabase-auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      user?: StoredSupabaseUser | null;
+      currentSession?: { user?: StoredSupabaseUser | null } | null;
+      session?: { user?: StoredSupabaseUser | null } | null;
+      data?: { session?: { user?: StoredSupabaseUser | null } | null } | null;
+    };
+    return parsed?.user ?? parsed?.currentSession?.user ?? parsed?.session?.user ?? parsed?.data?.session?.user ?? null;
   } catch {
     return null;
   }
-
-  return null;
 }
 
 function resolveScopeType(role: UserRole | null): "platform" | "municipality" | "external" {
@@ -245,25 +208,20 @@ function readWarmBootstrapSnapshot(
 ): BootstrapSnapshot | null {
   const storedUser = readStoredSupabaseUser();
   const storedSession = readPlatformSessionSnapshot();
-  const userId = storedUser?.id ?? storedSession?.id ?? null;
+  const userId = storedUser?.id ?? null;
   if (!userId) return null;
+  const matchingStoredSession = storedSession?.id === userId ? storedSession : null;
 
   const role =
     mapDbRoleCodeToAppRole(storedUser?.app_metadata?.role) ??
-    mapDbRoleCodeToAppRole(storedSession?.role) ??
+    mapDbRoleCodeToAppRole(matchingStoredSession?.role) ??
     null;
-  const email = normalizeEmail(storedUser?.email ?? storedSession?.email ?? null);
-  const normalizedScope = resolveDefaultInstitutionScope({
-    email,
-    role,
-    tenantId: storedSession?.tenantId ?? null,
-    municipalityId: storedSession?.municipalityId ?? null,
-  });
-  const municipalityId = normalizedScope.municipalityId;
+  const email = normalizeEmail(storedUser?.email ?? matchingStoredSession?.email ?? null);
+  const municipalityId = matchingStoredSession?.municipalityId ?? null;
   const fullName =
     storedUser?.user_metadata?.full_name ||
     storedUser?.user_metadata?.name ||
-    storedSession?.name ||
+    matchingStoredSession?.name ||
     null;
 
   return {
@@ -382,6 +340,61 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     email: record?.email ?? null,
     fullName: record?.full_name ?? null,
   };
+}
+
+async function completePendingSignup(
+  authUser: User,
+  currentProfile: AppBootstrapProfile | null,
+  resolution: ReturnType<typeof resolveTenantFromLocation>,
+) {
+  const pending = readPendingSignup(
+    authUser,
+    currentProfile?.role ?? mapDbRoleCodeToAppRole(authUser.app_metadata?.role as string | undefined),
+    currentProfile?.municipalityId ?? null,
+  );
+  if (!pending) return currentProfile;
+
+  if (resolution.mode === "tenant") {
+    const hostBundle = await loadCurrentMunicipalityBundle({
+      hostname: resolution.hostname,
+      subdomain: resolution.subdomain,
+      isLocalhost: resolution.isLocalhost,
+    });
+    if (!hostBundle?.municipality?.id || hostBundle.municipality.id !== pending.tenantId) {
+      throw new Error("Este cadastro foi criado para outra Prefeitura. Acesse o subdomínio correto.");
+    }
+  }
+
+  if (pending.role === "property_owner") {
+    await registerRemoteOwnerAccount({
+      tenantId: pending.tenantId,
+      fullName: pending.fullName,
+      email: pending.email,
+      cpfCnpj: pending.cpfCnpj,
+      phone: pending.phone,
+      title: pending.title,
+      bio: pending.bio,
+    });
+  } else {
+    await registerRemoteExternalAccount({
+      tenantId: pending.tenantId,
+      fullName: pending.fullName,
+      email: pending.email,
+      cpfCnpj: pending.cpfCnpj,
+      phone: pending.phone,
+      professionalType: pending.professionalType,
+      registrationNumber: pending.registrationNumber,
+      companyName: pending.companyName,
+      title: pending.title,
+      bio: pending.bio,
+    });
+  }
+
+  const linkedProfile = await loadProfileByUserId(authUser.id);
+  if (!linkedProfile?.municipalityId) {
+    throw new Error("O cadastro foi confirmado, mas o vínculo com a Prefeitura não pôde ser verificado.");
+  }
+  return linkedProfile;
 }
 
 export function AppBootstrapProvider({ children }: { children: React.ReactNode }) {
@@ -568,7 +581,13 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         }
 
         setStage("bootstrapping_profile");
-        const nextProfile = await loadProfileByUserId(authUser.id);
+        let nextProfile = await loadProfileByUserId(authUser.id);
+        try {
+          nextProfile = await completePendingSignup(authUser, nextProfile, resolution);
+        } catch (signupError) {
+          console.error("[Bootstrap] Falha ao concluir cadastro confirmado", signupError);
+          setError(signupError instanceof Error ? signupError.message : "Falha ao vincular cadastro.");
+        }
         const mappedRole =
           mapDbRoleCodeToAppRole(nextProfile?.role) ??
           mapDbRoleCodeToAppRole(authUser.app_metadata?.role as string | undefined) ??
@@ -584,7 +603,13 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         let nextBundle: MunicipalityBundle | null = null;
         if (nextScopeType !== "platform") {
           setStage("resolving_tenant");
-          if (nextProfile?.municipalityId) {
+          if (resolution.mode === "tenant") {
+            nextBundle = await loadCurrentMunicipalityBundle({
+              hostname: resolution.hostname,
+              subdomain: resolution.subdomain,
+              isLocalhost: resolution.isLocalhost,
+            });
+          } else if (nextProfile?.municipalityId) {
             nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
           } else {
             nextBundle = await loadCurrentMunicipalityBundle({
@@ -698,7 +723,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return;
           }
           const next =
-            municipalityId && municipalityId.trim()
+            resolution.mode !== "tenant" && municipalityId && municipalityId.trim()
               ? await loadMunicipalityBundleById(municipalityId)
               : await loadCurrentMunicipalityBundle({
                   hostname: resolution.hostname,
@@ -718,6 +743,21 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: false, message: "Supabase indisponivel." };
         }
         const normalized = normalizeEmail(email);
+        const clearIdentity = () => {
+          writeBootstrapSnapshot(null);
+          clearPlatformSessionSnapshot();
+          lastAuthUserIdRef.current = null;
+          initializedRef.current = false;
+          lastStableRef.current = {
+            authUserId: null, authEmail: null, role: null, profile: null, municipalityBundle: null,
+          };
+          setAuthUserId(null);
+          setAuthEmail(null);
+          setRole(null);
+          setProfile(null);
+          setMunicipalityBundle(null);
+          setAuthResolved(false);
+        };
         manualSignInRef.current = true;
         bootstrapEpochRef.current += 1;
         setAuthChange(null);
@@ -727,29 +767,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setStage("bootstrapping_auth");
         try {
           const currentSession = (await supabase.auth.getSession()).data.session ?? null;
-          const currentEmail = normalizeEmail(currentSession?.user?.email ?? null);
-
-          if (currentSession?.user && currentEmail && currentEmail !== normalized) {
+          if (currentSession?.user) {
             const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
             if (signOutError) throw signOutError;
-            writeBootstrapSnapshot(null);
-            clearPlatformSessionSnapshot();
-            lastAuthUserIdRef.current = null;
-            initializedRef.current = false;
-            lastStableRef.current = {
-              authUserId: null,
-              authEmail: null,
-              role: null,
-              profile: null,
-              municipalityBundle: null,
-            };
-            setAuthUserId(null);
-            setAuthEmail(null);
-            setRole(null);
-            setProfile(null);
-            setMunicipalityBundle(null);
-            setAuthResolved(false);
           }
+          clearIdentity();
 
           const { data, error: signInError } = await supabase.auth.signInWithPassword({
             email: normalized,
@@ -759,11 +781,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return { ok: false, message: signInError?.message || "Falha ao autenticar." };
           }
 
-          const nextProfile = await loadProfileByUserId(data.user.id);
+          let nextProfile = await loadProfileByUserId(data.user.id);
+          nextProfile = await completePendingSignup(data.user, nextProfile, resolution);
           const mappedRole =
             mapDbRoleCodeToAppRole(nextProfile?.role) ??
             mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
-            readRoleFromPlatformStore(normalized) ??
             "profissional_externo";
           const nextScopeType: "platform" | "municipality" | "external" =
             mappedRole === "master_admin" || mappedRole === "master_ops"
@@ -776,17 +798,20 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           let nextBundle: MunicipalityBundle | null = null;
 
           if (nextScopeType !== "platform") {
-            if (nextProfile?.municipalityId) {
-              nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
-            } else if (resolution.mode === "tenant") {
+            if (resolution.mode === "tenant") {
               nextBundle = await loadCurrentMunicipalityBundle({
                 hostname: resolution.hostname,
                 subdomain: resolution.subdomain,
                 isLocalhost: resolution.isLocalhost,
-                preferredName:
-                  (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
-                  "",
               });
+              if (!nextBundle?.municipality?.id) {
+                throw new Error("Prefeitura deste subdomínio não encontrada.");
+              }
+              if (!nextProfile?.municipalityId || nextProfile.municipalityId !== nextBundle.municipality.id) {
+                throw new Error("Esta conta não está vinculada à Prefeitura deste subdomínio.");
+              }
+            } else if (nextProfile?.municipalityId) {
+              nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
             }
           }
 
@@ -822,6 +847,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: true, role: mappedRole, municipalityId: nextProfile?.municipalityId ?? null };
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch (signOutError) {
+            console.warn("[Bootstrap] Não foi possível encerrar a sessão local após erro de login", signOutError);
+          }
+          clearIdentity();
           setError(message);
           return { ok: false, message };
         } finally {

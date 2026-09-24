@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { SessionUser, normalizeSessionUserScope, roleLabels } from "@/lib/platform";
+import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 
 interface PlatformSessionContextValue {
@@ -19,7 +19,7 @@ function readCachedSession(): SessionUser | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SessionUser>;
     if (!parsed.id || parsed.id === "unknown" || !parsed.role) return null;
-    return normalizeSessionUserScope(parsed as SessionUser);
+    return parsed as SessionUser;
   } catch {
     return null;
   }
@@ -32,7 +32,7 @@ function writeCachedSession(session: SessionUser | null) {
       window.localStorage.removeItem(SESSION_CACHE_KEY);
       return;
     }
-    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(normalizeSessionUserScope(session)));
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
   } catch {
     // noop
   }
@@ -71,8 +71,8 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     const canUseCachedSession = !authResolved && !authenticatedUserId;
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === authenticatedUserId)) {
-      const safeRole = normalizeRole(authenticatedRole ?? cachedSession.role);
-      return normalizeSessionUserScope({
+      const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
+      return {
         ...cachedSession,
         id: authenticatedUserId || cachedSession.id,
         role: safeRole,
@@ -82,16 +82,16 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
             : safeRole === "prefeitura_supervisor"
               ? 2
               : cachedSession.accessLevel ?? 1,
-        tenantId: authenticatedMunicipalityId ?? cachedSession.tenantId ?? null,
-        municipalityId: authenticatedMunicipalityId ?? cachedSession.municipalityId ?? null,
+        tenantId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
+        municipalityId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
         title: roleLabels[safeRole] || cachedSession.title || "Usuário",
         email: authenticatedEmail || cachedSession.email || "",
-      });
+      };
     }
 
     const safeRole = normalizeRole(authenticatedRole);
     const email = authenticatedEmail || "";
-    return normalizeSessionUserScope({
+    return {
       id: authenticatedUserId || "unknown",
       name:
         email
@@ -118,7 +118,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockedBy: null,
       blockReason: null,
       deletedAt: null,
-    });
+    };
   }, [authLoading, authResolved, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
 
   useEffect(() => {

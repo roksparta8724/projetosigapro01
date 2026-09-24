@@ -7,6 +7,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
+import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { can } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
 
@@ -23,9 +24,9 @@ export function PermissionRoute({
   const { sessionUsers } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
-  const sessionScopeId = session.municipalityId ?? session.tenantId ?? null;
-  const hasStableBootstrapIdentity = Boolean(bootstrap.authUserId || bootstrap.profile?.userId || bootstrap.role);
-  const hasStableTenantIdentity = Boolean(tenant.municipalityId || tenant.municipalityBundle?.municipality?.id || sessionScopeId);
+  const verifiedScopeId = hasSupabaseEnv
+    ? bootstrap.profile?.municipalityId ?? null
+    : session.municipalityId ?? session.tenantId ?? null;
 
   if (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading) {
     return <>{children}</>;
@@ -45,8 +46,7 @@ export function PermissionRoute({
     !tenant.loading &&
     Boolean(tenant.municipalityId) &&
     !isMaster &&
-    Boolean(sessionScopeId) &&
-    sessionScopeId !== tenant.municipalityId;
+    verifiedScopeId !== tenant.municipalityId;
 
   if (tenant.mode === "tenant" && tenant.inactive) {
     return (
@@ -85,8 +85,9 @@ export function PermissionRoute({
               Acesso restrito a Prefeitura vinculada
             </h1>
             <p className="mt-3 text-sm text-slate-600">
-              Esta conta nao esta vinculada a Prefeitura deste subdominio. Entre com uma conta autorizada ou volte para
-              o acesso principal.
+              {verifiedScopeId
+                ? "Esta conta pertence a outra Prefeitura. Entre com uma conta autorizada para este subdomínio."
+                : "O vínculo desta conta com a Prefeitura ainda não foi concluído. Confirme o e-mail de cadastro ou tente entrar novamente."}
             </p>
             <div className="mt-6 flex gap-3">
               <Button

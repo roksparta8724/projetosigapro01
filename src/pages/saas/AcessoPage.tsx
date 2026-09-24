@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
-import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
@@ -44,8 +43,7 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { signIn, signOut } = useAuthGateway();
-  const { sessionUsers } = usePlatformData();
+  const { signIn } = useAuthGateway();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -69,32 +67,6 @@ export function AcessoPage() {
       if (!result.ok) {
         setError(result.message ?? "Nao foi possivel entrar.");
         return;
-      }
-
-      if (
-        tenant.mode === "tenant" &&
-        tenant.municipalityId &&
-        result.role !== "master_admin" &&
-        result.role !== "master_ops"
-      ) {
-        const normalized = email.trim().toLowerCase();
-        let scopeId: string | null = result.municipalityId ?? null;
-
-        if (!scopeId) {
-          const signedUser =
-            sessionUsers.find((item) => item.email.trim().toLowerCase() === normalized) ?? null;
-          scopeId = signedUser?.municipalityId ?? signedUser?.tenantId ?? null;
-        }
-
-        if (scopeId && scopeId !== tenant.municipalityId) {
-          await signOut();
-          setError(
-            `Esta conta nao esta vinculada a Prefeitura ${
-              tenant.municipalityName ? `de ${tenant.municipalityName}` : "deste subdominio"
-            }.`
-          );
-          return;
-        }
       }
 
       navigate(resolveRedirect(result.role ?? null), { replace: true });
