@@ -66,7 +66,6 @@ import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
-import { SidebarProfilePanel } from "@/components/platform/SidebarProfilePanel";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
@@ -232,8 +231,8 @@ function resolveBrandingLogoUrl(
 ) {
   if (!branding) return "";
   return variant === "footer"
-    ? branding.footerLogoUrl || branding.logoUrl || branding.coatOfArmsUrl || ""
-    : branding.headerLogoUrl || branding.logoUrl || branding.coatOfArmsUrl || "";
+    ? branding.footerLogoUrl ?? branding.logoUrl ?? ""
+    : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
 export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
@@ -264,7 +263,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
-  const { source, loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
+  const { loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
   const { isItemVisible } = useUserMenuPreferences();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -356,9 +355,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
   const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
-  const sidebarBase = primaryColor;
-  const sidebarBottom = darken(sidebarBase, 8);
-  const sidebarFill = darken(primaryColor, 10);
+  const sidebarFill = darken(primaryColor, 6);
+  const topbarFill = darken(primaryColor, -12);
+  const footerFill = darken(primaryColor, -8);
   const darkSidebar = isDarkSurface(sidebarFill);
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
@@ -863,6 +862,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       style={
         {
           backgroundColor: pageBackground,
+          "--sig-primary": primaryColor,
+          "--sig-primary-deep": darken(primaryColor, 10),
+          "--sig-primary-soft": withAlpha(primaryColor, "0.12"),
+          "--sig-sidebar": sidebarFill,
+          "--sig-topbar": topbarFill,
+          "--sig-footer": footerFill,
           "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
@@ -886,9 +891,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       <div
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
-          borderBottomColor: withAlpha(accentColor, "0.08"),
-          background: `linear-gradient(180deg, ${withAlpha(darken(primaryColor, 26), "0.985")} 0%, ${withAlpha(darken(primaryColor, 22), "0.965")} 48%, ${withAlpha(darken(primaryColor, 19), "0.948")} 100%)`,
-          boxShadow: `0 16px 30px ${withAlpha("#020617", "0.11")}`,
+          borderBottomColor: withAlpha(primaryColor, "0.22"),
+          backgroundColor: "var(--sig-topbar)",
+          boxShadow: `0 6px 18px ${withAlpha(primaryColor, "0.12")}`,
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
@@ -928,24 +933,52 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               >
                 <Bell className="h-[18px] w-[18px] text-white/92" />
               </button>
-            <button
-              type="button"
-              onClick={() => navigate("/perfil")}
-              className={cn(
-                "flex h-[34px] items-center rounded-[16px] px-1.5 transition duration-200 hover:-translate-y-[1px]",
-                topbarGhostButton,
-              )}
-              aria-label="Meu perfil"
-            >
-              <UserAvatar
-                name={displayUserName}
-                imageUrl={topbarAvatarImageUrl}
-                imageStyle={topbarAvatarImageStyle}
-                size="sm"
-                className="sig-topbar-user-avatar"
-                fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
-              />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-[38px] items-center gap-1 rounded-[16px] px-1.5 transition duration-200",
+                    topbarGhostButton,
+                  )}
+                  aria-label="Abrir conta do usuário"
+                >
+                  <UserAvatar
+                    name={displayUserName}
+                    imageUrl={topbarAvatarImageUrl}
+                    imageStyle={topbarAvatarImageStyle}
+                    size="sm"
+                    className="sig-topbar-user-avatar"
+                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                  />
+                  <ChevronDown className="h-3 w-3 text-white/80" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={10}
+                className="w-[min(100vw-24px,320px)] rounded-[20px] border border-white/12 bg-[var(--sig-primary-deep)] p-2 text-white shadow-xl"
+                style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
+              >
+                <DropdownMenuLabel className="min-w-0 px-3 py-3">
+                  <p className="truncate text-sm font-semibold" title={fullUserName}>{displayUserName}</p>
+                  <p className="mt-1 truncate text-xs text-white/75">{roleLabel}</p>
+                  {session.email ? <p className="mt-1 truncate text-xs text-white/65" title={session.email}>{displaySessionEmail}</p> : null}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem className="rounded-xl px-3 py-2.5 focus:bg-white/10" onClick={() => navigate("/perfil")}>
+                  <UserRound className="mr-2 h-4 w-4" />Meu perfil
+                </DropdownMenuItem>
+                {can(session, "manage_tenant_branding") ? (
+                  <DropdownMenuItem className="rounded-xl px-3 py-2.5 focus:bg-white/10" onClick={() => navigate("/configuracoes")}>
+                    <Settings2 className="mr-2 h-4 w-4" />Configurações
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem className="rounded-xl px-3 py-2.5 text-rose-100 focus:bg-rose-400/10 focus:text-white" onClick={async () => { await handleSignOut("/acesso"); }}>
+                  <LogOut className="mr-2 h-4 w-4" />Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
@@ -1336,10 +1369,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               <DropdownMenuContent
                 align="end"
                 sideOffset={10}
+                style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
                   "w-[min(100vw-24px,360px)] rounded-[28px] border p-2.5 shadow-[0_28px_64px_rgba(15,42,68,0.26)] backdrop-blur-xl",
                   darkTopbar
-                    ? "border-white/12 bg-[linear-gradient(180deg,rgba(8,22,38,0.98)_0%,rgba(10,28,47,0.96)_100%)] text-slate-100"
+                    ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
                 )}
               >
@@ -1599,38 +1633,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           onMobileClose={() => setMobileSidebarOpen(false)}
           inverseMain={inverseMainTheme}
           darkSurface={darkSidebar}
-          footer={
-            <div className={cn("space-y-4", !sidebarExpanded && "space-y-2.5")}>
-                <SidebarProfilePanel
-                  name={displayUserName}
-                  role={roleLabel}
-                  imageUrl={userProfile?.avatarUrl}
-                  statusLabel={loading ? "" : source === "local" ? "dados persistidos" : "ambiente remoto"}
-                  compact={!sidebarExpanded}
-                  onClick={() => navigate("/perfil")}
-                  darkSurface={darkSidebar}
-                />
-
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(
-                  "h-10 w-full rounded-[14px] px-3 text-[12px] font-semibold shadow-sm transition-all duration-200",
-                  !sidebarExpanded && "px-0",
-                  darkSidebar
-                    ? "border-rose-400/20 bg-[linear-gradient(180deg,rgba(127,29,29,0.88)_0%,rgba(136,19,55,0.82)_100%)] text-rose-50 hover:bg-[linear-gradient(180deg,rgba(153,27,27,0.92)_0%,rgba(157,23,77,0.88)_100%)] hover:text-white"
-                    : "border-slate-900/85 bg-slate-900 text-white hover:bg-slate-800 hover:text-white",
-                )}
-                title={!sidebarExpanded ? "Sair" : undefined}
-                onClick={async () => {
-                  await handleSignOut("/acesso");
-                }}
-              >
-                <LogOut className={cn("h-[13px] w-[13px]", sidebarExpanded && "mr-2", darkSidebar ? "!text-rose-50" : "!text-white/90")} />
-                {sidebarExpanded ? "Sair" : null}
-              </Button>
-            </div>
-          }
         />
 
         <main className="min-w-0 flex-1 px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6">
@@ -1740,12 +1742,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       <footer className="mt-auto pt-8">
         <div
           className={cn(
-            "sig-page-footer overflow-hidden border-t shadow-[0_-16px_36px_rgba(15,42,68,0.12)]",
-            inverseMainTheme && "shadow-[0_-10px_24px_rgba(15,23,42,0.08)]",
+            "sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]",
           )}
           style={{
-            borderColor: inverseMainTheme ? darken(primaryColor, 10) : darken(primaryColor, 10),
-            background: `linear-gradient(135deg, ${darken(primaryColor, 2)} 0%, ${primaryColor} 48%, ${activeBg} 100%)`,
+            borderColor: withAlpha(primaryColor, "0.2"),
+            backgroundColor: "var(--sig-footer)",
           }}
         >
           <div className="px-8 py-8 lg:px-12 lg:py-10">
@@ -1813,7 +1814,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             </div>
           </div>
 
-          <div className="border-t border-white/10 bg-[#0B2236] px-6 py-3 lg:px-8">
+          <div className="border-t border-white/10 bg-black/[0.06] px-6 py-3 lg:px-8">
             <div className="flex items-center justify-center text-center">
               <p className="text-xs font-normal text-[#D6E6F2]">{institutionFooterSignature}</p>
             </div>

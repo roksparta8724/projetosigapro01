@@ -60,6 +60,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authenticatedRole,
     authenticatedUserId,
     authenticatedMunicipalityId,
+    authResolved,
     loading: authLoading,
   } = useAuthGateway();
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
@@ -67,7 +68,9 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    if (cachedSession && (!authenticatedUserId || cachedSession.id === authenticatedUserId)) {
+    const canUseCachedSession = !authResolved && !authenticatedUserId;
+
+    if (cachedSession && (canUseCachedSession || cachedSession.id === authenticatedUserId)) {
       const safeRole = normalizeRole(authenticatedRole ?? cachedSession.role);
       return normalizeSessionUserScope({
         ...cachedSession,
@@ -116,7 +119,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: null,
       deletedAt: null,
     });
-  }, [authLoading, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {
@@ -139,11 +142,22 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       return;
     }
 
+    if (authResolved && !authenticatedUserId) {
+      if (!cachedSessionRef.current) {
+        writeCachedSession(null);
+        return;
+      }
+      cachedSessionRef.current = null;
+      writeCachedSession(null);
+      setSessionVersion((current) => current + 1);
+      return;
+    }
+
     if (!authLoading && !cachedSessionRef.current) {
       cachedSessionRef.current = null;
       writeCachedSession(null);
     }
-  }, [authLoading, authenticatedUserId, session]);
+  }, [authLoading, authResolved, authenticatedUserId, session]);
 
   const candidates = session.id !== "unknown" ? [session] : [];
 

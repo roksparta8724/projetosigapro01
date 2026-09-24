@@ -231,30 +231,6 @@ function normalizeAdminContacts(value: unknown): InstitutionAdminContact[] {
     .filter((item) => item.email && item.fullName);
 }
 
-function normalizeMunicipalityStorageFolder(folder: string, bucket: "process-documents" | "profile-assets" | "institutional-branding") {
-  const normalized = buildMunicipalitySlug(folder) || "files";
-
-  if (bucket === "profile-assets") {
-    return normalized === "avatars" ? "profiles/avatars" : `profiles/${normalized}`;
-  }
-
-  const aliases: Record<string, string> = {
-    protocolos: "protocols",
-    protocolo: "protocols",
-    analise: "analysis",
-    analises: "analysis",
-    anexos: "attachments",
-    anexo: "attachments",
-    documentos: "documents",
-    documento: "documents",
-    branding: "branding",
-    avatar: "profiles/avatars",
-    avatars: "profiles/avatars",
-  };
-
-  return aliases[normalized] || normalized;
-}
-
 function roleToAccessLevel(role: string): 1 | 2 | 3 {
   if (role === "prefeitura_admin" || role === "master_admin" || role === "master_ops") return 3;
   if (role === "prefeitura_supervisor" || role === "analista" || role === "financeiro" || role === "setor_intersetorial") return 2;
@@ -1315,50 +1291,6 @@ export async function createRemoteExternalProcess(
   };
 }
 
-function sanitizeFileName(fileName: string) {
-  return fileName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-");
-}
-
-export async function uploadFileToStorage(input: {
-  bucket: "process-documents" | "profile-assets" | "institutional-branding";
-  tenantId?: string | null;
-  userId: string;
-  file: File;
-  folder: string;
-}) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
-  }
-
-  const scopeId = normalizeUuid(input.tenantId);
-  if (!scopeId) {
-    throw new Error("Escopo municipal invalido para upload.");
-  }
-
-  const safeName = sanitizeFileName(input.file.name);
-  const folder = normalizeMunicipalityStorageFolder(input.folder, input.bucket);
-  const objectKey = `municipalities/${scopeId}/${folder}/${input.userId}/${crypto.randomUUID()}-${safeName}`;
-  const bucket =
-    input.bucket === "process-documents"
-      ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
-      : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
-
-  const uploaded = await uploadFile({
-    bucket,
-    objectKey,
-    file: input.file,
-  });
-
-  return {
-    path: uploaded.objectKey,
-    publicUrl: uploaded.publicUrl,
-  };
-}
-
 export async function uploadInstitutionalBrandingAsset(input: {
   tenantId?: string;
   subdomain?: string;
@@ -2025,6 +1957,7 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   const municipalityBrandingPayload: Record<string, unknown> = {
     municipality_id: remoteTenantId,
+    logo_url: settings.logoUrl || null,
     // logo por variante
     header_logo_url: settings.headerLogoUrl || null,
     header_logo_object_key: settings.headerLogoObjectKey || null,

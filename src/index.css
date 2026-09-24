@@ -40,10 +40,12 @@
     --sig-border: rgba(226, 232, 240, 0.92);
     --sig-text: #0f172a;
     --sig-muted: #475569;
-    --sig-primary: #163b63;
-    --sig-primary-soft: rgba(37, 99, 235, 0.1);
-    --sig-sidebar: #123f32;
-    --sig-topbar: #0d3f30;
+    --sig-primary: #123f32;
+    --sig-primary-deep: #0c3528;
+    --sig-primary-soft: rgba(18, 63, 50, 0.12);
+    --sig-sidebar: #0c392c;
+    --sig-topbar: #1e4b3e;
+    --sig-footer: #1a473a;
   }
 
   * {
@@ -761,9 +763,7 @@
   }
 
   .sig-sidebar-shell {
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 14%),
-      var(--sig-sidebar-fill, var(--sig-sidebar));
+    background: var(--sig-sidebar);
   }
 
   .sig-sidebar-panel {
@@ -771,21 +771,10 @@
     min-height: 0;
   }
 
-  .sig-sidebar-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 112px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
-    opacity: 0.85;
-  }
-
   .sig-sidebar-nav,
   .sig-sidebar-group,
   .sig-sidebar-item-shell,
-  .sig-sidebar-submenu,
-  .sig-sidebar-footer-shell {
+  .sig-sidebar-submenu {
     position: relative;
     z-index: 1;
   }
@@ -817,10 +806,6 @@
 
   .sig-sidebar-subitem {
     backdrop-filter: blur(10px);
-  }
-
-  .sig-sidebar-footer-shell {
-    background: var(--sig-sidebar-fill, var(--sig-sidebar));
   }
 
   .sig-support-grid {

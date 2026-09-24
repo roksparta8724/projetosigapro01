@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
-import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -32,6 +31,7 @@ import {
   resolveDevMunicipalityId,
   resolveCurrentMunicipalityId,
   resolveCurrentMunicipality,
+  mapMunicipalityBranding,
 } from "@/integrations/supabase/municipality";
 import {
   getMunicipalityBrandingSafe,
@@ -43,7 +43,7 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/supabase/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { deleteFile, getObjectKeyFromPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getObjectKeyFromPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -52,7 +52,7 @@ import {
 } from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
-import { can, desktopThemePresets, mobileThemePresets } from "@/lib/platform";
+import { can, desktopThemePresets, mobileThemePresets, type TenantSettings } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
   return url
@@ -136,13 +136,16 @@ export function ConfiguracoesPage() {
   const [diagnosticStatus, setDiagnosticStatus] = useState("");
   const statusIsSuccess = status.toLowerCase().includes("sucesso");
   const tenant = availableInstitutions.find((item) => item.id === selectedTenantId) ?? null;
+  const selectedMunicipality = municipality?.id === selectedTenantId ? municipality : null;
+  const selectedMunicipalityBranding = selectedMunicipality ? municipalityBranding : null;
+  const selectedMunicipalitySettings = selectedMunicipality ? municipalitySettings : null;
   const activeInstitution =
-    buildTenantFromMunicipalityBundle(municipality, municipalityBranding, municipalitySettings, tenant) ??
-    municipality ??
+    buildTenantFromMunicipalityBundle(selectedMunicipality, selectedMunicipalityBranding, selectedMunicipalitySettings, tenant) ??
+    selectedMunicipality ??
     tenant;
   const settings =
-    tenantSettingsCompat ??
-    buildTenantSettingsFromMunicipality(municipality, municipalityBranding, municipalitySettings, getInstitutionSettings(selectedTenantId)) ??
+    (tenantSettingsCompat?.tenantId === selectedTenantId ? tenantSettingsCompat : null) ??
+    buildTenantSettingsFromMunicipality(selectedMunicipality, selectedMunicipalityBranding, selectedMunicipalitySettings, getInstitutionSettings(selectedTenantId)) ??
     getInstitutionSettings(selectedTenantId);
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
@@ -277,6 +280,11 @@ export function ConfiguracoesPage() {
   }, [tenantContext.isLocalhost]);
 
   const resolveMunicipalityForBranding = async (normalizedSubdomain: string) => {
+    if (isMasterRole) {
+      return isUuid(selectedTenantId) && availableInstitutions.some((item) => item.id === selectedTenantId)
+        ? selectedTenantId
+        : "";
+    }
     const directId = resolveValidScopeId(
       tenantContext.municipalityId,
       municipality?.id,
@@ -603,7 +611,46 @@ export function ConfiguracoesPage() {
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
   const [draftLogoFiles, setDraftLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
-  const [logoRemovalRequested, setLogoRemovalRequested] = useState(false);
+  const [draftHeaderLogoFiles, setDraftHeaderLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.headerLogoUrl || settings?.logoUrl || "", "header-logo"));
+  const [draftFooterLogoFiles, setDraftFooterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.footerLogoUrl || settings?.logoUrl || "", "footer-logo"));
+  const [logoRemovalRequested, setLogoRemovalRequested] = useState<InstitutionalLogoConfigVariant | null>(null);
+  useEffect(() => {
+    const client = supabase;
+    if (!isMasterRole || !isUuid(selectedTenantId) || !client) return;
+    let active = true;
+    void (async () => {
+      try {
+        const { data, error } = await client
+          .from("municipality_branding")
+          .select("*")
+          .eq("municipality_id", selectedTenantId)
+          .maybeSingle();
+        if (!active || error) return;
+        const remote = data ? mapMunicipalityBranding(data as Record<string, unknown>) : null;
+        const resolveUrl = async (url: string, objectKey: string) => {
+          if (url || !objectKey) return url;
+          try {
+            return await getSignedUrlForObject({
+              bucket: (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos",
+              objectKey,
+            }) || "";
+          } catch {
+            return "";
+          }
+        };
+        const [headerUrl, footerUrl] = await Promise.all([
+          resolveUrl(remote?.headerLogoUrl || "", remote?.headerLogoObjectKey || ""),
+          resolveUrl(remote?.footerLogoUrl || "", remote?.footerLogoObjectKey || ""),
+        ]);
+        if (!active) return;
+        setDraftHeaderLogoFiles((current) => current[0]?.file ? current : imageFiles(headerUrl, "header-logo"));
+        setDraftFooterLogoFiles((current) => current[0]?.file ? current : imageFiles(footerUrl, "footer-logo"));
+      } catch {
+        if (active) setHeaderLogoStatus("Não foi possível carregar o branding da prefeitura selecionada.");
+      }
+    })();
+    return () => { active = false; };
+  }, [isMasterRole, selectedTenantId]);
   useEffect(() => {
     if (!draftLogoFiles.length) return;
     const file = draftLogoFiles[0];
@@ -688,16 +735,16 @@ export function ConfiguracoesPage() {
   useEffect(() => {
     const nextTenant = availableInstitutions.find((item) => item.id === selectedTenantId) ?? null;
     const nextMappedInstitution = buildTenantFromMunicipalityBundle(
-      municipality,
-      municipalityBranding,
-      municipalitySettings,
+      selectedMunicipality,
+      selectedMunicipalityBranding,
+      selectedMunicipalitySettings,
       nextTenant,
     );
     const nextSettings =
       buildTenantSettingsFromMunicipality(
-        municipality,
-        municipalityBranding,
-        municipalitySettings,
+        selectedMunicipality,
+        selectedMunicipalityBranding,
+        selectedMunicipalitySettings,
         getInstitutionSettingsRef.current(selectedTenantId),
       ) ?? getInstitutionSettingsRef.current(selectedTenantId);
 
@@ -745,6 +792,10 @@ export function ConfiguracoesPage() {
     const nextLogoFiles = imageFiles(nextSettings?.logoUrl ?? "", "logo");
     setLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
     setDraftLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
+    const nextHeaderFiles = imageFiles(nextSettings?.headerLogoUrl || nextSettings?.logoUrl || "", "header-logo");
+    const nextFooterFiles = imageFiles(nextSettings?.footerLogoUrl || nextSettings?.logoUrl || "", "footer-logo");
+    setDraftHeaderLogoFiles((current) => (sameFileList(current, nextHeaderFiles) ? current : nextHeaderFiles));
+    setDraftFooterLogoFiles((current) => (sameFileList(current, nextFooterFiles) ? current : nextFooterFiles));
 
     const nextHeaderConfig = {
       scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1,
@@ -1271,9 +1322,10 @@ export function ConfiguracoesPage() {
 
   const handleConfirmLogo = async (variant: InstitutionalLogoConfigVariant) => {
     console.log("[SIGAPRO][LogoSelect] Confirmar logo: clique", { variant });
-    if (isMasterRole) {
-      console.warn("[SIGAPRO][LogoSelect] Master detectado, bloqueando branding municipal", { variant });
-      const message = "Você está no ambiente Master. Edite o logo na seção Plataforma.";
+    if (!canManageTenantSettings || (isMasterRole && !availableInstitutions.some((item) => item.id === selectedTenantId))) {
+      const message = isMasterRole
+        ? "Selecione uma prefeitura existente antes de alterar o logo municipal."
+        : "Sua conta não tem permissão para alterar o branding municipal.";
       if (variant === "footer") {
         setFooterLogoStatus(message);
       } else {
@@ -1380,6 +1432,9 @@ export function ConfiguracoesPage() {
             "Verifique o subdomínio ou recarregue a página.",
         );
       }
+      if (!isMasterRole && (!session.tenantId || resolvedTenantId !== session.tenantId)) {
+        throw new Error("O logo municipal só pode ser alterado na prefeitura vinculada à sua conta.");
+      }
 
       console.log("[SIGAPRO] Confirmar logo: municipio resolvido", {
         resolvedTenantId,
@@ -1390,17 +1445,74 @@ export function ConfiguracoesPage() {
       }
 
       const savedTenant = { id: resolvedTenantId };
+      let remoteBrandingRow: Record<string, unknown> | null = null;
+      if (hasSupabaseEnv) {
+        if (!supabase) throw new Error("Conexão indisponível para consultar o branding municipal.");
+        const { data, error } = await supabase
+          .from("municipality_branding")
+          .select("*")
+          .eq("municipality_id", savedTenant.id)
+          .maybeSingle();
+        if (error) throw new Error("Não foi possível confirmar o branding atual da prefeitura. Nenhuma alteração foi salva.");
+        remoteBrandingRow = data as Record<string, unknown> | null;
+      }
+      const remoteBranding = remoteBrandingRow ? mapMunicipalityBranding(remoteBrandingRow) : null;
+      const resolveExistingLogoUrl = async (url: string, objectKey: string) => {
+        if (url || !objectKey) return url;
+        try {
+          return await getSignedUrlForObject({
+            bucket: (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos",
+            objectKey,
+          }) || "";
+        } catch {
+          return "";
+        }
+      };
+      const remoteHeaderUrl = remoteBranding
+        ? await resolveExistingLogoUrl(remoteBranding.headerLogoUrl, remoteBranding.headerLogoObjectKey)
+        : "";
+      const remoteFooterUrl = remoteBranding
+        ? await resolveExistingLogoUrl(remoteBranding.footerLogoUrl, remoteBranding.footerLogoObjectKey)
+        : "";
 
       // ------------------------------------------------------------------
       // 2. Definir URL e metadados do logo
       // ------------------------------------------------------------------
-      let logoUrl = logoRemovalRequested
-        ? ""
-        : draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
+      const draftFiles = variant === "header" ? draftHeaderLogoFiles : draftFooterLogoFiles;
+      const removalRequested = logoRemovalRequested === variant;
+      const settingsWithVariants = ({
+        ...settings,
+        logoUrl: remoteBranding?.logoUrl ?? settings?.logoUrl ?? "",
+        logoObjectKey: remoteBranding?.logoObjectKey ?? settings?.logoObjectKey ?? "",
+        headerLogoUrl: remoteBranding ? remoteHeaderUrl : settings?.headerLogoUrl ?? settings?.logoUrl ?? "",
+        footerLogoUrl: remoteBranding ? remoteFooterUrl : settings?.footerLogoUrl ?? settings?.logoUrl ?? "",
+        headerLogoObjectKey: remoteBranding?.headerLogoObjectKey ?? settings?.headerLogoObjectKey ?? "",
+        footerLogoObjectKey: remoteBranding?.footerLogoObjectKey ?? settings?.footerLogoObjectKey ?? "",
+        headerLogoFileName: remoteBranding?.headerLogoFileName ?? settings?.headerLogoFileName ?? "",
+        footerLogoFileName: remoteBranding?.footerLogoFileName ?? settings?.footerLogoFileName ?? "",
+        headerLogoMimeType: remoteBranding?.headerLogoMimeType ?? settings?.headerLogoMimeType ?? "",
+        footerLogoMimeType: remoteBranding?.footerLogoMimeType ?? settings?.footerLogoMimeType ?? "",
+      }) as (TenantSettings & {
+        headerLogoUrl?: string;
+        footerLogoUrl?: string;
+        headerLogoObjectKey?: string;
+        footerLogoObjectKey?: string;
+        headerLogoFileName?: string;
+        footerLogoFileName?: string;
+        headerLogoMimeType?: string;
+        footerLogoMimeType?: string;
+      });
+      let logoUrl = variant === "header"
+        ? removalRequested ? "" : draftFiles[0]?.file ? draftFiles[0].previewUrl ?? "" : settingsWithVariants.logoUrl
+        : settingsWithVariants.logoUrl;
 
     // URLs específicas por variante — inicialmente iguais ao genérico,
     // serão sobrescritas após upload ou remoção
-    let variantLogoUrl = logoUrl;
+    let variantLogoUrl = removalRequested
+      ? ""
+      : draftFiles[0]?.file ? draftFiles[0].previewUrl ?? "" : (variant === "header"
+        ? settingsWithVariants.headerLogoUrl
+        : settingsWithVariants.footerLogoUrl);
     let persistedVariantUrl = "";
 
       let logoMeta: {
@@ -1419,7 +1531,7 @@ export function ConfiguracoesPage() {
       // ------------------------------------------------------------------
       // 3. Upload para o R2 (apenas se houver arquivo novo)
       // ------------------------------------------------------------------
-    if (hasSupabaseEnv && draftLogoFiles[0]?.file) {
+    if (hasSupabaseEnv && draftFiles[0]?.file) {
       setStepStatus("Enviando arquivo para o storage...");
 
       // Chave de asset por variante para path separado no R2
@@ -1437,7 +1549,7 @@ export function ConfiguracoesPage() {
           subdomain: normalizeSubdomainInput(
             tenantForm.subdomain ?? tenantForm.city ?? tenantForm.name,
           ),
-          file: draftLogoFiles[0].file,
+          file: draftFiles[0].file,
           assetKey,
         }),
         30000,
@@ -1459,7 +1571,7 @@ export function ConfiguracoesPage() {
       variantLogoUrl = signedUrl || uploaded.publicUrl;
       persistedVariantUrl = publicBase ? uploaded.publicUrl : "";
       // logoUrl genérico também é atualizado para manter retrocompat
-      logoUrl = variantLogoUrl;
+      if (variant === "header") logoUrl = variantLogoUrl;
 
       logoMeta = {
         bucket: uploaded.bucket,
@@ -1479,49 +1591,28 @@ export function ConfiguracoesPage() {
         variant,
         objectKey: uploaded.objectKey,
       });
-      } else if (hasSupabaseEnv && logoUrl.startsWith("blob:")) {
+      } else if (hasSupabaseEnv && variantLogoUrl.startsWith("blob:")) {
         throw new Error(
           "Envie o arquivo do logo para concluir o salvamento no Supabase.",
         );
-    } else if (hasSupabaseEnv && logoRemovalRequested) {
-      // Remoção do logo no R2
-      const settingsWithVariants = settings as (TenantSettings & {
-        headerLogoUrl?: string;
-        footerLogoUrl?: string;
-        headerLogoObjectKey?: string;
-        footerLogoObjectKey?: string;
-        headerLogoFileName?: string;
-        footerLogoFileName?: string;
-        headerLogoMimeType?: string;
-        footerLogoMimeType?: string;
-      }) | null;
-      const existingUrl =
-        variant === "footer"
-          ? settingsWithVariants?.footerLogoUrl || settings?.logoUrl || ""
-          : settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "";
-        const objectKey = getObjectKeyFromPublicUrl(existingUrl);
-        const bucket =
-          (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
-          "sigapro-logos";
-        if (objectKey) {
-          await withTimeout(
-            deleteFile({ bucket, objectKey }),
-            "Falha ao remover o logo do storage.",
-            15000,
-          );
-        }
+    } else if (removalRequested) {
+      // Remove a referencia primeiro; o objeto fisico pode ser limpo com seguranca depois.
       variantLogoUrl = "";
       persistedVariantUrl = "";
-      logoUrl = "";
+      if (variant === "header") logoUrl = "";
     } else {
       // Sem arquivo novo, mas pode ter mudado só o enquadramento —
       // preserva a URL já salva para essa variante
       variantLogoUrl =
         variant === "footer"
-          ? settingsWithVariants?.footerLogoUrl || settings?.logoUrl || logoUrl
-          : settingsWithVariants?.headerLogoUrl || settings?.logoUrl || logoUrl;
-      persistedVariantUrl =
-        publicBase && variantLogoUrl.startsWith(publicBase) ? variantLogoUrl : "";
+          ? settingsWithVariants.footerLogoUrl
+          : settingsWithVariants.headerLogoUrl;
+      const existingObjectKey = variant === "header"
+        ? settingsWithVariants.headerLogoObjectKey
+        : settingsWithVariants.footerLogoObjectKey;
+      persistedVariantUrl = existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:")
+        ? ""
+        : variantLogoUrl;
     }
 
       // ------------------------------------------------------------------
@@ -1573,26 +1664,26 @@ export function ConfiguracoesPage() {
           headerLogoFitMode: headerBranding.logoFitMode,
           footerLogoFrameMode: footerBranding.logoFrameMode,
           footerLogoFitMode: footerBranding.logoFitMode,
-          logoStorageProvider: logoRemovalRequested
+          logoStorageProvider: variant === "header" && removalRequested
             ? undefined
-            : logoMeta
+            : variant === "header" && logoMeta
               ? "r2"
               : settings?.logoStorageProvider,
-          logoBucket: logoRemovalRequested
+          logoBucket: variant === "header" && removalRequested
             ? undefined
-            : logoMeta?.bucket ?? settings?.logoBucket,
-          logoObjectKey: logoRemovalRequested
+            : variant === "header" ? logoMeta?.bucket ?? settings?.logoBucket : settings?.logoBucket,
+          logoObjectKey: variant === "header" && removalRequested
             ? undefined
-            : logoMeta?.objectKey ?? settings?.logoObjectKey,
-          logoFileName: logoRemovalRequested
+            : variant === "header" ? logoMeta?.objectKey ?? settings?.logoObjectKey : settings?.logoObjectKey,
+          logoFileName: variant === "header" && removalRequested
             ? undefined
-            : logoMeta?.fileName ?? settings?.logoFileName,
-          logoMimeType: logoRemovalRequested
+            : variant === "header" ? logoMeta?.fileName ?? settings?.logoFileName : settings?.logoFileName,
+          logoMimeType: variant === "header" && removalRequested
             ? undefined
-            : logoMeta?.mimeType ?? settings?.logoMimeType,
-          logoFileSize: logoRemovalRequested
+            : variant === "header" ? logoMeta?.mimeType ?? settings?.logoMimeType : settings?.logoMimeType,
+          logoFileSize: variant === "header" && removalRequested
             ? undefined
-            : logoMeta?.fileSize ?? settings?.logoFileSize,
+            : variant === "header" ? logoMeta?.fileSize ?? settings?.logoFileSize : settings?.logoFileSize,
         },
         {
           tenantId: savedTenant.id,
@@ -1624,40 +1715,38 @@ export function ConfiguracoesPage() {
       // Injeta as URLs separadas para o saveRemoteInstitutionSettings
     if (variant === "header") {
       nextSettings.headerLogoUrl = variantLogoUrl;
-      nextSettings.headerLogoObjectKey = logoRemovalRequested
+      nextSettings.headerLogoObjectKey = removalRequested
         ? ""
-        : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
-      nextSettings.headerLogoFileName = logoRemovalRequested
+        : logoMeta?.objectKey ?? settingsWithVariants.headerLogoObjectKey;
+      nextSettings.headerLogoFileName = removalRequested
         ? ""
         : logoMeta?.fileName ?? settingsWithVariants?.headerLogoFileName ?? "";
-      nextSettings.headerLogoMimeType = logoRemovalRequested
+      nextSettings.headerLogoMimeType = removalRequested
         ? ""
         : logoMeta?.mimeType ?? settingsWithVariants?.headerLogoMimeType ?? "";
           // Preserva footer URL existente
-          nextSettings.footerLogoUrl =
-            settingsWithVariants?.footerLogoUrl || settings?.logoUrl || "";
+          nextSettings.footerLogoUrl = settingsWithVariants.footerLogoUrl;
           nextSettings.footerLogoObjectKey =
-            settingsWithVariants?.footerLogoObjectKey || settings?.logoObjectKey || "";
+            settingsWithVariants.footerLogoObjectKey;
           nextSettings.footerLogoFileName =
             settingsWithVariants?.footerLogoFileName || "";
           nextSettings.footerLogoMimeType =
             settingsWithVariants?.footerLogoMimeType || "";
     } else {
       nextSettings.footerLogoUrl = variantLogoUrl;
-      nextSettings.footerLogoObjectKey = logoRemovalRequested
+      nextSettings.footerLogoObjectKey = removalRequested
         ? ""
-        : logoMeta?.objectKey ?? settings?.logoObjectKey ?? "";
-      nextSettings.footerLogoFileName = logoRemovalRequested
+        : logoMeta?.objectKey ?? settingsWithVariants.footerLogoObjectKey;
+      nextSettings.footerLogoFileName = removalRequested
         ? ""
         : logoMeta?.fileName ?? settingsWithVariants?.footerLogoFileName ?? "";
-      nextSettings.footerLogoMimeType = logoRemovalRequested
+      nextSettings.footerLogoMimeType = removalRequested
         ? ""
         : logoMeta?.mimeType ?? settingsWithVariants?.footerLogoMimeType ?? "";
           // Preserva header URL existente
-          nextSettings.headerLogoUrl =
-            settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "";
+          nextSettings.headerLogoUrl = settingsWithVariants.headerLogoUrl;
           nextSettings.headerLogoObjectKey =
-            settingsWithVariants?.headerLogoObjectKey || settings?.logoObjectKey || "";
+            settingsWithVariants.headerLogoObjectKey;
           nextSettings.headerLogoFileName =
             settingsWithVariants?.headerLogoFileName || "";
           nextSettings.headerLogoMimeType =
@@ -1667,19 +1756,26 @@ export function ConfiguracoesPage() {
     nextSettings.tenantId = savedTenant.id;
     nextSettings.institutionId = savedTenant.id;
 
-    const sanitizePersistedUrl = (value?: string) =>
-      publicBase && value && value.startsWith(publicBase) ? value : "";
+    const sanitizePersistedUrl = (value?: string, objectKey?: string) =>
+      publicBase && value?.startsWith(publicBase)
+        ? value
+        : objectKey || !value || value.startsWith("blob:") || value.startsWith("data:")
+          ? ""
+          : value;
 
     const nextSettingsForSave = {
       ...nextSettings,
+      logoUrl: variant === "header"
+        ? persistedVariantUrl
+        : sanitizePersistedUrl(settingsWithVariants.logoUrl, settingsWithVariants.logoObjectKey),
       headerLogoUrl:
         variant === "header"
           ? persistedVariantUrl
-          : sanitizePersistedUrl(nextSettings.headerLogoUrl),
+          : sanitizePersistedUrl(nextSettings.headerLogoUrl, nextSettings.headerLogoObjectKey),
       footerLogoUrl:
         variant === "footer"
           ? persistedVariantUrl
-          : sanitizePersistedUrl(nextSettings.footerLogoUrl),
+          : sanitizePersistedUrl(nextSettings.footerLogoUrl, nextSettings.footerLogoObjectKey),
     } as typeof nextSettings;
 
       // ------------------------------------------------------------------
@@ -1707,21 +1803,31 @@ export function ConfiguracoesPage() {
         }),
         20000,
       );
+      if (!supabase) throw new Error("Conexão indisponível para validar o logo salvo.");
+      const { data: confirmedBranding, error: confirmationError } = await supabase
+        .from("municipality_branding")
+        .select("header_logo_url,header_logo_object_key,footer_logo_url,footer_logo_object_key")
+        .eq("municipality_id", savedTenant.id)
+        .maybeSingle();
+      const expectedKey = variant === "header" ? nextSettingsForSave.headerLogoObjectKey : nextSettingsForSave.footerLogoObjectKey;
+      const expectedUrl = variant === "header" ? nextSettingsForSave.headerLogoUrl : nextSettingsForSave.footerLogoUrl;
+      const confirmedKey = variant === "header" ? confirmedBranding?.header_logo_object_key : confirmedBranding?.footer_logo_object_key;
+      const confirmedUrl = variant === "header" ? confirmedBranding?.header_logo_url : confirmedBranding?.footer_logo_url;
+      if (confirmationError || !confirmedBranding || (confirmedKey || "") !== (expectedKey || "") || (confirmedUrl || "") !== (expectedUrl || "")) {
+        throw new Error("O banco não confirmou o logo municipal. Verifique as colunas e as permissões de branding antes de tentar novamente.");
+      }
     }
 
     // ------------------------------------------------------------------
     // 6. Atualizar estado local + revalidar branding global
     // ------------------------------------------------------------------
-    try {
-      await bootstrap.refreshMunicipalityBundle(savedTenant.id);
-    } catch (error) {
-      console.warn("[SIGAPRO][BrandingLoad] Falha ao revalidar bundle", error);
-    }
-      saveInstitutionSettings(nextSettings);
+      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasSupabaseEnv });
       setSelectedTenantId(savedTenant.id);
       setLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
       setDraftLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
-      setLogoRemovalRequested(false);
+      setDraftHeaderLogoFiles(imageFiles(nextSettings.headerLogoUrl || "", "header-logo"));
+      setDraftFooterLogoFiles(imageFiles(nextSettings.footerLogoUrl || "", "footer-logo"));
+      setLogoRemovalRequested(null);
       setSettingsForm((current) => ({
         ...current,
         logoScale: nextSettings.logoScale ?? 1,
@@ -1997,7 +2103,9 @@ export function ConfiguracoesPage() {
     horarioAtendimento: settingsForm.horarioAtendimento,
     brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
     bandeiraUrl: bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
-    logoUrl: draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
+    logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
+    headerLogoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? "",
+    footerLogoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? "",
     imagemHeroUrl: heroFiles[0]?.previewUrl ?? settings?.imagemHeroUrl ?? "",
     resumoPlanoDiretor: settingsForm.resumoPlanoDiretor,
     resumoUsoSolo: settingsForm.resumoUsoSolo,
@@ -2049,7 +2157,7 @@ export function ConfiguracoesPage() {
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl: draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
+        logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? settings?.logoUrl ?? "",
         logoScale: draftHeaderLogoConfig.scale,
         logoOffsetX: draftHeaderLogoConfig.offsetX,
         logoOffsetY: draftHeaderLogoConfig.offsetY,
@@ -2067,7 +2175,7 @@ export function ConfiguracoesPage() {
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl: draftLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
+        logoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? settings?.logoUrl ?? "",
         logoScale: draftFooterLogoConfig.scale,
         logoOffsetX: draftFooterLogoConfig.offsetX,
         logoOffsetY: draftFooterLogoConfig.offsetY,
@@ -2455,7 +2563,7 @@ export function ConfiguracoesPage() {
 
             {/* Tema do layout removido desta tela para manter o padrão institucional. */}
 
-            {!isMasterRole ? (
+            {(!isMasterRole || availableInstitutions.some((item) => item.id === selectedTenantId)) ? (
             <div className="grid gap-4">
               <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
@@ -2498,27 +2606,21 @@ export function ConfiguracoesPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {draftLogoFiles[0]?.previewUrl ? (
-                      <ImageFrameEditor
-                        imageUrl={draftLogoFiles[0].previewUrl}
-                        scale={draftHeaderLogoConfig.scale}
-                        offsetX={draftHeaderLogoConfig.offsetX}
-                        offsetY={draftHeaderLogoConfig.offsetY}
-                        onChange={updateLogoFrame("header")}
-                        label="Enquadramento do cabecalho"
-                        hint="Arraste a marca dentro do quadro e use o scroll para posicionar o logo do cabecalho."
-                        frameClassName="justify-start"
-                        viewportClassName="h-[104px] w-[176px] rounded-[18px]"
-                        wrapperClassName="border-slate-200 bg-white"
-                      />
-                    ) : (
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
-                        Envie o logo da prefeitura para liberar o ajuste do cabecalho.
-                      </div>
-                    )}
+                    <FileDropZone
+                      title="Logo do cabeçalho"
+                      description="A marca completa será centralizada no card, sem recorte."
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      multiple={false}
+                      allowPreview
+                      files={draftHeaderLogoFiles}
+                      onFilesSelected={(files) => {
+                        setDraftHeaderLogoFiles(files);
+                        setLogoRemovalRequested(files.length ? null : "header");
+                      }}
+                    />
                     <div className="flex flex-wrap gap-3">
-                      <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })}>
-                        Restaurar enquadramento
+                      <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
+                        Remover logo
                       </Button>
                       <Button type="button" className="rounded-2xl bg-slate-950 hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
@@ -2563,37 +2665,26 @@ export function ConfiguracoesPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {draftLogoFiles[0]?.previewUrl ? (
-                      <ImageFrameEditor
-                        imageUrl={draftLogoFiles[0].previewUrl}
-                        scale={draftFooterLogoConfig.scale}
-                        offsetX={draftFooterLogoConfig.offsetX}
-                        offsetY={draftFooterLogoConfig.offsetY}
-                        onChange={updateLogoFrame("footer")}
-                        label="Enquadramento do rodape"
-                        hint="Ajuste o logo especificamente para o rodape, sem afetar o enquadramento do cabecalho."
-                        frameClassName="justify-start"
-                        viewportClassName="h-[138px] w-[140px] rounded-[18px]"
-                        wrapperClassName="border-slate-200 bg-white"
-                      />
-                    ) : (
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
-                        Envie o logo da prefeitura para liberar o ajuste do rodape.
-                      </div>
-                    )}
+                    <FileDropZone
+                      title="Logo do rodapé"
+                      description="A marca completa será centralizada no card, sem recorte."
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      multiple={false}
+                      allowPreview
+                      files={draftFooterLogoFiles}
+                      onFilesSelected={(files) => {
+                        setDraftFooterLogoFiles(files);
+                        setLogoRemovalRequested(files.length ? null : "footer");
+                      }}
+                    />
                     <div className="flex flex-wrap gap-3">
-                      <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })}>
-                        Restaurar enquadramento
-                      </Button>
                       <Button
                         type="button"
                         variant="outline"
                         className="rounded-2xl text-red-600 dark:text-red-400"
                         onClick={() => {
-                          setDraftLogoFiles([]);
-                          setLogoRemovalRequested(true);
-                          setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
-                          setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                          setDraftFooterLogoFiles([]);
+                          setLogoRemovalRequested("footer");
                         }}
                       >
                         Remover logo
@@ -2616,20 +2707,6 @@ export function ConfiguracoesPage() {
                   </div>
                 </div>
               </div>
-              <FileDropZone
-                title="Logo da prefeitura"
-                description="Use a logo oficial para o portal do cliente."
-                accept="image/*"
-                multiple={false}
-                allowPreview
-                files={draftLogoFiles}
-                onFilesSelected={(files) => {
-                  setDraftLogoFiles(files);
-                  if (files.length > 0) {
-                    setLogoRemovalRequested(false);
-                  }
-                }}
-              />
               <FileDropZone
                 title="Brasao"
                 description="Imagem oficial para áreas institucionais e documentos."
@@ -2743,33 +2820,10 @@ export function ConfiguracoesPage() {
                       </div>
                     </div>
                     <div className="min-w-0 space-y-3">
-                      {isRenderablePreviewUrl(masterHeaderActiveUrl) ? (
-                        <ImageFrameEditor
-                          imageUrl={masterHeaderActiveUrl}
-                          scale={draftMasterHeaderConfig.scale}
-                          offsetX={draftMasterHeaderConfig.offsetX}
-                          offsetY={draftMasterHeaderConfig.offsetY}
-                          onChange={updateMasterLogoFrame("header")}
-                          label="Enquadramento do cabeçalho"
-                          hint="Arraste a marca dentro do quadro e use o scroll para posicionar o logo do cabeçalho Master."
-                          frameClassName="justify-start"
-                          viewportClassName="h-[104px] w-[176px] rounded-[18px]"
-                          wrapperClassName="border-slate-200 bg-white"
-                        />
-                      ) : (
-                        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
-                          Envie o logo do SIGAPRO para liberar o ajuste do cabeçalho Master.
-                        </div>
-                      )}
+                      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                        O card à esquerda mostra a marca completa, com a mesma proporção usada no cabeçalho.
+                      </div>
                       <div className="flex flex-wrap gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-2xl"
-                          onClick={() => setDraftMasterHeaderConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
-                        >
-                          Restaurar enquadramento
-                        </Button>
                         <Button
                           type="button"
                           className="rounded-2xl bg-slate-950 hover:bg-slate-900"
@@ -2802,33 +2856,10 @@ export function ConfiguracoesPage() {
                       </div>
                     </div>
                     <div className="min-w-0 space-y-3">
-                      {isRenderablePreviewUrl(masterFooterActiveUrl) ? (
-                        <ImageFrameEditor
-                          imageUrl={masterFooterActiveUrl}
-                          scale={draftMasterFooterConfig.scale}
-                          offsetX={draftMasterFooterConfig.offsetX}
-                          offsetY={draftMasterFooterConfig.offsetY}
-                          onChange={updateMasterLogoFrame("footer")}
-                          label="Enquadramento do rodapé"
-                          hint="Ajuste o logo especificamente para o rodapé Master, sem afetar o cabeçalho."
-                          frameClassName="justify-start"
-                          viewportClassName="h-[138px] w-[140px] rounded-[18px]"
-                          wrapperClassName="border-slate-200 bg-white"
-                        />
-                      ) : (
-                        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-500">
-                          Envie o logo do SIGAPRO para liberar o ajuste do rodapé Master.
-                        </div>
-                      )}
+                      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                        O card à esquerda mostra a marca completa, com a mesma proporção usada no rodapé.
+                      </div>
                       <div className="flex flex-wrap gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-2xl"
-                          onClick={() => setDraftMasterFooterConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
-                        >
-                          Restaurar enquadramento
-                        </Button>
                         <Button
                           type="button"
                           className="rounded-2xl bg-slate-950 hover:bg-slate-900"
@@ -3123,7 +3154,3 @@ export function ConfiguracoesPage() {
     </PortalFrame>
   );
 }
-
-
-
-

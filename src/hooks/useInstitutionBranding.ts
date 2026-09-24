@@ -114,36 +114,35 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
   const requestedInstitutionId =
     tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
-  const shouldUseMasterBranding =
-    isMaster &&
-    !tenantId &&
-    !municipality?.id &&
-    !scopeId &&
-    !session.municipalityId &&
-    !session.tenantId;
+  const shouldUseMasterBranding = isMaster && !tenantId;
   const resolvedInstitutionId = shouldUseMasterBranding ? "" : requestedInstitutionId;
+  const scopedMunicipality = municipality?.id === resolvedInstitutionId ? municipality : null;
+  const scopedMunicipalityBranding =
+    municipalityBranding?.municipalityId === resolvedInstitutionId ? municipalityBranding : null;
+  const scopedTenantSettings =
+    tenantSettingsCompat?.tenantId === resolvedInstitutionId ? tenantSettingsCompat : null;
 
-  const institution = municipality
+  const institution = scopedMunicipality
     ? {
-        id: municipality.id,
-        name: municipality.name,
+        id: scopedMunicipality.id,
+        name: scopedMunicipality.name,
       }
     : institutions.find((item) => item.id === resolvedInstitutionId) ?? null;
 
   const institutionSettings =
-    tenantSettingsCompat ??
+    scopedTenantSettings ??
     getInstitutionSettings(resolvedInstitutionId) ??
     (resolvedInstitutionId ? buildEmptyTenantSettings(resolvedInstitutionId) : null);
 
   const officialHeaderText =
-    municipalityBranding?.officialHeaderText ??
-    municipality?.secretariatName ??
+    scopedMunicipalityBranding?.officialHeaderText ??
+    scopedMunicipality?.secretariatName ??
     institutionSettings?.secretariaResponsavel ??
     institution?.name ??
     "Instituição";
 
   const officialFooterText =
-    municipalityBranding?.officialFooterText ??
+    scopedMunicipalityBranding?.officialFooterText ??
     institutionSettings?.resumoPlanoDiretor ??
     "SIGAPRO — Sistema integrado de gestão e aprovação de projetos";
 
@@ -244,6 +243,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       if (value) {
         cachedMasterHeaderSignedUrl = value;
         cachedMasterHeaderSignedAt = Date.now();
+      } else if (!headerRaw) {
+        cachedMasterHeaderSignedUrl = "";
+        cachedMasterHeaderSignedAt = 0;
       }
       setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
     });
@@ -251,6 +253,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       if (value) {
         cachedMasterFooterSignedUrl = value;
         cachedMasterFooterSignedAt = Date.now();
+      } else if (!footerRaw) {
+        cachedMasterFooterSignedUrl = "";
+        cachedMasterFooterSignedAt = 0;
       }
       setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
     });
@@ -269,10 +274,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "header",
     );
-    const brandingUrl = municipalityBranding?.headerLogoUrl || municipalityBranding?.logoUrl || "";
+    const brandingUrl = scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
+    const hasVariantLogo = Boolean(
+      scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
+      scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
+    );
     return {
       ...base,
-      logoUrl: brandingUrl || base.logoUrl,
+      logoUrl: hasVariantLogo ? scopedMunicipalityBranding?.headerLogoUrl || "" : brandingUrl || base.logoUrl,
     };
   }, [
     institution?.name,
@@ -280,8 +289,11 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     resolvedMasterHeaderLogoUrl,
     shouldUseMasterBranding,
-    municipalityBranding?.headerLogoUrl,
-    municipalityBranding?.logoUrl,
+    scopedMunicipalityBranding?.headerLogoUrl,
+    scopedMunicipalityBranding?.footerLogoUrl,
+    scopedMunicipalityBranding?.headerLogoObjectKey,
+    scopedMunicipalityBranding?.footerLogoObjectKey,
+    scopedMunicipalityBranding?.logoUrl,
   ]);
 
   const footerBranding = useMemo(() => {
@@ -297,10 +309,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "footer",
     );
-    const brandingUrl = municipalityBranding?.footerLogoUrl || municipalityBranding?.logoUrl || "";
+    const brandingUrl = scopedMunicipalityBranding?.footerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
+    const hasVariantLogo = Boolean(
+      scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
+      scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
+    );
     return {
       ...base,
-      logoUrl: brandingUrl || base.logoUrl,
+      logoUrl: hasVariantLogo ? scopedMunicipalityBranding?.footerLogoUrl || "" : brandingUrl || base.logoUrl,
     };
   }, [
     institution?.name,
@@ -308,8 +324,11 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     resolvedMasterFooterLogoUrl,
     shouldUseMasterBranding,
-    municipalityBranding?.footerLogoUrl,
-    municipalityBranding?.logoUrl,
+    scopedMunicipalityBranding?.footerLogoUrl,
+    scopedMunicipalityBranding?.headerLogoUrl,
+    scopedMunicipalityBranding?.headerLogoObjectKey,
+    scopedMunicipalityBranding?.footerLogoObjectKey,
+    scopedMunicipalityBranding?.logoUrl,
   ]);
 
   return {

@@ -12,6 +12,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 interface AuthGatewayContextValue {
   isAuthenticated: boolean;
   loading: boolean;
+  authResolved: boolean;
   authenticatedUserId: string | null;
   authenticatedRole: string | null;
   authenticatedEmail: string | null;
@@ -32,6 +33,7 @@ const AuthGatewayContext = createContext<AuthGatewayContextValue | null>(null);
 const authGatewayFallback: AuthGatewayContextValue = {
   isAuthenticated: false,
   loading: false,
+  authResolved: true,
   authenticatedUserId: null,
   authenticatedRole: null,
   authenticatedEmail: null,
@@ -86,6 +88,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
     () => ({
       isAuthenticated: Boolean(bootstrap.authUserId),
       loading: bootstrap.loading,
+      authResolved: bootstrap.authResolved,
       authenticatedUserId: bootstrap.authUserId,
       authenticatedRole: bootstrap.role,
       authenticatedEmail: bootstrap.authEmail,
@@ -116,6 +119,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
     }),
     [
       bootstrap.authEmail,
+      bootstrap.authResolved,
       bootstrap.authUserId,
       bootstrap.loading,
       bootstrap.profile?.municipalityId,

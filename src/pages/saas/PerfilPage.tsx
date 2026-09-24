@@ -31,7 +31,8 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { saveRemoteProfile, uploadFileToStorage } from "@/integrations/supabase/platform";
+import { saveRemoteProfile } from "@/integrations/supabase/platform";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
@@ -999,7 +1000,7 @@ export function PerfilPage() {
         }
       }
 
-      if (hasSupabaseEnv && avatarUploadFile) {
+      if (avatarUploadFile) {
         try {
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
@@ -1008,12 +1009,16 @@ export function PerfilPage() {
             file: avatarUploadFile,
             folder: "avatars",
           });
+          if (!uploaded.publicUrl) {
+            throw new Error("Configure a URL publica do R2 antes de salvar a foto.");
+          }
           avatarUrl = uploaded.publicUrl;
           avatarScale = 1;
           avatarOffsetX = 0;
           avatarOffsetY = 0;
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o Supabase.");
+          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
+          return;
         }
       }
 

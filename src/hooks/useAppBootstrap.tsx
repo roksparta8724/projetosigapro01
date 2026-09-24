@@ -192,6 +192,16 @@ function readPlatformSessionSnapshot(): StoredPlatformSession | null {
   }
 }
 
+function clearPlatformSessionSnapshot() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(PLATFORM_SESSION_CACHE_KEY);
+  } catch {
+    // noop
+  }
+}
+
 function readStoredSupabaseUser(): StoredSupabaseUser | null {
   if (typeof window === "undefined") return null;
 
@@ -697,17 +707,110 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: false, message: "Supabase indisponivel." };
         }
         const normalized = normalizeEmail(email);
+        const currentSession = (await supabase.auth.getSession()).data.session ?? null;
+        const currentEmail = normalizeEmail(currentSession?.user?.email ?? null);
+
+        if (currentSession?.user && currentEmail && currentEmail !== normalized) {
+          writeBootstrapSnapshot(null);
+          clearPlatformSessionSnapshot();
+          lastAuthUserIdRef.current = null;
+          initializedRef.current = false;
+          lastStableRef.current = {
+            authUserId: null,
+            authEmail: null,
+            role: null,
+            profile: null,
+            municipalityBundle: null,
+          };
+          setAuthUserId(null);
+          setAuthEmail(null);
+          setRole(null);
+          setProfile(null);
+          setMunicipalityBundle(null);
+          setAuthResolved(false);
+          await supabase.auth.signOut({ scope: "local" });
+        }
+
+        setLoading(true);
+        setError(null);
+        setStage("bootstrapping_auth");
+
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: normalized,
           password,
         });
         if (signInError || !data.user) {
+          setAuthResolved(true);
+          setIsReady(true);
+          setStage("ready");
+          setLoading(false);
           return { ok: false, message: signInError?.message || "Falha ao autenticar." };
         }
+
+        const nextProfile = await loadProfileByUserId(data.user.id);
         const mappedRole =
+          mapDbRoleCodeToAppRole(nextProfile?.role) ??
           mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
           readRoleFromPlatformStore(normalized) ??
           "profissional_externo";
+        const nextScopeType: "platform" | "municipality" | "external" =
+          mappedRole === "master_admin" || mappedRole === "master_ops"
+            ? "platform"
+            : mappedRole === "profissional_externo" || mappedRole === "proprietario_consulta" || mappedRole === "property_owner"
+              ? "external"
+              : "municipality";
+
+        const resolvedEmail = normalizeEmail(data.user.email);
+        let nextBundle: MunicipalityBundle | null = null;
+
+        if (nextScopeType !== "platform") {
+          if (nextProfile?.municipalityId) {
+            nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
+          } else if (resolution.mode === "tenant") {
+            nextBundle = await loadCurrentMunicipalityBundle({
+              hostname: resolution.hostname,
+              subdomain: resolution.subdomain,
+              isLocalhost: resolution.isLocalhost,
+              preferredName:
+                (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
+                "",
+            });
+          }
+        }
+
+        setAuthUserId(data.user.id);
+        setAuthEmail(resolvedEmail);
+        setRole(mappedRole);
+        setProfile(nextProfile);
+        setScopeType(nextScopeType);
+        setMunicipalityBundle(nextBundle);
+        setAuthResolved(true);
+        setIsReady(true);
+        setStage("ready");
+        setLoading(false);
+        initializedRef.current = true;
+        lastAuthUserIdRef.current = data.user.id;
+        lastStableRef.current = {
+          authUserId: data.user.id,
+          authEmail: resolvedEmail,
+          role: mappedRole,
+          profile: nextProfile,
+          municipalityBundle: nextBundle,
+        };
+
+        writeBootstrapSnapshot({
+          hostname: resolution.hostname,
+          mode: resolution.mode,
+          subdomain: resolution.subdomain ?? null,
+          scopeType: nextScopeType,
+          authUserId: data.user.id,
+          authEmail: resolvedEmail,
+          role: mappedRole,
+          profile: nextProfile,
+          municipalityBundle: nextBundle,
+          cachedAt: Date.now(),
+        });
+
         return { ok: true, role: mappedRole };
       },
       resetPassword: async (email) => {
@@ -750,6 +853,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           municipalityBundle: null,
         };
         writeBootstrapSnapshot(null);
+        clearPlatformSessionSnapshot();
         setLoading(true);
         setStage("bootstrapping_auth");
         try {

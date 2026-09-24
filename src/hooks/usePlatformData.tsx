@@ -106,7 +106,7 @@ interface PlatformDataState {
     primaryColor: string;
     accentColor: string;
   }) => Institution;
-  saveInstitutionSettings: (settings: InstitutionSettings) => void;
+  saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => void;
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
@@ -1052,7 +1052,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       return nextTenant;
     };
-    const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = (settings) => {
+    const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = (settings, options) => {
       updateStore((current) => {
         const tenantSettings = current.tenantSettings.some((item) => item.tenantId === settings.tenantId)
           ? current.tenantSettings.map((item) => (item.tenantId === settings.tenantId ? settings : item))
@@ -1111,9 +1111,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, tenantSettings, processes };
       });
 
-      syncRemoteInBackground("configuracoes institucionais", () =>
-        saveRemoteInstitutionSettings(settings as unknown as Parameters<typeof saveRemoteInstitutionSettings>[0]),
-      );
+      if (!options?.skipRemoteSync) {
+        syncRemoteInBackground("configuracoes institucionais", () =>
+          saveRemoteInstitutionSettings(settings as unknown as Parameters<typeof saveRemoteInstitutionSettings>[0]),
+        );
+      }
     };
     const removeInstitution: PlatformDataState["removeInstitution"] = (tenantId) => {
       markInstitutionDeleted(tenantId);

@@ -12,10 +12,8 @@ import { ProtocolStepProgress } from "@/components/platform/ProtocolStepProgress
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import {
-  createRemoteExternalProcess,
-  uploadFileToStorage,
-} from "@/integrations/supabase/platform";
+import { createRemoteExternalProcess } from "@/integrations/supabase/platform";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import {
   clearProtocolDraft,

@@ -183,11 +183,16 @@ export function buildTenantSettingsFromMunicipality(
 
   const general = settings?.generalSettings ?? {};
 
-  // Resolve logo por variante: prefere URL específica, cai para logo_url geral
-  const headerLogoUrl =
-    branding?.headerLogoUrl || branding?.logoUrl || base.logoUrl || "";
-  const footerLogoUrl =
-    branding?.footerLogoUrl || branding?.logoUrl || base.logoUrl || "";
+  const hasVariantLogo = Boolean(
+    branding?.headerLogoUrl || branding?.footerLogoUrl ||
+    branding?.headerLogoObjectKey || branding?.footerLogoObjectKey,
+  );
+  const headerLogoUrl = hasVariantLogo
+    ? branding?.headerLogoUrl || ""
+    : branding?.logoUrl || base.logoUrl || "";
+  const footerLogoUrl = hasVariantLogo
+    ? branding?.footerLogoUrl || ""
+    : branding?.logoUrl || base.logoUrl || "";
 
   return {
     ...base,
@@ -222,8 +227,8 @@ export function buildTenantSettingsFromMunicipality(
     // campos específicos por variante
     headerLogoUrl,
     footerLogoUrl,
-    headerLogoObjectKey: branding?.headerLogoObjectKey || branding?.logoObjectKey || "",
-    footerLogoObjectKey: branding?.footerLogoObjectKey || branding?.logoObjectKey || "",
+    headerLogoObjectKey: hasVariantLogo ? branding?.headerLogoObjectKey || "" : branding?.logoObjectKey || "",
+    footerLogoObjectKey: hasVariantLogo ? branding?.footerLogoObjectKey || "" : branding?.logoObjectKey || "",
     logoStorageProvider: branding?.logoStorageProvider || "",
     logoBucket: branding?.logoBucket || "",
     logoObjectKey: branding?.logoObjectKey || "",

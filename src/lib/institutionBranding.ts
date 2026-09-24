@@ -18,17 +18,22 @@ export interface InstitutionalBranding {
 type TenantSettingsWithVariants = TenantSettings & {
   headerLogoUrl?: string;
   footerLogoUrl?: string;
+  headerLogoObjectKey?: string;
+  footerLogoObjectKey?: string;
 };
 
 function pickVariantSettings(
   settings: TenantSettings | null | undefined,
   variant: InstitutionalLogoConfigVariant,
 ) {
+  const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
+  const hasVariantLogo = Boolean(
+    settingsWithVariants?.headerLogoUrl || settingsWithVariants?.footerLogoUrl ||
+    settingsWithVariants?.headerLogoObjectKey || settingsWithVariants?.footerLogoObjectKey,
+  );
   if (variant === "footer") {
-    const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
     return {
-      // Prefere URL específica do footer, cai para logoUrl geral
-      logoUrl: settingsWithVariants?.footerLogoUrl || settings?.logoUrl || "",
+      logoUrl: hasVariantLogo ? settingsWithVariants?.footerLogoUrl || "" : settings?.logoUrl || "",
       scale: settings?.footerLogoScale,
       offsetX: settings?.footerLogoOffsetX,
       offsetY: settings?.footerLogoOffsetY,
@@ -37,10 +42,8 @@ function pickVariantSettings(
     };
   }
 
-  const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
   return {
-    // Prefere URL específica do header, cai para logoUrl geral
-    logoUrl: settingsWithVariants?.headerLogoUrl || settings?.logoUrl || "",
+    logoUrl: hasVariantLogo ? settingsWithVariants?.headerLogoUrl || "" : settings?.logoUrl || "",
     scale: settings?.headerLogoScale ?? settings?.logoScale,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY,
@@ -55,11 +58,9 @@ export function getInstitutionBranding(
   variant: InstitutionalLogoConfigVariant = "header",
 ): InstitutionalBranding {
   const selected = pickVariantSettings(settings, variant);
-  const fallbackLogo = settings?.brasaoUrl || settings?.bandeiraUrl || "";
-
   return {
     tenantId: settings?.tenantId ?? "",
-    logoUrl: selected.logoUrl || fallbackLogo,
+    logoUrl: selected.logoUrl,
     logoScale: selected.scale ?? 1,
     logoOffsetX: selected.offsetX ?? 0,
     logoOffsetY: selected.offsetY ?? 0,
@@ -87,7 +88,7 @@ export function updateInstitutionBranding(
   const nextOffsetY = branding.logoOffsetY ?? current.logoOffsetY;
   const nextFrameMode = branding.logoFrameMode ?? current.logoFrameMode;
   const nextFitMode = branding.logoFitMode ?? current.logoFitMode;
-  const nextLogoUrl = branding.logoUrl ?? settings.logoUrl ?? current.logoUrl;
+  const nextLogoUrl = branding.logoUrl ?? current.logoUrl;
 
   const variantSpecific =
     variant === "header"
@@ -116,8 +117,7 @@ export function updateInstitutionBranding(
 
   return {
     ...settings,
-    // logoUrl genérico = sempre o mesmo arquivo (o arquivo é único, só o frame difere)
-    logoUrl: nextLogoUrl,
+    logoUrl: variant === "header" ? nextLogoUrl : settings.logoUrl,
     logoAlt: branding.logoAlt ?? settings.logoAlt ?? current.logoAlt,
     logoUpdatedAt:
       branding.logoUpdatedAt ??

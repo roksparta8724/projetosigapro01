@@ -44,7 +44,7 @@ const institutionalHighlights = [
 
 export function AcessoPage() {
   const navigate = useNavigate();
-  const { signIn, signOut } = useAuthGateway();
+  const { signIn } = useAuthGateway();
   const { sessionUsers } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();

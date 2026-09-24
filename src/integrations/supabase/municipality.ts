@@ -65,40 +65,45 @@ function mapMunicipality(record: Record<string, unknown>): Municipality {
   };
 }
 
-function mapMunicipalityBranding(record: Record<string, unknown>): MunicipalityBranding {
-  // Resolve header logo: prefere campo dedicado, cai para logo_url
-  const headerLogoUrl = record.header_logo_url ?? record.logo_url ?? "";
-  // Resolve footer logo: prefere campo dedicado, cai para logo_url
-  const footerLogoUrl = record.footer_logo_url ?? record.logo_url ?? "";
+export function mapMunicipalityBranding(record: Record<string, unknown>): MunicipalityBranding {
+  const readString = (key: string) => typeof record[key] === "string" ? record[key] as string : "";
+  const hasVariantLogo = Boolean(
+    readString("header_logo_url") || readString("footer_logo_url") ||
+    readString("header_logo_object_key") || readString("footer_logo_object_key"),
+  );
+  const headerLogoUrl = hasVariantLogo ? readString("header_logo_url") : readString("logo_url");
+  const footerLogoUrl = hasVariantLogo ? readString("footer_logo_url") : readString("logo_url");
 
   return {
-    id: record.id,
-    municipalityId: record.municipality_id,
-    logoUrl: record.logo_url ?? "",
+    id: readString("id"),
+    municipalityId: readString("municipality_id"),
+    logoUrl: readString("logo_url"),
     headerLogoUrl,
     footerLogoUrl,
-    headerLogoObjectKey:
-      record.header_logo_object_key ?? record.logo_object_key ?? "",
-    footerLogoObjectKey:
-      record.footer_logo_object_key ?? record.logo_object_key ?? "",
-    headerLogoFileName: record.header_logo_file_name ?? "",
-    footerLogoFileName: record.footer_logo_file_name ?? "",
-    headerLogoMimeType: record.header_logo_mime_type ?? record.logo_mime_type ?? "",
-    footerLogoMimeType: record.footer_logo_mime_type ?? record.logo_mime_type ?? "",
-    logoStorageProvider: record.logo_storage_provider ?? "",
-    logoBucket: record.logo_bucket ?? "",
-    logoObjectKey: record.logo_object_key ?? "",
+    headerLogoObjectKey: hasVariantLogo
+      ? readString("header_logo_object_key")
+      : readString("logo_object_key"),
+    footerLogoObjectKey: hasVariantLogo
+      ? readString("footer_logo_object_key")
+      : readString("logo_object_key"),
+    headerLogoFileName: readString("header_logo_file_name"),
+    footerLogoFileName: readString("footer_logo_file_name"),
+    headerLogoMimeType: readString("header_logo_mime_type") || readString("logo_mime_type"),
+    footerLogoMimeType: readString("footer_logo_mime_type") || readString("logo_mime_type"),
+    logoStorageProvider: readString("logo_storage_provider"),
+    logoBucket: readString("logo_bucket"),
+    logoObjectKey: readString("logo_object_key"),
     logoFileName: "",
     logoMimeType: "",
-    logoFileSize: record.logo_file_size ?? null,
-    coatOfArmsUrl: record.coat_of_arms_url ?? "",
-    primaryColor: record.primary_color ?? "",
-    secondaryColor: record.secondary_color ?? "",
-    accentColor: record.accent_color ?? "",
-    officialHeaderText: record.official_header_text ?? "",
-    officialFooterText: record.official_footer_text ?? "",
-    createdAt: record.created_at ?? "",
-    updatedAt: record.updated_at ?? "",
+    logoFileSize: typeof record.logo_file_size === "number" ? record.logo_file_size : null,
+    coatOfArmsUrl: readString("coat_of_arms_url"),
+    primaryColor: readString("primary_color"),
+    secondaryColor: readString("secondary_color"),
+    accentColor: readString("accent_color"),
+    officialHeaderText: readString("official_header_text"),
+    officialFooterText: readString("official_footer_text"),
+    createdAt: readString("created_at"),
+    updatedAt: readString("updated_at"),
   };
 }
 

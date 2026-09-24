@@ -18,7 +18,6 @@ export type AppSidebarGroup = {
 type SidebarInnerProps = {
   pathname: string;
   groups: AppSidebarGroup[];
-  footer?: React.ReactNode;
   expanded?: boolean;
   darkSurface?: boolean;
   onNavigate?: () => void;
@@ -41,7 +40,6 @@ function isParentActive(pathname: string, routeGroup: string) {
 function SidebarInner({
   pathname,
   groups,
-  footer,
   expanded = true,
   darkSurface = true,
   onNavigate,
@@ -54,7 +52,7 @@ function SidebarInner({
 }: SidebarInnerProps) {
   return (
     <div
-      className="sig-sidebar-panel flex h-full min-h-0 flex-col bg-[var(--sig-sidebar-fill,#0d1526)]"
+      className="sig-sidebar-panel flex h-full min-h-0 flex-col bg-[var(--sig-sidebar)]"
       data-sidebar-expanded={expanded ? "true" : "false"}
     >
       {showClose ? (
@@ -110,7 +108,7 @@ function SidebarInner({
                       : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
                     parentActive
                       ? darkSurface
-                        ? "border border-sky-200/16 bg-[linear-gradient(135deg,rgba(35,66,99,0.98)_0%,rgba(49,104,167,0.94)_100%)] text-white shadow-[0_14px_30px_rgba(2,6,23,0.26)]"
+                        ? "border border-white/18 bg-[var(--sig-topbar)] text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]"
                         : "border border-slate-300 bg-white text-slate-950"
                       : darkSurface
                         ? "border border-white/[0.06] text-slate-300 hover:border-white/10 hover:bg-white/[0.045] hover:text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
@@ -139,7 +137,7 @@ function SidebarInner({
                                   ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "border-white/8 bg-white/[0.03] text-sky-100/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-sky-50"
+                                  ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
                                   : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
                           >
@@ -180,7 +178,7 @@ function SidebarInner({
                                     ? "text-white/90"
                                     : "text-slate-600"
                                   : darkSurface
-                                    ? "text-sky-200/80"
+                                    ? "text-white/75"
                                     : "text-slate-500",
                               )}
                             />
@@ -205,7 +203,7 @@ function SidebarInner({
                                   ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "border-white/8 bg-white/[0.03] text-sky-100/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-sky-50"
+                                  ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
                                   : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
                           >
@@ -273,16 +271,16 @@ function SidebarInner({
                                       "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition-all duration-300",
                                       childActive
                                         ? darkSurface
-                                          ? "bg-sky-200 shadow-[0_0_16px_rgba(186,230,253,0.45)]"
+                                          ? "bg-white/80"
                                           : "bg-sky-600"
                                         : "bg-transparent",
                                     )}
                                     aria-hidden="true"
                                   />
                                   {ChildIcon ? (
-                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
+                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-sky-200/80" : "text-slate-500")} />
+                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
                                   )}
                                   <span className="min-w-0 flex-1 truncate">{child.label}</span>
                                 </Link>
@@ -300,17 +298,6 @@ function SidebarInner({
         </nav>
       </div>
 
-      {footer ? (
-        <div
-          className={cn(
-            "sig-sidebar-footer-shell mt-auto shrink-0 border-t pt-4 transition-all duration-300 ease-out",
-            darkSurface ? "border-white/8" : "border-slate-200",
-            expanded ? "px-3.5 pb-4" : "px-2.5 pb-4",
-          )}
-        >
-          {footer}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -319,7 +306,6 @@ export function AppSidebar({
   pathname,
   groups,
   expanded = true,
-  footer,
   className,
   inverseMain = false,
   darkSurface = true,
@@ -329,7 +315,6 @@ export function AppSidebar({
   pathname: string;
   groups: AppSidebarGroup[];
   expanded?: boolean;
-  footer?: React.ReactNode;
   className?: string;
   inverseMain?: boolean;
   darkSurface?: boolean;
@@ -422,12 +407,11 @@ export function AppSidebar({
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
-      style={{ background: "var(--sig-sidebar-fill, var(--sig-sidebar))" }}
+      style={{ background: "var(--sig-sidebar)" }}
       >
         <SidebarInner
           pathname={pathname}
           groups={groups}
-          footer={footer}
           expanded={expanded}
           darkSurface={darkSurface}
           onNavigate={handleNavigate}
@@ -464,12 +448,11 @@ export function AppSidebar({
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
-          style={{ background: "var(--sig-sidebar-fill, var(--sig-sidebar))" }}
+          style={{ background: "var(--sig-sidebar)" }}
         >
           <SidebarInner
             pathname={pathname}
             groups={groups}
-            footer={footer}
             expanded
             darkSurface={darkSurface}
             onNavigate={handleNavigate}

@@ -7,6 +7,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
 import { getMunicipalityBrandingSafe } from "@/integrations/supabase/platform";
+import { mapMunicipalityBranding } from "@/integrations/supabase/municipality";
 import {
   buildTenantSettingsFromMunicipality,
   getMunicipalityTheme,
@@ -44,7 +45,6 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     bootstrap.scopeType === "platform" ? null : bootstrap.municipalityBundle ?? tenant.municipalityBundle ?? null;
   const loading = bootstrap.loading || tenant.loading;
   const [resolvedBranding, setResolvedBranding] = useState<MunicipalityBranding | null>(null);
-  const [brandingReloadToken, setBrandingReloadToken] = useState(0);
   const brandingResolveRef = useRef<{ headerKey: string; footerKey: string }>({
     headerKey: "",
     footerKey: "",
@@ -65,16 +65,37 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let active = true;
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ municipalityId?: string }>).detail;
       if (detail?.municipalityId && detail.municipalityId !== bundle?.municipality?.id) return;
-      console.log("[BrandingLoad] Evento de branding atualizado recebido");
+      const municipalityId = detail?.municipalityId || bundle?.municipality?.id;
+      if (!municipalityId) return;
       brandingFetchRef.current = { id: "", inFlight: false };
       brandingResolveRef.current = { headerKey: "", footerKey: "" };
-      setBrandingReloadToken((current) => current + 1);
+      void (async () => {
+        const fetched = await getMunicipalityBrandingSafe(municipalityId);
+        if (!fetched || !active) return;
+        let next = mapMunicipalityBranding(fetched);
+        const bucket = (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
+        for (const variant of ["header", "footer"] as const) {
+          const objectKey = variant === "header" ? next.headerLogoObjectKey : next.footerLogoObjectKey;
+          if (!objectKey) continue;
+          try {
+            const url = getPublicUrl(objectKey) || await getSignedUrlForObject({ bucket, objectKey });
+            if (url) next = { ...next, [variant === "header" ? "headerLogoUrl" : "footerLogoUrl"]: url };
+          } catch {
+            // Keep the saved metadata; the card will use its neutral fallback.
+          }
+        }
+        if (active) setResolvedBranding(next);
+      })();
     };
     window.addEventListener("sigapro-branding-updated", handler as EventListener);
-    return () => window.removeEventListener("sigapro-branding-updated", handler as EventListener);
+    return () => {
+      active = false;
+      window.removeEventListener("sigapro-branding-updated", handler as EventListener);
+    };
   }, [bundle?.municipality?.id]);
 
   useEffect(() => {
@@ -96,10 +117,11 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
           if (!fetched) {
             return;
           }
-          const headerKey = (fetched as MunicipalityBranding).headerLogoObjectKey || "";
-          const footerKey = (fetched as MunicipalityBranding).footerLogoObjectKey || "";
+          const mapped = mapMunicipalityBranding(fetched);
+          const headerKey = mapped.headerLogoObjectKey || "";
+          const footerKey = mapped.footerLogoObjectKey || "";
           const hasPublicBase = Boolean(getPublicUrl("test"));
-          let next = { ...(fetched as MunicipalityBranding) };
+          let next = { ...mapped };
           const bucket =
             (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
             "sigapro-logos";
@@ -204,12 +226,13 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     bundle?.branding?.footerLogoObjectKey,
     bundle?.municipality?.id,
     tenant.municipalityId,
-    brandingReloadToken,
   ]);
 
   const value = useMemo<MunicipalityContextValue>(() => {
     const municipality = bundle?.municipality ?? null;
-    const branding = resolvedBranding ?? bundle?.branding ?? null;
+    const branding = resolvedBranding?.municipalityId === (municipality?.id ?? activeInstitutionId)
+      ? resolvedBranding
+      : bundle?.branding ?? null;
     const settings = bundle?.settings ?? null;
     const tenantSettingsCompat = buildTenantSettingsFromMunicipality(
       municipality,
@@ -232,7 +255,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
       name: municipality?.name || institution?.name || "SIGAPRO",
       theme,
     };
-  }, [activeInstitutionId, bundle, fallbackInstitutionSettings, institution, loading]);
+  }, [activeInstitutionId, bundle, fallbackInstitutionSettings, institution, loading, resolvedBranding]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
