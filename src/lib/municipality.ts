@@ -199,6 +199,7 @@ export function buildTenantSettingsFromMunicipality(
     ...base,
     tenantId: municipality?.id || base.tenantId,
     cnpj: (typeof general.cnpj === "string" && general.cnpj) || base.cnpj,
+    cep: typeof general.postal_code === "string" ? general.postal_code : base.cep ?? "",
     endereco: municipality?.address || base.endereco,
     telefone: municipality?.phone || base.telefone,
     email: municipality?.email || base.email,
@@ -223,6 +224,8 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.office_hours === "string" && general.office_hours) ||
       base.horarioAtendimento,
     brasaoUrl: branding?.coatOfArmsUrl || base.brasaoUrl,
+    bandeiraUrl: (typeof general.bandeira_url === "string" && general.bandeira_url) || base.bandeiraUrl,
+    imagemHeroUrl: (typeof general.imagem_hero_url === "string" && general.imagem_hero_url) || base.imagemHeroUrl,
     // logoUrl aponta para header por compatibilidade legada
     logoUrl: headerLogoUrl,
     // campos específicos por variante

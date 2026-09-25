@@ -74,6 +74,7 @@ async function upsertWithColumnRetry(
   table: string,
   payload: Record<string, unknown>,
   onConflict: string,
+  options?: { ignoreDuplicates?: boolean },
 ) {
   const currentPayload: Record<string, unknown> = { ...payload };
   let lastError: { message?: string } | null = null;
@@ -81,7 +82,7 @@ async function upsertWithColumnRetry(
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = await supabase
       .from(table)
-      .upsert(currentPayload, { onConflict });
+      .upsert(currentPayload, { onConflict, ignoreDuplicates: options?.ignoreDuplicates });
     lastError = result.error;
 
     if (!lastError) {
@@ -666,6 +667,7 @@ export async function loadRemotePlatformStore() {
         (typeof general.cnpj === "string" && general.cnpj) ||
         (typeof municipality.cnpj === "string" ? municipality.cnpj : "") ||
         "",
+      cep: typeof general.postal_code === "string" ? general.postal_code : "",
       endereco: municipality.address ?? "",
       telefone: resolveMunicipalityPhone(municipality),
       email: resolveMunicipalityEmail(municipality),
@@ -1866,12 +1868,7 @@ export async function upsertRemoteInstitution(input: {
     slug: municipalitySlug,
     subdomain: normalizedSubdomain,
     status: normalizeMunicipalityStatus(input.status),
-    secretariat_name: input.secretariat || null,
-    email: null,
-    contact_email: null,
-    phone: null,
-    contact_phone: null,
-    address: null,
+    ...(input.secretariat.trim() ? { secretariat_name: input.secretariat.trim() } : {}),
     updated_at: new Date().toISOString(),
   };
 
@@ -1901,6 +1898,7 @@ export async function upsertRemoteInstitution(input: {
         guide_prefix: "DAM",
       },
       "municipality_id",
+      { ignoreDuplicates: true },
     );
 
     const municipalityErrors = [
@@ -1980,6 +1978,10 @@ export async function saveRemoteInstitutionSettings(
   options?: {
     skipMunicipalityUpdate?: boolean;
     skipMunicipalitySettings?: boolean;
+    skipMunicipalityBranding?: boolean;
+    municipalityCity?: string;
+    municipalityState?: string;
+    municipalityFields?: Array<"secretariat" | "email" | "phone" | "address" | "site">;
   },
 ) {
   if (!supabase) {
@@ -2044,7 +2046,14 @@ export async function saveRemoteInstitutionSettings(
     general_settings: {
       admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
+      postal_code: settings.cep || null,
       site: settings.site || null,
+      bandeira_url: settings.bandeiraUrl || null,
+      imagem_hero_url: settings.imagemHeroUrl || null,
+      resumo_plano_diretor: settings.resumoPlanoDiretor || null,
+      resumo_uso_solo: settings.resumoUsoSolo || null,
+      leis_complementares: settings.leisComplementares || null,
+      link_portal_cliente: settings.linkPortalCliente || null,
       directorship: settings.diretoriaResponsavel || null,
       directorship_phone: settings.diretoriaTelefone || null,
       directorship_email: settings.diretoriaEmail || null,
@@ -2105,25 +2114,42 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   // 3. municipalities — dados gerais da prefeitura
   // ------------------------------------------------------------------
-  const municipalityUpdatePayload = {
-    id: remoteTenantId,
-    secretariat_name: settings.secretariaResponsavel || null,
-    email: settings.email || null,
-    contact_email: settings.email || null,
-    phone: settings.telefone || null,
-    contact_phone: settings.telefone || null,
-    address: settings.endereco || null,
-    custom_domain: settings.site || null,
-  };
+  const municipalityUpdatePayload: Record<string, unknown> = {};
+  const includeMunicipalityField = (field: "secretariat" | "email" | "phone" | "address" | "site") =>
+    !options?.municipalityFields || options.municipalityFields.includes(field);
+  if (includeMunicipalityField("secretariat")) municipalityUpdatePayload.secretariat_name = settings.secretariaResponsavel || null;
+  if (includeMunicipalityField("email")) {
+    municipalityUpdatePayload.email = settings.email || null;
+    municipalityUpdatePayload.contact_email = settings.email || null;
+  }
+  if (includeMunicipalityField("phone")) {
+    municipalityUpdatePayload.phone = settings.telefone || null;
+    municipalityUpdatePayload.contact_phone = settings.telefone || null;
+  }
+  if (includeMunicipalityField("address")) municipalityUpdatePayload.address = settings.endereco || null;
+  if (includeMunicipalityField("site")) municipalityUpdatePayload.custom_domain = settings.site || null;
+  if (options?.municipalityCity !== undefined) {
+    municipalityUpdatePayload.city = options.municipalityCity.trim();
+  }
+  if (options?.municipalityState !== undefined) {
+    municipalityUpdatePayload.state = options.municipalityState.trim().toUpperCase();
+  }
 
   // Executa as três operações
+  // UPDATE avoids PostgreSQL checking NOT NULL "name" on an incomplete UPSERT.
   const municipalityUpdateResult = options?.skipMunicipalityUpdate
-    ? { error: null }
+    ? { data: null, error: null }
     : await withTimeout(
-        upsertWithColumnRetry("municipalities", municipalityUpdatePayload, "id"),
-        "municipalities upsert",
+        (async () => supabase.from("municipalities").update(municipalityUpdatePayload).eq("id", remoteTenantId).select("id").maybeSingle())(),
+        "municipalities update",
         12000,
       );
+  if (!options?.skipMunicipalityUpdate && !municipalityUpdateResult.error && !municipalityUpdateResult.data) {
+    throw new Error("Prefeitura não encontrada ou sem permissão para atualizar seus dados institucionais.");
+  }
+  if (municipalityUpdateResult.error && !isMissingRelationError(municipalityUpdateResult.error, "public.municipalities")) {
+    throw new Error(formatSupabaseError(municipalityUpdateResult.error));
+  }
 
   const municipalitySettingsResult = options?.skipMunicipalitySettings
     ? { error: null }
@@ -2181,11 +2207,13 @@ export async function saveRemoteInstitutionSettings(
     return { error: lastError };
   };
 
-  const municipalityBrandingResult = await withTimeout(
-    upsertMunicipalityBranding(),
-    "municipality_branding upsert",
-    12000,
-  );
+  const municipalityBrandingResult = options?.skipMunicipalityBranding
+    ? { error: null }
+    : await withTimeout(
+        upsertMunicipalityBranding(),
+        "municipality_branding upsert",
+        12000,
+      );
 
   const municipalityUpdateMissing = isMissingRelationError(
     municipalityUpdateResult.error,
@@ -2198,7 +2226,7 @@ export async function saveRemoteInstitutionSettings(
           municipalitySettingsResult.error,
           "public.municipality_settings",
         );
-  const municipalityBrandingMissing = isMissingRelationError(
+  const municipalityBrandingMissing = options?.skipMunicipalityBranding || isMissingRelationError(
     municipalityBrandingResult.error,
     "public.municipality_branding",
   );
@@ -2208,8 +2236,12 @@ export async function saveRemoteInstitutionSettings(
     municipalitySettingsMissing ? null : municipalitySettingsResult.error,
     municipalityBrandingMissing ? null : municipalityBrandingResult.error,
   ].filter(Boolean);
+  const onlyMissingRelations =
+    municipalityUpdateMissing &&
+    municipalitySettingsMissing &&
+    municipalityBrandingMissing;
 
-  if (municipalityErrors.length === 0) {
+  if (municipalityErrors.length === 0 && !onlyMissingRelations) {
     console.log(
       "[SIGAPRO][Supabase] Branding salvo com sucesso via municipalities",
       {
@@ -2218,11 +2250,6 @@ export async function saveRemoteInstitutionSettings(
     );
     return;
   }
-
-  const onlyMissingRelations =
-    municipalityUpdateMissing &&
-    municipalitySettingsMissing &&
-    municipalityBrandingMissing;
 
   if (!onlyMissingRelations) {
     const firstError = municipalityErrors[0];

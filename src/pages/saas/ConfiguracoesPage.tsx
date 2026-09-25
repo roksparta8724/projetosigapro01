@@ -52,6 +52,7 @@ import {
 } from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { can, desktopThemePresets, mobileThemePresets, type TenantSettings } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
@@ -521,6 +522,7 @@ export function ConfiguracoesPage() {
 
   const [settingsForm, setSettingsForm] = useState({
     cnpj: settings?.cnpj ?? "",
+    cep: settings?.cep ?? "",
     endereco: settings?.endereco ?? "",
     telefone: settings?.telefone ?? "",
     email: settings?.email ?? "",
@@ -762,6 +764,7 @@ export function ConfiguracoesPage() {
 
     const nextSettingsForm = {
       cnpj: nextSettings?.cnpj ?? "",
+      cep: nextSettings?.cep ?? "",
       endereco: nextSettings?.endereco ?? "",
       telefone: nextSettings?.telefone ?? "",
       email: nextSettings?.email ?? "",
@@ -844,6 +847,52 @@ export function ConfiguracoesPage() {
 
   const setSettingsField = (field: keyof typeof settingsForm, value: string | number) => {
     setSettingsForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const [cepStatus, setCepStatus] = useState("");
+  const [cepLoading, setCepLoading] = useState(false);
+  const cepLookupVersionRef = useRef(0);
+  const handleCepChange = (value: string) => {
+    cepLookupVersionRef.current += 1;
+    setCepLoading(false);
+    setCepStatus("");
+    setSettingsField("cep", formatCep(value));
+  };
+  const handleCepLookup = async () => {
+    const cep = settingsForm.cep.replace(/\D/g, "");
+    if (cep.length !== 8) {
+      setCepStatus("Informe um CEP com 8 dígitos.");
+      return;
+    }
+    const version = ++cepLookupVersionRef.current;
+    setCepLoading(true);
+    setCepStatus("");
+    try {
+      const address = await lookupCepAddress(cep);
+      if (version !== cepLookupVersionRef.current) return;
+      if (!address) {
+        setCepStatus("CEP não encontrado. Confira o número ou preencha o endereço manualmente.");
+        return;
+      }
+      if (!address.city || !/^[A-Za-z]{2}$/.test(address.state)) {
+        setCepStatus("O CEP não retornou cidade e UF confiáveis. Preencha os dados manualmente.");
+        return;
+      }
+      const addressLine = [address.street, address.neighborhood].filter(Boolean).join(" - ");
+      setSettingsForm((current) => ({ ...current, endereco: addressLine }));
+      setTenantForm((current) => ({
+        ...current,
+        city: address.city || current.city,
+        state: address.state || current.state,
+      }));
+      setCepStatus(addressLine ? "Endereço, cidade e UF encontrados. Confira e complete o número." : "Cidade e UF encontradas. Informe o endereço completo.");
+    } catch (error) {
+      if (version === cepLookupVersionRef.current) {
+        setCepStatus(error instanceof Error ? error.message : "Não foi possível consultar o CEP agora.");
+      }
+    } finally {
+      if (version === cepLookupVersionRef.current) setCepLoading(false);
+    }
   };
 
   const updateLogoFrame =
@@ -1891,6 +1940,14 @@ export function ConfiguracoesPage() {
       setStatus("Informe o nome institucional antes de salvar.");
       return;
     }
+    if (activeSettingsView === "institutional" && (!tenantForm.city.trim() || !/^[A-Za-z]{2}$/.test(tenantForm.state.trim()))) {
+      setStatus("Informe a cidade e uma UF válida antes de salvar os dados institucionais.");
+      return;
+    }
+    if (activeSettingsView === "institutional" && settingsForm.cep && settingsForm.cep.replace(/\D/g, "").length !== 8) {
+      setStatus("Confira o CEP: ele deve conter 8 dígitos.");
+      return;
+    }
     if (!normalizedSubdomain) {
       setStatus("Informe um subdomínio válido (somente o nome, sem .sigapromunicipal.com.br).");
       return;
@@ -1899,11 +1956,16 @@ export function ConfiguracoesPage() {
       setTenantField("subdomain", normalizedSubdomain);
     }
 
-    const savedTenant = ensureSelectedTenant(normalizedSubdomain);
+    const remoteTenantId = resolveValidScopeId(selectedTenantId || scopeId || session.tenantId);
+    if (hasSupabaseEnv && !remoteTenantId) {
+      setStatus("Selecione uma Prefeitura existente antes de atualizar os dados institucionais.");
+      return;
+    }
+    const savedTenantId = remoteTenantId ?? ensureSelectedTenant(normalizedSubdomain).id;
     const logoUrl = logoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "";
 
     const nextSettings = updateInstitutionBranding({
-      tenantId: savedTenant.id,
+      tenantId: savedTenantId,
       ...settings,
       ...settingsForm,
       logoUrl,
@@ -1935,7 +1997,7 @@ export function ConfiguracoesPage() {
       footerLogoFrameMode: footerBranding.logoFrameMode,
       footerLogoFitMode: footerBranding.logoFitMode,
     }, {
-      tenantId: savedTenant.id,
+      tenantId: savedTenantId,
       logoUrl,
       logoScale: headerBranding.logoScale,
       logoOffsetX: headerBranding.logoOffsetX,
@@ -1956,14 +2018,34 @@ export function ConfiguracoesPage() {
           headerLogoUrl: sanitizePersistedUrl(nextSettings.headerLogoUrl),
           footerLogoUrl: sanitizePersistedUrl(nextSettings.footerLogoUrl),
         } as typeof nextSettings;
+        const remoteSaveOptions: Parameters<typeof saveRemoteInstitutionSettings>[1] = activeSettingsView === "institutional"
+          ? { municipalityCity: tenantForm.city, municipalityState: tenantForm.state, municipalityFields: ["phone", "address", "secretariat"], skipMunicipalityBranding: true }
+          : activeSettingsView === "communication"
+            ? { municipalityFields: ["email", "site"], skipMunicipalityBranding: true }
+            : activeSettingsView === "team"
+              ? { municipalityFields: ["secretariat"], skipMunicipalityBranding: true }
+              : { skipMunicipalityUpdate: true, skipMunicipalityBranding: true };
         await withTimeout(
-          saveRemoteInstitutionSettings(nextSettingsForSave),
+          saveRemoteInstitutionSettings(nextSettingsForSave, remoteSaveOptions),
           "Tempo limite ao salvar o branding institucional. Verifique a conexao com o Supabase.",
         );
       }
 
-      saveInstitutionSettings(nextSettings);
-      setSelectedTenantId(savedTenant.id);
+      if (hasSupabaseEnv) {
+        upsertInstitution({
+          institutionId: savedTenantId,
+          name: tenantForm.name,
+          city: tenantForm.city,
+          state: tenantForm.state,
+          status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
+          plan: tenantForm.plan,
+          subdomain: normalizedSubdomain,
+          primaryColor: tenantForm.primaryColor,
+          accentColor: tenantForm.accentColor,
+        }, { skipRemoteSync: true });
+      }
+      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasSupabaseEnv });
+      setSelectedTenantId(savedTenantId);
       setStatus("Configurações da prefeitura salvas com sucesso.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Falha ao salvar a prefeitura.");
@@ -2092,6 +2174,7 @@ export function ConfiguracoesPage() {
   const previewSettingsBase = {
     tenantId: selectedTenantId || tenant?.id || "",
     cnpj: settingsForm.cnpj,
+    cep: settingsForm.cep,
     endereco: settingsForm.endereco,
     telefone: settingsForm.telefone,
     email: settingsForm.email,
@@ -2457,6 +2540,7 @@ export function ConfiguracoesPage() {
                     });
                     setSettingsForm({
                       cnpj: "",
+                      cep: "",
                       endereco: "",
                       telefone: "",
                       email: "",
@@ -2956,9 +3040,31 @@ export function ConfiguracoesPage() {
 
               {activeSettingsView === "institutional" ? (
                 <>
-              <div className="space-y-2">
-                <Label>Endereço</Label>
-                <Input value={settingsForm.endereco} onChange={(event) => setSettingsField("endereco", event.target.value)} />
+              <div className="grid gap-4 md:grid-cols-[minmax(230px,0.8fr)_minmax(0,2fr)]">
+                <div className="space-y-2">
+                  <Label htmlFor="municipality-cep">CEP</Label>
+                  <div className="flex gap-2">
+                    <Input id="municipality-cep" inputMode="numeric" autoComplete="postal-code" maxLength={9} placeholder="00000-000" value={settingsForm.cep} onChange={(event) => handleCepChange(event.target.value)} />
+                    <Button type="button" variant="outline" disabled={cepLoading} onClick={() => void handleCepLookup()} className="shrink-0 rounded-xl">
+                      {cepLoading ? "Buscando..." : "Buscar"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="municipality-address">Endereço</Label>
+                  <Input id="municipality-address" autoComplete="street-address" placeholder="Logradouro, número e bairro" value={settingsForm.endereco} onChange={(event) => setSettingsField("endereco", event.target.value)} />
+                </div>
+              </div>
+              {cepStatus ? <p role="status" className="text-xs leading-5 text-slate-600">{cepStatus}</p> : null}
+              <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(120px,0.6fr)]">
+                <div className="space-y-2">
+                  <Label htmlFor="municipality-city">Cidade</Label>
+                  <Input id="municipality-city" autoComplete="address-level2" value={tenantForm.city} onChange={(event) => setTenantField("city", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="municipality-state">Estado (UF)</Label>
+                  <Input id="municipality-state" autoComplete="address-level1" maxLength={2} placeholder="SP" value={tenantForm.state} onChange={(event) => setTenantField("state", event.target.value.toUpperCase())} />
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

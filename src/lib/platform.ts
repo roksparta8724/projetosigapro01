@@ -333,6 +333,7 @@ export interface InstitutionAdminContact {
 export interface TenantSettings {
   tenantId: string;
   cnpj: string;
+  cep?: string;
   endereco: string;
   telefone: string;
   email: string;
@@ -2360,7 +2361,6 @@ export function buildProcessDocuments(
 
   return [...fromTemplate, ...extras];
 }
-
 
 
 

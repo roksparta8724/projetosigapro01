@@ -107,7 +107,7 @@ interface PlatformDataState {
     subdomain: string;
     primaryColor: string;
     accentColor: string;
-  }) => Institution;
+  }, options?: { skipRemoteSync?: boolean }) => Institution;
   saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => void;
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
@@ -936,7 +936,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
-    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input) => {
+    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
       const tenantId = input.institutionId ?? `tenant-${crypto.randomUUID()}`;
       const existing = store.tenants.find((item) => item.id === tenantId);
 
@@ -1034,20 +1034,22 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, tenants, tenantSettings };
       });
 
-      syncRemoteInBackground("prefeitura", () =>
-        upsertRemoteInstitution({
-          institutionId: tenantId,
-          name: input.name,
-          city: input.city,
-          state: input.state,
-          status: input.status,
-          subdomain: input.subdomain,
-          cnpj: store.tenantSettings.find((item) => item.tenantId === tenantId)?.cnpj ?? "",
-          primaryColor: input.primaryColor,
-          accentColor: input.accentColor,
-          secretariat: store.tenantSettings.find((item) => item.tenantId === tenantId)?.secretariaResponsavel ?? "",
-        }),
-      );
+      if (!options?.skipRemoteSync) {
+        syncRemoteInBackground("prefeitura", () =>
+          upsertRemoteInstitution({
+            institutionId: tenantId,
+            name: input.name,
+            city: input.city,
+            state: input.state,
+            status: input.status,
+            subdomain: input.subdomain,
+            cnpj: store.tenantSettings.find((item) => item.tenantId === tenantId)?.cnpj ?? "",
+            primaryColor: input.primaryColor,
+            accentColor: input.accentColor,
+            secretariat: store.tenantSettings.find((item) => item.tenantId === tenantId)?.secretariaResponsavel ?? "",
+          }),
+        );
+      }
 
       return nextTenant;
     };
