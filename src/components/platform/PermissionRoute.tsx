@@ -37,8 +37,8 @@ export function PermissionRoute({
   }
 
   const authenticatedUser = sessionUsers.find((item) => item.id === authenticatedUserId);
-  const isActuallyBlocked =
-    authenticatedUser?.accountStatus === "blocked" || authenticatedUser?.accountStatus === "inactive";
+  const accountStatus = bootstrap.profile?.accountStatus ?? authenticatedUser?.accountStatus;
+  const isActuallyBlocked = accountStatus === "blocked" || accountStatus === "inactive";
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isTenantMismatch =
@@ -127,7 +127,7 @@ export function PermissionRoute({
           </h1>
           {isActuallyBlocked ? (
             <p className="mt-3 text-sm text-slate-600">
-              Esta conta foi marcada como {authenticatedUser?.accountStatus === "inactive" ? "inativa" : "bloqueada"}{" "}
+              Esta conta foi marcada como {accountStatus === "inactive" ? "inativa" : "bloqueada"}{" "}
               por um administrador.
               {authenticatedUser?.blockReason ? ` Motivo registrado: ${authenticatedUser.blockReason}.` : ""}
             </p>

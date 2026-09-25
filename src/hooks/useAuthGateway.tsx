@@ -15,6 +15,7 @@ interface AuthGatewayContextValue {
   authResolved: boolean;
   authenticatedUserId: string | null;
   authenticatedRole: string | null;
+  authenticatedAccessLevel: 1 | 2 | 3 | null;
   authenticatedEmail: string | null;
   authenticatedMunicipalityId: string | null;
   signIn: (
@@ -36,6 +37,7 @@ const authGatewayFallback: AuthGatewayContextValue = {
   authResolved: true,
   authenticatedUserId: null,
   authenticatedRole: null,
+  authenticatedAccessLevel: null,
   authenticatedEmail: null,
   authenticatedMunicipalityId: null,
   signIn: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
@@ -91,6 +93,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       authResolved: bootstrap.authResolved,
       authenticatedUserId: bootstrap.authUserId,
       authenticatedRole: bootstrap.role,
+      authenticatedAccessLevel: bootstrap.profile?.accessLevel ?? null,
       authenticatedEmail: bootstrap.authEmail,
       authenticatedMunicipalityId:
         bootstrap.scopeType === "platform" ? null : bootstrap.profile?.municipalityId ?? null,
@@ -125,6 +128,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       bootstrap.profile?.municipalityId,
       bootstrap.resetPassword,
       bootstrap.role,
+      bootstrap.profile?.accessLevel,
       bootstrap.signIn,
       bootstrap.signOut,
       bootstrap.updateEmail,

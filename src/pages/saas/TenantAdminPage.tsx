@@ -20,7 +20,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
-const tenantRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
+const tenantRoles: UserRole[] = ["prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "solicitacoes" | "historico";
 
@@ -75,6 +75,7 @@ export function TenantAdminPage() {
   );
 
   const [statusMessage, setStatusMessage] = useState("");
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [segment, setSegment] = useState<UserSegment>("todos");
   const [search, setSearch] = useState("");
@@ -115,7 +116,7 @@ export function TenantAdminPage() {
     { label: "Restritos", value: restrictedTransitCount, helper: "Fluxos ocultos ao acesso externo" },
   ], [generatedByCurrentUnit.length, receivedForCurrentUnit.length, restrictedTransitCount]);
   const startEdit = (user: SessionUser) => { setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, title: user.title, accessLevel: String(user.accessLevel), department: user.department || user.title, userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
-  const handleCreateUser = (event: FormEvent) => {
+  const handleCreateUser = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId) return;
 
@@ -128,23 +129,68 @@ export function TenantAdminPage() {
       return;
     }
 
-    const user = createTenantUser({
-      tenantId: effectiveScopeId,
-      fullName: normalizedName,
-      email: normalizedEmail,
-      role: form.role,
-      title: normalizedTitle,
-      accessLevel: Number(form.accessLevel) as 1 | 2 | 3,
-    });
-
-    setStatusMessage(
-      `Usuário ${user.name} criado e vinculado à Prefeitura ${municipalityName || activeInstitution?.name || "selecionada"} com ${accessLevelLabels[user.accessLevel]}. Senha inicial: Acesso@2026`,
-    );
-    setForm({ fullName: "", email: "", role: "analista", title: roleSuggestedTitles.analista, accessLevel: "1" });
+    if (savingUserId) return;
+    setSavingUserId("new");
+    setStatusMessage("Confirmando vínculo no banco...");
+    try {
+      const user = await createTenantUser({
+        tenantId: effectiveScopeId,
+        fullName: normalizedName,
+        email: normalizedEmail,
+        role: form.role,
+        title: normalizedTitle,
+        accessLevel: Number(form.accessLevel) as 1 | 2 | 3,
+      });
+      setStatusMessage(`Conta ${user.name} vinculada à Prefeitura ${municipalityName || activeInstitution?.name || "selecionada"} com ${accessLevelLabels[user.accessLevel]}.`);
+      setForm({ fullName: "", email: "", role: "analista", title: roleSuggestedTitles.analista, accessLevel: "1" });
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível vincular a conta.");
+    } finally {
+      setSavingUserId(null);
+    }
   };
-  const handleSaveEdit = (userId: string) => { const updated = updateTenantUser(userId, { name: editForm.name.trim(), email: editForm.email.trim().toLowerCase(), role: editForm.role, title: editForm.title.trim(), accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3, department: editForm.department.trim(), userType: editForm.userType.trim() }); if (!updated) return; setStatusMessage(`Dados de ${updated.name} atualizados com sucesso.`); setEditingUserId(null); };
-  const handleBlockToggle = (user: SessionUser) => { if (user.id === session.id) { setStatusMessage("Não é permitido bloquear a própria conta administrativa em uso."); return; } if (user.accountStatus === "blocked") { if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return; const updated = setUserAccountStatus({ userId: user.id, status: "active", actor: session.id }); if (updated) setStatusMessage(`Conta de ${updated.name} desbloqueada com sucesso.`); return; } const reason = window.prompt(`Informe o motivo do bloqueio de ${user.name}:`, user.blockReason || "Bloqueio administrativo"); if (reason === null) return; const updated = setUserAccountStatus({ userId: user.id, status: "blocked", actor: session.id, reason }); if (updated) setStatusMessage(`Conta de ${updated.name} bloqueada com sucesso.`); };
-  const handleDeactivate = (user: SessionUser) => { if (user.id === session.id) { setStatusMessage("Não é permitido desativar a própria conta administrativa em uso."); return; } if (!window.confirm(`Deseja desativar a conta de ${user.name}? Esta ação pode ser revertida depois.`)) return; const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente"); if (reason === null) return; const updated = deleteUserAccount({ userId: user.id, actor: session.id, reason }); if (updated) setStatusMessage(`Conta de ${updated.name} marcada como inativa.`); };
+  const runUserCommand = async (userId: string, command: () => Promise<SessionUser | null>, success: (user: SessionUser) => string) => {
+    if (savingUserId) return false;
+    setSavingUserId(userId);
+    setStatusMessage("Salvando acesso no banco...");
+    try {
+      const updated = await command();
+      if (!updated) throw new Error("Usuário não encontrado no banco.");
+      setStatusMessage(success(updated));
+      return true;
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar o acesso.");
+      return false;
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+  const handleSaveEdit = async (userId: string) => {
+    const saved = await runUserCommand(userId, () => updateTenantUser(userId, {
+      name: editForm.name.trim(), role: editForm.role, title: editForm.title.trim(),
+      accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3,
+    }), (updated) => `Dados de ${updated.name} atualizados no banco.`);
+    if (saved) setEditingUserId(null);
+  };
+  const canManageAccount = (user: SessionUser) => user.id !== session.id && user.role !== "prefeitura_admin";
+  const handleBlockToggle = (user: SessionUser) => {
+    if (!canManageAccount(user)) { setStatusMessage("Somente o Master pode alterar outro administrador da Prefeitura."); return; }
+    if (user.accountStatus === "blocked") {
+      if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return;
+      void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "active", actor: session.id }), (updated) => `Conta de ${updated.name} desbloqueada.`);
+      return;
+    }
+    const reason = window.prompt(`Informe o motivo do bloqueio de ${user.name}:`, user.blockReason || "Bloqueio administrativo");
+    if (reason === null) return;
+    void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "blocked", actor: session.id, reason }), (updated) => `Conta de ${updated.name} bloqueada.`);
+  };
+  const handleDeactivate = (user: SessionUser) => {
+    if (!canManageAccount(user)) { setStatusMessage("Somente o Master pode alterar outro administrador da Prefeitura."); return; }
+    if (!window.confirm(`Deseja desativar a conta de ${user.name}? Esta ação pode ser revertida depois.`)) return;
+    const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente");
+    if (reason === null) return;
+    void runUserCommand(user.id, () => deleteUserAccount({ userId: user.id, actor: session.id, reason }), (updated) => `Conta de ${updated.name} marcada como inativa.`);
+  };
 
   const renderQueueCard = (process: ProcessRecord) => {
     const pendingRequirements = process.requirements.filter((item) => item.status === "aberta" || item.status === "respondida");
@@ -185,8 +231,8 @@ export function TenantAdminPage() {
                 <Input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} />
+                <Label>E-mail de acesso</Label>
+                <Input value={editForm.email} readOnly className="bg-slate-50" />
               </div>
               <div className="space-y-2">
                 <Label>Setor / cargo</Label>
@@ -206,16 +252,8 @@ export function TenantAdminPage() {
                   <SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Input value={editForm.userType} onChange={(event) => setEditForm((current) => ({ ...current, userType: event.target.value }))} />
-              </div>
-              <div className="space-y-2 lg:col-span-2 2xl:col-span-3">
-                <Label>Departamento</Label>
-                <Input value={editForm.department} onChange={(event) => setEditForm((current) => ({ ...current, department: event.target.value }))} />
-              </div>
               <div className="flex flex-col gap-2 lg:col-span-2 2xl:col-span-3 sm:flex-row sm:flex-wrap">
-                <Button type="button" className="h-11 w-full rounded-2xl bg-slate-950 hover:bg-slate-900 sm:w-auto" onClick={() => handleSaveEdit(user.id)}>Salvar alterações</Button>
+                <Button type="button" disabled={savingUserId === user.id} className="h-11 w-full rounded-2xl bg-slate-950 hover:bg-slate-900 sm:w-auto" onClick={() => void handleSaveEdit(user.id)}>{savingUserId === user.id ? "Salvando..." : "Salvar alterações"}</Button>
                 <Button type="button" variant="outline" className="h-11 w-full rounded-2xl sm:w-auto" onClick={() => setEditingUserId(null)}>Cancelar</Button>
               </div>
             </div>
@@ -241,9 +279,11 @@ export function TenantAdminPage() {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-slate-200 pt-5 sm:flex-row sm:flex-wrap">
-            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => startEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button>
-            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleBlockToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button>
-            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleDeactivate(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar conta</Button>
+            {canManageAccount(user) ? <>
+              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => startEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button>
+              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleBlockToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button>
+              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleDeactivate(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar conta</Button>
+            </> : <p className="text-sm text-slate-500">Esta conta administrativa é gerenciada pelo Master.</p>}
           </div>
         </div>
       </div>
@@ -506,7 +546,7 @@ export function TenantAdminPage() {
 
         {workspaceView === "fila" ? <TableCard title="Fila operacional" description="Área dedicada à operação da Prefeitura, com prioridade, responsável, prazo e etapa atual." icon={ClipboardList}><div className="space-y-4"><div className="grid gap-3 lg:grid-cols-[1.2fr,0.7fr,0.7fr]"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Prefeitura operando com {mainQueue.length} item(ns) priorizados na fila principal.</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">SLA crítico: {criticalAlerts.length} item(ns).</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Pendências financeiras: {metrics.pendingPayments}.</div></div>{mainQueue.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum protocolo operacional encontrado para esta Prefeitura.</div> : mainQueue.map((process) => renderQueueCard(process))}</div></TableCard> : null}
 
-        {workspaceView === "usuarios" ? <PageMainGrid className="lg:grid-cols-[minmax(0,1.92fr)_minmax(280px,0.78fr)] xl:grid-cols-[minmax(0,2.08fr)_minmax(320px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(210px,0.72fr)_minmax(210px,0.72fr)] xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Novo usuário interno" description="Crie acessos da Prefeitura com perfil, cargo existente e vínculo automático ao órgão atual." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura vinculada</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil</Label><Select value={form.role} onValueChange={(value) => setForm((current) => ({ ...current, role: value as UserRole, title: roleSuggestedTitles[value as UserRole] }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Cargo ou setor</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Selecione ou digite um cargo existente" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist><p className="text-xs leading-5 text-slate-500">Os cargos existentes desta Prefeitura aparecem como sugestão para manter o padrão institucional.</p></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 hover:bg-slate-900">Cadastrar usuário</Button></form></SectionCard></PageSideContent></PageMainGrid> : null}
+        {workspaceView === "usuarios" ? <PageMainGrid className="lg:grid-cols-[minmax(0,1.92fr)_minmax(280px,0.78fr)] xl:grid-cols-[minmax(0,2.08fr)_minmax(320px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(210px,0.72fr)_minmax(210px,0.72fr)] xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Vincular conta existente" description="A conta precisa estar confirmada e vinculada a esta Prefeitura. O papel interno só é ativado após confirmação no banco." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura vinculada</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil</Label><Select value={form.role} onValueChange={(value) => setForm((current) => ({ ...current, role: value as UserRole, title: roleSuggestedTitles[value as UserRole] }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Cargo ou setor</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Selecione ou digite um cargo existente" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist><p className="text-xs leading-5 text-slate-500">Os cargos existentes desta Prefeitura aparecem como sugestão para manter o padrão institucional.</p></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><Button type="submit" disabled={Boolean(savingUserId)} className="h-12 w-full rounded-2xl bg-slate-950 hover:bg-slate-900">{savingUserId === "new" ? "Confirmando vínculo..." : "Vincular conta"}</Button></form></SectionCard></PageSideContent></PageMainGrid> : null}
 
         {workspaceView === "solicitacoes" ? <PageMainGrid className="lg:grid-cols-[minmax(0,1.68fr)_minmax(260px,0.82fr)] xl:grid-cols-[minmax(0,1.86fr)_minmax(300px,0.84fr)]"><PageMainContent><SectionCard title="Solicitações pendentes" description="Pedidos externos, acessos e itens aguardando análise institucional da Prefeitura." icon={BadgeCheck} contentClassName="space-y-3">{pendingRequests.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">Nenhuma solicitação pendente no momento.</div> : pendingRequests.map((request) => <div key={request.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex min-w-0 items-start gap-3"><UserAvatar name={request.fullName} imageUrl={request.avatarUrl} size="md" /><div className="min-w-0"><p className="sig-fit-title text-base font-semibold text-slate-950">{request.fullName}</p><p className="text-sm leading-6 text-slate-600">{roleLabels[request.role]} • {request.title || request.professionalType || "Sem função informada"}</p><p className="mt-1 sig-fit-copy text-sm text-slate-500" title={request.email}>{request.email}</p></div></div><p className="mt-2 text-sm text-slate-500">Solicitado em {request.createdAt}</p><Button type="button" className="mt-4 h-10 rounded-full bg-slate-950 px-5 hover:bg-slate-900" onClick={() => { const user = approveRegistrationRequest(request.id); if (user) setStatusMessage(`Solicitação aprovada para ${user.name}. Senha inicial: Acesso@2026`); }}>Aprovar acesso</Button></div>)}</SectionCard></PageMainContent><PageSideContent><SectionCard title="Coordenação por equipe" description="Carga atual e pendências por responsável técnico." icon={ShieldCheck} contentClassName="space-y-3">{productivity.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">Ainda não há produtividade consolidada para esta Prefeitura.</div> : productivity.map((item) => <div key={item.name} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="sig-fit-title text-base font-semibold text-slate-950">{item.name}</p><p className="text-sm text-slate-500">{item.role}</p><div className="mt-3 grid gap-2 text-sm leading-6 text-slate-600 md:grid-cols-2"><div className="rounded-xl bg-slate-50 p-3">Fila: {item.total}</div><div className="rounded-xl bg-slate-50 p-3">Pendências: {item.pendencias}</div></div></div>)}</SectionCard></PageSideContent></PageMainGrid> : null}
 

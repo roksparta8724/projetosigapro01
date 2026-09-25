@@ -58,6 +58,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
   const {
     authenticatedEmail,
     authenticatedRole,
+    authenticatedAccessLevel,
     authenticatedUserId,
     authenticatedMunicipalityId,
     authResolved,
@@ -79,8 +80,8 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
         accessLevel:
           safeRole === "master_admin" || safeRole === "prefeitura_admin"
             ? 3
-            : safeRole === "prefeitura_supervisor"
-              ? 2
+            : authResolved && authenticatedUserId
+              ? authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1)
               : cachedSession.accessLevel ?? 1,
         tenantId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
         municipalityId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
@@ -102,9 +103,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       accessLevel:
         safeRole === "master_admin" || safeRole === "prefeitura_admin"
           ? 3
-          : safeRole === "prefeitura_supervisor"
-            ? 2
-            : 1,
+          : authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1),
       tenantId: authenticatedMunicipalityId ?? null,
       municipalityId: authenticatedMunicipalityId ?? null,
       title: roleLabels[safeRole] || "Usuário",
@@ -119,7 +118,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: null,
       deletedAt: null,
     };
-  }, [authLoading, authResolved, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {

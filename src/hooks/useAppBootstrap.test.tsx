@@ -8,6 +8,7 @@ const authMock = vi.hoisted(() => {
   let mode = "platform";
   let profileRole: string | null = "master_admin";
   let profileMunicipalityId: string | null = null;
+  let profileAccountStatus = "active";
   let hostMunicipalityId = tenantId;
   const user = {
     id: "e2388f6b-7473-48d1-b30b-fcc1117ea80e",
@@ -37,7 +38,7 @@ const authMock = vi.hoisted(() => {
           select: () => ({
             eq: () => ({
               limit: async () => ({
-                data: profileRole === null && !profileMunicipalityId ? [] : [{ user_id: user.id, role: profileRole, municipality_id: profileMunicipalityId, email: user.email, full_name: "Account" }],
+                data: profileRole === null && !profileMunicipalityId ? [] : [{ user_id: user.id, role: profileRole, municipality_id: profileMunicipalityId, account_status: profileAccountStatus, email: user.email, full_name: "Account" }],
                 error: null,
               }),
             }),
@@ -62,7 +63,9 @@ const authMock = vi.hoisted(() => {
     setProfile(role: string | null, municipalityId: string | null) {
       profileRole = role;
       profileMunicipalityId = municipalityId;
+      profileAccountStatus = "active";
     },
+    setAccountStatus(value: string) { profileAccountStatus = value; },
     emit: (event: string, session: { user: typeof user } | null) => listener?.(event, session),
   };
 });
@@ -93,7 +96,7 @@ vi.mock("@/integrations/supabase/platform", () => ({
 }));
 
 function LoginProbe() {
-  const { signIn, loading, authUserId } = useAppBootstrap();
+  const { signIn, loading, authUserId, role } = useAppBootstrap();
   const [status, setStatus] = useState("idle");
 
   return (
@@ -104,6 +107,7 @@ function LoginProbe() {
       <span>{status}</span>
       <span data-testid="loading-state">{loading ? "loading" : "ready"}</span>
       <span data-testid="auth-user-id">{authUserId ?? "none"}</span>
+      <span data-testid="role">{role ?? "none"}</span>
     </>
   );
 }
@@ -191,5 +195,29 @@ describe("AppBootstrapProvider login", () => {
     expect(await screen.findByText("failed")).toBeInTheDocument();
     expect(registrationMock.external).not.toHaveBeenCalled();
     expect(screen.getByTestId("auth-user-id")).toHaveTextContent("none");
+  });
+
+  it("uses the confirmed municipal role instead of stale auth metadata", async () => {
+    authMock.mode = "tenant";
+    authMock.user.app_metadata.role = "profissional_externo";
+    authMock.setProfile("prefeitura_admin", authMock.tenantId);
+    render(<AppBootstrapProvider><LoginProbe /></AppBootstrapProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+  });
+
+  it("rejects a blocked municipal account even with valid credentials", async () => {
+    authMock.mode = "tenant";
+    authMock.setProfile("prefeitura_admin", authMock.tenantId);
+    authMock.setAccountStatus("blocked");
+    render(<AppBootstrapProvider><LoginProbe /></AppBootstrapProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("failed")).toBeInTheDocument();
+    expect(screen.getByTestId("role")).toHaveTextContent("none");
   });
 });

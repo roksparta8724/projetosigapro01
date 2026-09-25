@@ -237,6 +237,19 @@ function roleToAccessLevel(role: string): 1 | 2 | 3 {
   return 1;
 }
 
+function normalizeStoredRole(role: string | null | undefined): SessionUser["role"] {
+  if (role === "admin_master" || role === "master") return "master_admin";
+  if (role === "admin_municipality" || role === "admin_prefeitura") return "prefeitura_admin";
+  if (role === "profissional" || role === "professional") return "profissional_externo";
+  return (role || "profissional_externo") as SessionUser["role"];
+}
+
+function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
+  if (role === "master_admin" || role === "master_ops" || role === "prefeitura_admin") return 3;
+  const level = Number(levelName?.match(/\b[123]\b/)?.[0]);
+  return level === 1 || level === 2 || level === 3 ? level : roleToAccessLevel(role);
+}
+
 function municipalityResultData(value: unknown[] | null | undefined) {
   return Array.isArray(value) ? value : [];
 }
@@ -296,20 +309,16 @@ export async function loadRemotePlatformStore() {
     supabase.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
   ]);
 
-  const nonBlockingErrors: unknown[] = [];
   if (profilesResult.error) {
-    nonBlockingErrors.push(profilesResult.error);
-    console.warn("SIGAPRO: falha ao carregar profiles (ignorado para continuar carregamento).", profilesResult.error);
+    console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
   }
   if (membershipsResult.error) {
-    nonBlockingErrors.push(membershipsResult.error);
-    console.warn(
-      "SIGAPRO: falha ao carregar tenant_memberships (ignorado para continuar carregamento).",
-      membershipsResult.error,
-    );
+    console.warn("SIGAPRO: falha ao carregar tenant_memberships.", membershipsResult.error);
   }
 
   const errors = [
+    profilesResult.error,
+    membershipsResult.error,
     isMissingRelationError(tenantsResult.error, "public.tenants") ? null : tenantsResult.error,
     isMissingRelationError(brandingResult.error, "public.tenant_branding") ? null : brandingResult.error,
     isMissingRelationError(settingsResult.error, "public.tenant_settings") ? null : settingsResult.error,
@@ -776,11 +785,11 @@ export async function loadRemotePlatformStore() {
   const sessionUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
     const profile = profileByUser.get(membership.user_id);
-    const roleCode = (role?.code ?? "profissional_externo") as SessionUser["role"];
+    const roleCode = normalizeStoredRole(role?.code ?? profile?.role);
     const accountStatus =
-      membership.account_status === "blocked" || membership.blocked_at
+      profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
         ? "blocked"
-        : membership.account_status === "inactive" || membership.deleted_at
+        : profile?.account_status === "inactive" || membership.account_status === "inactive" || membership.deleted_at
           ? "inactive"
           : "active";
 
@@ -788,7 +797,7 @@ export async function loadRemotePlatformStore() {
       id: membership.user_id,
       name: profile?.full_name ?? profile?.email ?? "Usuario",
       role: roleCode,
-      accessLevel: roleToAccessLevel(roleCode),
+      accessLevel: storedAccessLevel(membership.level_name, roleCode),
       tenantId: membership.tenant_id,
       municipalityId: profile?.municipality_id ?? membership.tenant_id,
       title: membership.department || membership.queue_name || membership.level_name || role?.label || "",
@@ -804,12 +813,37 @@ export async function loadRemotePlatformStore() {
       department: membership.department || membership.queue_name || membership.level_name || "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: membership.last_access_at ? new Date(membership.last_access_at).toLocaleString("pt-BR") : "",
-      blockedAt: membership.blocked_at ?? null,
-      blockedBy: normalizeUuid(membership.blocked_by) ?? null,
-      blockReason: membership.block_reason ?? null,
+      blockedAt: profile?.blocked_at ?? membership.blocked_at ?? null,
+      blockedBy: normalizeUuid(profile?.blocked_by ?? membership.blocked_by) ?? null,
+      blockReason: profile?.block_reason ?? membership.block_reason ?? null,
       deletedAt: membership.deleted_at ?? null,
     };
   });
+
+  const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
+  for (const profile of profilesResult.data ?? []) {
+    if (!profile.user_id || linkedUserIds.has(profile.user_id) || profile.deleted_at) continue;
+    const role = normalizeStoredRole(profile.role);
+    sessionUsers.push({
+      id: profile.user_id,
+      name: profile.full_name ?? profile.email ?? "Usuário",
+      role,
+      accessLevel: roleToAccessLevel(role),
+      tenantId: profile.municipality_id ?? null,
+      municipalityId: profile.municipality_id ?? null,
+      title: (rolesResult.data ?? []).find((item) => item.code === role)?.label ?? role,
+      email: profile.email ?? "",
+      accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
+      userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
+      department: "",
+      createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
+      lastAccessAt: "",
+      blockedAt: profile.blocked_at ?? null,
+      blockedBy: normalizeUuid(profile.blocked_by) ?? null,
+      blockReason: profile.block_reason ?? null,
+      deletedAt: null,
+    });
+  }
 
   const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
     const property = propertyById.get(process.property_id);
@@ -1689,78 +1723,100 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
     };
   }
 
-  const { data: roleRows, error: roleError } = await supabase
-    .from("roles")
-    .select("id, code, label")
-    .in("code", ["prefeitura_admin", "admin_municipality"])
-    .limit(5);
-
-  if (roleError) {
-    throw new Error(roleError.message || "Falha ao localizar o papel de administrador da prefeitura.");
-  }
-
-  const roleRecord =
-    (roleRows ?? []).find((item) => item.code === "prefeitura_admin") ??
-    (roleRows ?? []).find((item) => item.code === "admin_municipality");
-
-  if (!roleRecord?.id) {
-    throw new Error("O papel de administrador da prefeitura não está disponível no banco.");
-  }
-
-  const title = input.title?.trim() || roleRecord.label || "Administrador da Prefeitura";
-  const accessLevel = input.accessLevel && input.accessLevel >= 3 ? 3 : 2;
-
-  const membershipPayload: Record<string, unknown> = {
-    tenant_id: municipalityId,
-    user_id: profileRecord.user_id,
-    role_id: roleRecord.id,
-    department: title,
-    queue_name: title,
-    level_name: `Nível ${accessLevel}`,
-    is_active: true,
-    deleted_at: null,
-    account_status: "active",
-    blocked_at: null,
-    blocked_by: null,
-    block_reason: null,
-    user_type: "Interno",
-  };
-
-  const { error: membershipError } = await upsertWithColumnRetry(
-    "tenant_memberships",
-    membershipPayload,
-    "tenant_id,user_id,role_id",
-  );
-
-  if (membershipError) {
-    throw new Error(membershipError.message || "Falha ao criar o vínculo institucional do administrador.");
-  }
-
-  const profilePayload: Record<string, unknown> = {
-    user_id: profileRecord.user_id,
-    municipality_id: municipalityId,
-    role: roleRecord.code,
-    email: normalizedEmail,
-    full_name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
-  };
-
-  const { error: profileUpdateError } = await upsertWithColumnRetry(
-    "profiles",
-    profilePayload,
-    "user_id",
-  );
-
-  if (profileUpdateError) {
-    throw new Error(profileUpdateError.message || "Falha ao atualizar o perfil institucional do administrador.");
-  }
+  const saved = await manageRemoteUserAccess({
+    userId: profileRecord.user_id,
+    municipalityId,
+    role: "prefeitura_admin",
+    name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
+    title: input.title?.trim() || "Administrador da Prefeitura",
+    accessLevel: 3,
+    accountStatus: "active",
+  });
 
   return {
     email: normalizedEmail,
     linked: true,
     userId: profileRecord.user_id,
     municipalityId,
-    role: roleRecord.code,
+    role: saved.role,
   };
+}
+
+export async function manageRemoteUserAccess(input: {
+  userId: string;
+  municipalityId: string;
+  role?: SessionUser["role"];
+  name?: string;
+  title?: string;
+  accessLevel?: 1 | 2 | 3;
+  accountStatus?: SessionUser["accountStatus"];
+  reason?: string;
+}) {
+  if (!supabase) throw new Error("Conexão com o banco indisponível.");
+
+  const { data, error } = await supabase.rpc("manage_municipal_user_access", {
+    _user_id: input.userId,
+    _municipality_id: input.municipalityId,
+    _role_code: input.role ?? null,
+    _full_name: input.name ?? null,
+    _title: input.title ?? null,
+    _access_level: input.accessLevel ?? null,
+    _account_status: input.accountStatus ?? null,
+    _reason: input.reason ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o acesso no banco.");
+
+  const saved = data as Record<string, unknown> | null;
+  if (!saved || saved.user_id !== input.userId || saved.municipality_id !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração do acesso.");
+  }
+
+  return {
+    name: String(saved.full_name),
+    role: saved.role as SessionUser["role"],
+    title: String(saved.title),
+    accessLevel: Number(saved.access_level) as 1 | 2 | 3,
+    accountStatus: saved.account_status as SessionUser["accountStatus"],
+    userType: String(saved.user_type),
+    blockedAt: saved.blocked_at ? String(saved.blocked_at) : null,
+    blockedBy: saved.blocked_by ? String(saved.blocked_by) : null,
+    blockReason: saved.block_reason ? String(saved.block_reason) : null,
+  };
+}
+
+export async function linkExistingMunicipalStaff(input: {
+  email: string;
+  municipalityId: string;
+  role: SessionUser["role"];
+  name: string;
+  title: string;
+  accessLevel: 1 | 2 | 3;
+}) {
+  if (!supabase) throw new Error("Conexão com o banco indisponível.");
+  const email = input.email.trim().toLowerCase();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("user_id, municipality_id")
+    .eq("email", email)
+    .is("deleted_at", null)
+    .limit(2);
+  if (error) throw new Error(error.message || "Não foi possível localizar a conta.");
+  if (data?.length !== 1) {
+    throw new Error("Conta não encontrada. Crie e confirme o acesso antes de vincular a equipe municipal.");
+  }
+  if (data[0].municipality_id !== input.municipalityId) {
+    throw new Error("A conta não está vinculada a esta Prefeitura.");
+  }
+  const saved = await manageRemoteUserAccess({
+    userId: data[0].user_id,
+    municipalityId: input.municipalityId,
+    role: input.role,
+    name: input.name,
+    title: input.title,
+    accessLevel: input.accessLevel,
+    accountStatus: "active",
+  });
+  return { userId: data[0].user_id as string, email, ...saved };
 }
 
 export async function upsertRemoteInstitution(input: {

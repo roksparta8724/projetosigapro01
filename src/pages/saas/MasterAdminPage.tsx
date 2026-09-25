@@ -131,6 +131,7 @@ export function MasterAdminPage() {
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
   const [statusMessage, setStatusMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
@@ -274,9 +275,55 @@ export function MasterAdminPage() {
       setStatusMessage(`Link do cliente: ${link}`);
     }
   };
-  const handleMasterStatusToggle = (user: SessionUser) => { if (user.id === "u-master" && user.role === "master_admin") { setStatusMessage("A conta raiz do master não pode ser bloqueada."); return; } if (user.accountStatus === "blocked") { if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return; const updated = setUserAccountStatus({ userId: user.id, status: "active", actor: "master" }); if (updated) setStatusMessage(`Conta de ${updated.name} reativada.`); return; } const reason = window.prompt(`Informe o motivo do bloqueio de ${user.name}:`, user.blockReason || "Bloqueio administrativo"); if (reason === null) return; const updated = setUserAccountStatus({ userId: user.id, status: "blocked", actor: "master", reason }); if (updated) setStatusMessage(`Conta de ${updated.name} bloqueada.`); };
-  const handleMasterDelete = (user: SessionUser) => { if (user.id === "u-master" && user.role === "master_admin") { setStatusMessage("A conta raiz do master não pode ser desativada."); return; } if (!window.confirm(`Deseja desativar a conta de ${user.name}?`)) return; const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente"); if (reason === null) return; const updated = deleteUserAccount({ userId: user.id, actor: "master", reason }); if (updated) setStatusMessage(`Conta de ${updated.name} marcada como inativa.`); };
-  const handleMasterEdit = (user: SessionUser) => { const nextName = window.prompt("Nome do usuário:", user.name); if (nextName === null) return; const nextTitle = window.prompt("Cargo / título:", user.title || roleSuggestedTitles[user.role]); if (nextTitle === null) return; const nextRole = window.prompt(`Perfil (${Object.keys(roleLabels).join(", ")}):`, user.role) as UserRole | null; if (nextRole === null) return; if (!(nextRole in roleLabels)) { setStatusMessage("Perfil informado é inválido."); return; } const nextAccessRaw = window.prompt("Nível de acesso (1, 2 ou 3):", String(user.accessLevel)); if (nextAccessRaw === null) return; const nextAccess = Number(nextAccessRaw); if (![1, 2, 3].includes(nextAccess)) { setStatusMessage("Nível de acesso inválido."); return; } const updated = updateTenantUser(user.id, { name: nextName.trim(), title: nextTitle.trim(), role: nextRole, accessLevel: nextAccess as 1 | 2 | 3 }); if (updated) setStatusMessage(`Dados de ${updated.name} atualizados.`); };
+  const runUserCommand = async (userId: string, command: () => Promise<SessionUser | null>, success: (user: SessionUser) => string) => {
+    if (savingUserId) return;
+    setSavingUserId(userId);
+    setStatusMessage("Salvando acesso no banco...");
+    try {
+      const updated = await command();
+      if (!updated) throw new Error("Usuário não encontrado no banco.");
+      setStatusMessage(success(updated));
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar o acesso.");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+  const isProtectedMaster = (user: SessionUser) => user.role === "master_admin" || user.role === "master_ops";
+  const handleMasterStatusToggle = (user: SessionUser) => {
+    if (isProtectedMaster(user)) { setStatusMessage("Contas Master não são alteradas nesta tela."); return; }
+    if (user.accountStatus === "blocked") {
+      if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return;
+      void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "active", actor: "master" }), (updated) => `Conta de ${updated.name} reativada.`);
+      return;
+    }
+    const reason = window.prompt(`Informe o motivo do bloqueio de ${user.name}:`, user.blockReason || "Bloqueio administrativo");
+    if (reason === null) return;
+    void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "blocked", actor: "master", reason }), (updated) => `Conta de ${updated.name} bloqueada.`);
+  };
+  const handleMasterDelete = (user: SessionUser) => {
+    if (isProtectedMaster(user)) { setStatusMessage("Contas Master não são alteradas nesta tela."); return; }
+    if (!window.confirm(`Deseja desativar a conta de ${user.name}?`)) return;
+    const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente");
+    if (reason === null) return;
+    void runUserCommand(user.id, () => deleteUserAccount({ userId: user.id, actor: "master", reason }), (updated) => `Conta de ${updated.name} marcada como inativa.`);
+  };
+  const handleMasterEdit = (user: SessionUser) => {
+    if (isProtectedMaster(user)) { setStatusMessage("Contas Master não são alteradas nesta tela."); return; }
+    const nextName = window.prompt("Nome do usuário:", user.name);
+    if (nextName === null) return;
+    const nextTitle = window.prompt("Cargo / título:", user.title || roleSuggestedTitles[user.role]);
+    if (nextTitle === null) return;
+    const editableRoles = Object.keys(roleLabels).filter((role) => role !== "master_admin" && role !== "master_ops");
+    const nextRole = window.prompt(`Perfil (${editableRoles.join(", ")}):`, user.role) as UserRole | null;
+    if (nextRole === null) return;
+    if (!editableRoles.includes(nextRole)) { setStatusMessage("Perfil informado é inválido."); return; }
+    const nextAccessRaw = window.prompt("Nível de acesso (1, 2 ou 3):", String(nextRole === "prefeitura_admin" ? 3 : user.accessLevel));
+    if (nextAccessRaw === null) return;
+    const nextAccess = Number(nextAccessRaw);
+    if (![1, 2, 3].includes(nextAccess)) { setStatusMessage("Nível de acesso inválido."); return; }
+    void runUserCommand(user.id, () => updateTenantUser(user.id, { name: nextName.trim(), title: nextTitle.trim(), role: nextRole, accessLevel: nextAccess as 1 | 2 | 3 }), (updated) => `Dados de ${updated.name} atualizados no banco.`);
+  };
   const handleRetryRemoteSync = async () => {
     if (!pendingSync || !hasSupabaseEnv) return;
     setStatusMessage("Tentando sincronizar com o Supabase...");

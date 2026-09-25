@@ -20,6 +20,8 @@ interface AppBootstrapProfile {
   userId: string;
   role: string | null;
   municipalityId: string | null;
+  accessLevel?: 1 | 2 | 3 | null;
+  accountStatus?: string | null;
   email?: string | null;
   fullName?: string | null;
 }
@@ -264,7 +266,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, role, municipality_id, email, full_name")
+    .select("user_id, role, municipality_id, email, full_name, account_status")
     .eq("user_id", userId)
     .limit(2);
 
@@ -279,7 +281,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 
   const membershipResult = await supabase
     .from("tenant_memberships")
-    .select("tenant_id, role_id, is_active, deleted_at")
+    .select("tenant_id, role_id, level_name, is_active, deleted_at")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("is_active", true);
@@ -295,6 +297,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter(Boolean)));
   let roleCodeFromMembership: string | null = null;
   let municipalityIdFromMembership: string | null = null;
+  let accessLevelFromMembership: 1 | 2 | 3 | null = null;
 
   if (roleIds.length > 0) {
     const rolesResult = await supabase.from("roles").select("id, code").in("id", roleIds);
@@ -309,6 +312,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
         .map((item) => ({
           tenantId: item.tenant_id as string | null,
           roleCode: rolesById.get(item.role_id) ?? null,
+          levelName: item.level_name as string | null,
         }))
         .sort((left, right) => {
           const rank = (roleCode: string | null) => {
@@ -325,6 +329,8 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 
       roleCodeFromMembership = rankedMembership?.roleCode ?? null;
       municipalityIdFromMembership = rankedMembership?.tenantId ?? null;
+      const storedLevel = Number(rankedMembership?.levelName?.match(/\b[123]\b/)?.[0]);
+      accessLevelFromMembership = storedLevel === 1 || storedLevel === 2 || storedLevel === 3 ? storedLevel : null;
     }
   }
 
@@ -337,6 +343,8 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     userId,
     role: record?.role ?? roleCodeFromMembership,
     municipalityId: record?.municipality_id ?? municipalityIdFromMembership ?? null,
+    accessLevel: accessLevelFromMembership,
+    accountStatus: record?.account_status ?? null,
     email: record?.email ?? null,
     fullName: record?.full_name ?? null,
   };
@@ -783,6 +791,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
           let nextProfile = await loadProfileByUserId(data.user.id);
           nextProfile = await completePendingSignup(data.user, nextProfile, resolution);
+          if (nextProfile?.accountStatus === "blocked" || nextProfile?.accountStatus === "inactive") {
+            throw new Error("Esta conta foi bloqueada ou desativada por um administrador.");
+          }
           const mappedRole =
             mapDbRoleCodeToAppRole(nextProfile?.role) ??
             mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??

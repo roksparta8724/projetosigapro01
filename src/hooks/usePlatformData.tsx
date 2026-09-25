@@ -59,6 +59,8 @@ import {
   createRemoteOwnerMessage,
   createRemoteOwnerRequest,
   loadRemotePlatformStore,
+  linkExistingMunicipalStaff,
+  manageRemoteUserAccess,
   respondRemoteOwnerRequest,
   saveRemoteClientPlanAssignment,
   saveRemoteInstitutionSettings,
@@ -149,10 +151,10 @@ interface PlatformDataState {
   saveTenantSettings: (settings: InstitutionSettings) => void;
   removeTenant: (tenantId: string) => void;
   saveUserProfile: (profile: UserProfile) => void;
-  createTenantUser: (input: TenantUserInput) => SessionUser;
-  updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => SessionUser | null;
-  setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => SessionUser | null;
-  deleteUserAccount: (input: { userId: string; actor: string; reason?: string }) => SessionUser | null;
+  createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
+  updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
+  setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => Promise<SessionUser | null>;
+  deleteUserAccount: (input: { userId: string; actor: string; reason?: string }) => Promise<SessionUser | null>;
   createRegistrationRequest: (input: Omit<RegistrationRequest, "id" | "status" | "createdAt">) => RegistrationRequest;
   approveRegistrationRequest: (requestId: string) => SessionUser | null;
   createProcess: (input: CreateProcessInput) => ProcessRecord;
@@ -377,10 +379,10 @@ const demoState: PlatformDataState = {
   saveTenantSettings: () => undefined,
   removeTenant: () => undefined,
   saveUserProfile: () => undefined,
-  createTenantUser: () => defaultStore.sessionUsers[0],
-  updateTenantUser: () => null,
-  setUserAccountStatus: () => null,
-  deleteUserAccount: () => null,
+  createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
+  updateTenantUser: async () => null,
+  setUserAccountStatus: async () => null,
+  deleteUserAccount: async () => null,
   createRegistrationRequest: () => defaultStore.registrationRequests[0],
   approveRegistrationRequest: () => null,
   createProcess: () => defaultStore.processes[0],
@@ -631,11 +633,8 @@ function mergeLocalAndRemoteStores(localStore: PlatformStore | null, remoteStore
         remoteFiltered.tenantSettings as unknown as Record<string, unknown>[],
         (item) => item.tenantId as string,
       ) as unknown as InstitutionSettings[],
-      sessionUsers: mergeRecordsByKey(
-        localStore.sessionUsers as unknown as Record<string, unknown>[],
-        remoteFiltered.sessionUsers as unknown as Record<string, unknown>[],
-        (item) => item.id as string,
-      ) as unknown as SessionUser[],
+      // Authentication and permissions must never be overridden by browser storage.
+      sessionUsers: remoteFiltered.sessionUsers,
       userProfiles: mergeUserProfiles(localStore.userProfiles, remoteFiltered.userProfiles),
       registrationRequests: mergeRecordsByKey(
         localStore.registrationRequests as unknown as Record<string, unknown>[],
@@ -1905,15 +1904,62 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return request;
       },
-      createTenantUser: (input) => createInstitutionUser({ ...input, institutionId: input.tenantId }),
-      updateTenantUser: (userId, input) => {
+      createTenantUser: async (input) => {
+        if (!hasSupabaseEnv) throw new Error("Conexão com o banco indisponível.");
+        const saved = await linkExistingMunicipalStaff({
+          email: input.email,
+          municipalityId: input.tenantId,
+          role: input.role,
+          name: input.fullName,
+          title: input.title,
+          accessLevel: input.accessLevel,
+        });
+        const user: SessionUser = {
+          id: saved.userId,
+          tenantId: input.tenantId,
+          municipalityId: input.tenantId,
+          email: saved.email,
+          name: saved.name,
+          role: saved.role,
+          title: saved.title,
+          department: saved.title,
+          accessLevel: saved.accessLevel,
+          accountStatus: saved.accountStatus,
+          userType: saved.userType,
+          blockedAt: saved.blockedAt,
+          blockedBy: saved.blockedBy,
+          blockReason: saved.blockReason,
+        };
+        updateStore((current) => ({
+          ...current,
+          sessionUsers: [user, ...current.sessionUsers.filter((item) => item.id !== user.id)],
+        }));
+        return user;
+      },
+      updateTenantUser: async (userId, input) => {
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
+
+        if (input.email && normalizeEmail(input.email) !== normalizeEmail(currentUser.email)) {
+          throw new Error("O e-mail de acesso não pode ser alterado nesta edição. Use o fluxo de segurança da conta.");
+        }
+
+        const remote = hasSupabaseEnv
+          ? await manageRemoteUserAccess({
+              userId,
+              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+              role: input.role ?? currentUser.role,
+              name: input.name ?? currentUser.name,
+              title: input.title ?? input.department ?? currentUser.title,
+              accessLevel: input.accessLevel ?? currentUser.accessLevel,
+            })
+          : null;
 
         const nextUser: SessionUser = {
           ...currentUser,
           ...input,
-          department: input.department ?? input.title ?? currentUser.department ?? currentUser.title,
+          ...remote,
+          department: remote?.title ?? input.department ?? input.title ?? currentUser.department ?? currentUser.title,
         };
 
         updateStore((current) => ({
@@ -1925,29 +1971,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                   ...profile,
                   fullName: input.name ?? profile.fullName,
                   email: input.email ?? profile.email,
-                  professionalType: input.userType ?? profile.professionalType,
                 }
               : profile,
           ),
         }));
 
-        const nextProfile = store.userProfiles.find((profile) => profile.userId === userId);
-        if (nextProfile) {
-          syncRemoteInBackground("perfil do usuario", () =>
-            saveRemoteProfile({
-              ...nextProfile,
-              fullName: input.name ?? nextProfile.fullName,
-              email: input.email ?? nextProfile.email,
-              professionalType: input.userType ?? nextProfile.professionalType,
-            }),
-          );
-        }
-
         return nextUser;
       },
-      setUserAccountStatus: ({ userId, status, actor, reason }) => {
+      setUserAccountStatus: async ({ userId, status, actor, reason }) => {
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
+
+        const remote = hasSupabaseEnv
+          ? await manageRemoteUserAccess({
+              userId,
+              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+              accountStatus: status,
+              reason,
+            })
+          : null;
 
         const nextUser: SessionUser = {
           ...currentUser,
@@ -1956,6 +1998,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           blockedBy: status === "blocked" ? actor : null,
           blockReason: status === "blocked" ? reason?.trim() || "Bloqueio administrativo" : null,
           deletedAt: status === "inactive" ? currentUser.deletedAt ?? new Date().toISOString() : null,
+          ...remote,
         };
 
         updateStore((current) => ({
@@ -1965,9 +2008,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return nextUser;
       },
-      deleteUserAccount: ({ userId, actor, reason }) => {
+      deleteUserAccount: async ({ userId, actor, reason }) => {
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
+
+        const remote = hasSupabaseEnv
+          ? await manageRemoteUserAccess({
+              userId,
+              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+              accountStatus: "inactive",
+              reason,
+            })
+          : null;
 
         const nextUser: SessionUser = {
           ...currentUser,
@@ -1975,6 +2027,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           deletedAt: new Date().toISOString(),
           blockedBy: actor,
           blockReason: reason?.trim() || "Conta desativada administrativamente",
+          ...remote,
         };
 
         updateStore((current) => ({
