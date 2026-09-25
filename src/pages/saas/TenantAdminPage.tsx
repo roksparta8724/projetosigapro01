@@ -300,19 +300,12 @@ export function TenantAdminPage() {
     <PortalFrame eyebrow="Administração da Prefeitura" title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}>
       <PageShell>
         <section className="sig-dark-panel overflow-hidden rounded-[30px] border border-slate-200/90 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.06),transparent_22%),linear-gradient(135deg,#fcfdff_0%,#f7fafc_56%,#eef4f8_100%)] shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
-          <div className="grid gap-0 lg:grid-cols-[132px_minmax(0,1fr)]">
-            <div className="flex items-center justify-center p-5 lg:p-6">
-              <div className="flex h-[104px] w-[104px] items-center justify-center rounded-[26px] border border-slate-200 bg-white/95 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-                <span className="text-[1.9rem] font-semibold text-slate-700">
-                  {(municipalityName || activeInstitution?.name || "P").charAt(0)}
-                </span>
-              </div>
-            </div>
-            <div className="p-5 md:p-6 lg:pl-2">
+          <div>
+            <div className="p-5 md:p-6 lg:p-7">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Administração da Prefeitura</p>
-                  <h1 className="mt-2 max-w-[22ch] text-2xl font-semibold leading-tight text-slate-950">
+                  <h1 className="mt-2 max-w-[36ch] text-2xl font-semibold leading-tight text-slate-950">
                     {municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
                   </h1>
                   <p className="mt-2 max-w-[64ch] text-sm leading-6 text-slate-500">
