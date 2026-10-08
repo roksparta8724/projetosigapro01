@@ -37,6 +37,18 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Diagnostic Neon TEMP password-reset endpoint
+        continue-on-error: true
+        run: |
+          status=$(curl -sS -o /tmp/reset.json -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://projetosigapro01-git-neon-first-5a62c6-roksparta8724s-projects.vercel.app" \
+            --data '{"email":"sigapro-password-probe-nonexistent@example.invalid","redirectTo":"https://projetosigapro01-git-neon-first-5a62c6-roksparta8724s-projects.vercel.app/recuperar-senha"}' \
+            "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth/request-password-reset")
+          echo "PASSWORD_RESET_STATUS=$status"
+          cat /tmp/reset.json
+
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
