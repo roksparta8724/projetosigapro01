@@ -44,9 +44,10 @@ jobs:
 
           settings_status=$(curl -sS -o /tmp/settings.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_settings?select=municipality_id&limit=1")
           if [ "$settings_status" = "200" ]; then
-            echo "municipality_settings must not be anonymously readable"
-            cat /tmp/settings.json
-            exit 1
+            settings_body=$(tr -d '[:space:]' < /tmp/settings.json)
+            test "$settings_body" = "[]"
+          else
+            test "$settings_status" = "401" -o "$settings_status" = "403"
           fi
 
       - name: Build
