@@ -10,11 +10,13 @@ function requestWithAuthorization(value?: string) {
 describe("R2 authenticated gate", () => {
   const previousRequireAuth = process.env.R2_REQUIRE_AUTH;
   const previousDataApiUrl = process.env.R2_AUTH_DATA_API_URL;
+  const previousVercelEnv = process.env.VERCEL_ENV;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     delete process.env.R2_REQUIRE_AUTH;
     delete process.env.R2_AUTH_DATA_API_URL;
+    delete process.env.VERCEL_ENV;
   });
 
   afterEach(() => {
@@ -22,6 +24,8 @@ describe("R2 authenticated gate", () => {
     else process.env.R2_REQUIRE_AUTH = previousRequireAuth;
     if (previousDataApiUrl === undefined) delete process.env.R2_AUTH_DATA_API_URL;
     else process.env.R2_AUTH_DATA_API_URL = previousDataApiUrl;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
   });
 
   it("preserves current behavior while the cutover gate is disabled", async () => {
@@ -67,4 +71,27 @@ describe("R2 authenticated gate", () => {
       }),
     );
   });
+  it("requires authentication automatically for protected R2 operations in Vercel production", async () => {
+    process.env.VERCEL_ENV = "production";
+
+    const result = await requireR2AuthenticatedProfile(requestWithAuthorization());
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 401,
+      error: "Autenticação necessária.",
+    });
+  });
+
+  it("allows explicitly public signed reads in Vercel production", async () => {
+    process.env.VERCEL_ENV = "production";
+
+    const result = await requireR2AuthenticatedProfile(
+      requestWithAuthorization(),
+      { requireInProduction: false },
+    );
+
+    expect(result).toEqual({ ok: true, profileId: null });
+  });
+
 });
