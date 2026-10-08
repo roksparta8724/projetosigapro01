@@ -1738,6 +1738,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       if (hasSupabaseEnv) {
         try {
           const message = await createRemoteOwnerMessage({
+            linkId: linkSnapshot.id,
             projectId: input.projectId,
             ownerUserId: input.ownerUserId,
             professionalUserId: input.professionalUserId,
