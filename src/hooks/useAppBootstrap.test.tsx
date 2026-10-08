@@ -77,7 +77,8 @@ const registrationMock = vi.hoisted(() => ({
   owner: vi.fn(),
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({ hasSupabaseEnv: true, supabase: authMock.client }));
+vi.mock("@/integrations/backend/databaseClient", () => ({ hasBackendEnv: true, backendClient: authMock.client }));
+vi.mock("@/integrations/backend/config", () => ({ isNeonBackend: false, isSupabaseBackend: true, backendMode: "supabase" }));
 vi.mock("@/lib/tenant", () => ({
   resolveTenantFromLocation: () => ({
     hostname: authMock.mode === "tenant" ? "campolimpopaulista.sigapromunicipal.com.br" : "sigapromunicipal.com.br",
