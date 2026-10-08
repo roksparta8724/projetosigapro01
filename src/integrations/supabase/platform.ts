@@ -1,4 +1,5 @@
 import { databaseClient as supabase } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
@@ -1627,12 +1628,10 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
 
 export async function saveRemoteProfile(profile: UserProfile) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexao com o banco indisponivel.");
   }
 
-  const payload: Record<string, unknown> = {
-    id: profile.userId,
-    user_id: profile.userId,
+  const profileFields: Record<string, unknown> = {
     full_name: profile.fullName,
     email: profile.email,
     phone: profile.phone || null,
@@ -1655,6 +1654,38 @@ export async function saveRemoteProfile(profile: UserProfile) {
     avatar_offset_y: profile.avatarOffsetY ?? 0,
     use_avatar_in_header: profile.useAvatarInHeader ?? false,
     bio: profile.bio || null,
+  };
+
+  if (isNeonBackend) {
+    const profileIdResult = await supabase.rpc("current_profile_id");
+    if (profileIdResult.error) {
+      throw new Error(profileIdResult.error.message || "Falha ao resolver o perfil autenticado.");
+    }
+
+    const profileId =
+      typeof profileIdResult.data === "string"
+        ? profileIdResult.data
+        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+    if (!profileId) {
+      throw new Error("Perfil Neon autenticado nao encontrado.");
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ ...profileFields, updated_at: new Date().toISOString() })
+      .eq("id", profileId);
+
+    if (error) {
+      throw new Error(error.message || "Falha ao salvar o perfil no banco.");
+    }
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    id: profile.userId,
+    user_id: profile.userId,
+    ...profileFields,
   };
 
   const currentPayload = { ...payload };
