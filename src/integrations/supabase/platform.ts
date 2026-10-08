@@ -2199,6 +2199,8 @@ export async function saveRemoteInstitutionSettings(
       admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
       postal_code: settings.cep || null,
+      city: options?.municipalityCity?.trim() || null,
+      state: options?.municipalityState?.trim().toUpperCase() || null,
       site: settings.site || null,
       bandeira_url: settings.bandeiraUrl || null,
       imagem_hero_url: settings.imagemHeroUrl || null,
@@ -2272,11 +2274,9 @@ export async function saveRemoteInstitutionSettings(
   if (includeMunicipalityField("secretariat")) municipalityUpdatePayload.secretariat_name = settings.secretariaResponsavel || null;
   if (includeMunicipalityField("email")) {
     municipalityUpdatePayload.email = settings.email || null;
-    municipalityUpdatePayload.contact_email = settings.email || null;
   }
   if (includeMunicipalityField("phone")) {
     municipalityUpdatePayload.phone = settings.telefone || null;
-    municipalityUpdatePayload.contact_phone = settings.telefone || null;
   }
   if (includeMunicipalityField("address")) municipalityUpdatePayload.address = settings.endereco || null;
   if (includeMunicipalityField("site")) municipalityUpdatePayload.custom_domain = settings.site || null;
