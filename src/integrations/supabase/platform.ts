@@ -359,7 +359,8 @@ export async function loadRemotePlatformStore() {
   const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
   const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
   const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
-  const profileByUser = new Map((profilesResult.data ?? []).map((item) => [item.user_id, item]));
+  const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
+  const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
   const guidesByProcess = new Map<string, Record<string, unknown>>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
@@ -760,7 +761,7 @@ export async function loadRemotePlatformStore() {
     mappedSettingsFromMunicipalities.length > 0 ? mappedSettingsFromMunicipalities : mappedSettingsFromLegacy;
 
   const userProfiles: UserProfile[] = (profilesResult.data ?? []).map((profile) => ({
-    userId: profile.user_id,
+    userId: (isNeonBackend ? profile.id : profile.user_id) ?? profile.id,
     fullName: profile.full_name ?? "",
     email: profile.email ?? "",
     phone: profile.phone ?? "",
@@ -787,7 +788,14 @@ export async function loadRemotePlatformStore() {
 
   const sessionUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
-    const profile = profileByUser.get(membership.user_id);
+    const profile =
+      (membership.profile_id ? profileById.get(membership.profile_id) : null) ??
+      (membership.user_id ? profileByUser.get(membership.user_id) : null);
+    const canonicalUserId =
+      (isNeonBackend ? membership.profile_id ?? profile?.id : membership.user_id) ??
+      membership.profile_id ??
+      profile?.id ??
+      membership.user_id;
     const roleCode = normalizeStoredRole(role?.code ?? profile?.role);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
@@ -797,7 +805,7 @@ export async function loadRemotePlatformStore() {
           : "active";
 
     return {
-      id: membership.user_id,
+      id: canonicalUserId,
       name: profile?.full_name ?? profile?.email ?? "Usuario",
       role: roleCode,
       accessLevel: storedAccessLevel(membership.level_name, roleCode),
@@ -825,10 +833,11 @@ export async function loadRemotePlatformStore() {
 
   const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
-    if (!profile.user_id || linkedUserIds.has(profile.user_id) || profile.deleted_at) continue;
+    const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
+    if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
     const role = normalizeStoredRole(profile.role);
     sessionUsers.push({
-      id: profile.user_id,
+      id: canonicalUserId,
       name: profile.full_name ?? profile.email ?? "Usuário",
       role,
       accessLevel: roleToAccessLevel(role),
@@ -872,7 +881,7 @@ export async function loadRemotePlatformStore() {
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? "Nao informado",
-      createdBy: process.created_by,
+      createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       tags: [],
       address: property?.address ?? "Endereco nao informado",
       notes: "",
@@ -899,7 +908,7 @@ export async function loadRemotePlatformStore() {
       reopenHistory: reopenEntries.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
-        actor: entry.actor_user_id ?? "Sistema",
+        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       documents: buildProcessDocuments(
@@ -911,7 +920,7 @@ export async function loadRemotePlatformStore() {
           uploaded: true,
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
-          reviewedBy: document.reviewed_by ?? undefined,
+          reviewedBy: (isNeonBackend ? document.reviewed_by_profile_id : null) ?? document.reviewed_by ?? undefined,
           annotations: Array.isArray(document.annotations) ? document.annotations : [],
           version: document.version ?? 1,
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
