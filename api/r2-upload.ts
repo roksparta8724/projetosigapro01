@@ -6,7 +6,6 @@
  */
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { requireR2AuthenticatedProfile } from "./_r2-auth";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -15,6 +14,68 @@ function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
+}
+
+const VALIDATED_NEON_DATA_API_URL =
+  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+
+function isR2AuthRequired() {
+  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  return readEnv("VERCEL_ENV").toLowerCase() === "production";
+}
+
+function readBearer(req: Req) {
+  const raw = req.headers.authorization || "";
+  const match = /^Bearer\s+(.+)$/i.exec(raw);
+  return match?.[1]?.trim() || "";
+}
+
+async function requireAuthenticatedProfile(req: Req) {
+  if (!isR2AuthRequired()) {
+    return { ok: true as const, profileId: null as string | null };
+  }
+
+  const token = readBearer(req);
+  if (!token) {
+    return { ok: false as const, status: 401, error: "Autenticação necessária." };
+  }
+
+  const dataApiUrl = (
+    readEnv("R2_AUTH_DATA_API_URL") ||
+    readEnv("VITE_NEON_DATA_API_URL") ||
+    VALIDATED_NEON_DATA_API_URL
+  ).replace(/\/+$/, "");
+
+  try {
+    const response = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: "{}",
+    });
+
+    const payload = await response.json().catch(() => null);
+    const profileId =
+      typeof payload === "string"
+        ? payload
+        : payload && typeof payload === "object"
+          ? ((payload as Record<string, unknown>).id ||
+             (payload as Record<string, unknown>).profile_id ||
+             null)
+          : null;
+
+    if (!response.ok || !profileId) {
+      return { ok: false as const, status: 401, error: "Sessão inválida ou expirada." };
+    }
+
+    return { ok: true as const, profileId: String(profileId) };
+  } catch {
+    return { ok: false as const, status: 503, error: "Validação de autenticação indisponível." };
+  }
 }
 
 function sanitizeAccessKeyId(value: string) {
@@ -92,7 +153,7 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  const auth = await requireR2AuthenticatedProfile(req);
+  const auth = await requireAuthenticatedProfile(req);
   if (!auth.ok) {
     json(res, auth.status, { error: auth.error });
     return;
