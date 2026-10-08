@@ -1,43 +1,35 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createNeonClient, SupabaseAuthAdapter } from "@neondatabase/neon-js";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { supabase } from "@/integrations/supabase/client";
 
+const NEON_AUTH_URL = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
 const NEON_DATA_API_URL = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
 
-let neonAccessToken: string | null = null;
-
-export function setNeonAccessToken(token: string | null) {
-  neonAccessToken = token;
-}
-
-export function getNeonAccessToken() {
-  return neonAccessToken;
-}
-
-export const hasNeonDataApiEnv = Boolean(
+export const hasNeonBackendEnv = Boolean(
+  NEON_AUTH_URL &&
   NEON_DATA_API_URL &&
+  NEON_AUTH_URL !== "undefined" &&
   NEON_DATA_API_URL !== "undefined"
 );
 
-const neonDataClient: SupabaseClient | null = hasNeonDataApiEnv
-  ? createClient(NEON_DATA_API_URL, "neon-data-api", {
+export const neonClient = hasNeonBackendEnv
+  ? createNeonClient({
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
+        adapter: SupabaseAuthAdapter(),
+        url: NEON_AUTH_URL,
+        allowAnonymous: true,
       },
-      accessToken: async () => neonAccessToken,
-      global: {
-        headers: {
-          "X-Client-Info": "sigapro-web-neon",
-        },
+      dataApi: {
+        url: NEON_DATA_API_URL,
       },
     })
   : null;
 
-export const databaseClient: SupabaseClient | null =
-  isNeonBackend ? neonDataClient : supabase;
+export const backendClient = isNeonBackend ? neonClient : supabase;
+export const databaseClient = backendClient;
 
 export const hasDatabaseEnv = isNeonBackend
-  ? hasNeonDataApiEnv
+  ? hasNeonBackendEnv
   : Boolean(supabase);
+
+export const hasBackendEnv = hasDatabaseEnv;
