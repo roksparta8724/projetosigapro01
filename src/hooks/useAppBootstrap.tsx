@@ -904,7 +904,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";
           try {
-            await supabase.auth.signOut({ scope: "local" });
+            if (isNeonBackend) {
+              await supabase.auth.signOut();
+            } else {
+              await supabase.auth.signOut({ scope: "local" });
+            }
           } catch (signOutError) {
             console.warn("[Bootstrap] Não foi possível encerrar a sessão local após erro de login", signOutError);
           }
