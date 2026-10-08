@@ -3,6 +3,7 @@ name: Neon migration validation
 on:
   push:
     branches:
+      - main
       - neon-first-migration-20261008
   pull_request:
     branches:
