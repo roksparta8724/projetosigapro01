@@ -1,3 +1,5 @@
+import { backendClient } from "@/integrations/backend/databaseClient";
+
 type R2UploadRequest = {
   bucket: string;
   objectKey: string;
@@ -16,6 +18,21 @@ function buildApiUrl(path: string) {
   if (!apiBase) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${normalized}`;
+}
+
+async function getAuthorizationHeaders() {
+  try {
+    const sessionResult = await backendClient?.auth?.getSession?.();
+    const session = sessionResult?.data?.session ?? null;
+    const token =
+      session?.access_token ||
+      session?.accessToken ||
+      session?.token ||
+      "";
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 }
 
 export function getPublicUrl(objectKey: string, baseOverride?: string) {
@@ -43,6 +60,7 @@ async function requestPresign(input: R2UploadRequest) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(await getAuthorizationHeaders()),
     },
     body: JSON.stringify(input),
   });
@@ -96,6 +114,7 @@ async function requestSignedUrl(path: string, input: { bucket: string; objectKey
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(await getAuthorizationHeaders()),
     },
     body: JSON.stringify({
       bucket: input.bucket,
@@ -210,7 +229,10 @@ export async function uploadFile(input: {
 
     const response = await fetch(buildApiUrl("/api/r2-upload"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthorizationHeaders()),
+      },
       body: JSON.stringify({
         bucket: input.bucket,
         objectKey: input.objectKey,
@@ -258,7 +280,10 @@ export async function uploadFile(input: {
 export async function deleteFile(input: { bucket: string; objectKey: string }) {
   const response = await fetch(buildApiUrl("/api/r2-delete"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(await getAuthorizationHeaders()),
+    },
     body: JSON.stringify(input),
   });
 
