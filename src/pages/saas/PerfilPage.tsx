@@ -30,7 +30,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { saveRemoteProfile } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
@@ -290,7 +290,9 @@ export function PerfilPage() {
     : session.email || session.name;
   const profileLookupEmail = authenticatedEmail || session.email;
   const profile = getUserProfile(session.id, profileLookupEmail);
-  const profileUserId = session.id !== "unknown" ? session.id : authenticatedUserId || profile?.userId || "";
+  const profileUserId =
+    profile?.userId ||
+    (session.id !== "unknown" ? session.id : authenticatedUserId || "");
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -388,6 +390,7 @@ export function PerfilPage() {
   const [accountForm, setAccountForm] = useState({
     currentEmail: authenticatedEmail ?? session.email,
     nextEmail: authenticatedEmail ?? session.email,
+    currentPassword: "",
     nextPassword: "",
     confirmPassword: "",
   });
@@ -586,7 +589,7 @@ export function PerfilPage() {
     }
 
     const mergedProfile = {
-      userId: session.id,
+      userId: profile?.userId || profileUserId || session.id,
       fullName: profile?.fullName || draft.fullName || session.name,
       email: profile?.email || draft.email || session.email,
       phone: profile?.phone || draft.phone || "",
@@ -967,7 +970,7 @@ export function PerfilPage() {
 
     saveUserProfile({
       ...(profile ?? {
-        userId: session.id,
+        userId: profileUserId || session.id,
         fullName: form.fullName,
         email: form.email,
         phone: form.phone,
@@ -1000,6 +1003,10 @@ export function PerfilPage() {
 
   const handleUpdatePassword = async () => {
     setAccountStatus("");
+    if (!accountForm.currentPassword) {
+      setAccountStatus("Informe a senha atual.");
+      return;
+    }
     if (accountForm.nextPassword.length < 8) {
       setAccountStatus("A nova senha deve ter pelo menos 8 caracteres.");
       return;
@@ -1009,13 +1016,18 @@ export function PerfilPage() {
       return;
     }
 
-    const result = await updatePassword(accountForm.nextPassword);
+    const result = await updatePassword(accountForm.nextPassword, accountForm.currentPassword);
     if (!result.ok) {
       setAccountStatus(result.message || "Não foi possível atualizar a senha.");
       return;
     }
 
-    setAccountForm((current) => ({ ...current, nextPassword: "", confirmPassword: "" }));
+    setAccountForm((current) => ({
+      ...current,
+      currentPassword: "",
+      nextPassword: "",
+      confirmPassword: "",
+    }));
     setAccountStatus(result.message || "Senha atualizada com sucesso.");
   };
 
@@ -1880,6 +1892,10 @@ export function PerfilPage() {
                     <p className="text-sm font-semibold">Alterar senha</p>
                   </div>
                   <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Senha atual</Label>
+                      <Input type="password" value={accountForm.currentPassword} onChange={(event) => setAccountField("currentPassword", event.target.value)} />
+                    </div>
                     <div className="space-y-2">
                       <Label>Nova senha</Label>
                       <Input type="password" value={accountForm.nextPassword} onChange={(event) => setAccountField("nextPassword", event.target.value)} />

@@ -14,6 +14,7 @@ interface AuthGatewayContextValue {
   loading: boolean;
   authResolved: boolean;
   authenticatedUserId: string | null;
+  authenticatedProfileId: string | null;
   authenticatedRole: string | null;
   authenticatedAccessLevel: 1 | 2 | 3 | null;
   authenticatedEmail: string | null;
@@ -24,7 +25,7 @@ interface AuthGatewayContextValue {
   ) => Promise<{ ok: boolean; message?: string; role?: string; municipalityId?: string | null }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
-  updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
+  updatePassword: (password: string, currentPassword?: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -36,6 +37,7 @@ const authGatewayFallback: AuthGatewayContextValue = {
   loading: false,
   authResolved: true,
   authenticatedUserId: null,
+  authenticatedProfileId: null,
   authenticatedRole: null,
   authenticatedAccessLevel: null,
   authenticatedEmail: null,
@@ -92,6 +94,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       loading: bootstrap.loading,
       authResolved: bootstrap.authResolved,
       authenticatedUserId: bootstrap.authUserId,
+      authenticatedProfileId: bootstrap.profile?.userId ?? null,
       authenticatedRole: bootstrap.role,
       authenticatedAccessLevel: bootstrap.profile?.accessLevel ?? null,
       authenticatedEmail: bootstrap.authEmail,
@@ -124,6 +127,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       bootstrap.authEmail,
       bootstrap.authResolved,
       bootstrap.authUserId,
+      bootstrap.profile?.userId,
       bootstrap.loading,
       bootstrap.profile?.municipalityId,
       bootstrap.resetPassword,

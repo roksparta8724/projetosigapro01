@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv, neonAccountClient } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import type { User } from "@supabase/supabase-js";
 import {
   loadCurrentMunicipalityBundle,
@@ -51,7 +52,7 @@ interface AppBootstrapState {
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string; municipalityId?: string | null }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
-  updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
+  updatePassword: (password: string, currentPassword?: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -136,7 +137,7 @@ function readBootstrapSnapshot(
     if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
       return null;
     }
-    if (parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
+    if (!isNeonBackend && parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
 
     return {
       hostname: parsed.hostname ?? resolution.hostname,
@@ -180,7 +181,7 @@ function clearPlatformSessionSnapshot() {
 }
 
 function readStoredSupabaseUser(): StoredSupabaseUser | null {
-  if (typeof window === "undefined") return null;
+  if (isNeonBackend || typeof window === "undefined") return null;
 
   try {
     const raw = window.localStorage.getItem("sigapro-supabase-auth");
@@ -264,37 +265,79 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("user_id, role, municipality_id, email, full_name, account_status")
-    .eq("user_id", userId)
-    .limit(2);
+  let profileId: string | null = null;
+  let record: any = null;
 
-  if (error) {
-    console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error });
-    return null;
-  }
-  if (data && data.length > 1) {
-    console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
-  }
-  const record = data?.[0] ?? null;
+  if (isNeonBackend) {
+    const profileIdResult = await supabase.rpc("current_profile_id");
+    if (profileIdResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao resolver current_profile_id no Neon", {
+        error: profileIdResult.error,
+      });
+      return null;
+    }
 
-  const membershipResult = await supabase
+    profileId = typeof profileIdResult.data === "string"
+      ? profileIdResult.data
+      : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+    if (!profileId) {
+      console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo vinculado", { userId });
+      return null;
+    }
+
+    const profileResult = await supabase
+      .from("profiles")
+      .select("id, role, municipality_id, email, full_name, account_status")
+      .eq("id", profileId)
+      .limit(1)
+      .maybeSingle();
+
+    if (profileResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao carregar profile Neon", {
+        profileId,
+        error: profileResult.error,
+      });
+      return null;
+    }
+    record = profileResult.data ?? null;
+  } else {
+    const profileResult = await supabase
+      .from("profiles")
+      .select("user_id, role, municipality_id, email, full_name, account_status")
+      .eq("user_id", userId)
+      .limit(2);
+
+    if (profileResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error: profileResult.error });
+      return null;
+    }
+    if (profileResult.data && profileResult.data.length > 1) {
+      console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
+    }
+    record = profileResult.data?.[0] ?? null;
+  }
+
+  const membershipQuery = supabase
     .from("tenant_memberships")
     .select("tenant_id, role_id, level_name, is_active, deleted_at")
-    .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("is_active", true);
+
+  const membershipResult = isNeonBackend
+    ? await membershipQuery.eq("profile_id", profileId)
+    : await membershipQuery.eq("user_id", userId);
 
   if (membershipResult.error) {
     console.warn("[Bootstrap][Membership] Falha ao carregar memberships", {
       userId,
+      profileId,
       error: membershipResult.error,
     });
   }
 
-  const memberships = (membershipResult.data ?? []).filter((item) => item.role_id);
-  const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter(Boolean)));
+  const memberships = (membershipResult.data ?? []).filter((item: any) => item.role_id);
+  const roleIds = Array.from(new Set(memberships.map((item: any) => item.role_id).filter(Boolean)));
   let roleCodeFromMembership: string | null = null;
   let municipalityIdFromMembership: string | null = null;
   let accessLevelFromMembership: 1 | 2 | 3 | null = null;
@@ -304,17 +347,18 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     if (rolesResult.error) {
       console.warn("[Bootstrap][Membership] Falha ao resolver roles do vínculo", {
         userId,
+        profileId,
         error: rolesResult.error,
       });
     } else {
-      const rolesById = new Map((rolesResult.data ?? []).map((item) => [item.id, item.code]));
+      const rolesById = new Map((rolesResult.data ?? []).map((item: any) => [item.id, item.code]));
       const rankedMembership = memberships
-        .map((item) => ({
+        .map((item: any) => ({
           tenantId: item.tenant_id as string | null,
           roleCode: rolesById.get(item.role_id) ?? null,
           levelName: item.level_name as string | null,
         }))
-        .sort((left, right) => {
+        .sort((left: any, right: any) => {
           const rank = (roleCode: string | null) => {
             const mapped = mapDbRoleCodeToAppRole(roleCode);
             if (mapped === "master_admin" || mapped === "master_ops" || mapped === "prefeitura_admin") return 4;
@@ -323,7 +367,6 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
             if (mapped === "profissional_externo" || mapped === "proprietario_consulta" || mapped === "property_owner") return 1;
             return 0;
           };
-
           return rank(right.roleCode) - rank(left.roleCode);
         })[0];
 
@@ -335,12 +378,12 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   }
 
   if (!record && !roleCodeFromMembership && !municipalityIdFromMembership) {
-    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId });
+    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId, profileId });
     return null;
   }
 
   return {
-    userId,
+    userId: (isNeonBackend ? profileId : userId) ?? userId,
     role: record?.role ?? roleCodeFromMembership,
     municipalityId: record?.municipality_id ?? municipalityIdFromMembership ?? null,
     accessLevel: accessLevelFromMembership,
@@ -776,7 +819,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         try {
           const currentSession = (await supabase.auth.getSession()).data.session ?? null;
           if (currentSession?.user) {
-            const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+            const { error: signOutError } = isNeonBackend
+              ? await supabase.auth.signOut()
+              : await supabase.auth.signOut({ scope: "local" });
             if (signOutError) throw signOutError;
           }
           clearIdentity();
@@ -859,7 +904,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";
           try {
-            await supabase.auth.signOut({ scope: "local" });
+            if (isNeonBackend) {
+              await supabase.auth.signOut();
+            } else {
+              await supabase.auth.signOut({ scope: "local" });
+            }
           } catch (signOutError) {
             console.warn("[Bootstrap] Não foi possível encerrar a sessão local após erro de login", signOutError);
           }
@@ -876,9 +925,22 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       },
       resetPassword: async (email) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const { error: resetError } = await neonAccountClient.requestPasswordReset({
+            email: normalized,
+            redirectTo: `${window.location.origin}/recuperar-senha`,
+          });
+          if (resetError) return { ok: false, message: resetError.message || "Falha ao enviar o e-mail." };
+          return { ok: true, message: "Se a conta existir, enviaremos as instruções por e-mail." };
+        }
+
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalized, {
           redirectTo: `${window.location.origin}/recuperar-senha`,
         });
@@ -887,17 +949,68 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       },
       updateEmail: async (email) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const { error: updateError } = await neonAccountClient.changeEmail({
+            newEmail: normalized,
+            callbackURL: `${window.location.origin}/configuracoes`,
+          });
+          if (updateError) return { ok: false, message: updateError.message || "Falha ao solicitar alteração de e-mail." };
+          return { ok: true, message: "Confirme a alteração pelo e-mail enviado." };
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({ email: normalized });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "E-mail atualizado." };
       },
-      updatePassword: async (password) => {
+      updatePassword: async (password, currentPassword) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const token =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("token")
+              : null;
+          if (token) {
+            const { error: updateError } = await neonAccountClient.resetPassword({
+              newPassword: password,
+              token,
+            });
+            if (updateError) {
+              return { ok: false, message: updateError.message || "Falha ao redefinir a senha." };
+            }
+            return { ok: true, message: "Senha atualizada." };
+          }
+
+          if (!currentPassword) {
+            return {
+              ok: false,
+              message: "Informe a senha atual para alterar sua senha.",
+            };
+          }
+
+          const { error: updateError } = await neonAccountClient.changePassword({
+            currentPassword,
+            newPassword: password,
+            revokeOtherSessions: true,
+          });
+          if (updateError) {
+            return { ok: false, message: updateError.message || "Não foi possível alterar a senha." };
+          }
+          return { ok: true, message: "Senha atualizada com sucesso." };
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "Senha atualizada." };

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 
 export function RecuperarSenhaPage() {
   const navigate = useNavigate();
@@ -24,6 +25,22 @@ export function RecuperarSenhaPage() {
 
     const openPasswordStep = () => setLinkStep(false);
 
+    if (isNeonBackend) {
+      const params =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search)
+          : null;
+      const token = params?.get("token");
+      const recoveryError = params?.get("error");
+
+      if (token) {
+        openPasswordStep();
+      } else if (recoveryError) {
+        setError("O link de recuperação é inválido ou expirou. Solicite um novo link.");
+      }
+      return;
+    }
+
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     if (hash.includes("type=recovery")) {
       void supabase.auth.getSession().then(({ data }) => {
@@ -33,7 +50,7 @@ export function RecuperarSenhaPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "PASSWORD_RECOVERY") {
         openPasswordStep();
       }

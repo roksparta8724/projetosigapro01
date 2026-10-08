@@ -5,7 +5,7 @@
  * Retorna { ok: true, bucket, objectKey }
  */
 
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";\nimport { requireR2AuthenticatedProfile } from "./_r2-auth";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -39,7 +39,7 @@ function getAllowedBuckets() {
 function setCors(res: Res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 function json(res: Res, status: number, body: unknown) {
@@ -76,6 +76,12 @@ export default async function handler(req: Req, res: Res) {
 
   if (req.method !== "POST") {
     json(res, 405, { error: "Método não permitido" });
+    return;
+  }
+
+  const auth = await requireR2AuthenticatedProfile(req);
+  if (!auth.ok) {
+    json(res, auth.status, { error: auth.error });
     return;
   }
 

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useTenant } from "@/hooks/useTenant";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
 const institutionalHighlights = [

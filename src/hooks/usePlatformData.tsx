@@ -52,7 +52,7 @@ import {
   serializeMarker,
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
@@ -1738,6 +1738,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       if (hasSupabaseEnv) {
         try {
           const message = await createRemoteOwnerMessage({
+            linkId: linkSnapshot.id,
             projectId: input.projectId,
             ownerUserId: input.ownerUserId,
             professionalUserId: input.professionalUserId,

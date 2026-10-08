@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import {
   registerRemoteExternalAccount,
   registerRemoteOwnerAccount,
@@ -362,7 +362,7 @@ export function CriarContaPage() {
 
       if (!data.user) {
         setSubmitting(false);
-        setError("Não foi possível concluir o cadastro no Supabase.");
+        setError("Não foi possível concluir o cadastro no serviço de autenticação.");
         return;
       }
 

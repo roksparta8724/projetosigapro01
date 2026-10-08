@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+import { databaseClient as supabase } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
@@ -358,7 +359,8 @@ export async function loadRemotePlatformStore() {
   const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
   const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
   const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
-  const profileByUser = new Map((profilesResult.data ?? []).map((item) => [item.user_id, item]));
+  const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
+  const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
   const guidesByProcess = new Map<string, Record<string, unknown>>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
@@ -406,12 +408,12 @@ export async function loadRemotePlatformStore() {
   const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
     id: row.id,
     projectId: row.project_id,
-    ownerUserId: row.owner_user_id,
-    professionalUserId: row.professional_user_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
     status: row.status ?? "pending",
     requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
     respondedAt: row.responded_at ?? null,
-    respondedBy: row.responded_by ?? null,
+    respondedBy: (isNeonBackend ? row.responded_by_profile_id : null) ?? row.responded_by ?? null,
     notes: row.notes ?? undefined,
   }));
 
@@ -422,7 +424,7 @@ export async function loadRemotePlatformStore() {
     professionalUserId: row.professional_user_id,
     chatEnabled: row.chat_enabled ?? true,
     linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
-    linkedBy: row.linked_by ?? null,
+    linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? null,
   }));
 
   const ownerMessages: OwnerProfessionalMessage[] = (ownerMessagesResult.data ?? []).map((row) => ({
@@ -430,7 +432,7 @@ export async function loadRemotePlatformStore() {
     projectId: row.project_id,
     ownerUserId: row.owner_user_id,
     professionalUserId: row.professional_user_id,
-    senderUserId: row.sender_user_id,
+    senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
     message: row.message,
     createdAt: row.created_at ?? new Date().toISOString(),
     readAt: row.read_at ?? null,
@@ -759,7 +761,7 @@ export async function loadRemotePlatformStore() {
     mappedSettingsFromMunicipalities.length > 0 ? mappedSettingsFromMunicipalities : mappedSettingsFromLegacy;
 
   const userProfiles: UserProfile[] = (profilesResult.data ?? []).map((profile) => ({
-    userId: profile.user_id,
+    userId: (isNeonBackend ? profile.id : profile.user_id) ?? profile.id,
     fullName: profile.full_name ?? "",
     email: profile.email ?? "",
     phone: profile.phone ?? "",
@@ -786,7 +788,14 @@ export async function loadRemotePlatformStore() {
 
   const sessionUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
-    const profile = profileByUser.get(membership.user_id);
+    const profile =
+      (membership.profile_id ? profileById.get(membership.profile_id) : null) ??
+      (membership.user_id ? profileByUser.get(membership.user_id) : null);
+    const canonicalUserId =
+      (isNeonBackend ? membership.profile_id ?? profile?.id : membership.user_id) ??
+      membership.profile_id ??
+      profile?.id ??
+      membership.user_id;
     const roleCode = normalizeStoredRole(role?.code ?? profile?.role);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
@@ -796,7 +805,7 @@ export async function loadRemotePlatformStore() {
           : "active";
 
     return {
-      id: membership.user_id,
+      id: canonicalUserId,
       name: profile?.full_name ?? profile?.email ?? "Usuario",
       role: roleCode,
       accessLevel: storedAccessLevel(membership.level_name, roleCode),
@@ -824,10 +833,11 @@ export async function loadRemotePlatformStore() {
 
   const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
-    if (!profile.user_id || linkedUserIds.has(profile.user_id) || profile.deleted_at) continue;
+    const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
+    if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
     const role = normalizeStoredRole(profile.role);
     sessionUsers.push({
-      id: profile.user_id,
+      id: canonicalUserId,
       name: profile.full_name ?? profile.email ?? "Usuário",
       role,
       accessLevel: roleToAccessLevel(role),
@@ -871,7 +881,7 @@ export async function loadRemotePlatformStore() {
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? "Nao informado",
-      createdBy: process.created_by,
+      createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       tags: [],
       address: property?.address ?? "Endereco nao informado",
       notes: "",
@@ -898,7 +908,7 @@ export async function loadRemotePlatformStore() {
       reopenHistory: reopenEntries.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
-        actor: entry.actor_user_id ?? "Sistema",
+        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       documents: buildProcessDocuments(
@@ -910,7 +920,7 @@ export async function loadRemotePlatformStore() {
           uploaded: true,
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
-          reviewedBy: document.reviewed_by ?? undefined,
+          reviewedBy: (isNeonBackend ? document.reviewed_by_profile_id : null) ?? document.reviewed_by ?? undefined,
           annotations: Array.isArray(document.annotations) ? document.annotations : [],
           version: document.version ?? 1,
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
@@ -1065,7 +1075,31 @@ export async function createRemoteOwnerRequest(input: {
   notes?: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await supabase.rpc("create_owner_request", {
+      _process_id: input.processId,
+      _professional_id: input.professionalUserId,
+      _notes: input.notes || null,
+    });
+
+    if (error) throw error;
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar solicitação de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    };
   }
 
   const { data, error } = await supabase
@@ -1081,14 +1115,10 @@ export async function createRemoteOwnerRequest(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao criar solicitacao de responsavel.");
-  }
+  if (!row) throw new Error("Falha ao criar solicitacao de responsavel.");
 
   return {
     id: row.id,
@@ -1110,7 +1140,50 @@ export async function respondRemoteOwnerRequest(input: {
   notes?: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (input.status === "pending") {
+      throw new Error("Uma solicitação pendente não pode ser usada como resposta.");
+    }
+
+    const { data, error } = await supabase.rpc("respond_owner_request", {
+      _request_id: input.requestId,
+      _status: input.status,
+      _notes: input.notes || null,
+    });
+    if (error) throw error;
+
+    const payload = data as Record<string, any> | null;
+    const row = payload?.request ?? null;
+    const linkRow = payload?.link ?? null;
+    if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
+
+    return {
+      request: {
+        id: row.id,
+        projectId: row.project_id,
+        ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+        professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+        status: row.status ?? input.status,
+        requestedAt: row.requested_at ?? new Date().toISOString(),
+        respondedAt: row.responded_at ?? null,
+        respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+        notes: row.notes ?? undefined,
+      },
+      link: linkRow
+        ? {
+            id: linkRow.id,
+            projectId: linkRow.project_id,
+            ownerUserId: linkRow.owner_profile_id ?? linkRow.owner_user_id,
+            professionalUserId: linkRow.professional_profile_id ?? linkRow.professional_user_id,
+            chatEnabled: linkRow.chat_enabled ?? true,
+            linkedAt: linkRow.linked_at ?? new Date().toISOString(),
+            linkedBy: linkRow.linked_by_profile_id ?? linkRow.linked_by ?? null,
+          }
+        : null,
+    };
   }
 
   const { data: requestData, error: requestError } = await supabase
@@ -1125,24 +1198,20 @@ export async function respondRemoteOwnerRequest(input: {
     .select("*")
     .limit(1);
 
-  if (requestError) {
-    throw requestError;
-  }
+  if (requestError) throw requestError;
 
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
-  if (!requestRow) {
-    throw new Error("Falha ao atualizar solicitacao de responsavel.");
-  }
+  if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, unknown> | null = null;
+  let linkData: Record<string, any> | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await supabase
       .from("project_owner_links")
       .insert({
-        project_id: requestData.process_id,
-        owner_user_id: requestData.owner_user_id,
-        professional_user_id: requestData.professional_user_id,
+        project_id: requestRow.process_id,
+        owner_user_id: requestRow.owner_user_id,
+        professional_user_id: requestRow.professional_user_id,
         chat_enabled: true,
         linked_at: new Date().toISOString(),
         linked_by: input.professionalUserId,
@@ -1150,38 +1219,34 @@ export async function respondRemoteOwnerRequest(input: {
       .select("*")
       .limit(1);
 
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
     linkData = Array.isArray(data) ? data[0] : null;
   }
 
-  const request = {
-    id: requestRow.id,
-    projectId: requestRow.process_id,
-    ownerUserId: requestRow.owner_user_id,
-    professionalUserId: requestRow.professional_user_id,
-    status: requestRow.status ?? "pending",
-    requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
-    respondedAt: requestRow.responded_at ?? null,
-    respondedBy: requestRow.responded_by ?? null,
-    notes: requestRow.notes ?? undefined,
+  return {
+    request: {
+      id: requestRow.id,
+      projectId: requestRow.process_id,
+      ownerUserId: requestRow.owner_user_id,
+      professionalUserId: requestRow.professional_user_id,
+      status: requestRow.status ?? "pending",
+      requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
+      respondedAt: requestRow.responded_at ?? null,
+      respondedBy: requestRow.responded_by ?? null,
+      notes: requestRow.notes ?? undefined,
+    },
+    link: linkData
+      ? {
+          id: linkData.id,
+          projectId: linkData.project_id,
+          ownerUserId: linkData.owner_user_id,
+          professionalUserId: linkData.professional_user_id,
+          chatEnabled: linkData.chat_enabled ?? true,
+          linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
+          linkedBy: linkData.linked_by ?? null,
+        }
+      : null,
   };
-
-  const link = linkData
-    ? {
-        id: linkData.id,
-        projectId: linkData.project_id,
-        ownerUserId: linkData.owner_user_id,
-        professionalUserId: linkData.professional_user_id,
-        chatEnabled: linkData.chat_enabled ?? true,
-        linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
-        linkedBy: linkData.linked_by ?? null,
-      }
-    : null;
-
-  return { request, link };
 }
 
 export async function setRemoteOwnerChatEnabled(input: {
@@ -1190,7 +1255,28 @@ export async function setRemoteOwnerChatEnabled(input: {
   actor: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await supabase.rpc("set_owner_chat_enabled", {
+      _link_id: input.linkId,
+      _enabled: input.enabled,
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      chatEnabled: row.chat_enabled ?? input.enabled,
+      linkedAt: row.linked_at ?? new Date().toISOString(),
+      linkedBy: row.linked_by_profile_id ?? row.linked_by ?? null,
+    };
   }
 
   const { data, error } = await supabase
@@ -1200,14 +1286,10 @@ export async function setRemoteOwnerChatEnabled(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao atualizar chat do responsavel.");
-  }
+  if (!row) throw new Error("Falha ao atualizar chat do responsavel.");
 
   return {
     id: row.id,
@@ -1221,6 +1303,7 @@ export async function setRemoteOwnerChatEnabled(input: {
 }
 
 export async function createRemoteOwnerMessage(input: {
+  linkId?: string;
   projectId: string;
   ownerUserId: string;
   professionalUserId: string;
@@ -1229,7 +1312,33 @@ export async function createRemoteOwnerMessage(input: {
   isSystemMessage?: boolean;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (!input.linkId) {
+      throw new Error("Vínculo do chat não encontrado.");
+    }
+    const { data, error } = await supabase.rpc("send_owner_message", {
+      _link_id: input.linkId,
+      _message: input.message ?? "",
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      senderUserId: row.sender_profile_id ?? row.sender_user_id,
+      message: row.message,
+      createdAt: row.created_at ?? new Date().toISOString(),
+      readAt: row.read_at ?? null,
+      isSystemMessage: row.is_system_message ?? false,
+    };
   }
 
   const { data, error } = await supabase
@@ -1246,14 +1355,10 @@ export async function createRemoteOwnerMessage(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao criar mensagem de responsavel.");
-  }
+  if (!row) throw new Error("Falha ao criar mensagem de responsavel.");
 
   return {
     id: row.id,
@@ -1627,12 +1732,10 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
 
 export async function saveRemoteProfile(profile: UserProfile) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexao com o banco indisponivel.");
   }
 
-  const payload: Record<string, unknown> = {
-    id: profile.userId,
-    user_id: profile.userId,
+  const profileFields: Record<string, unknown> = {
     full_name: profile.fullName,
     email: profile.email,
     phone: profile.phone || null,
@@ -1655,6 +1758,38 @@ export async function saveRemoteProfile(profile: UserProfile) {
     avatar_offset_y: profile.avatarOffsetY ?? 0,
     use_avatar_in_header: profile.useAvatarInHeader ?? false,
     bio: profile.bio || null,
+  };
+
+  if (isNeonBackend) {
+    const profileIdResult = await supabase.rpc("current_profile_id");
+    if (profileIdResult.error) {
+      throw new Error(profileIdResult.error.message || "Falha ao resolver o perfil autenticado.");
+    }
+
+    const profileId =
+      typeof profileIdResult.data === "string"
+        ? profileIdResult.data
+        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+    if (!profileId) {
+      throw new Error("Perfil Neon autenticado nao encontrado.");
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ ...profileFields, updated_at: new Date().toISOString() })
+      .eq("id", profileId);
+
+    if (error) {
+      throw new Error(error.message || "Falha ao salvar o perfil no banco.");
+    }
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    id: profile.userId,
+    user_id: profile.userId,
+    ...profileFields,
   };
 
   const currentPayload = { ...payload };
@@ -1707,7 +1842,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
 
   const { data: profileRows, error: profileError } = await supabase
     .from("profiles")
-    .select("user_id, full_name, email, municipality_id, deleted_at")
+    .select("id, user_id, full_name, email, municipality_id, deleted_at")
     .eq("email", normalizedEmail)
     .is("deleted_at", null)
     .limit(2);
@@ -1717,7 +1852,14 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   }
 
   const profileRecord = (profileRows ?? [])[0];
-  if (!profileRecord?.user_id) {
+  const targetUserId =
+    profileRecord
+      ? ((isNeonBackend ? profileRecord.id : profileRecord.user_id) ??
+          profileRecord.id ??
+          profileRecord.user_id)
+      : null;
+
+  if (!targetUserId) {
     return {
       email: normalizedEmail,
       linked: false,
@@ -1726,7 +1868,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   }
 
   const saved = await manageRemoteUserAccess({
-    userId: profileRecord.user_id,
+    userId: targetUserId,
     municipalityId,
     role: "prefeitura_admin",
     name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
@@ -1738,7 +1880,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   return {
     email: normalizedEmail,
     linked: true,
-    userId: profileRecord.user_id,
+    userId: targetUserId,
     municipalityId,
     role: saved.role,
   };
@@ -1798,7 +1940,7 @@ export async function linkExistingMunicipalStaff(input: {
   const email = input.email.trim().toLowerCase();
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, municipality_id")
+    .select("id, user_id, municipality_id")
     .eq("email", email)
     .is("deleted_at", null)
     .limit(2);
@@ -1809,8 +1951,18 @@ export async function linkExistingMunicipalStaff(input: {
   if (data[0].municipality_id !== input.municipalityId) {
     throw new Error("A conta não está vinculada a esta Prefeitura.");
   }
+
+  const targetUserId =
+    (isNeonBackend ? data[0].id : data[0].user_id) ??
+    data[0].id ??
+    data[0].user_id;
+
+  if (!targetUserId) {
+    throw new Error("A conta não possui um perfil válido para vinculação.");
+  }
+
   const saved = await manageRemoteUserAccess({
-    userId: data[0].user_id,
+    userId: targetUserId,
     municipalityId: input.municipalityId,
     role: input.role,
     name: input.name,
@@ -1818,7 +1970,7 @@ export async function linkExistingMunicipalStaff(input: {
     accessLevel: input.accessLevel,
     accountStatus: "active",
   });
-  return { userId: data[0].user_id as string, email, ...saved };
+  return { userId: targetUserId as string, email, ...saved };
 }
 
 export async function upsertRemoteInstitution(input: {
