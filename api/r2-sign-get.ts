@@ -81,7 +81,7 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  const auth = await requireR2AuthenticatedProfile(req);
+  const auth = await requireR2AuthenticatedProfile(req, { requireInProduction: false });
   if (!auth.ok) {
     json(res, auth.status, { error: auth.error });
     return;
