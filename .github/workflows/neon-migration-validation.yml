@@ -37,7 +37,7 @@ jobs:
       - name: Tests
         run: npm test
 
-      # hotfix verification trigger 2
+      # final production smoke after self-contained R2 hotfix
       - name: One-shot production post-cutover smoke
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[prod-smoke]')
         run: |
