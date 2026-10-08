@@ -140,6 +140,7 @@ function Probe() {
       <span data-testid="auth-id">{authUserId ?? "none"}</span>
       <span data-testid="role">{role ?? "none"}</span>
       <span data-testid="profile-role">{profile?.role ?? "none"}</span>
+      <span data-testid="profile-id">{profile?.userId ?? "none"}</span>
     </>
   );
 }
@@ -163,6 +164,7 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-role")).toHaveTextContent("prefeitura_admin");
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
     expect(neonMock.client.rpc).toHaveBeenCalledWith("current_profile_id");
   });
 });
