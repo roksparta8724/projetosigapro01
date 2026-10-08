@@ -1,97 +1,96 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { requireR2AuthenticatedProfile } from "../../api/_r2-auth";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import deleteHandler from "../../api/r2-delete";
+import presignHandler from "../../api/r2-presign";
+import uploadHandler from "../../api/r2-upload";
+import signGetHandler from "../../api/r2-sign-get";
 
-function requestWithAuthorization(value?: string) {
+function makeReq(body: Record<string, unknown> = {}, authorization?: string) {
   return {
-    headers: value ? { authorization: value } : {},
+    method: "POST",
+    body,
+    headers: authorization ? { authorization } : {},
   } as any;
 }
 
-describe("R2 authenticated gate", () => {
-  const previousRequireAuth = process.env.R2_REQUIRE_AUTH;
-  const previousDataApiUrl = process.env.R2_AUTH_DATA_API_URL;
+function makeRes() {
+  let payload = "";
+  const headers = new Map<string, unknown>();
+  const res = {
+    statusCode: 200,
+    setHeader(name: string, value: unknown) {
+      headers.set(name.toLowerCase(), value);
+    },
+    end(value?: unknown) {
+      payload = value == null ? "" : String(value);
+    },
+  } as any;
+
+  return {
+    res,
+    read() {
+      return {
+        status: res.statusCode,
+        body: payload ? JSON.parse(payload) : null,
+        headers,
+      };
+    },
+  };
+}
+
+describe("R2 production handler auth contract", () => {
   const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousRequireAuth = process.env.R2_REQUIRE_AUTH;
+  const previousEndpoint = process.env.R2_ENDPOINT;
+  const previousAccessKey = process.env.R2_ACCESS_KEY_ID;
+  const previousSecret = process.env.R2_SECRET_ACCESS_KEY;
 
   beforeEach(() => {
-    vi.restoreAllMocks();
+    process.env.VERCEL_ENV = "production";
     delete process.env.R2_REQUIRE_AUTH;
-    delete process.env.R2_AUTH_DATA_API_URL;
-    delete process.env.VERCEL_ENV;
   });
 
   afterEach(() => {
-    if (previousRequireAuth === undefined) delete process.env.R2_REQUIRE_AUTH;
-    else process.env.R2_REQUIRE_AUTH = previousRequireAuth;
-    if (previousDataApiUrl === undefined) delete process.env.R2_AUTH_DATA_API_URL;
-    else process.env.R2_AUTH_DATA_API_URL = previousDataApiUrl;
     if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
     else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousRequireAuth === undefined) delete process.env.R2_REQUIRE_AUTH;
+    else process.env.R2_REQUIRE_AUTH = previousRequireAuth;
+    if (previousEndpoint === undefined) delete process.env.R2_ENDPOINT;
+    else process.env.R2_ENDPOINT = previousEndpoint;
+    if (previousAccessKey === undefined) delete process.env.R2_ACCESS_KEY_ID;
+    else process.env.R2_ACCESS_KEY_ID = previousAccessKey;
+    if (previousSecret === undefined) delete process.env.R2_SECRET_ACCESS_KEY;
+    else process.env.R2_SECRET_ACCESS_KEY = previousSecret;
   });
 
-  it("preserves current behavior while the cutover gate is disabled", async () => {
-    const result = await requireR2AuthenticatedProfile(requestWithAuthorization());
-    expect(result).toEqual({ ok: true, profileId: null });
-  });
+  for (const [name, handler] of [
+    ["upload", uploadHandler],
+    ["presign", presignHandler],
+    ["delete", deleteHandler],
+  ] as const) {
+    it(`blocks anonymous ${name} in Vercel production`, async () => {
+      const response = makeRes();
+      await handler(makeReq(), response.res);
+      expect(response.read()).toMatchObject({
+        status: 401,
+        body: { error: "Autenticação necessária." },
+      });
+    });
+  }
 
-  it("rejects requests without a bearer token when protection is enabled", async () => {
-    process.env.R2_REQUIRE_AUTH = "true";
-    process.env.R2_AUTH_DATA_API_URL = "https://example.test/rest/v1";
+  it("keeps signed reads public without invoking authenticated-profile validation", async () => {
+    process.env.R2_ENDPOINT = "https://r2.invalid.example";
+    process.env.R2_ACCESS_KEY_ID = "0123456789abcdef0123456789abcdef";
+    process.env.R2_SECRET_ACCESS_KEY = "test-secret";
+    const response = makeRes();
 
-    const result = await requireR2AuthenticatedProfile(requestWithAuthorization());
+    await signGetHandler(
+      makeReq({ bucket: "not-an-allowed-bucket", objectKey: "x" }),
+      response.res,
+    );
 
-    expect(result).toMatchObject({
-      ok: false,
-      status: 401,
-      error: "Autenticação necessária.",
+    expect(response.read()).toMatchObject({
+      status: 400,
+      body: { error: "Bucket inválido." },
     });
   });
-
-  it("accepts a bearer token only when Neon resolves an authenticated profile", async () => {
-    process.env.R2_REQUIRE_AUTH = "true";
-    process.env.R2_AUTH_DATA_API_URL = "https://example.test/rest/v1";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify("profile-123"), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
-    const result = await requireR2AuthenticatedProfile(
-      requestWithAuthorization("Bearer jwt-test"),
-    );
-
-    expect(result).toEqual({ ok: true, profileId: "profile-123" });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://example.test/rest/v1/rpc/current_profile_id",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer jwt-test",
-        }),
-      }),
-    );
-  });
-  it("requires authentication automatically for protected R2 operations in Vercel production", async () => {
-    process.env.VERCEL_ENV = "production";
-
-    const result = await requireR2AuthenticatedProfile(requestWithAuthorization());
-
-    expect(result).toMatchObject({
-      ok: false,
-      status: 401,
-      error: "Autenticação necessária.",
-    });
-  });
-
-  it("allows explicitly public signed reads in Vercel production", async () => {
-    process.env.VERCEL_ENV = "production";
-
-    const result = await requireR2AuthenticatedProfile(
-      requestWithAuthorization(),
-      { requireInProduction: false },
-    );
-
-    expect(result).toEqual({ ok: true, profileId: null });
-  });
-
 });
