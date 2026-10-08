@@ -93,6 +93,11 @@ jobs:
             throw new Error(`token failed ${tokenRes.status}: ${JSON.stringify(tokenBody)}`);
           }
           const token = tokenBody.token;
+          const decodeBase64Url = (value) =>
+            Buffer.from(value.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+          const claims = JSON.parse(decodeBase64Url(token.split(".")[1]));
+          console.log(`SIGAPRO_E2E_JWT_SUB=${claims.sub ?? ""}`);
+          console.log(`SIGAPRO_E2E_JWT_ROLE=${claims.role ?? ""}`);
 
           const rpc = async (name, body) => {
             const res = await fetch(`${dataUrl}/rpc/${name}`, {
