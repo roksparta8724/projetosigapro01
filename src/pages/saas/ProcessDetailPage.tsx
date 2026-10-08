@@ -1,4 +1,4 @@
-﻿import { FormEvent, MouseEvent, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, Workflow, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAccessProcess,
   formatCurrency,
@@ -160,10 +161,79 @@ export function ProcessDetailPage() {
   );
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
+  const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
+  const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const process = processId ? getProcessById(processId, processes) : undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!process) {
+      setDocumentAccessUrls({});
+      setDocumentAccessErrors({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const documentBucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    const storedDocuments = process.documents.filter(
+      (document) => document.uploaded && Boolean(document.filePath),
+    );
+
+    if (storedDocuments.length === 0) {
+      setDocumentAccessUrls({});
+      setDocumentAccessErrors({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void Promise.all(
+      storedDocuments.map(async (document) => {
+        try {
+          const signedUrl = await getSignedUrlForObjectStrict({
+            bucket: documentBucket,
+            objectKey: document.filePath!,
+            expiresIn: 21600,
+          });
+
+          if (!cancelled && signedUrl) {
+            setDocumentAccessUrls((current) => ({
+              ...current,
+              [document.id]: signedUrl,
+            }));
+            setDocumentAccessErrors((current) => {
+              if (!current[document.id]) return current;
+              const next = { ...current };
+              delete next[document.id];
+              return next;
+            });
+          }
+        } catch (error) {
+          if (!cancelled) {
+            setDocumentAccessErrors((current) => ({
+              ...current,
+              [document.id]:
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível abrir o documento armazenado.",
+            }));
+          }
+        }
+      }),
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [process]);
 
   if (!process) {
     return (
@@ -202,6 +272,17 @@ export function ProcessDetailPage() {
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
+  const getDocumentAccessUrl = (document: typeof process.documents[number]) =>
+    document.filePath
+      ? documentAccessUrls[document.id] || ""
+      : document.previewUrl || "";
+  const getDocumentFallbackUrl = (document: typeof process.documents[number]) =>
+    getDocumentAccessUrl(document) ||
+    buildDocumentPreview(
+      document.label,
+      document.fileName,
+      tenant?.name ?? tenantSettings?.beneficiarioArrecadacao,
+    );
   const canAnnotateViewer =
     !!viewerDocument &&
     (session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista") &&
@@ -755,7 +836,7 @@ export function ProcessDetailPage() {
                       ) : null}
                       {(document.previewUrl || document.uploaded) ? (
                         <a
-                          href={document.previewUrl || buildDocumentPreview(document.label, document.fileName, tenant?.name ?? tenantSettings?.beneficiarioArrecadacao)}
+                          href={getDocumentFallbackUrl(document)}
                           download={document.fileName || `${document.label}.pdf`}
                           className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700"
                         >
@@ -767,14 +848,19 @@ export function ProcessDetailPage() {
                   </div>
                   {(document.previewUrl || document.uploaded) ? (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      {(document.mimeType === "application/pdf" || !document.previewUrl) ? (
+                      {document.filePath && !documentAccessUrls[document.id] && documentAccessErrors[document.id] ? (
+                        <div className="p-4 text-sm text-red-600">
+                          Não foi possível carregar este documento agora. Atualize a página ou tente novamente.
+                        </div>
+                      ) : null}
+                      {document.mimeType === "application/pdf" ? (
                         <iframe
-                          src={document.previewUrl || buildDocumentPreview(document.label, document.fileName, tenant?.name ?? tenantSettings?.beneficiarioArrecadacao)}
+                          src={getDocumentFallbackUrl(document)}
                           title={document.fileName || document.label}
                           className="h-72 w-full"
                         />
                       ) : (
-                        <img src={document.previewUrl} alt={document.fileName || document.label} className="max-h-80 w-full object-contain" />
+                        <img src={getDocumentFallbackUrl(document)} alt={document.fileName || document.label} className="max-h-80 w-full object-contain" />
                       )}
                     </div>
                   ) : null}
@@ -1312,7 +1398,7 @@ export function ProcessDetailPage() {
                 </Button>
                 {viewerDocument ? (
                   <a
-                    href={viewerDocument.previewUrl || buildDocumentPreview(viewerDocument.label, viewerDocument.fileName, tenant?.name ?? tenantSettings?.beneficiarioArrecadacao)}
+                    href={getDocumentFallbackUrl(viewerDocument)}
                     download={viewerDocument.fileName || `${viewerDocument.label}.pdf`}
                     className="inline-flex items-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
                   >
@@ -1332,11 +1418,11 @@ export function ProcessDetailPage() {
                 onClick={handleViewerClick}
               >
                 <div style={{ transform: `scale(${viewerZoom})`, transformOrigin: "top center" }} className="min-h-[720px] w-full">
-                  {viewerDocument?.previewUrl && viewerDocument.mimeType?.startsWith("image/") ? (
-                    <img src={viewerDocument.previewUrl} alt={viewerDocument.fileName || viewerDocument.label} className="min-h-[720px] w-full object-contain" />
+                  {viewerDocument?.mimeType?.startsWith("image/") ? (
+                    <img src={viewerDocument ? getDocumentFallbackUrl(viewerDocument) : undefined} alt={viewerDocument?.fileName || viewerDocument?.label} className="min-h-[720px] w-full object-contain" />
                   ) : (
                     <iframe
-                      src={viewerDocument ? viewerDocument.previewUrl || buildDocumentPreview(viewerDocument.label, viewerDocument.fileName, tenant?.name ?? tenantSettings?.beneficiarioArrecadacao) : undefined}
+                      src={viewerDocument ? getDocumentFallbackUrl(viewerDocument) : undefined}
                       title={viewerDocument?.fileName || viewerDocument?.label}
                       className="h-[720px] w-full"
                     />
