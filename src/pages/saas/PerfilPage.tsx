@@ -390,6 +390,7 @@ export function PerfilPage() {
   const [accountForm, setAccountForm] = useState({
     currentEmail: authenticatedEmail ?? session.email,
     nextEmail: authenticatedEmail ?? session.email,
+    currentPassword: "",
     nextPassword: "",
     confirmPassword: "",
   });
@@ -1002,6 +1003,10 @@ export function PerfilPage() {
 
   const handleUpdatePassword = async () => {
     setAccountStatus("");
+    if (!accountForm.currentPassword) {
+      setAccountStatus("Informe a senha atual.");
+      return;
+    }
     if (accountForm.nextPassword.length < 8) {
       setAccountStatus("A nova senha deve ter pelo menos 8 caracteres.");
       return;
@@ -1011,13 +1016,18 @@ export function PerfilPage() {
       return;
     }
 
-    const result = await updatePassword(accountForm.nextPassword);
+    const result = await updatePassword(accountForm.nextPassword, accountForm.currentPassword);
     if (!result.ok) {
       setAccountStatus(result.message || "Não foi possível atualizar a senha.");
       return;
     }
 
-    setAccountForm((current) => ({ ...current, nextPassword: "", confirmPassword: "" }));
+    setAccountForm((current) => ({
+      ...current,
+      currentPassword: "",
+      nextPassword: "",
+      confirmPassword: "",
+    }));
     setAccountStatus(result.message || "Senha atualizada com sucesso.");
   };
 
@@ -1882,6 +1892,10 @@ export function PerfilPage() {
                     <p className="text-sm font-semibold">Alterar senha</p>
                   </div>
                   <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Senha atual</Label>
+                      <Input type="password" value={accountForm.currentPassword} onChange={(event) => setAccountField("currentPassword", event.target.value)} />
+                    </div>
                     <div className="space-y-2">
                       <Label>Nova senha</Label>
                       <Input type="password" value={accountForm.nextPassword} onChange={(event) => setAccountField("nextPassword", event.target.value)} />
