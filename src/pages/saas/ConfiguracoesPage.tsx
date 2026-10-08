@@ -24,7 +24,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import {
   resolveMunicipalityIdBySubdomain,
   resolveDefaultMunicipalityId,
