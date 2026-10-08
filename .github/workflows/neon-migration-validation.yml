@@ -31,6 +31,24 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Smoke test public Neon TEMP Data API
+        env:
+          NEON_TEMP_DATA_API: https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1
+        run: |
+          municipalities_status=$(curl -sS -o /tmp/municipalities.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipalities?select=id,name,status&limit=1")
+          test "$municipalities_status" = "200"
+          grep -q '"id"' /tmp/municipalities.json
+
+          branding_status=$(curl -sS -o /tmp/branding.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_branding?select=municipality_id,logo_url&limit=1")
+          test "$branding_status" = "200"
+
+          settings_status=$(curl -sS -o /tmp/settings.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_settings?select=municipality_id&limit=1")
+          if [ "$settings_status" = "200" ]; then
+            echo "municipality_settings must not be anonymously readable"
+            cat /tmp/settings.json
+            exit 1
+          fi
+
       - name: Build
         run: npm run build
 
