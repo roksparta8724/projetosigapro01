@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { databaseClient as supabase } from "@/integrations/backend/databaseClient";
 import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
