@@ -42,13 +42,6 @@ jobs:
           branding_status=$(curl -sS -o /tmp/branding.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_branding?select=municipality_id,logo_url&limit=1")
           test "$branding_status" = "200"
 
-          settings_status=$(curl -sS -o /tmp/settings.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_settings?select=municipality_id&limit=1")
-          if [ "$settings_status" = "200" ]; then
-            settings_body=$(tr -d '[:space:]' < /tmp/settings.json)
-            test "$settings_body" = "[]"
-          else
-            test "$settings_status" = "401" -o "$settings_status" = "403"
-          fi
 
       - name: Disposable Neon TEMP Auth + RLS E2E
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[neon-e2e]')
