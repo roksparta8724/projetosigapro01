@@ -6,7 +6,8 @@
  * usando S3 presigned GET URL via @aws-sdk/s3-request-presigner.
  */
 
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";\nimport { requireR2AuthenticatedProfile } from "./_r2-auth";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { requireR2AuthenticatedProfile } from "./_r2-auth";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };

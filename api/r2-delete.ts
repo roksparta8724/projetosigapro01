@@ -5,7 +5,8 @@
  * Retorna { ok: true, bucket, objectKey }
  */
 
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";\nimport { requireR2AuthenticatedProfile } from "./_r2-auth";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { requireR2AuthenticatedProfile } from "./_r2-auth";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
