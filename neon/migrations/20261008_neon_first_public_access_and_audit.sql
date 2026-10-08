@@ -55,7 +55,7 @@ create policy municipalities_select_public
   on public.municipalities
   for select
   to anonymous
-  using (status in ('active','implementation'));
+  using (status is null or lower(status) in ('active','ativo','implementation','implantacao'));
 
 drop policy if exists municipality_branding_select_public on public.municipality_branding;
 create policy municipality_branding_select_public
@@ -67,7 +67,7 @@ create policy municipality_branding_select_public
       select 1
       from public.municipalities m
       where m.id = municipality_branding.municipality_id
-        and m.status in ('active','implementation')
+        and (m.status is null or lower(m.status) in ('active','ativo','implementation','implantacao'))
     )
   );
 
