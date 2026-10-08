@@ -48,6 +48,26 @@ jobs:
           echo "=== Body ==="
           cat /tmp/neon_body.json
 
+      - name: Diagnostic Neon anonymous SDK access
+        continue-on-error: true
+        run: |
+          node --input-type=module <<'NODE'
+          import { createClient, SupabaseAuthAdapter } from "@neondatabase/neon-js";
+          const client = createClient({
+            auth: {
+              adapter: SupabaseAuthAdapter(),
+              url: "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth",
+              allowAnonymous: true,
+            },
+            dataApi: {
+              url: "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1",
+            },
+          });
+          const result = await client.from("municipalities").select("id,name,status").limit(1);
+          console.log("ANON_SDK_ERROR", result.error ?? null);
+          console.log("ANON_SDK_DATA", JSON.stringify(result.data ?? null));
+          NODE
+
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
