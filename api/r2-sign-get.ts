@@ -7,7 +7,6 @@
  */
 
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { requireR2AuthenticatedProfile } from "./_r2-auth";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -79,12 +78,6 @@ export default async function handler(req: Req, res: Res) {
 
   if (req.method !== "POST") {
     json(res, 405, { error: "Método não permitido" });
-    return;
-  }
-
-  const auth = await requireR2AuthenticatedProfile(req, { requireInProduction: false });
-  if (!auth.ok) {
-    json(res, auth.status, { error: auth.error });
     return;
   }
 
