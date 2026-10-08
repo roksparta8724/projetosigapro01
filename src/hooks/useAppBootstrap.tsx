@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import type { User } from "@supabase/supabase-js";
 import {
   loadCurrentMunicipalityBundle,
@@ -180,7 +181,7 @@ function clearPlatformSessionSnapshot() {
 }
 
 function readStoredSupabaseUser(): StoredSupabaseUser | null {
-  if (typeof window === "undefined") return null;
+  if (isNeonBackend || typeof window === "undefined") return null;
 
   try {
     const raw = window.localStorage.getItem("sigapro-supabase-auth");
@@ -264,37 +265,79 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("user_id, role, municipality_id, email, full_name, account_status")
-    .eq("user_id", userId)
-    .limit(2);
+  let profileId: string | null = null;
+  let record: any = null;
 
-  if (error) {
-    console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error });
-    return null;
-  }
-  if (data && data.length > 1) {
-    console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
-  }
-  const record = data?.[0] ?? null;
+  if (isNeonBackend) {
+    const profileIdResult = await supabase.rpc("current_profile_id");
+    if (profileIdResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao resolver current_profile_id no Neon", {
+        error: profileIdResult.error,
+      });
+      return null;
+    }
 
-  const membershipResult = await supabase
+    profileId = typeof profileIdResult.data === "string"
+      ? profileIdResult.data
+      : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+    if (!profileId) {
+      console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo vinculado", { userId });
+      return null;
+    }
+
+    const profileResult = await supabase
+      .from("profiles")
+      .select("id, role, municipality_id, email, full_name, account_status")
+      .eq("id", profileId)
+      .limit(1)
+      .maybeSingle();
+
+    if (profileResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao carregar profile Neon", {
+        profileId,
+        error: profileResult.error,
+      });
+      return null;
+    }
+    record = profileResult.data ?? null;
+  } else {
+    const profileResult = await supabase
+      .from("profiles")
+      .select("user_id, role, municipality_id, email, full_name, account_status")
+      .eq("user_id", userId)
+      .limit(2);
+
+    if (profileResult.error) {
+      console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error: profileResult.error });
+      return null;
+    }
+    if (profileResult.data && profileResult.data.length > 1) {
+      console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
+    }
+    record = profileResult.data?.[0] ?? null;
+  }
+
+  const membershipQuery = supabase
     .from("tenant_memberships")
     .select("tenant_id, role_id, level_name, is_active, deleted_at")
-    .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("is_active", true);
+
+  const membershipResult = isNeonBackend
+    ? await membershipQuery.eq("profile_id", profileId)
+    : await membershipQuery.eq("user_id", userId);
 
   if (membershipResult.error) {
     console.warn("[Bootstrap][Membership] Falha ao carregar memberships", {
       userId,
+      profileId,
       error: membershipResult.error,
     });
   }
 
-  const memberships = (membershipResult.data ?? []).filter((item) => item.role_id);
-  const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter(Boolean)));
+  const memberships = (membershipResult.data ?? []).filter((item: any) => item.role_id);
+  const roleIds = Array.from(new Set(memberships.map((item: any) => item.role_id).filter(Boolean)));
   let roleCodeFromMembership: string | null = null;
   let municipalityIdFromMembership: string | null = null;
   let accessLevelFromMembership: 1 | 2 | 3 | null = null;
@@ -304,17 +347,18 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     if (rolesResult.error) {
       console.warn("[Bootstrap][Membership] Falha ao resolver roles do vínculo", {
         userId,
+        profileId,
         error: rolesResult.error,
       });
     } else {
-      const rolesById = new Map((rolesResult.data ?? []).map((item) => [item.id, item.code]));
+      const rolesById = new Map((rolesResult.data ?? []).map((item: any) => [item.id, item.code]));
       const rankedMembership = memberships
-        .map((item) => ({
+        .map((item: any) => ({
           tenantId: item.tenant_id as string | null,
           roleCode: rolesById.get(item.role_id) ?? null,
           levelName: item.level_name as string | null,
         }))
-        .sort((left, right) => {
+        .sort((left: any, right: any) => {
           const rank = (roleCode: string | null) => {
             const mapped = mapDbRoleCodeToAppRole(roleCode);
             if (mapped === "master_admin" || mapped === "master_ops" || mapped === "prefeitura_admin") return 4;
@@ -323,7 +367,6 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
             if (mapped === "profissional_externo" || mapped === "proprietario_consulta" || mapped === "property_owner") return 1;
             return 0;
           };
-
           return rank(right.roleCode) - rank(left.roleCode);
         })[0];
 
@@ -335,7 +378,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   }
 
   if (!record && !roleCodeFromMembership && !municipalityIdFromMembership) {
-    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId });
+    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId, profileId });
     return null;
   }
 
