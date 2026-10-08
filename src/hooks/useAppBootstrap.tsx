@@ -52,7 +52,7 @@ interface AppBootstrapState {
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string; role?: string; municipalityId?: string | null }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
-  updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
+  updatePassword: (password: string, currentPassword?: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -969,7 +969,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "E-mail atualizado." };
       },
-      updatePassword: async (password) => {
+      updatePassword: async (password, currentPassword) => {
         if (!hasSupabaseEnv || !supabase) {
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
@@ -982,18 +982,33 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             typeof window !== "undefined"
               ? new URLSearchParams(window.location.search).get("token")
               : null;
-          if (!token) {
+          if (token) {
+            const { error: updateError } = await neonAccountClient.resetPassword({
+              newPassword: password,
+              token,
+            });
+            if (updateError) {
+              return { ok: false, message: updateError.message || "Falha ao redefinir a senha." };
+            }
+            return { ok: true, message: "Senha atualizada." };
+          }
+
+          if (!currentPassword) {
             return {
               ok: false,
-              message: "Use o link de recuperação enviado ao seu e-mail para definir uma nova senha.",
+              message: "Informe a senha atual para alterar sua senha.",
             };
           }
-          const { error: updateError } = await neonAccountClient.resetPassword({
+
+          const { error: updateError } = await neonAccountClient.changePassword({
+            currentPassword,
             newPassword: password,
-            token,
+            revokeOtherSessions: true,
           });
-          if (updateError) return { ok: false, message: updateError.message || "Falha ao redefinir a senha." };
-          return { ok: true, message: "Senha atualizada." };
+          if (updateError) {
+            return { ok: false, message: updateError.message || "Não foi possível alterar a senha." };
+          }
+          return { ok: true, message: "Senha atualizada com sucesso." };
         }
 
         const { error: updateError } = await supabase.auth.updateUser({ password });
