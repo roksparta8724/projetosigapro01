@@ -60,31 +60,33 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authenticatedRole,
     authenticatedAccessLevel,
     authenticatedUserId,
+    authenticatedProfileId,
     authenticatedMunicipalityId,
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
   const [sessionVersion, setSessionVersion] = useState(0);
+  const businessUserId = authenticatedProfileId || authenticatedUserId;
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !authResolved && !authenticatedUserId;
+    const canUseCachedSession = !authResolved && !businessUserId;
 
-    if (cachedSession && (canUseCachedSession || cachedSession.id === authenticatedUserId)) {
+    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
       return {
         ...cachedSession,
-        id: authenticatedUserId || cachedSession.id,
+        id: businessUserId || cachedSession.id,
         role: safeRole,
         accessLevel:
           safeRole === "master_admin" || safeRole === "prefeitura_admin"
             ? 3
-            : authResolved && authenticatedUserId
+            : authResolved && businessUserId
               ? authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1)
               : cachedSession.accessLevel ?? 1,
-        tenantId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
-        municipalityId: authenticatedUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
+        tenantId: businessUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
+        municipalityId: businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
         title: roleLabels[safeRole] || cachedSession.title || "Usuário",
         email: authenticatedEmail || cachedSession.email || "",
       };
@@ -93,7 +95,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     const safeRole = normalizeRole(authenticatedRole);
     const email = authenticatedEmail || "";
     return {
-      id: authenticatedUserId || "unknown",
+      id: businessUserId || "unknown",
       name:
         email
           .split("@")[0]
@@ -118,7 +120,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: null,
       deletedAt: null,
     };
-  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {
@@ -135,13 +137,13 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    if (authenticatedUserId) {
+    if (businessUserId) {
       cachedSessionRef.current = session;
       writeCachedSession(session);
       return;
     }
 
-    if (authResolved && !authenticatedUserId) {
+    if (authResolved && !businessUserId) {
       if (!cachedSessionRef.current) {
         writeCachedSession(null);
         return;
