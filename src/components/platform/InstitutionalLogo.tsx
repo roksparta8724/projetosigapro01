@@ -38,6 +38,7 @@ export function InstitutionalLogo({
   viewportClassName,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
+  const [loadedImages, setLoadedImages] = useState<string[]>([]);
   const isMaster = branding.tenantId === "master";
   const context = `${variant}:${branding.tenantId}`;
   const requestedUrl = resolveAssetUrl(branding.logoUrl);
@@ -73,22 +74,38 @@ export function InstitutionalLogo({
       )}
     >
       <div className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}>
-        {displayUrl ? (
-          <img
-            src={displayUrl}
-            alt={branding.logoAlt || fallbackLabel}
-            className={cn("block h-full w-full max-w-full select-none object-contain object-center", isMaster && "mix-blend-screen")}
-            style={showMasterCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` } : undefined}
-            loading="eager"
-            decoding="async"
-            onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-500" role="img" aria-label={fallbackLabel}>
-            <Building2 className={cn("shrink-0", variant === "compact" ? "h-4 w-4" : "h-8 w-8")} />
-            {variant !== "compact" ? <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.1em]">{isMaster ? "SIGAPRO" : "Prefeitura"}</span> : null}
-          </div>
-        )}
+        <div className="relative flex h-full w-full items-center justify-center">
+          {(!displayUrl || !loadedImages.includes(displayUrl)) ? (
+            <div
+              className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-slate-400"
+              role="img"
+              aria-label={fallbackLabel}
+            >
+              <Building2 className={cn("shrink-0", variant === "compact" ? "h-4 w-4" : "h-8 w-8")} />
+              {variant !== "compact" ? (
+                <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
+                  {isMaster ? "SIGAPRO" : "Prefeitura"}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {displayUrl ? (
+            <img
+              src={displayUrl}
+              alt={branding.logoAlt || fallbackLabel}
+              className={cn(
+                "block h-full w-full max-w-full select-none object-contain object-center transition-opacity duration-150",
+                loadedImages.includes(displayUrl) ? "opacity-100" : "opacity-0",
+                isMaster && "mix-blend-screen",
+              )}
+              style={showMasterCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` } : undefined}
+              loading="eager"
+              decoding="async"
+              onLoad={() => setLoadedImages((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
+              onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
+            />
+          ) : null}
+        </div>
         {pendingUrl ? (
           <img
             src={pendingUrl}
