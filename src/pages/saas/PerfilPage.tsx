@@ -290,7 +290,9 @@ export function PerfilPage() {
     : session.email || session.name;
   const profileLookupEmail = authenticatedEmail || session.email;
   const profile = getUserProfile(session.id, profileLookupEmail);
-  const profileUserId = session.id !== "unknown" ? session.id : authenticatedUserId || profile?.userId || "";
+  const profileUserId =
+    profile?.userId ||
+    (session.id !== "unknown" ? session.id : authenticatedUserId || "");
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -586,7 +588,7 @@ export function PerfilPage() {
     }
 
     const mergedProfile = {
-      userId: session.id,
+      userId: profile?.userId || profileUserId || session.id,
       fullName: profile?.fullName || draft.fullName || session.name,
       email: profile?.email || draft.email || session.email,
       phone: profile?.phone || draft.phone || "",
@@ -967,7 +969,7 @@ export function PerfilPage() {
 
     saveUserProfile({
       ...(profile ?? {
-        userId: session.id,
+        userId: profileUserId || session.id,
         fullName: form.fullName,
         email: form.email,
         phone: form.phone,
