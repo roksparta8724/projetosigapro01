@@ -137,7 +137,7 @@ function readBootstrapSnapshot(
     if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
       return null;
     }
-    if (parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
+    if (!isNeonBackend && parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
 
     return {
       hostname: parsed.hostname ?? resolution.hostname,
