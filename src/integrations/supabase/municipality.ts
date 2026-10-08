@@ -1,4 +1,4 @@
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { databaseClient as supabase, hasDatabaseEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { getRootDomain } from "@/lib/tenant";
 import type {
   Municipality,
