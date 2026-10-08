@@ -87,4 +87,23 @@ create policy municipality_branding_select_public
 -- municipality_settings intentionally remains private before authentication.
 revoke all on public.municipality_settings from anonymous;
 
+grant select on public.tenant_memberships to authenticated;
+
+drop policy if exists tenant_memberships_select_scoped on public.tenant_memberships;
+create policy tenant_memberships_select_scoped
+  on public.tenant_memberships
+  for select
+  to authenticated
+  using (
+    tenant_memberships.profile_id = public.current_profile_id()
+    or exists (
+      select 1
+      from public.profiles p
+      where p.id = public.current_profile_id()
+        and p.user_id is not null
+        and p.user_id = tenant_memberships.user_id
+    )
+    or public.can_manage_tenant(tenant_memberships.tenant_id)
+  );
+
 commit;
