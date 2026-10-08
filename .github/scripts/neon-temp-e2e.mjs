@@ -28,6 +28,7 @@ const signup = await client.auth.signUp({
   email,
   password,
   options: {
+    emailRedirectTo: "https://sigapromunicipal.com.br/acesso",
     data: {
       full_name: "SIGAPRO CI TEMP",
       role: "profissional_externo",
