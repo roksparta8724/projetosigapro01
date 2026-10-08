@@ -2,14 +2,20 @@ type ReqLike = import("http").IncomingMessage & {
   headers: import("http").IncomingHttpHeaders;
 };
 
+const VALIDATED_NEON_DATA_API_URL =
+  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+
 function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-export function isR2AuthRequired() {
-  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
+export function isR2AuthRequired(requireInProduction = true) {
+  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  return requireInProduction && readEnv("VERCEL_ENV").toLowerCase() === "production";
 }
 
 function readBearer(req: ReqLike) {
@@ -21,12 +27,18 @@ function readBearer(req: ReqLike) {
 function resolveNeonDataApiUrl() {
   return (
     readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL")
+    readEnv("VITE_NEON_DATA_API_URL") ||
+    (readEnv("VERCEL_ENV").toLowerCase() === "production"
+      ? VALIDATED_NEON_DATA_API_URL
+      : "")
   ).replace(/\/+$/, "");
 }
 
-export async function requireR2AuthenticatedProfile(req: ReqLike) {
-  if (!isR2AuthRequired()) {
+export async function requireR2AuthenticatedProfile(
+  req: ReqLike,
+  options?: { requireInProduction?: boolean },
+) {
+  if (!isR2AuthRequired(options?.requireInProduction ?? true)) {
     return { ok: true as const, profileId: null as string | null };
   }
 
