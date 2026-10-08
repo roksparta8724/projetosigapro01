@@ -25,9 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcess } from "@/integrations/supabase/platform";
+import { createRemoteExternalProcess, registerRemoteExternalAccount } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
@@ -320,8 +320,20 @@ export function ProtocolarProjetoPage() {
         }
       | undefined;
 
-    if (hasSupabaseEnv && supabase) {
+    if (hasBackendEnv) {
       try {
+        await registerRemoteExternalAccount({
+          tenantId: effectiveScopeId,
+          fullName: profile?.fullName || form.profissional || session.name,
+          email: profile?.email || form.email || session.email,
+          cpfCnpj: profile?.cpfCnpj || "",
+          phone: profile?.phone || form.telefone || "",
+          professionalType: profile?.professionalType || "",
+          registrationNumber: profile?.registrationNumber || form.registro || "",
+          companyName: profile?.companyName || "",
+          title: session.title || "Profissional externo",
+          bio: profile?.bio || "",
+        });
         documents = await Promise.all(
           documents.map(async (document) => {
             const originalFile = findFilesForLabel(document.label).find(
@@ -378,12 +390,25 @@ export function ProtocolarProjetoPage() {
           expiresAt: new Date(new Date(issuedAt).getTime() + 60 * 60 * 1000).toISOString(),
         };
       } catch (remoteError) {
-        setStatus(
+        const message =
           remoteError instanceof Error
             ? remoteError.message
-            : "Falha ao gravar o protocolo no Supabase. O sistema vai manter o fluxo local.",
-        );
+            : "Não foi possível gravar o protocolo no banco oficial.";
+        console.error("[ProtocolarProjeto] Falha na persistência remota", remoteError);
+        setStatus(`Não foi possível concluir o protocolo: ${message}`);
+        setSubmitting(false);
+        return;
       }
+    } else {
+      setStatus("O banco oficial está indisponível. O protocolo não foi criado para evitar divergência de dados.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!remoteSeed) {
+      setStatus("O protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
+      setSubmitting(false);
+      return;
     }
 
     const process = createProcess({
