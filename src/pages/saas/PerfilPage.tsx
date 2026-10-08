@@ -30,7 +30,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { saveRemoteProfile } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
