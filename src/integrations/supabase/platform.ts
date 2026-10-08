@@ -408,12 +408,12 @@ export async function loadRemotePlatformStore() {
   const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
     id: row.id,
     projectId: row.project_id,
-    ownerUserId: row.owner_user_id,
-    professionalUserId: row.professional_user_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
     status: row.status ?? "pending",
     requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
     respondedAt: row.responded_at ?? null,
-    respondedBy: row.responded_by ?? null,
+    respondedBy: (isNeonBackend ? row.responded_by_profile_id : null) ?? row.responded_by ?? null,
     notes: row.notes ?? undefined,
   }));
 
@@ -424,7 +424,7 @@ export async function loadRemotePlatformStore() {
     professionalUserId: row.professional_user_id,
     chatEnabled: row.chat_enabled ?? true,
     linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
-    linkedBy: row.linked_by ?? null,
+    linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? null,
   }));
 
   const ownerMessages: OwnerProfessionalMessage[] = (ownerMessagesResult.data ?? []).map((row) => ({
@@ -432,7 +432,7 @@ export async function loadRemotePlatformStore() {
     projectId: row.project_id,
     ownerUserId: row.owner_user_id,
     professionalUserId: row.professional_user_id,
-    senderUserId: row.sender_user_id,
+    senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
     message: row.message,
     createdAt: row.created_at ?? new Date().toISOString(),
     readAt: row.read_at ?? null,
@@ -1075,7 +1075,31 @@ export async function createRemoteOwnerRequest(input: {
   notes?: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await supabase.rpc("create_owner_request", {
+      _process_id: input.processId,
+      _professional_id: input.professionalUserId,
+      _notes: input.notes || null,
+    });
+
+    if (error) throw error;
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar solicitação de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    };
   }
 
   const { data, error } = await supabase
@@ -1091,14 +1115,10 @@ export async function createRemoteOwnerRequest(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao criar solicitacao de responsavel.");
-  }
+  if (!row) throw new Error("Falha ao criar solicitacao de responsavel.");
 
   return {
     id: row.id,
@@ -1120,7 +1140,50 @@ export async function respondRemoteOwnerRequest(input: {
   notes?: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (input.status === "pending") {
+      throw new Error("Uma solicitação pendente não pode ser usada como resposta.");
+    }
+
+    const { data, error } = await supabase.rpc("respond_owner_request", {
+      _request_id: input.requestId,
+      _status: input.status,
+      _notes: input.notes || null,
+    });
+    if (error) throw error;
+
+    const payload = data as Record<string, any> | null;
+    const row = payload?.request ?? null;
+    const linkRow = payload?.link ?? null;
+    if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
+
+    return {
+      request: {
+        id: row.id,
+        projectId: row.project_id,
+        ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+        professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+        status: row.status ?? input.status,
+        requestedAt: row.requested_at ?? new Date().toISOString(),
+        respondedAt: row.responded_at ?? null,
+        respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+        notes: row.notes ?? undefined,
+      },
+      link: linkRow
+        ? {
+            id: linkRow.id,
+            projectId: linkRow.project_id,
+            ownerUserId: linkRow.owner_profile_id ?? linkRow.owner_user_id,
+            professionalUserId: linkRow.professional_profile_id ?? linkRow.professional_user_id,
+            chatEnabled: linkRow.chat_enabled ?? true,
+            linkedAt: linkRow.linked_at ?? new Date().toISOString(),
+            linkedBy: linkRow.linked_by_profile_id ?? linkRow.linked_by ?? null,
+          }
+        : null,
+    };
   }
 
   const { data: requestData, error: requestError } = await supabase
@@ -1135,24 +1198,20 @@ export async function respondRemoteOwnerRequest(input: {
     .select("*")
     .limit(1);
 
-  if (requestError) {
-    throw requestError;
-  }
+  if (requestError) throw requestError;
 
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
-  if (!requestRow) {
-    throw new Error("Falha ao atualizar solicitacao de responsavel.");
-  }
+  if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, unknown> | null = null;
+  let linkData: Record<string, any> | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await supabase
       .from("project_owner_links")
       .insert({
-        project_id: requestData.process_id,
-        owner_user_id: requestData.owner_user_id,
-        professional_user_id: requestData.professional_user_id,
+        project_id: requestRow.process_id,
+        owner_user_id: requestRow.owner_user_id,
+        professional_user_id: requestRow.professional_user_id,
         chat_enabled: true,
         linked_at: new Date().toISOString(),
         linked_by: input.professionalUserId,
@@ -1160,38 +1219,34 @@ export async function respondRemoteOwnerRequest(input: {
       .select("*")
       .limit(1);
 
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
     linkData = Array.isArray(data) ? data[0] : null;
   }
 
-  const request = {
-    id: requestRow.id,
-    projectId: requestRow.process_id,
-    ownerUserId: requestRow.owner_user_id,
-    professionalUserId: requestRow.professional_user_id,
-    status: requestRow.status ?? "pending",
-    requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
-    respondedAt: requestRow.responded_at ?? null,
-    respondedBy: requestRow.responded_by ?? null,
-    notes: requestRow.notes ?? undefined,
+  return {
+    request: {
+      id: requestRow.id,
+      projectId: requestRow.process_id,
+      ownerUserId: requestRow.owner_user_id,
+      professionalUserId: requestRow.professional_user_id,
+      status: requestRow.status ?? "pending",
+      requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
+      respondedAt: requestRow.responded_at ?? null,
+      respondedBy: requestRow.responded_by ?? null,
+      notes: requestRow.notes ?? undefined,
+    },
+    link: linkData
+      ? {
+          id: linkData.id,
+          projectId: linkData.project_id,
+          ownerUserId: linkData.owner_user_id,
+          professionalUserId: linkData.professional_user_id,
+          chatEnabled: linkData.chat_enabled ?? true,
+          linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
+          linkedBy: linkData.linked_by ?? null,
+        }
+      : null,
   };
-
-  const link = linkData
-    ? {
-        id: linkData.id,
-        projectId: linkData.project_id,
-        ownerUserId: linkData.owner_user_id,
-        professionalUserId: linkData.professional_user_id,
-        chatEnabled: linkData.chat_enabled ?? true,
-        linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
-        linkedBy: linkData.linked_by ?? null,
-      }
-    : null;
-
-  return { request, link };
 }
 
 export async function setRemoteOwnerChatEnabled(input: {
@@ -1200,7 +1255,28 @@ export async function setRemoteOwnerChatEnabled(input: {
   actor: string;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await supabase.rpc("set_owner_chat_enabled", {
+      _link_id: input.linkId,
+      _enabled: input.enabled,
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      chatEnabled: row.chat_enabled ?? input.enabled,
+      linkedAt: row.linked_at ?? new Date().toISOString(),
+      linkedBy: row.linked_by_profile_id ?? row.linked_by ?? null,
+    };
   }
 
   const { data, error } = await supabase
@@ -1210,14 +1286,10 @@ export async function setRemoteOwnerChatEnabled(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao atualizar chat do responsavel.");
-  }
+  if (!row) throw new Error("Falha ao atualizar chat do responsavel.");
 
   return {
     id: row.id,
@@ -1231,6 +1303,7 @@ export async function setRemoteOwnerChatEnabled(input: {
 }
 
 export async function createRemoteOwnerMessage(input: {
+  linkId?: string;
   projectId: string;
   ownerUserId: string;
   professionalUserId: string;
@@ -1239,7 +1312,33 @@ export async function createRemoteOwnerMessage(input: {
   isSystemMessage?: boolean;
 }) {
   if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (!input.linkId) {
+      throw new Error("Vínculo do chat não encontrado.");
+    }
+    const { data, error } = await supabase.rpc("send_owner_message", {
+      _link_id: input.linkId,
+      _message: input.message ?? "",
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      senderUserId: row.sender_profile_id ?? row.sender_user_id,
+      message: row.message,
+      createdAt: row.created_at ?? new Date().toISOString(),
+      readAt: row.read_at ?? null,
+      isSystemMessage: row.is_system_message ?? false,
+    };
   }
 
   const { data, error } = await supabase
@@ -1256,14 +1355,10 @@ export async function createRemoteOwnerMessage(input: {
     .select("*")
     .limit(1);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : null;
-  if (!row) {
-    throw new Error("Falha ao criar mensagem de responsavel.");
-  }
+  if (!row) throw new Error("Falha ao criar mensagem de responsavel.");
 
   return {
     id: row.id,
