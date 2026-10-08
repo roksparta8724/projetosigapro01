@@ -37,6 +37,59 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: One-shot production post-cutover smoke
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[prod-smoke]')
+        run: |
+          node --input-type=module <<'NODE'
+          const root = await fetch("https://sigapromunicipal.com.br/?post-cutover-smoke=20261008", {
+            redirect: "follow",
+          });
+          console.log("PROD_ROOT_STATUS="+root.status);
+          if (!root.ok) throw new Error("Official root is not healthy");
+
+          const sign = await fetch("https://sigapromunicipal.com.br/api/r2-sign-get", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bucket: "sigapro-logos",
+              objectKey: "platform/branding/header-logo.png",
+              expiresIn: 300,
+            }),
+          });
+          const signPayload = await sign.json().catch(() => ({}));
+          console.log("PROD_R2_SIGN_STATUS="+sign.status);
+          console.log("PROD_R2_SIGN_HAS_URL="+Boolean(signPayload?.signedUrl));
+          if (!sign.ok || !signPayload?.signedUrl) {
+            throw new Error("Production R2 signed read failed");
+          }
+
+          const image = await fetch(signPayload.signedUrl);
+          console.log("PROD_R2_OBJECT_STATUS="+image.status);
+          console.log("PROD_R2_OBJECT_CONTENT_TYPE="+(image.headers.get("content-type") || ""));
+          if (!image.ok) throw new Error("Production R2 object read failed");
+
+          const blockedDelete = await fetch("https://sigapromunicipal.com.br/api/r2-delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bucket: "sigapro-logos",
+              objectKey: "post-cutover-smoke-must-not-delete.png",
+            }),
+          });
+          const blockedDeleteBody = await blockedDelete.json().catch(() => ({}));
+          console.log("PROD_R2_DELETE_ANON_STATUS="+blockedDelete.status);
+          console.log("PROD_R2_DELETE_ANON_ERROR="+String(blockedDeleteBody?.error || ""));
+          if (blockedDelete.status !== 401) {
+            throw new Error("Anonymous R2 delete was not blocked");
+          }
+
+          const authJwks = await fetch("https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth/.well-known/jwks.json");
+          console.log("PROD_NEON_AUTH_JWKS_STATUS="+authJwks.status);
+          if (!authJwks.ok) throw new Error("Neon Auth JWKS unavailable");
+
+          console.log("PROD_CUTOVER_SMOKE=PASS");
+          NODE
+
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
