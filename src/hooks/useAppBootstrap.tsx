@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv, neonAccountClient } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -819,7 +819,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         try {
           const currentSession = (await supabase.auth.getSession()).data.session ?? null;
           if (currentSession?.user) {
-            const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+            const { error: signOutError } = isNeonBackend
+              ? await supabase.auth.signOut()
+              : await supabase.auth.signOut({ scope: "local" });
             if (signOutError) throw signOutError;
           }
           clearIdentity();
@@ -919,9 +921,22 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       },
       resetPassword: async (email) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const { error: resetError } = await neonAccountClient.requestPasswordReset({
+            email: normalized,
+            redirectTo: `${window.location.origin}/recuperar-senha`,
+          });
+          if (resetError) return { ok: false, message: resetError.message || "Falha ao enviar o e-mail." };
+          return { ok: true, message: "Se a conta existir, enviaremos as instruções por e-mail." };
+        }
+
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalized, {
           redirectTo: `${window.location.origin}/recuperar-senha`,
         });
@@ -930,17 +945,53 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       },
       updateEmail: async (email) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const { error: updateError } = await neonAccountClient.changeEmail({
+            newEmail: normalized,
+            callbackURL: `${window.location.origin}/configuracoes`,
+          });
+          if (updateError) return { ok: false, message: updateError.message || "Falha ao solicitar alteração de e-mail." };
+          return { ok: true, message: "Confirme a alteração pelo e-mail enviado." };
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({ email: normalized });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "E-mail atualizado." };
       },
       updatePassword: async (password) => {
         if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
+
+        if (isNeonBackend) {
+          if (!neonAccountClient) {
+            return { ok: false, message: "Neon Auth indisponível." };
+          }
+          const token =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("token")
+              : null;
+          if (!token) {
+            return {
+              ok: false,
+              message: "Use o link de recuperação enviado ao seu e-mail para definir uma nova senha.",
+            };
+          }
+          const { error: updateError } = await neonAccountClient.resetPassword({
+            newPassword: password,
+            token,
+          });
+          if (updateError) return { ok: false, message: updateError.message || "Falha ao redefinir a senha." };
+          return { ok: true, message: "Senha atualizada." };
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "Senha atualizada." };
