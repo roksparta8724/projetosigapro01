@@ -37,6 +37,17 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Diagnostic Neon TEMP browser CORS
+        continue-on-error: true
+        run: |
+          curl -sS -D /tmp/neon_headers.txt -o /tmp/neon_body.json \
+            -H "Origin: https://projetosigapro01-git-neon-first-5a62c6-roksparta8724s-projects.vercel.app" \
+            "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1/municipalities?select=id,name,status&limit=1"
+          echo "=== CORS headers ==="
+          grep -Ei "^(HTTP/|access-control-|vary:)" /tmp/neon_headers.txt || true
+          echo "=== Body ==="
+          cat /tmp/neon_body.json
+
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
