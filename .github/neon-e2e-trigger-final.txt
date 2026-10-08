@@ -1,1 +1,0 @@
-One-shot Neon TEMP Auth + RLS E2E after green build.
