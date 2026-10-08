@@ -272,7 +272,9 @@ export function AcessoPage() {
                             <p className="text-sm font-medium">Acesso inicial</p>
                             <p className="text-sm leading-relaxed text-muted-foreground">
                               Profissionais externos podem criar a propria conta. Usuarios internos da
-                              Prefeitura sao cadastrados pelo administrador municipal.
+                              Prefeitura sao cadastrados pelo administrador municipal. Contas existentes
+                              migradas para o novo ambiente devem usar "Esqueceu a senha?" uma unica vez
+                              para definir a nova senha de acesso.
                             </p>
                           </div>
 
