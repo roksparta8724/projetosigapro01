@@ -1,4 +1,5 @@
 import { databaseClient as supabase, hasDatabaseEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import { getRootDomain } from "@/lib/tenant";
 import type {
   Municipality,
@@ -23,6 +24,24 @@ function isMissingRelationError(error: unknown, relationName: string) {
     "code" in error && typeof error.code === "string" ? error.code : "";
   const blob = `${message} ${details} ${hint}`.toLowerCase();
   return code === "PGRST205" || blob.includes(relationName.toLowerCase());
+}
+
+function isPermissionError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : "";
+  const details =
+    "details" in error && typeof error.details === "string" ? error.details : "";
+  const code =
+    "code" in error && typeof error.code === "string" ? error.code : "";
+  const blob = `${message} ${details}`.toLowerCase();
+
+  return (
+    code === "42501" ||
+    blob.includes("permission denied") ||
+    blob.includes("insufficient privilege") ||
+    blob.includes("not authorized")
+  );
 }
 
 function isUuid(value?: string | null) {
@@ -364,7 +383,7 @@ async function loadBrandingAndSettings(municipalityId: string) {
     isMissingRelationError(
       settingsResult.error,
       "public.municipality_settings",
-    )
+    ) || (isNeonBackend && isPermissionError(settingsResult.error))
       ? null
       : settingsResult.error,
   ].filter(Boolean);
@@ -922,7 +941,8 @@ export async function loadMunicipalityCatalog(): Promise<MunicipalityBundle[]> {
     isMissingRelationError(brandingResult.error, "public.municipality_branding")
       ? null
       : brandingResult.error,
-    isMissingRelationError(settingsResult.error, "public.municipality_settings")
+    isMissingRelationError(settingsResult.error, "public.municipality_settings") ||
+    (isNeonBackend && isPermissionError(settingsResult.error))
       ? null
       : settingsResult.error,
   ].filter(Boolean);
