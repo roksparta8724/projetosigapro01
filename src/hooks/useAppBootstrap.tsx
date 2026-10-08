@@ -383,7 +383,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   }
 
   return {
-    userId,
+    userId: (isNeonBackend ? profileId : userId) ?? userId,
     role: record?.role ?? roleCodeFromMembership,
     municipalityId: record?.municipality_id ?? municipalityIdFromMembership ?? null,
     accessLevel: accessLevelFromMembership,
