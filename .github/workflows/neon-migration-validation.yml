@@ -50,6 +50,14 @@ jobs:
             test "$settings_status" = "401" -o "$settings_status" = "403"
           fi
 
+      - name: Disposable Neon TEMP Auth + RLS E2E
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[neon-e2e]')
+        env:
+          NEON_TEMP_AUTH_URL: https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth
+          NEON_TEMP_DATA_API: https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1
+          NEON_TEMP_TENANT_ID: 49dac0b6-6352-4744-9aab-9ff91c59d970
+        run: node .github/scripts/neon-temp-e2e.mjs
+
       - name: Build
         run: npm run build
 
