@@ -1,10 +1,20 @@
 import { createClient as createNeonClient, SupabaseAuthAdapter } from "@neondatabase/neon-js";
 import { createAuthClient } from "@neondatabase/neon-js/auth";
-import { isNeonBackend } from "@/integrations/backend/config";
+import { isNeonBackend, isNeonPreview } from "@/integrations/backend/config";
 import { supabase } from "@/integrations/supabase/client";
 
-const NEON_AUTH_URL = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
-const NEON_DATA_API_URL = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
+const PREVIEW_NEON_AUTH_URL =
+  "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth";
+const PREVIEW_NEON_DATA_API_URL =
+  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+
+const NEON_AUTH_URL = String(
+  import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? PREVIEW_NEON_AUTH_URL : ""),
+).replace(/\/+$/, "");
+
+const NEON_DATA_API_URL = String(
+  import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? PREVIEW_NEON_DATA_API_URL : ""),
+).replace(/\/+$/, "");
 
 export const hasNeonBackendEnv = Boolean(
   NEON_AUTH_URL &&
