@@ -37,34 +37,6 @@ jobs:
       - name: Tests
         run: npm test
 
-      - name: One-shot R2 signed-read probe
-        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[r2-read-probe]')
-        run: |
-          node --input-type=module <<'NODE'
-          const response = await fetch("https://sigapromunicipal.com.br/api/r2-sign-get", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              bucket: "sigapro-logos",
-              objectKey: "platform/branding/header-logo.png",
-              expiresIn: 300,
-            }),
-          });
-
-          const payload = await response.json().catch(() => ({}));
-          console.log("R2_SIGN_STATUS="+response.status);
-          console.log("R2_SIGN_HAS_URL="+Boolean(payload?.signedUrl));
-          if (!response.ok || !payload?.signedUrl) {
-            throw new Error("R2 sign-get failed");
-          }
-
-          const file = await fetch(payload.signedUrl);
-          console.log("R2_OBJECT_STATUS="+file.status);
-          console.log("R2_OBJECT_CONTENT_TYPE="+(file.headers.get("content-type") || ""));
-          if (!file.ok) throw new Error("R2 object read failed");
-          console.log("R2_READ_RESULT=PASS");
-          NODE
-
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
