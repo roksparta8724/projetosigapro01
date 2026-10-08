@@ -25,8 +25,8 @@ export const neonClient = hasNeonBackendEnv
     })
   : null;
 
-export const backendClient = isNeonBackend ? neonClient : supabase;
-export const databaseClient = backendClient;
+export const backendClient: any = isNeonBackend ? neonClient : supabase;
+export const databaseClient: any = backendClient;
 
 export const hasDatabaseEnv = isNeonBackend
   ? hasNeonBackendEnv
