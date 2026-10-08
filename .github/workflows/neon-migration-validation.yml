@@ -37,6 +37,125 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: One-shot Neon TEMP authenticated E2E
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[neon-auth-e2e]')
+        env:
+          NEON_AUTH_URL: https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth
+          NEON_DATA_API_URL: https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1
+          E2E_TENANT_ID: 49dac0b6-6352-4744-9aab-9ff91c59d970
+          E2E_ORIGIN: https://projetosigapro01-git-neon-first-5a62c6-roksparta8724s-projects.vercel.app
+        run: |
+          node --input-type=module <<'NODE'
+          const authUrl = process.env.NEON_AUTH_URL;
+          const dataUrl = process.env.NEON_DATA_API_URL;
+          const tenantId = process.env.E2E_TENANT_ID;
+          const origin = process.env.E2E_ORIGIN;
+          const email = `sigapro-e2e-${process.env.GITHUB_RUN_ID}@example.com`;
+          const password = "SigaproE2E!2026";
+
+          const signup = await fetch(`${authUrl}/sign-up/email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Origin": origin,
+            },
+            body: JSON.stringify({
+              email,
+              password,
+              name: "SIGAPRO E2E TEMP",
+              callbackURL: `${origin}/acesso`,
+            }),
+          });
+
+          const signupBody = await signup.json().catch(() => ({}));
+          if (!signup.ok) {
+            throw new Error(`signup failed ${signup.status}: ${JSON.stringify(signupBody)}`);
+          }
+
+          const authUserId = signupBody?.user?.id;
+          if (!authUserId) throw new Error("signup did not return user id");
+
+          console.log(`SIGAPRO_E2E_EMAIL=${email}`);
+          console.log(`SIGAPRO_E2E_AUTH_USER_ID=${authUserId}`);
+
+          const cookies = signup.headers.getSetCookie?.() ?? [];
+          const cookie = cookies.map((v) => v.split(";")[0]).filter(Boolean).join("; ");
+          if (!cookie) throw new Error("signup did not return auth cookie");
+
+          const tokenRes = await fetch(`${authUrl}/token`, {
+            headers: {
+              "Origin": origin,
+              "Cookie": cookie,
+            },
+          });
+          const tokenBody = await tokenRes.json().catch(() => ({}));
+          if (!tokenRes.ok || !tokenBody?.token) {
+            throw new Error(`token failed ${tokenRes.status}: ${JSON.stringify(tokenBody)}`);
+          }
+          const token = tokenBody.token;
+
+          const rpc = async (name, body) => {
+            const res = await fetch(`${dataUrl}/rpc/${name}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify(body ?? {}),
+            });
+            const payload = await res.json().catch(() => null);
+            if (!res.ok) {
+              throw new Error(`${name} failed ${res.status}: ${JSON.stringify(payload)}`);
+            }
+            return payload;
+          };
+
+          const registration = await rpc("register_external_account", {
+            _tenant_id: tenantId,
+            _full_name: "SIGAPRO E2E TEMP",
+            _email: email,
+            _cpf_cnpj: null,
+            _phone: null,
+            _professional_type: "engenheiro",
+            _registration_number: "E2E-TEMP",
+            _company_name: "SIGAPRO E2E",
+            _title: "Teste descartável",
+            _bio: "Conta sintética temporária para validação Neon Auth + RLS",
+          });
+          console.log("SIGAPRO_E2E_REGISTER_RESULT="+JSON.stringify(registration));
+
+          const profilePayload = await rpc("current_profile_id", {});
+          const profileId = typeof profilePayload === "string"
+            ? profilePayload
+            : profilePayload?.id ?? profilePayload?.profile_id ?? null;
+          if (!profileId) throw new Error("current_profile_id returned no profile id");
+          console.log(`SIGAPRO_E2E_PROFILE_ID=${profileId}`);
+
+          const headers = { "Authorization": `Bearer ${token}` };
+
+          const profileRes = await fetch(
+            `${dataUrl}/profiles?select=id,email,role,municipality_id,account_status&id=eq.${profileId}`,
+            { headers },
+          );
+          const profileRows = await profileRes.json().catch(() => null);
+          if (!profileRes.ok || !Array.isArray(profileRows) || profileRows.length !== 1) {
+            throw new Error(`profile RLS failed ${profileRes.status}: ${JSON.stringify(profileRows)}`);
+          }
+
+          const membershipRes = await fetch(
+            `${dataUrl}/tenant_memberships?select=profile_id,tenant_id,role_id,is_active&profile_id=eq.${profileId}`,
+            { headers },
+          );
+          const membershipRows = await membershipRes.json().catch(() => null);
+          if (!membershipRes.ok || !Array.isArray(membershipRows) || membershipRows.length < 1) {
+            throw new Error(`membership RLS failed ${membershipRes.status}: ${JSON.stringify(membershipRows)}`);
+          }
+
+          console.log("SIGAPRO_E2E_PROFILE_RLS="+JSON.stringify(profileRows));
+          console.log("SIGAPRO_E2E_MEMBERSHIP_RLS="+JSON.stringify(membershipRows));
+          console.log("SIGAPRO_E2E_RESULT=PASS");
+          NODE
+
       - name: Keep npm lockfile synchronized on migration branch
         if: github.event_name != 'pull_request'
         run: |
