@@ -24,7 +24,7 @@ interface AuthGatewayContextValue {
   ) => Promise<{ ok: boolean; message?: string; role?: string; municipalityId?: string | null }>;
   resetPassword: (email: string) => Promise<{ ok: boolean; message?: string }>;
   updateEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
-  updatePassword: (password: string) => Promise<{ ok: boolean; message?: string }>;
+  updatePassword: (password: string, currentPassword?: string) => Promise<{ ok: boolean; message?: string }>;
   signOut: () => Promise<void>;
 }
 
