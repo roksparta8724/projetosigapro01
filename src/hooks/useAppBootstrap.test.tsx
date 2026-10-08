@@ -21,6 +21,7 @@ const authMock = vi.hoisted(() => {
   const client = {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: null } })),
+      getUser: vi.fn(async () => ({ data: { user: null }, error: null })),
       signOut: vi.fn(async () => ({ error: null })),
       signInWithPassword: vi.fn(async () => {
         const callbackResult = listener?.("SIGNED_IN", { user });
@@ -46,7 +47,14 @@ const authMock = vi.hoisted(() => {
         };
       }
       if (table === "tenant_memberships") {
-        return { select: () => ({ eq: () => ({ is: () => ({ eq: async () => ({ data: [], error: null }) }) }) }) };
+        const result = { data: [], error: null };
+        const builder: any = {
+          is: vi.fn(() => builder),
+          eq: vi.fn(() => builder),
+          then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) =>
+            Promise.resolve(result).then(resolve, reject),
+        };
+        return { select: () => builder };
       }
       throw new Error(`Unexpected table: ${table}`);
     }),
