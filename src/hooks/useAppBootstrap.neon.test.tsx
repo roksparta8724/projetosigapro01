@@ -94,13 +94,20 @@ const neonMock = vi.hoisted(() => {
     }),
   };
 
-  return { client, authUser, profileId, municipalityId };
+  const accountClient = {
+    requestPasswordReset: vi.fn(async () => ({ data: { status: true }, error: null })),
+    resetPassword: vi.fn(async () => ({ data: { status: true }, error: null })),
+    changePassword: vi.fn(async () => ({ data: { status: true }, error: null })),
+    changeEmail: vi.fn(async () => ({ data: { status: true }, error: null })),
+  };
+
+  return { client, accountClient, authUser, profileId, municipalityId };
 });
 
 vi.mock("@/integrations/backend/databaseClient", () => ({
   hasBackendEnv: true,
   backendClient: neonMock.client,
-  neonAccountClient: null,
+  neonAccountClient: neonMock.accountClient,
 }));
 vi.mock("@/integrations/backend/config", () => ({
   isNeonBackend: true,
@@ -129,7 +136,7 @@ vi.mock("@/integrations/supabase/platform", () => ({
 }));
 
 function Probe() {
-  const { signIn, authUserId, role, profile } = useAppBootstrap();
+  const { signIn, resetPassword, updatePassword, authUserId, role, profile } = useAppBootstrap();
   const [status, setStatus] = useState("idle");
   return (
     <>
@@ -141,6 +148,12 @@ function Probe() {
       <span data-testid="role">{role ?? "none"}</span>
       <span data-testid="profile-role">{profile?.role ?? "none"}</span>
       <span data-testid="profile-id">{profile?.userId ?? "none"}</span>
+      <button onClick={async () => setStatus((await resetPassword("USER@Example.Test")).ok ? "reset-requested" : "reset-failed")}>
+        Reset Neon
+      </button>
+      <button onClick={async () => setStatus((await updatePassword("NovaSenha123!")).ok ? "password-reset" : "password-failed")}>
+        Apply reset
+      </button>
     </>
   );
 }
@@ -166,5 +179,28 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("profile-role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
     expect(neonMock.client.rpc).toHaveBeenCalledWith("current_profile_id");
+  });
+  it("uses the Neon password recovery contract with redirect token flow", async () => {
+    window.history.replaceState(null, "", "/recuperar-senha?token=valid-reset-token");
+
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset Neon" }));
+    expect(await screen.findByText("reset-requested")).toBeInTheDocument();
+    expect(neonMock.accountClient.requestPasswordReset).toHaveBeenCalledWith({
+      email: "user@example.test",
+      redirectTo: `${window.location.origin}/recuperar-senha`,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply reset" }));
+    expect(await screen.findByText("password-reset")).toBeInTheDocument();
+    expect(neonMock.accountClient.resetPassword).toHaveBeenCalledWith({
+      newPassword: "NovaSenha123!",
+      token: "valid-reset-token",
+    });
   });
 });
