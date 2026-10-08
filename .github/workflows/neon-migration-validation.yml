@@ -40,6 +40,7 @@ jobs:
           grep -q '"id"' /tmp/municipalities.json
 
           branding_status=$(curl -sS -o /tmp/branding.json -w "%{http_code}" "$NEON_TEMP_DATA_API/municipality_branding?select=municipality_id,logo_url&limit=1")
+          echo "branding_status=$branding_status"
           test "$branding_status" = "200"
 
 
