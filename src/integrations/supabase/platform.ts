@@ -1747,7 +1747,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
 
   const { data: profileRows, error: profileError } = await supabase
     .from("profiles")
-    .select("user_id, full_name, email, municipality_id, deleted_at")
+    .select("id, user_id, full_name, email, municipality_id, deleted_at")
     .eq("email", normalizedEmail)
     .is("deleted_at", null)
     .limit(2);
@@ -1757,7 +1757,14 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   }
 
   const profileRecord = (profileRows ?? [])[0];
-  if (!profileRecord?.user_id) {
+  const targetUserId =
+    profileRecord
+      ? ((isNeonBackend ? profileRecord.id : profileRecord.user_id) ??
+          profileRecord.id ??
+          profileRecord.user_id)
+      : null;
+
+  if (!targetUserId) {
     return {
       email: normalizedEmail,
       linked: false,
@@ -1766,7 +1773,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   }
 
   const saved = await manageRemoteUserAccess({
-    userId: profileRecord.user_id,
+    userId: targetUserId,
     municipalityId,
     role: "prefeitura_admin",
     name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
@@ -1778,7 +1785,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   return {
     email: normalizedEmail,
     linked: true,
-    userId: profileRecord.user_id,
+    userId: targetUserId,
     municipalityId,
     role: saved.role,
   };
@@ -1838,7 +1845,7 @@ export async function linkExistingMunicipalStaff(input: {
   const email = input.email.trim().toLowerCase();
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, municipality_id")
+    .select("id, user_id, municipality_id")
     .eq("email", email)
     .is("deleted_at", null)
     .limit(2);
@@ -1849,8 +1856,18 @@ export async function linkExistingMunicipalStaff(input: {
   if (data[0].municipality_id !== input.municipalityId) {
     throw new Error("A conta não está vinculada a esta Prefeitura.");
   }
+
+  const targetUserId =
+    (isNeonBackend ? data[0].id : data[0].user_id) ??
+    data[0].id ??
+    data[0].user_id;
+
+  if (!targetUserId) {
+    throw new Error("A conta não possui um perfil válido para vinculação.");
+  }
+
   const saved = await manageRemoteUserAccess({
-    userId: data[0].user_id,
+    userId: targetUserId,
     municipalityId: input.municipalityId,
     role: input.role,
     name: input.name,
@@ -1858,7 +1875,7 @@ export async function linkExistingMunicipalStaff(input: {
     accessLevel: input.accessLevel,
     accountStatus: "active",
   });
-  return { userId: data[0].user_id as string, email, ...saved };
+  return { userId: targetUserId as string, email, ...saved };
 }
 
 export async function upsertRemoteInstitution(input: {
