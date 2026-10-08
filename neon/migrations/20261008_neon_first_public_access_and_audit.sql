@@ -5,6 +5,19 @@
 
 begin;
 
+create or replace function public.current_auth_subject()
+returns text
+language sql
+stable
+security definer
+set search_path to 'pg_catalog', 'public'
+as $function$
+  select coalesce(
+    nullif(btrim((nullif(current_setting('request.jwt.claims', true), ''))::jsonb ->> 'sub'), ''),
+    nullif(btrim(current_setting('request.jwt.claim.sub', true)), '')
+  );
+$function$;
+
 create or replace function public.log_profile_update()
 returns trigger
 language plpgsql
