@@ -831,7 +831,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             password,
           });
           if (signInError || !data.user) {
-            return { ok: false, message: signInError?.message || "Falha ao autenticar." };
+            const rawMessage = signInError?.message || "Falha ao autenticar.";
+            const translatedMessage = /invalid email or password/i.test(rawMessage)
+              ? "E-mail ou senha incorretos."
+              : rawMessage;
+            return { ok: false, message: translatedMessage };
           }
 
           let nextProfile = await loadProfileByUserId(data.user.id);
