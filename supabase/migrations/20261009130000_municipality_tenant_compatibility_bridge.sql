@@ -28,7 +28,11 @@ begin
       else 'implantacao'::public.tenant_status
     end;
 
-  _city := coalesce(nullif(trim(new.city),''), nullif(trim(new.name),''), 'Municipio');
+  _city := coalesce(
+    nullif(trim(to_jsonb(new)->>'city'),''),
+    nullif(trim(new.name),''),
+    'Municipio'
+  );
   _state := coalesce(nullif(upper(trim(new.state)),''), 'ND');
   _subdomain := coalesce(nullif(trim(new.subdomain),''), nullif(trim(new.slug),''), null);
 
@@ -61,7 +65,7 @@ $function$;
 drop trigger if exists trg_sync_municipality_to_legacy_tenant on public.municipalities;
 
 create trigger trg_sync_municipality_to_legacy_tenant
-after insert or update of name,city,state,status,subdomain,slug
+after insert or update
 on public.municipalities
 for each row
 execute function public.sync_municipality_to_legacy_tenant();
