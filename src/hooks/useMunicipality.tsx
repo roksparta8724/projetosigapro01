@@ -6,8 +6,8 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
-import { getMunicipalityBrandingSafe } from "@/integrations/supabase/platform";
-import { mapMunicipalityBranding } from "@/integrations/supabase/municipality";
+import { getMunicipalityBrandingSafe } from "@/integrations/backend/platform";
+import { mapMunicipalityBranding } from "@/integrations/backend/municipality";
 import {
   buildTenantSettingsFromMunicipality,
   getMunicipalityTheme,
