@@ -77,6 +77,12 @@ function getOpenRequirements(process: ProcessRecord) {
   );
 }
 
+function isoDateAfterDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function AnalystDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
@@ -90,6 +96,8 @@ export function AnalystDeskPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [search, setSearch] = useState("");
   const [section, setSection] = useState<AnalystSection>("visao-geral");
+  const [actionBusy, setActionBusy] = useState("");
+  const [actionStatus, setActionStatus] = useState("");
   const currentUnit = session.department || session.title || "Análise Técnica";
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter((item) => {
@@ -202,6 +210,30 @@ export function AnalystDeskPage() {
       ).slice(0, 5),
     [dispatchRows],
   );
+
+  const runAnalystAction = async (
+    key: string,
+    successMessage: string,
+    action: () => Promise<void>,
+  ) => {
+    if (actionBusy) return false;
+    setActionBusy(key);
+    setActionStatus("");
+    try {
+      await action();
+      setActionStatus(successMessage);
+      return true;
+    } catch (error) {
+      setActionStatus(
+        error instanceof Error
+          ? `Não foi possível concluir a operação: ${error.message}`
+          : "Não foi possível concluir a operação no banco oficial.",
+      );
+      return false;
+    } finally {
+      setActionBusy("");
+    }
+  };
 
   const navItems = [
     { value: "visao-geral", label: "Visão geral", helper: "Resumo, prioridades e ação" },
@@ -317,14 +349,20 @@ export function AnalystDeskPage() {
                   type="button"
                   variant="outline"
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                  disabled={Boolean(actionBusy)}
                   onClick={() =>
-                    updateProcessStatus({
-                      processId: process.id,
-                      status: "analise_tecnica",
-                      actor: session.name,
-                      title: "Análise iniciada",
-                      detail: "Processo distribuído para a mesa técnica.",
-                    })
+                    void runAnalystAction(
+                      `start-${process.id}`,
+                      "Análise iniciada e registrada no banco oficial.",
+                      () =>
+                        updateProcessStatus({
+                          processId: process.id,
+                          status: "analise_tecnica",
+                          actor: session.name,
+                          title: "Análise iniciada",
+                          detail: "Processo distribuído para a mesa técnica.",
+                        }),
+                    )
                   }
                 >
                   Iniciar análise
@@ -333,17 +371,23 @@ export function AnalystDeskPage() {
                   type="button"
                   variant="outline"
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                  disabled={Boolean(actionBusy)}
                   onClick={() =>
-                    createRequirement({
-                      processId: process.id,
-                      actor: session.name,
-                      title: "Complementar documentação técnica",
-                      description:
-                        "Apresentar ajustes técnicos e anexos complementares para continuidade da análise.",
-                      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR"),
-                      targetName: process.technicalLead,
-                      visibility: "misto",
-                    })
+                    void runAnalystAction(
+                      `requirement-${process.id}`,
+                      "Exigência técnica registrada no banco oficial.",
+                      () =>
+                        createRequirement({
+                          processId: process.id,
+                          actor: session.name,
+                          title: "Complementar documentação técnica",
+                          description:
+                            "Apresentar ajustes técnicos e anexos complementares para continuidade da análise.",
+                          dueDate: isoDateAfterDays(3),
+                          targetName: process.technicalLead,
+                          visibility: "misto",
+                        }),
+                    )
                   }
                 >
                   Emitir exigência
@@ -352,37 +396,30 @@ export function AnalystDeskPage() {
                   type="button"
                   variant="outline"
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                  disabled={Boolean(actionBusy) || getOpenRequirements(process).length > 0}
                   onClick={() =>
-                    dispatchProcess({
-                      processId: process.id,
-                      actor: session.name,
-                      from: "Análise Técnica",
-                      to: "Financeiro",
-                      subject: dispatchTemplate?.title || "Conferência financeira do protocolo",
-                      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR"),
-                      visibility: "interno",
-                    })
+                    void runAnalystAction(
+                      `finance-${process.id}`,
+                      "Processo encaminhado ao Financeiro para fechamento e taxa final.",
+                      () =>
+                        dispatchProcess({
+                          processId: process.id,
+                          actor: session.name,
+                          from: "Análise Técnica",
+                          to: "Financeiro",
+                          subject:
+                            dispatchTemplate?.title ||
+                            "Parecer técnico concluído — conferência financeira e taxa final",
+                          dueDate: isoDateAfterDays(3),
+                          visibility: "interno",
+                        }),
+                    )
                   }
                 >
                   <Send className="mr-2 h-4 w-4 text-sky-200" />
-                  Tramitar
+                  Encaminhar ao Financeiro
                 </Button>
-                <Button
-                  type="button"
-                  className="h-11 w-full rounded-full bg-emerald-700 hover:bg-emerald-800 sm:w-auto"
-                  onClick={() =>
-                    updateProcessStatus({
-                      processId: process.id,
-                      status: "deferido",
-                      actor: session.name,
-                      title: "Parecer deferido",
-                      detail: "Projeto aprovado pela análise técnica.",
-                    })
-                  }
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Deferir
-                </Button>
+
               </div>
             </div>
           );
@@ -422,6 +459,18 @@ export function AnalystDeskPage() {
             </Button>
           }
         />
+
+        {actionStatus ? (
+          <div
+            className={`rounded-2xl border px-4 py-3 text-sm ${
+              actionStatus.startsWith("Não foi possível")
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {actionStatus}
+          </div>
+        ) : null}
 
         <InternalTabs
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
