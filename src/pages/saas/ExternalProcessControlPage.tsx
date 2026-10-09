@@ -146,6 +146,50 @@ export function ExternalProcessControlPage() {
     [processes],
   );
 
+  const activeCount = useMemo(
+    () => processes.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length,
+    [processes],
+  );
+
+  const requirementCount = useMemo(
+    () =>
+      processes.reduce(
+        (total, process) =>
+          total +
+          (process.requirements ?? []).filter((requirement) => {
+            const status = String((requirement as { status?: unknown })?.status ?? "").toLowerCase();
+            return status !== "resolvida" && status !== "resolvido" && status !== "concluida" && status !== "concluido";
+          }).length,
+        0,
+      ),
+    [processes],
+  );
+
+  const paymentCount = useMemo(
+    () =>
+      processes.filter((process) =>
+        getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status !== "compensada"),
+      ).length,
+    [processes, tenantSettings],
+  );
+
+  const completedCount = useMemo(
+    () => processes.filter((process) => ["deferido", "indeferido", "arquivado"].includes(process.status)).length,
+    [processes],
+  );
+
+  const stages = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          processes
+            .map((process) => process.sla?.currentStage?.trim())
+            .filter((stage): stage is string => Boolean(stage)),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [processes],
+  );
+
   return (
     <PortalFrame eyebrow="Acesso do profissional" title="Controle de processos">
       <PageContainer>
