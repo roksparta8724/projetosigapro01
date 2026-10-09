@@ -189,7 +189,7 @@ const AppRoutes = () => {
         <Route
           path="/prefeitura/protocolos"
           element={
-            <PermissionRoute permission="manage_tenant_users">
+            <PermissionRoute permission="manage_protocols">
               <ProtocolDeskPage />
             </PermissionRoute>
           }
@@ -197,7 +197,7 @@ const AppRoutes = () => {
         <Route
           path="/prefeitura/protocolos/novo"
           element={
-            <PermissionRoute permission="manage_tenant_users">
+            <PermissionRoute permission="manage_protocols">
               <ProtocolarProjetoPage />
             </PermissionRoute>
           }
@@ -346,7 +346,14 @@ const AppRoutes = () => {
             </PermissionRoute>
           }
         />
-        <Route path="/processos/:processId" element={<ProcessDetailPage />} />
+        <Route
+          path="/processos/:processId"
+          element={
+            <PermissionRoute permission="view_own_processes">
+              <ProcessDetailPage />
+            </PermissionRoute>
+          }
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
   );
