@@ -14,6 +14,21 @@ function isInternalPath(pathname: string) {
   );
 }
 
+function collectLoadedCssText() {
+  const chunks: string[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = Array.from(sheet.cssRules ?? []);
+      if (rules.length > 0) {
+        chunks.push(rules.map((rule) => rule.cssText).join("\n"));
+      }
+    } catch {
+      // Folhas externas bloqueadas por CORS são ignoradas; os estilos do app são same-origin.
+    }
+  }
+  return chunks.join("\n");
+}
+
 function persistVisualSnapshot() {
   if (!isInternalPath(window.location.pathname)) return;
   const root = document.getElementById("root");
@@ -26,6 +41,7 @@ function persistVisualSnapshot() {
         host: window.location.host,
         path: window.location.pathname,
         html: root.innerHTML,
+        cssText: collectLoadedCssText(),
         scrollY: window.scrollY || 0,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
