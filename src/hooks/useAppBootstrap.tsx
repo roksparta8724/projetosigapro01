@@ -18,6 +18,7 @@ import type { UserRole } from "@/lib/platform";
 import { readPendingSignup, type AuthUserLike } from "@/lib/pendingSignup";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
+const BOOTSTRAP_SESSION_CACHE_KEY = "sigapro.bootstrap.session-snapshot.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 
 interface AppBootstrapProfile {
@@ -134,7 +135,9 @@ function readBootstrapSnapshot(
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+    const raw = isNeonBackend
+      ? window.sessionStorage.getItem(BOOTSTRAP_SESSION_CACHE_KEY)
+      : window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<BootstrapSnapshot>;
@@ -145,11 +148,9 @@ function readBootstrapSnapshot(
     if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
       return null;
     }
-    if (isNeonBackend && parsed.authUserId) {
-      // Neon auth must be revalidated on every page bootstrap. Never pre-activate
-      // an authenticated identity only from a browser snapshot.
-      return null;
-    }
+    // No Neon, o snapshot da sessão serve apenas como warm render para o F5.
+    // A identidade continua sendo revalidada em segundo plano antes de qualquer
+    // nova leitura/escrita protegida depender do backend.
     if (!isNeonBackend && parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
 
     return {
@@ -280,6 +281,14 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
   try {
     if (!snapshot) {
       window.localStorage.removeItem(BOOTSTRAP_CACHE_KEY);
+      window.sessionStorage.removeItem(BOOTSTRAP_SESSION_CACHE_KEY);
+      return;
+    }
+
+    if (isNeonBackend) {
+      // sessionStorage sobrevive ao F5, mas é descartado ao encerrar a sessão do navegador.
+      // Isso permite pintura imediata sem transformar cache visual em autorização persistente.
+      window.sessionStorage.setItem(BOOTSTRAP_SESSION_CACHE_KEY, JSON.stringify(snapshot));
       return;
     }
 
@@ -556,6 +565,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   });
   const authEventRef = useRef<string | null>(null);
   const explicitSignOutRef = useRef(false);
+  const needsInitialRevalidationRef = useRef(Boolean(isNeonBackend && cachedSnapshot?.authUserId));
 
   useEffect(() => {
     if (!isReady || stage !== "ready") return;
@@ -683,6 +693,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
         const isSameStableSessionEvent =
           initializedRef.current &&
+          !needsInitialRevalidationRef.current &&
           Boolean(authUser?.id) &&
           lastAuthUserIdRef.current === authUser?.id &&
           (event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION");
@@ -825,6 +836,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setStage("ready");
         setAuthResolved(true);
         initializedRef.current = true;
+        needsInitialRevalidationRef.current = false;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Falha no bootstrap";
         console.error("[Bootstrap] Erro", { message });
@@ -927,6 +939,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           clearPlatformSessionSnapshot();
           lastAuthUserIdRef.current = null;
           initializedRef.current = false;
+          needsInitialRevalidationRef.current = false;
           lastStableRef.current = {
             authUserId: null, authEmail: null, role: null, profile: null, municipalityBundle: null,
           };
@@ -1162,6 +1175,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         authEventRef.current = "SIGNED_OUT";
         lastAuthUserIdRef.current = null;
         initializedRef.current = false;
+        needsInitialRevalidationRef.current = false;
         lastStableRef.current = {
           authUserId: null,
           authEmail: null,
