@@ -407,7 +407,7 @@ export function MasterAdminPage() {
         subdomain: slug,
         primaryColor: form.primaryColor,
         accentColor: form.accentColor,
-      });
+      }, { remoteConfirmed: true });
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
       setSelectedTenantId(savedTenant.id);
 
