@@ -45,7 +45,7 @@ import {
   serializeMarker,
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
-import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
@@ -598,7 +598,7 @@ function getInitialPlatformStoreState() {
 
   // Em produção, dados operacionais antigos do protótipo não são mais aceitos.
   // O cache v2 só recebe snapshots que vieram do backend oficial.
-  if (hasSupabaseEnv && !localDev) {
+  if (hasBackendEnv && !localDev) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
@@ -648,10 +648,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     const bootstrap = async () => {
       if (authLoading) return;
 
-      if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasSupabaseEnv) {
+      if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
 
-        if (hasSupabaseEnv && !localDev) {
+        if (hasBackendEnv && !localDev) {
           // Sessão ausente/expirada em produção: mantém apenas catálogo estático,
           // nunca restaura processos, usuários, guias ou Prefeituras do navegador.
           setStore(staticCatalogStore);
@@ -684,8 +684,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         lastFetchedUserId.current = authenticatedUserId;
       } catch (error) {
         if (!active) return;
-        if (isAuthError(error) && supabase) {
-          await supabase.auth.signOut();
+        if (isAuthError(error) && backendClient) {
+          await backendClient.auth.signOut();
         }
         const cachedStore = readPersistedStore();
         const nextStore = cachedStore ?? buildSanitizedStore({}, false);
@@ -698,7 +698,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     void bootstrap();
 
-    if (!hasSupabaseEnv) {
+    if (!hasBackendEnv) {
       const handleStorage = (event: StorageEvent) => {
         if (event.key !== STORAGE_KEY || !event.newValue) {
           return;
@@ -724,7 +724,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   }, [authenticatedUserId, authLoading]);
 
   const refreshRemoteStore = async () => {
-    if (!authenticatedUserId || !hasSupabaseEnv) return;
+    if (!authenticatedUserId || !hasBackendEnv) return;
 
     try {
       const remote = await loadRemotePlatformStore();
@@ -739,7 +739,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   };
 
   useEffect(() => {
-    if (!authenticatedUserId || !hasSupabaseEnv) return;
+    if (!authenticatedUserId || !hasBackendEnv) return;
 
     let lastRefreshAt = 0;
     const refreshOnFocus = () => {
@@ -872,7 +872,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
     const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = async (settings, options) => {
       if (!options?.skipRemoteSync) {
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível para salvar as configurações da Prefeitura.");
         }
         await saveRemoteInstitutionSettings(
@@ -893,7 +893,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     const setInstitutionStatus: PlatformDataState["setInstitutionStatus"] = async (tenantId, status) => {
       const tenant = store.tenants.find((item) => item.id === tenantId);
       if (!tenant) throw new Error("Prefeitura não encontrada.");
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível para alterar o status da Prefeitura.");
       }
 
@@ -919,7 +919,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         updatedAt: new Date().toISOString(),
       };
 
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível para salvar o plano.");
       }
 
@@ -958,7 +958,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         updatedAt: new Date().toISOString(),
       };
 
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível para duplicar o plano.");
       }
 
@@ -987,7 +987,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         updatedAt: now,
       };
 
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível para salvar o vínculo comercial.");
       }
 
@@ -1090,7 +1090,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { request: null, error: "Sua solicitação já está em análise." };
       }
 
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         return { request: null, error: "Banco oficial indisponível. A solicitação não foi criada." };
       }
 
@@ -1119,7 +1119,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
       const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
       if (!existingRequest) return null;
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A solicitação não foi alterada.");
       }
 
@@ -1135,7 +1135,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
 
     const setOwnerChatEnabled: PlatformDataState["setOwnerChatEnabled"] = async (input) => {
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A configuração do chat não foi alterada.");
       }
 
@@ -1162,7 +1162,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       if (!linkSnapshot) return null;
       if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) return null;
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A mensagem não foi enviada.");
       }
 
@@ -1208,7 +1208,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           email: normalizeEmail(profile.email || authenticatedEmail),
         };
 
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível para salvar o perfil.");
         }
 
@@ -1266,7 +1266,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         });
       },
       createTenantUser: async (input) => {
-        if (!hasSupabaseEnv) throw new Error("Conexão com o banco indisponível.");
+        if (!hasBackendEnv) throw new Error("Conexão com o banco indisponível.");
         const saved = await linkExistingMunicipalStaff({
           email: input.email,
           municipalityId: input.tenantId,
@@ -1305,7 +1305,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("O e-mail de acesso não pode ser alterado nesta edição. Use o fluxo de segurança da conta.");
         }
 
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível. O usuário não foi alterado.");
         }
 
@@ -1345,7 +1345,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
 
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível. O status da conta não foi alterado.");
         }
 
@@ -1377,7 +1377,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
 
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível. A conta não foi desativada.");
         }
 
@@ -1408,7 +1408,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const normalizedTitle = input.title.trim();
         const normalizedDescription = input.description.trim();
         if (!normalizedTitle || !normalizedDescription) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para criar exigência.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para criar exigência.");
 
         await createRemoteProcessRequirement({
           processId: input.processId,
@@ -1423,19 +1423,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       respondRequirement: async (input) => {
         const normalized = input.response.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para responder exigência.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para responder exigência.");
 
         await respondRemoteProcessRequirement(input.requirementId, normalized);
         await refreshRemoteStore();
       },
       completeRequirement: async (input) => {
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para concluir exigência.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para concluir exigência.");
 
         await completeRemoteProcessRequirement(input.requirementId);
         await refreshRemoteStore();
       },
       updateProcessStatus: async ({ processId, status, actor, detail, title }) => {
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para atualizar status.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para atualizar status.");
 
         await setRemoteProcessStatus({
           processId,
@@ -1448,13 +1448,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       reopenProcess: async ({ processId, actor, reason }) => {
         const normalized = reason.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para reabrir processo.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para reabrir processo.");
 
         await reopenRemoteProcess(processId, normalized);
         await refreshRemoteStore();
       },
       issuePaymentGuide: async (processId, actor, guideKind) => {
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para emitir a guia.");
         }
 
@@ -1489,7 +1489,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       markGuideAsPaid: async (processId, actor, guideKind = "protocolo") => {
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para confirmar o pagamento.");
         }
 
@@ -1502,7 +1502,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       },
       appendProcessDocuments: async (processId, documents, actor) => {
         if (documents.length === 0) return;
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível para anexar documentos.");
         }
 
@@ -1510,7 +1510,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       reviewProcessDocument: async (processId, documentId, status, actor) => {
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para revisar documento.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para revisar documento.");
 
         await reviewRemoteProcessDocument(documentId, status);
         await refreshRemoteStore();
@@ -1518,7 +1518,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       addDocumentAnnotation: async (processId, documentId, annotation) => {
         const normalized = annotation.note.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para anotar documento.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para anotar documento.");
 
         await annotateRemoteProcessDocument({
           documentId,
@@ -1531,7 +1531,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       addProcessMarker: async (processId, marker, actor) => {
         const normalized = marker.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
         await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
         await refreshRemoteStore();
@@ -1539,7 +1539,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       addProcessMarkerWithColor: async (processId, marker, color, actor) => {
         const normalized = marker.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
         await upsertRemoteProcessMarker(processId, normalized, color);
         await refreshRemoteStore();
@@ -1547,14 +1547,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       removeProcessMarker: async (processId, marker, actor) => {
         const parsedMarker = parseMarker(marker);
         if (!parsedMarker.label.trim()) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para remover marcador.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para remover marcador.");
 
         await removeRemoteProcessMarkerByLabel(processId, parsedMarker.label);
         await refreshRemoteStore();
       },
       setInstitutionStatus,
       dispatchProcess: async ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para despachar processo.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para despachar processo.");
 
         await createRemoteProcessDispatch({
           processId,
@@ -1570,7 +1570,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       },
       acknowledgeDispatchReceipt: async ({ processIds, actor, unit }) => {
         if (processIds.length === 0) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para receber despacho.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para receber despacho.");
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
@@ -1582,7 +1582,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       },
       completeDispatches: async ({ processIds, actor, unit }) => {
         if (processIds.length === 0) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para concluir despacho.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para concluir despacho.");
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
@@ -1594,7 +1594,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       },
       returnDispatches: async ({ processIds, actor, unit, reason }) => {
         if (processIds.length === 0) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para devolver despacho.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para devolver despacho.");
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
@@ -1609,14 +1609,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       setProcessCheckpoint: async ({ processIds, actor, checkpoint }) => {
         const normalized = checkpoint.trim();
         if (processIds.length === 0 || !normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para definir checkpoint.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para definir checkpoint.");
 
         await Promise.all(processIds.map((processId) => setRemoteProcessCheckpoint(processId, normalized)));
         await refreshRemoteStore();
       },
       setProcessOnHold: async ({ processIds, actor, onHold, reason }) => {
         if (processIds.length === 0) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para alterar sobrestamento.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para alterar sobrestamento.");
 
         await Promise.all(
           processIds.map((processId) =>
@@ -1630,7 +1630,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       setProcessTransitVisibility: async ({ processId, actor, visibility }) => {
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para alterar visibilidade.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para alterar visibilidade.");
 
         await setRemoteProcessTransitVisibility(processId, visibility);
         await refreshRemoteStore();
@@ -1638,7 +1638,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       sendProcessMessage: async ({ processId, senderName, senderRole, audience, recipientName, message }) => {
         const normalized = message.trim();
         if (!normalized) return;
-        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para enviar mensagem.");
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para enviar mensagem.");
 
         await sendRemoteProcessMessage({
           processId,
@@ -1649,7 +1649,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       reissuePaymentGuide: async (processId, actor, guideKind = "protocolo") => {
-        if (!hasSupabaseEnv) {
+        if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para reemitir a guia.");
         }
 
