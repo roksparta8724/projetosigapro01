@@ -27,6 +27,8 @@ function persistVisualSnapshot() {
         path: window.location.pathname,
         html: root.innerHTML,
         scrollY: window.scrollY || 0,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
         savedAt: Date.now(),
       }),
     );
