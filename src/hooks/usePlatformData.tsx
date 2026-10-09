@@ -459,9 +459,17 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
       .map((tenant) => tenant.id),
   );
   const tenants = sourceTenants.filter((tenant) => !legacyDemoIds.has(tenant.id));
-  const processes = (rawStore.processes ?? defaultStore.processes).filter(
-    (process) => !legacyDemoIds.has(process.tenantId) && !legacyDemoIds.has(process.municipalityId ?? ""),
-  );
+  const processes = (rawStore.processes ?? defaultStore.processes)
+    .filter(
+      (process) => !legacyDemoIds.has(process.tenantId) && !legacyDemoIds.has(process.municipalityId ?? ""),
+    )
+    .map((process) => ({
+      ...process,
+      payment: {
+        ...process.payment,
+        guides: getProcessPaymentGuides(process),
+      },
+    }));
   const validProcessIds = new Set(processes.map((process) => process.id));
 
   const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers)
