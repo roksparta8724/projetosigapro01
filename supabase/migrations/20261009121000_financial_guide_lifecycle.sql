@@ -87,6 +87,14 @@ begin
 
   update public.processes
      set status='pagamento_pendente',
+         current_department=case
+           when _guide_kind='iss_obra' then 'Setor de IPTU / Fiscal'
+           else 'Financeiro'
+         end,
+         current_queue=case
+           when _guide_kind='iss_obra' then 'Setor de IPTU / Fiscal'
+           else 'Financeiro'
+         end,
          sla_stage=case
            when _guide_kind='iss_obra' then 'ISSQN aguardando pagamento'
            else 'Taxa final aguardando pagamento'
