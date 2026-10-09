@@ -2638,20 +2638,6 @@ export async function upsertRemoteInstitution(input: {
   return { id: tenantId };
 }
 
-export async function upsertRemoteTenant(input: {
-  tenantId?: string;
-  name: string;
-  city: string;
-  state: string;
-  status: string;
-  subdomain?: string;
-  cnpj: string;
-  primaryColor: string;
-  accentColor: string;
-  secretariat: string;
-}) {
-  return upsertRemoteInstitution(input);
-}
 
 export async function saveRemoteInstitutionSettings(
   settings: TenantSettings & {
@@ -3356,6 +3342,3 @@ export async function loadPublicPlansCatalog() {
   })) as PlanItem[];
 }
 
-export async function saveRemoteTenantSettings(settings: TenantSettings) {
-  return saveRemoteInstitutionSettings(settings);
-}
