@@ -541,7 +541,7 @@ function readPersistedStore(): PlatformStore | null {
 
   try {
     const parsed = JSON.parse(raw) as Partial<PlatformStore>;
-    return buildSanitizedStore(parsed);
+    return buildSanitizedStore(parsed, false);
   } catch {
     return null;
   }
@@ -1013,7 +1013,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             const user = current.sessionUsers.find((sessionUser) => sessionUser.id === item.userId);
             return user?.tenantId !== tenantId;
           }),
-          registrationRequests: current.registrationRequests.filter((item) => item.tenantId !== tenantId),
           ownerRequests: current.ownerRequests.filter((item) => !removedProcessIds.has(item.projectId)),
           ownerLinks: current.ownerLinks.filter((item) => !removedProcessIds.has(item.projectId)),
           ownerMessages: current.ownerMessages.filter((item) => !removedProcessIds.has(item.projectId)),
