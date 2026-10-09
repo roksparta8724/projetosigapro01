@@ -92,6 +92,7 @@ Não permitido como fonte oficial para:
 - usuários;
 - workflow;
 - configurações municipais;
+- branding institucional compartilhado;
 - pagamentos.
 
 Em produção, falha do Neon deve resultar em estado operacional seguro/vazio, nunca em dados demo.
@@ -104,8 +105,15 @@ Código de tela/hook deve importar operações de banco por:
 - `@/integrations/backend/platform`
 - `@/integrations/backend/municipality`
 
-Os arquivos sob `integrations/supabase/*` permanecem temporariamente como implementação
-legada interna/fallback e não devem ser usados diretamente por novas telas.
+As implementações canônicas residem em:
+
+- `src/integrations/backend/platformImpl.ts`
+- `src/integrations/backend/municipalityImpl.ts`
+- `src/integrations/backend/zoningImpl.ts`
+
+Os arquivos correspondentes sob `integrations/supabase/*` são somente **shims de
+compatibilidade** ou o cliente de rollback explícito. Não devem conter lógica operacional
+nova nem ser importados diretamente por telas/hooks.
 
 ## 9. Identidade municipal
 
@@ -114,7 +122,16 @@ legada interna/fallback e não devem ser usados diretamente por novas telas.
 - Papéis devem usar códigos canônicos.
 - Toda operação deve respeitar RLS e escopo municipal.
 
-## 10. Regra de manutenção
+## 10. Branding institucional
+
+- Branding municipal é persistido em `municipality_branding/municipality_settings`.
+- Branding da plataforma Master é persistido em `platform_branding`, incluindo
+  enquadramento de cabeçalho/rodapé e texto institucional.
+- R2 guarda os arquivos; Neon guarda metadados, object keys e configuração visual.
+- LocalStorage pode manter apenas cache compatível para reduzir flicker/facilitar rollback.
+- Funções de leitura de branding nunca devem criar registros no banco implicitamente.
+
+## 11. Regra de manutenção
 
 Antes de adicionar uma nova ação ao SIGAPRO:
 
