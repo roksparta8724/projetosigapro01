@@ -13,14 +13,12 @@ import {
   getMasterMetrics,
   matchesOwnerDocument,
   normalizeOwnerDocument,
-  normalizeRegistrationRequestScope,
   normalizeSessionUserScope,
   planCatalog as seedPlanCatalog,
   ownerLinks as seedOwnerLinks,
   ownerMessages as seedOwnerMessages,
   ownerRequests as seedOwnerRequests,
   processRecords as seedProcessRecords,
-  registrationRequests as seedRegistrationRequests,
   sessionUsers as seedSessionUsers,
   tenantSettings as seedTenantSettings,
   tenants as seedTenants,
@@ -38,7 +36,6 @@ import {
   type ProcessRecord,
   type ProcessStatus,
   type ProcessTransitVisibility,
-  type RegistrationRequest,
   type SessionUser,
   type Tenant,
   type TenantUserInput,
@@ -103,7 +100,6 @@ interface PlatformDataState {
   institutionSettings: InstitutionSettings[];
   sessionUsers: SessionUser[];
   userProfiles: UserProfile[];
-  registrationRequests: RegistrationRequest[];
   ownerRequests: OwnerProjectRequest[];
   ownerLinks: OwnerProjectLink[];
   ownerMessages: OwnerProfessionalMessage[];
@@ -174,8 +170,6 @@ interface PlatformDataState {
   updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
   setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => Promise<SessionUser | null>;
   deleteUserAccount: (input: { userId: string; actor: string; reason?: string }) => Promise<SessionUser | null>;
-  createRegistrationRequest: (input: Omit<RegistrationRequest, "id" | "status" | "createdAt">) => RegistrationRequest;
-  approveRegistrationRequest: (requestId: string) => SessionUser | null;
   createRequirement: (input: { processId: string; title: string; description: string; dueDate: string; actor: string; targetName: string; visibility: "interno" | "externo" | "misto" }) => Promise<void>;
   respondRequirement: (input: { processId: string; requirementId: string; response: string; actor: string }) => Promise<void>;
   completeRequirement: (input: { processId: string; requirementId: string; actor: string }) => Promise<void>;
@@ -213,7 +207,6 @@ interface PlatformStore {
   tenantSettings: InstitutionSettings[];
   sessionUsers: SessionUser[];
   userProfiles: UserProfile[];
-  registrationRequests: RegistrationRequest[];
   ownerRequests: OwnerProjectRequest[];
   ownerLinks: OwnerProjectLink[];
   ownerMessages: OwnerProfessionalMessage[];
@@ -359,7 +352,6 @@ const defaultStore: PlatformStore = {
   tenantSettings: seedTenantSettings,
   sessionUsers: seedSessionUsers,
   userProfiles: seedUserProfiles,
-  registrationRequests: seedRegistrationRequests,
   ownerRequests: seedOwnerRequests,
   ownerLinks: seedOwnerLinks,
   ownerMessages: seedOwnerMessages,
@@ -402,8 +394,6 @@ const demoState: PlatformDataState = {
   updateTenantUser: async () => null,
   setUserAccountStatus: async () => null,
   deleteUserAccount: async () => null,
-  createRegistrationRequest: () => defaultStore.registrationRequests[0],
-  approveRegistrationRequest: () => null,
   createRequirement: async () => undefined,
   respondRequirement: async () => undefined,
   completeRequirement: async () => undefined,
@@ -503,15 +493,7 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
     tenantSettings: fallback(rawStore.tenantSettings, defaultStore.tenantSettings)
       .filter((item) => !legacyDemoIds.has(item.tenantId)),
     sessionUsers: normalizedSessionUsers,
-    userProfiles: normalizedUserProfiles,
-    registrationRequests: fallback(rawStore.registrationRequests, defaultStore.registrationRequests)
-      .map((request) => normalizeRegistrationRequestScope(request))
-      .filter(
-        (request) =>
-          !legacyDemoIds.has(request.tenantId) &&
-          !legacyDemoIds.has(request.municipalityId ?? ""),
-      ),
-    ownerRequests: fallback(rawStore.ownerRequests, defaultStore.ownerRequests).filter((request) =>
+    userProfiles: normalizedUserProfiles,    ownerRequests: fallback(rawStore.ownerRequests, defaultStore.ownerRequests).filter((request) =>
       validProcessIds.has(request.projectId),
     ),
     ownerLinks: fallback(rawStore.ownerLinks, defaultStore.ownerLinks).filter((link) =>
@@ -611,9 +593,6 @@ function syncStore(store: PlatformStore) {
   const normalizedStore: PlatformStore = {
     ...store,
     sessionUsers: store.sessionUsers.map((user) => normalizeSessionUserScope(user)),
-    registrationRequests: store.registrationRequests.map((request) =>
-      normalizeRegistrationRequestScope(request),
-    ),
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStore));
 }
@@ -1637,21 +1616,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           tenantId: authenticatedMunicipalityId ?? null,
         });
       },
-      createRegistrationRequest: (input) => {
-        const request: RegistrationRequest = normalizeRegistrationRequestScope({
-          ...input,
-          id: `registration-${crypto.randomUUID()}`,
-          status: "pendente",
-          createdAt: new Date().toLocaleString("pt-BR"),
-        });
-
-        updateStore((current) => ({
-          ...current,
-          registrationRequests: [request, ...current.registrationRequests],
-        }));
-
-        return request;
-      },
       createTenantUser: async (input) => {
         if (!hasSupabaseEnv) throw new Error("Conexão com o banco indisponível.");
         const saved = await linkExistingMunicipalStaff({
@@ -1784,68 +1748,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }));
 
         return nextUser;
-      },
-      approveRegistrationRequest: (requestId) => {
-        const request = store.registrationRequests.find((item) => item.id === requestId);
-        if (!request) return null;
-
-        const user: SessionUser = normalizeSessionUserScope({
-          id: `user-${crypto.randomUUID()}`,
-          name: request.fullName,
-          role: request.role,
-          accessLevel: 1,
-          tenantId: request.tenantId,
-          municipalityId: request.municipalityId ?? request.tenantId,
-          title: request.title,
-          email: request.email,
-          accountStatus: "active",
-          userType: request.role === "profissional_externo" || request.role === "proprietario_consulta" ? "Externo" : "Interno",
-          department: request.title,
-          createdAt: new Date().toLocaleString("pt-BR"),
-          lastAccessAt: "",
-          blockedAt: null,
-          blockedBy: null,
-          blockReason: null,
-          deletedAt: null,
-        });
-
-        const profile: UserProfile = {
-          userId: user.id,
-          fullName: request.fullName,
-          email: request.email,
-          phone: request.phone,
-          cpfCnpj: request.cpfCnpj,
-          rg: "",
-          birthDate: "",
-          professionalType: request.professionalType,
-          registrationNumber: request.registrationNumber,
-          companyName: request.companyName,
-          addressLine: "",
-          addressNumber: "",
-          addressComplement: "",
-          neighborhood: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          avatarUrl: request.avatarUrl,
-          useAvatarInHeader: false,
-          bio: request.bio,
-        };
-
-        updateStore((current) => {
-          const sessionUsers = [user, ...current.sessionUsers];
-          const userProfiles = [profile, ...current.userProfiles];
-          const registrationRequests = current.registrationRequests.map((item) =>
-            item.id === requestId ? { ...item, status: "aprovado" } : item,
-          );
-          const tenants = current.tenants.map((tenant) =>
-            tenant.id === request.tenantId ? { ...tenant, users: tenant.users + 1 } : tenant,
-          );
-
-          return { ...current, sessionUsers, userProfiles, registrationRequests, tenants };
-        });
-
-        return user;
       },
       createRequirement: async (input) => {
         const normalizedTitle = input.title.trim();
