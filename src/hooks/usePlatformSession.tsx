@@ -41,8 +41,7 @@ function writeCachedSession(session: SessionUser | null) {
 
 function normalizeRole(role: string | null | undefined): SessionUser["role"] {
   const raw = (role ?? "").toLowerCase();
-  if (raw === "admin_master") return "master_admin";
-  if (raw === "master") return "master_admin";
+  if (raw === "master_admin" || raw === "admin_master" || raw === "master") return "master_admin";
   if (raw === "prefeitura_admin" || raw === "admin_municipality" || raw === "admin_prefeitura") {
     return "prefeitura_admin";
   }
@@ -79,7 +78,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !isNeonBackend && !authResolved && !businessUserId;
+    const canUseCachedSession = !authResolved && !businessUserId;
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
@@ -152,6 +151,9 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     }
 
     if (authResolved && !businessUserId) {
+      // No Neon, eventos transitórios de auth não podem apagar a sessão visual já estável.
+      // O logout confirmado remove a chave pelo AppBootstrap; aí sim limpamos o contexto.
+      if (isNeonBackend && readCachedSession()) return;
       if (!cachedSessionRef.current) {
         writeCachedSession(null);
         return;
