@@ -81,7 +81,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
-      const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
+      const safeRole = normalizeRole(businessUserId ? authenticatedRole : cachedSession.role);
       return {
         ...cachedSession,
         id: businessUserId || cachedSession.id,
