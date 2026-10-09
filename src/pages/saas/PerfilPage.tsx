@@ -546,10 +546,9 @@ export function PerfilPage() {
     };
 
     setForm((current) => ({ ...current, ...mergedProfile }));
-    saveUserProfile(mergedProfile);
-    if (hasSupabaseEnv) {
-      void saveRemoteProfile(mergedProfile);
-    }
+    void saveUserProfile(mergedProfile).catch((error) => {
+      console.error("[SIGAPRO][Perfil] Falha ao persistir dados iniciais reaproveitados", error);
+    });
 
     delete allDrafts[session.email.trim().toLowerCase()];
     window.localStorage.setItem(SIGNUP_DRAFTS_KEY, JSON.stringify(allDrafts));
@@ -897,7 +896,7 @@ export function PerfilPage() {
       return;
     }
 
-    saveUserProfile({
+    await saveUserProfile({
       ...(profile ?? {
         userId: profileUserId || session.id,
         fullName: form.fullName,
@@ -1031,7 +1030,7 @@ export function PerfilPage() {
         bio: form.bio,
       };
 
-      saveUserProfile(nextProfile);
+      await saveUserProfile(nextProfile);
       if (avatarUrl) {
         setAvatarFiles([
           {
