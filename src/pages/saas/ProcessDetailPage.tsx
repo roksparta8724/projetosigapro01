@@ -271,6 +271,15 @@ export function ProcessDetailPage() {
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = paymentGuides.find((guide) => guide.kind === "protocolo");
+  const protocolUnitIdentity = `${session.department || ""} ${session.title || ""}`.toLowerCase();
+  const canProtocolConfirmPayment =
+    protocolGuide?.status === "pendente" &&
+    process.status === "pagamento_pendente" &&
+    (
+      session.role === "prefeitura_admin" ||
+      session.role === "prefeitura_supervisor" ||
+      (isInternalRole(session.role) && protocolUnitIdentity.includes("protocolo"))
+    );
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
@@ -457,6 +466,14 @@ export function ProcessDetailPage() {
     } finally {
       setProcessActionBusy("");
     }
+  };
+
+  const handleConfirmProtocolPayment = () => {
+    void runProcessAction(
+      "confirm-protocol-payment",
+      () => markGuideAsPaid(process.id, session.name, "protocolo"),
+      "Pagamento da guia de protocolo confirmado. O processo foi liberado para a próxima etapa.",
+    );
   };
 
   const handleAddMarker = async (event: FormEvent) => {
@@ -1269,10 +1286,30 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                   <div className="mt-4 rounded-2xl border border-[#d8e4f1] bg-white p-4">
-                    <p className={`text-xs font-medium uppercase tracking-[0.1em] ${protocolGuide?.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
-                      {protocolGuide?.status === "compensada" ? "Pagamento Confirmado" : "Pagamento Pendente"}
-                    </p>
-                    <p className="mt-2 text-sm text-slate-500">A impressão sai em formato DAM municipal A4 com os dados da prefeitura e do protocolo.</p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className={`text-xs font-medium uppercase tracking-[0.1em] ${protocolGuide?.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+                          {protocolGuide?.status === "compensada" ? "Pagamento Confirmado" : "Pagamento Pendente"}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-500">
+                          {protocolGuide?.status === "compensada"
+                            ? "Baixa registrada no banco oficial e processo liberado para continuidade."
+                            : "A guia pode ser quitada eletronicamente ou recebida em dinheiro no atendimento do Protocolo."}
+                        </p>
+                      </div>
+                      {canProtocolConfirmPayment ? (
+                        <Button
+                          type="button"
+                          className="shrink-0 rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                          disabled={processActionBusy === "confirm-protocol-payment"}
+                          onClick={handleConfirmProtocolPayment}
+                        >
+                          {processActionBusy === "confirm-protocol-payment"
+                            ? "Confirmando..."
+                            : "Confirmar pagamento recebido"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
