@@ -2551,7 +2551,8 @@
   }
 
   .sig-flag-pulse {
-    animation: sig-flag-pulse 520ms ease-out;
+    animation: none !important;
+    transform: none !important;
   }
 
   .sig-command [cmdk-group-heading] {
