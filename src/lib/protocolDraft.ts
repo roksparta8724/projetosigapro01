@@ -36,6 +36,8 @@ export interface ProtocolDraftPayload {
 }
 
 const STORAGE_PREFIX = "sigapro-protocol-draft";
+const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const MAX_INLINE_PREVIEW_CHARS = 350_000;
 
 export const defaultProtocolDraftForm: ProtocolDraftForm = {
   titulo: "",
@@ -83,15 +85,54 @@ export function readProtocolDraft(sessionId: string, scopeId: string | null, leg
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as ProtocolDraftPayload;
+    const parsed = JSON.parse(raw) as ProtocolDraftPayload;
+    const updatedAt = Date.parse(parsed.updatedAt);
+    if (!Number.isFinite(updatedAt) || Date.now() - updatedAt > DRAFT_TTL_MS) {
+      clearProtocolDraft(sessionId, scopeId, legacyTenantId);
+      return null;
+    }
+    return parsed;
   } catch {
+    clearProtocolDraft(sessionId, scopeId, legacyTenantId);
     return null;
   }
 }
 
 export function saveProtocolDraft(sessionId: string, scopeId: string | null, payload: ProtocolDraftPayload) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(buildDraftStorageKey(sessionId, scopeId), JSON.stringify(payload));
+
+  const key = buildDraftStorageKey(sessionId, scopeId);
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch (error) {
+    // Previews base64 podem exceder a cota do localStorage. Mantemos o rascunho
+    // textual e os metadados dos arquivos, mas nunca deixamos o salvamento falhar
+    // silenciosamente por causa de um preview grande.
+    const compactPayload: ProtocolDraftPayload = {
+      ...payload,
+      files: Object.fromEntries(
+        Object.entries(payload.files).map(([label, items]) => [
+          label,
+          items.map((item) => ({
+            ...item,
+            previewUrl:
+              item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
+                ? item.previewUrl
+                : undefined,
+          })),
+        ]),
+      ),
+    };
+
+    try {
+      window.localStorage.setItem(key, JSON.stringify(compactPayload));
+    } catch (compactError) {
+      console.warn("[SIGAPRO][Rascunho] Não foi possível persistir o rascunho local.", {
+        error,
+        compactError,
+      });
+    }
+  }
 }
 
 export function clearProtocolDraft(sessionId: string, scopeId: string | null, legacyTenantId?: string | null) {
@@ -111,7 +152,10 @@ export function toStoredUploadedFiles(files: Record<string, UploadedFileItem[]>)
         fileName: item.fileName,
         mimeType: item.mimeType,
         sizeLabel: item.sizeLabel,
-        previewUrl: item.previewUrl,
+        previewUrl:
+          item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
+            ? item.previewUrl
+            : undefined,
       })),
     ]),
   ) as Record<string, StoredUploadedFileItem[]>;
