@@ -2166,7 +2166,7 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
   console.log("[DIAGNOSTICO] Resultado bruto:", { data, error });
 
   if (error) {
-    console.error("[DIAGNOSTICO] ERRO SUPABASE:", error);
+    console.error("[SIGAPRO][Banco oficial] Erro de persistência:", error);
     return null;
   }
 
