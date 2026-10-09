@@ -40,7 +40,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFile } from "@/integrations/r2/client";
 import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { saveRemoteClientPlanAssignment, saveRemoteCommercialMaterial, upsertRemotePlan } from "@/integrations/supabase/platform";
+import { saveRemoteCommercialMaterial } from "@/integrations/supabase/platform";
 import { buildCommercialPdfBlob } from "@/lib/commercialPdf";
 import { cn } from "@/lib/utils";
 import { type ClientPlanAssignment, type PlanBillingCycle, type PlanContractStatus, type PlanItem } from "@/lib/platform";
@@ -816,31 +816,6 @@ export function MasterPlansPage() {
     return sum + (assignment.billingCycle === "anual" ? price / 12 : price);
   }, 0);
 
-  const syncRemotePlan = async (plan: PlanItem) => {
-    if (!hasSupabaseEnv) return true;
-    try {
-      await upsertRemotePlan(plan);
-      setRemoteError("");
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao sincronizar plano no Supabase.";
-      setRemoteError(message);
-      return false;
-    }
-  };
-
-  const syncRemoteAssignment = async (assignment: ClientPlanAssignment) => {
-    if (!hasSupabaseEnv) return true;
-    try {
-      await saveRemoteClientPlanAssignment(assignment);
-      setRemoteError("");
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao sincronizar vínculo comercial no Supabase.";
-      setRemoteError(message);
-      return false;
-    }
-  };
 
   const openPlanDialog = (plan?: PlanItem) => {
     setDraft(buildPlanDraft(plan ?? null));
@@ -854,30 +829,44 @@ export function MasterPlansPage() {
       setStatusMessage("Informe nome, subtítulo e descrição do plano.");
       return;
     }
-    const saved = upsertPlan(plan);
-    const synced = await syncRemotePlan(saved);
-    setStatusMessage(
-      synced
-        ? `${saved.name} atualizado com sucesso.`
-        : `${saved.name} foi mantido no painel, mas precisa aplicar a migration/sincronizar o Supabase.`,
-    );
-    setDialogOpen(false);
+    try {
+      const saved = await upsertPlan(plan);
+      setRemoteError("");
+      setStatusMessage(`${saved.name} atualizado no banco oficial com sucesso.`);
+      setDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar o plano no banco oficial.";
+      setRemoteError(message);
+      setStatusMessage(message);
+    }
   };
 
   const handleDuplicate = async (planId: string) => {
-    const duplicated = duplicatePlan(planId);
-    if (!duplicated) {
-      setStatusMessage("Não foi possível duplicar o plano selecionado.");
-      return;
+    try {
+      const duplicated = await duplicatePlan(planId);
+      if (!duplicated) {
+        setStatusMessage("Não foi possível duplicar o plano selecionado.");
+        return;
+      }
+      setRemoteError("");
+      setStatusMessage(`${duplicated.name} criado no banco oficial com sucesso.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível duplicar o plano no banco oficial.";
+      setRemoteError(message);
+      setStatusMessage(message);
     }
-    const synced = await syncRemotePlan(duplicated);
-    setStatusMessage(synced ? `${duplicated.name} criado com sucesso.` : `${duplicated.name} criado no painel e pendente de sincronização.`);
   };
 
   const handleTogglePlan = async (plan: PlanItem, field: "isActive" | "isPublic" | "isFeatured" | "isInternalOnly") => {
-    const nextPlan = upsertPlan({ ...plan, [field]: !plan[field] });
-    const synced = await syncRemotePlan(nextPlan);
-    setStatusMessage(synced ? `${nextPlan.name} atualizado.` : `${nextPlan.name} atualizado localmente e pendente no Supabase.`);
+    try {
+      const nextPlan = await upsertPlan({ ...plan, [field]: !plan[field] });
+      setRemoteError("");
+      setStatusMessage(`${nextPlan.name} atualizado no banco oficial.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível atualizar o plano no banco oficial.";
+      setRemoteError(message);
+      setStatusMessage(message);
+    }
   };
 
   const handleSaveAssignment = async (event: FormEvent) => {
@@ -887,20 +876,26 @@ export function MasterPlansPage() {
       return;
     }
     const previous = safeAssignments.find((assignment) => assignment.municipalityId === selectedInstitutionId);
-    const assignment = saveClientPlanAssignment({
-      id: previous?.id,
-      municipalityId: selectedInstitutionId,
-      planId: assignmentPlanId,
-      contractStatus: assignmentStatus,
-      startsAt: assignmentStart,
-      endsAt: assignmentEnd,
-      billingCycle: assignmentCycle,
-      billingNotes: assignmentNotes,
-      customPrice: assignmentCustomPrice ? Number(assignmentCustomPrice) : null,
-      isCustom: assignmentIsCustom,
-    });
-    const synced = await syncRemoteAssignment(assignment);
-    setStatusMessage(synced ? "Vínculo comercial atualizado com sucesso." : "Vínculo atualizado no painel e pendente de sincronização remota.");
+    try {
+      await saveClientPlanAssignment({
+        id: previous?.id,
+        municipalityId: selectedInstitutionId,
+        planId: assignmentPlanId,
+        contractStatus: assignmentStatus,
+        startsAt: assignmentStart,
+        endsAt: assignmentEnd,
+        billingCycle: assignmentCycle,
+        billingNotes: assignmentNotes,
+        customPrice: assignmentCustomPrice ? Number(assignmentCustomPrice) : null,
+        isCustom: assignmentIsCustom,
+      });
+      setRemoteError("");
+      setStatusMessage("Vínculo comercial atualizado no banco oficial com sucesso.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar o vínculo comercial no banco oficial.";
+      setRemoteError(message);
+      setStatusMessage(message);
+    }
   };
 
   const handleCopyShareLink = async () => {
