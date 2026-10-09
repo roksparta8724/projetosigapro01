@@ -4,11 +4,9 @@ import "./index.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-window.requestAnimationFrame(() => {
-  window.requestAnimationFrame(() => {
-    document.documentElement.removeAttribute("data-sigapro-booting");
-  });
-});
+window.setTimeout(() => {
+  document.documentElement.removeAttribute("data-sigapro-booting");
+}, 1800);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
