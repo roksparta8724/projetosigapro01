@@ -59,6 +59,30 @@ begin
       order by case when g.guide_kind = 'protocolo' then 0 else 1 end, g.created_at
       limit 1;
 
+      update public.properties
+         set construction_standard = coalesce(
+           nullif(_payload->>'constructionStandard',''),
+           construction_standard
+         )
+       where id = _property_id;
+
+      update public.process_parties
+         set document_masked = case
+               when length(regexp_replace(coalesce(_payload->>'ownerDocument',''), '\D','','g')) < 4
+                 then document_masked
+               else '***' || right(regexp_replace(_payload->>'ownerDocument','\D','','g'),4)
+             end,
+             document_hash = case
+               when length(regexp_replace(coalesce(_payload->>'ownerDocument',''), '\D','','g')) < 5
+                 then document_hash
+               else encode(
+                 digest(regexp_replace(_payload->>'ownerDocument','\D','','g'),'sha256'),
+                 'hex'
+               )
+             end
+       where process_id = _process_id
+         and party_type = 'proprietario';
+
       if _guide_id is null then
         _guide_number := coalesce(
           nullif(_payload->>'guideNumber',''),
@@ -92,7 +116,7 @@ begin
 
   insert into public.properties(
     tenant_id, municipality_id, iptu_code, registry_code, address,
-    lot, block, usage_type, area_m2
+    lot, block, usage_type, construction_standard, area_m2
   )
   values(
     _tenant_id,
@@ -103,6 +127,7 @@ begin
     nullif(_payload->>'lot',''),
     nullif(_payload->>'block',''),
     nullif(_payload->>'usage',''),
+    nullif(_payload->>'constructionStandard',''),
     nullif(_payload->>'area','')::numeric
   )
   returning id into _property_id;
