@@ -1018,23 +1018,30 @@ export function ConfiguracoesPage() {
   ]);
 
   useEffect(() => {
-    if (!isMasterRole) return;
-    let active = true;
-    const loadRemote = async () => {
-      try {
-        const remote = await loadPlatformBranding();
-        console.log("[BrandingLoad] platform_branding carregado", { remote });
-        if (active) setPlatformBranding(remote);
-      } catch {
-        console.log("[BrandingLoad] platform_branding falhou, retornando null");
-        if (active) setPlatformBranding(null);
-      }
-    };
-    void loadRemote();
-    return () => {
-      active = false;
-    };
-  }, [isMasterRole]);
+    if (!isMasterRole || !platformBranding) return;
+
+    setMasterBranding((current) => {
+      const next = updateMasterBranding(current, {
+        logoAlt: platformBranding.logoAlt || current.logoAlt,
+        logoUpdatedAt: platformBranding.updatedAt || current.logoUpdatedAt,
+        logoUpdatedBy: platformBranding.updatedBy || current.logoUpdatedBy,
+        footerText: platformBranding.footerText || current.footerText,
+        headerLogoScale: platformBranding.headerLogoScale,
+        headerLogoOffsetX: platformBranding.headerLogoOffsetX,
+        headerLogoOffsetY: platformBranding.headerLogoOffsetY,
+        headerLogoFrameMode: platformBranding.headerLogoFrameMode,
+        headerLogoFitMode: platformBranding.headerLogoFitMode,
+        footerLogoScale: platformBranding.footerLogoScale,
+        footerLogoOffsetX: platformBranding.footerLogoOffsetX,
+        footerLogoOffsetY: platformBranding.footerLogoOffsetY,
+        footerLogoFrameMode: platformBranding.footerLogoFrameMode,
+        footerLogoFitMode: platformBranding.footerLogoFitMode,
+      });
+      saveMasterBranding(next);
+      return next;
+    });
+    setMasterFooterText(platformBranding.footerText || "");
+  }, [isMasterRole, platformBranding]);
 
   useEffect(() => {
     if (!isMasterRole || activeSettingsView !== "platform") return;
