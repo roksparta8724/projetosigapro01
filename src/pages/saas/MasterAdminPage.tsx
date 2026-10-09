@@ -429,7 +429,7 @@ export function MasterAdminPage() {
     try {
       const currentSettings = activeTenant ? getInstitutionSettings(activeTenant.id) : undefined;
       const slug = normalizedSubdomain;
-      let savedTenant = upsertInstitution({ institutionId: selectedTenantId || undefined, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor }, { skipRemoteSync: true });
+      let savedTenant = upsertInstitution({ institutionId: selectedTenantId || undefined, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
       let remoteSyncError: string | null = null;
       let linkedAdminCount = 0;
       const unresolvedAdminEmails: string[] = [];
@@ -460,7 +460,7 @@ export function MasterAdminPage() {
               }),
             ),
           );
-          savedTenant = upsertInstitution({ institutionId: remoteInstitution.id, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor }, { skipRemoteSync: true });
+          savedTenant = upsertInstitution({ institutionId: remoteInstitution.id, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
         } catch (error) {
           remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar com o Supabase.";
         }
