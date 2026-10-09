@@ -13,6 +13,7 @@ interface InstitutionalLogoProps {
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
+const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v1";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-4 lg:h-[120px] lg:w-[204px]",
@@ -30,6 +31,30 @@ const masterVariantClasses = {
   login: "h-full w-full",
 } as const;
 
+function readSessionLogo(context: string) {
+  if (typeof window === "undefined") return "";
+  try {
+    const raw = window.sessionStorage.getItem(LOGO_SESSION_CACHE_KEY);
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return typeof parsed?.[context] === "string" ? parsed[context] : "";
+  } catch {
+    return "";
+  }
+}
+
+function writeSessionLogo(context: string, url: string) {
+  if (typeof window === "undefined" || !url) return;
+  try {
+    const raw = window.sessionStorage.getItem(LOGO_SESSION_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) as Record<string, string> : {};
+    parsed[context] = url;
+    window.sessionStorage.setItem(LOGO_SESSION_CACHE_KEY, JSON.stringify(parsed));
+  } catch {
+    // noop
+  }
+}
+
 export function InstitutionalLogo({
   branding,
   fallbackLabel = "Prefeitura",
@@ -38,7 +63,6 @@ export function InstitutionalLogo({
   viewportClassName,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
-  const [loadedImages, setLoadedImages] = useState<string[]>([]);
   const [fallbackReady, setFallbackReady] = useState(false);
   const isMaster = branding.tenantId === "master";
   const context = `${variant}:${branding.tenantId}`;
@@ -49,7 +73,12 @@ export function InstitutionalLogo({
       ? SIGAPRO_OFFICIAL_LOGO
       : ""
     : primaryUrl;
-  const [loadedSource, setLoadedSource] = useState({ context, url: imageUrl });
+
+  const [loadedSource, setLoadedSource] = useState(() => ({
+    context,
+    url: readSessionLogo(context) || imageUrl,
+  }));
+
   const stableLoadedUrl =
     loadedSource.context === context &&
     loadedSource.url &&
@@ -57,12 +86,21 @@ export function InstitutionalLogo({
       ? loadedSource.url
       : "";
 
-  // Nunca apaga a imagem institucional já carregada por causa de um estado transitório
-  // com URL vazia. Só troca depois que a nova fonte carregar com sucesso.
-  const displayUrl = stableLoadedUrl || imageUrl;
+  const cachedContextUrl = readSessionLogo(context);
+  const safeCachedUrl =
+    cachedContextUrl && !failedSources.includes(cachedContextUrl)
+      ? cachedContextUrl
+      : "";
+
+  // Stale-while-revalidate visual:
+  // 1) mantém a última imagem já válida;
+  // 2) em um F5 reutiliza imediatamente a imagem da sessão;
+  // 3) nunca cobre uma imagem válida com skeleton/opacity-0;
+  // 4) uma URL nova só substitui a anterior depois de carregar.
+  const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
   const pendingUrl = imageUrl && imageUrl !== displayUrl ? imageUrl : "";
+
   const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(3.5, branding.logoScale)) : 1;
-  // Master crops are authored in a 160px square editor and rendered in proportional square frames.
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
@@ -105,35 +143,42 @@ export function InstitutionalLogo({
                 </span>
               ) : null}
             </div>
-          ) : !loadedImages.includes(displayUrl) ? (
-            <div className="absolute inset-0 bg-white" aria-hidden="true">
-              <div className="absolute inset-[18%] animate-pulse rounded-[16px] bg-slate-100" />
-            </div>
           ) : null}
+
           {displayUrl ? (
             <img
               src={displayUrl}
               alt={branding.logoAlt || fallbackLabel}
               className={cn(
-                "block h-full w-full max-w-full select-none object-contain object-center transition-opacity duration-150",
-                loadedImages.includes(displayUrl) ? "opacity-100" : "opacity-0",
+                "block h-full w-full max-w-full select-none object-contain object-center",
                 isMaster && "mix-blend-screen",
               )}
               style={showMasterCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` } : undefined}
               loading="eager"
-              decoding="async"
-              onLoad={() => setLoadedImages((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
+              decoding="sync"
+              fetchPriority="high"
+              onLoad={() => {
+                setLoadedSource({ context, url: displayUrl });
+                writeSessionLogo(context, displayUrl);
+              }}
               onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
             />
           ) : null}
         </div>
+
         {pendingUrl ? (
           <img
             src={pendingUrl}
             alt=""
             aria-hidden="true"
-            className="hidden"
-            onLoad={() => setLoadedSource({ context, url: pendingUrl })}
+            className="pointer-events-none absolute h-px w-px opacity-0"
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
+            onLoad={() => {
+              writeSessionLogo(context, pendingUrl);
+              setLoadedSource({ context, url: pendingUrl });
+            }}
             onError={() => setFailedSources((current) => current.includes(pendingUrl) ? current : [...current, pendingUrl])}
           />
         ) : null}
