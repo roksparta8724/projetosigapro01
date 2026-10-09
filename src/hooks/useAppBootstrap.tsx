@@ -3,16 +3,19 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { backendClient, hasBackendEnv, neonAccountClient } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import type { User } from "@backendClient/backendClient-js";
 import {
   loadCurrentMunicipalityBundle,
   loadMunicipalityBundleById,
-} from "@/integrations/backendClient/municipality";
-import { registerRemoteExternalAccount, registerRemoteOwnerAccount } from "@/integrations/backendClient/platform";
+} from "@/integrations/backend/municipality";
+import {
+  registerRemoteExternalAccount,
+  registerRemoteOwnerAccount,
+  saveRemoteProfile,
+} from "@/integrations/backend/platform";
 import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import type { UserRole } from "@/lib/platform";
-import { readPendingSignup } from "@/lib/pendingSignup";
+import { readPendingSignup, type AuthUserLike } from "@/lib/pendingSignup";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -399,7 +402,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 }
 
 async function completePendingSignup(
-  authUser: User,
+  authUser: AuthUserLike & { id: string },
   currentProfile: AppBootstrapProfile | null,
   resolution: ReturnType<typeof resolveTenantFromLocation>,
 ) {
