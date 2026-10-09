@@ -58,6 +58,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  appendRemoteProcessDocuments,
   completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
   confirmRemoteProcessPaymentGuide,
@@ -192,7 +193,7 @@ interface PlatformDataState {
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
-  appendProcessDocuments: (processId: string, documents: ProcessDocument[], actor: string) => void;
+  appendProcessDocuments: (processId: string, documents: ProcessDocument[], actor: string) => Promise<void>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
   addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => Promise<void>;
   addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
@@ -416,7 +417,7 @@ const demoState: PlatformDataState = {
   reopenProcess: async () => undefined,
   issuePaymentGuide: async () => undefined,
   markGuideAsPaid: async () => undefined,
-  appendProcessDocuments: () => undefined,
+  appendProcessDocuments: async () => undefined,
   reviewProcessDocument: async () => undefined,
   addDocumentAnnotation: async () => undefined,
   addProcessMarker: async () => undefined,
@@ -2259,23 +2260,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         await refreshRemoteStore();
       },
-      appendProcessDocuments: (processId, documents, actor) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
+      appendProcessDocuments: async (processId, documents, actor) => {
+        if (documents.length === 0) return;
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível para anexar documentos.");
+        }
 
-            return {
-              ...process,
-              documents: [...process.documents, ...documents.map((document) => ({ ...document, reviewStatus: document.reviewStatus || "pendente" }))],
-              timeline: [buildTimelineEntry("Novos documentos anexados", `Foram anexados ${documents.length} documento(s).`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("documento", "Documentos anexados", `${documents.length} documento(s) adicionados ao processo.`, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await appendRemoteProcessDocuments(processId, documents);
+        await refreshRemoteStore();
       },
       reviewProcessDocument: async (processId, documentId, status, actor) => {
         if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para revisar documento.");
