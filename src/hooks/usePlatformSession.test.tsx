@@ -17,6 +17,10 @@ vi.mock("@/hooks/useAuthGateway", () => ({
   useAuthGateway: () => gatewayMock,
 }));
 
+vi.mock("@/integrations/backend/config", () => ({
+  isNeonBackend: true,
+}));
+
 function Probe() {
   const { session } = usePlatformSession();
   return (
@@ -57,6 +61,51 @@ describe("PlatformSessionProvider Neon profile-first identity", () => {
     expect(screen.getByTestId("session-role")).toHaveTextContent("master_admin");
     expect(screen.getByTestId("session-id")).toHaveTextContent("17b9f386-cf7a-4f92-8646-e3944d28eb4f");
     expect(screen.getByTestId("session-municipality")).toHaveTextContent("none");
+  });
+
+  it("keeps the cached external Neon session on F5 even when authResolved is true before live identity returns", () => {
+    window.localStorage.setItem(
+      "sigapro.platform.session.v1",
+      JSON.stringify({
+        id: "external-profile-id",
+        name: "Profissional Externo",
+        role: "profissional_externo",
+        accessLevel: 1,
+        tenantId: "49dac0b6-6352-4744-9aab-9ff91c59d970",
+        municipalityId: "49dac0b6-6352-4744-9aab-9ff91c59d970",
+        title: "Profissional externo",
+        email: "profissional@example.test",
+        accountStatus: "active",
+        userType: "Profissional",
+        department: "",
+        createdAt: "",
+        lastAccessAt: "",
+        blockedAt: null,
+        blockedBy: null,
+        blockReason: null,
+        deletedAt: null
+      }),
+    );
+
+    gatewayMock.authenticatedEmail = "";
+    gatewayMock.authenticatedRole = null as unknown as typeof gatewayMock.authenticatedRole;
+    gatewayMock.authenticatedUserId = null as unknown as string;
+    gatewayMock.authenticatedProfileId = null as unknown as string;
+    gatewayMock.authenticatedMunicipalityId = null as unknown as string;
+    gatewayMock.authResolved = true;
+    gatewayMock.loading = false;
+
+    render(
+      <PlatformSessionProvider>
+        <Probe />
+      </PlatformSessionProvider>,
+    );
+
+    expect(screen.getByTestId("session-id")).toHaveTextContent("external-profile-id");
+    expect(screen.getByTestId("session-role")).toHaveTextContent("profissional_externo");
+    expect(screen.getByTestId("session-municipality")).toHaveTextContent(
+      "49dac0b6-6352-4744-9aab-9ff91c59d970",
+    );
   });
 
   it("uses profile_id as the business session id while auth subject remains separate", () => {
