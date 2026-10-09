@@ -761,13 +761,9 @@ export async function loadRemotePlatformStore() {
       site: municipality.custom_domain ?? (typeof general.site === "string" ? general.site : ""),
       secretariaResponsavel: municipality.secretariat_name ?? "",
       secretariaTelefone:
-        typeof general.secretariat_phone === "string"
-          ? general.secretariat_phone
-          : resolveMunicipalityPhone(municipality),
+        typeof general.secretariat_phone === "string" ? general.secretariat_phone : "",
       secretariaEmail:
-        typeof general.secretariat_email === "string"
-          ? general.secretariat_email
-          : resolveMunicipalityEmail(municipality),
+        typeof general.secretariat_email === "string" ? general.secretariat_email : "",
       diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
       diretoriaTelefone: typeof general.directorship_phone === "string" ? general.directorship_phone : "",
       diretoriaEmail: typeof general.directorship_email === "string" ? general.directorship_email : "",
