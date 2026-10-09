@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   getChecklistTemplate,
+  getProcessPaymentGuides,
   getVisibleProcessesByScope,
   parseMarker,
   statusLabel,
@@ -92,8 +93,10 @@ export function AnalystDeskPage() {
     dispatchProcess,
     createRequirement,
     documentTemplates,
+    getInstitutionSettings,
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [search, setSearch] = useState("");
   const [section, setSection] = useState<AnalystSection>("visao-geral");
   const [actionBusy, setActionBusy] = useState("");
@@ -254,6 +257,11 @@ export function AnalystDeskPage() {
         items.map((process) => {
           const pendingRequirements = getOpenRequirements(process);
           const checklist = getChecklistTemplate(process.checklistType, process.tenantId);
+          const processGuides = getProcessPaymentGuides(process, tenantSettings);
+          const issGuide = processGuides.find((guide) => guide.kind === "iss_obra");
+          const issStageEnabled = tenantSettings?.issStageEnabled !== false;
+          const issSatisfied = !issStageEnabled || issGuide?.status === "compensada";
+          const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
 
           return (
             <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -392,33 +400,96 @@ export function AnalystDeskPage() {
                 >
                   Emitir exigência
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                  disabled={Boolean(actionBusy) || getOpenRequirements(process).length > 0}
-                  onClick={() =>
-                    void runAnalystAction(
-                      `finance-${process.id}`,
-                      "Processo encaminhado ao Financeiro para fechamento e taxa final.",
-                      () =>
-                        dispatchProcess({
-                          processId: process.id,
-                          actor: session.name,
-                          from: "Análise Técnica",
-                          to: "Financeiro",
-                          subject:
-                            dispatchTemplate?.title ||
-                            "Parecer técnico concluído — conferência financeira e taxa final",
-                          dueDate: isoDateAfterDays(3),
-                          visibility: "interno",
-                        }),
-                    )
-                  }
-                >
-                  <Send className="mr-2 h-4 w-4 text-sky-200" />
-                  Encaminhar ao Financeiro
-                </Button>
+                {issStageEnabled && !issSatisfied ? (
+                  issGuide?.status === "pendente" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                      disabled
+                    >
+                      ISSQN aguardando pagamento
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                      disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                      onClick={() =>
+                        void runAnalystAction(
+                          `iptu-${process.id}`,
+                          "Processo encaminhado ao IPTU/Fiscal para emissão do ISSQN.",
+                          () =>
+                            dispatchProcess({
+                              processId: process.id,
+                              actor: session.name,
+                              from: "Análise Técnica",
+                              to: "Setor de IPTU / Fiscal",
+                              subject: "Conferência fiscal e emissão da guia de ISSQN",
+                              dueDate: isoDateAfterDays(3),
+                              visibility: "interno",
+                            }),
+                        )
+                      }
+                    >
+                      <Send className="mr-2 h-4 w-4 text-sky-200" />
+                      Encaminhar ao IPTU / Fiscal
+                    </Button>
+                  )
+                ) : finalFeeEnabled ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                    disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                    onClick={() =>
+                      void runAnalystAction(
+                        `finance-${process.id}`,
+                        "Processo encaminhado ao Financeiro para fechamento e taxa final.",
+                        () =>
+                          dispatchProcess({
+                            processId: process.id,
+                            actor: session.name,
+                            from: "Análise Técnica",
+                            to: "Financeiro",
+                            subject:
+                              dispatchTemplate?.title ||
+                              "Parecer técnico concluído — conferência financeira e taxa final",
+                            dueDate: isoDateAfterDays(3),
+                            visibility: "interno",
+                          }),
+                      )
+                    }
+                  >
+                    <Send className="mr-2 h-4 w-4 text-sky-200" />
+                    Encaminhar ao Financeiro
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
+                    disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                    onClick={() =>
+                      void runAnalystAction(
+                        `defer-${process.id}`,
+                        "Processo deferido sem taxa final, conforme workflow da Prefeitura.",
+                        () =>
+                          updateProcessStatus({
+                            processId: process.id,
+                            status: "deferido",
+                            actor: session.name,
+                            title: "Processo deferido",
+                            detail: "Análise técnica concluída. Taxa final desativada no workflow financeiro municipal.",
+                          }),
+                      )
+                    }
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-300" />
+                    Deferir processo
+                  </Button>
+                )}
 
               </div>
             </div>
