@@ -472,8 +472,8 @@ export async function loadRemotePlatformStore() {
   const ownerLinks: OwnerProjectLink[] = (ownerLinksResult.data ?? []).map((row) => ({
     id: row.id,
     projectId: row.project_id,
-    ownerUserId: row.owner_user_id,
-    professionalUserId: row.professional_user_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
     chatEnabled: row.chat_enabled ?? true,
     linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
     linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? null,
@@ -482,8 +482,8 @@ export async function loadRemotePlatformStore() {
   const ownerMessages: OwnerProfessionalMessage[] = (ownerMessagesResult.data ?? []).map((row) => ({
     id: row.id,
     projectId: row.project_id,
-    ownerUserId: row.owner_user_id,
-    professionalUserId: row.professional_user_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
     senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
     message: row.message,
     createdAt: row.created_at ?? new Date().toISOString(),
