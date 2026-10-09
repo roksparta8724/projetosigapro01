@@ -190,8 +190,8 @@ function resolveAllowedArea(session: { role: string }) {
     case "financeiro":
       return "/prefeitura/financeiro";
     case "profissional_externo":
-    case "proprietario_consulta":
       return "/externo";
+    case "proprietario_consulta":
     case "property_owner":
       return "/proprietario";
     default:
