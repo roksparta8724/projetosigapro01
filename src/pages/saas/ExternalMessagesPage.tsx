@@ -40,6 +40,8 @@ export function ExternalMessagesPage() {
   );
   const [selectedOwnerLinkId, setSelectedOwnerLinkId] = useState<string | null>(ownerLinksForProfessional[0]?.id ?? null);
   const [ownerMessageDraft, setOwnerMessageDraft] = useState("");
+  const [ownerActionStatus, setOwnerActionStatus] = useState("");
+  const [ownerActionBusy, setOwnerActionBusy] = useState("");
 
   const selectedOwnerLink =
     ownerLinksForProfessional.find((link) => link.id === selectedOwnerLinkId) ?? ownerLinksForProfessional[0] ?? null;
@@ -48,6 +50,30 @@ export function ExternalMessagesPage() {
     ? processes.find((process) => process.id === selectedOwnerLink.projectId)
     : null;
   const selectedOwnerProfile = selectedOwnerLink ? getUserProfile(selectedOwnerLink.ownerUserId) : null;
+
+  const runOwnerAction = async (
+    key: string,
+    action: () => Promise<unknown>,
+    successMessage: string,
+  ) => {
+    if (ownerActionBusy) return false;
+    setOwnerActionBusy(key);
+    setOwnerActionStatus("");
+    try {
+      await action();
+      setOwnerActionStatus(successMessage);
+      return true;
+    } catch (error) {
+      setOwnerActionStatus(
+        error instanceof Error
+          ? `Não foi possível concluir a operação: ${error.message}`
+          : "Não foi possível concluir a operação no banco oficial.",
+      );
+      return false;
+    } finally {
+      setOwnerActionBusy("");
+    }
+  };
 
   return (
     <PortalFrame eyebrow="Acesso Externo" title="Mensagens">
@@ -63,6 +89,16 @@ export function ExternalMessagesPage() {
             </Button>
           }
         />
+
+        {ownerActionStatus ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${
+            ownerActionStatus.startsWith("Não foi possível")
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}>
+            {ownerActionStatus}
+          </div>
+        ) : null}
 
         <InternalTabs
           items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
@@ -111,12 +147,18 @@ export function ExternalMessagesPage() {
                         <div className="mt-4 flex flex-wrap gap-3">
                           <Button
                             className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                            disabled={Boolean(ownerActionBusy)}
                             onClick={() =>
-                              void respondOwnerRequest({
-                                requestId: request.id,
-                                status: "approved",
-                                professionalUserId: session.id,
-                              })
+                              void runOwnerAction(
+                                `approve-${request.id}`,
+                                () =>
+                                  respondOwnerRequest({
+                                    requestId: request.id,
+                                    status: "approved",
+                                    professionalUserId: session.id,
+                                  }),
+                                "Acesso do proprietário aprovado e salvo no banco oficial.",
+                              )
                             }
                           >
                             Aprovar acesso
@@ -124,12 +166,18 @@ export function ExternalMessagesPage() {
                           <Button
                             variant="outline"
                             className="rounded-full"
+                            disabled={Boolean(ownerActionBusy)}
                             onClick={() =>
-                              void respondOwnerRequest({
-                                requestId: request.id,
-                                status: "rejected",
-                                professionalUserId: session.id,
-                              })
+                              void runOwnerAction(
+                                `reject-${request.id}`,
+                                () =>
+                                  respondOwnerRequest({
+                                    requestId: request.id,
+                                    status: "rejected",
+                                    professionalUserId: session.id,
+                                  }),
+                                "Solicitação recusada e registrada no banco oficial.",
+                              )
                             }
                           >
                             Recusar
@@ -180,12 +228,20 @@ export function ExternalMessagesPage() {
                         <Button
                           variant="outline"
                           className="rounded-full"
+                          disabled={Boolean(ownerActionBusy)}
                           onClick={() =>
-                            void setOwnerChatEnabled({
-                              linkId: link.id,
-                              enabled: !link.chatEnabled,
-                              actor: session.id,
-                            })
+                            void runOwnerAction(
+                              `chat-${link.id}`,
+                              () =>
+                                setOwnerChatEnabled({
+                                  linkId: link.id,
+                                  enabled: !link.chatEnabled,
+                                  actor: session.id,
+                                }),
+                              link.chatEnabled
+                                ? "Chat desativado no banco oficial."
+                                : "Chat ativado no banco oficial.",
+                            )
                           }
                         >
                           {link.chatEnabled ? "Desativar chat" : "Ativar chat"}
@@ -241,16 +297,24 @@ export function ExternalMessagesPage() {
                       />
                       <Button
                         className="rounded-full bg-slate-950 hover:bg-slate-900"
+                        disabled={Boolean(ownerActionBusy)}
                         onClick={() => {
                           if (!selectedOwnerLink || !ownerMessageDraft.trim()) return;
-                          void sendOwnerMessage({
-                            projectId: selectedOwnerLink.projectId,
-                            ownerUserId: selectedOwnerLink.ownerUserId,
-                            professionalUserId: selectedOwnerLink.professionalUserId,
-                            senderUserId: session.id,
-                            message: ownerMessageDraft,
-                          });
-                          setOwnerMessageDraft("");
+                          void (async () => {
+                            const ok = await runOwnerAction(
+                              `message-${selectedOwnerLink.id}`,
+                              () =>
+                                sendOwnerMessage({
+                                  projectId: selectedOwnerLink.projectId,
+                                  ownerUserId: selectedOwnerLink.ownerUserId,
+                                  professionalUserId: selectedOwnerLink.professionalUserId,
+                                  senderUserId: session.id,
+                                  message: ownerMessageDraft,
+                                }),
+                              "Mensagem enviada e salva no banco oficial.",
+                            );
+                            if (ok) setOwnerMessageDraft("");
+                          })();
                         }}
                       >
                         Enviar mensagem
