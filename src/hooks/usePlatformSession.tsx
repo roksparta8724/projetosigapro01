@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { isNeonBackend } from "@/integrations/backend/config";
 
 interface PlatformSessionContextValue {
   session: SessionUser;
@@ -71,7 +72,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !authResolved && !businessUserId;
+    const canUseCachedSession = !isNeonBackend && !authResolved && !businessUserId;
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
