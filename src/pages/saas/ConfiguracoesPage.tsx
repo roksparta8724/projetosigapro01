@@ -1457,7 +1457,7 @@ export function ConfiguracoesPage() {
             accentColor: tenantForm.accentColor,
             secretariat: settingsForm.secretariaResponsavel || "",
           }),
-          "Falha ao registrar a prefeitura no Supabase.",
+          "Falha ao registrar a Prefeitura no banco oficial.",
           15000,
         );
         resolvedTenantId = resolveValidScopeId(remote?.id);
@@ -1470,13 +1470,13 @@ export function ConfiguracoesPage() {
             institutionId: resolvedTenantId,
             name: tenantForm.name,
             city: tenantForm.city,
-            state: tenantForm.state,
+            state: tenantForm.state as any,
             status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
             plan: tenantForm.plan,
             subdomain: normalizedSubdomain,
             primaryColor: tenantForm.primaryColor,
             accentColor: tenantForm.accentColor,
-          });
+          }, { remoteConfirmed: true });
           setSelectedTenantId(resolvedTenantId);
         }
       }
@@ -1839,7 +1839,7 @@ export function ConfiguracoesPage() {
       if (hasBackendEnv) {
         setStepStatus("Salvando referência no banco...");
 
-      console.info("[SIGAPRO][BrandingSave] Confirmar logo: salvando no Supabase", {
+      console.info("[SIGAPRO][BrandingSave] Confirmar logo: salvando no banco oficial", {
         tenantId: savedTenant.id,
         variant,
         logoUrl,
@@ -2033,7 +2033,7 @@ export function ConfiguracoesPage() {
               : { skipMunicipalityUpdate: true, skipMunicipalityBranding: true };
         await withTimeout(
           saveRemoteInstitutionSettings(nextSettingsForSave, remoteSaveOptions),
-          "Tempo limite ao salvar o branding institucional. Verifique a conexao com o Supabase.",
+          "Tempo limite ao salvar o branding institucional. Verifique a conexão com o banco oficial.",
         );
       }
 
@@ -2048,7 +2048,7 @@ export function ConfiguracoesPage() {
           subdomain: normalizedSubdomain,
           primaryColor: tenantForm.primaryColor,
           accentColor: tenantForm.accentColor,
-        }, { skipRemoteSync: true });
+        }, { remoteConfirmed: true });
       }
       saveInstitutionSettings(nextSettings, { skipRemoteSync: hasBackendEnv });
       setSelectedTenantId(savedTenantId);
