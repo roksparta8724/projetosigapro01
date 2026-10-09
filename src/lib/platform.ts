@@ -82,7 +82,6 @@ export interface SessionUser {
 export type InstitutionSessionUser = SessionUser & { institutionId?: string | null };
 
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
-export const SIGAPRO_DEFAULT_TENANT_ID = "tenant-campo";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
 
 export interface UserProfile {
