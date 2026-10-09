@@ -107,7 +107,7 @@ const navItems = [
     to: "/prefeitura/protocolos",
     label: "Protocolos",
     icon: ScrollText,
-    permission: "manage_tenant_users" as Permission,
+    permission: "manage_protocols" as Permission,
     children: [
       { to: "/prefeitura/protocolos", label: "Visão geral", icon: LayoutDashboard },
       { to: "/prefeitura/protocolos/novo", label: "Novo protocolo", icon: PlusCircle },
