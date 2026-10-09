@@ -598,6 +598,23 @@ function mergeRecordsByKey<T extends Record<string, unknown>>(
   return Array.from(merged.values());
 }
 
+function mergeProcessesByProtocol(localProcesses: ProcessRecord[], remoteProcesses: ProcessRecord[]) {
+  const merged = new Map<string, ProcessRecord>();
+  const keyOf = (process: ProcessRecord) =>
+    `${process.municipalityId || process.tenantId || "sem-escopo"}:${process.protocol || process.externalProtocol || process.id}`;
+
+  // O remoto é autoritativo quando o mesmo protocolo já existe no banco oficial.
+  remoteProcesses.forEach((process) => merged.set(keyOf(process), process));
+
+  // Processos locais só entram se ainda não houver equivalente remoto.
+  localProcesses.forEach((process) => {
+    const key = keyOf(process);
+    if (!merged.has(key)) merged.set(key, process);
+  });
+
+  return Array.from(merged.values());
+}
+
 function mergeLocalAndRemoteStores(localStore: PlatformStore | null, remoteStore: PlatformStore): PlatformStore {
   if (!localStore) return remoteStore;
 
@@ -658,11 +675,10 @@ function mergeLocalAndRemoteStores(localStore: PlatformStore | null, remoteStore
         remoteFiltered.ownerMessages as unknown as Record<string, unknown>[],
         (item) => item.id as string,
       ) as unknown as OwnerProfessionalMessage[],
-      processes: mergeRecordsByKey(
-        localStore.processes as unknown as Record<string, unknown>[],
-        remoteFiltered.processes as unknown as Record<string, unknown>[],
-        (item) => item.id as string,
-      ) as unknown as ProcessRecord[],
+      processes: mergeProcessesByProtocol(
+        localStore.processes,
+        remoteFiltered.processes,
+      ),
       plans: mergeRecordsByKey(
         localStore.plans as unknown as Record<string, unknown>[],
         remoteFiltered.plans as unknown as Record<string, unknown>[],
@@ -2910,7 +2926,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         });
       },
     };
-  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, loading, source, store]);
+  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, loading, source, store]);
 
   return <PlatformDataContext.Provider value={value}>{children}</PlatformDataContext.Provider>;
 }
