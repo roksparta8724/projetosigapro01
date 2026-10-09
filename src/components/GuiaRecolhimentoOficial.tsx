@@ -115,8 +115,11 @@ function getStyles() {
     }
 
     body {
-      font-family: "Courier New", Courier, monospace;
-      color: #000000;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      text-rendering: geometricPrecision;
     }
 
     .dam-root {
@@ -148,9 +151,9 @@ function getStyles() {
       min-height: 286.5mm;
       margin: 0 auto;
       overflow: hidden;
-      border: 1px solid #000000;
+      border: 1px solid #111827;
       background: #ffffff;
-      padding: 2.4mm;
+      padding: 2.8mm;
       box-sizing: border-box;
     }
 
@@ -356,10 +359,10 @@ function getStyles() {
     }
 
     .dam-field-value {
-      min-height: 17px;
-      padding: 2px 3px;
-      font-size: 9px;
-      line-height: 1;
+      min-height: 18px;
+      padding: 3px 4px;
+      font-size: 8.5px;
+      line-height: 1.2;
       display: flex;
       align-items: center;
       box-sizing: border-box;
@@ -396,9 +399,9 @@ function getStyles() {
     .dam-table th,
     .dam-table td {
       border: 1px solid #000000;
-      padding: 2px 3px;
-      font-size: 7.5px;
-      line-height: 1.1;
+      padding: 2.5px 3.5px;
+      font-size: 7.2px;
+      line-height: 1.2;
       vertical-align: middle;
       box-sizing: border-box;
     }
@@ -515,6 +518,11 @@ function getStyles() {
       grid-template-columns: repeat(5, 1fr);
     }
 
+    .dam-summary-cell {
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .dam-summary-cell + .dam-summary-cell {
       border-left: 1px solid #000000;
     }
@@ -528,10 +536,11 @@ function getStyles() {
     }
 
     .dam-summary-value {
-      margin-top: 1px;
-      font-size: 7.5px;
-      line-height: 1;
+      margin-top: 2px;
+      font-size: 7.2px;
+      line-height: 1.15;
       font-weight: 700;
+      overflow-wrap: anywhere;
     }
 
     .dam-tear-line {
@@ -541,7 +550,7 @@ function getStyles() {
 
     .dam-receipt-header {
       display: grid;
-      grid-template-columns: 64px 1fr 90px;
+      grid-template-columns: 64px minmax(0, 1fr) 116px;
       border-bottom: 1px solid #000000;
       align-items: stretch;
     }
@@ -586,6 +595,34 @@ function getStyles() {
 
     .dam-receipt-right {
       border-left: 1px solid #000000;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .dam-receipt-right .dam-receipt-row {
+      grid-template-columns: 50px minmax(0, 1fr);
+    }
+
+    .dam-receipt-right .dam-receipt-row-label {
+      padding: 3px 4px;
+      font-size: 6px;
+      line-height: 1.15;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .dam-receipt-right .dam-receipt-row-value {
+      padding: 3px 4px;
+      font-size: 7.5px;
+      line-height: 1.15;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-width: 0;
     }
 
     .dam-receipt-body {
@@ -601,8 +638,9 @@ function getStyles() {
 
     .dam-receipt-row {
       display: grid;
-      grid-template-columns: 62px 1fr;
+      grid-template-columns: 66px minmax(0, 1fr);
       border-bottom: 1px solid #000000;
+      min-width: 0;
     }
 
     .dam-receipt-row:last-child {
@@ -620,10 +658,12 @@ function getStyles() {
     }
 
     .dam-receipt-row-value {
-      padding: 2px 3px;
-      font-size: 8.5px;
-      line-height: 1;
+      padding: 2.5px 4px;
+      font-size: 8px;
+      line-height: 1.2;
       box-sizing: border-box;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     .dam-note {
@@ -824,6 +864,12 @@ function getStyles() {
     }
 
     @media print {
+      html, body {
+        width: 210mm;
+        min-height: 297mm;
+        background: #ffffff !important;
+      }
+
       .print-hide {
         display: none !important;
       }
@@ -832,6 +878,17 @@ function getStyles() {
       .dam-sheet * {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+      }
+
+      .dam-sheet {
+        border-color: #000000 !important;
+        box-shadow: none !important;
+      }
+
+      .dam-receipt-right,
+      .dam-summary-row,
+      .dam-header-right {
+        overflow: hidden !important;
       }
     }
   `;
