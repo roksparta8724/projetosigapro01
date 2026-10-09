@@ -296,38 +296,54 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   let record: any = null;
 
   if (isNeonBackend) {
-    const profileIdResult = await backendClient.rpc("current_profile_id");
-    if (profileIdResult.error) {
-      console.warn("[Bootstrap][Profile] Falha ao resolver current_profile_id no Neon", {
-        error: profileIdResult.error,
+    // Após signIn o token Neon pode levar alguns milissegundos para ficar
+    // disponível no Data API. Não transformar esse atraso transitório em
+    // "conta sem perfil", especialmente em contas Master migradas.
+    const retryDelays = [0, 120, 300, 650];
+    let lastProfileError: unknown = null;
+
+    for (const delayMs of retryDelays) {
+      if (delayMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      }
+
+      const profileIdResult = await backendClient.rpc("current_profile_id");
+      if (profileIdResult.error) {
+        lastProfileError = profileIdResult.error;
+        continue;
+      }
+
+      profileId = typeof profileIdResult.data === "string"
+        ? profileIdResult.data
+        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+      if (!profileId) continue;
+
+      const profileResult = await backendClient
+        .from("profiles")
+        .select("id, role, municipality_id, email, full_name, account_status")
+        .eq("id", profileId)
+        .limit(1)
+        .maybeSingle();
+
+      if (profileResult.error) {
+        lastProfileError = profileResult.error;
+        profileId = null;
+        continue;
+      }
+
+      record = profileResult.data ?? null;
+      if (record) break;
+      profileId = null;
+    }
+
+    if (!profileId || !record) {
+      console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo após tentativas de resolução", {
+        userId,
+        error: lastProfileError,
       });
       return null;
     }
-
-    profileId = typeof profileIdResult.data === "string"
-      ? profileIdResult.data
-      : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
-
-    if (!profileId) {
-      console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo vinculado", { userId });
-      return null;
-    }
-
-    const profileResult = await backendClient
-      .from("profiles")
-      .select("id, role, municipality_id, email, full_name, account_status")
-      .eq("id", profileId)
-      .limit(1)
-      .maybeSingle();
-
-    if (profileResult.error) {
-      console.warn("[Bootstrap][Profile] Falha ao carregar profile Neon", {
-        profileId,
-        error: profileResult.error,
-      });
-      return null;
-    }
-    record = profileResult.data ?? null;
   } else {
     const profileResult = await backendClient
       .from("profiles")
