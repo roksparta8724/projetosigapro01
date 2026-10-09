@@ -1860,17 +1860,13 @@ export async function upsertRemoteProcessMarker(
 export async function issueRemoteProcessPaymentGuide(input: {
   processId: string;
   guideKind: "iss_obra" | "aprovacao_final";
-  amount: number;
-  guidePrefix?: string;
   dueDate?: string | null;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data, error } = await db.rpc("issue_process_payment_guide", {
+  const { data, error } = await db.rpc("issue_process_payment_guide_v2", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
-    _amount: input.amount,
-    _guide_prefix: input.guidePrefix || "DAM",
     _due_date: input.dueDate || null,
   });
 
