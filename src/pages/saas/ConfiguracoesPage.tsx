@@ -24,7 +24,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
   resolveMunicipalityIdBySubdomain,
   resolveDefaultMunicipalityId,
@@ -389,7 +389,7 @@ export function ConfiguracoesPage() {
       }
     }
 
-    if (normalizedSubdomain && hasSupabaseEnv) {
+    if (normalizedSubdomain && hasBackendEnv) {
       try {
         const idBySubdomain = await withTimeout(
           resolveMunicipalityIdBySubdomain(normalizedSubdomain),
@@ -405,7 +405,7 @@ export function ConfiguracoesPage() {
       }
     }
 
-    if (hasSupabaseEnv) {
+    if (hasBackendEnv) {
       try {
         const resolved = await withTimeout(
           resolveCurrentMunicipalityId({
@@ -449,7 +449,7 @@ export function ConfiguracoesPage() {
         return;
       }
 
-      if (!hasSupabaseEnv || !supabase) {
+      if (!hasBackendEnv || !backendClient) {
         setDiagnosticStatus("Diagnóstico: Supabase indisponível.");
         return;
       }
@@ -620,7 +620,7 @@ export function ConfiguracoesPage() {
   const [draftFooterLogoFiles, setDraftFooterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.footerLogoUrl || settings?.logoUrl || "", "footer-logo"));
   const [logoRemovalRequested, setLogoRemovalRequested] = useState<InstitutionalLogoConfigVariant | null>(null);
   useEffect(() => {
-    const client = supabase;
+    const client = backendClient;
     if (!isMasterRole || !isUuid(selectedTenantId) || !client) return;
     let active = true;
     void (async () => {
@@ -1437,7 +1437,7 @@ export function ConfiguracoesPage() {
         normalizedSubdomain,
       );
 
-      if (!resolvedTenantId && isMasterRole && hasSupabaseEnv) {
+      if (!resolvedTenantId && isMasterRole && hasBackendEnv) {
         if (!tenantForm.name.trim()) {
           throw new Error("Informe o nome institucional antes de aplicar o logo.");
         }
@@ -1501,9 +1501,9 @@ export function ConfiguracoesPage() {
 
       const savedTenant = { id: resolvedTenantId };
       let remoteBrandingRow: Record<string, unknown> | null = null;
-      if (hasSupabaseEnv) {
-        if (!supabase) throw new Error("Conexão indisponível para consultar o branding municipal.");
-        const { data, error } = await supabase
+      if (hasBackendEnv) {
+        if (!backendClient) throw new Error("Conexão indisponível para consultar o branding municipal.");
+        const { data, error } = await backendClient
           .from("municipality_branding")
           .select("*")
           .eq("municipality_id", savedTenant.id)
@@ -1586,7 +1586,7 @@ export function ConfiguracoesPage() {
       // ------------------------------------------------------------------
       // 3. Upload para o R2 (apenas se houver arquivo novo)
       // ------------------------------------------------------------------
-    if (hasSupabaseEnv && draftFiles[0]?.file) {
+    if (hasBackendEnv && draftFiles[0]?.file) {
       setStepStatus("Enviando arquivo para o storage...");
 
       // Chave de asset por variante para path separado no R2
@@ -1646,7 +1646,7 @@ export function ConfiguracoesPage() {
         variant,
         objectKey: uploaded.objectKey,
       });
-      } else if (hasSupabaseEnv && variantLogoUrl.startsWith("blob:")) {
+      } else if (hasBackendEnv && variantLogoUrl.startsWith("blob:")) {
         throw new Error(
           "Envie o arquivo do logo para concluir o salvamento no Supabase.",
         );
@@ -1836,7 +1836,7 @@ export function ConfiguracoesPage() {
       // ------------------------------------------------------------------
       // 5. Salvar no Supabase
       // ------------------------------------------------------------------
-      if (hasSupabaseEnv) {
+      if (hasBackendEnv) {
         setStepStatus("Salvando referência no banco...");
 
       console.info("[SIGAPRO][BrandingSave] Confirmar logo: salvando no Supabase", {
@@ -1858,8 +1858,8 @@ export function ConfiguracoesPage() {
         }),
         20000,
       );
-      if (!supabase) throw new Error("Conexão indisponível para validar o logo salvo.");
-      const { data: confirmedBranding, error: confirmationError } = await supabase
+      if (!backendClient) throw new Error("Conexão indisponível para validar o logo salvo.");
+      const { data: confirmedBranding, error: confirmationError } = await backendClient
         .from("municipality_branding")
         .select("header_logo_url,header_logo_object_key,footer_logo_url,footer_logo_object_key")
         .eq("municipality_id", savedTenant.id)
@@ -1876,7 +1876,7 @@ export function ConfiguracoesPage() {
     // ------------------------------------------------------------------
     // 6. Atualizar estado local + revalidar branding global
     // ------------------------------------------------------------------
-      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasSupabaseEnv });
+      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasBackendEnv });
       setSelectedTenantId(savedTenant.id);
       setLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
       setDraftLogoFiles(imageFiles(nextSettings.logoUrl ?? "", "logo"));
@@ -1963,7 +1963,7 @@ export function ConfiguracoesPage() {
     }
 
     const remoteTenantId = resolveValidScopeId(selectedTenantId || scopeId || session.tenantId);
-    if (hasSupabaseEnv && !remoteTenantId) {
+    if (hasBackendEnv && !remoteTenantId) {
       setStatus("Selecione uma Prefeitura existente antes de atualizar os dados institucionais.");
       return;
     }
@@ -2016,7 +2016,7 @@ export function ConfiguracoesPage() {
     }, "header");
 
     try {
-      if (hasSupabaseEnv) {
+      if (hasBackendEnv) {
         const sanitizePersistedUrl = (value?: string) =>
           publicBase && value && value.startsWith(publicBase) ? value : "";
         const nextSettingsForSave = {
@@ -2037,7 +2037,7 @@ export function ConfiguracoesPage() {
         );
       }
 
-      if (hasSupabaseEnv) {
+      if (hasBackendEnv) {
         upsertInstitution({
           institutionId: savedTenantId,
           name: tenantForm.name,
@@ -2050,7 +2050,7 @@ export function ConfiguracoesPage() {
           accentColor: tenantForm.accentColor,
         }, { skipRemoteSync: true });
       }
-      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasSupabaseEnv });
+      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasBackendEnv });
       setSelectedTenantId(savedTenantId);
       setStatus("Configurações da prefeitura salvas com sucesso.");
     } catch (error) {
