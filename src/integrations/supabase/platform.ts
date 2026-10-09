@@ -1471,6 +1471,81 @@ export async function createRemoteExternalProcess(
   };
 }
 
+
+export async function createRemoteExternalProcessV2(
+  input: CreateProcessInput & {
+    guidePrefix?: string;
+    protocolPrefix?: string;
+    requestedProtocolNumber?: string | null;
+  },
+) {
+  if (!supabase) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Escopo municipal inválido para protocolar o processo.");
+  }
+
+  const primaryGuide = input.remote?.guides?.find((guide) => guide.kind === "protocolo");
+
+  const payload = {
+    title: input.title,
+    type: input.type,
+    address: input.address,
+    iptu: input.property.iptu,
+    registration: input.property.registration || null,
+    lot: input.property.lot || null,
+    block: input.property.block || null,
+    area: input.property.area || null,
+    usage: input.property.usage || null,
+    constructionStandard: input.property.constructionStandard || null,
+    ownerName: input.ownerName,
+    ownerDocument: input.ownerDocument,
+    technicalLead: input.technicalLead,
+    notes: input.notes || null,
+    amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
+    guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
+    guidePrefix: input.guidePrefix || "DAM",
+    documents: input.documents.map((document) => ({
+      label: document.label,
+      required: document.required,
+      signed: document.signed,
+      version: document.version,
+      source: document.source,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      mimeType: document.mimeType,
+      sizeLabel: document.sizeLabel,
+      previewUrl: document.previewUrl,
+      reviewStatus: document.reviewStatus ?? "pendente",
+      annotations: document.annotations ?? [],
+    })),
+  };
+
+  const { data, error } = await supabase.rpc("create_external_process_v2", {
+    _tenant_id: scopeId,
+    _payload: payload,
+    _protocol_prefix: input.protocolPrefix || "PM",
+    _requested_protocol_number: input.requestedProtocolNumber || null,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as {
+    process_id: string;
+    protocol_number: string;
+    guide_number: string;
+    due_date: string;
+    amount: number;
+    reconciled?: boolean;
+    existing?: boolean;
+  };
+}
+
 export async function uploadInstitutionalBrandingAsset(input: {
   tenantId?: string;
   subdomain?: string;
