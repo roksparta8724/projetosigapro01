@@ -301,7 +301,7 @@ export function LandingPage() {
       <main className="overflow-hidden">
         <section
           id="hero"
-          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_58%,#ffffff_100%)] pt-28 sm:pt-32"
+          className="relative overflow-hidden border-b border-stone-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f4f1eb_56%,#ece8e1_100%)] pt-28 sm:pt-32"
         >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_8%_0%,rgba(15,61,93,0.10),transparent_36%),radial-gradient(circle_at_92%_8%,rgba(16,185,129,0.08),transparent_28%)]" />
@@ -546,6 +546,52 @@ export function LandingPage() {
                   <p className="px-2 pb-1 pt-3 text-center text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400">
                     Prévia baseada nos módulos e páginas existentes do SIGAPRO
                   </p>
+                </div>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-[30px] border border-slate-800 bg-[linear-gradient(145deg,#0b2438_0%,#123f62_58%,#0b2f49_100%)] p-5 text-white shadow-[0_24px_54px_rgba(15,23,42,0.18)] sm:p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100/75">Operação municipal</p>
+                        <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-white">Indicadores que orientam a decisão.</h3>
+                      </div>
+                      <ShieldCheck className="h-6 w-6 shrink-0 text-sky-200" />
+                    </div>
+                    <div className="mt-5 grid gap-3">
+                      {heroOperationalHealth.map((item) => (
+                        <div key={item.label} className="rounded-[18px] border border-white/10 bg-white/[0.07] px-4 py-3.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[12px] font-medium text-slate-200">{item.label}</span>
+                            <span className="text-sm font-semibold text-white">{item.value}</span>
+                          </div>
+                          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full rounded-full bg-white/80" style={{ width: `${item.progress}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[30px] border border-stone-300/80 bg-[#f3efe8] p-5 shadow-[0_20px_44px_rgba(15,23,42,0.08)] sm:p-6">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">Fluxo ponta a ponta</p>
+                    <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-slate-950">Do protocolo à aprovação, sem áreas soltas.</h3>
+                    <div className="mt-5 space-y-3">
+                      {[
+                        ["01", "Protocolo", "Entrada e conferência inicial"],
+                        ["02", "Financeiro", "Guia, pagamento e conciliação"],
+                        ["03", "Análise", "Pareceres, exigências e retorno"],
+                        ["04", "Decisão", "Aprovação e histórico final"],
+                      ].map(([step, title, detail]) => (
+                        <div key={step} className="flex items-center gap-3 rounded-[18px] border border-stone-300/80 bg-white/75 px-3.5 py-3">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-semibold text-white">{step}</span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-slate-950">{title}</p>
+                            <p className="mt-0.5 text-[11px] leading-4 text-slate-600">{detail}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </LandingReveal>
             </div>
