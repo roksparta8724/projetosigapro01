@@ -793,10 +793,24 @@ export async function loadRemotePlatformStore() {
     };
   });
 
-  const tenants: Tenant[] =
-    mappedTenantsFromMunicipalities.length > 0 ? mappedTenantsFromMunicipalities : mappedTenantsFromLegacy;
-  const tenantSettings: TenantSettings[] =
-    mappedSettingsFromMunicipalities.length > 0 ? mappedSettingsFromMunicipalities : mappedSettingsFromLegacy;
+  // Municipalities is the canonical model. Legacy tenants are admitted only
+  // for IDs that have not yet been migrated, preventing duplicate/conflicting
+  // representations of the same Prefeitura during the transition.
+  const municipalityIds = new Set(mappedTenantsFromMunicipalities.map((item) => item.id));
+  const tenants: Tenant[] = [
+    ...mappedTenantsFromMunicipalities,
+    ...mappedTenantsFromLegacy.filter((item) => !municipalityIds.has(item.id)),
+  ];
+
+  const municipalitySettingsIds = new Set(
+    mappedSettingsFromMunicipalities.map((item) => item.tenantId),
+  );
+  const tenantSettings: TenantSettings[] = [
+    ...mappedSettingsFromMunicipalities,
+    ...mappedSettingsFromLegacy.filter(
+      (item) => !municipalitySettingsIds.has(item.tenantId),
+    ),
+  ];
 
   const userProfiles: UserProfile[] = (profilesResult.data ?? []).map((profile) => ({
     userId: (isNeonBackend ? profile.id : profile.user_id) ?? profile.id,
