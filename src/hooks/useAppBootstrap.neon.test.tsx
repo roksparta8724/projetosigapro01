@@ -204,6 +204,27 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(profileRpcAttempt).toBeGreaterThanOrEqual(2);
   });
 
+  it("does not block a fresh Neon login when stale-session cleanup fails", async () => {
+    neonMock.client.auth.getSession.mockResolvedValueOnce({
+      data: { session: { user: neonMock.authUser } },
+    });
+    neonMock.client.auth.signOut.mockResolvedValueOnce({
+      error: new Error("stale session cleanup failed"),
+    });
+
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+
+    expect(await screen.findByText("signed-in", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+    expect(neonMock.client.auth.signInWithPassword).toHaveBeenCalled();
+  });
+
   it("uses the Neon password recovery contract with redirect token flow", async () => {
     window.history.replaceState(null, "", "/recuperar-senha?token=valid-reset-token");
 
