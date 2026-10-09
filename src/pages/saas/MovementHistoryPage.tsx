@@ -39,6 +39,8 @@ export function MovementHistoryPage() {
   const [priorityFilter, setPriorityFilter] = useState<"todas" | DispatchPriority>("todas");
   const [unitFilter, setUnitFilter] = useState("todas");
   const [markerFilter, setMarkerFilter] = useState("todos");
+  const [operationBusy, setOperationBusy] = useState(false);
+  const [operationStatus, setOperationStatus] = useState("");
 
   const currentUnit = session.department || session.title || "Unidade atual";
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -105,20 +107,152 @@ export function MovementHistoryPage() {
   const getVisibleRowsByTab = () => activeTab === "recebidos" ? filteredReceived : activeTab === "gerados" ? filteredGenerated : activeTab === "despachos" ? filteredDispatches : filteredReceived.slice(0, 6);
   const selectAllVisible = () => setSelectedProcessIds(Array.from(new Set(getVisibleRowsByTab().map((item) => item.processId))));
 
-  const handleBatchReceive = () => {
+  const runWorkflowAction = async (
+    successMessage: string,
+    action: () => Promise<void>,
+    afterSuccess?: () => void,
+  ) => {
+    if (operationBusy) return false;
+    setOperationBusy(true);
+    setOperationStatus("");
+    try {
+      await action();
+      afterSuccess?.();
+      setOperationStatus(successMessage);
+      return true;
+    } catch (error) {
+      setOperationStatus(
+        error instanceof Error
+          ? `Não foi possível concluir a operação: ${error.message}`
+          : "Não foi possível concluir a operação no banco oficial.",
+      );
+      return false;
+    } finally {
+      setOperationBusy(false);
+    }
+  };
+
+  const handleBatchReceive = async () => {
     if (selectedProcessIds.length === 0) return;
-    acknowledgeDispatchReceipt({ processIds: selectedProcessIds, actor: session.name, unit: currentUnit });
-    clearSelection();
+    await runWorkflowAction(
+      "Recebimento registrado no banco oficial.",
+      () =>
+        acknowledgeDispatchReceipt({
+          processIds: selectedProcessIds,
+          actor: session.name,
+          unit: currentUnit,
+        }),
+      clearSelection,
+    );
   };
-  const handleBatchDispatch = () => {
-    if (selectedProcessIds.length === 0 || !batchTargetUnit.trim() || !batchSubject.trim() || !batchDueDate) return;
-    selectedProcessIds.forEach((processId) => dispatchProcess({ processId, actor: session.name, from: currentUnit, to: batchTargetUnit.trim(), subject: batchSubject.trim(), dueDate: batchDueDate, visibility: "interno", priority: batchPriority, assignedTo: batchAssignedTo || undefined }));
-    setBatchTargetUnit(""); setBatchSubject(""); setBatchDueDate(""); setBatchPriority("media"); setBatchAssignedTo(""); setSelectedTemplateId(""); clearSelection();
+
+  const handleBatchDispatch = async () => {
+    if (
+      selectedProcessIds.length === 0 ||
+      !batchTargetUnit.trim() ||
+      !batchSubject.trim() ||
+      !batchDueDate
+    ) return;
+
+    await runWorkflowAction(
+      "Despacho registrado no banco oficial.",
+      async () => {
+        await Promise.all(
+          selectedProcessIds.map((processId) =>
+            dispatchProcess({
+              processId,
+              actor: session.name,
+              from: currentUnit,
+              to: batchTargetUnit.trim(),
+              subject: batchSubject.trim(),
+              dueDate: batchDueDate,
+              visibility: "interno",
+              priority: batchPriority,
+              assignedTo: batchAssignedTo || undefined,
+            }),
+          ),
+        );
+      },
+      () => {
+        setBatchTargetUnit("");
+        setBatchSubject("");
+        setBatchDueDate("");
+        setBatchPriority("media");
+        setBatchAssignedTo("");
+        setSelectedTemplateId("");
+        clearSelection();
+      },
+    );
   };
-  const handleBatchComplete = () => { if (selectedProcessIds.length === 0) return; completeDispatches({ processIds: selectedProcessIds, actor: session.name, unit: currentUnit }); clearSelection(); };
-  const handleBatchReturn = () => { if (selectedProcessIds.length === 0) return; returnDispatches({ processIds: selectedProcessIds, actor: session.name, unit: currentUnit, reason: returnReason }); setReturnReason(""); clearSelection(); };
-  const handleSetCheckpoint = () => { if (selectedProcessIds.length === 0 || !checkpoint.trim()) return; setProcessCheckpoint({ processIds: selectedProcessIds, actor: session.name, checkpoint }); setCheckpoint(""); clearSelection(); };
-  const handleOnHold = (onHold: boolean) => { if (selectedProcessIds.length === 0) return; setProcessOnHold({ processIds: selectedProcessIds, actor: session.name, onHold, reason: holdReason }); if (onHold) setHoldReason(""); clearSelection(); };
+
+  const handleBatchComplete = async () => {
+    if (selectedProcessIds.length === 0) return;
+    await runWorkflowAction(
+      "Despacho concluído no banco oficial.",
+      () =>
+        completeDispatches({
+          processIds: selectedProcessIds,
+          actor: session.name,
+          unit: currentUnit,
+        }),
+      clearSelection,
+    );
+  };
+
+  const handleBatchReturn = async () => {
+    if (selectedProcessIds.length === 0) return;
+    await runWorkflowAction(
+      "Devolução registrada no banco oficial.",
+      () =>
+        returnDispatches({
+          processIds: selectedProcessIds,
+          actor: session.name,
+          unit: currentUnit,
+          reason: returnReason,
+        }),
+      () => {
+        setReturnReason("");
+        clearSelection();
+      },
+    );
+  };
+
+  const handleSetCheckpoint = async () => {
+    if (selectedProcessIds.length === 0 || !checkpoint.trim()) return;
+    await runWorkflowAction(
+      "Checkpoint salvo no banco oficial.",
+      () =>
+        setProcessCheckpoint({
+          processIds: selectedProcessIds,
+          actor: session.name,
+          checkpoint,
+        }),
+      () => {
+        setCheckpoint("");
+        clearSelection();
+      },
+    );
+  };
+
+  const handleOnHold = async (onHold: boolean) => {
+    if (selectedProcessIds.length === 0) return;
+    await runWorkflowAction(
+      onHold
+        ? "Processo(s) sobrestado(s) no banco oficial."
+        : "Sobrestamento removido no banco oficial.",
+      () =>
+        setProcessOnHold({
+          processIds: selectedProcessIds,
+          actor: session.name,
+          onHold,
+          reason: holdReason,
+        }),
+      () => {
+        if (onHold) setHoldReason("");
+        clearSelection();
+      },
+    );
+  };
 
   const renderDispatchList = (rows: typeof dispatchRows, emptyText: string, compact?: boolean, hideSelection?: boolean) =>
     rows.length === 0 ? (
@@ -180,6 +314,18 @@ export function MovementHistoryPage() {
     </div>
   );
 
+  const operationFeedback = operationStatus ? (
+    <div
+      className={`rounded-2xl border px-4 py-3 text-sm ${
+        operationStatus.startsWith("Não foi possível")
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+      }`}
+    >
+      {operationStatus}
+    </div>
+  ) : null;
+
   return (
     <PortalFrame eyebrow="Controle de processos" title="Mesa institucional de tramitação">
       <PageShell className="sig-history-page sig-contrast-strong">
@@ -216,8 +362,8 @@ export function MovementHistoryPage() {
             <div className="space-y-3">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{selectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchReceive} disabled={selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchComplete} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 <Select value={selectedTemplateId} onValueChange={(value) => { setSelectedTemplateId(value); const template = dispatchTemplates.find((item) => item.id === value); if (template) setBatchSubject(template.title); }}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Texto padrão do despacho" /></SelectTrigger><SelectContent>{dispatchTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>)}</SelectContent></Select>
@@ -228,18 +374,18 @@ export function MovementHistoryPage() {
                 <Input value={batchSubject} onChange={(event) => setBatchSubject(event.target.value)} placeholder="Assunto institucional do despacho" className="sig-dispatch-field" />
                 <Select value={batchAssignedTo} onValueChange={(value) => setBatchAssignedTo(value === "__sem_atribuicao__" ? "" : value)}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Responsável de destino" /></SelectTrigger><SelectContent><SelectItem value="__sem_atribuicao__">Sem atribuição imediata</SelectItem>{unitUsers.map((user) => <SelectItem key={user.id} value={user.name}>{user.name} - {user.title}</SelectItem>)}</SelectContent></Select>
                 <Input type="date" value={batchDueDate} onChange={(event) => setBatchDueDate(event.target.value)} className="sig-dispatch-field" />
-                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleBatchDispatch} disabled={selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
+                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => void handleBatchDispatch()} disabled={operationBusy} disabled={selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                 <Input value={checkpoint} onChange={(event) => setCheckpoint(event.target.value)} placeholder="Definir ponto de controle" className="sig-dispatch-field" />
                 <Input value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Motivo da devolução" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleSetCheckpoint} disabled={selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={handleBatchReturn} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy} disabled={selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <Input value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Motivo do sobrestamento administrativo" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => handleOnHold(true)} disabled={selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => handleOnHold(false)} disabled={selectedProcessIds.length === 0}>Reativar fluxo</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(true)} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(false)} disabled={operationBusy} disabled={selectedProcessIds.length === 0}>Reativar fluxo</Button>
               </div>
             </div>
           </SectionCard>
