@@ -3587,3 +3587,50 @@
   background: rgba(255,255,255,0.84) !important;
   border-color: rgba(148,163,184,0.36) !important;
 }
+
+
+/* Final topbar search treatment: integrated with every theme, never a white card. */
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0.14) 100%) !important;
+  color: #f8fafc !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 8px 18px rgba(2, 6, 23, 0.10) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+:is(.sig-topbar-searchbar, .sig-topbar-search-trigger):is(:hover, :focus-visible) {
+  border-color: rgba(255, 255, 255, 0.26) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.30) 0%, rgba(15, 23, 42, 0.20) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 22px rgba(2, 6, 23, 0.14) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-icon {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: rgba(15, 23, 42, 0.26) !important;
+  color: #dbeafe !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-icon svg {
+  color: #dbeafe !important;
+  stroke: #dbeafe !important;
+  fill: none !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-label {
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
