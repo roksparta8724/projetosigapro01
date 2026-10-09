@@ -1002,9 +1002,15 @@ export async function loadRemotePlatformStore() {
   const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
     const property = propertyById.get(process.property_id);
     const guideRows = guidesByProcess.get(process.id) ?? [];
+    const operationalGuideRows = guideRows.filter((item) =>
+      ["protocolo", "iss_obra", "aprovacao_final", "initial_protocol", "final_approval"].includes(
+        String(item.guide_kind ?? ""),
+      ),
+    );
     const primaryGuide =
-      guideRows.find((item) => item.guide_kind === "protocolo") ??
-      guideRows[0];
+      operationalGuideRows.find((item) =>
+        item.guide_kind === "protocolo" || item.guide_kind === "initial_protocol",
+      );
     const parties = partiesByProcess.get(process.id) ?? [];
     const documents = docsByProcess.get(process.id) ?? [];
     const requirements = requirementsByProcess.get(process.id) ?? [];
@@ -1168,6 +1174,7 @@ export async function loadRemotePlatformStore() {
         amount: Number(primaryGuide?.amount ?? 0),
         status:
           primaryGuide?.status === "compensada" ||
+          primaryGuide?.status === "confirmed" ||
           primaryGuide?.status === "paid" ||
           primaryGuide?.paid === true
             ? "compensada"
@@ -1175,27 +1182,36 @@ export async function loadRemotePlatformStore() {
         dueDate: primaryGuide?.due_date ? new Date(primaryGuide.due_date).toLocaleDateString("pt-BR") : "",
         issuedAt: primaryGuide?.created_at ?? undefined,
         expiresAt: undefined,
-        guides: guideRows.map((guide, index) => ({
-          kind:
-            guide.guide_kind === "iss_obra" || guide.guide_kind === "aprovacao_final"
-              ? guide.guide_kind
-              : "protocolo",
-          label:
+        guides: operationalGuideRows.map((guide) => {
+          const kind =
             guide.guide_kind === "iss_obra"
-              ? "Guia de Recolhimento de ISSQN da Obra"
-              : guide.guide_kind === "aprovacao_final"
-                ? "Guia Final de Aprovação / Habite-se"
-                : "Guia de Recolhimento de Protocolo",
-          code: String(guide.guide_number ?? ""),
-          amount: Number(guide.amount ?? 0),
-          status:
-            guide.status === "compensada" || guide.status === "paid" || guide.paid === true
-              ? "compensada"
-              : "pendente",
-          dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
-          issuedAt: guide.created_at ?? undefined,
-          expiresAt: undefined,
-        })),
+              ? "iss_obra"
+              : guide.guide_kind === "aprovacao_final" || guide.guide_kind === "final_approval"
+                ? "aprovacao_final"
+                : "protocolo";
+
+          return {
+            kind,
+            label:
+              kind === "iss_obra"
+                ? "Guia de Recolhimento de ISSQN da Obra"
+                : kind === "aprovacao_final"
+                  ? "Guia Final de Aprovação / Habite-se"
+                  : "Guia de Recolhimento de Protocolo",
+            code: String(guide.guide_number ?? ""),
+            amount: Number(guide.amount ?? 0),
+            status:
+              guide.status === "compensada" ||
+              guide.status === "confirmed" ||
+              guide.status === "paid" ||
+              guide.paid === true
+                ? "compensada"
+                : "pendente",
+            dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
+            issuedAt: guide.created_at ?? undefined,
+            expiresAt: undefined,
+          };
+        }),
       },
     };
   });
