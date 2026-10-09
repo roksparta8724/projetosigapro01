@@ -39,7 +39,6 @@ import {
   type SessionUser,
   type Tenant,
   type TenantUserInput,
-  type TimelineEntry,
   type UserProfile,
   getProcessPaymentGuides,
   parseMarker,
@@ -149,18 +148,6 @@ interface PlatformDataState {
     message: string;
     isSystemMessage?: boolean;
   }) => Promise<OwnerProfessionalMessage | null>;
-  upsertTenant: (input: {
-    tenantId?: string;
-    name: string;
-    city: string;
-    state: string;
-    status: Tenant["status"];
-    plan: string;
-    subdomain: string;
-    primaryColor: string;
-    accentColor: string;
-  }) => Institution;
-  saveTenantSettings: (settings: InstitutionSettings) => Promise<void>;
   saveUserProfile: (profile: UserProfile) => Promise<void>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
   updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
@@ -186,7 +173,6 @@ interface PlatformDataState {
   addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
   removeProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => Promise<void>;
-  setTenantStatus: (tenantId: string, status: Tenant["status"]) => Promise<void>;
   dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
   acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
   completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
@@ -378,8 +364,6 @@ const demoState: PlatformDataState = {
   respondOwnerRequest: async () => null,
   setOwnerChatEnabled: async () => null,
   sendOwnerMessage: async () => null,
-  upsertTenant: () => defaultStore.tenants[0],
-  saveTenantSettings: async () => undefined,
   saveUserProfile: async () => undefined,
   createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
   updateTenantUser: async () => null,
@@ -399,7 +383,6 @@ const demoState: PlatformDataState = {
   addProcessMarkerWithColor: async () => undefined,
   removeProcessMarker: async () => undefined,
   setInstitutionStatus: async () => undefined,
-  setTenantStatus: async () => undefined,
   dispatchProcess: async () => undefined,
   acknowledgeDispatchReceipt: async () => undefined,
   completeDispatches: async () => undefined,
@@ -1359,19 +1342,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       respondOwnerRequest,
       setOwnerChatEnabled,
       sendOwnerMessage,
-      upsertTenant: (input) =>
-        upsertInstitution({
-          institutionId: input.tenantId,
-          name: input.name,
-          city: input.city,
-          state: input.state,
-          status: input.status,
-          plan: input.plan,
-          subdomain: input.subdomain,
-          primaryColor: input.primaryColor,
-          accentColor: input.accentColor,
-        }),
-      saveTenantSettings: async (settings) => saveInstitutionSettings(settings),
       saveUserProfile: async (profile) => {
         const normalizedProfile: UserProfile = {
           ...profile,
@@ -1718,7 +1688,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       setInstitutionStatus,
-      setTenantStatus: async (tenantId, status) => setInstitutionStatus(tenantId, status),
       dispatchProcess: async ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
         if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para despachar processo.");
 
