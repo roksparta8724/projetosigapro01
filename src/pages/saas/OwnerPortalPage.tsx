@@ -15,6 +15,7 @@ import {
   getOwnerRequestsForOwner,
   getProcessPaymentGuides,
   statusLabel,
+  type ProcessStatus,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -43,7 +44,7 @@ export function OwnerPortalPage() {
   const [requestProcessSummary, setRequestProcessSummary] = useState<{
     protocol: string;
     title: string;
-    status: string;
+    status: ProcessStatus;
   } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
@@ -226,7 +227,7 @@ export function OwnerPortalPage() {
                         <p className="mt-1 text-sm text-emerald-100/90">{requestProcessSummary.title}</p>
                       </div>
                       <Badge variant="outline" className="rounded-full text-emerald-100">
-                        {statusLabel(requestProcessSummary.status as never)}
+                        {statusLabel(requestProcessSummary.status)}
                       </Badge>
                     </div>
                   ) : null}
