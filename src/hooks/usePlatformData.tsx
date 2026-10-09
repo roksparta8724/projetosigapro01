@@ -41,7 +41,6 @@ import {
   type TenantUserInput,
   type TimelineEntry,
   type UserProfile,
-  type InstitutionUserInput,
   getProcessPaymentGuides,
   parseMarker,
   serializeMarker,
@@ -125,8 +124,6 @@ interface PlatformDataState {
     accentColor: string;
   }, options?: { skipRemoteSync?: boolean }) => Institution;
   saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => Promise<void>;
-  removeInstitution: (institutionId: string) => void;
-  createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
   upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
   duplicatePlan: (planId: string) => Promise<PlanItem | null>;
@@ -164,7 +161,6 @@ interface PlatformDataState {
     accentColor: string;
   }) => Institution;
   saveTenantSettings: (settings: InstitutionSettings) => Promise<void>;
-  removeTenant: (tenantId: string) => void;
   saveUserProfile: (profile: UserProfile) => Promise<void>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
   updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
@@ -189,8 +185,8 @@ interface PlatformDataState {
   addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
   removeProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
-  setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => void;
-  setTenantStatus: (tenantId: string, status: Tenant["status"]) => void;
+  setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => Promise<void>;
+  setTenantStatus: (tenantId: string, status: Tenant["status"]) => Promise<void>;
   dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
   acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
   completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
@@ -334,7 +330,6 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 const STORAGE_KEY = "sigapro-platform-store";
 const AUTH_STORAGE_KEY = "sigapro-demo-credentials";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
-const DELETED_RECORDS_KEY = "sigapro-platform-deleted-records";
 type DeletedRecords = {
   institutions: string[];
 };
@@ -377,8 +372,6 @@ const demoState: PlatformDataState = {
   getInstitutionPlanAssignment: (institutionId) => defaultStore.planAssignments.find((item) => item.municipalityId === institutionId),
   upsertInstitution: () => defaultStore.tenants[0],
   saveInstitutionSettings: async () => undefined,
-  removeInstitution: () => undefined,
-  createInstitutionUser: () => defaultStore.sessionUsers[0],
   upsertPlan: async () => defaultStore.plans[0],
   duplicatePlan: async () => defaultStore.plans[0],
   saveClientPlanAssignment: async () => defaultStore.planAssignments[0],
@@ -388,7 +381,6 @@ const demoState: PlatformDataState = {
   sendOwnerMessage: async () => null,
   upsertTenant: () => defaultStore.tenants[0],
   saveTenantSettings: async () => undefined,
-  removeTenant: () => undefined,
   saveUserProfile: async () => undefined,
   createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
   updateTenantUser: async () => null,
@@ -407,8 +399,8 @@ const demoState: PlatformDataState = {
   addProcessMarker: async () => undefined,
   addProcessMarkerWithColor: async () => undefined,
   removeProcessMarker: async () => undefined,
-  setInstitutionStatus: () => undefined,
-  setTenantStatus: () => undefined,
+  setInstitutionStatus: async () => undefined,
+  setTenantStatus: async () => undefined,
   dispatchProcess: async () => undefined,
   acknowledgeDispatchReceipt: async () => undefined,
   completeDispatches: async () => undefined,
@@ -545,36 +537,6 @@ function readPersistedStore(): PlatformStore | null {
   } catch {
     return null;
   }
-}
-
-function readDeletedRecords(): DeletedRecords {
-  if (typeof window === "undefined") {
-    return { institutions: [] };
-  }
-
-  try {
-    const raw = window.localStorage.getItem(DELETED_RECORDS_KEY);
-    if (!raw) return { institutions: [] };
-    const parsed = JSON.parse(raw) as Partial<DeletedRecords>;
-    return {
-      institutions: Array.isArray(parsed.institutions) ? parsed.institutions : [],
-    };
-  } catch {
-    return { institutions: [] };
-  }
-}
-
-function markInstitutionDeleted(institutionId: string) {
-  if (typeof window === "undefined" || !institutionId) return;
-  const current = readDeletedRecords();
-  if (current.institutions.includes(institutionId)) return;
-  window.localStorage.setItem(
-    DELETED_RECORDS_KEY,
-    JSON.stringify({
-      ...current,
-      institutions: [institutionId, ...current.institutions],
-    }),
-  );
 }
 
 
@@ -997,97 +959,28 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, tenantSettings };
       });
     };
-    const removeInstitution: PlatformDataState["removeInstitution"] = (tenantId) => {
-      markInstitutionDeleted(tenantId);
-      updateStore((current) => {
-        const removedProcessIds = new Set(
-          current.processes.filter((item) => item.tenantId === tenantId).map((item) => item.id),
-        );
+    const setInstitutionStatus: PlatformDataState["setInstitutionStatus"] = async (tenantId, status) => {
+      const tenant = store.tenants.find((item) => item.id === tenantId);
+      if (!tenant) throw new Error("Prefeitura não encontrada.");
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível para alterar o status da Prefeitura.");
+      }
 
-        return {
-          ...current,
-          tenants: current.tenants.filter((item) => item.id !== tenantId),
-          tenantSettings: current.tenantSettings.filter((item) => item.tenantId !== tenantId),
-          sessionUsers: current.sessionUsers.filter((item) => item.tenantId !== tenantId),
-          userProfiles: current.userProfiles.filter((item) => {
-            const user = current.sessionUsers.find((sessionUser) => sessionUser.id === item.userId);
-            return user?.tenantId !== tenantId;
-          }),
-          ownerRequests: current.ownerRequests.filter((item) => !removedProcessIds.has(item.projectId)),
-          ownerLinks: current.ownerLinks.filter((item) => !removedProcessIds.has(item.projectId)),
-          ownerMessages: current.ownerMessages.filter((item) => !removedProcessIds.has(item.projectId)),
-          processes: current.processes.filter((item) => item.tenantId !== tenantId),
-          planAssignments: current.planAssignments.filter((item) => item.municipalityId !== tenantId),
-        };
-      });
-    };
-    const setInstitutionStatus: PlatformDataState["setInstitutionStatus"] = (tenantId, status) => {
-      updateStore((current) => ({
-        ...current,
-        tenants: current.tenants.map((tenant) => (tenant.id === tenantId ? { ...tenant, status } : tenant)),
-      }));
-    };
-    const createInstitutionUser: PlatformDataState["createInstitutionUser"] = (input) => {
-      const institutionId = input.institutionId ?? input.tenantId;
-      const user: SessionUser = normalizeSessionUserScope({
-        id: `user-${crypto.randomUUID()}`,
-        name: input.fullName,
-        role: input.role,
-        accessLevel: input.accessLevel,
-        tenantId: institutionId,
-        municipalityId: institutionId,
-        title: input.title,
-        email: input.email,
-        accountStatus: "active",
-        userType:
-          input.role === "profissional_externo" ||
-          input.role === "proprietario_consulta" ||
-          input.role === "property_owner"
-            ? "Externo"
-            : "Interno",
-        department: input.title,
-        createdAt: new Date().toLocaleString("pt-BR"),
-        lastAccessAt: "",
-        blockedAt: null,
-        blockedBy: null,
-        blockReason: null,
-        deletedAt: null,
+      const settings = store.tenantSettings.find((item) => item.tenantId === tenantId);
+      await upsertRemoteInstitution({
+        institutionId: tenantId,
+        name: tenant.name,
+        city: tenant.city,
+        state: tenant.state,
+        status,
+        subdomain: tenant.subdomain,
+        cnpj: settings?.cnpj ?? "",
+        primaryColor: tenant.theme.primary,
+        accentColor: tenant.theme.accent,
+        secretariat: settings?.secretariaResponsavel ?? "",
       });
 
-      const profile: UserProfile = {
-        userId: user.id,
-        fullName: input.fullName,
-        email: input.email,
-        phone: "",
-        cpfCnpj: "",
-        rg: "",
-        birthDate: "",
-        professionalType: "",
-        registrationNumber: "",
-        companyName: "",
-        addressLine: "",
-        addressNumber: "",
-        addressComplement: "",
-        neighborhood: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        avatarUrl: "",
-        useAvatarInHeader: false,
-        bio: "",
-      };
-
-      updateStore((current) => {
-        const sessionUsers = [user, ...current.sessionUsers];
-        const userProfiles = current.userProfiles.some((item) => item.userId === user.id) ? current.userProfiles : [profile, ...current.userProfiles];
-        const tenants = current.tenants.map((tenant) =>
-          tenant.id === institutionId ? { ...tenant, users: tenant.users + 1 } : tenant,
-        );
-
-        return { ...current, sessionUsers, userProfiles, tenants };
-      });
-
-      return user;
+      await refreshRemoteStore();
     };
     const upsertPlan: PlatformDataState["upsertPlan"] = async (plan) => {
       const nextPlan: PlanItem = {
@@ -1528,8 +1421,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       getInstitutionPlanAssignment: (institutionId) => store.planAssignments.find((item) => item.municipalityId === institutionId),
       upsertInstitution,
       saveInstitutionSettings,
-      removeInstitution,
-      createInstitutionUser,
       upsertPlan,
       duplicatePlan,
       saveClientPlanAssignment,
@@ -1550,7 +1441,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           accentColor: input.accentColor,
         }),
       saveTenantSettings: async (settings) => saveInstitutionSettings(settings),
-      removeTenant: (tenantId) => removeInstitution(tenantId),
       saveUserProfile: async (profile) => {
         const normalizedProfile: UserProfile = {
           ...profile,
@@ -1897,7 +1787,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       setInstitutionStatus,
-      setTenantStatus: (tenantId, status) => setInstitutionStatus(tenantId, status),
+      setTenantStatus: async (tenantId, status) => setInstitutionStatus(tenantId, status),
       dispatchProcess: async ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
         if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para despachar processo.");
 
