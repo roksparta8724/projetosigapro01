@@ -895,12 +895,20 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setError(null);
         setStage("bootstrapping_auth");
         try {
-          const currentSession = (await backendClient.auth.getSession()).data.session ?? null;
-          if (currentSession?.user) {
-            const { error: signOutError } = isNeonBackend
-              ? await backendClient.auth.signOut()
-              : await backendClient.auth.signOut({ scope: "local" });
-            if (signOutError) throw signOutError;
+          // Uma sessão anterior corrompida/expirada nunca deve impedir um novo login.
+          // O logout prévio é apenas limpeza local; se falhar, seguimos com a autenticação nova.
+          try {
+            const currentSession = (await backendClient.auth.getSession()).data.session ?? null;
+            if (currentSession?.user) {
+              const { error: signOutError } = isNeonBackend
+                ? await backendClient.auth.signOut()
+                : await backendClient.auth.signOut({ scope: "local" });
+              if (signOutError) {
+                console.warn("[Bootstrap] Falha ao limpar sessão anterior antes do login; continuando", signOutError);
+              }
+            }
+          } catch (sessionCleanupError) {
+            console.warn("[Bootstrap] Sessão anterior inválida; continuando com novo login", sessionCleanupError);
           }
           clearIdentity();
 
