@@ -4,6 +4,7 @@ import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
+  serializeMarker,
   type ClientPlanAssignment,
   type CreateProcessInput,
   type InstitutionAdminContact,
@@ -280,6 +281,9 @@ export async function loadRemotePlatformStore() {
     auditResult,
     reopenResult,
     movementsResult,
+    dispatchesResult,
+    processMessagesResult,
+    markersResult,
     ownerRequestsResult,
     ownerLinksResult,
     ownerMessagesResult,
@@ -304,6 +308,9 @@ export async function loadRemotePlatformStore() {
     supabase.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
     supabase.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
     supabase.from("process_movements").select("*").order("created_at", { ascending: false }),
+    supabase.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
+    supabase.from("process_messages").select("*").order("created_at", { ascending: false }),
+    supabase.from("process_markers").select("*").order("created_at", { ascending: false }),
     supabase.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
     supabase.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
     supabase.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
@@ -337,6 +344,9 @@ export async function loadRemotePlatformStore() {
     auditResult.error,
     reopenResult.error,
     movementsResult.error,
+    dispatchesResult.error,
+    processMessagesResult.error,
+    markersResult.error,
     isMissingRelationError(ownerRequestsResult.error, "public.project_owner_requests") ? null : ownerRequestsResult.error,
     isMissingRelationError(ownerLinksResult.error, "public.project_owner_links") ? null : ownerLinksResult.error,
     isMissingRelationError(ownerMessagesResult.error, "public.owner_professional_messages")
@@ -369,6 +379,9 @@ export async function loadRemotePlatformStore() {
   const auditByProcess = new Map<string, Record<string, unknown>[]>();
   const reopenByProcess = new Map<string, Record<string, unknown>[]>();
   const movementsByProcess = new Map<string, Record<string, unknown>[]>();
+  const dispatchesByProcess = new Map<string, Record<string, unknown>[]>();
+  const messagesByProcess = new Map<string, Record<string, unknown>[]>();
+  const markersByProcess = new Map<string, Record<string, unknown>[]>();
   for (const guide of guidesResult.data ?? []) {
     const list = guidesByProcess.get(guide.process_id) ?? [];
     list.push(guide);
@@ -403,6 +416,21 @@ export async function loadRemotePlatformStore() {
     const list = movementsByProcess.get(item.process_id) ?? [];
     list.push(item);
     movementsByProcess.set(item.process_id, list);
+  }
+  for (const item of dispatchesResult.data ?? []) {
+    const list = dispatchesByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    dispatchesByProcess.set(item.process_id, list);
+  }
+  for (const item of processMessagesResult.data ?? []) {
+    const list = messagesByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    messagesByProcess.set(item.process_id, list);
+  }
+  for (const item of markersResult.data ?? []) {
+    const list = markersByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    markersByProcess.set(item.process_id, list);
   }
 
   const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
@@ -879,6 +907,9 @@ export async function loadRemotePlatformStore() {
     const auditEntries = auditByProcess.get(process.id) ?? [];
     const reopenEntries = reopenByProcess.get(process.id) ?? [];
     const movements = movementsByProcess.get(process.id) ?? [];
+    const dispatches = dispatchesByProcess.get(process.id) ?? [];
+    const processMessages = messagesByProcess.get(process.id) ?? [];
+    const markers = markersByProcess.get(process.id) ?? [];
     const owner = parties.find((party) => party.party_type === "proprietario");
     const externalLead = parties.find((party) => party.party_type === "profissional_externo");
 
@@ -895,7 +926,9 @@ export async function loadRemotePlatformStore() {
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? "Nao informado",
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
-      tags: [],
+      tags: markers.map((marker) =>
+        serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
+      ),
       address: property?.address ?? "Endereco nao informado",
       notes: "",
       property: {
@@ -975,8 +1008,43 @@ export async function loadRemotePlatformStore() {
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       signatures: [],
-      dispatches: [],
-      messages: [],
+      dispatches: dispatches.map((dispatch) => ({
+        id: String(dispatch.id),
+        from: String(dispatch.from_department ?? ""),
+        to: String(dispatch.to_department ?? ""),
+        subject: String(dispatch.subject ?? ""),
+        dueDate: dispatch.due_at ? new Date(String(dispatch.due_at)).toLocaleDateString("pt-BR") : "",
+        status:
+          dispatch.status === "respondido" ||
+          dispatch.status === "concluido" ||
+          dispatch.status === "devolvido" ||
+          dispatch.status === "sobrestado"
+            ? dispatch.status
+            : "aguardando",
+        visibility:
+          dispatch.visibility === "externo" || dispatch.visibility === "misto"
+            ? dispatch.visibility
+            : "interno",
+        priority:
+          dispatch.priority === "baixa" ||
+          dispatch.priority === "alta" ||
+          dispatch.priority === "critica"
+            ? dispatch.priority
+            : "media",
+        assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
+      })),
+      messages: processMessages.map((message) => ({
+        id: String(message.id),
+        senderName: String(message.sender_name ?? "Usuário"),
+        senderRole: String(message.sender_role ?? "usuario"),
+        audience:
+          message.audience === "interno" || message.audience === "externo"
+            ? message.audience
+            : "misto",
+        recipientName: message.recipient_name ? String(message.recipient_name) : undefined,
+        message: String(message.message ?? ""),
+        at: message.created_at ? new Date(String(message.created_at)).toLocaleString("pt-BR") : "",
+      })),
       payment: {
         guideNumber: primaryGuide?.guide_number ?? "",
         amount: Number(primaryGuide?.amount ?? 0),
