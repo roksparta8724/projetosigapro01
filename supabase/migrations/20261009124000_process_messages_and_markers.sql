@@ -24,7 +24,14 @@ create policy process_markers_select_scoped
   to authenticated
   using (public.has_process_access(process_id));
 
-revoke all on table public.process_markers from anon, authenticated;
+revoke all on table public.process_markers from authenticated;
+do $
+begin
+  if exists (select 1 from pg_roles where rolname='anon') then
+    execute 'revoke all on table public.process_markers from anon';
+  end if;
+end;
+$;
 grant select on table public.process_markers to authenticated;
 
 create table if not exists public.process_messages (
@@ -59,5 +66,12 @@ create policy process_messages_select_scoped
     )
   );
 
-revoke all on table public.process_messages from anon, authenticated;
+revoke all on table public.process_messages from authenticated;
+do $
+begin
+  if exists (select 1 from pg_roles where rolname='anon') then
+    execute 'revoke all on table public.process_messages from anon';
+  end if;
+end;
+$;
 grant select on table public.process_messages to authenticated;
