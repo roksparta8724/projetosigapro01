@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
+import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
@@ -322,18 +322,6 @@ export function ProtocolarProjetoPage() {
 
     if (hasBackendEnv) {
       try {
-        await registerRemoteExternalAccount({
-          tenantId: effectiveScopeId,
-          fullName: profile?.fullName || form.profissional || session.name,
-          email: profile?.email || form.email || session.email,
-          cpfCnpj: profile?.cpfCnpj || "",
-          phone: profile?.phone || form.telefone || "",
-          professionalType: profile?.professionalType || "",
-          registrationNumber: profile?.registrationNumber || form.registro || "",
-          companyName: profile?.companyName || "",
-          title: session.title || "Profissional externo",
-          bio: profile?.bio || "",
-        });
         documents = await Promise.all(
           documents.map(async (document) => {
             const originalFile = findFilesForLabel(document.label).find(
