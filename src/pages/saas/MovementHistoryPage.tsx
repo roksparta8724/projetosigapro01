@@ -363,7 +363,7 @@ export function MovementHistoryPage() {
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{selectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
                 <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy || selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy || selectedProcessIds.length === 0}>Concluir despacho</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 <Select value={selectedTemplateId} onValueChange={(value) => { setSelectedTemplateId(value); const template = dispatchTemplates.find((item) => item.id === value); if (template) setBatchSubject(template.title); }}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Texto padrão do despacho" /></SelectTrigger><SelectContent>{dispatchTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>)}</SelectContent></Select>
@@ -380,12 +380,12 @@ export function MovementHistoryPage() {
                 <Input value={checkpoint} onChange={(event) => setCheckpoint(event.target.value)} placeholder="Definir ponto de controle" className="sig-dispatch-field" />
                 <Input value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Motivo da devolução" className="sig-dispatch-field" />
                 <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy || selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy || selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <Input value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Motivo do sobrestamento administrativo" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(true)} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(false)} disabled={operationBusy} disabled={selectedProcessIds.length === 0}>Reativar fluxo</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(true)} disabled={operationBusy || selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(false)} disabled={operationBusy || selectedProcessIds.length === 0}>Reativar fluxo</Button>
               </div>
             </div>
           </SectionCard>
