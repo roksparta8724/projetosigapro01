@@ -28,7 +28,7 @@ export function OwnerPortalPage() {
     ownerLinks,
     ownerRequests,
     ownerMessages,
-    createOwnerRequest,
+    createOwnerRequestByProtocol,
     sendOwnerMessage,
     getUserProfile,
     getInstitutionSettings,
@@ -40,6 +40,11 @@ export function OwnerPortalPage() {
   const [requestNote, setRequestNote] = useState("");
   const [requestStatus, setRequestStatus] = useState("");
   const [requestError, setRequestError] = useState("");
+  const [requestProcessSummary, setRequestProcessSummary] = useState<{
+    protocol: string;
+    title: string;
+    status: string;
+  } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [messageStatus, setMessageStatus] = useState("");
@@ -52,18 +57,6 @@ export function OwnerPortalPage() {
     }
   }, [documentValue, profile?.cpfCnpj]);
 
-  const normalizedSearch = protocolSearch.trim().toLowerCase();
-  const searchResult = useMemo(() => {
-    if (!normalizedSearch) return null;
-    return (
-      processes.find((process) => {
-        const protocol = process.protocol.toLowerCase();
-        const external = process.externalProtocol?.toLowerCase() ?? "";
-        return protocol === normalizedSearch || external === normalizedSearch || protocol.includes(normalizedSearch);
-      }) ?? null
-    );
-  }, [normalizedSearch, processes]);
-
   const ownerLinksForUser = useMemo(() => getOwnerLinksForOwner(session.id, ownerLinks), [ownerLinks, session.id]);
   const ownerRequestsForUser = useMemo(() => getOwnerRequestsForOwner(session.id, ownerRequests), [ownerRequests, session.id]);
 
@@ -74,11 +67,6 @@ export function OwnerPortalPage() {
   const tenantSettings = selectedProcess ? getInstitutionSettings(selectedProcess.tenantId) : undefined;
   const paymentGuides = selectedProcess ? getProcessPaymentGuides(selectedProcess, tenantSettings) : [];
 
-  const pendingRequestForSearch = searchResult
-    ? ownerRequestsForUser.find((request) => request.projectId === searchResult.id && request.status === "pending")
-    : null;
-  const linkForSearch = searchResult ? ownerLinksForUser.find((link) => link.projectId === searchResult.id) : null;
-
   const tabs = [
     { value: "acompanhamentos", label: "Meus acompanhamentos", helper: "Projetos aprovados" },
     { value: "solicitacoes", label: "Solicitações enviadas", helper: "Pedidos em análise" },
@@ -87,13 +75,12 @@ export function OwnerPortalPage() {
   ];
 
   const handleRequest = async () => {
-    if (!searchResult) return;
     setRequestStatus("");
     setRequestError("");
+    setRequestProcessSummary(null);
 
-    const response = await createOwnerRequest({
-      processId: searchResult.id,
-      ownerUserId: session.id,
+    const response = await createOwnerRequestByProtocol({
+      protocol: protocolSearch,
       ownerDocument: documentValue || profile?.cpfCnpj || "",
       notes: requestNote,
     });
@@ -103,7 +90,19 @@ export function OwnerPortalPage() {
       return;
     }
 
-    setRequestStatus("Solicitação enviada. Aguarde a aprovação do profissional.");
+    if (response.process) {
+      setRequestProcessSummary({
+        protocol: response.process.protocol,
+        title: response.process.title,
+        status: response.process.status,
+      });
+    }
+
+    setRequestStatus(
+      response.request?.status === "approved"
+        ? "Acesso já aprovado para este protocolo."
+        : "Solicitação registrada no banco oficial. Aguarde a aprovação do profissional.",
+    );
     setRequestNote("");
   };
 
@@ -201,46 +200,37 @@ export function OwnerPortalPage() {
                   </div>
                 </div>
 
-                {searchResult ? (
-                  <div className="mt-5 rounded-[16px] border border-white/10 bg-white/5 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="mt-5 rounded-[16px] border border-white/10 bg-white/5 p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-2xl">
+                      <p className="text-sm font-semibold text-white">Validação segura do protocolo</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-300">
+                        O sistema valida o número do protocolo junto com o CPF/CNPJ do proprietário diretamente no banco oficial.
+                        Nenhum dado do processo é exposto antes dessa conferência.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => void handleRequest()}
+                      disabled={!protocolSearch.trim() || !(documentValue || profile?.cpfCnpj || "").trim()}
+                      className="rounded-full bg-slate-950 hover:bg-slate-900"
+                    >
+                      Validar e enviar solicitação
+                    </Button>
+                  </div>
+
+                  {requestProcessSummary ? (
+                    <div className="mt-4 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                       <div>
-                        <p className="text-sm text-slate-300">Protocolo</p>
-                        <p className="text-lg font-semibold text-white">{searchResult.protocol}</p>
-                        <p className="mt-1 text-sm text-slate-300">{searchResult.title}</p>
-                        {searchResult.technicalLead ? (
-                          <p className="mt-2 text-xs text-slate-400">Responsável técnico: {searchResult.technicalLead}</p>
-                        ) : (
-                          <p className="mt-2 text-xs text-slate-400">Responsável técnico ainda não definido.</p>
-                        )}
+                        <p className="text-xs uppercase tracking-[0.16em] text-emerald-200/80">Protocolo validado</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{requestProcessSummary.protocol}</p>
+                        <p className="mt-1 text-sm text-emerald-100/90">{requestProcessSummary.title}</p>
                       </div>
-                      <Badge variant="outline" className="rounded-full text-slate-200">
-                        {statusLabel(searchResult.status)}
+                      <Badge variant="outline" className="rounded-full text-emerald-100">
+                        {statusLabel(requestProcessSummary.status as never)}
                       </Badge>
                     </div>
-
-                    {linkForSearch ? (
-                      <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-                        Acesso aprovado. O acompanhamento já está disponível em "Meus acompanhamentos".
-                      </div>
-                    ) : pendingRequestForSearch ? (
-                      <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-                        Solicitação pendente. O profissional responsável fará a análise.
-                      </div>
-                    ) : (
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <Button onClick={handleRequest} className="rounded-full bg-slate-950 hover:bg-slate-900">
-                          Enviar solicitação
-                        </Button>
-                        <span className="text-xs text-slate-300">A aprovação é feita pelo profissional responsável.</span>
-                      </div>
-                    )}
-                  </div>
-                ) : normalizedSearch ? (
-                  <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-4 text-sm text-slate-300">
-                    Nenhum protocolo encontrado. Verifique o número e tente novamente.
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
 
                 {requestError ? (
                   <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-200">
