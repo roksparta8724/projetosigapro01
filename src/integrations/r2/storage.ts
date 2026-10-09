@@ -1,4 +1,4 @@
-import { uploadFile } from "@/integrations/r2/client";
+import { deleteFile, uploadFile } from "@/integrations/r2/client";
 
 type MunicipalityFileBucket = "process-documents" | "profile-assets" | "institutional-branding";
 
@@ -72,4 +72,19 @@ export async function uploadFileToStorage(input: {
 
   const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
   return { path: uploaded.objectKey, publicUrl: uploaded.publicUrl };
+}
+
+
+export async function deleteFileFromStorage(input: {
+  bucket: MunicipalityFileBucket;
+  objectKey: string;
+}) {
+  const objectKey = input.objectKey?.trim();
+  if (!objectKey) return;
+
+  const bucket = input.bucket === "process-documents"
+    ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
+    : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+
+  await deleteFile({ bucket, objectKey });
 }
