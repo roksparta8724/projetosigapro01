@@ -130,7 +130,7 @@ interface PlatformDataState {
     primaryColor: string;
     accentColor: string;
   }, options?: { skipRemoteSync?: boolean }) => Institution;
-  saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => void;
+  saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => Promise<void>;
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
@@ -170,7 +170,7 @@ interface PlatformDataState {
     primaryColor: string;
     accentColor: string;
   }) => Institution;
-  saveTenantSettings: (settings: InstitutionSettings) => void;
+  saveTenantSettings: (settings: InstitutionSettings) => Promise<void>;
   removeTenant: (tenantId: string) => void;
   saveUserProfile: (profile: UserProfile) => Promise<void>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
@@ -388,7 +388,7 @@ const demoState: PlatformDataState = {
   getUserProfile: (userId, email) => findUserProfile(defaultStore.userProfiles, userId, email),
   getInstitutionPlanAssignment: (institutionId) => defaultStore.planAssignments.find((item) => item.municipalityId === institutionId),
   upsertInstitution: () => defaultStore.tenants[0],
-  saveInstitutionSettings: () => undefined,
+  saveInstitutionSettings: async () => undefined,
   removeInstitution: () => undefined,
   createInstitutionUser: () => defaultStore.sessionUsers[0],
   createInstitutionProcess: () => defaultStore.processes[0],
@@ -400,7 +400,7 @@ const demoState: PlatformDataState = {
   setOwnerChatEnabled: async () => null,
   sendOwnerMessage: async () => null,
   upsertTenant: () => defaultStore.tenants[0],
-  saveTenantSettings: () => undefined,
+  saveTenantSettings: async () => undefined,
   removeTenant: () => undefined,
   saveUserProfile: async () => undefined,
   createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
@@ -1142,70 +1142,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       return nextTenant;
     };
-    const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = (settings, options) => {
+    const saveInstitutionSettings: PlatformDataState["saveInstitutionSettings"] = async (settings, options) => {
+      if (!options?.skipRemoteSync) {
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível para salvar as configurações da Prefeitura.");
+        }
+        await saveRemoteInstitutionSettings(
+          settings as unknown as Parameters<typeof saveRemoteInstitutionSettings>[0],
+        );
+      }
+
       updateStore((current) => {
         const tenantSettings = current.tenantSettings.some((item) => item.tenantId === settings.tenantId)
           ? current.tenantSettings.map((item) => (item.tenantId === settings.tenantId ? settings : item))
           : [settings, ...current.tenantSettings];
 
-        const processes = current.processes.map((process) => {
-          if (process.tenantId !== settings.tenantId) return process;
-
-          const guides = getProcessPaymentGuides(process, settings);
-          const recalculatedGuides = guides.map((guide) => {
-            if (guide.status === "compensada") return guide;
-
-            if (guide.kind === "protocolo") {
-              return { ...guide, amount: settings.taxaProtocolo ?? guide.amount };
-            }
-
-            if (guide.kind === "iss_obra") {
-              return {
-                ...guide,
-                amount: calculateIssGuideAmount(
-                  process.property.area || 0,
-                  process.property.usage,
-                  settings,
-                ),
-              };
-            }
-
-            if (guide.kind === "aprovacao_final") {
-              return {
-                ...guide,
-                amount: calculateApprovalGuideAmount(
-                  process.property.area || 0,
-                  process.property.usage,
-                  process.property.constructionStandard,
-                  settings,
-                ),
-              };
-            }
-
-            return guide;
-          });
-
-          return {
-            ...process,
-            payment: {
-              ...process.payment,
-              amount:
-                process.payment.status === "compensada"
-                  ? process.payment.amount
-                  : settings.taxaProtocolo ?? process.payment.amount,
-              guides: recalculatedGuides,
-            },
-          };
-        });
-
-        return { ...current, tenantSettings, processes };
+        // Valores de guias já emitidas são documentos financeiros históricos e
+        // não podem ser recalculados retroativamente por uma mudança de tabela.
+        return { ...current, tenantSettings };
       });
-
-      if (!options?.skipRemoteSync) {
-        syncRemoteInBackground("configuracoes institucionais", () =>
-          saveRemoteInstitutionSettings(settings as unknown as Parameters<typeof saveRemoteInstitutionSettings>[0]),
-        );
-      }
     };
     const removeInstitution: PlatformDataState["removeInstitution"] = (tenantId) => {
       markInstitutionDeleted(tenantId);
@@ -1893,7 +1848,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           primaryColor: input.primaryColor,
           accentColor: input.accentColor,
         }),
-      saveTenantSettings: (settings) => saveInstitutionSettings(settings),
+      saveTenantSettings: async (settings) => saveInstitutionSettings(settings),
       removeTenant: (tenantId) => removeInstitution(tenantId),
       saveUserProfile: async (profile) => {
         const normalizedProfile: UserProfile = {
