@@ -828,54 +828,45 @@ export function calculateApprovalGuideAmount(
 }
 
 
+function hasExplicitGuideIssuanceEvidence(process: ProcessRecord, guide: PaymentGuideEntry) {
+  if (guide.kind === "protocolo") return true;
+
+  const terms =
+    guide.kind === "iss_obra"
+      ? ["iss", "issqn", guide.code]
+      : ["aprovação final", "aprovacao final", "habite-se", "habite se", guide.code];
+
+  return process.auditTrail.some((entry) => {
+    if (entry.category !== "financeiro") return false;
+    const haystack = `${entry.title} ${entry.detail}`.toLowerCase();
+    return terms.some((term) => term && haystack.includes(term.toLowerCase()));
+  });
+}
+
 export function getProcessPaymentGuides(process: ProcessRecord, settings?: TenantSettings | null): PaymentGuideEntry[] {
-  if (process.payment.guides && process.payment.guides.length > 0) {
-    return process.payment.guides;
+  const persistedGuides = process.payment.guides ?? [];
+  if (persistedGuides.length > 0) {
+    // Compatibilidade com dados antigos: versões anteriores criavam ISSQN e aprovação
+    // antecipadamente. Somente guias com evidência explícita de emissão são exibidas.
+    return persistedGuides.filter((guide) => hasExplicitGuideIssuanceEvidence(process, guide));
   }
 
-  const protocolo = process.payment.amount || settings?.taxaProtocolo || 35.24;
-  const issAmount = calculateIssGuideAmount(process.property.area, process.property.usage, settings);
-  const aprovacao = calculateApprovalGuideAmount(
-    process.property.area,
-    process.property.usage,
-    process.property.constructionStandard,
-    settings,
-  );
-  const prefix = process.payment.guideNumber.split("-").slice(0, 2).join("-") || settings?.guiaPrefixo || "DAM";
-  const issueAt = process.payment.issuedAt;
-  const expiresAt = process.payment.expiresAt;
-  const dueDate = process.payment.dueDate;
+  // Compatibilidade com processos legados que guardavam apenas a guia inicial no
+  // objeto payment. Nunca materializar cobranças futuras por cálculo de tabela.
+  if (!process.payment.guideNumber?.trim()) {
+    return [];
+  }
 
   return [
     {
       kind: "protocolo",
       label: getGuideLabel("protocolo"),
       code: process.payment.guideNumber,
-      amount: protocolo,
+      amount: process.payment.amount || settings?.taxaProtocolo || 35.24,
       status: process.payment.status,
-      dueDate,
-      issuedAt: issueAt,
-      expiresAt,
-    },
-    {
-      kind: "iss_obra",
-      label: getGuideLabel("iss_obra"),
-      code: `${prefix}-ISS-${process.protocol.split("-").pop()}`,
-      amount: issAmount,
-      status: "pendente",
-      dueDate,
-      issuedAt: issueAt,
-      expiresAt,
-    },
-    {
-      kind: "aprovacao_final",
-      label: getGuideLabel("aprovacao_final"),
-      code: `${prefix}-APR-${process.protocol.split("-").pop()}`,
-      amount: aprovacao,
-      status: "pendente",
-      dueDate,
-      issuedAt: issueAt,
-      expiresAt,
+      dueDate: process.payment.dueDate,
+      issuedAt: process.payment.issuedAt,
+      expiresAt: process.payment.expiresAt,
     },
   ];
 }
