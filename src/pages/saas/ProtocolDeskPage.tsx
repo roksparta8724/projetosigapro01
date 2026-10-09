@@ -213,7 +213,7 @@ export function ProtocolDeskPage() {
       ) : (
         items.map((process) => {
           const guides = getProcessPaymentGuides(process, tenantSettings);
-          const protocolGuide = guides[0];
+          const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
           const missingRequired = getMissingRequiredDocuments(process);
           const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
           const isDeskFlow = deskProtocolIds.has(process.id);
