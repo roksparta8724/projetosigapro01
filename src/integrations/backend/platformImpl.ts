@@ -901,7 +901,7 @@ export async function loadRemotePlatformStore() {
     bio: profile.bio ?? "",
   }));
 
-  const sessionUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
+  const membershipUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
     const profile =
       (membership.profile_id ? profileById.get(membership.profile_id) : null) ??
@@ -946,7 +946,38 @@ export async function loadRemotePlatformStore() {
     };
   });
 
-  const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
+  const sessionRoleRank = (role: SessionUser["role"]) => {
+    if (role === "master_admin" || role === "master_ops") return 100;
+    if (role === "prefeitura_admin") return 90;
+    if (role === "prefeitura_supervisor") return 80;
+    if (role === "analista" || role === "financeiro" || role === "setor_intersetorial" || role === "fiscal") return 60;
+    if (role === "profissional_externo") return 30;
+    if (role === "property_owner" || role === "proprietario_consulta") return 20;
+    return 10;
+  };
+
+  const dedupedMembershipUsers = new Map<string, SessionUser>();
+  for (const user of membershipUsers) {
+    if (!user.id) continue;
+    const scopeId = user.municipalityId ?? user.tenantId ?? "";
+    const key = `${user.id}:${scopeId}`;
+    const current = dedupedMembershipUsers.get(key);
+
+    if (
+      !current ||
+      sessionRoleRank(user.role) > sessionRoleRank(current.role) ||
+      (
+        sessionRoleRank(user.role) === sessionRoleRank(current.role) &&
+        user.accessLevel > current.accessLevel
+      )
+    ) {
+      dedupedMembershipUsers.set(key, user);
+    }
+  }
+
+  const sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
+
+    const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
     const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
     if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
