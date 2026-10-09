@@ -4,8 +4,6 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   type AccountStatus,
   buildProcessDocuments,
-  calculateApprovalGuideAmount,
-  calculateIssGuideAmount,
   checklistTemplates as seedChecklistTemplates,
   cmsSections as seedCmsSections,
   clientPlanAssignments as seedClientPlanAssignments,
@@ -1527,25 +1525,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
         }
 
-        const amount =
-          guideKind === "iss_obra"
-            ? calculateIssGuideAmount(
-                process.property.area || 0,
-                process.property.usage,
-                settings,
-              )
-            : calculateApprovalGuideAmount(
-                process.property.area || 0,
-                process.property.usage,
-                process.property.constructionStandard,
-                settings,
-              );
-
         await issueRemoteProcessPaymentGuide({
           processId,
           guideKind,
-          amount,
-          guidePrefix: settings?.guiaPrefixo || "DAM",
         });
 
         await refreshRemoteStore();
