@@ -60,7 +60,10 @@ export function IptuDeskPage() {
       } => Boolean(item.guide),
     );
 
-  const awaitingIssGuide = processes.filter((process) => {
+  const awaitingIssGuide =
+    tenantSettings?.issStageEnabled === false
+      ? []
+      : processes.filter((process) => {
     const hasIssGuide = getProcessPaymentGuides(process, tenantSettings).some(
       (item) => item.kind === "iss_obra",
     );
@@ -74,15 +77,20 @@ export function IptuDeskPage() {
       latestDispatchTarget.includes("iptu") ||
       latestDispatchTarget.includes("fiscal");
 
-    return (
-      routedToIptu &&
-      process.status !== "arquivado" &&
-      process.status !== "indeferido" &&
-      process.status !== "deferido"
-    );
-  });
+        return (
+          routedToIptu &&
+          process.status !== "arquivado" &&
+          process.status !== "indeferido" &&
+          process.status !== "deferido"
+        );
+      });
 
   const handleIssueIssGuide = async (processId: string) => {
+    if (tenantSettings?.issStageEnabled === false) {
+      setIssueStatus("A etapa de ISSQN está desativada no workflow financeiro desta Prefeitura.");
+      return;
+    }
+
     setIssueBusyId(processId);
     setIssueStatus("");
     try {
@@ -179,6 +187,12 @@ export function IptuDeskPage() {
             </div>
           }
         />
+
+        {tenantSettings?.issStageEnabled === false ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            A etapa de ISSQN está desativada no workflow financeiro desta Prefeitura. Nenhuma nova guia de ISSQN será emitida.
+          </div>
+        ) : null}
 
         <PageStatsRow className="xl:grid-cols-4">
           <StatCard
