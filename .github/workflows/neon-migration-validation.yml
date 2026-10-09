@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - neon-first-migration-20261008
+      - workbench-sigapro-polish-no-deploy-20261009
   pull_request:
     branches:
       - main
