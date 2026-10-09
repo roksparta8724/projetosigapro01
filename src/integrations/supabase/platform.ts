@@ -1548,66 +1548,6 @@ export async function createRemoteOwnerMessage(input: {
   };
 }
 
-export async function createRemoteExternalProcess(
-  input: CreateProcessInput & {
-    guidePrefix?: string;
-  },
-) {
-  if (!db) {
-    throw new Error("Banco oficial indisponível.");
-  }
-
-  const scopeId = normalizeUuid(input.tenantId);
-  if (!scopeId) {
-    throw new Error("Escopo municipal invalido para protocolar o processo.");
-  }
-
-  const { data, error } = await db.rpc("create_external_process", {
-    _tenant_id: scopeId,
-    _title: input.title,
-    _process_type: input.type,
-    _address: input.address,
-    _iptu_code: input.property.iptu,
-    _registry_code: input.property.registration || null,
-    _lot: input.property.lot || null,
-    _block: input.property.block || null,
-    _area_m2: input.property.area || null,
-    _usage_type: input.property.usage || null,
-    _owner_name: input.ownerName,
-    _owner_document: input.ownerDocument,
-    _technical_lead: input.technicalLead,
-    _notes: input.notes || null,
-    _documents: input.documents.map((document) => ({
-      label: document.label,
-      required: document.required,
-      signed: document.signed,
-      version: document.version,
-      source: document.source,
-      fileName: document.fileName,
-      filePath: document.filePath,
-      mimeType: document.mimeType,
-      sizeLabel: document.sizeLabel,
-      previewUrl: document.previewUrl,
-      reviewStatus: document.reviewStatus ?? "pendente",
-      annotations: document.annotations ?? [],
-    })),
-    _guide_prefix: input.guidePrefix || "DAM",
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return data as {
-    process_id: string;
-    protocol_number: string;
-    guide_number: string;
-    due_date: string;
-    amount: number;
-  };
-}
-
-
 export async function createRemoteExternalProcessV2(
   input: CreateProcessInput & {
     guidePrefix?: string;
