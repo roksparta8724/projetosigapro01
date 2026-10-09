@@ -724,18 +724,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   }, [authenticatedUserId, authLoading]);
 
   const refreshRemoteStore = async () => {
-    if (!authenticatedUserId || !hasBackendEnv) return;
-
-    try {
-      const remote = await loadRemotePlatformStore();
-      const sanitized = buildSanitizedStore(remote, false);
-      setStore(sanitized);
-      syncStore(sanitized);
-      setSource("remote");
-      lastFetchedUserId.current = authenticatedUserId;
-    } catch (error) {
-      console.error("[SIGAPRO][Store] Falha ao atualizar dados remotos", error);
+    if (!authenticatedUserId || !hasBackendEnv) {
+      throw new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
     }
+
+    const remote = await loadRemotePlatformStore();
+    const sanitized = buildSanitizedStore(remote, false);
+    setStore(sanitized);
+    syncStore(sanitized);
+    setSource("remote");
+    lastFetchedUserId.current = authenticatedUserId;
   };
 
   useEffect(() => {
@@ -746,7 +744,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       const now = Date.now();
       if (now - lastRefreshAt < 1500) return;
       lastRefreshAt = now;
-      void refreshRemoteStore();
+      void refreshRemoteStore().catch((error) => {
+        console.error("[SIGAPRO][Store] Falha na atualização automática", error);
+      });
     };
     const refreshOnVisibility = () => {
       if (document.visibilityState === "visible") refreshOnFocus();
