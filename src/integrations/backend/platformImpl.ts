@@ -1323,6 +1323,53 @@ export async function createRemoteOwnerRequest(input: {
   };
 }
 
+export async function createRemoteOwnerRequestByProtocol(input: {
+  protocol: string;
+  ownerDocument: string;
+  notes?: string;
+}) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const { data, error } = await db.rpc("create_owner_request_by_protocol", {
+    _protocol: input.protocol.trim(),
+    _owner_document: input.ownerDocument.trim(),
+    _notes: input.notes?.trim() || null,
+  });
+
+  if (error) throw error;
+
+  const payload = data as Record<string, any> | null;
+  const row = payload?.request ?? null;
+  const processRow = payload?.process ?? null;
+  if (!row?.id) {
+    throw new Error("Falha ao registrar solicitação de acompanhamento.");
+  }
+
+  return {
+    request: {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    } as OwnerProjectRequest,
+    process: processRow
+      ? {
+          id: String(processRow.id ?? ""),
+          protocol: String(processRow.protocol ?? ""),
+          title: String(processRow.title ?? "Processo"),
+          status: String(processRow.status ?? ""),
+        }
+      : null,
+  };
+}
+
 export async function respondRemoteOwnerRequest(input: {
   requestId: string;
   status: "pending" | "approved" | "rejected";
