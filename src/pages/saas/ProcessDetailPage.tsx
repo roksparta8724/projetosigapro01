@@ -278,13 +278,20 @@ export function ProcessDetailPage() {
     document.filePath
       ? documentAccessUrls[document.id] || ""
       : document.previewUrl || "";
-  const getDocumentFallbackUrl = (document: typeof process.documents[number]) =>
-    getDocumentAccessUrl(document) ||
-    buildDocumentPreview(
+  const getDocumentFallbackUrl = (document: typeof process.documents[number]) => {
+    const accessUrl = getDocumentAccessUrl(document);
+    if (accessUrl) return accessUrl;
+
+    // Arquivo real armazenado nunca cai em preview demonstrativo. Se a URL
+    // assinada ainda não existe ou falhou, a UI deve mostrar carregamento/erro.
+    if (document.filePath) return "";
+
+    return buildDocumentPreview(
       document.label,
       document.fileName,
       tenant?.name ?? tenantSettings?.beneficiarioArrecadacao,
     );
+  };
   const canAnnotateViewer =
     !!viewerDocument &&
     (session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista") &&
@@ -906,14 +913,15 @@ export function ProcessDetailPage() {
                       {(document.previewUrl || document.uploaded) ? (
                         <button
                           type="button"
+                          disabled={Boolean(document.filePath && !documentAccessUrls[document.id])}
                           onClick={() => openViewer(document.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700"
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Maximize2 className="h-3.5 w-3.5" />
                           Preview
                         </button>
                       ) : null}
-                      {(document.previewUrl || document.uploaded) ? (
+                      {(document.previewUrl || document.uploaded) && getDocumentFallbackUrl(document) ? (
                         <a
                           href={getDocumentFallbackUrl(document)}
                           download={document.fileName || `${document.label}.pdf`}
@@ -927,12 +935,17 @@ export function ProcessDetailPage() {
                   </div>
                   {(document.previewUrl || document.uploaded) ? (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      {document.filePath && !documentAccessUrls[document.id] && documentAccessErrors[document.id] ? (
-                        <div className="p-4 text-sm text-red-600">
-                          Não foi possível carregar este documento agora. Atualize a página ou tente novamente.
-                        </div>
-                      ) : null}
-                      {document.mimeType === "application/pdf" ? (
+                      {document.filePath && !documentAccessUrls[document.id] ? (
+                        documentAccessErrors[document.id] ? (
+                          <div className="p-4 text-sm text-red-600">
+                            Não foi possível carregar o arquivo armazenado. Tente novamente em instantes.
+                          </div>
+                        ) : (
+                          <div className="p-4 text-sm text-slate-500">
+                            Gerando acesso seguro ao documento...
+                          </div>
+                        )
+                      ) : document.mimeType === "application/pdf" ? (
                         <iframe
                           src={getDocumentFallbackUrl(document)}
                           title={document.fileName || document.label}
@@ -1538,7 +1551,15 @@ export function ProcessDetailPage() {
                 onClick={handleViewerClick}
               >
                 <div style={{ transform: `scale(${viewerZoom})`, transformOrigin: "top center" }} className="min-h-[720px] w-full">
-                  {viewerDocument?.mimeType?.startsWith("image/") ? (
+                  {viewerDocument?.filePath && !documentAccessUrls[viewerDocument.id] ? (
+                    <div className="flex min-h-[720px] items-center justify-center p-8 text-center">
+                      <p className={documentAccessErrors[viewerDocument.id] ? "text-sm text-red-600" : "text-sm text-slate-500"}>
+                        {documentAccessErrors[viewerDocument.id]
+                          ? "Não foi possível abrir o arquivo armazenado com segurança."
+                          : "Gerando acesso seguro ao documento..."}
+                      </p>
+                    </div>
+                  ) : viewerDocument?.mimeType?.startsWith("image/") ? (
                     <img src={viewerDocument ? getDocumentFallbackUrl(viewerDocument) : undefined} alt={viewerDocument?.fileName || viewerDocument?.label} className="min-h-[720px] w-full object-contain" />
                   ) : (
                     <iframe
