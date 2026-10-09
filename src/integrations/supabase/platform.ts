@@ -1546,6 +1546,65 @@ export async function createRemoteExternalProcessV2(
   };
 }
 
+
+export async function issueRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "iss_obra" | "aprovacao_final";
+  amount: number;
+  guidePrefix?: string;
+  dueDate?: string | null;
+}) {
+  if (!supabase) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await supabase.rpc("issue_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _amount: input.amount,
+    _guide_prefix: input.guidePrefix || "DAM",
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown>; existing?: boolean };
+}
+
+export async function confirmRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+}) {
+  if (!supabase) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await supabase.rpc("confirm_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+  });
+
+  if (error) throw error;
+  return data as {
+    process_id: string;
+    guide: Record<string, unknown>;
+    from_status: string;
+    to_status: string;
+  };
+}
+
+export async function reissueRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  dueDate?: string | null;
+}) {
+  if (!supabase) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await supabase.rpc("reissue_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown> };
+}
+
 export async function uploadInstitutionalBrandingAsset(input: {
   tenantId?: string;
   subdomain?: string;
