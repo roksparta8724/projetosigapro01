@@ -362,7 +362,7 @@ export async function loadRemotePlatformStore() {
   const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
   const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
-  const guidesByProcess = new Map<string, Record<string, unknown>>();
+  const guidesByProcess = new Map<string, Record<string, unknown>[]>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
   const docsByProcess = new Map<string, Record<string, unknown>[]>();
   const requirementsByProcess = new Map<string, Record<string, unknown>[]>();
@@ -370,9 +370,9 @@ export async function loadRemotePlatformStore() {
   const reopenByProcess = new Map<string, Record<string, unknown>[]>();
   const movementsByProcess = new Map<string, Record<string, unknown>[]>();
   for (const guide of guidesResult.data ?? []) {
-    if (!guidesByProcess.has(guide.process_id)) {
-      guidesByProcess.set(guide.process_id, guide);
-    }
+    const list = guidesByProcess.get(guide.process_id) ?? [];
+    list.push(guide);
+    guidesByProcess.set(guide.process_id, list);
   }
   for (const item of partiesResult.data ?? []) {
     const list = partiesByProcess.get(item.process_id) ?? [];
@@ -869,7 +869,10 @@ export async function loadRemotePlatformStore() {
 
   const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
     const property = propertyById.get(process.property_id);
-    const guide = guidesByProcess.get(process.id);
+    const guideRows = guidesByProcess.get(process.id) ?? [];
+    const primaryGuide =
+      guideRows.find((item) => item.guide_kind === "protocolo") ??
+      guideRows[0];
     const parties = partiesByProcess.get(process.id) ?? [];
     const documents = docsByProcess.get(process.id) ?? [];
     const requirements = requirementsByProcess.get(process.id) ?? [];
@@ -975,12 +978,38 @@ export async function loadRemotePlatformStore() {
       dispatches: [],
       messages: [],
       payment: {
-        guideNumber: guide?.guide_number ?? "",
-        amount: Number(guide?.amount ?? 0),
-        status: guide?.status === "compensada" ? "compensada" : "pendente",
-        dueDate: guide?.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
-        issuedAt: guide?.created_at ?? undefined,
+        guideNumber: primaryGuide?.guide_number ?? "",
+        amount: Number(primaryGuide?.amount ?? 0),
+        status:
+          primaryGuide?.status === "compensada" ||
+          primaryGuide?.status === "paid" ||
+          primaryGuide?.paid === true
+            ? "compensada"
+            : "pendente",
+        dueDate: primaryGuide?.due_date ? new Date(primaryGuide.due_date).toLocaleDateString("pt-BR") : "",
+        issuedAt: primaryGuide?.created_at ?? undefined,
         expiresAt: undefined,
+        guides: guideRows.map((guide, index) => ({
+          kind:
+            guide.guide_kind === "iss_obra" || guide.guide_kind === "aprovacao_final"
+              ? guide.guide_kind
+              : "protocolo",
+          label:
+            guide.guide_kind === "iss_obra"
+              ? "Guia de Recolhimento de ISSQN da Obra"
+              : guide.guide_kind === "aprovacao_final"
+                ? "Guia Final de Aprovação / Habite-se"
+                : "Guia de Recolhimento de Protocolo",
+          code: String(guide.guide_number ?? ""),
+          amount: Number(guide.amount ?? 0),
+          status:
+            guide.status === "compensada" || guide.status === "paid" || guide.paid === true
+              ? "compensada"
+              : "pendente",
+          dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
+          issuedAt: guide.created_at ?? undefined,
+          expiresAt: undefined,
+        })),
       },
     };
   });
