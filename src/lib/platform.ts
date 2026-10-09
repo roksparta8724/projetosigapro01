@@ -29,6 +29,7 @@ export type Permission =
   | "review_processes"
   | "dispatch_interdepartmental"
   | "manage_financial"
+  | "manage_fiscal_financial"
   | "submit_processes"
   | "view_own_processes"
   | "sign_documents";
@@ -902,13 +903,14 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "review_processes",
     "dispatch_interdepartmental",
     "manage_financial",
+    "manage_fiscal_financial",
     "sign_documents",
   ],
-  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
+  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
   analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  financeiro: ["manage_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  fiscal: ["review_processes", "manage_own_profile", "view_own_processes"],
+  financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
+  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
+  fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
   property_owner: ["view_own_processes", "manage_own_profile"],
   proprietario_consulta: ["view_own_processes", "manage_own_profile"],
