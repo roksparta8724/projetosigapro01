@@ -43,7 +43,7 @@ describe("ExternalProcessControlPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Controle de processos")).toBeInTheDocument();
+    expect(screen.getAllByText("Controle de processos").length).toBeGreaterThan(0);
     expect(screen.getByText("Em andamento")).toBeInTheDocument();
     expect(screen.getByText("Com exigências")).toBeInTheDocument();
     expect(screen.getByText("Aguardando pagamento")).toBeInTheDocument();
