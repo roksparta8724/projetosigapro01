@@ -1,0 +1,3295 @@
+import { databaseClient as db } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
+import { uploadFile } from "@/integrations/r2/client";
+import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import {
+  buildProcessDocuments,
+  serializeMarker,
+  type ClientPlanAssignment,
+  type CreateProcessInput,
+  type InstitutionAdminContact,
+  type OwnerProfessionalMessage,
+  type OwnerProjectLink,
+  type OwnerProjectRequest,
+  type PlanItem,
+  type ProcessRecord,
+  type SessionUser,
+  type Tenant,
+  type TenantSettings,
+  type UserProfile,
+} from "@/lib/platform";
+
+function isMissingRelationError(error: unknown, relationName: string) {
+  if (!error || typeof error !== "object") return false;
+
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  const details = "details" in error && typeof error.details === "string" ? error.details : "";
+  const hint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
+  const code = "code" in error && typeof error.code === "string" ? error.code : "";
+  const blob = `${message} ${details} ${hint}`.toLowerCase();
+
+  return code === "PGRST205" || blob.includes(relationName.toLowerCase());
+}
+
+function isMissingColumnError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  const details = "details" in error && typeof error.details === "string" ? error.details : "";
+  const hint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
+  const blob = `${message} ${details} ${hint}`.toLowerCase();
+
+  return blob.includes("could not find the") && blob.includes("column");
+}
+
+function getMissingColumnName(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  const details = "details" in error && typeof error.details === "string" ? error.details : "";
+  const hint = "hint" in error && typeof error.hint === "string" ? error.hint : "";
+  const blob = `${message} ${details} ${hint}`;
+  const match = blob.match(/could not find the ['"]([^'"]+)['"] column/i);
+  return match?.[1] ?? null;
+}
+
+function formatDatabaseError(error: unknown) {
+  if (!error || typeof error !== "object") return "Erro desconhecido do banco oficial.";
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : "";
+  const details =
+    "details" in error && typeof error.details === "string" ? error.details : "";
+  const hint =
+    "hint" in error && typeof error.hint === "string" ? error.hint : "";
+  const code =
+    "code" in error && typeof error.code === "string" ? error.code : "";
+  const parts = [message, details, hint, code].filter(Boolean);
+  return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do banco oficial.";
+}
+
+function normalizeUuid(value: string | null | undefined) {
+  if (!value) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+async function upsertWithColumnRetry(
+  table: string,
+  payload: Record<string, unknown>,
+  onConflict: string,
+  options?: { ignoreDuplicates?: boolean },
+) {
+  const currentPayload: Record<string, unknown> = { ...payload };
+  let lastError: { message?: string } | null = null;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await db
+      .from(table)
+      .upsert(currentPayload, { onConflict, ignoreDuplicates: options?.ignoreDuplicates });
+    lastError = result.error;
+
+    if (!lastError) {
+      return result;
+    }
+
+    if (!isMissingColumnError(lastError)) break;
+
+    const missingColumn = getMissingColumnName(lastError);
+    if (!missingColumn || !(missingColumn in currentPayload)) break;
+
+    console.warn(
+      `[SIGAPRO][Database] Coluna ausente em ${table}, removendo e tentando novamente`,
+      { missingColumn },
+    );
+    delete currentPayload[missingColumn];
+  }
+
+  return { error: lastError };
+}
+
+function readGeneralString(general: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+
+function readGeneralOptionalString(general: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "string") return value;
+  }
+  return "";
+}
+
+function readGeneralNumber(general: Record<string, unknown>, keys: string[], fallback: number) {
+  for (const key of keys) {
+    const value = general[key];
+    if (typeof value === "number" && !Number.isNaN(value)) return value;
+  }
+  return fallback;
+}
+
+function withTimeout<T>(promise: Promise<T>, label: string, ms = 12000): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Timeout: ${label}`));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function buildMunicipalitySlug(value: string | null | undefined) {
+  if (!value) return null;
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || null;
+}
+
+function buildPlanCode(plan: Pick<PlanItem, "id" | "name" | "accountLevel">) {
+  return (
+    buildMunicipalitySlug(plan.id) ||
+    buildMunicipalitySlug(plan.accountLevel) ||
+    buildMunicipalitySlug(plan.name) ||
+    `plan-${Date.now()}`
+  );
+}
+
+function normalizeMunicipalityStatus(status: string | null | undefined) {
+  if (status === "suspenso" || status === "inactive" || status === "blocked") {
+    return "inactive";
+  }
+  if (status === "implantacao" || status === "implementation") {
+    return "implementation";
+  }
+  return "active";
+}
+
+function resolveMunicipalityName(record: Record<string, unknown>) {
+  return (
+    (typeof record.display_name === "string" && record.display_name.trim()) ||
+    (typeof record.official_name === "string" && record.official_name.trim()) ||
+    (typeof record.name === "string" && record.name.trim()) ||
+    ""
+  );
+}
+
+function resolveMunicipalityCity(record: Record<string, unknown>, general?: Record<string, unknown>) {
+  return (
+    (typeof record.city === "string" && record.city.trim()) ||
+    (typeof general?.city === "string" && general.city.trim()) ||
+    resolveMunicipalityName(record)
+  );
+}
+
+function resolveMunicipalityEmail(record: Record<string, unknown>) {
+  return (
+    (typeof record.email === "string" && record.email.trim()) ||
+    (typeof record.contact_email === "string" && record.contact_email.trim()) ||
+    ""
+  );
+}
+
+function resolveMunicipalityPhone(record: Record<string, unknown>) {
+  return (
+    (typeof record.phone === "string" && record.phone.trim()) ||
+    (typeof record.contact_phone === "string" && record.contact_phone.trim()) ||
+    ""
+  );
+}
+
+function normalizeAdminContacts(value: unknown): InstitutionAdminContact[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    .map((item) => {
+      const email = typeof item.email === "string" ? item.email.trim().toLowerCase() : "";
+      const fullName =
+        typeof item.fullName === "string"
+          ? item.fullName.trim()
+          : typeof item.full_name === "string"
+            ? item.full_name.trim()
+            : "";
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const rawLevel =
+        typeof item.accessLevel === "number"
+          ? item.accessLevel
+          : typeof item.access_level === "number"
+            ? item.access_level
+            : 3;
+
+      return {
+        email,
+        fullName,
+        title,
+        accessLevel: rawLevel >= 3 ? 3 : 2,
+      } satisfies InstitutionAdminContact;
+    })
+    .filter((item) => item.email && item.fullName);
+}
+
+function roleToAccessLevel(role: string): 1 | 2 | 3 {
+  if (role === "prefeitura_admin" || role === "master_admin" || role === "master_ops") return 3;
+  if (role === "prefeitura_supervisor" || role === "analista" || role === "financeiro" || role === "setor_intersetorial") return 2;
+  return 1;
+}
+
+function normalizeStoredRole(role: string | null | undefined): SessionUser["role"] {
+  if (role === "admin_master" || role === "master") return "master_admin";
+  if (role === "admin_municipality" || role === "admin_prefeitura") return "prefeitura_admin";
+  if (role === "secretario" || role === "diretor") return "prefeitura_supervisor";
+  if (role === "profissional" || role === "professional") return "profissional_externo";
+
+  const supportedRoles: SessionUser["role"][] = [
+    "master_admin",
+    "master_ops",
+    "prefeitura_admin",
+    "prefeitura_supervisor",
+    "analista",
+    "financeiro",
+    "setor_intersetorial",
+    "fiscal",
+    "profissional_externo",
+    "property_owner",
+    "proprietario_consulta",
+  ];
+
+  return supportedRoles.includes(role as SessionUser["role"])
+    ? (role as SessionUser["role"])
+    : "profissional_externo";
+}
+
+function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
+  if (role === "master_admin" || role === "master_ops" || role === "prefeitura_admin") return 3;
+  const level = Number(levelName?.match(/\b[123]\b/)?.[0]);
+  return level === 1 || level === 2 || level === 3 ? level : roleToAccessLevel(role);
+}
+
+function municipalityResultData(value: unknown[] | null | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
+export async function loadRemotePlatformStore() {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const [
+    tenantsResult,
+    brandingResult,
+    settingsResult,
+    municipalitiesResult,
+    municipalityBrandingResult,
+    municipalitySettingsResult,
+    profilesResult,
+    membershipsResult,
+    rolesResult,
+    processesResult,
+    propertiesResult,
+    guidesResult,
+    partiesResult,
+    documentsResult,
+    requirementsResult,
+    auditResult,
+    reopenResult,
+    movementsResult,
+    dispatchesResult,
+    processMessagesResult,
+    markersResult,
+    ownerRequestsResult,
+    ownerLinksResult,
+    ownerMessagesResult,
+    plansResult,
+    planAssignmentsResult,
+  ] = await Promise.all([
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenants").select("*").order("created_at", { ascending: false }),
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenant_branding").select("*"),
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenant_settings").select("*"),
+    db.from("municipalities").select("*").order("created_at", { ascending: false }),
+    db.from("municipality_branding").select("*"),
+    db.from("municipality_settings").select("*"),
+    db.from("profiles").select("*"),
+    db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
+    db.from("roles").select("*"),
+    db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
+    db.from("properties").select("*"),
+    isNeonBackend
+      ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
+      : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
+    db.from("process_parties").select("*"),
+    db.from("process_documents").select("*").order("created_at", { ascending: false }),
+    db.from("process_requirements").select("*").order("created_at", { ascending: false }),
+    db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
+    db.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
+    db.from("process_movements").select("*").order("created_at", { ascending: false }),
+    db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
+    db.from("process_messages").select("*").order("created_at", { ascending: false }),
+    db.from("process_markers").select("*").order("created_at", { ascending: false }),
+    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
+    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
+    db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
+    db.from("plans").select("*"),
+    db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
+  ]);
+
+  if (profilesResult.error) {
+    console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
+  }
+  if (membershipsResult.error) {
+    console.warn("SIGAPRO: falha ao carregar tenant_memberships.", membershipsResult.error);
+  }
+
+  const errors = [
+    profilesResult.error,
+    membershipsResult.error,
+    isMissingRelationError(tenantsResult.error, "public.tenants") ? null : tenantsResult.error,
+    isMissingRelationError(brandingResult.error, "public.tenant_branding") ? null : brandingResult.error,
+    isMissingRelationError(settingsResult.error, "public.tenant_settings") ? null : settingsResult.error,
+    isMissingRelationError(municipalitiesResult.error, "public.municipalities") ? null : municipalitiesResult.error,
+    isMissingRelationError(municipalityBrandingResult.error, "public.municipality_branding") ? null : municipalityBrandingResult.error,
+    isMissingRelationError(municipalitySettingsResult.error, "public.municipality_settings") ? null : municipalitySettingsResult.error,
+    rolesResult.error,
+    processesResult.error,
+    propertiesResult.error,
+    guidesResult.error,
+    partiesResult.error,
+    documentsResult.error,
+    requirementsResult.error,
+    auditResult.error,
+    reopenResult.error,
+    movementsResult.error,
+    dispatchesResult.error,
+    processMessagesResult.error,
+    markersResult.error,
+    isMissingRelationError(ownerRequestsResult.error, "public.project_owner_requests") ? null : ownerRequestsResult.error,
+    isMissingRelationError(ownerLinksResult.error, "public.project_owner_links") ? null : ownerLinksResult.error,
+    isMissingRelationError(ownerMessagesResult.error, "public.owner_professional_messages")
+      ? null
+      : ownerMessagesResult.error,
+    isMissingRelationError(plansResult.error, "public.plans") ? null : plansResult.error,
+    isMissingRelationError(planAssignmentsResult.error, "public.client_plan_assignments")
+      ? null
+      : planAssignmentsResult.error,
+  ].filter(Boolean);
+
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+
+  const tenantRows = tenantsResult.data ?? [];
+  const municipalityRows = municipalityResultData(municipalitiesResult.data);
+  const brandingByTenant = new Map((brandingResult.data ?? []).map((item) => [item.tenant_id, item]));
+  const settingsByTenant = new Map((settingsResult.data ?? []).map((item) => [item.tenant_id, item]));
+  const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
+  const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
+  const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
+  const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
+  const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
+  const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
+  const guidesByProcess = new Map<string, Record<string, unknown>[]>();
+  const partiesByProcess = new Map<string, Record<string, unknown>[]>();
+  const docsByProcess = new Map<string, Record<string, unknown>[]>();
+  const requirementsByProcess = new Map<string, Record<string, unknown>[]>();
+  const auditByProcess = new Map<string, Record<string, unknown>[]>();
+  const reopenByProcess = new Map<string, Record<string, unknown>[]>();
+  const movementsByProcess = new Map<string, Record<string, unknown>[]>();
+  const dispatchesByProcess = new Map<string, Record<string, unknown>[]>();
+  const messagesByProcess = new Map<string, Record<string, unknown>[]>();
+  const markersByProcess = new Map<string, Record<string, unknown>[]>();
+  for (const guide of guidesResult.data ?? []) {
+    const list = guidesByProcess.get(guide.process_id) ?? [];
+    list.push(guide);
+    guidesByProcess.set(guide.process_id, list);
+  }
+  for (const item of partiesResult.data ?? []) {
+    const list = partiesByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    partiesByProcess.set(item.process_id, list);
+  }
+  for (const item of documentsResult.data ?? []) {
+    const list = docsByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    docsByProcess.set(item.process_id, list);
+  }
+  for (const item of requirementsResult.data ?? []) {
+    const list = requirementsByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    requirementsByProcess.set(item.process_id, list);
+  }
+  for (const item of auditResult.data ?? []) {
+    const list = auditByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    auditByProcess.set(item.process_id, list);
+  }
+  for (const item of reopenResult.data ?? []) {
+    const list = reopenByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    reopenByProcess.set(item.process_id, list);
+  }
+  for (const item of movementsResult.data ?? []) {
+    const list = movementsByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    movementsByProcess.set(item.process_id, list);
+  }
+  for (const item of dispatchesResult.data ?? []) {
+    const list = dispatchesByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    dispatchesByProcess.set(item.process_id, list);
+  }
+  for (const item of processMessagesResult.data ?? []) {
+    const list = messagesByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    messagesByProcess.set(item.process_id, list);
+  }
+  for (const item of markersResult.data ?? []) {
+    const list = markersByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    markersByProcess.set(item.process_id, list);
+  }
+
+  const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+    status: row.status ?? "pending",
+    requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
+    respondedAt: row.responded_at ?? null,
+    respondedBy: (isNeonBackend ? row.responded_by_profile_id : null) ?? row.responded_by ?? null,
+    notes: row.notes ?? undefined,
+  }));
+
+  const ownerLinks: OwnerProjectLink[] = (ownerLinksResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+    chatEnabled: row.chat_enabled ?? true,
+    linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
+    linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? null,
+  }));
+
+  const ownerMessages: OwnerProfessionalMessage[] = (ownerMessagesResult.data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+    senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
+  }));
+
+  const plans: PlanItem[] = (plansResult.data ?? []).map((row) => ({
+    id: row.id,
+    accountLevel: row.account_level ?? row.name ?? "Custom",
+    name: row.name ?? "Plano",
+    subtitle: row.subtitle ?? "",
+    description: row.description ?? "",
+    price: Number(row.price ?? 0),
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    badge: row.badge ?? "",
+    badgeVariant: row.badge_variant ?? "default",
+    featuresIncluded: Array.isArray(row.features_included) ? row.features_included : [],
+    featuresExcluded: Array.isArray(row.features_excluded) ? row.features_excluded : [],
+    modulesIncluded: Array.isArray(row.modules_included) ? row.modules_included : [],
+    maxUsers: row.max_users ?? null,
+    maxProcesses: row.max_processes ?? null,
+    maxDepartments: row.max_departments ?? null,
+    maxStorageGb: row.max_storage_gb ?? null,
+    isFeatured: Boolean(row.is_featured ?? false),
+    isActive: Boolean(row.is_active ?? row.is_enabled ?? true),
+    isPublic: Boolean(row.is_public ?? false),
+    isInternalOnly: Boolean(row.is_internal_only ?? false),
+    isCustom: Boolean(row.is_custom ?? false),
+    isVisibleInMaster: Boolean(row.is_visible_in_master ?? true),
+    displayOrder: Number(row.display_order ?? 0),
+    accentColor: row.accent_color ?? "#1d4ed8",
+    notes: row.notes ?? "",
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  }));
+
+  const planAssignments: ClientPlanAssignment[] = (planAssignmentsResult.data ?? []).map((row) => ({
+    id: row.id,
+    municipalityId: row.municipality_id,
+    planId: row.plan_id,
+    contractStatus: row.contract_status ?? "rascunho",
+    startsAt: row.starts_at ?? "",
+    endsAt: row.ends_at ?? "",
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    billingNotes: row.billing_notes ?? "",
+    customPrice: row.custom_price ?? null,
+    isCustom: Boolean(row.is_custom ?? false),
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  }));
+
+  const mappedTenantsFromLegacy: Tenant[] = tenantRows.map((tenant) => {
+    const branding = brandingByTenant.get(tenant.id);
+    const tenantMemberships = (membershipsResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
+    const tenantProcesses = (processesResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
+
+    return {
+      id: tenant.id,
+      name: tenant.display_name,
+      city: tenant.city,
+      state: tenant.state,
+      status: tenant.status === "encerrado" ? "suspenso" : tenant.status,
+      plan:
+        plans.find((plan) =>
+          planAssignments.some((assignment) => assignment.municipalityId === tenant.id && assignment.planId === plan.id),
+        )?.name ?? "Plano institucional",
+      activeModules: [],
+      users: tenantMemberships.length,
+      processes: tenantProcesses.length,
+      revenue: 0,
+      subdomain: tenant.subdomain ?? "",
+      theme: {
+        primary: branding?.primary_color ?? "#123a58",
+        accent: branding?.accent_color ?? "#5ee8d9",
+      },
+    };
+  });
+
+  const mappedSettingsFromLegacy: TenantSettings[] = tenantRows.map((tenant) => {
+    const branding = brandingByTenant.get(tenant.id);
+    const settings = settingsByTenant.get(tenant.id);
+    const legacyExtra =
+      settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
+    return {
+      tenantId: tenant.id,
+      cnpj: settings?.cnpj ?? tenant.cnpj ?? "",
+      endereco: settings?.endereco ?? "",
+      telefone: settings?.telefone ?? "",
+      email: settings?.email ?? "",
+      site: settings?.site ?? "",
+      secretariaResponsavel: settings?.secretaria_responsavel ?? branding?.hero_subtitle ?? "",
+      diretoriaResponsavel: settings?.diretoria_responsavel ?? "",
+      diretoriaTelefone: settings?.diretoria_telefone ?? "",
+      diretoriaEmail: settings?.diretoria_email ?? "",
+      horarioAtendimento: settings?.horario_atendimento ?? "",
+      brasaoUrl: settings?.brasao_url ?? "",
+      bandeiraUrl: settings?.bandeira_url ?? "",
+      logoUrl: settings?.logo_url ?? branding?.logo_url ?? "",
+      imagemHeroUrl: settings?.imagem_hero_url ?? "",
+      resumoPlanoDiretor: settings?.resumo_plano_diretor ?? "",
+      resumoUsoSolo: settings?.resumo_uso_solo ?? "",
+      leisComplementares: settings?.leis_complementares ?? "",
+      linkPortalCliente:
+        settings?.link_portal_cliente ??
+        buildMunicipalityPortalUrl({
+          subdomain: tenant.subdomain,
+          customDomain: tenant.customDomain,
+        }),
+      protocoloPrefixo: settings?.protocolo_prefixo ?? "SIG",
+      guiaPrefixo: settings?.guia_prefixo ?? "DAM",
+      chavePix: settings?.chave_pix ?? "",
+      beneficiarioArrecadacao: settings?.beneficiario_arrecadacao ?? tenant.display_name,
+      contractNumber: settings?.contract_number ?? "",
+      contractStart: settings?.contract_start ?? "",
+      contractEnd: settings?.contract_end ?? "",
+      monthlyFee: Number(settings?.monthly_fee ?? 0),
+      setupFee: Number(settings?.setup_fee ?? 0),
+      signatureMode: settings?.signature_mode ?? "eletronica",
+      clientDeliveryLink:
+        settings?.client_delivery_link ??
+        buildMunicipalityPortalUrl({
+          subdomain: tenant.subdomain,
+          customDomain: tenant.customDomain,
+        }),
+      logoScale: Number(settings?.logo_scale ?? branding?.logo_scale ?? branding?.header_logo_scale ?? 1),
+      logoOffsetX: Number(settings?.logo_offset_x ?? branding?.logo_offset_x ?? branding?.header_logo_offset_x ?? 0),
+      logoOffsetY: Number(settings?.logo_offset_y ?? branding?.logo_offset_y ?? branding?.header_logo_offset_y ?? 0),
+      headerLogoScale: Number(settings?.header_logo_scale ?? branding?.header_logo_scale ?? settings?.logo_scale ?? branding?.logo_scale ?? 1),
+      headerLogoOffsetX: Number(settings?.header_logo_offset_x ?? branding?.header_logo_offset_x ?? settings?.logo_offset_x ?? branding?.logo_offset_x ?? 0),
+      headerLogoOffsetY: Number(settings?.header_logo_offset_y ?? branding?.header_logo_offset_y ?? settings?.logo_offset_y ?? branding?.logo_offset_y ?? 0),
+      footerLogoScale: Number(settings?.footer_logo_scale ?? branding?.footer_logo_scale ?? settings?.logo_scale ?? branding?.logo_scale ?? 1),
+      footerLogoOffsetX: Number(settings?.footer_logo_offset_x ?? branding?.footer_logo_offset_x ?? settings?.logo_offset_x ?? branding?.logo_offset_x ?? 0),
+      footerLogoOffsetY: Number(settings?.footer_logo_offset_y ?? branding?.footer_logo_offset_y ?? settings?.logo_offset_y ?? branding?.logo_offset_y ?? 0),
+      logoAlt: settings?.logo_alt ?? branding?.logo_alt ?? `Logo institucional de ${tenant.display_name}`,
+      logoUpdatedAt: settings?.logo_updated_at ?? branding?.logo_updated_at ?? "",
+      logoUpdatedBy: normalizeUuid(settings?.logo_updated_by ?? branding?.logo_updated_by) ?? "",
+      logoFrameMode: settings?.logo_frame_mode ?? branding?.logo_frame_mode ?? branding?.header_logo_frame_mode ?? "soft-square",
+      logoFitMode: settings?.logo_fit_mode ?? branding?.logo_fit_mode ?? branding?.header_logo_fit_mode ?? "contain",
+      headerLogoFrameMode: settings?.header_logo_frame_mode ?? branding?.header_logo_frame_mode ?? settings?.logo_frame_mode ?? branding?.logo_frame_mode ?? "soft-square",
+      headerLogoFitMode: settings?.header_logo_fit_mode ?? branding?.header_logo_fit_mode ?? settings?.logo_fit_mode ?? branding?.logo_fit_mode ?? "contain",
+      footerLogoFrameMode: settings?.footer_logo_frame_mode ?? branding?.footer_logo_frame_mode ?? settings?.logo_frame_mode ?? branding?.logo_frame_mode ?? "soft-square",
+      footerLogoFitMode: settings?.footer_logo_fit_mode ?? branding?.footer_logo_fit_mode ?? settings?.logo_fit_mode ?? branding?.logo_fit_mode ?? "contain",
+      planoDiretorArquivoNome: settings?.plano_diretor_arquivo_nome ?? "",
+      planoDiretorArquivoUrl: settings?.plano_diretor_arquivo_url ?? "",
+      usoSoloArquivoNome: settings?.uso_solo_arquivo_nome ?? "",
+      usoSoloArquivoUrl: settings?.uso_solo_arquivo_url ?? "",
+      leisArquivoNome: settings?.leis_arquivo_nome ?? "",
+      leisArquivoUrl: settings?.leis_arquivo_url ?? "",
+      adminContacts: normalizeAdminContacts(legacyExtra.admin_contacts),
+      taxaProtocolo: Number(settings?.taxa_protocolo ?? 35.24),
+      taxaIssPorMetroQuadrado: Number(settings?.taxa_iss_por_metro_quadrado ?? 0),
+      issStageEnabled:
+        typeof legacyExtra.iss_stage_enabled === "boolean"
+          ? legacyExtra.iss_stage_enabled
+          : true,
+      issRateProfiles:
+        Array.isArray(legacyExtra.iss_rate_profiles) && legacyExtra.iss_rate_profiles.length > 0
+          ? (legacyExtra.iss_rate_profiles as TenantSettings["issRateProfiles"])
+          : undefined,
+      taxaAprovacaoFinal: Number(settings?.taxa_aprovacao_final ?? 0),
+      finalApprovalFeeEnabled:
+        typeof legacyExtra.final_approval_fee_enabled === "boolean"
+          ? legacyExtra.final_approval_fee_enabled
+          : true,
+      approvalRateProfiles:
+        Array.isArray(legacyExtra.approval_rate_profiles) && legacyExtra.approval_rate_profiles.length > 0
+          ? (legacyExtra.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
+          : undefined,
+      registroProfissionalObrigatorio: Boolean(settings?.registro_profissional_obrigatorio ?? true),
+    };
+  });
+
+  const mappedTenantsFromMunicipalities: Tenant[] = municipalityRows.map((municipality) => {
+    const branding = brandingByMunicipality.get(municipality.id);
+    const settings = settingsByMunicipality.get(municipality.id);
+    const general =
+      settings?.general_settings && typeof settings.general_settings === "object"
+        ? (settings.general_settings as Record<string, unknown>)
+        : {};
+    const municipalityName = resolveMunicipalityName(municipality);
+    const municipalityCity = resolveMunicipalityCity(municipality, general);
+    const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
+    const municipalityProcesses = (processesResult.data ?? []).filter(
+      (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
+    );
+    const activeModules =
+      Array.isArray(general.legacy_modules_enabled)
+        ? general.legacy_modules_enabled
+            .filter(
+              (item): item is { is_enabled?: boolean; module_id?: string } =>
+                Boolean(item) && typeof item === "object" && !Array.isArray(item),
+            )
+            .filter((item) => item.is_enabled && typeof item.module_id === "string")
+            .map((item) => item.module_id)
+        : [];
+
+    return {
+      id: municipality.id,
+      name: municipalityName,
+      city: municipalityCity,
+      state: municipality.state,
+      status:
+        municipality.status === "blocked" || municipality.status === "inactive"
+          ? "suspenso"
+          : municipality.status === "implementation"
+            ? "implantacao"
+            : "ativo",
+      plan:
+        plans.find((plan) =>
+          planAssignments.some((assignment) => assignment.municipalityId === municipality.id && assignment.planId === plan.id),
+        )?.name ?? "Plano institucional",
+      activeModules,
+      users: municipalityProfiles.length,
+      processes: municipalityProcesses.length,
+      revenue: typeof general.monthly_fee === "number" ? general.monthly_fee : 0,
+      subdomain: municipality.subdomain ?? municipality.slug ?? "",
+      theme: {
+        primary: branding?.primary_color ?? "#123a58",
+        accent: branding?.accent_color ?? "#5ee8d9",
+      },
+    };
+  });
+
+  const mappedSettingsFromMunicipalities: TenantSettings[] = municipalityRows.map((municipality) => {
+    const branding = brandingByMunicipality.get(municipality.id);
+    const settings = settingsByMunicipality.get(municipality.id);
+    const general =
+      settings?.general_settings && typeof settings.general_settings === "object"
+        ? (settings.general_settings as Record<string, unknown>)
+        : {};
+    const municipalityName = resolveMunicipalityName(municipality);
+
+    return {
+      tenantId: municipality.id,
+      cnpj:
+        (typeof general.cnpj === "string" && general.cnpj) ||
+        (typeof municipality.cnpj === "string" ? municipality.cnpj : "") ||
+        "",
+      cep: typeof general.postal_code === "string" ? general.postal_code : "",
+      endereco: municipality.address ?? "",
+      telefone: resolveMunicipalityPhone(municipality),
+      email: resolveMunicipalityEmail(municipality),
+      site: municipality.custom_domain ?? (typeof general.site === "string" ? general.site : ""),
+      secretariaResponsavel: municipality.secretariat_name ?? "",
+      secretariaTelefone:
+        typeof general.secretariat_phone === "string"
+          ? general.secretariat_phone
+          : resolveMunicipalityPhone(municipality),
+      secretariaEmail:
+        typeof general.secretariat_email === "string"
+          ? general.secretariat_email
+          : resolveMunicipalityEmail(municipality),
+      diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
+      diretoriaTelefone: typeof general.directorship_phone === "string" ? general.directorship_phone : "",
+      diretoriaEmail: typeof general.directorship_email === "string" ? general.directorship_email : "",
+      footerContactSource:
+        general.footer_contact_source === "secretaria" ? "secretaria" : "diretoria",
+      horarioAtendimento: typeof general.office_hours === "string" ? general.office_hours : "",
+      brasaoUrl: branding?.coat_of_arms_url ?? "",
+      bandeiraUrl: typeof general.bandeira_url === "string" ? general.bandeira_url : "",
+      logoUrl: branding?.logo_url ?? "",
+      imagemHeroUrl: typeof general.imagem_hero_url === "string" ? general.imagem_hero_url : "",
+      resumoPlanoDiretor: typeof general.resumo_plano_diretor === "string" ? general.resumo_plano_diretor : "",
+      resumoUsoSolo: typeof general.resumo_uso_solo === "string" ? general.resumo_uso_solo : "",
+      leisComplementares: typeof general.leis_complementares === "string" ? general.leis_complementares : "",
+      linkPortalCliente:
+        (typeof general.link_portal_cliente === "string" && general.link_portal_cliente) ||
+        buildMunicipalityPortalUrl({
+          subdomain: municipality.subdomain,
+          customDomain: municipality.custom_domain ?? "",
+        }),
+      protocoloPrefixo: settings?.protocol_prefix ?? "SIG",
+      guiaPrefixo: settings?.guide_prefix ?? "DAM",
+      chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
+      beneficiarioArrecadacao:
+        readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipalityName,
+      contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
+      contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
+      contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
+      monthlyFee: typeof general.monthly_fee === "number" ? general.monthly_fee : 0,
+      setupFee: typeof general.setup_fee === "number" ? general.setup_fee : 0,
+      signatureMode:
+        typeof general.signature_mode === "string" && ["eletronica", "manual", "icp_brasil"].includes(general.signature_mode)
+          ? (general.signature_mode as TenantSettings["signatureMode"])
+          : "eletronica",
+      clientDeliveryLink:
+        (typeof general.client_delivery_link === "string" && general.client_delivery_link) ||
+        buildMunicipalityPortalUrl({
+          subdomain: municipality.subdomain,
+          customDomain: municipality.custom_domain ?? "",
+        }),
+      logoScale: typeof general.logo_scale === "number" ? general.logo_scale : 1,
+      logoOffsetX: typeof general.logo_offset_x === "number" ? general.logo_offset_x : 0,
+      logoOffsetY: typeof general.logo_offset_y === "number" ? general.logo_offset_y : 0,
+      headerLogoScale: typeof general.header_logo_scale === "number" ? general.header_logo_scale : 1,
+      headerLogoOffsetX: typeof general.header_logo_offset_x === "number" ? general.header_logo_offset_x : 0,
+      headerLogoOffsetY: typeof general.header_logo_offset_y === "number" ? general.header_logo_offset_y : 0,
+      footerLogoScale: typeof general.footer_logo_scale === "number" ? general.footer_logo_scale : 1,
+      footerLogoOffsetX: typeof general.footer_logo_offset_x === "number" ? general.footer_logo_offset_x : 0,
+      footerLogoOffsetY: typeof general.footer_logo_offset_y === "number" ? general.footer_logo_offset_y : 0,
+      logoAlt: `Logo institucional de ${municipalityName}`,
+      logoUpdatedAt: branding?.updated_at ?? "",
+      logoUpdatedBy: "",
+      logoFrameMode: "soft-square",
+      logoFitMode: "contain",
+      headerLogoFrameMode: "soft-square",
+      headerLogoFitMode: "contain",
+      footerLogoFrameMode: "soft-square",
+      footerLogoFitMode: "contain",
+      planoDiretorArquivoNome: readGeneralOptionalString(general, [
+        "plano_diretor_arquivo_nome",
+        "plan_file_name",
+      ]),
+      planoDiretorArquivoUrl: readGeneralOptionalString(general, ["plano_diretor_arquivo_url", "plan_file_url"]),
+      usoSoloArquivoNome: readGeneralOptionalString(general, ["uso_solo_arquivo_nome", "zoning_file_name"]),
+      usoSoloArquivoUrl: readGeneralOptionalString(general, ["uso_solo_arquivo_url", "zoning_file_url"]),
+      leisArquivoNome: readGeneralOptionalString(general, ["leis_arquivo_nome", "complementary_laws_file_name"]),
+      leisArquivoUrl: readGeneralOptionalString(general, ["leis_arquivo_url", "complementary_laws_file_url"]),
+      adminContacts: normalizeAdminContacts(general.admin_contacts),
+      taxaProtocolo: readGeneralNumber(general, ["taxa_protocolo", "fee_protocol"], 35.24),
+      taxaIssPorMetroQuadrado: readGeneralNumber(general, ["taxa_iss_por_metro_quadrado", "fee_iss_m2"], 0),
+      issStageEnabled:
+        typeof general.iss_stage_enabled === "boolean" ? general.iss_stage_enabled : true,
+      issRateProfiles:
+        Array.isArray(general.iss_rate_profiles) && general.iss_rate_profiles.length > 0
+          ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
+          : undefined,
+      taxaAprovacaoFinal: readGeneralNumber(general, ["taxa_aprovacao_final", "fee_final_approval"], 0),
+      finalApprovalFeeEnabled:
+        typeof general.final_approval_fee_enabled === "boolean"
+          ? general.final_approval_fee_enabled
+          : true,
+      approvalRateProfiles:
+        Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
+          ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
+          : undefined,
+      registroProfissionalObrigatorio: settings?.require_professional_registration ?? true,
+    };
+  });
+
+  // Municipalities is the canonical model. Legacy tenants are admitted only
+  // for IDs that have not yet been migrated, preventing duplicate/conflicting
+  // representations of the same Prefeitura during the transition.
+  const municipalityIds = new Set(mappedTenantsFromMunicipalities.map((item) => item.id));
+  const tenants: Tenant[] = [
+    ...mappedTenantsFromMunicipalities,
+    ...mappedTenantsFromLegacy.filter((item) => !municipalityIds.has(item.id)),
+  ];
+
+  const municipalitySettingsIds = new Set(
+    mappedSettingsFromMunicipalities.map((item) => item.tenantId),
+  );
+  const tenantSettings: TenantSettings[] = [
+    ...mappedSettingsFromMunicipalities,
+    ...mappedSettingsFromLegacy.filter(
+      (item) => !municipalitySettingsIds.has(item.tenantId),
+    ),
+  ];
+
+  const userProfiles: UserProfile[] = (profilesResult.data ?? []).map((profile) => ({
+    userId: (isNeonBackend ? profile.id : profile.user_id) ?? profile.id,
+    fullName: profile.full_name ?? "",
+    email: profile.email ?? "",
+    phone: profile.phone ?? "",
+    cpfCnpj: profile.cpf_cnpj ?? "",
+    rg: profile.rg ?? "",
+    birthDate: profile.birth_date ?? "",
+    professionalType: profile.professional_type ?? "",
+    registrationNumber: profile.registration_number ?? "",
+    companyName: profile.company_name ?? "",
+    addressLine: profile.address_line ?? "",
+    addressNumber: profile.address_number ?? "",
+    addressComplement: profile.address_complement ?? "",
+    neighborhood: profile.neighborhood ?? "",
+    city: profile.city ?? "",
+    state: profile.state ?? "",
+    zipCode: profile.zip_code ?? "",
+    avatarUrl: profile.avatar_url ?? "",
+    avatarScale: Number(profile.avatar_scale ?? 1),
+    avatarOffsetX: Number(profile.avatar_offset_x ?? 0),
+    avatarOffsetY: Number(profile.avatar_offset_y ?? 0),
+    useAvatarInHeader: Boolean(profile.use_avatar_in_header ?? false),
+    bio: profile.bio ?? "",
+  }));
+
+  const sessionUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
+    const role = roleById.get(membership.role_id);
+    const profile =
+      (membership.profile_id ? profileById.get(membership.profile_id) : null) ??
+      (membership.user_id ? profileByUser.get(membership.user_id) : null);
+    const canonicalUserId =
+      (isNeonBackend ? membership.profile_id ?? profile?.id : membership.user_id) ??
+      membership.profile_id ??
+      profile?.id ??
+      membership.user_id;
+    const roleCode = normalizeStoredRole(role?.code ?? profile?.role);
+    const accountStatus =
+      profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
+        ? "blocked"
+        : profile?.account_status === "inactive" || membership.account_status === "inactive" || membership.deleted_at
+          ? "inactive"
+          : "active";
+
+    return {
+      id: canonicalUserId,
+      name: profile?.full_name ?? profile?.email ?? "Usuario",
+      role: roleCode,
+      accessLevel: storedAccessLevel(membership.level_name, roleCode),
+      tenantId: membership.tenant_id,
+      municipalityId: profile?.municipality_id ?? membership.tenant_id,
+      title: membership.department || membership.queue_name || membership.level_name || role?.label || "",
+      email: profile?.email ?? "",
+      accountStatus,
+      userType:
+        membership.user_type ??
+        (roleCode === "profissional_externo" ||
+        roleCode === "proprietario_consulta" ||
+        roleCode === "property_owner"
+          ? "Externo"
+          : "Interno"),
+      department: membership.department || membership.queue_name || membership.level_name || "",
+      createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
+      lastAccessAt: membership.last_access_at ? new Date(membership.last_access_at).toLocaleString("pt-BR") : "",
+      blockedAt: profile?.blocked_at ?? membership.blocked_at ?? null,
+      blockedBy: normalizeUuid(profile?.blocked_by ?? membership.blocked_by) ?? null,
+      blockReason: profile?.block_reason ?? membership.block_reason ?? null,
+      deletedAt: membership.deleted_at ?? null,
+    };
+  });
+
+  const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
+  for (const profile of profilesResult.data ?? []) {
+    const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
+    if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
+    const role = normalizeStoredRole(profile.role);
+    sessionUsers.push({
+      id: canonicalUserId,
+      name: profile.full_name ?? profile.email ?? "Usuário",
+      role,
+      accessLevel: roleToAccessLevel(role),
+      tenantId: profile.municipality_id ?? null,
+      municipalityId: profile.municipality_id ?? null,
+      title: (rolesResult.data ?? []).find((item) => item.code === role)?.label ?? role,
+      email: profile.email ?? "",
+      accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
+      userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
+      department: "",
+      createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
+      lastAccessAt: "",
+      blockedAt: profile.blocked_at ?? null,
+      blockedBy: normalizeUuid(profile.blocked_by) ?? null,
+      blockReason: profile.block_reason ?? null,
+      deletedAt: null,
+    });
+  }
+
+  const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
+    const property = propertyById.get(process.property_id);
+    const guideRows = guidesByProcess.get(process.id) ?? [];
+    const primaryGuide =
+      guideRows.find((item) => item.guide_kind === "protocolo") ??
+      guideRows[0];
+    const parties = partiesByProcess.get(process.id) ?? [];
+    const documents = docsByProcess.get(process.id) ?? [];
+    const requirements = requirementsByProcess.get(process.id) ?? [];
+    const auditEntries = auditByProcess.get(process.id) ?? [];
+    const reopenEntries = reopenByProcess.get(process.id) ?? [];
+    const movements = movementsByProcess.get(process.id) ?? [];
+    const dispatches = dispatchesByProcess.get(process.id) ?? [];
+    const processMessages = messagesByProcess.get(process.id) ?? [];
+    const markers = markersByProcess.get(process.id) ?? [];
+    const owner = parties.find((party) => party.party_type === "proprietario");
+    const externalLead = parties.find((party) => party.party_type === "profissional_externo");
+
+    return {
+      id: process.id,
+      tenantId: process.tenant_id,
+      municipalityId: process.municipality_id ?? process.tenant_id,
+      protocol: process.protocol_number,
+      externalProtocol: process.external_protocol_number ?? process.protocol_number,
+      title: process.title,
+      type: process.process_type,
+      status: process.status,
+      ownerName: owner?.display_name ?? "Nao informado",
+      ownerDocument: owner?.document_masked ?? "***",
+      technicalLead: externalLead?.display_name ?? "Nao informado",
+      createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
+      tags: markers.map((marker) =>
+        serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
+      ),
+      address: property?.address ?? "Endereco nao informado",
+      notes: "",
+      property: {
+        registration: property?.registry_code ?? "",
+        iptu: property?.iptu_code ?? "",
+        lot: property?.lot ?? "",
+        block: property?.block ?? "",
+        area: Number(property?.area_m2 ?? 0),
+        usage: property?.usage_type ?? "",
+        constructionStandard: property?.construction_standard ?? "",
+      },
+      triage: {
+        status: (process.triage_status ?? "recebido") as ProcessRecord["triage"]["status"],
+        assignedTo: process.triage_assigned_to ?? undefined,
+        notes: process.triage_notes ?? undefined,
+      },
+      checklistType: process.checklist_type ?? process.process_type,
+      sla: {
+        currentStage: process.sla_stage ?? "Fluxo em andamento",
+        dueDate: process.sla_due_at ? new Date(process.sla_due_at).toLocaleDateString("pt-BR") : "",
+        hoursRemaining: process.sla_hours_remaining ?? 0,
+        breached: Boolean(process.sla_breached),
+      },
+      reopenHistory: reopenEntries.map((entry) => ({
+        id: entry.id,
+        reason: entry.reason,
+        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
+        at: new Date(entry.created_at).toLocaleString("pt-BR"),
+      })),
+      documents: buildProcessDocuments(
+        process.checklist_type ?? process.process_type,
+        documents.map((document) => ({
+          id: document.id,
+          label: document.title,
+          required: Boolean(document.is_required),
+          uploaded: true,
+          signed: false,
+          reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
+          reviewedBy: (isNeonBackend ? document.reviewed_by_profile_id : null) ?? document.reviewed_by ?? undefined,
+          annotations: Array.isArray(document.annotations) ? document.annotations : [],
+          version: document.version ?? 1,
+          source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
+          fileName: document.file_name ?? undefined,
+          filePath: document.file_path ?? undefined,
+          mimeType: document.mime_type ?? undefined,
+          sizeLabel: document.size_label ?? undefined,
+          previewUrl: document.preview_url ?? undefined,
+        })),
+        process.tenant_id,
+      ),
+      requirements: requirements.map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        status: item.status,
+        createdAt: new Date(item.created_at).toLocaleString("pt-BR"),
+        dueDate: item.due_at ? new Date(item.due_at).toLocaleDateString("pt-BR") : "",
+        createdBy: item.created_by ?? "Sistema",
+        targetName: item.target_name ?? "",
+        response: item.response ?? undefined,
+        respondedAt: item.responded_at ? new Date(item.responded_at).toLocaleString("pt-BR") : undefined,
+        responseBy: item.response_by ?? undefined,
+        visibility: item.visibility,
+      })),
+      timeline: movements.map((movement) => ({
+        id: movement.id,
+        title: movement.movement_type,
+        detail: movement.description,
+        actor: movement.actor_user_id ?? "Sistema",
+        at: new Date(movement.created_at).toLocaleString("pt-BR"),
+      })),
+      auditTrail: auditEntries.map((entry) => ({
+        id: entry.id,
+        category: entry.category,
+        title: entry.title,
+        detail: entry.detail,
+        actor: entry.actor_user_id ?? "Sistema",
+        visibleToExternal: Boolean(entry.visible_to_external),
+        at: new Date(entry.created_at).toLocaleString("pt-BR"),
+      })),
+      processControl: {
+        externalTransitView:
+          process.external_transit_view === "restrito" ? "restrito" : "completo",
+        currentFolder:
+          process.current_department ??
+          process.current_queue ??
+          process.sla_stage ??
+          "Fluxo em andamento",
+        checkpoint: process.process_checkpoint ?? undefined,
+        onHold: Boolean(process.is_on_hold),
+        onHoldReason: process.hold_reason ?? undefined,
+      },
+      signatures: [],
+      dispatches: dispatches.map((dispatch) => ({
+        id: String(dispatch.id),
+        from: String(dispatch.from_department ?? ""),
+        to: String(dispatch.to_department ?? ""),
+        subject: String(dispatch.subject ?? ""),
+        dueDate: dispatch.due_at ? new Date(String(dispatch.due_at)).toLocaleDateString("pt-BR") : "",
+        status:
+          dispatch.status === "respondido" ||
+          dispatch.status === "concluido" ||
+          dispatch.status === "devolvido" ||
+          dispatch.status === "sobrestado"
+            ? dispatch.status
+            : "aguardando",
+        visibility:
+          dispatch.visibility === "externo" || dispatch.visibility === "misto"
+            ? dispatch.visibility
+            : "interno",
+        priority:
+          dispatch.priority === "baixa" ||
+          dispatch.priority === "alta" ||
+          dispatch.priority === "critica"
+            ? dispatch.priority
+            : "media",
+        assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
+      })),
+      messages: processMessages.map((message) => ({
+        id: String(message.id),
+        senderName: String(message.sender_name ?? "Usuário"),
+        senderRole: String(message.sender_role ?? "usuario"),
+        audience:
+          message.audience === "interno" || message.audience === "externo"
+            ? message.audience
+            : "misto",
+        recipientName: message.recipient_name ? String(message.recipient_name) : undefined,
+        message: String(message.message ?? ""),
+        at: message.created_at ? new Date(String(message.created_at)).toLocaleString("pt-BR") : "",
+      })),
+      payment: {
+        guideNumber: primaryGuide?.guide_number ?? "",
+        amount: Number(primaryGuide?.amount ?? 0),
+        status:
+          primaryGuide?.status === "compensada" ||
+          primaryGuide?.status === "paid" ||
+          primaryGuide?.paid === true
+            ? "compensada"
+            : "pendente",
+        dueDate: primaryGuide?.due_date ? new Date(primaryGuide.due_date).toLocaleDateString("pt-BR") : "",
+        issuedAt: primaryGuide?.created_at ?? undefined,
+        expiresAt: undefined,
+        guides: guideRows.map((guide, index) => ({
+          kind:
+            guide.guide_kind === "iss_obra" || guide.guide_kind === "aprovacao_final"
+              ? guide.guide_kind
+              : "protocolo",
+          label:
+            guide.guide_kind === "iss_obra"
+              ? "Guia de Recolhimento de ISSQN da Obra"
+              : guide.guide_kind === "aprovacao_final"
+                ? "Guia Final de Aprovação / Habite-se"
+                : "Guia de Recolhimento de Protocolo",
+          code: String(guide.guide_number ?? ""),
+          amount: Number(guide.amount ?? 0),
+          status:
+            guide.status === "compensada" || guide.status === "paid" || guide.paid === true
+              ? "compensada"
+              : "pendente",
+          dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
+          issuedAt: guide.created_at ?? undefined,
+          expiresAt: undefined,
+        })),
+      },
+    };
+  });
+
+  return {
+    tenants,
+    tenantSettings,
+    sessionUsers,
+    userProfiles,
+    ownerRequests,
+    ownerLinks,
+    ownerMessages,
+    processes,
+    plans,
+    planAssignments,
+  };
+}
+
+interface RegisterExternalAccountInput {
+  tenantId?: string;
+  fullName?: string;
+  email: string;
+  cpfCnpj: string;
+  phone: string;
+  professionalType: string;
+  registrationNumber: string;
+  companyName: string;
+  title?: string;
+  bio?: string;
+}
+
+export async function registerRemoteExternalAccount(input: RegisterExternalAccountInput) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Prefeitura invalida para cadastro externo.");
+  }
+
+  const { data, error } = await db.rpc("register_external_account", {
+    _tenant_id: scopeId,
+    _full_name: input.fullName,
+    _email: input.email,
+    _cpf_cnpj: input.cpfCnpj || null,
+    _phone: input.phone || null,
+    _professional_type: input.professionalType || null,
+    _registration_number: input.registrationNumber || null,
+    _company_name: input.companyName || null,
+    _title: input.title || null,
+    _bio: input.bio || null,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function registerRemoteOwnerAccount(input: {
+  tenantId?: string;
+  fullName?: string;
+  email: string;
+  cpfCnpj: string;
+  phone: string;
+  title?: string;
+  bio?: string;
+}) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Prefeitura invalida para cadastro externo.");
+  }
+
+  const { data, error } = await db.rpc("register_property_owner_account", {
+    _tenant_id: scopeId,
+    _full_name: input.fullName,
+    _email: input.email,
+    _cpf_cnpj: input.cpfCnpj || null,
+    _phone: input.phone || null,
+    _title: input.title || null,
+    _bio: input.bio || null,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createRemoteOwnerRequest(input: {
+  processId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  ownerDocument: string;
+  notes?: string;
+}) {
+  if (!db) {
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("create_owner_request", {
+      _process_id: input.processId,
+      _professional_id: input.professionalUserId,
+      _notes: input.notes || null,
+    });
+
+    if (error) throw error;
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar solicitação de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    };
+  }
+
+  const { data, error } = await db
+    .from("project_owner_requests")
+    .insert({
+      process_id: input.processId,
+      owner_user_id: input.ownerUserId,
+      professional_user_id: input.professionalUserId,
+      status: "pending",
+      requested_at: new Date().toISOString(),
+      notes: input.notes || null,
+    })
+    .select("*")
+    .limit(1);
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) throw new Error("Falha ao criar solicitacao de responsavel.");
+
+  return {
+    id: row.id,
+    projectId: row.process_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    status: row.status ?? "pending",
+    requestedAt: row.requested_at ?? row.created_at ?? new Date().toISOString(),
+    respondedAt: row.responded_at ?? null,
+    respondedBy: row.responded_by ?? null,
+    notes: row.notes ?? undefined,
+  };
+}
+
+export async function respondRemoteOwnerRequest(input: {
+  requestId: string;
+  status: "pending" | "approved" | "rejected";
+  professionalUserId: string;
+  notes?: string;
+}) {
+  if (!db) {
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (input.status === "pending") {
+      throw new Error("Uma solicitação pendente não pode ser usada como resposta.");
+    }
+
+    const { data, error } = await db.rpc("respond_owner_request", {
+      _request_id: input.requestId,
+      _status: input.status,
+      _notes: input.notes || null,
+    });
+    if (error) throw error;
+
+    const payload = data as Record<string, any> | null;
+    const row = payload?.request ?? null;
+    const linkRow = payload?.link ?? null;
+    if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
+
+    return {
+      request: {
+        id: row.id,
+        projectId: row.project_id,
+        ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+        professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+        status: row.status ?? input.status,
+        requestedAt: row.requested_at ?? new Date().toISOString(),
+        respondedAt: row.responded_at ?? null,
+        respondedBy: row.responded_by_profile_id ?? row.responded_by ?? null,
+        notes: row.notes ?? undefined,
+      },
+      link: linkRow
+        ? {
+            id: linkRow.id,
+            projectId: linkRow.project_id,
+            ownerUserId: linkRow.owner_profile_id ?? linkRow.owner_user_id,
+            professionalUserId: linkRow.professional_profile_id ?? linkRow.professional_user_id,
+            chatEnabled: linkRow.chat_enabled ?? true,
+            linkedAt: linkRow.linked_at ?? new Date().toISOString(),
+            linkedBy: linkRow.linked_by_profile_id ?? linkRow.linked_by ?? null,
+          }
+        : null,
+    };
+  }
+
+  const { data: requestData, error: requestError } = await db
+    .from("project_owner_requests")
+    .update({
+      status: input.status,
+      responded_at: new Date().toISOString(),
+      responded_by: input.professionalUserId,
+      notes: input.notes || null,
+    })
+    .eq("id", input.requestId)
+    .select("*")
+    .limit(1);
+
+  if (requestError) throw requestError;
+
+  const requestRow = Array.isArray(requestData) ? requestData[0] : null;
+  if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
+
+  let linkData: Record<string, any> | null = null;
+
+  if (input.status === "approved") {
+    const { data, error } = await db
+      .from("project_owner_links")
+      .insert({
+        project_id: requestRow.process_id,
+        owner_user_id: requestRow.owner_user_id,
+        professional_user_id: requestRow.professional_user_id,
+        chat_enabled: true,
+        linked_at: new Date().toISOString(),
+        linked_by: input.professionalUserId,
+      })
+      .select("*")
+      .limit(1);
+
+    if (error) throw error;
+    linkData = Array.isArray(data) ? data[0] : null;
+  }
+
+  return {
+    request: {
+      id: requestRow.id,
+      projectId: requestRow.process_id,
+      ownerUserId: requestRow.owner_user_id,
+      professionalUserId: requestRow.professional_user_id,
+      status: requestRow.status ?? "pending",
+      requestedAt: requestRow.requested_at ?? requestRow.created_at ?? new Date().toISOString(),
+      respondedAt: requestRow.responded_at ?? null,
+      respondedBy: requestRow.responded_by ?? null,
+      notes: requestRow.notes ?? undefined,
+    },
+    link: linkData
+      ? {
+          id: linkData.id,
+          projectId: linkData.project_id,
+          ownerUserId: linkData.owner_user_id,
+          professionalUserId: linkData.professional_user_id,
+          chatEnabled: linkData.chat_enabled ?? true,
+          linkedAt: linkData.linked_at ?? linkData.created_at ?? new Date().toISOString(),
+          linkedBy: linkData.linked_by ?? null,
+        }
+      : null,
+  };
+}
+
+export async function setRemoteOwnerChatEnabled(input: {
+  linkId: string;
+  enabled: boolean;
+  actor: string;
+}) {
+  if (!db) {
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("set_owner_chat_enabled", {
+      _link_id: input.linkId,
+      _enabled: input.enabled,
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      chatEnabled: row.chat_enabled ?? input.enabled,
+      linkedAt: row.linked_at ?? new Date().toISOString(),
+      linkedBy: row.linked_by_profile_id ?? row.linked_by ?? null,
+    };
+  }
+
+  const { data, error } = await db
+    .from("project_owner_links")
+    .update({ chat_enabled: input.enabled })
+    .eq("id", input.linkId)
+    .select("*")
+    .limit(1);
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) throw new Error("Falha ao atualizar chat do responsavel.");
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    chatEnabled: row.chat_enabled ?? true,
+    linkedAt: row.linked_at ?? row.created_at ?? new Date().toISOString(),
+    linkedBy: row.linked_by ?? null,
+  };
+}
+
+export async function createRemoteOwnerMessage(input: {
+  linkId?: string;
+  projectId: string;
+  ownerUserId: string;
+  professionalUserId: string;
+  senderUserId: string;
+  message?: string;
+  isSystemMessage?: boolean;
+}) {
+  if (!db) {
+    throw new Error("Conexão com o banco indisponível.");
+  }
+
+  if (isNeonBackend) {
+    if (!input.linkId) {
+      throw new Error("Vínculo do chat não encontrado.");
+    }
+    const { data, error } = await db.rpc("send_owner_message", {
+      _link_id: input.linkId,
+      _message: input.message ?? "",
+    });
+    if (error) throw error;
+
+    const row = data as Record<string, any> | null;
+    if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: row.owner_profile_id ?? row.owner_user_id,
+      professionalUserId: row.professional_profile_id ?? row.professional_user_id,
+      senderUserId: row.sender_profile_id ?? row.sender_user_id,
+      message: row.message,
+      createdAt: row.created_at ?? new Date().toISOString(),
+      readAt: row.read_at ?? null,
+      isSystemMessage: row.is_system_message ?? false,
+    };
+  }
+
+  const { data, error } = await db
+    .from("owner_professional_messages")
+    .insert({
+      project_id: input.projectId,
+      owner_user_id: input.ownerUserId,
+      professional_user_id: input.professionalUserId,
+      sender_user_id: input.senderUserId,
+      message: input.message,
+      is_system_message: input.isSystemMessage ?? false,
+      created_at: new Date().toISOString(),
+    })
+    .select("*")
+    .limit(1);
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) throw new Error("Falha ao criar mensagem de responsavel.");
+
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: row.owner_user_id,
+    professionalUserId: row.professional_user_id,
+    senderUserId: row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
+  };
+}
+
+export async function createRemoteExternalProcessV2(
+  input: CreateProcessInput & {
+    guidePrefix?: string;
+    protocolPrefix?: string;
+    requestedProtocolNumber?: string | null;
+  },
+) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Escopo municipal inválido para protocolar o processo.");
+  }
+
+  const primaryGuide = input.remote?.guides?.find((guide) => guide.kind === "protocolo");
+
+  const payload = {
+    title: input.title,
+    type: input.type,
+    address: input.address,
+    iptu: input.property.iptu,
+    registration: input.property.registration || null,
+    lot: input.property.lot || null,
+    block: input.property.block || null,
+    area: input.property.area || null,
+    usage: input.property.usage || null,
+    constructionStandard: input.property.constructionStandard || null,
+    ownerName: input.ownerName,
+    ownerDocument: input.ownerDocument,
+    technicalLead: input.technicalLead,
+    notes: input.notes || null,
+    amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
+    guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
+    guidePrefix: input.guidePrefix || "DAM",
+    documents: input.documents.map((document) => ({
+      label: document.label,
+      required: document.required,
+      signed: document.signed,
+      version: document.version,
+      source: document.source,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      mimeType: document.mimeType,
+      sizeLabel: document.sizeLabel,
+      previewUrl: document.previewUrl,
+      reviewStatus: document.reviewStatus ?? "pendente",
+      annotations: document.annotations ?? [],
+    })),
+  };
+
+  const { data, error } = await db.rpc("create_external_process_v2", {
+    _tenant_id: scopeId,
+    _payload: payload,
+    _protocol_prefix: input.protocolPrefix || "PM",
+    _requested_protocol_number: input.requestedProtocolNumber || null,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as {
+    process_id: string;
+    protocol_number: string;
+    guide_number: string;
+    due_date: string;
+    amount: number;
+    reconciled?: boolean;
+    existing?: boolean;
+  };
+}
+
+
+
+async function callProcessRpc<T = Record<string, unknown>>(
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc(fn, args);
+  if (error) throw error;
+  return data as T;
+}
+
+export async function appendRemoteProcessDocuments(
+  processId: string,
+  documents: ProcessDocument[],
+) {
+  return callProcessRpc("append_process_documents", {
+    _process_id: processId,
+    _documents: documents.map((document) => ({
+      label: document.label,
+      required: document.required,
+      signed: document.signed,
+      version: document.version,
+      source: document.source,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      fileHash: document.fileHash,
+      mimeType: document.mimeType,
+      sizeLabel: document.sizeLabel,
+      previewUrl: document.previewUrl,
+      reviewStatus: document.reviewStatus ?? "pendente",
+      annotations: document.annotations ?? [],
+    })),
+  });
+}
+
+export async function createRemoteProcessDispatch(input: {
+  processId: string;
+  from: string;
+  to: string;
+  subject: string;
+  dueAt?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+  priority?: "baixa" | "media" | "alta" | "critica";
+  assignedTo?: string | null;
+}) {
+  return callProcessRpc("create_process_dispatch", {
+    _process_id: input.processId,
+    _from_department: input.from,
+    _to_department: input.to,
+    _subject: input.subject,
+    _due_at: input.dueAt || null,
+    _visibility: input.visibility || "interno",
+    _priority: input.priority || "media",
+    _assigned_to: input.assignedTo || null,
+  });
+}
+
+export async function acknowledgeRemoteProcessDispatch(dispatchId: string, unit: string) {
+  return callProcessRpc("acknowledge_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+  });
+}
+
+export async function completeRemoteProcessDispatch(dispatchId: string, unit: string) {
+  return callProcessRpc("complete_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+  });
+}
+
+export async function returnRemoteProcessDispatch(
+  dispatchId: string,
+  unit: string,
+  reason?: string | null,
+) {
+  return callProcessRpc("return_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+    _reason: reason || null,
+  });
+}
+
+export async function removeRemoteProcessMarkerByLabel(processId: string, label: string) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data: rows, error: findError } = await db
+    .from("process_markers")
+    .select("id")
+    .eq("process_id", processId)
+    .ilike("label", label)
+    .limit(1);
+
+  if (findError) throw findError;
+  const markerId = Array.isArray(rows) ? rows[0]?.id : null;
+  if (!markerId) return null;
+
+  return callProcessRpc("remove_process_marker", {
+    _marker_id: markerId,
+  });
+}
+
+export async function createRemoteProcessRequirement(input: {
+  processId: string;
+  title: string;
+  description: string;
+  dueAt?: string | null;
+  targetName?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+}) {
+  return callProcessRpc("create_process_requirement", {
+    _process_id: input.processId,
+    _title: input.title,
+    _description: input.description,
+    _due_at: input.dueAt || null,
+    _target_name: input.targetName || null,
+    _visibility: input.visibility || "misto",
+  });
+}
+
+export async function respondRemoteProcessRequirement(requirementId: string, response: string) {
+  return callProcessRpc("respond_process_requirement", {
+    _requirement_id: requirementId,
+    _response: response,
+  });
+}
+
+export async function completeRemoteProcessRequirement(requirementId: string) {
+  return callProcessRpc("complete_process_requirement", {
+    _requirement_id: requirementId,
+  });
+}
+
+export async function reviewRemoteProcessDocument(documentId: string, status: "aprovado" | "rejeitado") {
+  return callProcessRpc("review_process_document", {
+    _document_id: documentId,
+    _status: status,
+  });
+}
+
+export async function annotateRemoteProcessDocument(input: {
+  documentId: string;
+  x: number;
+  y: number;
+  note: string;
+}) {
+  return callProcessRpc("add_process_document_annotation", {
+    _document_id: input.documentId,
+    _x: input.x,
+    _y: input.y,
+    _note: input.note,
+  });
+}
+
+export async function sendRemoteProcessMessage(input: {
+  processId: string;
+  audience: "interno" | "externo" | "misto";
+  recipientName?: string | null;
+  message: string;
+}) {
+  return callProcessRpc("send_process_message", {
+    _process_id: input.processId,
+    _audience: input.audience,
+    _recipient_name: input.recipientName || null,
+    _message: input.message,
+  });
+}
+
+export async function reopenRemoteProcess(processId: string, reason: string) {
+  return callProcessRpc("reopen_process", {
+    _process_id: processId,
+    _reason: reason,
+  });
+}
+
+export async function setRemoteProcessStatus(input: {
+  processId: string;
+  status: string;
+  detail: string;
+  title?: string | null;
+}) {
+  return callProcessRpc("set_process_status", {
+    _process_id: input.processId,
+    _status_text: input.status,
+    _detail: input.detail,
+    _title: input.title || null,
+  });
+}
+
+export async function setRemoteProcessCheckpoint(processId: string, checkpoint: string) {
+  return callProcessRpc("set_process_checkpoint", {
+    _process_id: processId,
+    _checkpoint: checkpoint,
+  });
+}
+
+export async function setRemoteProcessHold(input: {
+  processId: string;
+  onHold: boolean;
+  reason?: string | null;
+}) {
+  return callProcessRpc("set_process_hold", {
+    _process_id: input.processId,
+    _on_hold: input.onHold,
+    _reason: input.reason || null,
+  });
+}
+
+export async function setRemoteProcessTransitVisibility(
+  processId: string,
+  visibility: "completo" | "restrito",
+) {
+  return callProcessRpc("set_process_transit_visibility", {
+    _process_id: processId,
+    _visibility: visibility,
+  });
+}
+
+export async function upsertRemoteProcessMarker(
+  processId: string,
+  label: string,
+  color: string,
+) {
+  return callProcessRpc("upsert_process_marker", {
+    _process_id: processId,
+    _label: label,
+    _color: color,
+  });
+}
+
+export async function issueRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "iss_obra" | "aprovacao_final";
+  amount: number;
+  guidePrefix?: string;
+  dueDate?: string | null;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("issue_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _amount: input.amount,
+    _guide_prefix: input.guidePrefix || "DAM",
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown>; existing?: boolean };
+}
+
+export async function confirmRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("confirm_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+  });
+
+  if (error) throw error;
+  return data as {
+    process_id: string;
+    guide: Record<string, unknown>;
+    from_status: string;
+    to_status: string;
+  };
+}
+
+export async function reissueRemoteProcessPaymentGuide(input: {
+  processId: string;
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  dueDate?: string | null;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("reissue_process_payment_guide", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown> };
+}
+
+export async function uploadInstitutionalBrandingAsset(input: {
+  tenantId?: string;
+  subdomain?: string;
+  file: File;
+  /** "header-logo" | "footer-logo" | "logo" */
+  assetKey?: string;
+}) {
+  let scopeId = normalizeUuid(input.tenantId ?? "");
+
+  if (!scopeId && input.subdomain && db) {
+    const normalized = buildMunicipalitySlug(input.subdomain);
+    if (normalized) {
+      console.log("[SIGAPRO][R2] Resolvendo municipio por subdomain para upload", {
+        subdomain: normalized,
+      });
+      const { data, error } = await db
+        .from("municipalities")
+        .select("id")
+        .eq("subdomain", normalized)
+        .maybeSingle();
+      if (!error && data?.id) {
+        scopeId = data.id;
+      }
+    }
+  }
+
+  if (!scopeId) {
+    const msg =
+      "Escopo municipal invalido para o branding institucional. " +
+      `tenantId=${input.tenantId ?? ""} subdomain=${input.subdomain ?? ""}`;
+    console.error("[SIGAPRO][R2] " + msg);
+    throw new Error(msg);
+  }
+
+  const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
+  const assetKey = input.assetKey ?? "logo";
+  // Caminho: municipalities/{id}/branding/{header-logo|footer-logo|logo}.{ext}
+  const objectKey = `municipalities/${scopeId}/branding/${assetKey}.${extension}`;
+  const bucket =
+    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+    "sigapro-logos";
+
+  console.log("[SIGAPRO][R2] Iniciando upload do branding", {
+    scopeId,
+    assetKey,
+    objectKey,
+    bucket,
+    fileName: input.file.name,
+    fileSize: input.file.size,
+    mimeType: input.file.type,
+  });
+
+  const uploaded = await uploadFile({
+    bucket,
+    objectKey,
+    file: input.file,
+  });
+
+  const basePublicUrl = (uploaded.publicUrl || "").trim();
+  const publicUrl = basePublicUrl ? `${basePublicUrl}?v=${Date.now()}` : "";
+
+  console.log("[SIGAPRO][R2] Upload concluido", {
+    scopeId,
+    assetKey,
+    objectKey: uploaded.objectKey,
+    publicUrl,
+  });
+
+  return {
+    path: uploaded.objectKey,
+    publicUrl,
+    bucket: uploaded.bucket,
+    objectKey: uploaded.objectKey,
+    fileName: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    fileSize: input.file.size,
+  };
+}
+
+export async function uploadPlatformBrandingAsset(input: {
+  file: File;
+  /** "header-logo" | "footer-logo" | "logo" */
+  assetKey?: string;
+}) {
+  const extension = input.file.name.split(".").pop()?.toLowerCase() || "png";
+  const assetKey = input.assetKey ?? "master-logo";
+  // Each revision gets a new object so a failed metadata save cannot overwrite the live logo.
+  const objectKey = `platform/branding/${assetKey}/${crypto.randomUUID()}.${extension}`;
+  const bucket =
+    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+    "sigapro-logos";
+
+  console.log("[SIGAPRO][R2] Iniciando upload do branding master", {
+    assetKey,
+    objectKey,
+    bucket,
+    fileName: input.file.name,
+    fileSize: input.file.size,
+    mimeType: input.file.type,
+  });
+
+  const uploaded = await uploadFile({
+    bucket,
+    objectKey,
+    file: input.file,
+  });
+
+  const basePublicUrl = (uploaded.publicUrl || "").trim();
+  const publicUrl = basePublicUrl ? `${basePublicUrl}?v=${Date.now()}` : "";
+
+  console.log("[SIGAPRO][R2] Upload master concluido", {
+    assetKey,
+    objectKey: uploaded.objectKey,
+    publicUrl,
+  });
+
+  return {
+    path: uploaded.objectKey,
+    publicUrl,
+    bucket: uploaded.bucket,
+    objectKey: uploaded.objectKey,
+    fileName: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    fileSize: input.file.size,
+  };
+}
+
+const PLATFORM_BRANDING_KEY = "sigapro";
+let platformBrandingUnavailable = false;
+
+export type PlatformBrandingRecord = {
+  platformKey: string;
+  headerLogoUrl: string;
+  headerLogoObjectKey: string;
+  headerLogoFileName: string;
+  headerLogoMimeType: string;
+  footerLogoUrl: string;
+  footerLogoObjectKey: string;
+  footerLogoFileName: string;
+  footerLogoMimeType: string;
+  updatedAt: string;
+  updatedBy?: string;
+};
+
+function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingRecord {
+  return {
+    platformKey: record.platform_key ?? PLATFORM_BRANDING_KEY,
+    headerLogoUrl: record.header_logo_url ?? "",
+    headerLogoObjectKey: record.header_logo_object_key ?? "",
+    headerLogoFileName: record.header_logo_file_name ?? "",
+    headerLogoMimeType: record.header_logo_mime_type ?? "",
+    footerLogoUrl: record.footer_logo_url ?? "",
+    footerLogoObjectKey: record.footer_logo_object_key ?? "",
+    footerLogoFileName: record.footer_logo_file_name ?? "",
+    footerLogoMimeType: record.footer_logo_mime_type ?? "",
+    updatedAt: record.updated_at ?? "",
+    updatedBy: record.updated_by ?? "",
+  };
+}
+
+export async function loadPlatformBranding(): Promise<PlatformBrandingRecord | null> {
+  if (!db) return null;
+  if (platformBrandingUnavailable) return null;
+  const { data, error } = await db
+    .from("platform_branding")
+    .select("*")
+    .eq("platform_key", PLATFORM_BRANDING_KEY)
+    .limit(1);
+
+  if (error) {
+    if ("status" in error && error.status === 404) {
+      platformBrandingUnavailable = true;
+      return null;
+    }
+    if (isMissingRelationError(error, "public.platform_branding")) {
+      platformBrandingUnavailable = true;
+      return null;
+    }
+    console.warn("[PlatformBranding] Falha ao carregar", { error });
+    return null;
+  }
+
+  if (!data || data.length === 0) return null;
+  platformBrandingUnavailable = false;
+  return mapPlatformBranding(data[0]);
+}
+
+export async function savePlatformBranding(input: {
+  variant: "header" | "footer";
+  objectKey: string;
+  fileName: string;
+  mimeType: string;
+  publicUrl?: string;
+  updatedBy?: string;
+}) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const normalizedObjectKey = input.objectKey?.trim();
+  if (!normalizedObjectKey) {
+    throw new Error("Object key do logo da plataforma não informado.");
+  }
+
+  const payload: Record<string, unknown> = {
+    platform_key: PLATFORM_BRANDING_KEY,
+    updated_at: new Date().toISOString(),
+    updated_by: input.updatedBy ?? null,
+  };
+
+  if (input.variant === "header") {
+    payload.header_logo_url = input.publicUrl ?? null;
+    payload.header_logo_object_key = normalizedObjectKey;
+    payload.header_logo_file_name = input.fileName;
+    payload.header_logo_mime_type = input.mimeType;
+  } else {
+    payload.footer_logo_url = input.publicUrl ?? null;
+    payload.footer_logo_object_key = normalizedObjectKey;
+    payload.footer_logo_file_name = input.fileName;
+    payload.footer_logo_mime_type = input.mimeType;
+  }
+
+  console.log("[PlatformBrandingSave] Payload", { payload, variant: input.variant });
+
+  const result = await upsertWithColumnRetry("platform_branding", payload, "platform_key");
+
+  if (result.error) {
+    if (isMissingRelationError(result.error, "public.platform_branding")) {
+      throw new Error("Tabela platform_branding inexistente.");
+    }
+    throw result.error;
+  }
+  platformBrandingUnavailable = false;
+
+  return result.data ?? null;
+}
+
+export async function getMunicipalityBrandingSafe(municipalityId: string) {
+  console.log("[DIAGNOSTICO] Buscando branding para:", municipalityId);
+
+  if (!db) {
+    console.error("[DIAGNOSTICO] Banco oficial indisponível.");
+    return null;
+  }
+
+  try {
+    const { data, error } = await db
+      .from("municipality_branding")
+      .select("*")
+      .eq("municipality_id", municipalityId)
+      .limit(1);
+
+  console.log("[DIAGNOSTICO] Resultado bruto:", { data, error });
+
+  if (error) {
+    console.error("[SIGAPRO][Banco oficial] Erro de persistência:", error);
+    return null;
+  }
+
+  if (data && data.length > 0) {
+    console.log("[BrandingLoad] Branding encontrado", {
+      municipalityId,
+      headerLogoObjectKey: data[0]?.header_logo_object_key,
+      footerLogoObjectKey: data[0]?.footer_logo_object_key,
+    });
+  }
+
+    if (!data || data.length === 0) {
+      console.warn("[DIAGNOSTICO] Nenhum branding encontrado");
+
+      const { data: created, error: createError } = await db
+        .from("municipality_branding")
+        .insert([
+          {
+            municipality_id: municipalityId,
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select("*")
+        .limit(1);
+
+      console.log("[DIAGNOSTICO] Criado:", { created, createError });
+
+      if (createError) {
+        console.error("[DIAGNOSTICO] ERRO CREATE:", createError);
+        return null;
+      }
+
+      return created?.[0] ?? null;
+    }
+
+    return data[0];
+  } catch (err) {
+    console.error("[DIAGNOSTICO] ERRO GERAL:", err);
+    return null;
+  }
+}
+
+export async function saveRemoteProfile(profile: UserProfile) {
+  if (!db) {
+    throw new Error("Conexao com o banco indisponivel.");
+  }
+
+  const profileFields: Record<string, unknown> = {
+    full_name: profile.fullName,
+    email: profile.email,
+    phone: profile.phone || null,
+    cpf_cnpj: profile.cpfCnpj || null,
+    rg: profile.rg || null,
+    birth_date: profile.birthDate || null,
+    professional_type: profile.professionalType || null,
+    registration_number: profile.registrationNumber || null,
+    company_name: profile.companyName || null,
+    address_line: profile.addressLine || null,
+    address_number: profile.addressNumber || null,
+    address_complement: profile.addressComplement || null,
+    neighborhood: profile.neighborhood || null,
+    city: profile.city || null,
+    state: profile.state || null,
+    zip_code: profile.zipCode || null,
+    avatar_url: profile.avatarUrl || null,
+    avatar_scale: profile.avatarScale ?? 1,
+    avatar_offset_x: profile.avatarOffsetX ?? 0,
+    avatar_offset_y: profile.avatarOffsetY ?? 0,
+    use_avatar_in_header: profile.useAvatarInHeader ?? false,
+    bio: profile.bio || null,
+  };
+
+  if (isNeonBackend) {
+    const profileIdResult = await db.rpc("current_profile_id");
+    if (profileIdResult.error) {
+      throw new Error(profileIdResult.error.message || "Falha ao resolver o perfil autenticado.");
+    }
+
+    const profileId =
+      typeof profileIdResult.data === "string"
+        ? profileIdResult.data
+        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
+
+    if (!profileId) {
+      throw new Error("Perfil Neon autenticado nao encontrado.");
+    }
+
+    const { error } = await db
+      .from("profiles")
+      .update({ ...profileFields, updated_at: new Date().toISOString() })
+      .eq("id", profileId);
+
+    if (error) {
+      throw new Error(error.message || "Falha ao salvar o perfil no banco.");
+    }
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    id: profile.userId,
+    user_id: profile.userId,
+    ...profileFields,
+  };
+
+  const currentPayload = { ...payload };
+  let error: { message?: string } | null = null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const result = await db.from("profiles").upsert(currentPayload, { onConflict: "user_id" });
+    error = result.error;
+
+    if (!error) {
+      return;
+    }
+
+    if (!isMissingColumnError(error)) {
+      break;
+    }
+
+    const missingColumn = getMissingColumnName(error);
+    if (!missingColumn || !(missingColumn in currentPayload)) {
+      break;
+    }
+
+    delete currentPayload[missingColumn];
+  }
+
+  if (error) {
+    throw new Error(error.message || "Falha ao salvar o perfil no banco.");
+  }
+}
+
+export async function linkExistingUserToMunicipalityAdmin(input: {
+  email: string;
+  municipalityId: string;
+  fullName?: string;
+  title?: string;
+  accessLevel?: 2 | 3;
+}) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const municipalityId = normalizeUuid(input.municipalityId);
+  if (!normalizedEmail) {
+    throw new Error("Informe um e-mail válido para vincular o administrador da prefeitura.");
+  }
+  if (!municipalityId) {
+    throw new Error("Prefeitura inválida para vincular o administrador.");
+  }
+
+  const { data: profileRows, error: profileError } = await db
+    .from("profiles")
+    .select("id, user_id, full_name, email, municipality_id, deleted_at")
+    .eq("email", normalizedEmail)
+    .is("deleted_at", null)
+    .limit(2);
+
+  if (profileError) {
+    throw new Error(profileError.message || "Falha ao localizar o usuário pelo e-mail informado.");
+  }
+
+  const profileRecord = (profileRows ?? [])[0];
+  const targetUserId =
+    profileRecord
+      ? ((isNeonBackend ? profileRecord.id : profileRecord.user_id) ??
+          profileRecord.id ??
+          profileRecord.user_id)
+      : null;
+
+  if (!targetUserId) {
+    return {
+      email: normalizedEmail,
+      linked: false,
+      reason: "not_found" as const,
+    };
+  }
+
+  const saved = await manageRemoteUserAccess({
+    userId: targetUserId,
+    municipalityId,
+    role: "prefeitura_admin",
+    name: input.fullName?.trim() || profileRecord.full_name || normalizedEmail,
+    title: input.title?.trim() || "Administrador da Prefeitura",
+    accessLevel: 3,
+    accountStatus: "active",
+  });
+
+  return {
+    email: normalizedEmail,
+    linked: true,
+    userId: targetUserId,
+    municipalityId,
+    role: saved.role,
+  };
+}
+
+export async function manageRemoteUserAccess(input: {
+  userId: string;
+  municipalityId: string;
+  role?: SessionUser["role"];
+  name?: string;
+  title?: string;
+  accessLevel?: 1 | 2 | 3;
+  accountStatus?: SessionUser["accountStatus"];
+  reason?: string;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+
+  const { data, error } = await db.rpc("manage_municipal_user_access", {
+    _user_id: input.userId,
+    _municipality_id: input.municipalityId,
+    _role_code: input.role ?? null,
+    _full_name: input.name ?? null,
+    _title: input.title ?? null,
+    _access_level: input.accessLevel ?? null,
+    _account_status: input.accountStatus ?? null,
+    _reason: input.reason ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o acesso no banco.");
+
+  const saved = data as Record<string, unknown> | null;
+  if (!saved || saved.user_id !== input.userId || saved.municipality_id !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração do acesso.");
+  }
+
+  return {
+    name: String(saved.full_name),
+    role: saved.role as SessionUser["role"],
+    title: String(saved.title),
+    accessLevel: Number(saved.access_level) as 1 | 2 | 3,
+    accountStatus: saved.account_status as SessionUser["accountStatus"],
+    userType: String(saved.user_type),
+    blockedAt: saved.blocked_at ? String(saved.blocked_at) : null,
+    blockedBy: saved.blocked_by ? String(saved.blocked_by) : null,
+    blockReason: saved.block_reason ? String(saved.block_reason) : null,
+  };
+}
+
+export async function linkExistingMunicipalStaff(input: {
+  email: string;
+  municipalityId: string;
+  role: SessionUser["role"];
+  name: string;
+  title: string;
+  accessLevel: 1 | 2 | 3;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const email = input.email.trim().toLowerCase();
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, user_id, municipality_id")
+    .eq("email", email)
+    .is("deleted_at", null)
+    .limit(2);
+  if (error) throw new Error(error.message || "Não foi possível localizar a conta.");
+  if (data?.length !== 1) {
+    throw new Error("Conta não encontrada. Crie e confirme o acesso antes de vincular a equipe municipal.");
+  }
+  if (data[0].municipality_id !== input.municipalityId) {
+    throw new Error("A conta não está vinculada a esta Prefeitura.");
+  }
+
+  const targetUserId =
+    (isNeonBackend ? data[0].id : data[0].user_id) ??
+    data[0].id ??
+    data[0].user_id;
+
+  if (!targetUserId) {
+    throw new Error("A conta não possui um perfil válido para vinculação.");
+  }
+
+  const saved = await manageRemoteUserAccess({
+    userId: targetUserId,
+    municipalityId: input.municipalityId,
+    role: input.role,
+    name: input.name,
+    title: input.title,
+    accessLevel: input.accessLevel,
+    accountStatus: "active",
+  });
+  return { userId: targetUserId as string, email, ...saved };
+}
+
+export async function upsertRemoteInstitution(input: {
+  institutionId?: string;
+  tenantId?: string;
+  name: string;
+  city: string;
+  state: string;
+  status: string;
+  subdomain?: string;
+  cnpj: string;
+  primaryColor: string;
+  accentColor: string;
+  secretariat: string;
+}) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const normalizedName = input.name.trim();
+  const normalizedCity = input.city.trim();
+  const normalizedState = input.state.trim().toUpperCase();
+  const normalizedSubdomain = buildMunicipalitySlug(input.subdomain);
+
+  if (!normalizedName) {
+    throw new Error("O nome da prefeitura é obrigatório para sincronizar com o banco oficial.");
+  }
+
+  if (!normalizedCity) {
+    throw new Error("A cidade da prefeitura é obrigatória para sincronizar com o banco oficial.");
+  }
+
+  if (!normalizedState) {
+    throw new Error("O estado da prefeitura é obrigatório para sincronizar com o banco oficial.");
+  }
+
+  const tenantId = normalizeUuid(input.institutionId ?? input.tenantId) ?? crypto.randomUUID();
+  const municipalitySlug = buildMunicipalitySlug(input.subdomain || input.city || input.name);
+
+  const municipalityPayload: Record<string, unknown> = {
+    id: tenantId,
+    name: normalizedName,
+    official_name: normalizedName,
+    display_name: normalizedName,
+    city: normalizedCity,
+    state: normalizedState,
+    slug: municipalitySlug,
+    subdomain: normalizedSubdomain,
+    status: normalizeMunicipalityStatus(input.status),
+    ...(input.secretariat.trim() ? { secretariat_name: input.secretariat.trim() } : {}),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: municipalityError } = await upsertWithColumnRetry(
+    "municipalities",
+    municipalityPayload,
+    "id",
+  );
+
+  if (!municipalityError) {
+    const { error: municipalityBrandingError } = await upsertWithColumnRetry(
+      "municipality_branding",
+      {
+        municipality_id: tenantId,
+        primary_color: input.primaryColor,
+        accent_color: input.accentColor,
+        official_header_text: normalizedName,
+      },
+      "municipality_id",
+    );
+
+    const { error: municipalitySettingsError } = await upsertWithColumnRetry(
+      "municipality_settings",
+      {
+        municipality_id: tenantId,
+        protocol_prefix: "PM",
+        guide_prefix: "DAM",
+      },
+      "municipality_id",
+      { ignoreDuplicates: true },
+    );
+
+    const municipalityErrors = [
+      isMissingRelationError(municipalityBrandingError, "public.municipality_branding") ? null : municipalityBrandingError,
+      isMissingRelationError(municipalitySettingsError, "public.municipality_settings") ? null : municipalitySettingsError,
+    ].filter(Boolean);
+
+    if (municipalityErrors.length === 0) {
+      return { id: tenantId };
+    }
+
+    throw municipalityErrors[0];
+  }
+
+  if (!isMissingRelationError(municipalityError, "public.municipalities")) {
+    throw municipalityError;
+  }
+
+  const { error: tenantError } = await db.from("tenants").upsert(
+    {
+      id: tenantId,
+      legal_name: normalizedName,
+      display_name: normalizedName,
+      cnpj: input.cnpj,
+      city: normalizedCity,
+      state: normalizedState,
+      status: input.status,
+      subdomain: normalizedSubdomain || municipalitySlug,
+    },
+    { onConflict: "id" },
+  );
+  if (tenantError) throw tenantError;
+
+  const { error: brandingError } = await db.from("tenant_branding").upsert(
+    {
+      tenant_id: tenantId,
+      primary_color: input.primaryColor,
+      accent_color: input.accentColor,
+      hero_title: input.name,
+      hero_subtitle: input.secretariat || null,
+    },
+    { onConflict: "tenant_id" },
+  );
+  if (brandingError) throw brandingError;
+
+  return { id: tenantId };
+}
+
+export async function upsertRemoteTenant(input: {
+  tenantId?: string;
+  name: string;
+  city: string;
+  state: string;
+  status: string;
+  subdomain?: string;
+  cnpj: string;
+  primaryColor: string;
+  accentColor: string;
+  secretariat: string;
+}) {
+  return upsertRemoteInstitution(input);
+}
+
+export async function saveRemoteInstitutionSettings(
+  settings: TenantSettings & {
+    institutionId?: string | null;
+    // campos extras injetados pelo fluxo de branding
+    headerLogoUrl?: string;
+    footerLogoUrl?: string;
+    headerLogoObjectKey?: string;
+    footerLogoObjectKey?: string;
+    headerLogoFileName?: string;
+    footerLogoFileName?: string;
+    headerLogoMimeType?: string;
+    footerLogoMimeType?: string;
+  },
+  options?: {
+    skipMunicipalityUpdate?: boolean;
+    skipMunicipalitySettings?: boolean;
+    skipMunicipalityBranding?: boolean;
+    municipalityCity?: string;
+    municipalityState?: string;
+    municipalityFields?: Array<"secretariat" | "email" | "phone" | "address" | "site">;
+  },
+) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const remoteTenantId = normalizeUuid(
+    settings.institutionId ?? settings.tenantId,
+  );
+  if (!remoteTenantId) {
+    console.error(
+      "[SIGAPRO][Database] saveRemoteInstitutionSettings: tenantId invalido",
+      {
+        institutionId: settings.institutionId,
+        tenantId: settings.tenantId,
+      },
+    );
+    throw new Error("Tenant inválido para salvar o branding institucional.");
+  }
+
+  console.log("[SIGAPRO][Database] Salvando branding institucional", {
+    remoteTenantId,
+    logoUrl: settings.logoUrl,
+    headerLogoUrl: settings.headerLogoUrl,
+    footerLogoUrl: settings.footerLogoUrl,
+    logoStorageProvider: settings.logoStorageProvider,
+    headerLogoObjectKey: settings.headerLogoObjectKey,
+    footerLogoObjectKey: settings.footerLogoObjectKey,
+  });
+
+  // ------------------------------------------------------------------
+  // 1. municipality_branding — inclui header/footer logo separados
+  // ------------------------------------------------------------------
+  const municipalityBrandingPayload: Record<string, unknown> = {
+    municipality_id: remoteTenantId,
+    logo_url: settings.logoUrl || null,
+    // logo por variante
+    header_logo_url: settings.headerLogoUrl || null,
+    header_logo_object_key: settings.headerLogoObjectKey || null,
+    header_logo_file_name: settings.headerLogoFileName || null,
+    header_logo_mime_type: settings.headerLogoMimeType || null,
+    footer_logo_url: settings.footerLogoUrl || null,
+    footer_logo_object_key: settings.footerLogoObjectKey || null,
+    footer_logo_file_name: settings.footerLogoFileName || null,
+    footer_logo_mime_type: settings.footerLogoMimeType || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // ------------------------------------------------------------------
+  // 2. municipality_settings — geral_settings inclui escalas por variante
+  // ------------------------------------------------------------------
+  const municipalitySettingsPayload = {
+    municipality_id: remoteTenantId,
+    protocol_prefix: settings.protocoloPrefixo || null,
+    guide_prefix: settings.guiaPrefixo || null,
+    timezone: "America/Sao_Paulo",
+    locale: "pt-BR",
+    require_professional_registration:
+      settings.registroProfissionalObrigatorio ?? true,
+    allow_digital_protocol: true,
+    allow_walkin_protocol: false,
+    general_settings: {
+      admin_contacts: settings.adminContacts ?? [],
+      cnpj: settings.cnpj || null,
+      postal_code: settings.cep || null,
+      city: options?.municipalityCity?.trim() || null,
+      state: options?.municipalityState?.trim().toUpperCase() || null,
+      site: settings.site || null,
+      bandeira_url: settings.bandeiraUrl || null,
+      imagem_hero_url: settings.imagemHeroUrl || null,
+      resumo_plano_diretor: settings.resumoPlanoDiretor || null,
+      resumo_uso_solo: settings.resumoUsoSolo || null,
+      leis_complementares: settings.leisComplementares || null,
+      link_portal_cliente: settings.linkPortalCliente || null,
+      secretariat_phone: settings.secretariaTelefone || null,
+      secretariat_email: settings.secretariaEmail || null,
+      directorship: settings.diretoriaResponsavel || null,
+      directorship_phone: settings.diretoriaTelefone || null,
+      directorship_email: settings.diretoriaEmail || null,
+      footer_contact_source: settings.footerContactSource || "diretoria",
+      office_hours: settings.horarioAtendimento || null,
+      pix_key: settings.chavePix || null,
+      chave_pix: settings.chavePix || null,
+      settlement_beneficiary: settings.beneficiarioArrecadacao || null,
+      beneficiario_arrecadacao: settings.beneficiarioArrecadacao || null,
+      contract_number: settings.contractNumber || null,
+      contract_start: settings.contractStart || null,
+      contract_end: settings.contractEnd || null,
+      monthly_fee: settings.monthlyFee ?? 0,
+      setup_fee: settings.setupFee ?? 0,
+      signature_mode: settings.signatureMode || "eletronica",
+      client_delivery_link: settings.clientDeliveryLink || null,
+      plan_file_name: settings.planoDiretorArquivoNome || null,
+      plan_file_url: settings.planoDiretorArquivoUrl || null,
+      plano_diretor_arquivo_nome: settings.planoDiretorArquivoNome || null,
+      plano_diretor_arquivo_url: settings.planoDiretorArquivoUrl || null,
+      zoning_file_name: settings.usoSoloArquivoNome || null,
+      zoning_file_url: settings.usoSoloArquivoUrl || null,
+      uso_solo_arquivo_nome: settings.usoSoloArquivoNome || null,
+      uso_solo_arquivo_url: settings.usoSoloArquivoUrl || null,
+      complementary_laws_file_name: settings.leisArquivoNome || null,
+      complementary_laws_file_url: settings.leisArquivoUrl || null,
+      leis_arquivo_nome: settings.leisArquivoNome || null,
+      leis_arquivo_url: settings.leisArquivoUrl || null,
+      fee_protocol: settings.taxaProtocolo ?? 35.24,
+      taxa_protocolo: settings.taxaProtocolo ?? 35.24,
+      fee_iss_m2: settings.taxaIssPorMetroQuadrado ?? 0,
+      taxa_iss_por_metro_quadrado: settings.taxaIssPorMetroQuadrado ?? 0,
+      iss_rate_profiles: settings.issRateProfiles ?? null,
+      iss_stage_enabled: settings.issStageEnabled ?? true,
+      fee_final_approval: settings.taxaAprovacaoFinal ?? 0,
+      taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
+      approval_rate_profiles: settings.approvalRateProfiles ?? null,
+      final_approval_fee_enabled: settings.finalApprovalFeeEnabled ?? true,
+      // escalas por variante no general_settings para leitura futura
+      logo_scale: settings.logoScale ?? 1,
+      logo_offset_x: settings.logoOffsetX ?? 0,
+      logo_offset_y: settings.logoOffsetY ?? 0,
+      header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
+      header_logo_offset_x:
+        settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+      header_logo_offset_y:
+        settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+      footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
+      footer_logo_offset_x:
+        settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+      footer_logo_offset_y:
+        settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+      logo_storage_provider: settings.logoStorageProvider || null,
+      logo_bucket: settings.logoBucket || null,
+      logo_object_key: settings.logoObjectKey || null,
+      logo_file_name: settings.logoFileName || null,
+      logo_file_size: settings.logoFileSize ?? null,
+    },
+  };
+
+  // ------------------------------------------------------------------
+  // 3. municipalities — dados gerais da prefeitura
+  // ------------------------------------------------------------------
+  const municipalityUpdatePayload: Record<string, unknown> = {};
+  const includeMunicipalityField = (field: "secretariat" | "email" | "phone" | "address" | "site") =>
+    !options?.municipalityFields || options.municipalityFields.includes(field);
+  if (includeMunicipalityField("secretariat")) municipalityUpdatePayload.secretariat_name = settings.secretariaResponsavel || null;
+  if (includeMunicipalityField("email")) {
+    municipalityUpdatePayload.email = settings.email || null;
+  }
+  if (includeMunicipalityField("phone")) {
+    municipalityUpdatePayload.phone = settings.telefone || null;
+  }
+  if (includeMunicipalityField("address")) municipalityUpdatePayload.address = settings.endereco || null;
+  if (includeMunicipalityField("site")) municipalityUpdatePayload.custom_domain = settings.site || null;
+  if (options?.municipalityCity !== undefined) {
+    municipalityUpdatePayload.city = options.municipalityCity.trim();
+  }
+  if (options?.municipalityState !== undefined) {
+    municipalityUpdatePayload.state = options.municipalityState.trim().toUpperCase();
+  }
+
+  // Executa as três operações
+  // UPDATE avoids PostgreSQL checking NOT NULL "name" on an incomplete UPSERT.
+  const municipalityUpdateResult = options?.skipMunicipalityUpdate
+    ? { data: null, error: null }
+    : await withTimeout(
+        (async () => db.from("municipalities").update(municipalityUpdatePayload).eq("id", remoteTenantId).select("id").maybeSingle())(),
+        "municipalities update",
+        12000,
+      );
+  if (!options?.skipMunicipalityUpdate && !municipalityUpdateResult.error && !municipalityUpdateResult.data) {
+    throw new Error("Prefeitura não encontrada ou sem permissão para atualizar seus dados institucionais.");
+  }
+  if (municipalityUpdateResult.error && !isMissingRelationError(municipalityUpdateResult.error, "public.municipalities")) {
+    throw new Error(formatDatabaseError(municipalityUpdateResult.error));
+  }
+
+  const municipalitySettingsResult = options?.skipMunicipalitySettings
+    ? { error: null }
+    : await withTimeout(
+        upsertWithColumnRetry(
+          "municipality_settings",
+          municipalitySettingsPayload,
+          "municipality_id",
+        ),
+        "municipality_settings upsert",
+        12000,
+      );
+
+  // municipality_branding com retry para colunas ausentes (colunas header/footer
+  // podem não existir em bancos mais antigos — graceful degradation)
+  const upsertMunicipalityBranding = async () => {
+    const currentPayload: Record<string, unknown> = {
+      ...municipalityBrandingPayload,
+    };
+    let lastError: { message?: string } | null = null;
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const result = await db
+        .from("municipality_branding")
+        .upsert(currentPayload, { onConflict: "municipality_id" });
+      lastError = result.error;
+
+      if (!lastError) {
+        console.log(
+          "[SIGAPRO][Database] municipality_branding salvo com sucesso",
+          { attempt },
+        );
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("sigapro-branding-updated", {
+              detail: { municipalityId: remoteTenantId },
+            }),
+          );
+        }
+        return result;
+      }
+
+      if (!isMissingColumnError(lastError)) break;
+
+      const missingColumn = getMissingColumnName(lastError);
+      if (!missingColumn || !(missingColumn in currentPayload)) break;
+
+      console.warn(
+        "[SIGAPRO][Database] Coluna ausente em municipality_branding, removendo e tentando novamente",
+        { missingColumn },
+      );
+      delete currentPayload[missingColumn];
+    }
+
+    return { error: lastError };
+  };
+
+  const municipalityBrandingResult = options?.skipMunicipalityBranding
+    ? { error: null }
+    : await withTimeout(
+        upsertMunicipalityBranding(),
+        "municipality_branding upsert",
+        12000,
+      );
+
+  const municipalityUpdateMissing = isMissingRelationError(
+    municipalityUpdateResult.error,
+    "public.municipalities",
+  );
+  const municipalitySettingsMissing =
+    options?.skipMunicipalitySettings
+      ? false
+      : isMissingRelationError(
+          municipalitySettingsResult.error,
+          "public.municipality_settings",
+        );
+  const municipalityBrandingMissing = options?.skipMunicipalityBranding || isMissingRelationError(
+    municipalityBrandingResult.error,
+    "public.municipality_branding",
+  );
+
+  const municipalityErrors = [
+    municipalityUpdateMissing ? null : municipalityUpdateResult.error,
+    municipalitySettingsMissing ? null : municipalitySettingsResult.error,
+    municipalityBrandingMissing ? null : municipalityBrandingResult.error,
+  ].filter(Boolean);
+  const onlyMissingRelations =
+    municipalityUpdateMissing &&
+    municipalitySettingsMissing &&
+    municipalityBrandingMissing;
+
+  if (municipalityErrors.length === 0 && !onlyMissingRelations) {
+    console.log(
+      "[SIGAPRO][Database] Branding salvo com sucesso via municipalities",
+      {
+        remoteTenantId,
+      },
+    );
+    return;
+  }
+
+  if (!onlyMissingRelations) {
+    const firstError = municipalityErrors[0];
+    const formatted = formatDatabaseError(firstError);
+    console.error("[SIGAPRO][Database] Falha ao salvar branding", {
+      remoteTenantId,
+      error: formatted,
+    });
+    throw new Error(formatted);
+  }
+
+  // ------------------------------------------------------------------
+  // Fallback: tenant_settings / tenant_branding (schema legado)
+  // ------------------------------------------------------------------
+  console.warn(
+    "[SIGAPRO][Database] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
+  );
+
+  const settingsPayload = {
+    tenant_id: remoteTenantId,
+    cnpj: settings.cnpj || null,
+    endereco: settings.endereco || null,
+    telefone: settings.telefone || null,
+    email: settings.email || null,
+    site: settings.site || null,
+    secretaria_responsavel: settings.secretariaResponsavel || null,
+    diretoria_responsavel: settings.diretoriaResponsavel || null,
+    diretoria_telefone: settings.diretoriaTelefone || null,
+    diretoria_email: settings.diretoriaEmail || null,
+    horario_atendimento: settings.horarioAtendimento || null,
+    brasao_url: settings.brasaoUrl || null,
+    bandeira_url: settings.bandeiraUrl || null,
+    logo_url: settings.logoUrl || null,
+    imagem_hero_url: settings.imagemHeroUrl || null,
+    resumo_plano_diretor: settings.resumoPlanoDiretor || null,
+    resumo_uso_solo: settings.resumoUsoSolo || null,
+    leis_complementares: settings.leisComplementares || null,
+    link_portal_cliente: settings.linkPortalCliente || null,
+    protocolo_prefixo: settings.protocoloPrefixo || null,
+    guia_prefixo: settings.guiaPrefixo || null,
+    chave_pix: settings.chavePix || null,
+    beneficiario_arrecadacao: settings.beneficiarioArrecadacao || null,
+    contract_number: settings.contractNumber || null,
+    contract_start: settings.contractStart || null,
+    contract_end: settings.contractEnd || null,
+    monthly_fee: settings.monthlyFee ?? 0,
+    setup_fee: settings.setupFee ?? 0,
+    signature_mode: settings.signatureMode || "eletronica",
+    client_delivery_link: settings.clientDeliveryLink || null,
+    plano_diretor_arquivo_nome: settings.planoDiretorArquivoNome || null,
+    plano_diretor_arquivo_url: settings.planoDiretorArquivoUrl || null,
+    uso_solo_arquivo_nome: settings.usoSoloArquivoNome || null,
+    uso_solo_arquivo_url: settings.usoSoloArquivoUrl || null,
+    leis_arquivo_nome: settings.leisArquivoNome || null,
+    leis_arquivo_url: settings.leisArquivoUrl || null,
+    logo_scale: settings.logoScale ?? 1,
+    logo_offset_x: settings.logoOffsetX ?? 0,
+    logo_offset_y: settings.logoOffsetY ?? 0,
+    header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
+    header_logo_offset_x:
+      settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    header_logo_offset_y:
+      settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
+    footer_logo_offset_x:
+      settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    footer_logo_offset_y:
+      settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    logo_alt: settings.logoAlt || null,
+    logo_updated_at: settings.logoUpdatedAt || null,
+    logo_updated_by: normalizeUuid(settings.logoUpdatedBy),
+    logo_frame_mode: settings.logoFrameMode || "soft-square",
+    logo_fit_mode: settings.logoFitMode || "contain",
+    header_logo_frame_mode:
+      settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    header_logo_fit_mode:
+      settings.headerLogoFitMode || settings.logoFitMode || "contain",
+    footer_logo_frame_mode:
+      settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    footer_logo_fit_mode:
+      settings.footerLogoFitMode || settings.logoFitMode || "contain",
+    taxa_protocolo: settings.taxaProtocolo ?? 35.24,
+    taxa_iss_por_metro_quadrado: settings.taxaIssPorMetroQuadrado ?? 0,
+    taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
+    registro_profissional_obrigatorio:
+      settings.registroProfissionalObrigatorio ?? true,
+  };
+
+  const { error: settingsError } = await db
+    .from("tenant_settings")
+    .upsert(settingsPayload, { onConflict: "tenant_id" });
+
+  if (!settingsError) return;
+
+  if (!isMissingRelationError(settingsError, "public.tenant_settings")) {
+    throw settingsError;
+  }
+
+  const brandingFallbackPayload = {
+    tenant_id: remoteTenantId,
+    logo_url: settings.logoUrl || null,
+    hero_subtitle: settings.secretariaResponsavel || null,
+    logo_scale: settings.logoScale ?? 1,
+    logo_offset_x: settings.logoOffsetX ?? 0,
+    logo_offset_y: settings.logoOffsetY ?? 0,
+    header_logo_scale: settings.headerLogoScale ?? settings.logoScale ?? 1,
+    header_logo_offset_x:
+      settings.headerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    header_logo_offset_y:
+      settings.headerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    footer_logo_scale: settings.footerLogoScale ?? settings.logoScale ?? 1,
+    footer_logo_offset_x:
+      settings.footerLogoOffsetX ?? settings.logoOffsetX ?? 0,
+    footer_logo_offset_y:
+      settings.footerLogoOffsetY ?? settings.logoOffsetY ?? 0,
+    logo_alt: settings.logoAlt || null,
+    logo_updated_at: settings.logoUpdatedAt || null,
+    logo_updated_by: normalizeUuid(settings.logoUpdatedBy),
+    logo_frame_mode: settings.logoFrameMode || "soft-square",
+    logo_fit_mode: settings.logoFitMode || "contain",
+    header_logo_frame_mode:
+      settings.headerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    header_logo_fit_mode:
+      settings.headerLogoFitMode || settings.logoFitMode || "contain",
+    footer_logo_frame_mode:
+      settings.footerLogoFrameMode || settings.logoFrameMode || "soft-square",
+    footer_logo_fit_mode:
+      settings.footerLogoFitMode || settings.logoFitMode || "contain",
+  };
+
+  const { error: brandingError } = await db
+    .from("tenant_branding")
+    .upsert(brandingFallbackPayload, { onConflict: "tenant_id" });
+
+  if (brandingError && isMissingColumnError(brandingError)) {
+    const { error: legacyBrandingError } = await db
+      .from("tenant_branding")
+      .upsert(
+        {
+          tenant_id: remoteTenantId,
+          logo_url: settings.logoUrl || null,
+          hero_subtitle: settings.secretariaResponsavel || null,
+        },
+        { onConflict: "tenant_id" },
+      );
+
+    if (!legacyBrandingError) return;
+    throw new Error(
+      legacyBrandingError.message || "Falha ao salvar o branding institucional.",
+    );
+  }
+
+  if (brandingError) {
+    throw new Error(
+      brandingError.message || "Falha ao salvar o branding institucional.",
+    );
+  }
+}
+
+export async function upsertRemotePlan(plan: PlanItem) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const payload: Record<string, unknown> = {
+    id: normalizeUuid(plan.id) ?? plan.id,
+    code: buildPlanCode(plan),
+    account_level: plan.accountLevel,
+    name: plan.name,
+    subtitle: plan.subtitle,
+    description: plan.description,
+    price: plan.price,
+    billing_cycle: plan.billingCycle,
+    badge: plan.badge || null,
+    badge_variant: plan.badgeVariant,
+    features_included: plan.featuresIncluded,
+    features_excluded: plan.featuresExcluded,
+    modules_included: plan.modulesIncluded,
+    max_users: plan.maxUsers,
+    max_processes: plan.maxProcesses,
+    max_departments: plan.maxDepartments,
+    max_storage_gb: plan.maxStorageGb,
+    is_featured: plan.isFeatured,
+    is_active: plan.isActive,
+    is_enabled: plan.isActive,
+    is_public: plan.isPublic,
+    is_internal_only: plan.isInternalOnly,
+    is_custom: plan.isCustom,
+    is_visible_in_master: plan.isVisibleInMaster,
+    display_order: plan.displayOrder,
+    accent_color: plan.accentColor,
+    notes: plan.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await upsertWithColumnRetry("plans", payload, "id");
+
+  if (error) {
+    if (isMissingRelationError(error, "public.plans")) {
+      throw new Error("A tabela de planos ainda não foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o plano.");
+  }
+
+  return plan;
+}
+
+export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssignment) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const payload: Record<string, unknown> = {
+    id: normalizeUuid(assignment.id) ?? assignment.id,
+    municipality_id: assignment.municipalityId,
+    plan_id: assignment.planId,
+    contract_status: assignment.contractStatus,
+    starts_at: assignment.startsAt || null,
+    ends_at: assignment.endsAt || null,
+    billing_cycle: assignment.billingCycle,
+    billing_notes: assignment.billingNotes || null,
+    custom_price: assignment.customPrice,
+    is_custom: assignment.isCustom,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await upsertWithColumnRetry("client_plan_assignments", payload, "id");
+
+  if (error) {
+    if (isMissingRelationError(error, "public.client_plan_assignments")) {
+      throw new Error("A tabela de contratos de planos ainda não foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o vínculo comercial.");
+  }
+
+  return assignment;
+}
+
+export type CommercialMaterialPayload = {
+  planIds: string[];
+  modelType: string;
+  materialType: string;
+  customerName?: string;
+  customerContact?: string;
+  responsibleName?: string;
+  responsibleRole?: string;
+  title?: string;
+  subtitle?: string;
+  generatedContent?: Record<string, unknown>;
+  pdfUrl?: string;
+  shareSlug?: string;
+  isPublic?: boolean;
+  status?: "draft" | "active" | "archived";
+  validUntil?: string;
+  notes?: string;
+};
+
+export async function saveRemoteCommercialMaterial(material: CommercialMaterialPayload) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const userResult = await db.auth.getUser();
+  const payload: Record<string, unknown> = {
+    created_by: userResult.data.user?.id ?? null,
+    plan_ids: material.planIds,
+    model_type: material.modelType,
+    material_type: material.materialType,
+    customer_name: material.customerName || null,
+    customer_contact: material.customerContact || null,
+    responsible_name: material.responsibleName || null,
+    responsible_role: material.responsibleRole || null,
+    title: material.title,
+    subtitle: material.subtitle || null,
+    generated_content: material.generatedContent ?? {},
+    pdf_url: material.pdfUrl || null,
+    share_slug: material.shareSlug || null,
+    is_public: material.isPublic ?? false,
+    status: material.status ?? "draft",
+    valid_until: material.validUntil || null,
+    notes: material.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await db
+    .from("commercial_materials")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error, "public.commercial_materials")) {
+      throw new Error("A tabela de materiais comerciais ainda nao foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao salvar o material comercial.");
+  }
+
+  return String(data?.id ?? "");
+}
+
+export type DemoContactRequestPayload = {
+  fullName?: string;
+  email: string;
+  phone: string;
+  organization: string;
+  roleTitle: string;
+  message?: string;
+  origin?: string;
+  interest?: string;
+};
+
+export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
+  if (!db) {
+    throw new Error("banco oficial indisponivel para registrar a solicitacao.");
+  }
+
+  const payload = {
+    full_name: input.fullName.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: input.phone.trim(),
+    organization: input.organization.trim(),
+    role_title: input.roleTitle.trim(),
+    message: input.message?.trim() || null,
+    origin: input.origin || "demo_modal_contact",
+    interest: input.interest || "apresentacao_sigapro",
+    status: "new",
+    metadata: {
+      source: "landing_demo_modal",
+      submitted_at: new Date().toISOString(),
+    },
+  };
+
+  const { data, error } = await db
+    .from("demo_contact_requests")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error, "public.demo_contact_requests")) {
+      throw new Error("A tabela de solicitacoes comerciais ainda nao foi aplicada no banco remoto.");
+    }
+    throw new Error(error.message || "Falha ao registrar a solicitacao comercial.");
+  }
+
+  return String(data?.id ?? "");
+}
+
+export async function loadPublicPlansCatalog() {
+  if (!db) {
+    return [] as PlanItem[];
+  }
+
+  const { data, error } = await db
+    .from("plans")
+    .select("*")
+    .eq("is_public", true)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    if (isMissingRelationError(error, "public.plans")) {
+      return [] as PlanItem[];
+    }
+    if (isMissingColumnError(error)) {
+      return [] as PlanItem[];
+    }
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    accountLevel: row.account_level ?? row.name ?? "Plano",
+    name: row.name ?? "Plano",
+    subtitle: row.subtitle ?? "",
+    description: row.description ?? "",
+    price: Number(row.price ?? 0),
+    billingCycle:
+      row.billing_cycle === "anual" || row.billing_cycle === "personalizado"
+        ? row.billing_cycle
+        : "mensal",
+    badge: row.badge ?? "",
+    badgeVariant: row.badge_variant ?? "default",
+    featuresIncluded: Array.isArray(row.features_included) ? row.features_included : [],
+    featuresExcluded: Array.isArray(row.features_excluded) ? row.features_excluded : [],
+    modulesIncluded: Array.isArray(row.modules_included) ? row.modules_included : [],
+    maxUsers: row.max_users ?? null,
+    maxProcesses: row.max_processes ?? null,
+    maxDepartments: row.max_departments ?? null,
+    maxStorageGb: row.max_storage_gb ?? null,
+    isFeatured: Boolean(row.is_featured ?? false),
+    isActive: Boolean(row.is_active ?? row.is_enabled ?? true),
+    isPublic: Boolean(row.is_public ?? false),
+    isInternalOnly: Boolean(row.is_internal_only ?? false),
+    isCustom: Boolean(row.is_custom ?? false),
+    isVisibleInMaster: Boolean(row.is_visible_in_master ?? true),
+    displayOrder: Number(row.display_order ?? 0),
+    accentColor: row.accent_color ?? "#1d4ed8",
+    notes: row.notes ?? "",
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+  })) as PlanItem[];
+}
+
+export async function saveRemoteTenantSettings(settings: TenantSettings) {
+  return saveRemoteInstitutionSettings(settings);
+}
