@@ -31,6 +31,32 @@ function Probe() {
 describe("PlatformSessionProvider Neon profile-first identity", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    gatewayMock.authenticatedEmail = "prefeitura@example.test";
+    gatewayMock.authenticatedRole = "prefeitura_admin";
+    gatewayMock.authenticatedAccessLevel = 3;
+    gatewayMock.authenticatedUserId = "f0a659b0-395f-48ad-a29f-70362d9cf4a6";
+    gatewayMock.authenticatedProfileId = "d5434b4e-e1f5-46fd-a95c-dedc9631d9d2";
+    gatewayMock.authenticatedMunicipalityId = "49dac0b6-6352-4744-9aab-9ff91c59d970";
+    gatewayMock.authResolved = true;
+    gatewayMock.loading = false;
+  });
+
+  it("preserves the canonical master_admin role instead of falling back to an owner role", () => {
+    gatewayMock.authenticatedEmail = "roksparta02@gmail.com";
+    gatewayMock.authenticatedRole = "master_admin";
+    gatewayMock.authenticatedUserId = "daa16788-343c-45fe-a649-bbbce94d4798";
+    gatewayMock.authenticatedProfileId = "17b9f386-cf7a-4f92-8646-e3944d28eb4f";
+    gatewayMock.authenticatedMunicipalityId = null;
+
+    render(
+      <PlatformSessionProvider>
+        <Probe />
+      </PlatformSessionProvider>,
+    );
+
+    expect(screen.getByTestId("session-role")).toHaveTextContent("master_admin");
+    expect(screen.getByTestId("session-id")).toHaveTextContent("17b9f386-cf7a-4f92-8646-e3944d28eb4f");
+    expect(screen.getByTestId("session-municipality")).toHaveTextContent("none");
   });
 
   it("uses profile_id as the business session id while auth subject remains separate", () => {
