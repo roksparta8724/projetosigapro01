@@ -7,6 +7,7 @@ import {
   ReceiptText,
   Scale,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,9 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 export function IptuDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, issuePaymentGuide } = usePlatformData();
+  const [issueBusyId, setIssueBusyId] = useState("");
+  const [issueStatus, setIssueStatus] = useState("");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings =
@@ -56,6 +59,45 @@ export function IptuDeskPage() {
         guide: NonNullable<ReturnType<typeof getProcessPaymentGuides>[number]>;
       } => Boolean(item.guide),
     );
+
+  const awaitingIssGuide = processes.filter((process) => {
+    const hasIssGuide = getProcessPaymentGuides(process, tenantSettings).some(
+      (item) => item.kind === "iss_obra",
+    );
+    if (hasIssGuide) return false;
+
+    const currentFolder = process.processControl?.currentFolder?.toLowerCase() ?? "";
+    const latestDispatchTarget = process.dispatches[0]?.to?.toLowerCase() ?? "";
+    const routedToIptu =
+      currentFolder.includes("iptu") ||
+      currentFolder.includes("fiscal") ||
+      latestDispatchTarget.includes("iptu") ||
+      latestDispatchTarget.includes("fiscal");
+
+    return (
+      routedToIptu &&
+      process.status !== "arquivado" &&
+      process.status !== "indeferido" &&
+      process.status !== "deferido"
+    );
+  });
+
+  const handleIssueIssGuide = async (processId: string) => {
+    setIssueBusyId(processId);
+    setIssueStatus("");
+    try {
+      await issuePaymentGuide(processId, session.name, "iss_obra");
+      setIssueStatus("Guia de ISSQN emitida no banco oficial com sucesso.");
+    } catch (error) {
+      setIssueStatus(
+        error instanceof Error
+          ? `Não foi possível emitir a guia de ISSQN: ${error.message}`
+          : "Não foi possível emitir a guia de ISSQN no banco oficial.",
+      );
+    } finally {
+      setIssueBusyId("");
+    }
+  };
 
   const pendingGuides = issGuides.filter(({ guide }) => guide.status === "pendente");
   const validatedGuides = issGuides.filter(({ guide }) => guide.status === "compensada");
@@ -140,9 +182,9 @@ export function IptuDeskPage() {
 
         <PageStatsRow className="xl:grid-cols-4">
           <StatCard
-            label="📊 ISSQN em análise"
-            value={String(issGuides.length)}
-            description="Guias vinculadas à verificação fiscal"
+            label="📊 ISSQN no setor"
+            value={String(issGuides.length + awaitingIssGuide.length)}
+            description={`${awaitingIssGuide.length} aguardando emissão e ${issGuides.length} guia(s) emitida(s)`}
             icon={ReceiptText}
             tone="blue"
           />
@@ -193,6 +235,62 @@ export function IptuDeskPage() {
               }
             >
               <div className="space-y-4">
+                {issueStatus ? (
+                  <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                    issueStatus.startsWith("Guia de ISSQN emitida")
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}>
+                    {issueStatus}
+                  </div>
+                ) : null}
+
+                {awaitingIssGuide.length > 0 ? (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-slate-950">Aguardando emissão de ISSQN</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Processos encaminhados ao setor fiscal que ainda não possuem guia de ISSQN emitida.
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {awaitingIssGuide.map((process) => (
+                        <div
+                          key={`${process.id}:awaiting-iss`}
+                          className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
+                            <p className="mt-1 line-clamp-1 text-sm text-slate-600">{process.title}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Área: {process.property.area.toFixed(2)} m² • Uso: {process.property.usage || "não informado"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline" className="rounded-full">
+                              <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                            </Button>
+                            <Button
+                              type="button"
+                              className="rounded-full"
+                              disabled={issueBusyId === process.id}
+                              onClick={() => void handleIssueIssGuide(process.id)}
+                            >
+                              {issueBusyId === process.id ? "Emitindo..." : "Emitir guia ISSQN"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {priorityQueue.length === 0 && awaitingIssGuide.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    Nenhum processo aguardando emissão ou conferência de ISSQN neste momento.
+                  </div>
+                ) : null}
+
                 {priorityQueue.map(({ process, guide }) => {
                   const isCritical =
                     guide.status === "pendente" &&
