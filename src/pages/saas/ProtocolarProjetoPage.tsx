@@ -125,7 +125,7 @@ export function ProtocolarProjetoPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { createProcess, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const { refreshRemoteStore, getInstitutionSettings, getUserProfile } = usePlatformData();
 
   const profile = getUserProfile(session.id);
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -419,32 +419,9 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    const process = createProcess({
-      tenantId: effectiveScopeId,
-      createdBy: session.id,
-      title: form.titulo,
-      type: form.tipo,
-      address: form.endereco,
-      ownerName: form.proprietario,
-      ownerDocument: form.documento,
-      technicalLead: form.profissional,
-      tags: [form.uso || "sem classificacao", tenantSettings?.secretariaResponsavel || "urbanismo"],
-      notes: form.observacoes,
-      property: {
-        registration: form.matricula,
-        iptu: form.iptu,
-        lot: form.lote,
-        block: form.quadra,
-        area: Number(form.area || 0),
-        usage: form.uso,
-        constructionStandard: form.padraoConstrutivo,
-      },
-      documents,
-      remote: remoteSeed,
-    });
-
+    await refreshRemoteStore();
     setSubmitting(false);
-    navigate(`/processos/${process.id}?aba=financeiro`);
+    navigate(`/processos/${remoteSeed.processId}?aba=financeiro`);
   };
 
   return (
