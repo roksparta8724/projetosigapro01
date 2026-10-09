@@ -978,7 +978,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/notificacoes")
+                onClick={() => navigate("/notificacoes")}
                 className={cn(
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
