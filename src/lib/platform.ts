@@ -801,31 +801,17 @@ export function calculateApprovalGuideAmount(
 }
 
 
-function hasExplicitGuideIssuanceEvidence(process: ProcessRecord, guide: PaymentGuideEntry) {
-  if (guide.kind === "protocolo") return true;
-
-  const terms =
-    guide.kind === "iss_obra"
-      ? ["iss", "issqn", guide.code]
-      : ["aprovação final", "aprovacao final", "habite-se", "habite se", guide.code];
-
-  return process.auditTrail.some((entry) => {
-    if (entry.category !== "financeiro") return false;
-    const haystack = `${entry.title} ${entry.detail}`.toLowerCase();
-    return terms.some((term) => term && haystack.includes(term.toLowerCase()));
-  });
-}
-
 export function getProcessPaymentGuides(process: ProcessRecord, settings?: TenantSettings | null): PaymentGuideEntry[] {
   const persistedGuides = process.payment.guides ?? [];
+
+  // No fluxo oficial, payment_guides/Neon é a fonte de verdade.
+  // Não inferir existência de cobrança por status, tabela de preço ou texto de auditoria.
   if (persistedGuides.length > 0) {
-    // Compatibilidade com dados antigos: versões anteriores criavam ISSQN e aprovação
-    // antecipadamente. Somente guias com evidência explícita de emissão são exibidas.
-    return persistedGuides.filter((guide) => hasExplicitGuideIssuanceEvidence(process, guide));
+    return persistedGuides;
   }
 
-  // Compatibilidade com processos legados que guardavam apenas a guia inicial no
-  // objeto payment. Nunca materializar cobranças futuras por cálculo de tabela.
+  // Compatibilidade estritamente limitada a processos históricos que ainda
+  // armazenam somente a guia inicial no objeto payment.
   if (!process.payment.guideNumber?.trim()) {
     return [];
   }
