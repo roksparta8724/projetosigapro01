@@ -1512,6 +1512,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           (item) => item.tenantId === (process.municipalityId ?? process.tenantId),
         );
 
+        if (guideKind === "iss_obra" && settings?.issStageEnabled === false) {
+          throw new Error("A etapa de ISSQN está desativada nas regras financeiras desta Prefeitura.");
+        }
+        if (guideKind === "aprovacao_final" && settings?.finalApprovalFeeEnabled === false) {
+          throw new Error("A taxa final de aprovação está desativada nas regras financeiras desta Prefeitura.");
+        }
+
         const amount =
           guideKind === "iss_obra"
             ? calculateIssGuideAmount(
