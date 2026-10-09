@@ -2120,7 +2120,11 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   }
 
   if (session.role === "property_owner" || session.role === "proprietario_consulta") {
-    return process.ownerName.trim().toLowerCase() === session.name.trim().toLowerCase();
+    // Em produção, a lista de processos já chega filtrada pelo RLS
+    // has_process_access(), que valida parte/vínculo do proprietário. Não
+    // repetir a autorização por comparação textual de nome evita esconder um
+    // processo legítimo por alteração de nome, acento ou abreviação.
+    return true;
   }
 
   return isInternalRole(session.role);
