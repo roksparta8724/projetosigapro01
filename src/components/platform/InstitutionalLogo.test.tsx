@@ -19,6 +19,7 @@ const branding: InstitutionalBranding = {
 describe("InstitutionalLogo", () => {
   afterEach(() => {
     vi.useRealTimers();
+    window.sessionStorage.clear();
   });
   it("keeps the entire municipal logo inside a fixed card without crop transforms", () => {
     const { container } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
@@ -27,6 +28,34 @@ describe("InstitutionalLogo", () => {
     expect(container.firstChild).toHaveClass("overflow-hidden", "h-[112px]", "w-[188px]");
     expect(image).toHaveClass("object-contain", "object-center");
     expect(image).not.toHaveStyle({ transform: expect.anything() });
+  });
+
+  it("never hides a valid logo behind opacity or a white loading skeleton", () => {
+    const { container } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
+    const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
+
+    expect(image).not.toHaveClass("opacity-0");
+    expect(container.querySelector(".animate-pulse")).not.toBeInTheDocument();
+    expect(image).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+  });
+
+  it("reuses the last successfully loaded logo immediately after remount", () => {
+    const first = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
+    const firstImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    fireEvent.load(firstImage);
+    first.unmount();
+
+    render(
+      <InstitutionalLogo
+        branding={{ ...branding, logoUrl: "" }}
+        fallbackLabel="Prefeitura A"
+        variant="header"
+      />,
+    );
+
+    const restored = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    expect(restored).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+    expect(restored).not.toHaveClass("opacity-0");
   });
 
   it("uses a neutral municipal fallback after the hydration guard, never the SIGAPRO mark", () => {
