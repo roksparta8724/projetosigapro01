@@ -123,7 +123,7 @@ interface PlatformDataState {
     subdomain: string;
     primaryColor: string;
     accentColor: string;
-  }) => Institution;
+  }, options?: { remoteConfirmed?: boolean }) => Institution;
   saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => Promise<void>;
   getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
   upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
@@ -867,7 +867,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
-    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input) => {
+    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
+      if (hasBackendEnv && !options?.remoteConfirmed) {
+        throw new Error(
+          "A Prefeitura precisa ser persistida no banco oficial antes de atualizar o cache local.",
+        );
+      }
+
       const tenantId = input.institutionId ?? `tenant-${crypto.randomUUID()}`;
       const existing = store.tenants.find((item) => item.id === tenantId);
 
