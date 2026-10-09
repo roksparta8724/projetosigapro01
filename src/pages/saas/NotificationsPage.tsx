@@ -17,7 +17,7 @@ import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
 import { TableContainer } from "@/components/platform/TableContainer";
-import { getVisibleProcessesByScope } from "@/lib/platform";
+import { getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -26,7 +26,7 @@ type NotificationView = "visao-geral" | "notificacoes" | "mensagens" | "tramites
 
 export function NotificationsPage() {
   const { session } = usePlatformSession();
-  const { municipality, scopeId } = useMunicipality();
+  const { municipality, scopeId, tenantSettingsCompat } = useMunicipality();
   const { processes: allProcesses } = usePlatformData();
   const [view, setView] = useState<NotificationView>("visao-geral");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -109,23 +109,25 @@ export function NotificationsPage() {
 
   const financeItems = useMemo<ActivityItem[]>(
     () =>
-      processes.map((process) => ({
-        id: `${process.id}-guide`,
-        title: `${process.protocol} · Guia ${process.payment.guideNumber}`,
-        description: `Status ${process.payment.status} · vencimento ${process.payment.dueDate}`,
-        meta: "Financeiro",
-        badge: process.payment.status,
-        icon: Wallet,
-        action: (
-          <Link
-            to={`/processos/${process.id}`}
-            className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
-          >
-            Abrir
-          </Link>
-        ),
-      })),
-    [processes],
+      processes.flatMap((process) =>
+        getProcessPaymentGuides(process, tenantSettingsCompat).map((guide) => ({
+          id: `${process.id}-guide-${guide.kind}`,
+          title: `${process.protocol} · ${guide.label}`,
+          description: `${guide.code} · status ${guide.status} · vencimento ${guide.dueDate}`,
+          meta: "Financeiro",
+          badge: guide.status,
+          icon: Wallet,
+          action: (
+            <Link
+              to={`/processos/${process.id}`}
+              className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
+            >
+              Abrir
+            </Link>
+          ),
+        })),
+      ),
+    [processes, tenantSettingsCompat],
   );
 
   const notificationItems = useMemo(
