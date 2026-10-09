@@ -11,7 +11,6 @@ import {
   clientPlanAssignments as seedClientPlanAssignments,
   documentTemplates as seedDocumentTemplates,
   getMasterMetrics,
-  matchesOwnerDocument,
   normalizeOwnerDocument,
   normalizeSessionUserScope,
   planCatalog as seedPlanCatalog,
@@ -58,7 +57,6 @@ import {
   createRemoteOwnerMessage,
   createRemoteProcessDispatch,
   createRemoteProcessRequirement,
-  createRemoteOwnerRequest,
   createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
@@ -130,12 +128,6 @@ interface PlatformDataState {
   upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
   duplicatePlan: (planId: string) => Promise<PlanItem | null>;
   saveClientPlanAssignment: (assignment: Omit<ClientPlanAssignment, "id" | "createdAt" | "updatedAt"> & { id?: string }) => Promise<ClientPlanAssignment>;
-  createOwnerRequest: (input: {
-    processId: string;
-    ownerUserId: string;
-    ownerDocument: string;
-    notes?: string;
-  }) => Promise<{ request: OwnerProjectRequest | null; error?: string }>;
   createOwnerRequestByProtocol: (input: {
     protocol: string;
     ownerDocument: string;
@@ -1130,105 +1122,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return nextAssignment;
     };
 
-    const resolveProfessionalId = (process: ProcessRecord) => {
-      const normalize = (value: string) => value.trim().toLowerCase();
-      const candidates = [process.createdBy, process.technicalLead].filter(Boolean) as string[];
-      const normalizedCandidates = candidates.map(normalize);
-
-      const matchById = store.sessionUsers.find(
-        (user) => user.role === "profissional_externo" && candidates.includes(user.id),
-      );
-      if (matchById) return matchById.id;
-
-      const matchByName = store.sessionUsers.find(
-        (user) =>
-          user.role === "profissional_externo" &&
-          normalizedCandidates.includes(normalize(user.name)),
-      );
-
-      if (matchByName) return matchByName.id;
-
-      const matchByProfile = store.userProfiles.find(
-        (profile) =>
-          profile.email &&
-          candidates.some((candidate) => normalize(profile.email) === normalize(candidate)),
-      );
-
-      if (matchByProfile) {
-        const user = store.sessionUsers.find((sessionUser) => sessionUser.id === matchByProfile.userId);
-        return user?.id ?? null;
-      }
-
-      return null;
-    };
-
-    const createOwnerRequest: PlatformDataState["createOwnerRequest"] = async (input) => {
-      const normalizedDocument = normalizeOwnerDocument(input.ownerDocument);
-      if (!normalizedDocument) {
-        return { request: null, error: "Informe o CPF/CNPJ para solicitar acompanhamento." };
-      }
-
-      const process = store.processes.find((item) => item.id === input.processId);
-      if (!process) {
-        return { request: null, error: "Processo não encontrado." };
-      }
-
-      const normalizedStoredDocument = normalizeOwnerDocument(process.ownerDocument ?? "");
-      if (normalizedStoredDocument && !matchesOwnerDocument(normalizedDocument, normalizedStoredDocument)) {
-        return { request: null, error: "Documento não confere com o cadastro do processo." };
-      }
-
-      const professionalId = resolveProfessionalId(process);
-      if (!professionalId) {
-        return { request: null, error: "Processo sem profissional responsável." };
-      }
-
-      const hasLink = store.ownerLinks.some(
-        (link) =>
-          link.projectId === process.id &&
-          link.ownerUserId === input.ownerUserId &&
-          link.professionalUserId === professionalId,
-      );
-      if (hasLink) {
-        return { request: null, error: "Acompanhamento já aprovado para este processo." };
-      }
-
-      const existing = store.ownerRequests.find(
-        (request) =>
-          request.projectId === process.id &&
-          request.ownerUserId === input.ownerUserId &&
-          request.status === "pending",
-      );
-      if (existing) {
-        return { request: null, error: "Sua solicitação já está em análise." };
-      }
-
-      if (!hasBackendEnv) {
-        return { request: null, error: "Banco oficial indisponível. A solicitação não foi criada." };
-      }
-
-      try {
-        const remoteRequest = await createRemoteOwnerRequest({
-          processId: process.id,
-          ownerUserId: input.ownerUserId,
-          professionalUserId: professionalId,
-          ownerDocument: normalizedDocument,
-          notes: input.notes?.trim() || undefined,
-        });
-
-        await refreshRemoteStore();
-        return { request: remoteRequest };
-      } catch (remoteError) {
-        return {
-          request: null,
-          error:
-            remoteError instanceof Error
-              ? remoteError.message
-              : "Não foi possível enviar a solicitação agora.",
-        };
-      }
-    };
-
     const createOwnerRequestByProtocol: PlatformDataState["createOwnerRequestByProtocol"] = async (input) => {
       const normalizedProtocol = input.protocol.trim();
       const normalizedDocument = normalizeOwnerDocument(input.ownerDocument);
@@ -1348,7 +1241,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       upsertPlan,
       duplicatePlan,
       saveClientPlanAssignment,
-      createOwnerRequest,
       createOwnerRequestByProtocol,
       respondOwnerRequest,
       setOwnerChatEnabled,
