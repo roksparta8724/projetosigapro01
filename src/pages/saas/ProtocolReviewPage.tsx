@@ -12,7 +12,7 @@ import { ProtocolStepProgress } from "@/components/platform/ProtocolStepProgress
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcess } from "@/integrations/supabase/platform";
+import { createRemoteExternalProcessV2 } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
 import {
@@ -132,7 +132,7 @@ export function ProtocolReviewPage() {
           }),
         );
 
-        const remoteProcess = await createRemoteExternalProcess({
+        const remoteProcess = await createRemoteExternalProcessV2({
           tenantId: effectiveScopeId,
           createdBy: session.id,
           title: draft.form.titulo,
@@ -157,6 +157,14 @@ export function ProtocolReviewPage() {
           },
           documents,
           guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
+          protocolPrefix: tenantSettings?.protocoloPrefixo || "PM",
+          remote: {
+            processId: "",
+            protocol: "",
+            guideNumber: "",
+            amount: tenantSettings?.taxaProtocolo ?? 35.24,
+            dueDate: "",
+          },
         });
 
         const issuedAt = new Date().toISOString();
@@ -172,10 +180,22 @@ export function ProtocolReviewPage() {
       } catch (remoteError) {
         setStatus(
           remoteError instanceof Error
-            ? remoteError.message
-            : "Falha ao gravar o protocolo remoto. O sistema vai manter o fluxo local.",
+            ? `Não foi possível concluir o protocolo no banco oficial: ${remoteError.message}`
+            : "Não foi possível concluir o protocolo no banco oficial.",
         );
+        setSubmitting(false);
+        return;
       }
+    } else {
+      setStatus("O banco oficial está indisponível. O protocolo não foi criado para evitar divergência de dados.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!remoteSeed) {
+      setStatus("O protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
+      setSubmitting(false);
+      return;
     }
 
     const process = createProcess({
