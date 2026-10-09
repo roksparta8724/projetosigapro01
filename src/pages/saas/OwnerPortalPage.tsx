@@ -42,6 +42,7 @@ export function OwnerPortalPage() {
   const [requestError, setRequestError] = useState("");
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
+  const [messageStatus, setMessageStatus] = useState("");
 
   const profile = getUserProfile(session.id, session.email);
 
@@ -109,15 +110,30 @@ export function OwnerPortalPage() {
   const handleSendMessage = async () => {
     if (!selectedLink || !selectedProcess || !messageDraft.trim()) return;
 
-    await sendOwnerMessage({
-      projectId: selectedLink.projectId,
-      ownerUserId: selectedLink.ownerUserId,
-      professionalUserId: selectedLink.professionalUserId,
-      senderUserId: session.id,
-      message: messageDraft,
-    });
+    setMessageStatus("");
+    try {
+      const saved = await sendOwnerMessage({
+        projectId: selectedLink.projectId,
+        ownerUserId: selectedLink.ownerUserId,
+        professionalUserId: selectedLink.professionalUserId,
+        senderUserId: session.id,
+        message: messageDraft,
+      });
 
-    setMessageDraft("");
+      if (!saved) {
+        setMessageStatus("A mensagem não foi enviada. Verifique se o chat está ativo para este acompanhamento.");
+        return;
+      }
+
+      setMessageDraft("");
+      setMessageStatus("Mensagem enviada e salva no banco oficial.");
+    } catch (error) {
+      setMessageStatus(
+        error instanceof Error
+          ? `Não foi possível enviar a mensagem: ${error.message}`
+          : "Não foi possível enviar a mensagem no banco oficial.",
+      );
+    }
   };
 
   return (
@@ -129,6 +145,16 @@ export function OwnerPortalPage() {
           description="Solicite acesso ao protocolo e acompanhe o andamento após aprovação do profissional responsável."
           icon={ShieldCheck}
         />
+
+        {messageStatus ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${
+            messageStatus.startsWith("Mensagem enviada")
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}>
+            {messageStatus}
+          </div>
+        ) : null}
 
         <InternalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as OwnerTab)} />
 
