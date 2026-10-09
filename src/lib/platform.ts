@@ -180,7 +180,7 @@ export function resolveDefaultInstitutionScope(input: {
   const resolvedScope =
     input.municipalityId?.trim() ||
     input.tenantId?.trim() ||
-    SIGAPRO_DEFAULT_TENANT_ID;
+    null;
 
   return {
     tenantId: resolvedScope,
