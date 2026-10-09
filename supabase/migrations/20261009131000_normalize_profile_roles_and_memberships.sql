@@ -59,7 +59,7 @@ with normalized as (
 missing as (
   select n.*,r.id as role_id
   from normalized n
-  join public.roles r on r.code=n.canonical_role
+  join public.roles r on r.code::text=n.canonical_role
   where not exists (
     select 1
     from public.tenant_memberships tm
@@ -87,7 +87,7 @@ where not exists (
 with desired as (
   select p.id profile_id,p.municipality_id,r.id role_id
   from public.profiles p
-  join public.roles r on r.code=p.role
+  join public.roles r on r.code::text=p.role
   where p.deleted_at is null
     and p.municipality_id is not null
 )
@@ -142,5 +142,5 @@ update public.tenant_memberships tm
        and canonical_tm.tenant_id=p.municipality_id
        and canonical_tm.is_active=true
        and canonical_tm.deleted_at is null
-       and canonical_r.code=p.canonical_role
+       and canonical_r.code::text=p.canonical_role
    );
