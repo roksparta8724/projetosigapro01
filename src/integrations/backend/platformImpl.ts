@@ -2151,13 +2151,44 @@ export async function savePlatformBranding(input: {
     throw new Error("Object key do logo da plataforma não informado.");
   }
 
+  const layout = {
+    logoAlt: input.logoAlt,
+    footerText: input.footerText,
+    headerLogoScale: input.headerLogoScale,
+    headerLogoOffsetX: input.headerLogoOffsetX,
+    headerLogoOffsetY: input.headerLogoOffsetY,
+    headerLogoFrameMode: input.headerLogoFrameMode,
+    headerLogoFitMode: input.headerLogoFitMode,
+    footerLogoScale: input.footerLogoScale,
+    footerLogoOffsetX: input.footerLogoOffsetX,
+    footerLogoOffsetY: input.footerLogoOffsetY,
+    footerLogoFrameMode: input.footerLogoFrameMode,
+    footerLogoFitMode: input.footerLogoFitMode,
+  };
+
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("save_platform_branding_variant", {
+      _variant: input.variant,
+      _url: input.publicUrl ?? "",
+      _object_key: normalizedObjectKey,
+      _file_name: input.fileName,
+      _mime_type: input.mimeType,
+      _layout: layout,
+    });
+
+    if (error) {
+      throw new Error(error.message || "Não foi possível salvar o branding da plataforma.");
+    }
+
+    platformBrandingUnavailable = false;
+    return data ? mapPlatformBranding(data as Record<string, unknown>) : null;
+  }
+
+  // Rollback Supabase: mantém o caminho legado de escrita direta.
   const payload: Record<string, unknown> = {
     platform_key: PLATFORM_BRANDING_KEY,
     updated_at: new Date().toISOString(),
     updated_by: input.updatedBy ?? null,
-  };
-
-  const sharedLayout: Record<string, unknown> = {
     logo_alt: input.logoAlt,
     footer_text: input.footerText,
     header_logo_scale: input.headerLogoScale,
@@ -2171,9 +2202,6 @@ export async function savePlatformBranding(input: {
     footer_logo_frame_mode: input.footerLogoFrameMode,
     footer_logo_fit_mode: input.footerLogoFitMode,
   };
-  for (const [key, value] of Object.entries(sharedLayout)) {
-    if (value !== undefined) payload[key] = value;
-  }
 
   if (input.variant === "header") {
     payload.header_logo_url = input.publicUrl ?? null;
@@ -2187,18 +2215,19 @@ export async function savePlatformBranding(input: {
     payload.footer_logo_mime_type = input.mimeType;
   }
 
-  console.log("[PlatformBrandingSave] Payload", { payload, variant: input.variant });
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined) delete payload[key];
+  }
 
   const result = await upsertWithColumnRetry("platform_branding", payload, "platform_key");
-
   if (result.error) {
     if (isMissingRelationError(result.error, "public.platform_branding")) {
       throw new Error("Tabela platform_branding inexistente.");
     }
     throw result.error;
   }
-  platformBrandingUnavailable = false;
 
+  platformBrandingUnavailable = false;
   return result.data ?? null;
 }
 
