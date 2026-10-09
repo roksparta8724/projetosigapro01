@@ -256,10 +256,19 @@ function roleToAccessLevel(role: string): 1 | 2 | 3 {
 }
 
 function normalizeStoredRole(role: string | null | undefined): SessionUser["role"] {
-  if (role === "admin_master" || role === "master") return "master_admin";
-  if (role === "admin_municipality" || role === "admin_prefeitura") return "prefeitura_admin";
-  if (role === "secretario" || role === "diretor") return "prefeitura_supervisor";
-  if (role === "profissional" || role === "professional") return "profissional_externo";
+  const raw = (role ?? "").trim().toLowerCase();
+  if (raw === "admin_master" || raw === "master") return "master_admin";
+  if (raw === "admin_municipality" || raw === "admin_prefeitura") return "prefeitura_admin";
+  if (raw === "secretario" || raw === "diretor") return "prefeitura_supervisor";
+  if (
+    raw === "profissional" ||
+    raw === "professional" ||
+    raw === "professional_external"
+  ) {
+    return "profissional_externo";
+  }
+  if (raw === "analyst") return "analista";
+  if (raw === "financial") return "financeiro";
 
   const supportedRoles: SessionUser["role"][] = [
     "master_admin",
@@ -275,9 +284,9 @@ function normalizeStoredRole(role: string | null | undefined): SessionUser["role
     "proprietario_consulta",
   ];
 
-  return supportedRoles.includes(role as SessionUser["role"])
-    ? (role as SessionUser["role"])
-    : "profissional_externo";
+  return supportedRoles.includes(raw as SessionUser["role"])
+    ? (raw as SessionUser["role"])
+    : "proprietario_consulta";
 }
 
 function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
