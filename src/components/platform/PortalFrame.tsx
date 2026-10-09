@@ -1113,7 +1113,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/notificacoes")
+                  onClick={() => navigate("/notificacoes")}
                   className={cn(
                     "sig-topbar-notification-button relative",
                     topbarUtilityButtonClass,
