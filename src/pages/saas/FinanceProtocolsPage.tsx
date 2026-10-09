@@ -192,6 +192,8 @@ export function FinanceProtocolsPage() {
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const [copiedPayload, setCopiedPayload] = useState("");
+  const [financialStatus, setFinancialStatus] = useState("");
+  const [financialBusyKey, setFinancialBusyKey] = useState("");
 
   const paymentGuides = processes.flatMap((process) =>
     getProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
@@ -210,6 +212,25 @@ export function FinanceProtocolsPage() {
       setCopiedPayload(payload);
     } catch {
       setCopiedPayload("");
+    }
+  };
+
+  const handleConfirmPayment = async (processId: string, guideKind: PaymentGuideKind) => {
+    const busyKey = `${processId}:${guideKind}`;
+    setFinancialBusyKey(busyKey);
+    setFinancialStatus("");
+
+    try {
+      await markGuideAsPaid(processId, session.name, guideKind);
+      setFinancialStatus("Pagamento confirmado no banco oficial com sucesso.");
+    } catch (error) {
+      setFinancialStatus(
+        error instanceof Error
+          ? `Não foi possível confirmar o pagamento: ${error.message}`
+          : "Não foi possível confirmar o pagamento no banco oficial.",
+      );
+    } finally {
+      setFinancialBusyKey("");
     }
   };
 
@@ -290,6 +311,16 @@ export function FinanceProtocolsPage() {
           icon={Receipt}
           actions={<FinanceSectionNav />}
         />
+
+        {financialStatus ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${
+            financialStatus.startsWith("Pagamento confirmado")
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}>
+            {financialStatus}
+          </div>
+        ) : null}
 
         <PageStatsRow className="xl:grid-cols-3 min-[1500px]:grid-cols-3 xl:gap-6 [&>*]:min-w-0 [&>*]:min-h-[164px]">
           <StatCard
@@ -416,9 +447,12 @@ export function FinanceProtocolsPage() {
                             <Button
                               type="button"
                               className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                              onClick={() => markGuideAsPaid(process.id, session.name, guide.kind)}
+                              disabled={financialBusyKey === `${process.id}:${guide.kind}`}
+                              onClick={() => void handleConfirmPayment(process.id, guide.kind)}
                             >
-                              Confirmar pagamento
+                              {financialBusyKey === `${process.id}:${guide.kind}`
+                                ? "Confirmando..."
+                                : "Confirmar pagamento"}
                             </Button>
                           ) : null}
                         </div>
