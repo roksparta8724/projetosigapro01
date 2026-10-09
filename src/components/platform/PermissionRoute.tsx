@@ -7,7 +7,6 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
 import { can } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
 
@@ -24,12 +23,27 @@ export function PermissionRoute({
   const { sessionUsers } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
-  const verifiedScopeId = hasSupabaseEnv
-    ? bootstrap.profile?.municipalityId ?? null
-    : session.municipalityId ?? session.tenantId ?? null;
+  const verifiedScopeId =
+    bootstrap.profile?.municipalityId ??
+    session.municipalityId ??
+    session.tenantId ??
+    null;
 
   if (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading) {
-    return <>{children}</>;
+    return (
+      <div className="min-h-screen bg-white" aria-busy="true" aria-label="Validando acesso">
+        <div className="h-16 border-b border-slate-200 bg-slate-50/80" />
+        <div className="mx-auto max-w-7xl space-y-5 px-6 py-8">
+          <div className="h-8 w-64 animate-pulse rounded-xl bg-slate-100" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="h-28 animate-pulse rounded-2xl bg-slate-50" />
+            <div className="h-28 animate-pulse rounded-2xl bg-slate-50" />
+            <div className="h-28 animate-pulse rounded-2xl bg-slate-50" />
+          </div>
+          <div className="h-72 animate-pulse rounded-[28px] bg-slate-50" />
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated && bootstrap.isReady && bootstrap.authResolved) {
