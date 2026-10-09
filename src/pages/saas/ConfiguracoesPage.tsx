@@ -32,7 +32,7 @@ import {
   resolveCurrentMunicipalityId,
   resolveCurrentMunicipality,
   mapMunicipalityBranding,
-} from "@/integrations/supabase/municipality";
+} from "@/integrations/backend/municipality";
 import {
   getMunicipalityBrandingSafe,
   loadPlatformBranding,
@@ -41,7 +41,7 @@ import {
   uploadInstitutionalBrandingAsset,
   uploadPlatformBrandingAsset,
   upsertRemoteInstitution,
-} from "@/integrations/supabase/platform";
+} from "@/integrations/backend/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import { getObjectKeyFromPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
