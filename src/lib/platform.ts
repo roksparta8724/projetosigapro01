@@ -24,6 +24,7 @@ export type Permission =
   | "view_platform_metrics"
   | "manage_tenant_users"
   | "manage_tenant_branding"
+  | "manage_protocols"
   | "manage_own_profile"
   | "review_processes"
   | "dispatch_interdepartmental"
@@ -896,16 +897,18 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   prefeitura_admin: [
     "manage_tenant_users",
     "manage_tenant_branding",
+    "manage_protocols",
     "manage_own_profile",
+    "view_own_processes",
     "review_processes",
     "dispatch_interdepartmental",
     "manage_financial",
     "sign_documents",
   ],
-  prefeitura_supervisor: ["review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  analista: ["review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
+  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
+  analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
   financeiro: ["manage_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  setor_intersetorial: ["dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
+  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
   fiscal: ["review_processes", "manage_own_profile", "view_own_processes"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
   property_owner: ["view_own_processes", "manage_own_profile"],
@@ -2039,7 +2042,11 @@ export function can(session: SessionUser, permission: Permission) {
     return session.accessLevel >= 3;
   }
 
-  if (permission === "dispatch_interdepartmental" || permission === "sign_documents") {
+  if (
+    permission === "manage_protocols" ||
+    permission === "dispatch_interdepartmental" ||
+    permission === "sign_documents"
+  ) {
     return session.accessLevel >= 2;
   }
 
