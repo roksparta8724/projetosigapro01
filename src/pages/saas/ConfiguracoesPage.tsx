@@ -72,7 +72,7 @@ function imageFiles(url: string, label: string): UploadedFileItem[] {
 function resolveBrandingErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim()) {
     if (/header_logo_|footer_logo_/i.test(error.message)) {
-      return `${error.message} Rode a migration de header/footer do logo no Supabase antes de confirmar novamente.`;
+      return `${error.message} Aplique a migration de header/footer do logo no banco oficial antes de confirmar novamente.`;
     }
     return error.message;
   }
@@ -84,7 +84,7 @@ function resolveBrandingErrorMessage(error: unknown, fallback: string) {
     const merged = [message, details, hint].filter(Boolean).join(" ");
     if (merged) {
       if (/header_logo_|footer_logo_/i.test(merged)) {
-        return `${merged} Rode a migration de header/footer do logo no Supabase antes de confirmar novamente.`;
+        return `${merged} Aplique a migration de header/footer do logo no banco oficial antes de confirmar novamente.`;
       }
       return merged;
     }
@@ -1648,7 +1648,7 @@ export function ConfiguracoesPage() {
       });
       } else if (hasBackendEnv && variantLogoUrl.startsWith("blob:")) {
         throw new Error(
-          "Envie o arquivo do logo para concluir o salvamento no Supabase.",
+          "Envie o arquivo do logo para concluir o salvamento no banco oficial.",
         );
     } else if (removalRequested) {
       // Remove a referencia primeiro; o objeto fisico pode ser limpo com seguranca depois.
@@ -1834,7 +1834,7 @@ export function ConfiguracoesPage() {
     } as typeof nextSettings;
 
       // ------------------------------------------------------------------
-      // 5. Salvar no Supabase
+      // 5. Salvar no banco oficial
       // ------------------------------------------------------------------
       if (hasBackendEnv) {
         setStepStatus("Salvando referência no banco...");
