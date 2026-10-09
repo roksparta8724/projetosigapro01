@@ -258,6 +258,31 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
   });
 
+  it("never clears a stable UI when the Neon adapter emits automatic SIGNED_OUT with an empty transient session", async () => {
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+
+    neonMock.client.auth.getSession.mockResolvedValue({
+      data: { session: null },
+    });
+
+    await act(async () => {
+      neonMock.emit("SIGNED_OUT", null);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+  });
+
   it("warm-renders the last valid Neon session immediately after remount and revalidates without clearing it", async () => {
     const first = render(
       <AppBootstrapProvider>
