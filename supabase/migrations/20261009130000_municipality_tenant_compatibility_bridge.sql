@@ -37,12 +37,17 @@ begin
   _subdomain := coalesce(nullif(trim(new.subdomain),''), nullif(trim(new.slug),''), null);
 
   insert into public.tenants(
-    id, legal_name, display_name, city, state, status, subdomain, updated_at
+    id, legal_name, display_name, cnpj, city, state, status, subdomain, updated_at
   )
   values(
     new.id,
     new.name,
     new.name,
+    coalesce(
+      nullif(to_jsonb(new)->>'cnpj',''),
+      (select t.cnpj from public.tenants t where t.id=new.id),
+      'LEGACY-' || new.id::text
+    ),
     _city,
     _state,
     _tenant_status,
