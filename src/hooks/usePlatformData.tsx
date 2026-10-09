@@ -24,7 +24,6 @@ import {
   sessionUsers as seedSessionUsers,
   tenantSettings as seedTenantSettings,
   tenants as seedTenants,
-  type CreateProcessInput,
   type ChecklistTemplate,
   type ClientPlanAssignment,
   type FormalRequirement,
@@ -46,7 +45,6 @@ import {
   type TimelineEntry,
   type UserProfile,
   type InstitutionUserInput,
-  type CreateInstitutionProcessInput,
   getProcessPaymentGuides,
   parseMarker,
   serializeMarker,
@@ -133,7 +131,6 @@ interface PlatformDataState {
   saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => Promise<void>;
   removeInstitution: (institutionId: string) => void;
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
-  createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
   getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
   upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
   duplicatePlan: (planId: string) => Promise<PlanItem | null>;
@@ -179,7 +176,6 @@ interface PlatformDataState {
   deleteUserAccount: (input: { userId: string; actor: string; reason?: string }) => Promise<SessionUser | null>;
   createRegistrationRequest: (input: Omit<RegistrationRequest, "id" | "status" | "createdAt">) => RegistrationRequest;
   approveRegistrationRequest: (requestId: string) => SessionUser | null;
-  createProcess: (input: CreateProcessInput) => ProcessRecord;
   createRequirement: (input: { processId: string; title: string; description: string; dueDate: string; actor: string; targetName: string; visibility: "interno" | "externo" | "misto" }) => Promise<void>;
   respondRequirement: (input: { processId: string; requirementId: string; response: string; actor: string }) => Promise<void>;
   completeRequirement: (input: { processId: string; requirementId: string; actor: string }) => Promise<void>;
@@ -391,7 +387,6 @@ const demoState: PlatformDataState = {
   saveInstitutionSettings: async () => undefined,
   removeInstitution: () => undefined,
   createInstitutionUser: () => defaultStore.sessionUsers[0],
-  createInstitutionProcess: () => defaultStore.processes[0],
   upsertPlan: async () => defaultStore.plans[0],
   duplicatePlan: async () => defaultStore.plans[0],
   saveClientPlanAssignment: async () => defaultStore.planAssignments[0],
@@ -409,7 +404,6 @@ const demoState: PlatformDataState = {
   deleteUserAccount: async () => null,
   createRegistrationRequest: () => defaultStore.registrationRequests[0],
   approveRegistrationRequest: () => null,
-  createProcess: () => defaultStore.processes[0],
   createRequirement: async () => undefined,
   respondRequirement: async () => undefined,
   completeRequirement: async () => undefined,
@@ -1117,163 +1111,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       return user;
     };
-    const createInstitutionProcess: PlatformDataState["createInstitutionProcess"] = (input) => {
-      const institutionId = input.institutionId ?? input.tenantId;
-      let createdProcess = store.processes[0];
-
-      updateStore((current) => {
-        const now = new Date();
-        const tenant = current.tenants.find((item) => item.id === institutionId);
-        const settings = current.tenantSettings.find((item) => item.tenantId === institutionId);
-        const tenantCount = current.processes.filter((item) => item.tenantId === institutionId).length + 1;
-        const protocolPrefix = settings?.protocoloPrefixo || "PM";
-        const guidePrefix = settings?.guiaPrefixo || "DAM";
-        const protocol = input.remote?.protocol ?? `${protocolPrefix}-${now.getFullYear()}-${String(tenantCount).padStart(5, "0")}`;
-        const guideNumber = input.remote?.guideNumber ?? `${guidePrefix}-${now.getFullYear()}-${String(tenantCount).padStart(5, "0")}`;
-        const dueDateLabel =
-          input.remote?.dueDate ??
-          new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
-
-        const process: ProcessRecord = {
-          id: input.remote?.processId ?? `proc-${crypto.randomUUID()}`,
-          tenantId: institutionId,
-          municipalityId: institutionId,
-          protocol,
-          externalProtocol: input.remote?.externalProtocol ?? protocol,
-          title: input.title,
-          type: input.type,
-          status: input.remote?.status ?? "pagamento_pendente",
-          ownerName: input.ownerName,
-          ownerDocument: input.ownerDocument,
-          technicalLead: input.technicalLead,
-          createdBy: input.createdBy,
-          tags: input.tags,
-          address: input.address,
-          notes: input.notes,
-          property: input.property,
-          triage: {
-            status: "recebido",
-            assignedTo: "Setor de protocolo",
-            notes: "Aguardando conferência inicial e validação da guia.",
-          },
-          checklistType: input.type,
-          sla: {
-            currentStage: "Triagem inicial",
-            dueDate: dueDateLabel,
-            hoursRemaining: 48,
-            breached: false,
-          },
-          reopenHistory: [],
-          documents: buildProcessDocuments(
-            input.type,
-            input.documents.map((document) => ({
-              ...document,
-              uploaded: document.uploaded,
-              signed: document.signed,
-              reviewStatus: document.reviewStatus || "pendente",
-              annotations: document.annotations ?? [],
-              version: document.version || 1,
-              sizeLabel: document.sizeLabel ?? (document.fileName ? toSizeLabel(0) : undefined),
-              previewUrl: document.previewUrl,
-            })),
-            institutionId,
-          ),
-          requirements: [],
-          timeline: [
-            buildTimelineEntry("Protocolo criado", "Cadastro inicial concluido com os dados do profissional e do imovel.", input.technicalLead),
-            buildTimelineEntry("Guia Emitida", "Guia de pagamento gerada automaticamente e enviada ao Financeiro.", tenant?.name ?? "Sistema"),
-            buildTimelineEntry("Tramitacao Inicial", "Protocolo encaminhado ao Setor de Protocolo para triagem municipal.", tenant?.name ?? "Sistema"),
-          ],
-          auditTrail: [
-            buildAuditEntry("sistema", "Processo protocolado", "Cadastro inicial concluído com numeração oficial do tenant.", input.technicalLead, true),
-            buildAuditEntry("financeiro", "Guia Inicial Emitida", "Guia DAM criada automaticamente no protocolo.", tenant?.name ?? "Sistema", true),
-          ],
-          signatures: input.documents.some((item) => item.signed)
-            ? [
-                {
-                  id: `sign-${crypto.randomUUID()}`,
-                  title: "Bloco inicial de assinatura",
-                  status: "pendente",
-                  evidence: {
-                    ip: "0.0.0.0",
-                    userAgent: "SIGAPRO local demo",
-                    hash: `sha256:${crypto.randomUUID().replaceAll("-", "")}`,
-                    signedVersion: 1,
-                    timestampAuthority: "SIGAPRO TSA",
-                  },
-                  signers: [
-                    { name: input.technicalLead, role: "Profissional externo" },
-                    { name: tenant?.name ?? "Prefeitura", role: "Análise municipal" },
-                  ],
-                },
-              ]
-            : [],
-          dispatches: [
-            {
-              id: `dispatch-${crypto.randomUUID()}`,
-              from: "Portal externo",
-              to: "Setor de protocolo",
-              subject: "Novo protocolo recebido para triagem",
-              dueDate: dueDateLabel,
-              status: "aguardando",
-              visibility: "interno",
-            },
-            {
-              id: `dispatch-${crypto.randomUUID()}`,
-              from: "Portal externo",
-              to: "Financeiro",
-              subject: "Guia emitida aguardando pagamento",
-              dueDate: dueDateLabel,
-              status: "aguardando",
-              visibility: "interno",
-            },
-          ],
-          messages: [
-            {
-              id: `message-${crypto.randomUUID()}`,
-              senderName: tenant?.name ?? "Sistema",
-              senderRole: "Sistema",
-              audience: "externo",
-              recipientName: input.technicalLead,
-              message: "Seu protocolo foi recebido. A guia de recolhimento foi emitida automaticamente. Após o pagamento, o processo seguirá para análise técnica.",
-              at: new Date().toLocaleString("pt-BR"),
-            },
-          ],
-          payment: {
-            guideNumber,
-            amount: input.remote?.amount ?? (settings?.taxaProtocolo ?? 35.24),
-            status: "pendente",
-            dueDate: dueDateLabel,
-            issuedAt: input.remote?.issuedAt ?? now.toISOString(),
-            expiresAt: input.remote?.expiresAt ?? new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-            guides:
-              input.remote?.guides ??
-              [
-                {
-                  kind: "protocolo",
-                  label: "Guia de Recolhimento de Protocolo",
-                  code: guideNumber,
-                  amount: input.remote?.amount ?? (settings?.taxaProtocolo ?? 35.24),
-                  status: "pendente" as const,
-                  dueDate: dueDateLabel,
-                  issuedAt: input.remote?.issuedAt ?? now.toISOString(),
-                  expiresAt: input.remote?.expiresAt ?? new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-                },
-              ],
-          },
-        };
-
-        createdProcess = process;
-        const processes = [process, ...current.processes];
-        const tenants = current.tenants.map((tenantItem) =>
-          tenantItem.id === institutionId ? { ...tenantItem, processes: tenantItem.processes + 1 } : tenantItem,
-        );
-        return { ...current, processes, tenants };
-      });
-
-      return createdProcess;
-    };
-
     const upsertPlan: PlatformDataState["upsertPlan"] = async (plan) => {
       const nextPlan: PlanItem = {
         ...plan,
@@ -1715,7 +1552,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       saveInstitutionSettings,
       removeInstitution,
       createInstitutionUser,
-      createInstitutionProcess,
       upsertPlan,
       duplicatePlan,
       saveClientPlanAssignment,
@@ -2011,7 +1847,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return user;
       },
-      createProcess: (input) => createInstitutionProcess({ ...input, institutionId: input.tenantId }),
       createRequirement: async (input) => {
         const normalizedTitle = input.title.trim();
         const normalizedDescription = input.description.trim();
