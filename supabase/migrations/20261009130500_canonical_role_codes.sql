@@ -25,9 +25,9 @@ as $function$
       and tm.deleted_at is null
     order by
       case
-        when r.code in ('master_admin','master_ops','admin_master','master') then 100
-        when r.code in ('prefeitura_admin','admin_prefeitura','admin_municipality') then 90
-        when r.code in ('prefeitura_supervisor','secretario','diretor') then 80
+        when r.code::text in ('master_admin','master_ops','admin_master','master') then 100
+        when r.code::text in ('prefeitura_admin','admin_prefeitura','admin_municipality') then 90
+        when r.code::text in ('prefeitura_supervisor','secretario','diretor') then 80
         else 10
       end desc,
       tm.updated_at desc nulls last
