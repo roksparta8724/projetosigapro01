@@ -65,7 +65,7 @@ export function InstitutionalLogo({
     <div
       data-logo-context={isMaster ? "sigapro" : "municipality"}
       className={cn(
-        "flex max-w-full shrink-0 items-center justify-center overflow-hidden",
+        "sig-institution-logo-surface flex max-w-full shrink-0 items-center justify-center overflow-hidden",
         isMaster
           ? "bg-transparent"
           : "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
