@@ -55,16 +55,21 @@ vi.mock("@/lib/platform", async () => {
 });
 
 describe("PermissionRoute stable authenticated rendering", () => {
-  it("keeps the authorized page mounted while auth revalidates in the background", () => {
-    render(
-      <MemoryRouter>
-        <PermissionRoute permission="view_master_dashboard">
-          <div data-testid="protected-content">Master estável</div>
-        </PermissionRoute>
-      </MemoryRouter>,
-    );
+  it.each(["default", "inverse-main"] as const)(
+    "keeps the authorized page mounted during background revalidation in %s layout",
+    (layoutMode) => {
+      render(
+        <div data-layout-mode={layoutMode}>
+          <MemoryRouter>
+            <PermissionRoute permission="view_master_dashboard">
+              <div data-testid="protected-content">Master estável</div>
+            </PermissionRoute>
+          </MemoryRouter>
+        </div>,
+      );
 
-    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Validando acesso")).not.toBeInTheDocument();
-  });
+      expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Validando acesso")).not.toBeInTheDocument();
+    },
+  );
 });
