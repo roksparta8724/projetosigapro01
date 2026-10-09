@@ -3564,3 +3564,26 @@
 [data-layout-mode="inverse-main"] .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] > div {
   background: #ffffff !important;
 }
+
+
+/* Search must read as a neutral light control, independent from the white topbar text rules. */
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+:is(.sig-topbar-searchbar, .sig-topbar-search-trigger),
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) :is(span, p, kbd, strong) {
+  color: #334155 !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) svg {
+  color: #334155 !important;
+  stroke: #334155 !important;
+  fill: none !important;
+}
+
+:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-hint {
+  color: #64748b !important;
+  background: rgba(255,255,255,0.84) !important;
+  border-color: rgba(148,163,184,0.36) !important;
+}
