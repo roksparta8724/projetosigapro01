@@ -29,23 +29,6 @@ type SignatureMode = "eletronica" | "manual" | "icp_brasil";
 type UserGroup = "todos" | "internos" | "externos" | "administradores";
 type WorkspaceView = "visao-geral" | "carteira" | "cadastro" | "usuarios";
 type AdminContactDraft = { id: string; email: string; fullName: string; title: string; accessLevel: 2 | 3 };
-type PendingTenantSync = {
-  institution: {
-    id: string;
-    name: string;
-    city: string;
-    state: string;
-    status: Institution["status"];
-    subdomain: string;
-    cnpj: string;
-    primaryColor: string;
-    accentColor: string;
-    secretariat: string;
-  };
-  settings: Record<string, unknown>;
-  updatedAt: string;
-};
-
 const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): InstitutionAdminContact[] =>
   drafts
     .map((draft) => ({
@@ -109,7 +92,7 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
   }
   throw lastError;
 };
-const pendingSyncStorageKey = "sigapro:pending-tenant-sync";
+const LEGACY_PENDING_SYNC_STORAGE_KEY = "sigapro:pending-tenant-sync";
 const ensureSupabaseAvailable = async () => {
   if (!supabase) throw new Error("Banco oficial indisponível.");
   const { error } = await withTimeout(
@@ -137,19 +120,11 @@ export function MasterAdminPage() {
   const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
   const [userGroup, setUserGroup] = useState<UserGroup>("todos");
   const formRef = useRef<HTMLDivElement | null>(null);
-  const [pendingSync, setPendingSync] = useState<PendingTenantSync | null>(null);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(pendingSyncStorageKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as PendingTenantSync;
-      if (parsed?.institution?.id) {
-        setPendingSync(parsed);
-      }
-    } catch {
-      window.localStorage.removeItem(pendingSyncStorageKey);
-    }
+    // Remove rascunhos operacionais do fluxo antigo. Prefeituras agora só existem
+    // após confirmação do banco oficial.
+    window.localStorage.removeItem(LEGACY_PENDING_SYNC_STORAGE_KEY);
   }, []);
 
   useEffect(() => { let active = true; if (!hasSupabaseEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
@@ -324,63 +299,6 @@ export function MasterAdminPage() {
     if (![1, 2, 3].includes(nextAccess)) { setStatusMessage("Nível de acesso inválido."); return; }
     void runUserCommand(user.id, () => updateTenantUser(user.id, { name: nextName.trim(), title: nextTitle.trim(), role: nextRole, accessLevel: nextAccess as 1 | 2 | 3 }), (updated) => `Dados de ${updated.name} atualizados no banco.`);
   };
-  const handleRetryRemoteSync = async () => {
-    if (!pendingSync || !hasSupabaseEnv) return;
-    setStatusMessage("Tentando sincronizar com o banco oficial...");
-    try {
-      await ensureSupabaseAvailable();
-      const remoteInstitution = await withRetry(() =>
-        withTimeout(
-          upsertRemoteInstitution({
-            institutionId: pendingSync.institution.id,
-            name: pendingSync.institution.name,
-            city: pendingSync.institution.city,
-            state: pendingSync.institution.state,
-            status: pendingSync.institution.status,
-            subdomain: pendingSync.institution.subdomain,
-            cnpj: pendingSync.institution.cnpj,
-            primaryColor: pendingSync.institution.primaryColor,
-            accentColor: pendingSync.institution.accentColor,
-            secretariat: pendingSync.institution.secretariat,
-          }),
-        ),
-      );
-      const adminContacts = Array.isArray((pendingSync.settings as { adminContacts?: unknown[] }).adminContacts)
-        ? ((pendingSync.settings as { adminContacts?: InstitutionAdminContact[] }).adminContacts ?? [])
-        : [];
-      const unresolvedAdminEmails: string[] = [];
-
-      await withRetry(() => withTimeout(saveRemoteInstitutionSettings({ ...pendingSync.settings, tenantId: remoteInstitution.id })));
-
-      for (const admin of adminContacts) {
-        const linked = await withRetry(() =>
-          withTimeout(
-            linkExistingUserToMunicipalityAdmin({
-              email: admin.email,
-              municipalityId: remoteInstitution.id,
-              fullName: admin.fullName,
-              title: admin.title,
-              accessLevel: admin.accessLevel,
-            }),
-          ),
-        );
-        if (!linked.linked && linked.reason === "not_found") {
-          unresolvedAdminEmails.push(admin.email);
-        }
-      }
-
-      window.localStorage.removeItem(pendingSyncStorageKey);
-      setPendingSync(null);
-      setStatusMessage(
-        unresolvedAdminEmails.length > 0
-          ? `Sincronização concluída. Os contatos ${unresolvedAdminEmails.join(", ")} foram mantidos no cadastro e aguardam conta existente para vínculo automático.`
-          : "Sincronização concluída com o banco oficial.",
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao sincronizar com o banco oficial.";
-      setStatusMessage(`Sincronização pendente: ${message}`);
-    }
-  };
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -491,8 +409,6 @@ export function MasterAdminPage() {
 
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
       setSelectedTenantId(savedTenant.id);
-      window.localStorage.removeItem(pendingSyncStorageKey);
-      setPendingSync(null);
 
       if (normalizedAdminContacts.length === 0) {
         setStatusMessage("Prefeitura salva no banco oficial e pronta para operação comercial.");
@@ -717,14 +633,6 @@ export function MasterAdminPage() {
                         }`}
                       >
                         {statusMessage}
-                      </div>
-                    ) : null}
-                    {pendingSync ? (
-                      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                        <span>Sincronização pendente com o banco oficial.</span>
-                        <Button type="button" variant="outline" className="h-9 rounded-full px-4 text-xs" onClick={handleRetryRemoteSync}>
-                          Tentar sincronizar agora
-                        </Button>
                       </div>
                     ) : null}
                   <div className="grid gap-5 xl:grid-cols-12">
