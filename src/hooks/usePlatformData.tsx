@@ -59,6 +59,7 @@ import {
   createRemoteProcessDispatch,
   createRemoteProcessRequirement,
   createRemoteOwnerRequest,
+  createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
@@ -135,6 +136,15 @@ interface PlatformDataState {
     ownerDocument: string;
     notes?: string;
   }) => Promise<{ request: OwnerProjectRequest | null; error?: string }>;
+  createOwnerRequestByProtocol: (input: {
+    protocol: string;
+    ownerDocument: string;
+    notes?: string;
+  }) => Promise<{
+    request: OwnerProjectRequest | null;
+    process?: { id: string; protocol: string; title: string; status: string } | null;
+    error?: string;
+  }>;
   respondOwnerRequest: (input: {
     requestId: string;
     status: OwnerRequestStatus;
@@ -1219,6 +1229,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       }
     };
 
+    const createOwnerRequestByProtocol: PlatformDataState["createOwnerRequestByProtocol"] = async (input) => {
+      const normalizedProtocol = input.protocol.trim();
+      const normalizedDocument = normalizeOwnerDocument(input.ownerDocument);
+
+      if (!normalizedProtocol) {
+        return { request: null, error: "Informe o número do protocolo." };
+      }
+      if (!normalizedDocument) {
+        return { request: null, error: "Informe o CPF/CNPJ do proprietário." };
+      }
+      if (!hasBackendEnv) {
+        return { request: null, error: "Banco oficial indisponível. A solicitação não foi criada." };
+      }
+
+      try {
+        const result = await createRemoteOwnerRequestByProtocol({
+          protocol: normalizedProtocol,
+          ownerDocument: normalizedDocument,
+          notes: input.notes?.trim() || undefined,
+        });
+
+        await refreshRemoteStore();
+        return {
+          request: result.request,
+          process: result.process,
+        };
+      } catch (error) {
+        return {
+          request: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível enviar a solicitação agora.",
+        };
+      }
+    };
+
     const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
       const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
       if (!existingRequest) return null;
@@ -1302,6 +1349,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       duplicatePlan,
       saveClientPlanAssignment,
       createOwnerRequest,
+      createOwnerRequestByProtocol,
       respondOwnerRequest,
       setOwnerChatEnabled,
       sendOwnerMessage,
