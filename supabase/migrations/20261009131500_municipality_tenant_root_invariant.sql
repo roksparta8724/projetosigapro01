@@ -80,6 +80,10 @@ on public.municipalities
 for each row
 execute function public.sync_municipality_tenant_root();
 
+-- Função exclusiva de trigger: não pode ficar exposta como RPC direta.
+revoke all on function public.sync_municipality_tenant_root() from public;
+revoke all on function public.sync_municipality_tenant_root() from authenticated;
+
 -- Libera subdomínios públicos ocupados por raízes técnicas legadas com UUID
 -- diferente. Nenhum tenant histórico é removido e nenhuma FK é reescrita.
 update public.tenants t
