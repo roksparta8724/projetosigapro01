@@ -523,16 +523,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     maxLength: 34,
   });
   const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null;
-  const topbarAvatarImageStyle = useMemo<React.CSSProperties | undefined>(() => {
+  const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
-
-    const scale = Number(userProfile?.avatarScale ?? 1);
-    const offsetX = Number(userProfile?.avatarOffsetX ?? 0);
-    const offsetY = Number(userProfile?.avatarOffsetY ?? 0);
-
     return {
-      transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-      transformOrigin: "center center",
+      scale: Number(userProfile?.avatarScale ?? 1),
+      offsetX: Number(userProfile?.avatarOffsetX ?? 0),
+      offsetY: Number(userProfile?.avatarOffsetY ?? 0),
+      editorSize: 320,
     };
   }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
@@ -961,7 +958,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <UserAvatar
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
-                    imageStyle={topbarAvatarImageStyle}
+                    crop={topbarAvatarCrop}
                     size="sm"
                     className="sig-topbar-user-avatar"
                     fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
@@ -1373,7 +1370,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <UserAvatar
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
-                    imageStyle={topbarAvatarImageStyle}
+                    crop={topbarAvatarCrop}
                     size="md"
                     className="sig-topbar-user-avatar"
                     fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
@@ -1406,7 +1403,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                         <UserAvatar
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
-                          imageStyle={topbarAvatarImageStyle}
+                          crop={topbarAvatarCrop}
                           size="lg"
                           className={cn(
                             "sig-topbar-user-avatar !text-[#17324a] ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",
