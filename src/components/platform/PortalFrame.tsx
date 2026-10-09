@@ -1107,9 +1107,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-medium tracking-[0.01em] text-white/90">
                     Pesquisar
                   </span>
-                  <span className="sig-topbar-search-hint hidden items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] 2xl:inline-flex">
-                    Ctrl K
-                  </span>
                 </button>
               </div>
 
@@ -1793,7 +1790,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </div>
               </div>
 
-              {(tenantSettings?.diretoriaResponsavel || tenantSettings?.diretoriaTelefone || tenantSettings?.diretoriaEmail) ? (
+              {tenantSettings?.diretoriaResponsavel ? (
                 <div
                   className="mt-4 overflow-hidden rounded-[10px] border shadow-sm"
                   style={{
@@ -1802,16 +1799,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   }}
                 >
                   <div className="px-5 py-2.5 md:px-6">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Diretoria responsável</p>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Diretoria responsável</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 px-5 py-4 md:px-6">
-                    <p className="text-sm font-medium text-white">{tenantSettings?.diretoriaResponsavel || "Diretoria do processo"}</p>
-                    {tenantSettings?.diretoriaTelefone ? <p className="text-sm font-normal text-white/90">{tenantSettings.diretoriaTelefone}</p> : null}
-                    {tenantSettings?.diretoriaEmail ? (
-                      <p className="sig-fit-copy whitespace-nowrap text-white/90" title={tenantSettings.diretoriaEmail}>
-                        {tenantSettings.diretoriaEmail}
-                      </p>
-                    ) : null}
+                  <div className="border-t border-white/10 px-5 py-4 md:px-6">
+                    <p className="text-sm font-medium text-white">{tenantSettings.diretoriaResponsavel}</p>
                   </div>
                 </div>
               ) : null}
