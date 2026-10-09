@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -111,6 +111,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
     () => getCachedMasterFooterUrl(),
   );
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
+  const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
 
   const requestedInstitutionId =
     tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
@@ -307,9 +309,29 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
       scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
     );
+    const resolvedTenantHeaderLogo =
+      scopedMunicipalityBranding?.headerLogoUrl ||
+      brandingUrl ||
+      base.logoUrl ||
+      (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId
+        ? stableTenantHeaderLogoRef.current.url
+        : "");
+
+    if (resolvedTenantHeaderLogo) {
+      stableTenantHeaderLogoRef.current = {
+        tenantId: resolvedInstitutionId,
+        url: resolvedTenantHeaderLogo,
+      };
+    }
+
     return {
       ...base,
-      logoUrl: hasVariantLogo ? scopedMunicipalityBranding?.headerLogoUrl || "" : brandingUrl || base.logoUrl,
+      // Nunca troca um brasão/logo já válido por vazio enquanto a URL assinada é renovada.
+      logoUrl:
+        resolvedTenantHeaderLogo ||
+        (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId
+          ? stableTenantHeaderLogoRef.current.url
+          : ""),
     };
   }, [
     institution?.name,
@@ -346,9 +368,29 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
       scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
     );
+    const resolvedTenantFooterLogo =
+      scopedMunicipalityBranding?.footerLogoUrl ||
+      brandingUrl ||
+      base.logoUrl ||
+      (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId
+        ? stableTenantFooterLogoRef.current.url
+        : "");
+
+    if (resolvedTenantFooterLogo) {
+      stableTenantFooterLogoRef.current = {
+        tenantId: resolvedInstitutionId,
+        url: resolvedTenantFooterLogo,
+      };
+    }
+
     return {
       ...base,
-      logoUrl: hasVariantLogo ? scopedMunicipalityBranding?.footerLogoUrl || "" : brandingUrl || base.logoUrl,
+      // Mantém a última imagem válida enquanto uma nova URL do R2 é resolvida.
+      logoUrl:
+        resolvedTenantFooterLogo ||
+        (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId
+          ? stableTenantFooterLogoRef.current.url
+          : ""),
     };
   }, [
     institution?.name,
