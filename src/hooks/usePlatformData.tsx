@@ -360,58 +360,7 @@ const staticCatalogStore: PlatformStore = {
   documentTemplates: seedDocumentTemplates,
 };
 
-const demoState: PlatformDataState = {
-  source: "demo",
-  loading: false,
-  refreshRemoteStore: async () => undefined,
-  ...defaultStore,
-  metrics: getMasterMetrics(defaultStore.processes, defaultStore.tenants),
-  institutions: defaultStore.tenants,
-  institutionSettings: defaultStore.tenantSettings,
-  getTenantSettings: (tenantId) => defaultStore.tenantSettings.find((item) => item.tenantId === tenantId),
-  getInstitutionSettings: (institutionId) => defaultStore.tenantSettings.find((item) => item.tenantId === institutionId),
-  getUserProfile: (userId, email) => findUserProfile(defaultStore.userProfiles, userId, email),
-  getInstitutionPlanAssignment: (institutionId) => defaultStore.planAssignments.find((item) => item.municipalityId === institutionId),
-  upsertInstitution: () => defaultStore.tenants[0],
-  saveInstitutionSettings: async () => undefined,
-  upsertPlan: async () => defaultStore.plans[0],
-  duplicatePlan: async () => defaultStore.plans[0],
-  saveClientPlanAssignment: async () => defaultStore.planAssignments[0],
-  createOwnerRequest: async () => ({ request: null, error: "Operacao indisponivel." }),
-  respondOwnerRequest: async () => null,
-  setOwnerChatEnabled: async () => null,
-  sendOwnerMessage: async () => null,
-  saveUserProfile: async () => undefined,
-  createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
-  updateTenantUser: async () => null,
-  setUserAccountStatus: async () => null,
-  deleteUserAccount: async () => null,
-  createRequirement: async () => undefined,
-  respondRequirement: async () => undefined,
-  completeRequirement: async () => undefined,
-  updateProcessStatus: async () => undefined,
-  reopenProcess: async () => undefined,
-  issuePaymentGuide: async () => undefined,
-  markGuideAsPaid: async () => undefined,
-  appendProcessDocuments: async () => undefined,
-  reviewProcessDocument: async () => undefined,
-  addDocumentAnnotation: async () => undefined,
-  addProcessMarker: async () => undefined,
-  addProcessMarkerWithColor: async () => undefined,
-  removeProcessMarker: async () => undefined,
-  setInstitutionStatus: async () => undefined,
-  dispatchProcess: async () => undefined,
-  acknowledgeDispatchReceipt: async () => undefined,
-  completeDispatches: async () => undefined,
-  returnDispatches: async () => undefined,
-  setProcessCheckpoint: async () => undefined,
-  setProcessOnHold: async () => undefined,
-  setProcessTransitVisibility: async () => undefined,
-  sendProcessMessage: async () => undefined,
-  reissuePaymentGuide: async () => undefined,
-};
-
-const PlatformDataContext = createContext<PlatformDataState>(demoState);
+const PlatformDataContext = createContext<PlatformDataState | null>(null);
 
 function normalizeTenantLabel(value: string | null | undefined) {
   return (value ?? "")
@@ -1676,5 +1625,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 }
 
 export function usePlatformData() {
-  return useContext(PlatformDataContext);
+  const context = useContext(PlatformDataContext);
+  if (!context) {
+    throw new Error("usePlatformData must be used inside PlatformDataProvider");
+  }
+  return context;
 }
