@@ -34,6 +34,8 @@ import {
   formatCurrency,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  isFinalApprovalFeeConfigured,
+  isIssFeeConfigured,
 } from "@/lib/platform";
 import {
   type MunicipalFeeRule,
@@ -59,6 +61,8 @@ export function FinanceDeskPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const issFeeConfigured = isIssFeeConfigured(tenantSettings);
+  const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
   const [section, setSection] = useState<FinanceSection>("visao-geral");
   const [feeStatus, setFeeStatus] = useState("");
   const [finalGuideStatus, setFinalGuideStatus] = useState("");
@@ -75,7 +79,7 @@ export function FinanceDeskPage() {
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
   const finalGuideCandidates = processes.filter((process) => {
-    if (tenantSettings?.finalApprovalFeeEnabled === false) return false;
+    if (tenantSettings?.finalApprovalFeeEnabled === false || !finalFeeConfigured) return false;
     const processGuides = getProcessPaymentGuides(process, tenantSettings);
     const hasFinalGuide = processGuides.some((guide) => guide.kind === "aprovacao_final");
     const protocolPaid = processGuides.some(
@@ -113,6 +117,14 @@ export function FinanceDeskPage() {
       setWorkflowStatus("Nenhuma Prefeitura ativa foi localizada para alterar o workflow.");
       return;
     }
+    if (enabled && key === "issStageEnabled" && !issFeeConfigured) {
+      setWorkflowStatus("Configure e salve a tabela oficial de ISSQN antes de ativar esta etapa.");
+      return;
+    }
+    if (enabled && key === "finalApprovalFeeEnabled" && !finalFeeConfigured) {
+      setWorkflowStatus("Configure e salve a tabela oficial da taxa final antes de ativar esta etapa.");
+      return;
+    }
 
     setWorkflowStatus("");
     try {
@@ -131,6 +143,10 @@ export function FinanceDeskPage() {
   };
 
   const handleIssueFinalGuide = async (processId: string) => {
+    if (!finalFeeConfigured) {
+      setFinalGuideStatus("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
+      return;
+    }
     setFinalGuideBusyId(processId);
     setFinalGuideStatus("");
 
@@ -525,6 +541,12 @@ export function FinanceDeskPage() {
         {section === "guias" ? (
           <TableCard title="Guias emitidas" description="Emissões reais do fluxo financeiro municipal, vinculadas ao banco oficial." icon={ReceiptText}>
             <div className="space-y-3">
+              {tenantSettings?.finalApprovalFeeEnabled !== false && !finalFeeConfigured ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  A taxa final está ativa, mas a tabela municipal ainda não foi configurada. Nenhuma nova guia final pode ser emitida até a Prefeitura salvar as regras oficiais.
+                </div>
+              ) : null}
+
               {finalGuideStatus ? (
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${
                   finalGuideStatus.startsWith("Guia final")
