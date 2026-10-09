@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, BadgeCheck, CheckCircle2, ClipboardList, Clock3, FileText, PencilLine, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock3, FileText, PencilLine, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { TableCard } from "@/components/platform/TableCard";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { accessLevelLabels, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
+import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -53,12 +53,15 @@ export function TenantAdminPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
-  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile } = usePlatformData();
+  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
   const currentUnit = activeInstitution?.secretariaResponsavel || session.department || session.title || "Administração da Prefeitura";
+  const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const hasPendingGuide = (process: ProcessRecord) =>
+    getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status === "pendente");
   const availablePositionOptions = useMemo(
     () =>
       Array.from(
@@ -95,10 +98,10 @@ export function TenantAdminPage() {
     });
   }, [roleFilter, search, segment, statusFilter, tenantUsers]);
 
-  const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length, inAnalysis: tenantProcesses.filter((process) => ["analise_tecnica", "reapresentacao", "exigencia"].includes(process.status)).length, pendingPayments: tenantProcesses.filter((process) => process.payment.status === "pendente").length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses]);
+  const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length, inAnalysis: tenantProcesses.filter((process) => ["analise_tecnica", "reapresentacao", "exigencia"].includes(process.status)).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
   const criticalAlerts = useMemo(() => tenantProcesses.filter((process) => process.sla.breached || process.sla.hoursRemaining <= 12), [tenantProcesses]);
-  const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => process.payment.status === "pendente").length, helper: "Guias ainda sem compensação" }], [tenantProcesses]);
-  const actionRequired = useMemo(() => tenantProcesses.filter((process) => process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") || process.sla.breached || process.payment.status === "pendente").slice(0, 6), [tenantProcesses]);
+  const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
+  const actionRequired = useMemo(() => tenantProcesses.filter((process) => process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") || process.sla.breached || hasPendingGuide(process)).slice(0, 6), [tenantProcesses, tenantSettings]);
   const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))).slice(0, 8), [tenantProcesses]);
   const recentApprovals = useMemo(() => tenantProcesses.filter((process) => process.status === "deferido").slice(0, 5), [tenantProcesses]);
   const mainQueue = useMemo(() => [...tenantProcesses].sort((a, b) => { const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0; const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0; if (aPriority !== bPriority) return bPriority - aPriority; return a.sla.hoursRemaining - b.sla.hoursRemaining; }).slice(0, 8), [tenantProcesses]);
@@ -289,10 +292,10 @@ export function TenantAdminPage() {
     );
   };
   const executiveCards = [
-    { label: "Visão geral", value: `${metrics.protocolsInProgress}`, description: "Processos municipais em andamento", icon: ClipboardList, tone: "blue" as const },
+    { label: "Processos ativos", value: `${metrics.protocolsInProgress}`, description: "Processos municipais em andamento", icon: ClipboardList, tone: "blue" as const },
     { label: "Fila operacional", value: `${mainQueue.length}`, description: "Itens priorizados para coordenação", icon: Clock3, tone: "amber" as const },
     { label: "Usuários", value: `${tenantUsers.length}`, description: "Equipe vinculada à Prefeitura", icon: Users2, tone: "emerald" as const },
-    { label: "Solicitações", value: `${pendingRequests.length}`, description: "Pedidos aguardando validação", icon: BadgeCheck, tone: "rose" as const },
+    { label: "Pendências financeiras", value: `${metrics.pendingPayments}`, description: "Processos com guia emitida pendente", icon: Wallet, tone: "rose" as const },
   ];
 
   return (
@@ -308,7 +311,7 @@ export function TenantAdminPage() {
                     {municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
                   </h1>
                   <p className="mt-2 max-w-[64ch] text-sm leading-6 text-slate-500">
-                    Centro institucional da operação municipal, com governança de usuários, solicitações e prioridades da Prefeitura.
+                    Centro institucional da operação municipal, com governança de usuários, processos e prioridades da Prefeitura.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
@@ -503,10 +506,6 @@ export function TenantAdminPage() {
                   <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("usuarios")}>
                     <Users2 className="mr-2 h-4 w-4 text-sky-200" />
                     Gerenciar usuários
-                  </Button>
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("solicitacoes")}>
-                    <BadgeCheck className="mr-2 h-4 w-4 text-sky-200" />
-                    Revisar solicitações
                   </Button>
                 </div>
               </SectionCard>
