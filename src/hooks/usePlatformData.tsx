@@ -82,7 +82,7 @@ import {
   upsertRemoteInstitution,
   upsertRemotePlan,
   upsertRemoteProcessMarker,
-} from "@/integrations/supabase/platform";
+} from "@/integrations/backend/platform";
 
 type CmsSection = (typeof seedCmsSections)[number];
 type DocumentTemplate = (typeof seedDocumentTemplates)[number];
