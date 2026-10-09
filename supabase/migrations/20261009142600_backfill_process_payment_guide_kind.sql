@@ -1,10 +1,26 @@
--- SIGAPRO: normaliza guide_kind em guias históricas já vinculadas ao modelo processes.
--- Guias órfãs do modelo antigo (process_id null) são preservadas como histórico.
+-- SIGAPRO: compatibilidade controlada entre o vocabulário financeiro
+-- histórico e o fluxo atual. Novas operações usam:
+--   protocolo | iss_obra | aprovacao_final
+-- Registros históricos permanecem legíveis sem serem reinterpretados.
 
-update public.payment_guides
-   set guide_kind='protocolo'
- where process_id is not null
-   and nullif(btrim(guide_kind),'') is null;
+alter table public.payment_guides
+  drop constraint if exists payment_guides_modern_kind_check;
+
+alter table public.payment_guides
+  add constraint payment_guides_kind_compat_check
+  check (
+    guide_kind is null
+    or guide_kind in (
+      'protocolo',
+      'iss_obra',
+      'aprovacao_final',
+      'initial_protocol',
+      'technical_analysis',
+      'final_approval',
+      'other',
+      'post_communicate'
+    )
+  );
 
 create or replace function public.set_process_payment_guide_kind()
 returns trigger
@@ -13,6 +29,7 @@ set search_path = pg_catalog, public
 as $function$
 begin
   if new.process_id is not null and nullif(btrim(new.guide_kind),'') is null then
+    -- Guia sem tipo criada pelo fluxo atual é sempre a taxa inicial.
     new.guide_kind := 'protocolo';
   end if;
   return new;
