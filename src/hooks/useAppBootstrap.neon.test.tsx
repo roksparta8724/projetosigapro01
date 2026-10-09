@@ -168,6 +168,7 @@ function Probe() {
 describe("AppBootstrapProvider Neon-first login", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -255,6 +256,45 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+  });
+
+  it("warm-renders the last valid Neon session immediately after remount and revalidates without clearing it", async () => {
+    const first = render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    first.unmount();
+
+    const rpcCallsBeforeRemount = neonMock.client.rpc.mock.calls.length;
+    neonMock.client.auth.getSession.mockResolvedValue({
+      data: { session: { user: neonMock.authUser } },
+    });
+
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    // O snapshot de sessionStorage pinta a identidade na primeira renderização,
+    // sem voltar para "none"/skeleton durante um F5.
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+
+    await act(async () => {
+      neonMock.emit("INITIAL_SESSION", { user: neonMock.authUser });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(neonMock.client.rpc.mock.calls.length).toBeGreaterThan(rpcCallsBeforeRemount);
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
   });
 
   it("uses the Neon password recovery contract with redirect token flow", async () => {
