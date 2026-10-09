@@ -165,6 +165,8 @@ export function ProcessDetailPage() {
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
+  const [processActionStatus, setProcessActionStatus] = useState("");
+  const [processActionBusy, setProcessActionBusy] = useState("");
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const process = processId ? getProcessById(processId, processes) : undefined;
 
@@ -429,63 +431,112 @@ export function ProcessDetailPage() {
       },
     );
   };
-  const handleAddMarker = (event: FormEvent) => {
+  const runProcessAction = async (
+    key: string,
+    action: () => Promise<void>,
+    successMessage: string,
+  ) => {
+    setProcessActionBusy(key);
+    setProcessActionStatus("");
+    try {
+      await action();
+      setProcessActionStatus(successMessage);
+      return true;
+    } catch (error) {
+      setProcessActionStatus(
+        error instanceof Error ? error.message : "Não foi possível concluir a operação no banco oficial.",
+      );
+      return false;
+    } finally {
+      setProcessActionBusy("");
+    }
+  };
+
+  const handleAddMarker = async (event: FormEvent) => {
     event.preventDefault();
     if (!marker.trim()) return;
-    addProcessMarkerWithColor(process.id, marker, markerColor, session.name);
-    setMarker("");
+    const ok = await runProcessAction(
+      "marker",
+      () => addProcessMarkerWithColor(process.id, marker, markerColor, session.name),
+      "Marcador salvo no processo.",
+    );
+    if (ok) setMarker("");
   };
-  const handleSendMessage = (event: FormEvent) => {
+  const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault();
     if (!message.trim()) return;
-    sendProcessMessage({
-      processId: process.id,
-      senderName: session.name,
-      senderRole: session.role,
-      audience: messageAudience,
-      recipientName: messageRecipient === "todos" ? undefined : messageRecipient,
-      message,
-    });
-    setMessage("");
+    const ok = await runProcessAction(
+      "message",
+      () =>
+        sendProcessMessage({
+          processId: process.id,
+          senderName: session.name,
+          senderRole: session.role,
+          audience: messageAudience,
+          recipientName: messageRecipient === "todos" ? undefined : messageRecipient,
+          message,
+        }),
+      "Mensagem registrada no processo.",
+    );
+    if (ok) setMessage("");
   };
-  const handleCreateRequirement = (event: FormEvent) => {
+  const handleCreateRequirement = async (event: FormEvent) => {
     event.preventDefault();
     if (!requirementTitle.trim() || !requirementDescription.trim() || !requirementDueDate) return;
-    createRequirement({
-      processId: process.id,
-      title: requirementTitle,
-      description: requirementDescription,
-      dueDate: requirementDueDate,
-      actor: session.name,
-      targetName: externalRecipientName,
-      visibility: requirementVisibility,
-    });
-    setRequirementTitle("");
-    setRequirementDescription("");
-    setRequirementDueDate("");
+    const ok = await runProcessAction(
+      "requirement",
+      () =>
+        createRequirement({
+          processId: process.id,
+          title: requirementTitle,
+          description: requirementDescription,
+          dueDate: requirementDueDate,
+          actor: session.name,
+          targetName: externalRecipientName,
+          visibility: requirementVisibility,
+        }),
+      "Exigência registrada no processo.",
+    );
+    if (ok) {
+      setRequirementTitle("");
+      setRequirementDescription("");
+      setRequirementDueDate("");
+    }
   };
-  const handleDispatchSubmit = (event: FormEvent) => {
+  const handleDispatchSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!dispatchFrom.trim() || !dispatchTo.trim() || !dispatchSubject.trim() || !dispatchDueDate) return;
-    dispatchProcess({
-      processId: process.id,
-      actor: session.name,
-      from: dispatchFrom.trim(),
-      to: dispatchTo.trim(),
-      subject: dispatchSubject.trim(),
-      dueDate: dispatchDueDate,
-      visibility: dispatchVisibility,
-    });
-    setDispatchSubject("");
-    setDispatchDueDate("");
-    setDispatchVisibility("interno");
+    const ok = await runProcessAction(
+      "dispatch",
+      () =>
+        dispatchProcess({
+          processId: process.id,
+          actor: session.name,
+          from: dispatchFrom.trim(),
+          to: dispatchTo.trim(),
+          subject: dispatchSubject.trim(),
+          dueDate: dispatchDueDate,
+          visibility: dispatchVisibility,
+        }),
+      "Despacho registrado no processo.",
+    );
+    if (ok) {
+      setDispatchSubject("");
+      setDispatchDueDate("");
+      setDispatchVisibility("interno");
+    }
   };
   const updateTransitVisibility = (visibility: ProcessTransitVisibility) => {
-    setProcessTransitVisibility({
-      processId: process.id,
-      actor: session.name,
-      visibility,
-    });
+    void runProcessAction(
+      "transit-visibility",
+      () =>
+        setProcessTransitVisibility({
+          processId: process.id,
+          actor: session.name,
+          visibility,
+        }),
+      "Visibilidade de tramitação atualizada.",
+    );
   };
   const openViewer = (documentId: string) => {
     setViewerDocumentId(documentId);
@@ -501,16 +552,23 @@ export function ProcessDetailPage() {
       y: ((event.clientY - rect.top) / rect.height) * 100,
     });
   };
-  const handleSaveAnnotation = () => {
+  const handleSaveAnnotation = async () => {
     if (!viewerDocument || !annotationPoint || !annotationDraft.trim()) return;
-    addDocumentAnnotation(process.id, viewerDocument.id, {
-      x: annotationPoint.x,
-      y: annotationPoint.y,
-      note: annotationDraft,
-      author: session.name,
-    });
-    setAnnotationDraft("");
-    setAnnotationPoint(null);
+    const ok = await runProcessAction(
+      "annotation",
+      () =>
+        addDocumentAnnotation(process.id, viewerDocument.id, {
+          x: annotationPoint.x,
+          y: annotationPoint.y,
+          note: annotationDraft,
+          author: session.name,
+        }),
+      "Anotação salva no documento.",
+    );
+    if (ok) {
+      setAnnotationDraft("");
+      setAnnotationPoint(null);
+    }
   };
 
   return (
@@ -536,6 +594,17 @@ export function ProcessDetailPage() {
           ) : undefined
         }
       />
+      {processActionStatus ? (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            /não foi|erro|falha|indisponível|sem acesso/i.test(processActionStatus)
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {processActionStatus}
+        </div>
+      ) : null}
       <PageStatsRow>
         <StatCard label="Status atual" value={statusLabel(process.status)} description="Etapa atual do fluxo municipal" icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
@@ -568,7 +637,13 @@ export function ProcessDetailPage() {
                       }}
                     >
                       {parseMarker(tag).label}
-                      <button type="button" onClick={() => removeProcessMarker(process.id, tag, session.name)} className="rounded-full p-0.5 transition hover:bg-black/10">
+                      <button type="button" onClick={() =>
+                        void runProcessAction(
+                          "remove-marker",
+                          () => removeProcessMarker(process.id, tag, session.name),
+                          "Marcador removido.",
+                        )
+                      } className="rounded-full p-0.5 transition hover:bg-black/10">
                         <X className="h-3 w-3" />
                       </button>
                     </span>
@@ -609,7 +684,11 @@ export function ProcessDetailPage() {
                   onClick={() => {
                     const quickMarker = quickMarkers.find((item) => item.label === selectedQuickMarker);
                     if (!quickMarker) return;
-                    addProcessMarkerWithColor(process.id, quickMarker.label, quickMarker.color, session.name);
+                    void runProcessAction(
+                      "quick-marker",
+                      () => addProcessMarkerWithColor(process.id, quickMarker.label, quickMarker.color, session.name),
+                      "Marcador salvo no processo.",
+                    );
                   }}
                 >
                   Aplicar Marcador
@@ -870,7 +949,13 @@ export function ProcessDetailPage() {
                         type="button"
                         variant="outline"
                         className="rounded-full border-emerald-200 text-emerald-700"
-                        onClick={() => reviewProcessDocument(process.id, document.id, "aprovado", session.name)}
+                        onClick={() =>
+                          void runProcessAction(
+                            `review-${document.id}`,
+                            () => reviewProcessDocument(process.id, document.id, "aprovado", session.name),
+                            "Documento aprovado.",
+                          )
+                        }
                       >
                         Aprovar documento
                       </Button>
@@ -878,7 +963,13 @@ export function ProcessDetailPage() {
                         type="button"
                         variant="outline"
                         className="rounded-full border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
-                        onClick={() => reviewProcessDocument(process.id, document.id, "rejeitado", session.name)}
+                        onClick={() =>
+                          void runProcessAction(
+                            `review-${document.id}`,
+                            () => reviewProcessDocument(process.id, document.id, "rejeitado", session.name),
+                            "Documento rejeitado.",
+                          )
+                        }
                       >
                         Rejeitar documento
                       </Button>
@@ -989,13 +1080,22 @@ export function ProcessDetailPage() {
                             type="button"
                             className="rounded-full bg-slate-950 hover:bg-slate-900"
                             onClick={() => {
-                              respondRequirement({
-                                processId: process.id,
-                                requirementId: item.id,
-                                response: requirementResponse[item.id] || "",
-                                actor: session.name,
-                              });
-                              setRequirementResponse((current) => ({ ...current, [item.id]: "" }));
+                              void (async () => {
+                                const ok = await runProcessAction(
+                                  `respond-${item.id}`,
+                                  () =>
+                                    respondRequirement({
+                                      processId: process.id,
+                                      requirementId: item.id,
+                                      response: requirementResponse[item.id] || "",
+                                      actor: session.name,
+                                    }),
+                                  "Resposta da exigência registrada.",
+                                );
+                                if (ok) {
+                                  setRequirementResponse((current) => ({ ...current, [item.id]: "" }));
+                                }
+                              })();
                             }}
                           >
                             Enviar resposta
@@ -1008,7 +1108,13 @@ export function ProcessDetailPage() {
                           type="button"
                           variant="outline"
                           className="mt-3 rounded-full border-emerald-200 text-emerald-700"
-                          onClick={() => completeRequirement({ processId: process.id, requirementId: item.id, actor: session.name })}
+                          onClick={() =>
+                            void runProcessAction(
+                              `complete-${item.id}`,
+                              () => completeRequirement({ processId: process.id, requirementId: item.id, actor: session.name }),
+                              "Exigência validada.",
+                            )
+                          }
                         >
                           Validar atendimento
                         </Button>
@@ -1345,7 +1451,21 @@ export function ProcessDetailPage() {
               {isInternalRole(session.role) ? (
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <Input value={reopenReason} onChange={(event) => setReopenReason(event.target.value)} placeholder="Motivo para reabrir o processo" />
-                  <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => { reopenProcess({ processId: process.id, actor: session.name, reason: reopenReason }); setReopenReason(""); }}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-3 rounded-full"
+                    onClick={() => {
+                      void (async () => {
+                        const ok = await runProcessAction(
+                          "reopen",
+                          () => reopenProcess({ processId: process.id, actor: session.name, reason: reopenReason }),
+                          "Processo reaberto com sucesso.",
+                        );
+                        if (ok) setReopenReason("");
+                      })();
+                    }}
+                  >
                     Reabrir processo
                   </Button>
                 </div>
