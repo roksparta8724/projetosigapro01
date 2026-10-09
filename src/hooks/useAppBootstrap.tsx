@@ -642,53 +642,29 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         let authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
-        // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT transitório durante
-        // sincronização/renovação. Uma sessão já estável só é removida depois de
-        // confirmar duas vezes que ela realmente deixou de existir.
+        // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT enquanto restaura
+        // ou renova a sessão. Esse evento automático NÃO é uma ordem de logout.
+        // Se já existe uma identidade estável, mantemos a UI e o snapshot intactos.
+        // Somente o signOut explícito do usuário pode desmontar imediatamente a sessão.
         if (
           event === "SIGNED_OUT" &&
           !explicitSignOutRef.current &&
           Boolean(lastStableRef.current.authUserId)
         ) {
-          const expectedUserId = lastStableRef.current.authUserId;
-          const confirmationDelays = [180, 650];
-
-          for (const delayMs of confirmationDelays) {
-            await new Promise((resolve) => window.setTimeout(resolve, delayMs));
-            if (!canApply()) return;
-
-            try {
-              const confirmedSession = (await backendClient.auth.getSession()).data.session ?? null;
-              const confirmedUser = confirmedSession?.user ?? null;
-              if (confirmedUser?.id === expectedUserId) {
-                authUser = confirmedUser;
-                setAuthUserId(lastStableRef.current.authUserId);
-                setAuthEmail(lastStableRef.current.authEmail);
-                setRole(lastStableRef.current.role);
-                setProfile(lastStableRef.current.profile);
-                setMunicipalityBundle(lastStableRef.current.municipalityBundle);
-                setScopeType(resolveScopeType(lastStableRef.current.role));
-                setIsReady(true);
-                setAuthResolved(true);
-                setStage("ready");
-                setLoading(false);
-                return;
-              }
-            } catch (confirmationError) {
-              console.warn("[Bootstrap] Falha transitória ao confirmar SIGNED_OUT; mantendo sessão estável", confirmationError);
-              setAuthUserId(lastStableRef.current.authUserId);
-              setAuthEmail(lastStableRef.current.authEmail);
-              setRole(lastStableRef.current.role);
-              setProfile(lastStableRef.current.profile);
-              setMunicipalityBundle(lastStableRef.current.municipalityBundle);
-              setScopeType(resolveScopeType(lastStableRef.current.role));
-              setIsReady(true);
-              setAuthResolved(true);
-              setStage("ready");
-              setLoading(false);
-              return;
-            }
-          }
+          console.warn("[Bootstrap] SIGNED_OUT automático do Neon ignorado para a UI estável", {
+            expectedUserId: lastStableRef.current.authUserId,
+          });
+          setAuthUserId(lastStableRef.current.authUserId);
+          setAuthEmail(lastStableRef.current.authEmail);
+          setRole(lastStableRef.current.role);
+          setProfile(lastStableRef.current.profile);
+          setMunicipalityBundle(lastStableRef.current.municipalityBundle);
+          setScopeType(resolveScopeType(lastStableRef.current.role));
+          setIsReady(true);
+          setAuthResolved(true);
+          setStage("ready");
+          setLoading(false);
+          return;
         }
 
         const isSameStableSessionEvent =
