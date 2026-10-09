@@ -43,7 +43,7 @@ import {
   updateMasterBranding,
 } from "@/lib/masterBranding";
 import { getObjectKeyFromPublicUrl, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
-import { loadPlatformBranding, savePlatformBranding, uploadPlatformBrandingAsset } from "@/integrations/supabase/platform";
+import { loadPlatformBranding, savePlatformBranding, uploadPlatformBrandingAsset } from "@/integrations/backend/platform";
 import type { UserProfile } from "@/lib/platform";
 
 function normalizeProfileEmail(email: string | null | undefined) {
