@@ -172,7 +172,7 @@ interface PlatformDataState {
   }) => Institution;
   saveTenantSettings: (settings: InstitutionSettings) => void;
   removeTenant: (tenantId: string) => void;
-  saveUserProfile: (profile: UserProfile) => void;
+  saveUserProfile: (profile: UserProfile) => Promise<void>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
   updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
   setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => Promise<SessionUser | null>;
@@ -402,7 +402,7 @@ const demoState: PlatformDataState = {
   upsertTenant: () => defaultStore.tenants[0],
   saveTenantSettings: () => undefined,
   removeTenant: () => undefined,
-  saveUserProfile: () => undefined,
+  saveUserProfile: async () => undefined,
   createTenantUser: async () => { throw new Error("Conexão com o banco indisponível."); },
   updateTenantUser: async () => null,
   setUserAccountStatus: async () => null,
@@ -1895,12 +1895,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }),
       saveTenantSettings: (settings) => saveInstitutionSettings(settings),
       removeTenant: (tenantId) => removeInstitution(tenantId),
-      saveUserProfile: (profile) => {
+      saveUserProfile: async (profile) => {
         const normalizedProfile: UserProfile = {
           ...profile,
           fullName: profile.fullName.trim() || "Usuário autenticado",
           email: normalizeEmail(profile.email || authenticatedEmail),
         };
+
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível para salvar o perfil.");
+        }
+
+        await saveRemoteProfile(normalizedProfile);
+
         updateStore((current) => {
           const userProfiles = current.userProfiles.some((item) => item.userId === normalizedProfile.userId)
             ? current.userProfiles.map((item) => (item.userId === normalizedProfile.userId ? normalizedProfile : item))
@@ -1951,7 +1958,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           municipalityId: authenticatedMunicipalityId ?? null,
           tenantId: authenticatedMunicipalityId ?? null,
         });
-        syncRemoteInBackground("perfil do usuario", () => saveRemoteProfile(normalizedProfile));
       },
       createRegistrationRequest: (input) => {
         const request: RegistrationRequest = normalizeRegistrationRequestScope({
