@@ -14,7 +14,7 @@ import {
   registerRemoteExternalAccount,
   registerRemoteOwnerAccount,
   saveRemoteProfile,
-} from "@/integrations/backendClient/platform";
+} from "@/integrations/backend/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import {
