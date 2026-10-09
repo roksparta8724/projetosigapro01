@@ -2159,134 +2159,54 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return user;
       },
       createProcess: (input) => createInstitutionProcess({ ...input, institutionId: input.tenantId }),
-      createRequirement: (input) => {
+      createRequirement: async (input) => {
         const normalizedTitle = input.title.trim();
         const normalizedDescription = input.description.trim();
         if (!normalizedTitle || !normalizedDescription) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para criar exigência.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== input.processId) return process;
-
-            const requirement: FormalRequirement = {
-              id: `requirement-${crypto.randomUUID()}`,
-              title: normalizedTitle,
-              description: normalizedDescription,
-              status: "aberta",
-              createdAt: new Date().toLocaleString("pt-BR"),
-              dueDate: input.dueDate,
-              createdBy: input.actor,
-              targetName: input.targetName,
-              visibility: input.visibility,
-            };
-
-            return {
-              ...process,
-              status: "exigencia",
-              requirements: [requirement, ...process.requirements],
-              timeline: [buildTimelineEntry("Exigencia formal emitida", `${normalizedTitle} enviada para ${input.targetName}.`, input.actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("mensagem", "Exigencia formal", `${normalizedTitle} registrada com prazo ${input.dueDate}.`, input.actor, input.visibility !== "interno"), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await createRemoteProcessRequirement({
+          processId: input.processId,
+          title: normalizedTitle,
+          description: normalizedDescription,
+          dueAt: input.dueDate ? new Date(`${input.dueDate}T23:59:59`).toISOString() : null,
+          targetName: input.targetName,
+          visibility: input.visibility,
         });
+        await refreshRemoteStore();
       },
-      respondRequirement: (input) => {
+      respondRequirement: async (input) => {
         const normalized = input.response.trim();
         if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para responder exigência.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== input.processId) return process;
-
-            const target = process.requirements.find((item) => item.id === input.requirementId);
-            if (!target) return process;
-
-            return {
-              ...process,
-              requirements: process.requirements.map((item) =>
-                item.id === input.requirementId
-                  ? { ...item, status: "respondida", response: normalized, respondedAt: new Date().toLocaleString("pt-BR"), responseBy: input.actor }
-                  : item,
-              ),
-              timeline: [buildTimelineEntry("Resposta de exigência", `Resposta registrada para: ${target.title}.`, input.actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("mensagem", "Resposta de exigência", `Resposta enviada para a exigência ${target.title}.`, input.actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await respondRemoteProcessRequirement(input.requirementId, normalized);
+        await refreshRemoteStore();
       },
-      completeRequirement: (input) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== input.processId) return process;
+      completeRequirement: async (input) => {
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para concluir exigência.");
 
-            const target = process.requirements.find((item) => item.id === input.requirementId);
-            if (!target) return process;
-
-            return {
-              ...process,
-              requirements: process.requirements.map((item) => (item.id === input.requirementId ? { ...item, status: "atendida" } : item)),
-              timeline: [buildTimelineEntry("Exigencia atendida", `Exigencia ${target.title} validada.`, input.actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("documento", "Exigência concluída", `A exigência ${target.title} foi encerrada.`, input.actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await completeRemoteProcessRequirement(input.requirementId);
+        await refreshRemoteStore();
       },
-      updateProcessStatus: ({ processId, status, actor, detail, title }) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
+      updateProcessStatus: async ({ processId, status, actor, detail, title }) => {
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para atualizar status.");
 
-            return {
-              ...process,
-              status,
-              sla: {
-                ...process.sla,
-                currentStage: status.replaceAll("_", " "),
-                breached: false,
-              },
-              timeline: [buildTimelineEntry(title ?? "Status atualizado", detail, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("status", title ?? "Status atualizado", detail, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await setRemoteProcessStatus({
+          processId,
+          status,
+          detail,
+          title,
         });
+        await refreshRemoteStore();
       },
-      reopenProcess: ({ processId, actor, reason }) => {
+      reopenProcess: async ({ processId, actor, reason }) => {
         const normalized = reason.trim();
         if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para reabrir processo.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
-
-            return {
-              ...process,
-              status: "reapresentacao",
-              reopenHistory: [
-                {
-                  id: `reopen-${crypto.randomUUID()}`,
-                  reason: normalized,
-                  actor,
-                  at: new Date().toLocaleString("pt-BR"),
-                },
-                ...process.reopenHistory,
-              ],
-              timeline: [buildTimelineEntry("Processo reaberto", normalized, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("status", "Processo reaberto", normalized, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await reopenRemoteProcess(processId, normalized);
+        await refreshRemoteStore();
       },
       issuePaymentGuide: async (processId, actor, guideKind) => {
         if (!hasSupabaseEnv) {
