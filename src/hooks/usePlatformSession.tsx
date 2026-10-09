@@ -78,7 +78,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !authResolved && !businessUserId;
+    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(authResolved ? authenticatedRole : cachedSession.role);
