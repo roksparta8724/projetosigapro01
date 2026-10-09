@@ -77,6 +77,7 @@ type DataSource = "demo" | "local" | "remote";
 interface PlatformDataState {
   source: DataSource;
   loading: boolean;
+  refreshRemoteStore: () => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -355,6 +356,7 @@ const defaultStore: PlatformStore = {
 const demoState: PlatformDataState = {
   source: "demo",
   loading: false,
+  refreshRemoteStore: async () => undefined,
   ...defaultStore,
   metrics: getMasterMetrics(defaultStore.processes, defaultStore.tenants),
   institutions: defaultStore.tenants,
@@ -924,6 +926,46 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       active = false;
     };
   }, [authenticatedUserId, authLoading]);
+
+  const refreshRemoteStore = async () => {
+    if (!authenticatedUserId || !hasSupabaseEnv) return;
+
+    try {
+      const remote = await loadRemotePlatformStore();
+      const sanitized = buildSanitizedStore(remote, false);
+      const localSnapshot = readPersistedStore();
+      const merged = mergeLocalAndRemoteStores(localSnapshot, sanitized);
+      setStore(merged);
+      syncStore(merged);
+      syncAuthUsers(merged.sessionUsers);
+      setSource("remote");
+      lastFetchedUserId.current = authenticatedUserId;
+    } catch (error) {
+      console.error("[SIGAPRO][Store] Falha ao atualizar dados remotos", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!authenticatedUserId || !hasSupabaseEnv) return;
+
+    let lastRefreshAt = 0;
+    const refreshOnFocus = () => {
+      const now = Date.now();
+      if (now - lastRefreshAt < 1500) return;
+      lastRefreshAt = now;
+      void refreshRemoteStore();
+    };
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") refreshOnFocus();
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibility);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibility);
+    };
+  }, [authenticatedUserId]);
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {
     setStore((current) => {
@@ -1800,6 +1842,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return {
       source,
       loading,
+      refreshRemoteStore,
       ...store,
       institutions: store.tenants,
       institutionSettings: store.tenantSettings,
