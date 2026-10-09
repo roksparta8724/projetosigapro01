@@ -450,7 +450,7 @@ export function ConfiguracoesPage() {
       }
 
       if (!hasBackendEnv || !backendClient) {
-        setDiagnosticStatus("Diagnóstico: Supabase indisponível.");
+        setDiagnosticStatus("Diagnóstico: banco oficial indisponível.");
         return;
       }
 
