@@ -916,6 +916,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     <div
       className="sig-app-frame min-h-screen text-foreground"
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+      data-theme-family={inverseMainTheme ? "dark" : "light"}
       data-viewport={isMobileViewport ? "mobile" : "desktop"}
       style={
         {
@@ -945,6 +946,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       <div
           className="sig-topbar-portal-host"
           data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+          data-theme-family={inverseMainTheme ? "dark" : "light"}
         >
       <div
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
