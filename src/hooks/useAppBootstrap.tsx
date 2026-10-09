@@ -1,14 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv, neonAccountClient } from "@/integrations/backend/databaseClient";
+import { backendClient, hasBackendEnv, neonAccountClient } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "@backendClient/backendClient-js";
 import {
   loadCurrentMunicipalityBundle,
   loadMunicipalityBundleById,
-} from "@/integrations/supabase/municipality";
-import { registerRemoteExternalAccount, registerRemoteOwnerAccount } from "@/integrations/supabase/platform";
+} from "@/integrations/backendClient/municipality";
+import { registerRemoteExternalAccount, registerRemoteOwnerAccount } from "@/integrations/backendClient/platform";
 import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import type { UserRole } from "@/lib/platform";
@@ -137,6 +137,11 @@ function readBootstrapSnapshot(
     if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
       return null;
     }
+    if (isNeonBackend && parsed.authUserId) {
+      // Neon auth must be revalidated on every page bootstrap. Never pre-activate
+      // an authenticated identity only from a browser snapshot.
+      return null;
+    }
     if (!isNeonBackend && parsed.authUserId && readStoredSupabaseUser()?.id !== parsed.authUserId) return null;
 
     return {
@@ -263,13 +268,13 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
 }
 
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
-  if (!supabase) return null;
+  if (!backendClient) return null;
 
   let profileId: string | null = null;
   let record: any = null;
 
   if (isNeonBackend) {
-    const profileIdResult = await supabase.rpc("current_profile_id");
+    const profileIdResult = await backendClient.rpc("current_profile_id");
     if (profileIdResult.error) {
       console.warn("[Bootstrap][Profile] Falha ao resolver current_profile_id no Neon", {
         error: profileIdResult.error,
@@ -286,7 +291,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
       return null;
     }
 
-    const profileResult = await supabase
+    const profileResult = await backendClient
       .from("profiles")
       .select("id, role, municipality_id, email, full_name, account_status")
       .eq("id", profileId)
@@ -302,7 +307,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     }
     record = profileResult.data ?? null;
   } else {
-    const profileResult = await supabase
+    const profileResult = await backendClient
       .from("profiles")
       .select("user_id, role, municipality_id, email, full_name, account_status")
       .eq("user_id", userId)
@@ -318,7 +323,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     record = profileResult.data?.[0] ?? null;
   }
 
-  const membershipQuery = supabase
+  const membershipQuery = backendClient
     .from("tenant_memberships")
     .select("tenant_id, role_id, level_name, is_active, deleted_at")
     .is("deleted_at", null)
@@ -343,7 +348,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   let accessLevelFromMembership: 1 | 2 | 3 | null = null;
 
   if (roleIds.length > 0) {
-    const rolesResult = await supabase.from("roles").select("id, code").in("id", roleIds);
+    const rolesResult = await backendClient.from("roles").select("id, code").in("id", roleIds);
     if (rolesResult.error) {
       console.warn("[Bootstrap][Membership] Falha ao resolver roles do vínculo", {
         userId,
@@ -525,7 +530,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   ]);
 
   useEffect(() => {
-    if (!hasSupabaseEnv || !supabase) {
+    if (!hasBackendEnv || !backendClient) {
       setLoading(false);
       setIsReady(true);
       setAuthResolved(true);
@@ -554,11 +559,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         const sessionUser =
           sessionUserOverride !== undefined
             ? sessionUserOverride
-            : (await supabase.auth.getSession()).data.session?.user ?? null;
+            : (await backendClient.auth.getSession()).data.session?.user ?? null;
         const userResult =
           sessionUser || event === "SIGNED_OUT"
             ? null
-            : await supabase.auth.getUser();
+            : await backendClient.auth.getUser();
         const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
@@ -705,11 +710,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setRole(lastStableRef.current.role);
           setProfile(lastStableRef.current.profile);
           setMunicipalityBundle(lastStableRef.current.municipalityBundle);
-          setScopeType(
-            lastStableRef.current.role === "master_admin" || lastStableRef.current.role === "master_ops"
-              ? "platform"
-              : "municipality",
-          );
+          setScopeType(resolveScopeType(lastStableRef.current.role));
           setIsReady(true);
           setStage("ready");
           setAuthResolved(true);
@@ -730,7 +731,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     };
 
     runBootstrapRef.current = runBootstrap;
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data } = backendClient.auth.onAuthStateChange((event, session) => {
       authEventRef.current = event;
       if (manualSignInRef.current) return;
       // Supabase awaits this callback under its auth lock; data loading belongs in the effect below.
@@ -765,7 +766,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       municipalityBundle,
       resolution,
       refreshMunicipalityBundle: async (municipalityId?: string | null) => {
-        if (!hasSupabaseEnv || !supabase) return;
+        if (!hasBackendEnv || !backendClient) return;
         if (refreshRef.current) return;
         refreshRef.current = true;
         try {
@@ -790,8 +791,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         }
       },
       signIn: async (email, password) => {
-        if (!hasSupabaseEnv || !supabase) {
-          return { ok: false, message: "Supabase indisponivel." };
+        if (!hasBackendEnv || !backendClient) {
+          return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
         const clearIdentity = () => {
@@ -817,16 +818,16 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setError(null);
         setStage("bootstrapping_auth");
         try {
-          const currentSession = (await supabase.auth.getSession()).data.session ?? null;
+          const currentSession = (await backendClient.auth.getSession()).data.session ?? null;
           if (currentSession?.user) {
             const { error: signOutError } = isNeonBackend
-              ? await supabase.auth.signOut()
-              : await supabase.auth.signOut({ scope: "local" });
+              ? await backendClient.auth.signOut()
+              : await backendClient.auth.signOut({ scope: "local" });
             if (signOutError) throw signOutError;
           }
           clearIdentity();
 
-          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          const { data, error: signInError } = await backendClient.auth.signInWithPassword({
             email: normalized,
             password,
           });
@@ -909,9 +910,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";
           try {
             if (isNeonBackend) {
-              await supabase.auth.signOut();
+              await backendClient.auth.signOut();
             } else {
-              await supabase.auth.signOut({ scope: "local" });
+              await backendClient.auth.signOut({ scope: "local" });
             }
           } catch (signOutError) {
             console.warn("[Bootstrap] Não foi possível encerrar a sessão local após erro de login", signOutError);
@@ -928,7 +929,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         }
       },
       resetPassword: async (email) => {
-        if (!hasSupabaseEnv || !supabase) {
+        if (!hasBackendEnv || !backendClient) {
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
@@ -945,14 +946,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: true, message: "Se a conta existir, enviaremos as instruções por e-mail." };
         }
 
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalized, {
+        const { error: resetError } = await backendClient.auth.resetPasswordForEmail(normalized, {
           redirectTo: `${window.location.origin}/recuperar-senha`,
         });
         if (resetError) return { ok: false, message: resetError.message };
         return { ok: true, message: "E-mail enviado." };
       },
       updateEmail: async (email) => {
-        if (!hasSupabaseEnv || !supabase) {
+        if (!hasBackendEnv || !backendClient) {
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
@@ -969,12 +970,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: true, message: "Confirme a alteração pelo e-mail enviado." };
         }
 
-        const { error: updateError } = await supabase.auth.updateUser({ email: normalized });
+        const { error: updateError } = await backendClient.auth.updateUser({ email: normalized });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "E-mail atualizado." };
       },
       updatePassword: async (password, currentPassword) => {
-        if (!hasSupabaseEnv || !supabase) {
+        if (!hasBackendEnv || !backendClient) {
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
 
@@ -1015,7 +1016,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: true, message: "Senha atualizada com sucesso." };
         }
 
-        const { error: updateError } = await supabase.auth.updateUser({ password });
+        const { error: updateError } = await backendClient.auth.updateUser({ password });
         if (updateError) return { ok: false, message: updateError.message };
         return { ok: true, message: "Senha atualizada." };
       },
@@ -1035,9 +1036,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setLoading(true);
         setStage("bootstrapping_auth");
         try {
-          if (hasSupabaseEnv && supabase) {
+          if (hasBackendEnv && backendClient) {
             await Promise.race([
-              supabase.auth.signOut(),
+              backendClient.auth.signOut(),
               new Promise<void>((resolve) => {
                 setTimeout(() => {
                   console.warn("[Logout] signOut timeout fallback");
