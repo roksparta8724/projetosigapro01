@@ -1057,21 +1057,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       const process = store.processes.find((item) => item.id === input.processId);
       if (!process) {
-        return { request: null, error: "Processo nao encontrado." };
+        return { request: null, error: "Processo não encontrado." };
       }
 
       const normalizedStoredDocument = normalizeOwnerDocument(process.ownerDocument ?? "");
       if (normalizedStoredDocument && !matchesOwnerDocument(normalizedDocument, normalizedStoredDocument)) {
-        return { request: null, error: "Documento nao confere com o cadastro do processo." };
-      }
-
-      if (!normalizedStoredDocument && !normalizedDocument) {
-        return { request: null, error: "Processo sem documento valido para validacao." };
+        return { request: null, error: "Documento não confere com o cadastro do processo." };
       }
 
       const professionalId = resolveProfessionalId(process);
       if (!professionalId) {
-        return { request: null, error: "Processo sem profissional responsavel." };
+        return { request: null, error: "Processo sem profissional responsável." };
       }
 
       const hasLink = store.ownerLinks.some(
@@ -1081,7 +1077,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           link.professionalUserId === professionalId,
       );
       if (hasLink) {
-        return { request: null, error: "Acompanhamento ja aprovado para este processo." };
+        return { request: null, error: "Acompanhamento já aprovado para este processo." };
       }
 
       const existing = store.ownerRequests.find(
@@ -1091,172 +1087,65 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           request.status === "pending",
       );
       if (existing) {
-        return { request: null, error: "Sua solicitacao ja esta em analise." };
+        return { request: null, error: "Sua solicitação já está em análise." };
       }
 
-      if (hasSupabaseEnv) {
-        try {
-          const remoteRequest = await createRemoteOwnerRequest({
-            processId: process.id,
-            ownerUserId: input.ownerUserId,
-            professionalUserId: professionalId,
-            ownerDocument: normalizedDocument,
-            notes: input.notes?.trim() || undefined,
-          });
-
-          updateStore((current) => ({
-            ...current,
-            ownerRequests: [remoteRequest, ...current.ownerRequests.filter((item) => item.id !== remoteRequest.id)],
-          }));
-
-          return { request: remoteRequest };
-        } catch (remoteError) {
-          return {
-            request: null,
-            error:
-              remoteError instanceof Error
-                ? remoteError.message
-                : "Nao foi possivel enviar a solicitacao agora.",
-          };
-        }
+      if (!hasSupabaseEnv) {
+        return { request: null, error: "Banco oficial indisponível. A solicitação não foi criada." };
       }
 
-      const request: OwnerProjectRequest = {
-        id: `owner-request-${crypto.randomUUID()}`,
-        projectId: process.id,
-        ownerUserId: input.ownerUserId,
-        professionalUserId: professionalId,
-        status: "pending",
-        requestedAt: new Date().toISOString(),
-        respondedAt: null,
-        respondedBy: null,
-        notes: input.notes?.trim() || undefined,
-      };
+      try {
+        const remoteRequest = await createRemoteOwnerRequest({
+          processId: process.id,
+          ownerUserId: input.ownerUserId,
+          professionalUserId: professionalId,
+          ownerDocument: normalizedDocument,
+          notes: input.notes?.trim() || undefined,
+        });
 
-      updateStore((current) => ({
-        ...current,
-        ownerRequests: [request, ...current.ownerRequests],
-      }));
-
-      return { request };
+        await refreshRemoteStore();
+        return { request: remoteRequest };
+      } catch (remoteError) {
+        return {
+          request: null,
+          error:
+            remoteError instanceof Error
+              ? remoteError.message
+              : "Não foi possível enviar a solicitação agora.",
+        };
+      }
     };
 
     const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
       const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
-      if (!existingRequest) {
-        return null;
+      if (!existingRequest) return null;
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível. A solicitação não foi alterada.");
       }
 
-      if (hasSupabaseEnv) {
-        try {
-          const { request: remoteRequest, link: remoteLink } = await respondRemoteOwnerRequest({
-            requestId: input.requestId,
-            status: input.status,
-            professionalUserId: input.professionalUserId,
-            notes: input.notes,
-          });
-
-          updateStore((current) => {
-            const ownerRequests = current.ownerRequests.map((item) =>
-              item.id === input.requestId ? remoteRequest : item,
-            );
-            const ownerLinks =
-              remoteLink && input.status === "approved"
-                ? [remoteLink, ...current.ownerLinks.filter((item) => item.id !== remoteLink.id)]
-                : current.ownerLinks;
-
-            return { ...current, ownerRequests, ownerLinks };
-          });
-
-          return remoteRequest;
-        } catch {
-          return null;
-        }
-      }
-
-      let updated: OwnerProjectRequest | null = null;
-
-      updateStore((current) => {
-        const request = current.ownerRequests.find((item) => item.id === input.requestId);
-        if (!request) {
-          updated = null;
-          return current;
-        }
-
-        const nextRequest: OwnerProjectRequest = {
-          ...request,
-          status: input.status,
-          respondedAt: new Date().toISOString(),
-          respondedBy: input.professionalUserId,
-          notes: input.notes?.trim() || request.notes,
-        };
-
-        const ownerRequests = current.ownerRequests.map((item) =>
-          item.id === input.requestId ? nextRequest : item,
-        );
-
-        let ownerLinks = current.ownerLinks;
-        if (input.status === "approved") {
-          const existing = current.ownerLinks.find(
-            (link) =>
-              link.projectId === request.projectId &&
-              link.ownerUserId === request.ownerUserId &&
-              link.professionalUserId === request.professionalUserId,
-          );
-
-          if (!existing) {
-            const link: OwnerProjectLink = {
-              id: `owner-link-${crypto.randomUUID()}`,
-              projectId: request.projectId,
-              ownerUserId: request.ownerUserId,
-              professionalUserId: request.professionalUserId,
-              chatEnabled: true,
-              linkedAt: new Date().toISOString(),
-              linkedBy: input.professionalUserId,
-            };
-            ownerLinks = [link, ...current.ownerLinks];
-          }
-        }
-
-        updated = nextRequest;
-        return { ...current, ownerRequests, ownerLinks };
+      const { request: remoteRequest } = await respondRemoteOwnerRequest({
+        requestId: input.requestId,
+        status: input.status,
+        professionalUserId: input.professionalUserId,
+        notes: input.notes,
       });
 
-      return updated;
+      await refreshRemoteStore();
+      return remoteRequest;
     };
 
     const setOwnerChatEnabled: PlatformDataState["setOwnerChatEnabled"] = async (input) => {
-      if (hasSupabaseEnv) {
-        try {
-          const updated = await setRemoteOwnerChatEnabled({
-            linkId: input.linkId,
-            enabled: input.enabled,
-            actor: input.actor,
-          });
-
-          updateStore((current) => ({
-            ...current,
-            ownerLinks: current.ownerLinks.map((link) => (link.id === updated.id ? updated : link)),
-          }));
-
-          return updated;
-        } catch {
-          return null;
-        }
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível. A configuração do chat não foi alterada.");
       }
 
-      let updated: OwnerProjectLink | null = null;
-
-      updateStore((current) => {
-        const ownerLinks = current.ownerLinks.map((link) => {
-          if (link.id !== input.linkId) return link;
-          updated = { ...link, chatEnabled: input.enabled };
-          return updated;
-        });
-
-        return { ...current, ownerLinks };
+      const updated = await setRemoteOwnerChatEnabled({
+        linkId: input.linkId,
+        enabled: input.enabled,
+        actor: input.actor,
       });
 
+      await refreshRemoteStore();
       return updated;
     };
 
@@ -1272,70 +1161,23 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       );
 
       if (!linkSnapshot) return null;
-      if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) {
-        return null;
+      if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) return null;
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível. A mensagem não foi enviada.");
       }
 
-      if (hasSupabaseEnv) {
-        try {
-          const message = await createRemoteOwnerMessage({
-            linkId: linkSnapshot.id,
-            projectId: input.projectId,
-            ownerUserId: input.ownerUserId,
-            professionalUserId: input.professionalUserId,
-            senderUserId: input.senderUserId,
-            message: normalized,
-            isSystemMessage: input.isSystemMessage ?? false,
-          });
-
-          updateStore((current) => ({
-            ...current,
-            ownerMessages: [message, ...current.ownerMessages.filter((item) => item.id !== message.id)],
-          }));
-
-          return message;
-        } catch {
-          return null;
-        }
-      }
-
-      let created: OwnerProfessionalMessage | null = null;
-
-      updateStore((current) => {
-        const link = current.ownerLinks.find(
-          (item) =>
-            item.projectId === input.projectId &&
-            item.ownerUserId === input.ownerUserId &&
-            item.professionalUserId === input.professionalUserId,
-        );
-
-        if (!link) {
-          created = null;
-          return current;
-        }
-
-        if (input.senderUserId === input.ownerUserId && !link.chatEnabled) {
-          created = null;
-          return current;
-        }
-
-        const message: OwnerProfessionalMessage = {
-          id: `owner-message-${crypto.randomUUID()}`,
-          projectId: input.projectId,
-          ownerUserId: input.ownerUserId,
-          professionalUserId: input.professionalUserId,
-          senderUserId: input.senderUserId,
-          message: normalized,
-          createdAt: new Date().toISOString(),
-          readAt: null,
-          isSystemMessage: input.isSystemMessage ?? false,
-        };
-
-        created = message;
-        return { ...current, ownerMessages: [message, ...current.ownerMessages] };
+      const message = await createRemoteOwnerMessage({
+        linkId: linkSnapshot.id,
+        projectId: input.projectId,
+        ownerUserId: input.ownerUserId,
+        professionalUserId: input.professionalUserId,
+        senderUserId: input.senderUserId,
+        message: normalized,
+        isSystemMessage: input.isSystemMessage ?? false,
       });
 
-      return created;
+      await refreshRemoteStore();
+      return message;
     };
 
     return {
@@ -1463,16 +1305,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("O e-mail de acesso não pode ser alterado nesta edição. Use o fluxo de segurança da conta.");
         }
 
-        const remote = hasSupabaseEnv
-          ? await manageRemoteUserAccess({
-              userId,
-              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
-              role: input.role ?? currentUser.role,
-              name: input.name ?? currentUser.name,
-              title: input.title ?? input.department ?? currentUser.title,
-              accessLevel: input.accessLevel ?? currentUser.accessLevel,
-            })
-          : null;
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível. O usuário não foi alterado.");
+        }
+
+        const remote = await manageRemoteUserAccess({
+          userId,
+          municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+          role: input.role ?? currentUser.role,
+          name: input.name ?? currentUser.name,
+          title: input.title ?? input.department ?? currentUser.title,
+          accessLevel: input.accessLevel ?? currentUser.accessLevel,
+        });
 
         const nextUser: SessionUser = {
           ...currentUser,
@@ -1501,14 +1345,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
 
-        const remote = hasSupabaseEnv
-          ? await manageRemoteUserAccess({
-              userId,
-              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
-              accountStatus: status,
-              reason,
-            })
-          : null;
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível. O status da conta não foi alterado.");
+        }
+
+        const remote = await manageRemoteUserAccess({
+          userId,
+          municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+          accountStatus: status,
+          reason,
+        });
 
         const nextUser: SessionUser = {
           ...currentUser,
@@ -1531,14 +1377,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const currentUser = store.sessionUsers.find((item) => item.id === userId);
         if (!currentUser) return null;
 
-        const remote = hasSupabaseEnv
-          ? await manageRemoteUserAccess({
-              userId,
-              municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
-              accountStatus: "inactive",
-              reason,
-            })
-          : null;
+        if (!hasSupabaseEnv) {
+          throw new Error("Banco oficial indisponível. A conta não foi desativada.");
+        }
+
+        const remote = await manageRemoteUserAccess({
+          userId,
+          municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
+          accountStatus: "inactive",
+          reason,
+        });
 
         const nextUser: SessionUser = {
           ...currentUser,
