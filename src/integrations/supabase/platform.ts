@@ -1640,6 +1640,30 @@ async function callProcessRpc<T = Record<string, unknown>>(
   return data as T;
 }
 
+export async function appendRemoteProcessDocuments(
+  processId: string,
+  documents: ProcessDocument[],
+) {
+  return callProcessRpc("append_process_documents", {
+    _process_id: processId,
+    _documents: documents.map((document) => ({
+      label: document.label,
+      required: document.required,
+      signed: document.signed,
+      version: document.version,
+      source: document.source,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      fileHash: document.fileHash,
+      mimeType: document.mimeType,
+      sizeLabel: document.sizeLabel,
+      previewUrl: document.previewUrl,
+      reviewStatus: document.reviewStatus ?? "pendente",
+      annotations: document.annotations ?? [],
+    })),
+  });
+}
+
 export async function createRemoteProcessDispatch(input: {
   processId: string;
   from: string;
