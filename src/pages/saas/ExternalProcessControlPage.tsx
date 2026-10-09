@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar, FileBarChart2, FileCheck, Filter, Search, TrendingUp } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   formatCurrency,
@@ -100,113 +99,6 @@ export function ExternalProcessControlPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
-  const reconciliationInFlightRef = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (session.role !== "profissional_externo" || !effectiveScopeId) return;
-
-    const isUuid = (value: string) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
-    const localOnlyProcesses = processes.filter(
-      (process) =>
-        !isUuid(process.id) &&
-        Boolean(process.protocol?.trim()) &&
-        process.status !== "rascunho",
-    );
-
-    for (const process of localOnlyProcesses) {
-      const markerKey = `sigapro:remote-reconciled:${effectiveScopeId}:${process.protocol}`;
-      if (
-        reconciliationInFlightRef.current.has(process.protocol) ||
-        window.localStorage.getItem(markerKey) === "1"
-      ) {
-        continue;
-      }
-
-      reconciliationInFlightRef.current.add(process.protocol);
-
-      void createRemoteExternalProcessV2({
-        tenantId: effectiveScopeId,
-        createdBy: session.id,
-        title: process.title,
-        type: process.type,
-        address: process.address,
-        ownerName: process.ownerName,
-        ownerDocument: process.ownerDocument,
-        technicalLead: process.technicalLead,
-        tags: process.tags,
-        notes: process.notes,
-        property: process.property,
-        documents: process.documents,
-        guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
-        protocolPrefix: tenantSettings?.protocoloPrefixo || "PM",
-        requestedProtocolNumber: process.protocol,
-        remote: {
-          processId: process.id,
-          protocol: process.protocol,
-          externalProtocol: process.externalProtocol,
-          guideNumber: process.payment.guideNumber,
-          amount: process.payment.amount,
-          dueDate: process.payment.dueDate,
-          issuedAt: process.payment.issuedAt,
-          expiresAt: process.payment.expiresAt,
-          status: process.status,
-          guides: process.payment.guides,
-        },
-      })
-        .then(() => {
-          window.localStorage.setItem(markerKey, "1");
-        })
-        .catch((error) => {
-          console.error("[SIGAPRO][Reconciliacao] Falha ao sincronizar protocolo local", {
-            protocol: process.protocol,
-            error,
-          });
-        })
-        .finally(() => {
-          reconciliationInFlightRef.current.delete(process.protocol);
-        });
-    }
-  }, [
-    effectiveScopeId,
-    processes,
-    session.id,
-    session.role,
-    tenantSettings?.guiaPrefixo,
-    tenantSettings?.protocoloPrefixo,
-  ]);
-
-  const completedStatuses = new Set(["deferido", "indeferido", "arquivado"]);
-  const completedCount = processes.filter((process) => completedStatuses.has(process.status)).length;
-
-  const requirementCount = processes.filter((process) =>
-    (process.requirements ?? []).some(
-      (item) => item.status === "aberta" || item.status === "respondida",
-    ),
-  ).length;
-
-  const paymentCount = processes.filter(
-    (process) =>
-      process.payment?.status === "pendente" ||
-      process.status === "pagamento_pendente" ||
-      process.status === "guia_emitida",
-  ).length;
-
-  const activeCount = Math.max(processes.length - completedCount, 0);
-
-  const stages = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          processes
-            .map((process) => process.sla?.currentStage)
-            .filter((stage): stage is string => Boolean(stage)),
-        ),
-      ),
-    [processes],
-  );
-
   const filteredProcesses = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const periodDays = Number(periodFilter);
