@@ -2149,12 +2149,7 @@ export async function savePlatformBranding(input: {
 }
 
 export async function getMunicipalityBrandingSafe(municipalityId: string) {
-  console.log("[DIAGNOSTICO] Buscando branding para:", municipalityId);
-
-  if (!db) {
-    console.error("[DIAGNOSTICO] Banco oficial indisponível.");
-    return null;
-  }
+  if (!db) return null;
 
   try {
     const { data, error } = await db
@@ -2163,48 +2158,20 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
       .eq("municipality_id", municipalityId)
       .limit(1);
 
-  console.log("[DIAGNOSTICO] Resultado bruto:", { data, error });
-
-  if (error) {
-    console.error("[SIGAPRO][Banco oficial] Erro de persistência:", error);
-    return null;
-  }
-
-  if (data && data.length > 0) {
-    console.log("[BrandingLoad] Branding encontrado", {
-      municipalityId,
-      headerLogoObjectKey: data[0]?.header_logo_object_key,
-      footerLogoObjectKey: data[0]?.footer_logo_object_key,
-    });
-  }
-
-    if (!data || data.length === 0) {
-      console.warn("[DIAGNOSTICO] Nenhum branding encontrado");
-
-      const { data: created, error: createError } = await db
-        .from("municipality_branding")
-        .insert([
-          {
-            municipality_id: municipalityId,
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select("*")
-        .limit(1);
-
-      console.log("[DIAGNOSTICO] Criado:", { created, createError });
-
-      if (createError) {
-        console.error("[DIAGNOSTICO] ERRO CREATE:", createError);
-        return null;
-      }
-
-      return created?.[0] ?? null;
+    if (error) {
+      console.error("[SIGAPRO][Branding] Falha ao carregar branding municipal", {
+        municipalityId,
+        error,
+      });
+      return null;
     }
 
-    return data[0];
-  } catch (err) {
-    console.error("[DIAGNOSTICO] ERRO GERAL:", err);
+    return data?.[0] ?? null;
+  } catch (error) {
+    console.error("[SIGAPRO][Branding] Erro inesperado ao carregar branding municipal", {
+      municipalityId,
+      error,
+    });
     return null;
   }
 }
