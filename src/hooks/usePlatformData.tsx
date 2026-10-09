@@ -2273,129 +2273,40 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           return { ...current, processes };
         });
       },
-      reviewProcessDocument: (processId, documentId, status, actor) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
+      reviewProcessDocument: async (processId, documentId, status, actor) => {
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para revisar documento.");
 
-            return {
-              ...process,
-              documents: process.documents.map((document) =>
-                document.id === documentId ? { ...document, reviewStatus: status, reviewedBy: actor } : document,
-              ),
-              timeline: [
-                buildTimelineEntry(
-                  status === "aprovado" ? "Documento aprovado" : "Documento rejeitado",
-                  `O documento foi ${status === "aprovado" ? "aprovado" : "rejeitado"} por ${actor}.`,
-                  actor,
-                ),
-                ...process.timeline,
-              ],
-              auditTrail: [buildAuditEntry("documento", status === "aprovado" ? "Documento aprovado" : "Documento rejeitado", `Revisao documental executada por ${actor}.`, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await reviewRemoteProcessDocument(documentId, status);
+        await refreshRemoteStore();
       },
-      addDocumentAnnotation: (processId, documentId, annotation) => {
+      addDocumentAnnotation: async (processId, documentId, annotation) => {
         const normalized = annotation.note.trim();
         if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para anotar documento.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
-
-            return {
-              ...process,
-              documents: process.documents.map((document) =>
-                document.id === documentId
-                  ? {
-                      ...document,
-                      annotations: [
-                        ...(document.annotations ?? []),
-                        {
-                          id: `annotation-${crypto.randomUUID()}`,
-                          x: annotation.x,
-                          y: annotation.y,
-                          note: normalized,
-                          author: annotation.author,
-                          createdAt: new Date().toLocaleString("pt-BR"),
-                        },
-                      ],
-                    }
-                  : document,
-              ),
-              timeline: [
-                buildTimelineEntry("Marcação técnica registrada", `Uma anotação foi incluída no documento ${documentId}.`, annotation.author),
-                ...process.timeline,
-              ],
-              auditTrail: [buildAuditEntry("documento", "Marcação técnica", `Anotação técnica registrada no documento ${documentId}.`, annotation.author, false), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await annotateRemoteProcessDocument({
+          documentId,
+          x: annotation.x,
+          y: annotation.y,
+          note: normalized,
         });
+        await refreshRemoteStore();
       },
-      addProcessMarker: (processId, marker, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) {
-          return;
-        }
-
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
-
-            if (process.tags.some((tag) => parseMarker(tag).label.toLowerCase() === normalized.toLowerCase())) {
-              return process;
-            }
-
-            return {
-              ...process,
-              tags: [...process.tags, normalized],
-              timeline: [buildTimelineEntry("Marcador incluido", `Marcador "${normalized}" adicionado ao processo.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("perfil", "Marcador incluido", `Marcador ${normalized} salvo no processo.`, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
-      },
-      addProcessMarkerWithColor: (processId, marker, color, actor) => {
+      addProcessMarker: async (processId, marker, actor) => {
         const normalized = marker.trim();
         if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
-        updateStore((current) => {
-          const serialized = serializeMarker(normalized, color);
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = [
-              ...process.tags.filter(
-                (tag) => parseMarker(tag).label.toLowerCase() !== normalized.toLowerCase(),
-              ),
-              serialized,
-            ];
+        await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
+        await refreshRemoteStore();
+      },
+      addProcessMarkerWithColor: async (processId, marker, color, actor) => {
+        const normalized = marker.trim();
+        if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
-            if (
-              nextTags.length === process.tags.length &&
-              nextTags.every((tag, index) => tag === process.tags[index])
-            ) {
-              return process;
-            }
-
-            return {
-              ...process,
-              tags: nextTags,
-              timeline: [buildTimelineEntry("Marcador colorido incluido", `Marcador "${normalized}" adicionado ao processo.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("perfil", "Marcador colorido", `Marcador ${normalized} salvo com destaque visual.`, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await upsertRemoteProcessMarker(processId, normalized, color);
+        await refreshRemoteStore();
       },
       removeProcessMarker: (processId, marker, actor) => {
         updateStore((current) => {
