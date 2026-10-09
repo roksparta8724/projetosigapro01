@@ -14,11 +14,18 @@ declare
   _city text;
   _state text;
   _subdomain text;
+  _cnpj text;
 begin
   _name := coalesce(nullif(btrim(new.name), ''), 'Prefeitura');
   _city := coalesce(nullif(btrim(to_jsonb(new)->>'city'), ''), _name);
   _state := upper(coalesce(nullif(btrim(new.state), ''), 'SP'));
   _subdomain := coalesce(nullif(btrim(new.subdomain), ''), nullif(btrim(new.slug), ''));
+  select nullif(btrim(ms.general_settings->>'cnpj'), '')
+    into _cnpj
+  from public.municipality_settings ms
+  where ms.municipality_id = new.id
+  limit 1;
+  _cnpj := coalesce(_cnpj, 'technical:' || new.id::text);
 
   -- O município é a entidade canônica. Se uma raiz técnica legada usa o
   -- mesmo subdomínio com outro UUID, preservamos seus dados/FKs, mas retiramos
@@ -26,6 +33,7 @@ begin
   if _subdomain is not null then
     update public.tenants
        set subdomain = 'legacy-' || replace(id::text, '-', ''),
+           cnpj = 'legacy:' || id::text,
            updated_at = now()
      where id <> new.id
        and lower(coalesce(subdomain, '')) = lower(_subdomain);
@@ -45,14 +53,15 @@ begin
   end;
 
   insert into public.tenants(
-    id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
+    id, municipality_id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
   )
   values(
-    new.id, _name, _name, '', _city, _state, _status, _subdomain,
+    new.id, new.id, _name, _name, _cnpj, _city, _state, _status, _subdomain,
     coalesce(new.created_at, now()), now()
   )
   on conflict (id) do update
-    set legal_name=excluded.legal_name,
+    set municipality_id=excluded.municipality_id,
+        legal_name=excluded.legal_name,
         display_name=excluded.display_name,
         city=excluded.city,
         state=excluded.state,
@@ -75,6 +84,7 @@ execute function public.sync_municipality_tenant_root();
 -- diferente. Nenhum tenant histórico é removido e nenhuma FK é reescrita.
 update public.tenants t
    set subdomain = 'legacy-' || replace(t.id::text, '-', ''),
+       cnpj = 'legacy:' || t.id::text,
        updated_at = now()
   from public.municipalities m
  where t.id <> m.id
@@ -82,13 +92,17 @@ update public.tenants t
    and lower(coalesce(t.subdomain, '')) = lower(m.subdomain);
 
 insert into public.tenants(
-  id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
+  id, municipality_id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
 )
 select
   m.id,
+  m.id,
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
-  '',
+  coalesce(
+    nullif(btrim(ms.general_settings->>'cnpj'),''),
+    'technical:' || m.id::text
+  ),
   coalesce(
     nullif(btrim(to_jsonb(m)->>'city'),''),
     coalesce(nullif(btrim(m.name),''),'Prefeitura')
@@ -110,4 +124,5 @@ select
   coalesce(m.created_at,now()),
   now()
 from public.municipalities m
+left join public.municipality_settings ms on ms.municipality_id=m.id
 where not exists (select 1 from public.tenants t where t.id=m.id);
