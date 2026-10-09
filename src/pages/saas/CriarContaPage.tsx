@@ -9,12 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
-import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
   registerRemoteExternalAccount,
   registerRemoteOwnerAccount,
   saveRemoteProfile,
-} from "@/integrations/supabase/platform";
+} from "@/integrations/backendClient/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import {
@@ -48,7 +48,7 @@ function isValidPassword(password: string) {
 
 export function CriarContaPage() {
   const navigate = useNavigate();
-  const { institutions, createTenantUser, saveUserProfile } = usePlatformData();
+  const { institutions } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -319,10 +319,15 @@ export function CriarContaPage() {
       }
     };
 
-      if (hasSupabaseEnv && supabase) {
-        const emailRedirectTo =
+    if (!hasBackendEnv || !backendClient) {
+      setSubmitting(false);
+      setError("Serviço de autenticação indisponível. Nenhuma conta foi criada.");
+      return;
+    }
+
+    const emailRedirectTo =
           typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
-        const { data, error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await backendClient.auth.signUp({
           email: normalizedEmail,
           password: form.password,
           options: {
@@ -423,80 +428,9 @@ export function CriarContaPage() {
         return;
       }
 
-      setSubmitting(false);
-      setStatus("Conta criada. Verifique seu e-mail para confirmar o acesso e concluir o primeiro login.");
-      return;
-    }
-
-    const user = createTenantUser({
-      tenantId: form.tenantId,
-      fullName: form.fullName,
-      email: normalizedEmail,
-      role: form.role,
-      title: form.title || form.professionalType || roleLabels[form.role],
-      accessLevel: 1,
-    });
-
-    saveSignupDraft();
-
-    saveUserProfile({
-      userId: user.id,
-      fullName: form.fullName,
-      email: normalizedEmail,
-      phone: form.phone,
-      cpfCnpj: cpf,
-      rg: form.rg,
-      birthDate: form.birthDate,
-      professionalType: form.professionalType,
-      registrationNumber: form.registrationNumber,
-      companyName: form.companyName,
-      addressLine: form.addressLine,
-      addressNumber: form.addressNumber,
-      addressComplement: form.addressComplement,
-      neighborhood: form.neighborhood,
-      city: form.city,
-      state: form.state,
-      zipCode: form.zipCode,
-      avatarUrl: "",
-      avatarScale: 1,
-      avatarOffsetX: 0,
-      avatarOffsetY: 0,
-      useAvatarInHeader: false,
-      bio: form.bio,
-    });
-
-    setStatus(
-      form.role === "property_owner"
-        ? "Conta de proprietário criada com sucesso. Senha inicial: Acesso@2026"
-        : "Conta de profissional externo criada com sucesso. Senha inicial: Acesso@2026",
-    );
-
     setSubmitting(false);
-    setForm((current) => ({
-      ...current,
-      fullName: "",
-      email: "",
-      phone: "",
-      cpfCnpj: "",
-      rg: "",
-      birthDate: "",
-      professionalType: "",
-      registrationNumber: "",
-      companyName: "",
-      title: "",
-      addressLine: "",
-      addressNumber: "",
-      addressComplement: "",
-      neighborhood: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      bio: "",
-      password: "",
-      confirmPassword: "",
-    }));
-    setCepStatus("");
-    lastCepLookupRef.current = "";
+    setStatus("Conta criada. Verifique seu e-mail para confirmar o acesso e concluir o primeiro login.");
+    return;
   };
 
   return (
