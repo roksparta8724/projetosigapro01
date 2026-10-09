@@ -83,6 +83,8 @@ function mapDbRoleCodeToAppRole(code: string | null | undefined): UserRole | nul
     fiscal: "fiscal",
     profissional_externo: "profissional_externo",
     professional_external: "profissional_externo",
+    professional: "profissional_externo",
+    profissional: "profissional_externo",
     proprietario_consulta: "proprietario_consulta",
     property_owner: "property_owner",
   };
