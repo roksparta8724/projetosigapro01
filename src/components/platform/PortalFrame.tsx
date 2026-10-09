@@ -612,6 +612,22 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     ? "Governança central da plataforma"
     : institutionDisplayName;
   const accountStatusLabel = loading ? "Sincronizando" : "Conta ativa";
+
+  useEffect(() => {
+    if (loading || session.id === "unknown") return;
+    let frame = 0;
+    let frame2 = 0;
+    frame = window.requestAnimationFrame(() => {
+      frame2 = window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("sigapro-app-stable"));
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(frame2);
+    };
+  }, [loading, session.id, location.pathname, activeInstitutionId, inverseMainTheme]);
+
   const processShortcutPath =
     isMasterUser
       ? "/dashboard/processos"
