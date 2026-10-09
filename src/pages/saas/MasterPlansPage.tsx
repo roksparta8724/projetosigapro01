@@ -931,6 +931,7 @@ export function MasterPlansPage() {
       setStatusMessage("Selecione pelo menos um plano para gerar o material comercial.");
       return null;
     }
+
     const record: GeneratedMaterialRecord = {
       id: makeId("material"),
       planIds: selectedCommercialPlans.map((plan) => plan.id),
@@ -943,46 +944,56 @@ export function MasterPlansPage() {
       shareSlug: `sigapro-${Date.now().toString(36)}`,
       createdAt: new Date().toISOString(),
     };
-    persistGeneratedMaterials([record, ...generatedMaterials]);
-    if (hasSupabaseEnv) {
-      try {
-        await saveRemoteCommercialMaterial({
-          planIds: record.planIds,
-          materialType: record.materialType,
-          modelType: record.templateId,
-          customerName: record.customerName,
-          customerContact: record.customerContact,
-          responsibleName,
-          responsibleRole,
-          title: record.title,
-          subtitle: record.subtitle,
-          shareSlug: record.shareSlug,
-          isPublic: false,
-          status: "draft",
-          validUntil: proposalValidity,
-          notes: commercialObservations,
-          pdfUrl: storage?.pdfUrl,
-          generatedContent: {
-            customMessage,
-            hidePrices: hideCommercialPrices,
-            pdfObjectKey: storage?.objectKey,
-            plans: selectedCommercialPlans.map((plan) => ({
-              id: plan.id,
-              name: plan.name,
-              price: plan.price,
-              billingCycle: plan.billingCycle,
-              featuresIncluded: plan.featuresIncluded,
-            })),
-          },
-        });
-        setRemoteError("");
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Falha ao sincronizar material comercial no Supabase.";
-        setRemoteError(message);
-      }
+
+    if (!hasSupabaseEnv) {
+      persistGeneratedMaterials([record, ...generatedMaterials]);
+      setRemoteError("Banco oficial indisponível.");
+      setStatusMessage("Material mantido apenas como rascunho local. Ele ainda não foi salvo no banco oficial.");
+      return record;
     }
-    setStatusMessage("Material comercial salvo no historico do painel.");
-    return record;
+
+    try {
+      await saveRemoteCommercialMaterial({
+        planIds: record.planIds,
+        materialType: record.materialType,
+        modelType: record.templateId,
+        customerName: record.customerName,
+        customerContact: record.customerContact,
+        responsibleName,
+        responsibleRole,
+        title: record.title,
+        subtitle: record.subtitle,
+        shareSlug: record.shareSlug,
+        isPublic: false,
+        status: "draft",
+        validUntil: proposalValidity,
+        notes: commercialObservations,
+        pdfUrl: storage?.pdfUrl,
+        generatedContent: {
+          customMessage,
+          hidePrices: hideCommercialPrices,
+          pdfObjectKey: storage?.objectKey,
+          plans: selectedCommercialPlans.map((plan) => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price,
+            billingCycle: plan.billingCycle,
+            featuresIncluded: plan.featuresIncluded,
+          })),
+        },
+      });
+
+      persistGeneratedMaterials([record, ...generatedMaterials]);
+      setRemoteError("");
+      setStatusMessage("Material comercial salvo no banco oficial e registrado no histórico do painel.");
+      return record;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao salvar material comercial no banco oficial.";
+      persistGeneratedMaterials([record, ...generatedMaterials]);
+      setRemoteError(message);
+      setStatusMessage(`Material mantido como rascunho local. A gravação oficial falhou: ${message}`);
+      return record;
+    }
   };
 
   const handleCopyMaterialLink = async () => {
