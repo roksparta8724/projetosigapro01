@@ -337,7 +337,9 @@ export interface TenantSettings {
   taxaProtocolo: number;
   taxaIssPorMetroQuadrado: number;
   issRateProfiles?: MunicipalIssRateProfile[];
+  issStageEnabled?: boolean;
   taxaAprovacaoFinal: number;
+  finalApprovalFeeEnabled?: boolean;
   approvalRateProfiles?: MunicipalApprovalRateProfile[];
   registroProfissionalObrigatorio: boolean;
   contractNumber?: string;
@@ -1239,7 +1241,9 @@ export const tenantSettings: TenantSettings[] = [
     beneficiarioArrecadacao: "Prefeitura de Campo Limpo Paulista",
     taxaProtocolo: 35.24,
     taxaIssPorMetroQuadrado: 12.5,
+    issStageEnabled: true,
     taxaAprovacaoFinal: 180,
+    finalApprovalFeeEnabled: true,
     registroProfissionalObrigatorio: true,
     contractNumber: "CT-2026-001",
     contractStart: "2026-03-01",
