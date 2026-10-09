@@ -221,7 +221,7 @@ const AppRoutes = () => {
         <Route
           path="/prefeitura/financeiro/iptu"
           element={
-            <PermissionRoute permission="manage_financial">
+            <PermissionRoute permission="manage_fiscal_financial">
               <IptuDeskPage />
             </PermissionRoute>
           }
