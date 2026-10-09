@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Building2 } from "@/components/platform/PremiumIcons";
 import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ export function InstitutionalLogo({
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const [loadedImages, setLoadedImages] = useState<string[]>([]);
+  const [fallbackReady, setFallbackReady] = useState(false);
   const isMaster = branding.tenantId === "master";
   const context = `${variant}:${branding.tenantId}`;
   const requestedUrl = resolveAssetUrl(branding.logoUrl);
@@ -61,6 +62,15 @@ export function InstitutionalLogo({
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
   const showMasterCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
 
+  useEffect(() => {
+    if (imageUrl) {
+      setFallbackReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setFallbackReady(true), 500);
+    return () => window.clearTimeout(timer);
+  }, [context, imageUrl]);
+
   return (
     <div
       data-logo-context={isMaster ? "sigapro" : "municipality"}
@@ -75,7 +85,7 @@ export function InstitutionalLogo({
     >
       <div className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}>
         <div className="relative flex h-full w-full items-center justify-center">
-          {(!displayUrl || !loadedImages.includes(displayUrl)) ? (
+          {!displayUrl && fallbackReady ? (
             <div
               className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-slate-400"
               role="img"
@@ -87,6 +97,10 @@ export function InstitutionalLogo({
                   {isMaster ? "SIGAPRO" : "Prefeitura"}
                 </span>
               ) : null}
+            </div>
+          ) : !loadedImages.includes(displayUrl) ? (
+            <div className="absolute inset-0 bg-white" aria-hidden="true">
+              <div className="absolute inset-[18%] animate-pulse rounded-[16px] bg-slate-100" />
             </div>
           ) : null}
           {displayUrl ? (
