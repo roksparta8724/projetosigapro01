@@ -738,21 +738,30 @@ export function FinanceDeskPage() {
               approvalRateProfiles: tenantSettings?.approvalRateProfiles ?? defaultApprovalRateProfiles,
             }}
             statusMessage={feeStatus}
-            onSave={(values) => {
+            onSave={async (values) => {
               if (!tenantSettings) {
                 setFeeStatus("Nenhuma Prefeitura ativa foi localizada para atualizar a tabela.");
                 return;
               }
 
-              saveInstitutionSettings({
-                ...tenantSettings,
-                taxaProtocolo: Number(values.taxaProtocolo || 0),
-                taxaIssPorMetroQuadrado: Number(values.taxaIssPorMetroQuadrado || 0),
-                issRateProfiles: values.issRateProfiles ?? defaultIssRateProfiles,
-                taxaAprovacaoFinal: Number(values.taxaAprovacaoFinal || 0),
-                approvalRateProfiles: values.approvalRateProfiles ?? defaultApprovalRateProfiles,
-              });
-              setFeeStatus("Tabela financeira atualizada com sucesso. Os novos valores serão usados nas próximas emissões; guias já emitidas preservam o valor original.");
+              setFeeStatus("");
+              try {
+                await saveInstitutionSettings({
+                  ...tenantSettings,
+                  taxaProtocolo: Number(values.taxaProtocolo || 0),
+                  taxaIssPorMetroQuadrado: Number(values.taxaIssPorMetroQuadrado || 0),
+                  issRateProfiles: values.issRateProfiles ?? defaultIssRateProfiles,
+                  taxaAprovacaoFinal: Number(values.taxaAprovacaoFinal || 0),
+                  approvalRateProfiles: values.approvalRateProfiles ?? defaultApprovalRateProfiles,
+                });
+                setFeeStatus("Tabela financeira salva no banco oficial. Os novos valores serão usados nas próximas emissões; guias já emitidas preservam o valor original.");
+              } catch (error) {
+                setFeeStatus(
+                  error instanceof Error
+                    ? `Não foi possível salvar a tabela financeira: ${error.message}`
+                    : "Não foi possível salvar a tabela financeira no banco oficial.",
+                );
+              }
             }}
           />
         ) : null}
