@@ -333,17 +333,23 @@ const LEGACY_DEMO_TENANT_NAMES = new Set([
   "sigapro plataforma",
 ]);
 
+const enableDemoOperationalData =
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_ENABLE_DEMO_DATA ?? "").trim().toLowerCase() === "true";
+
 const defaultStore: PlatformStore = {
-  tenants: seedTenants,
-  tenantSettings: seedTenantSettings,
-  sessionUsers: seedSessionUsers,
-  userProfiles: seedUserProfiles,
-  ownerRequests: seedOwnerRequests,
-  ownerLinks: seedOwnerLinks,
-  ownerMessages: seedOwnerMessages,
-  processes: seedProcessRecords,
+  // Dados operacionais fictícios nunca são fallback implícito. Eles só existem
+  // em desenvolvimento quando o modo demo é ativado conscientemente.
+  tenants: enableDemoOperationalData ? seedTenants : [],
+  tenantSettings: enableDemoOperationalData ? seedTenantSettings : [],
+  sessionUsers: enableDemoOperationalData ? seedSessionUsers : [],
+  userProfiles: enableDemoOperationalData ? seedUserProfiles : [],
+  ownerRequests: enableDemoOperationalData ? seedOwnerRequests : [],
+  ownerLinks: enableDemoOperationalData ? seedOwnerLinks : [],
+  ownerMessages: enableDemoOperationalData ? seedOwnerMessages : [],
+  processes: enableDemoOperationalData ? seedProcessRecords : [],
   plans: seedPlanCatalog,
-  planAssignments: seedClientPlanAssignments,
+  planAssignments: enableDemoOperationalData ? seedClientPlanAssignments : [],
   cmsSections: seedCmsSections,
   checklistTemplates: seedChecklistTemplates,
   documentTemplates: seedDocumentTemplates,
