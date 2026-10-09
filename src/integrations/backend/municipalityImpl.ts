@@ -379,14 +379,30 @@ async function loadBrandingAndSettings(municipalityId: string) {
       .maybeSingle(),
   ]);
 
+  const brandingMissing = isMissingRelationError(
+    brandingResult.error,
+    "public.municipality_branding",
+  );
+  const settingsMissing = isMissingRelationError(
+    settingsResult.error,
+    "public.municipality_settings",
+  );
+
+  if (isNeonBackend && (brandingMissing || settingsMissing)) {
+    const missing = [
+      brandingMissing ? "municipality_branding" : null,
+      settingsMissing ? "municipality_settings" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    throw new Error(
+      `Schema Neon incompleto: estrutura municipal obrigatória ausente (${missing}).`,
+    );
+  }
+
   const errors = [
-    isMissingRelationError(brandingResult.error, "public.municipality_branding")
-      ? null
-      : brandingResult.error,
-    isMissingRelationError(
-      settingsResult.error,
-      "public.municipality_settings",
-    ) || (isNeonBackend && isPermissionError(settingsResult.error))
+    brandingMissing ? null : brandingResult.error,
+    settingsMissing || (isNeonBackend && isPermissionError(settingsResult.error))
       ? null
       : settingsResult.error,
   ].filter(Boolean);
