@@ -379,6 +379,26 @@ function normalizeTenantLabel(value: string | null | undefined) {
     .trim();
 }
 
+function findOperationalDispatch(
+  process: ProcessRecord,
+  unit: string,
+  allowedStatuses: string[],
+) {
+  const normalizedUnit = normalizeTenantLabel(unit);
+
+  return process.dispatches.find((dispatch) => {
+    if (!allowedStatuses.includes(dispatch.status)) return false;
+    if (!normalizedUnit) return true;
+
+    const target = normalizeTenantLabel(dispatch.to);
+    return (
+      target === normalizedUnit ||
+      target.includes(normalizedUnit) ||
+      normalizedUnit.includes(target)
+    );
+  });
+}
+
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
@@ -1618,8 +1638,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
-          .map((process) => process.dispatches[0]?.id)
+          .map((process) => findOperationalDispatch(process, unit, ["aguardando"])?.id)
           .filter((id): id is string => Boolean(id));
+
+        if (targets.length === 0) {
+          throw new Error("Nenhum despacho aguardando recebimento foi encontrado para esta unidade.");
+        }
 
         await Promise.all(targets.map((dispatchId) => acknowledgeRemoteProcessDispatch(dispatchId, unit)));
         await refreshRemoteStore();
@@ -1630,8 +1654,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
-          .map((process) => process.dispatches[0]?.id)
+          .map((process) =>
+            findOperationalDispatch(process, unit, ["aguardando", "respondido"])?.id,
+          )
           .filter((id): id is string => Boolean(id));
+
+        if (targets.length === 0) {
+          throw new Error("Nenhum despacho ativo foi encontrado para conclusão nesta unidade.");
+        }
 
         await Promise.all(targets.map((dispatchId) => completeRemoteProcessDispatch(dispatchId, unit)));
         await refreshRemoteStore();
@@ -1642,8 +1672,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         const targets = store.processes
           .filter((process) => processIds.includes(process.id))
-          .map((process) => process.dispatches[0]?.id)
+          .map((process) =>
+            findOperationalDispatch(process, unit, ["aguardando", "respondido"])?.id,
+          )
           .filter((id): id is string => Boolean(id));
+
+        if (targets.length === 0) {
+          throw new Error("Nenhum despacho ativo foi encontrado para devolução nesta unidade.");
+        }
 
         await Promise.all(
           targets.map((dispatchId) => returnRemoteProcessDispatch(dispatchId, unit, reason?.trim() || null)),
