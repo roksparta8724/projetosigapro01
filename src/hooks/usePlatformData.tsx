@@ -328,7 +328,6 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 }
 
 const STORAGE_KEY = "sigapro-platform-store";
-const AUTH_STORAGE_KEY = "sigapro-demo-credentials";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 type DeletedRecords = {
   institutions: string[];
@@ -559,31 +558,6 @@ function syncStore(store: PlatformStore) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStore));
 }
 
-function syncAuthUsers(users: SessionUser[]) {
-  // Legacy demo credentials are allowed only in isolated local development.
-  // Official authentication is handled by Better Auth/Neon and must never
-  // synthesize passwords in browser storage.
-  if (typeof window === "undefined" || hasSupabaseEnv || !isLocalDevHost()) {
-    return;
-  }
-
-  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  const parsed = raw ? (JSON.parse(raw) as Record<string, { password: string; userId: string; role: string }>) : {};
-
-  users.map((user) => normalizeSessionUserScope(user)).forEach((user) => {
-    const email = user.email.trim().toLowerCase();
-    if (!parsed[email]) {
-      parsed[email] = {
-        password: "Acesso@2026",
-        userId: user.id,
-        role: user.role,
-      };
-    }
-  });
-
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
-}
-
 function readCachedPlatformSession(): SessionUser | null {
   if (typeof window === "undefined") return null;
   try {
@@ -635,44 +609,6 @@ function getInitialPlatformStoreState() {
   };
 }
 
-function toSizeLabel(size: number) {
-  if (size >= 1024 * 1024) {
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  if (size >= 1024) {
-    return `${Math.round(size / 1024)} KB`;
-  }
-  return `${size} B`;
-}
-
-function buildTimelineEntry(title: string, detail: string, actor: string): TimelineEntry {
-  return {
-    id: `timeline-${crypto.randomUUID()}`,
-    title,
-    detail,
-    actor,
-    at: new Date().toLocaleString("pt-BR"),
-  };
-}
-
-function buildAuditEntry(
-  category: ProcessRecord["auditTrail"][number]["category"],
-  title: string,
-  detail: string,
-  actor: string,
-  visibleToExternal = true,
-) {
-  return {
-    id: `audit-${crypto.randomUUID()}`,
-    category,
-    title,
-    detail,
-    actor,
-    visibleToExternal,
-    at: new Date().toLocaleString("pt-BR"),
-  };
-}
-
 function isAuthError(error: unknown) {
   if (!error || typeof error !== "object") return false;
   const status = "status" in error ? Number((error as { status?: number }).status) : NaN;
@@ -709,7 +645,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const nextStore = readStore();
         if (!active) return;
         setStore(nextStore);
-        syncAuthUsers(nextStore.sessionUsers);
         setSource(nextStore === defaultStore ? "demo" : "local");
         setLoading(false);
         return;
@@ -728,7 +663,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!active) return;
         setStore(sanitized);
         syncStore(sanitized);
-        syncAuthUsers(sanitized.sessionUsers);
         setSource("remote");
         lastFetchedUserId.current = authenticatedUserId;
       } catch (error) {
@@ -739,7 +673,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const cachedStore = readPersistedStore();
         const nextStore = cachedStore ?? buildSanitizedStore({}, false);
         setStore(nextStore);
-        syncAuthUsers(nextStore.sessionUsers);
         setSource("local");
       } finally {
         if (active) setLoading(false);
@@ -781,7 +714,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       const sanitized = buildSanitizedStore(remote, false);
       setStore(sanitized);
       syncStore(sanitized);
-      syncAuthUsers(sanitized.sessionUsers);
       setSource("remote");
       lastFetchedUserId.current = authenticatedUserId;
     } catch (error) {
@@ -815,7 +747,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     setStore((current) => {
       const next = updater(current);
       syncStore(next);
-      syncAuthUsers(next.sessionUsers);
       return next;
     });
   };
