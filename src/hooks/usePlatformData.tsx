@@ -56,7 +56,9 @@ import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/in
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
+  acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
   confirmRemoteProcessPaymentGuide,
   createRemoteOwnerMessage,
@@ -68,9 +70,11 @@ import {
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
   reissueRemoteProcessPaymentGuide,
+  removeRemoteProcessMarkerByLabel,
   reopenRemoteProcess,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
+  returnRemoteProcessDispatch,
   reviewRemoteProcessDocument,
   saveRemoteClientPlanAssignment,
   saveRemoteInstitutionSettings,
@@ -193,13 +197,13 @@ interface PlatformDataState {
   addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => Promise<void>;
   addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
-  removeProcessMarker: (processId: string, marker: string, actor: string) => void;
+  removeProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => void;
   setTenantStatus: (tenantId: string, status: Tenant["status"]) => void;
   dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
-  acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => void;
-  completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => void;
-  returnDispatches: (input: { processIds: string[]; actor: string; unit: string; reason?: string }) => void;
+  acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
+  completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
+  returnDispatches: (input: { processIds: string[]; actor: string; unit: string; reason?: string }) => Promise<void>;
   setProcessCheckpoint: (input: { processIds: string[]; actor: string; checkpoint: string }) => Promise<void>;
   setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => Promise<void>;
   setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => Promise<void>;
@@ -417,13 +421,13 @@ const demoState: PlatformDataState = {
   addDocumentAnnotation: async () => undefined,
   addProcessMarker: async () => undefined,
   addProcessMarkerWithColor: async () => undefined,
-  removeProcessMarker: () => undefined,
+  removeProcessMarker: async () => undefined,
   setInstitutionStatus: () => undefined,
   setTenantStatus: () => undefined,
   dispatchProcess: async () => undefined,
-  acknowledgeDispatchReceipt: () => undefined,
-  completeDispatches: () => undefined,
-  returnDispatches: () => undefined,
+  acknowledgeDispatchReceipt: async () => undefined,
+  completeDispatches: async () => undefined,
+  returnDispatches: async () => undefined,
   setProcessCheckpoint: async () => undefined,
   setProcessOnHold: async () => undefined,
   setProcessTransitVisibility: async () => undefined,
@@ -2308,313 +2312,110 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await upsertRemoteProcessMarker(processId, normalized, color);
         await refreshRemoteStore();
       },
-      removeProcessMarker: (processId, marker, actor) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            if (!process.tags.includes(marker)) return process;
-            const parsedMarker = parseMarker(marker);
+      removeProcessMarker: async (processId, marker, actor) => {
+        const parsedMarker = parseMarker(marker);
+        if (!parsedMarker.label.trim()) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para remover marcador.");
 
-            return {
-              ...process,
-              tags: process.tags.filter((tag) => tag !== marker),
-              timeline: [buildTimelineEntry("Marcador removido", `Marcador "${parsedMarker.label}" removido do processo.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("perfil", "Marcador removido", `Marcador ${parsedMarker.label} removido do processo.`, actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await removeRemoteProcessMarkerByLabel(processId, parsedMarker.label);
+        await refreshRemoteStore();
       },
       setInstitutionStatus,
       setTenantStatus: (tenantId, status) => setInstitutionStatus(tenantId, status),
-      dispatchProcess: ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
+      dispatchProcess: async ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para despachar processo.");
 
-            return {
-              ...process,
-              status: "despacho_intersetorial",
-              dispatches: [
-                {
-                  id: `dispatch-${crypto.randomUUID()}`,
-                  from,
-                  to,
-                  subject,
-                  dueDate,
-                  status: "aguardando",
-                  visibility: visibility ?? "interno",
-                  priority: priority ?? "media",
-                  assignedTo,
-                },
-                ...process.dispatches,
-              ],
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: to,
-              },
-              timeline: [buildTimelineEntry("Despacho intersetorial", `${subject} encaminhado de ${from} para ${to}.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("despacho", "Despacho criado", `${subject} encaminhado para ${to}.`, actor, (visibility ?? "interno") !== "interno"), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await createRemoteProcessDispatch({
+          processId,
+          from,
+          to,
+          subject,
+          dueAt: dueDate ? new Date(`${dueDate}T23:59:59`).toISOString() : null,
+          visibility: visibility ?? "interno",
+          priority: priority ?? "media",
+          assignedTo: assignedTo || null,
         });
+        await refreshRemoteStore();
       },
-      acknowledgeDispatchReceipt: ({ processIds, actor, unit }) => {
-        const targetIds = new Set(processIds);
-        if (targetIds.size === 0) return;
+      acknowledgeDispatchReceipt: async ({ processIds, actor, unit }) => {
+        if (processIds.length === 0) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para receber despacho.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (!targetIds.has(process.id)) {
-              return process;
-            }
+        const targets = store.processes
+          .filter((process) => processIds.includes(process.id))
+          .map((process) => process.dispatches[0]?.id)
+          .filter((id): id is string => Boolean(id));
 
-            const latestDispatchId = process.dispatches[0]?.id;
-            return {
-              ...process,
-              dispatches: process.dispatches.map((dispatch, index) =>
-                dispatch.id === latestDispatchId || index === 0 ? { ...dispatch, status: "respondido" as const } : dispatch,
-              ),
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: unit,
-              },
-              timeline: [
-                buildTimelineEntry("Recebimento institucional", `O processo foi recebido formalmente pela unidade ${unit}.`, actor),
-                ...process.timeline,
-              ],
-              auditTrail: [
-                buildAuditEntry("despacho", "Recebimento confirmado", `A unidade ${unit} confirmou o recebimento do processo.`, actor, false),
-                ...process.auditTrail,
-              ],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await Promise.all(targets.map((dispatchId) => acknowledgeRemoteProcessDispatch(dispatchId, unit)));
+        await refreshRemoteStore();
       },
-      completeDispatches: ({ processIds, actor, unit }) => {
-        const targetIds = new Set(processIds);
-        if (targetIds.size === 0) return;
+      completeDispatches: async ({ processIds, actor, unit }) => {
+        if (processIds.length === 0) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para concluir despacho.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (!targetIds.has(process.id)) return process;
-            const latestDispatchId = process.dispatches[0]?.id;
+        const targets = store.processes
+          .filter((process) => processIds.includes(process.id))
+          .map((process) => process.dispatches[0]?.id)
+          .filter((id): id is string => Boolean(id));
 
-            return {
-              ...process,
-              dispatches: process.dispatches.map((dispatch, index) =>
-                dispatch.id === latestDispatchId || index === 0 ? { ...dispatch, status: "concluido" as const } : dispatch,
-              ),
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: unit,
-                checkpoint: process.processControl?.checkpoint,
-                onHold: process.processControl?.onHold ?? false,
-                onHoldReason: process.processControl?.onHoldReason,
-              },
-              timeline: [buildTimelineEntry("Despacho concluído", `A unidade ${unit} concluiu o despacho do processo.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("despacho", "Despacho concluído", `Conclusão registrada pela unidade ${unit}.`, actor, false), ...process.auditTrail],
-            };
-          });
-          return { ...current, processes };
-        });
+        await Promise.all(targets.map((dispatchId) => completeRemoteProcessDispatch(dispatchId, unit)));
+        await refreshRemoteStore();
       },
-      returnDispatches: ({ processIds, actor, unit, reason }) => {
-        const targetIds = new Set(processIds);
-        if (targetIds.size === 0) return;
+      returnDispatches: async ({ processIds, actor, unit, reason }) => {
+        if (processIds.length === 0) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para devolver despacho.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (!targetIds.has(process.id)) return process;
-            const currentDispatch = process.dispatches[0];
-            const destination = currentDispatch?.from || unit;
+        const targets = store.processes
+          .filter((process) => processIds.includes(process.id))
+          .map((process) => process.dispatches[0]?.id)
+          .filter((id): id is string => Boolean(id));
 
-            return {
-              ...process,
-              dispatches: [
-                {
-                  id: `dispatch-${crypto.randomUUID()}`,
-                  from: unit,
-                  to: destination,
-                  subject: reason?.trim() ? `Devolução: ${reason.trim()}` : "Devolução para unidade de origem",
-                  dueDate: new Date().toLocaleDateString("pt-BR"),
-                  status: "devolvido",
-                  visibility: "interno",
-                  priority: currentDispatch?.priority ?? "media",
-                  assignedTo: currentDispatch?.assignedTo,
-                },
-                ...process.dispatches.map((dispatch, index) =>
-                  index === 0 ? { ...dispatch, status: "devolvido" as const } : dispatch,
-                ),
-              ],
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: destination,
-                checkpoint: process.processControl?.checkpoint,
-                onHold: false,
-                onHoldReason: "",
-              },
-              timeline: [
-                buildTimelineEntry(
-                  "Processo devolvido",
-                  reason?.trim() ? `Devolvido pela unidade ${unit}. Motivo: ${reason.trim()}.` : `Devolvido pela unidade ${unit} para a origem do despacho.`,
-                  actor,
-                ),
-                ...process.timeline,
-              ],
-              auditTrail: [buildAuditEntry("despacho", "Processo devolvido", `O processo retornou para ${destination}.`, actor, false), ...process.auditTrail],
-            };
-          });
-          return { ...current, processes };
-        });
+        await Promise.all(
+          targets.map((dispatchId) => returnRemoteProcessDispatch(dispatchId, unit, reason?.trim() || null)),
+        );
+        await refreshRemoteStore();
       },
-      setProcessCheckpoint: ({ processIds, actor, checkpoint }) => {
-        const targetIds = new Set(processIds);
-        if (targetIds.size === 0 || !checkpoint.trim()) return;
+      setProcessCheckpoint: async ({ processIds, actor, checkpoint }) => {
+        const normalized = checkpoint.trim();
+        if (processIds.length === 0 || !normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para definir checkpoint.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (!targetIds.has(process.id)) return process;
-
-            return {
-              ...process,
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: process.processControl?.currentFolder ?? process.sla.currentStage,
-                checkpoint: checkpoint.trim(),
-                onHold: process.processControl?.onHold ?? false,
-                onHoldReason: process.processControl?.onHoldReason,
-              },
-              timeline: [buildTimelineEntry("Ponto de controle definido", `Ponto de controle atualizado para ${checkpoint.trim()}.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("despacho", "Ponto de controle", `Checkpoint institucional definido como ${checkpoint.trim()}.`, actor, false), ...process.auditTrail],
-            };
-          });
-          return { ...current, processes };
-        });
+        await Promise.all(processIds.map((processId) => setRemoteProcessCheckpoint(processId, normalized)));
+        await refreshRemoteStore();
       },
-      setProcessOnHold: ({ processIds, actor, onHold, reason }) => {
-        const targetIds = new Set(processIds);
-        if (targetIds.size === 0) return;
+      setProcessOnHold: async ({ processIds, actor, onHold, reason }) => {
+        if (processIds.length === 0) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para alterar sobrestamento.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (!targetIds.has(process.id)) return process;
-            const latestDispatchId = process.dispatches[0]?.id;
-
-            return {
-              ...process,
-              dispatches: process.dispatches.map((dispatch, index) =>
-                dispatch.id === latestDispatchId || index === 0 ? { ...dispatch, status: onHold ? "sobrestado" as const : "aguardando" as const } : dispatch,
-              ),
-              processControl: {
-                externalTransitView: process.processControl?.externalTransitView ?? "completo",
-                currentFolder: process.processControl?.currentFolder ?? process.sla.currentStage,
-                checkpoint: process.processControl?.checkpoint,
-                onHold,
-                onHoldReason: onHold ? reason?.trim() || "Sobrestamento administrativo." : "",
-              },
-              timeline: [
-                buildTimelineEntry(
-                  onHold ? "Processo sobrestado" : "Sobrestamento removido",
-                  onHold ? `Processo sobrestado. ${reason?.trim() || "Aguardando providência administrativa."}` : "O processo voltou ao fluxo normal de tramitação.",
-                  actor,
-                ),
-                ...process.timeline,
-              ],
-              auditTrail: [
-                buildAuditEntry(
-                  "despacho",
-                  onHold ? "Processo sobrestado" : "Sobrestamento removido",
-                  onHold ? `Sobrestamento registrado. ${reason?.trim() || ""}` : "O processo foi reativado no fluxo.",
-                  actor,
-                  false,
-                ),
-                ...process.auditTrail,
-              ],
-            };
-          });
-          return { ...current, processes };
-        });
+        await Promise.all(
+          processIds.map((processId) =>
+            setRemoteProcessHold({
+              processId,
+              onHold,
+              reason: reason?.trim() || null,
+            }),
+          ),
+        );
+        await refreshRemoteStore();
       },
-      setProcessTransitVisibility: ({ processId, actor, visibility }) => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
+      setProcessTransitVisibility: async ({ processId, actor, visibility }) => {
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para alterar visibilidade.");
 
-            return {
-              ...process,
-              processControl: {
-                externalTransitView: visibility,
-                currentFolder: process.processControl?.currentFolder ?? process.dispatches[0]?.to ?? process.sla.currentStage,
-              },
-              timeline: [
-                buildTimelineEntry(
-                  "Controle de visualização atualizado",
-                  visibility === "completo"
-                    ? "O acompanhamento externo passou a exibir também as tramitações internas do processo."
-                    : "Os tramites internos entre setores passaram a ficar ocultos para o acompanhamento externo.",
-                  actor,
-                ),
-                ...process.timeline,
-              ],
-              auditTrail: [
-                buildAuditEntry(
-                  "despacho",
-                  "Visibilidade do fluxo atualizada",
-                  visibility === "completo"
-                    ? "A visualização externa do fluxo foi liberada para acompanhamento completo."
-                    : "A visualização externa do fluxo foi restringida, ocultando tramitações internas.",
-                  actor,
-                  false,
-                ),
-                ...process.auditTrail,
-              ],
-            };
-          });
-
-          return { ...current, processes };
-        });
+        await setRemoteProcessTransitVisibility(processId, visibility);
+        await refreshRemoteStore();
       },
-      sendProcessMessage: ({ processId, senderName, senderRole, audience, recipientName, message }) => {
+      sendProcessMessage: async ({ processId, senderName, senderRole, audience, recipientName, message }) => {
         const normalized = message.trim();
         if (!normalized) return;
+        if (!hasSupabaseEnv) throw new Error("Banco oficial indisponível para enviar mensagem.");
 
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
-
-            return {
-              ...process,
-              messages: [
-                {
-                  id: `message-${crypto.randomUUID()}`,
-                  senderName,
-                  senderRole,
-                  audience,
-                  recipientName,
-                  message: normalized,
-                  at: new Date().toLocaleString("pt-BR"),
-                },
-                ...process.messages,
-              ],
-              timeline: [buildTimelineEntry("Comunique-se registrado", `Nova mensagem enviada para ${audience}.`, senderName), ...process.timeline],
-              auditTrail: [buildAuditEntry("mensagem", "Mensagem registrada", `Nova mensagem enviada com visibilidade ${audience}.`, senderName, audience !== "interno"), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await sendRemoteProcessMessage({
+          processId,
+          audience,
+          recipientName: recipientName || null,
+          message: normalized,
         });
+        await refreshRemoteStore();
       },
       reissuePaymentGuide: async (processId, actor, guideKind = "protocolo") => {
         if (!hasSupabaseEnv) {
