@@ -446,6 +446,32 @@ async function completePendingSignup(
     });
   }
 
+  await saveRemoteProfile({
+    userId: currentProfile?.userId || authUser.id,
+    fullName: pending.fullName,
+    email: pending.email,
+    phone: pending.phone,
+    cpfCnpj: pending.cpfCnpj,
+    rg: pending.rg,
+    birthDate: pending.birthDate,
+    professionalType: pending.professionalType,
+    registrationNumber: pending.registrationNumber,
+    companyName: pending.companyName,
+    addressLine: pending.addressLine,
+    addressNumber: pending.addressNumber,
+    addressComplement: pending.addressComplement,
+    neighborhood: pending.neighborhood,
+    city: pending.city,
+    state: pending.state,
+    zipCode: pending.zipCode,
+    avatarUrl: "",
+    avatarScale: 1,
+    avatarOffsetX: 0,
+    avatarOffsetY: 0,
+    useAvatarInHeader: false,
+    bio: pending.bio,
+  });
+
   const linkedProfile = await loadProfileByUserId(authUser.id);
   if (!linkedProfile?.municipalityId) {
     throw new Error("O cadastro foi confirmado, mas o vínculo com a Prefeitura não pôde ser verificado.");
