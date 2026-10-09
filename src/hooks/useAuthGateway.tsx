@@ -1,12 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useMemo } from "react";
-import {
-  normalizeSessionUserScope,
-  sessionUsers,
-  type AccountStatus,
-  type SessionUser,
-} from "@/lib/platform";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 
 interface AuthGatewayContextValue {
@@ -29,8 +23,6 @@ interface AuthGatewayContextValue {
   signOut: () => Promise<void>;
 }
 
-const PLATFORM_STORE_KEY = "sigapro-platform-store";
-
 const AuthGatewayContext = createContext<AuthGatewayContextValue | null>(null);
 const authGatewayFallback: AuthGatewayContextValue = {
   isAuthenticated: false,
@@ -48,42 +40,6 @@ const authGatewayFallback: AuthGatewayContextValue = {
   updatePassword: async () => ({ ok: false, message: "Autenticação indisponível no momento." }),
   signOut: async () => {},
 };
-
-function readCurrentSessionUsers() {
-  if (typeof window === "undefined") {
-    return sessionUsers;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(PLATFORM_STORE_KEY);
-    if (!raw) return sessionUsers;
-    const parsed = JSON.parse(raw) as { sessionUsers?: SessionUser[] };
-    return parsed.sessionUsers?.length
-      ? parsed.sessionUsers.map((item) => normalizeSessionUserScope(item))
-      : sessionUsers;
-  } catch {
-    return sessionUsers;
-  }
-}
-
-function resolveStoredUser(_email: string | null | undefined, userId?: string | null) {
-  if (!userId) return undefined;
-  const users = readCurrentSessionUsers();
-  return (
-    users.find((item) => item.id === userId) ??
-    sessionUsers.find((item) => item.id === userId)
-  );
-}
-
-function isAdministrativeBlocked(status: AccountStatus | undefined) {
-  return status === "blocked" || status === "inactive";
-}
-
-function blockedAccountMessage(status: AccountStatus | undefined) {
-  return status === "inactive"
-    ? "Esta conta foi desativada administrativamente. Entre em contato com a gestão do sistema."
-    : "Esta conta está bloqueada administrativamente. Entre em contato com a gestão do sistema.";
-}
 
 function useAuthGatewayValue(): AuthGatewayContextValue {
   const bootstrap = useAppBootstrap();
@@ -152,4 +108,4 @@ export function useAuthGateway() {
   return context ?? authGatewayFallback;
 }
 
-export { authGatewayFallback, resolveStoredUser, isAdministrativeBlocked, blockedAccountMessage };
+export { authGatewayFallback };
