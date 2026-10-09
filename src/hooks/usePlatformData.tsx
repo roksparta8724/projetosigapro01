@@ -313,7 +313,8 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
   return profiles.find((item) => normalizeEmail(item.email) === normalizedEmail);
 }
 
-const STORAGE_KEY = "sigapro-platform-store";
+const LEGACY_STORAGE_KEY = "sigapro-platform-store";
+const STORAGE_KEY = "sigapro-platform-store.v2";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 type DeletedRecords = {
   institutions: string[];
@@ -338,6 +339,22 @@ const defaultStore: PlatformStore = {
   processes: seedProcessRecords,
   plans: seedPlanCatalog,
   planAssignments: seedClientPlanAssignments,
+  cmsSections: seedCmsSections,
+  checklistTemplates: seedChecklistTemplates,
+  documentTemplates: seedDocumentTemplates,
+};
+
+const staticCatalogStore: PlatformStore = {
+  tenants: [],
+  tenantSettings: [],
+  sessionUsers: [],
+  userProfiles: [],
+  ownerRequests: [],
+  ownerLinks: [],
+  ownerMessages: [],
+  processes: [],
+  plans: seedPlanCatalog,
+  planAssignments: [],
   cmsSections: seedCmsSections,
   checklistTemplates: seedChecklistTemplates,
   documentTemplates: seedDocumentTemplates,
@@ -579,12 +596,15 @@ function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<S
 function getInitialPlatformStoreState() {
   const localDev = isLocalDevHost();
 
-  // Em produção com backend configurado, nunca inicializa com seeds/demo.
-  // O cache é apenas a última leitura remota conhecida até o Neon responder.
+  // Em produção, dados operacionais antigos do protótipo não são mais aceitos.
+  // O cache v2 só recebe snapshots que vieram do backend oficial.
   if (hasSupabaseEnv && !localDev) {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
     const cachedRemote = readPersistedStore();
     return {
-      store: cachedRemote ?? buildSanitizedStore({}, false),
+      store: cachedRemote ?? staticCatalogStore,
       source: "local" as const,
     };
   }
@@ -629,8 +649,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       if (authLoading) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasSupabaseEnv) {
-        const nextStore = readStore();
         if (!active) return;
+
+        if (hasSupabaseEnv && !localDev) {
+          // Sessão ausente/expirada em produção: mantém apenas catálogo estático,
+          // nunca restaura processos, usuários, guias ou Prefeituras do navegador.
+          setStore(staticCatalogStore);
+          setSource("local");
+          setLoading(false);
+          return;
+        }
+
+        const nextStore = readStore();
         setStore(nextStore);
         setSource(nextStore === defaultStore ? "demo" : "local");
         setLoading(false);
