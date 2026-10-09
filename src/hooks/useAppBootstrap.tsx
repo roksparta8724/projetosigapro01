@@ -555,6 +555,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     municipalityBundle: cachedSnapshot?.municipalityBundle ?? null,
   });
   const authEventRef = useRef<string | null>(null);
+  const explicitSignOutRef = useRef(false);
 
   useEffect(() => {
     if (!isReady || stage !== "ready") return;
@@ -628,8 +629,57 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           sessionUser || event === "SIGNED_OUT"
             ? null
             : await backendClient.auth.getUser();
-        const authUser = sessionUser ?? userResult?.data.user ?? null;
+        let authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
+
+        // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT transitório durante
+        // sincronização/renovação. Uma sessão já estável só é removida depois de
+        // confirmar duas vezes que ela realmente deixou de existir.
+        if (
+          event === "SIGNED_OUT" &&
+          !explicitSignOutRef.current &&
+          Boolean(lastStableRef.current.authUserId)
+        ) {
+          const expectedUserId = lastStableRef.current.authUserId;
+          const confirmationDelays = [180, 650];
+
+          for (const delayMs of confirmationDelays) {
+            await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+            if (!canApply()) return;
+
+            try {
+              const confirmedSession = (await backendClient.auth.getSession()).data.session ?? null;
+              const confirmedUser = confirmedSession?.user ?? null;
+              if (confirmedUser?.id === expectedUserId) {
+                authUser = confirmedUser;
+                setAuthUserId(lastStableRef.current.authUserId);
+                setAuthEmail(lastStableRef.current.authEmail);
+                setRole(lastStableRef.current.role);
+                setProfile(lastStableRef.current.profile);
+                setMunicipalityBundle(lastStableRef.current.municipalityBundle);
+                setScopeType(resolveScopeType(lastStableRef.current.role));
+                setIsReady(true);
+                setAuthResolved(true);
+                setStage("ready");
+                setLoading(false);
+                return;
+              }
+            } catch (confirmationError) {
+              console.warn("[Bootstrap] Falha transitória ao confirmar SIGNED_OUT; mantendo sessão estável", confirmationError);
+              setAuthUserId(lastStableRef.current.authUserId);
+              setAuthEmail(lastStableRef.current.authEmail);
+              setRole(lastStableRef.current.role);
+              setProfile(lastStableRef.current.profile);
+              setMunicipalityBundle(lastStableRef.current.municipalityBundle);
+              setScopeType(resolveScopeType(lastStableRef.current.role));
+              setIsReady(true);
+              setAuthResolved(true);
+              setStage("ready");
+              setLoading(false);
+              return;
+            }
+          }
+        }
 
         const isSameStableSessionEvent =
           initializedRef.current &&
@@ -1108,6 +1158,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         return { ok: true, message: "Senha atualizada." };
       },
       signOut: async () => {
+        explicitSignOutRef.current = true;
         authEventRef.current = "SIGNED_OUT";
         lastAuthUserIdRef.current = null;
         initializedRef.current = false;
@@ -1145,6 +1196,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setIsReady(true);
           setStage("ready");
           setLoading(false);
+          explicitSignOutRef.current = false;
         }
       },
     }),
