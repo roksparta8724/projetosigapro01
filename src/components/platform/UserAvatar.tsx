@@ -12,6 +12,7 @@ interface UserAvatarProps {
   className?: string;
   imageClassName?: string;
   imageStyle?: CSSProperties;
+  crop?: { scale: number; offsetX: number; offsetY: number; editorSize?: number };
   fallbackClassName?: string;
   title?: string;
 }
@@ -38,6 +39,7 @@ export function UserAvatar({
   className,
   imageClassName,
   imageStyle,
+  crop,
   fallbackClassName,
   title,
 }: UserAvatarProps) {
@@ -49,6 +51,14 @@ export function UserAvatar({
 
   const initials = useMemo(() => getInitials(name), [name]);
   const showImage = Boolean(imageUrl) && !imageFailed;
+  const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
+  const cropRatio = crop ? sizePixels[size] / Math.max(crop.editorSize ?? 320, 1) : 1;
+  const resolvedImageStyle = crop
+    ? {
+        transform: `translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
+        transformOrigin: "center center",
+      }
+    : imageStyle;
 
   return (
     <Avatar
@@ -63,8 +73,8 @@ export function UserAvatar({
         <AvatarImage
           src={imageUrl ?? undefined}
           alt={name || "Usuario"}
-          className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
-          style={imageStyle}
+          className={cn("sig-user-avatar-image h-full w-full", crop ? "object-contain bg-white" : "object-cover", imageClassName)}
+          style={resolvedImageStyle}
           onError={() => setImageFailed(true)}
         />
       ) : null}
