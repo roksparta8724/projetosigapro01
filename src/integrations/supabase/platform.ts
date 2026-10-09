@@ -1,4 +1,4 @@
-import { databaseClient as supabase } from "@/integrations/backend/databaseClient";
+import { databaseClient as db } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
@@ -54,7 +54,7 @@ function getMissingColumnName(error: unknown) {
 }
 
 function formatSupabaseError(error: unknown) {
-  if (!error || typeof error !== "object") return "Erro desconhecido do Supabase.";
+  if (!error || typeof error !== "object") return "Erro desconhecido do banco oficial.";
   const message =
     "message" in error && typeof error.message === "string" ? error.message : "";
   const details =
@@ -64,7 +64,7 @@ function formatSupabaseError(error: unknown) {
   const code =
     "code" in error && typeof error.code === "string" ? error.code : "";
   const parts = [message, details, hint, code].filter(Boolean);
-  return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do Supabase.";
+  return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do banco oficial.";
 }
 
 function normalizeUuid(value: string | null | undefined) {
@@ -82,7 +82,7 @@ async function upsertWithColumnRetry(
   let lastError: { message?: string } | null = null;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const result = await supabase
+    const result = await db
       .from(table)
       .upsert(currentPayload, { onConflict, ignoreDuplicates: options?.ignoreDuplicates });
     lastError = result.error;
@@ -97,7 +97,7 @@ async function upsertWithColumnRetry(
     if (!missingColumn || !(missingColumn in currentPayload)) break;
 
     console.warn(
-      `[SIGAPRO][Supabase] Coluna ausente em ${table}, removendo e tentando novamente`,
+      `[SIGAPRO][Database] Coluna ausente em ${table}, removendo e tentando novamente`,
       { missingColumn },
     );
     delete currentPayload[missingColumn];
@@ -276,8 +276,8 @@ function municipalityResultData(value: unknown[] | null | undefined) {
 }
 
 export async function loadRemotePlatformStore() {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const [
@@ -308,32 +308,38 @@ export async function loadRemotePlatformStore() {
     plansResult,
     planAssignmentsResult,
   ] = await Promise.all([
-    supabase.from("tenants").select("*").order("created_at", { ascending: false }),
-    supabase.from("tenant_branding").select("*"),
-    supabase.from("tenant_settings").select("*"),
-    supabase.from("municipalities").select("*").order("created_at", { ascending: false }),
-    supabase.from("municipality_branding").select("*"),
-    supabase.from("municipality_settings").select("*"),
-    supabase.from("profiles").select("*"),
-    supabase.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
-    supabase.from("roles").select("*"),
-    supabase.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
-    supabase.from("properties").select("*"),
-    supabase.from("payment_guides").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_parties").select("*"),
-    supabase.from("process_documents").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_requirements").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_movements").select("*").order("created_at", { ascending: false }),
-    supabase.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_messages").select("*").order("created_at", { ascending: false }),
-    supabase.from("process_markers").select("*").order("created_at", { ascending: false }),
-    supabase.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
-    supabase.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
-    supabase.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
-    supabase.from("plans").select("*"),
-    supabase.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenants").select("*").order("created_at", { ascending: false }),
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenant_branding").select("*"),
+    isNeonBackend
+      ? Promise.resolve({ data: [], error: null })
+      : db.from("tenant_settings").select("*"),
+    db.from("municipalities").select("*").order("created_at", { ascending: false }),
+    db.from("municipality_branding").select("*"),
+    db.from("municipality_settings").select("*"),
+    db.from("profiles").select("*"),
+    db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
+    db.from("roles").select("*"),
+    db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
+    db.from("properties").select("*"),
+    db.from("payment_guides").select("*").order("created_at", { ascending: false }),
+    db.from("process_parties").select("*"),
+    db.from("process_documents").select("*").order("created_at", { ascending: false }),
+    db.from("process_requirements").select("*").order("created_at", { ascending: false }),
+    db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
+    db.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
+    db.from("process_movements").select("*").order("created_at", { ascending: false }),
+    db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
+    db.from("process_messages").select("*").order("created_at", { ascending: false }),
+    db.from("process_markers").select("*").order("created_at", { ascending: false }),
+    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
+    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
+    db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
+    db.from("plans").select("*"),
+    db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
   ]);
 
   if (profilesResult.error) {
@@ -1156,8 +1162,8 @@ interface RegisterExternalAccountInput {
 }
 
 export async function registerRemoteExternalAccount(input: RegisterExternalAccountInput) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const scopeId = normalizeUuid(input.tenantId);
@@ -1165,7 +1171,7 @@ export async function registerRemoteExternalAccount(input: RegisterExternalAccou
     throw new Error("Prefeitura invalida para cadastro externo.");
   }
 
-  const { data, error } = await supabase.rpc("register_external_account", {
+  const { data, error } = await db.rpc("register_external_account", {
     _tenant_id: scopeId,
     _full_name: input.fullName,
     _email: input.email,
@@ -1194,8 +1200,8 @@ export async function registerRemoteOwnerAccount(input: {
   title?: string;
   bio?: string;
 }) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const scopeId = normalizeUuid(input.tenantId);
@@ -1203,7 +1209,7 @@ export async function registerRemoteOwnerAccount(input: {
     throw new Error("Prefeitura invalida para cadastro externo.");
   }
 
-  const { data, error } = await supabase.rpc("register_property_owner_account", {
+  const { data, error } = await db.rpc("register_property_owner_account", {
     _tenant_id: scopeId,
     _full_name: input.fullName,
     _email: input.email,
@@ -1227,12 +1233,12 @@ export async function createRemoteOwnerRequest(input: {
   ownerDocument: string;
   notes?: string;
 }) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Conexão com o banco indisponível.");
   }
 
   if (isNeonBackend) {
-    const { data, error } = await supabase.rpc("create_owner_request", {
+    const { data, error } = await db.rpc("create_owner_request", {
       _process_id: input.processId,
       _professional_id: input.professionalUserId,
       _notes: input.notes || null,
@@ -1255,7 +1261,7 @@ export async function createRemoteOwnerRequest(input: {
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("project_owner_requests")
     .insert({
       process_id: input.processId,
@@ -1292,7 +1298,7 @@ export async function respondRemoteOwnerRequest(input: {
   professionalUserId: string;
   notes?: string;
 }) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Conexão com o banco indisponível.");
   }
 
@@ -1301,7 +1307,7 @@ export async function respondRemoteOwnerRequest(input: {
       throw new Error("Uma solicitação pendente não pode ser usada como resposta.");
     }
 
-    const { data, error } = await supabase.rpc("respond_owner_request", {
+    const { data, error } = await db.rpc("respond_owner_request", {
       _request_id: input.requestId,
       _status: input.status,
       _notes: input.notes || null,
@@ -1339,7 +1345,7 @@ export async function respondRemoteOwnerRequest(input: {
     };
   }
 
-  const { data: requestData, error: requestError } = await supabase
+  const { data: requestData, error: requestError } = await db
     .from("project_owner_requests")
     .update({
       status: input.status,
@@ -1359,7 +1365,7 @@ export async function respondRemoteOwnerRequest(input: {
   let linkData: Record<string, any> | null = null;
 
   if (input.status === "approved") {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("project_owner_links")
       .insert({
         project_id: requestRow.process_id,
@@ -1407,12 +1413,12 @@ export async function setRemoteOwnerChatEnabled(input: {
   enabled: boolean;
   actor: string;
 }) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Conexão com o banco indisponível.");
   }
 
   if (isNeonBackend) {
-    const { data, error } = await supabase.rpc("set_owner_chat_enabled", {
+    const { data, error } = await db.rpc("set_owner_chat_enabled", {
       _link_id: input.linkId,
       _enabled: input.enabled,
     });
@@ -1432,7 +1438,7 @@ export async function setRemoteOwnerChatEnabled(input: {
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("project_owner_links")
     .update({ chat_enabled: input.enabled })
     .eq("id", input.linkId)
@@ -1464,7 +1470,7 @@ export async function createRemoteOwnerMessage(input: {
   message?: string;
   isSystemMessage?: boolean;
 }) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Conexão com o banco indisponível.");
   }
 
@@ -1472,7 +1478,7 @@ export async function createRemoteOwnerMessage(input: {
     if (!input.linkId) {
       throw new Error("Vínculo do chat não encontrado.");
     }
-    const { data, error } = await supabase.rpc("send_owner_message", {
+    const { data, error } = await db.rpc("send_owner_message", {
       _link_id: input.linkId,
       _message: input.message ?? "",
     });
@@ -1494,7 +1500,7 @@ export async function createRemoteOwnerMessage(input: {
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("owner_professional_messages")
     .insert({
       project_id: input.projectId,
@@ -1531,8 +1537,8 @@ export async function createRemoteExternalProcess(
     guidePrefix?: string;
   },
 ) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const scopeId = normalizeUuid(input.tenantId);
@@ -1540,7 +1546,7 @@ export async function createRemoteExternalProcess(
     throw new Error("Escopo municipal invalido para protocolar o processo.");
   }
 
-  const { data, error } = await supabase.rpc("create_external_process", {
+  const { data, error } = await db.rpc("create_external_process", {
     _tenant_id: scopeId,
     _title: input.title,
     _process_type: input.type,
@@ -1593,7 +1599,7 @@ export async function createRemoteExternalProcessV2(
     requestedProtocolNumber?: string | null;
   },
 ) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
 
@@ -1638,7 +1644,7 @@ export async function createRemoteExternalProcessV2(
     })),
   };
 
-  const { data, error } = await supabase.rpc("create_external_process_v2", {
+  const { data, error } = await db.rpc("create_external_process_v2", {
     _tenant_id: scopeId,
     _payload: payload,
     _protocol_prefix: input.protocolPrefix || "PM",
@@ -1666,8 +1672,8 @@ async function callProcessRpc<T = Record<string, unknown>>(
   fn: string,
   args: Record<string, unknown>,
 ): Promise<T> {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
-  const { data, error } = await supabase.rpc(fn, args);
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc(fn, args);
   if (error) throw error;
   return data as T;
 }
@@ -1745,9 +1751,9 @@ export async function returnRemoteProcessDispatch(
 }
 
 export async function removeRemoteProcessMarkerByLabel(processId: string, label: string) {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
+  if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data: rows, error: findError } = await supabase
+  const { data: rows, error: findError } = await db
     .from("process_markers")
     .select("id")
     .eq("process_id", processId)
@@ -1898,9 +1904,9 @@ export async function issueRemoteProcessPaymentGuide(input: {
   guidePrefix?: string;
   dueDate?: string | null;
 }) {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
+  if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data, error } = await supabase.rpc("issue_process_payment_guide", {
+  const { data, error } = await db.rpc("issue_process_payment_guide", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
     _amount: input.amount,
@@ -1916,9 +1922,9 @@ export async function confirmRemoteProcessPaymentGuide(input: {
   processId: string;
   guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
 }) {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
+  if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data, error } = await supabase.rpc("confirm_process_payment_guide", {
+  const { data, error } = await db.rpc("confirm_process_payment_guide", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
   });
@@ -1937,9 +1943,9 @@ export async function reissueRemoteProcessPaymentGuide(input: {
   guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
   dueDate?: string | null;
 }) {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
+  if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data, error } = await supabase.rpc("reissue_process_payment_guide", {
+  const { data, error } = await db.rpc("reissue_process_payment_guide", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
     _due_date: input.dueDate || null,
@@ -1958,13 +1964,13 @@ export async function uploadInstitutionalBrandingAsset(input: {
 }) {
   let scopeId = normalizeUuid(input.tenantId ?? "");
 
-  if (!scopeId && input.subdomain && supabase) {
+  if (!scopeId && input.subdomain && db) {
     const normalized = buildMunicipalitySlug(input.subdomain);
     if (normalized) {
       console.log("[SIGAPRO][R2] Resolvendo municipio por subdomain para upload", {
         subdomain: normalized,
       });
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("municipalities")
         .select("id")
         .eq("subdomain", normalized)
@@ -2110,9 +2116,9 @@ function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingR
 }
 
 export async function loadPlatformBranding(): Promise<PlatformBrandingRecord | null> {
-  if (!supabase) return null;
+  if (!db) return null;
   if (platformBrandingUnavailable) return null;
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("platform_branding")
     .select("*")
     .eq("platform_key", PLATFORM_BRANDING_KEY)
@@ -2144,8 +2150,8 @@ export async function savePlatformBranding(input: {
   publicUrl?: string;
   updatedBy?: string;
 }) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const normalizedObjectKey = input.objectKey?.trim();
@@ -2189,13 +2195,13 @@ export async function savePlatformBranding(input: {
 export async function getMunicipalityBrandingSafe(municipalityId: string) {
   console.log("[DIAGNOSTICO] Buscando branding para:", municipalityId);
 
-  if (!supabase) {
-    console.error("[DIAGNOSTICO] Supabase indisponivel.");
+  if (!db) {
+    console.error("[DIAGNOSTICO] Banco oficial indisponível.");
     return null;
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("municipality_branding")
       .select("*")
       .eq("municipality_id", municipalityId)
@@ -2219,7 +2225,7 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
     if (!data || data.length === 0) {
       console.warn("[DIAGNOSTICO] Nenhum branding encontrado");
 
-      const { data: created, error: createError } = await supabase
+      const { data: created, error: createError } = await db
         .from("municipality_branding")
         .insert([
           {
@@ -2248,7 +2254,7 @@ export async function getMunicipalityBrandingSafe(municipalityId: string) {
 }
 
 export async function saveRemoteProfile(profile: UserProfile) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Conexao com o banco indisponivel.");
   }
 
@@ -2278,7 +2284,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
   };
 
   if (isNeonBackend) {
-    const profileIdResult = await supabase.rpc("current_profile_id");
+    const profileIdResult = await db.rpc("current_profile_id");
     if (profileIdResult.error) {
       throw new Error(profileIdResult.error.message || "Falha ao resolver o perfil autenticado.");
     }
@@ -2292,7 +2298,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from("profiles")
       .update({ ...profileFields, updated_at: new Date().toISOString() })
       .eq("id", profileId);
@@ -2313,7 +2319,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
   let error: { message?: string } | null = null;
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const result = await supabase.from("profiles").upsert(currentPayload, { onConflict: "user_id" });
+    const result = await db.from("profiles").upsert(currentPayload, { onConflict: "user_id" });
     error = result.error;
 
     if (!error) {
@@ -2344,8 +2350,8 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   title?: string;
   accessLevel?: 2 | 3;
 }) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -2357,7 +2363,7 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
     throw new Error("Prefeitura inválida para vincular o administrador.");
   }
 
-  const { data: profileRows, error: profileError } = await supabase
+  const { data: profileRows, error: profileError } = await db
     .from("profiles")
     .select("id, user_id, full_name, email, municipality_id, deleted_at")
     .eq("email", normalizedEmail)
@@ -2413,9 +2419,9 @@ export async function manageRemoteUserAccess(input: {
   accountStatus?: SessionUser["accountStatus"];
   reason?: string;
 }) {
-  if (!supabase) throw new Error("Conexão com o banco indisponível.");
+  if (!db) throw new Error("Conexão com o banco indisponível.");
 
-  const { data, error } = await supabase.rpc("manage_municipal_user_access", {
+  const { data, error } = await db.rpc("manage_municipal_user_access", {
     _user_id: input.userId,
     _municipality_id: input.municipalityId,
     _role_code: input.role ?? null,
@@ -2453,9 +2459,9 @@ export async function linkExistingMunicipalStaff(input: {
   title: string;
   accessLevel: 1 | 2 | 3;
 }) {
-  if (!supabase) throw new Error("Conexão com o banco indisponível.");
+  if (!db) throw new Error("Conexão com o banco indisponível.");
   const email = input.email.trim().toLowerCase();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("profiles")
     .select("id, user_id, municipality_id")
     .eq("email", email)
@@ -2503,8 +2509,8 @@ export async function upsertRemoteInstitution(input: {
   accentColor: string;
   secretariat: string;
 }) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const normalizedName = input.name.trim();
@@ -2586,7 +2592,7 @@ export async function upsertRemoteInstitution(input: {
     throw municipalityError;
   }
 
-  const { error: tenantError } = await supabase.from("tenants").upsert(
+  const { error: tenantError } = await db.from("tenants").upsert(
     {
       id: tenantId,
       legal_name: normalizedName,
@@ -2601,7 +2607,7 @@ export async function upsertRemoteInstitution(input: {
   );
   if (tenantError) throw tenantError;
 
-  const { error: brandingError } = await supabase.from("tenant_branding").upsert(
+  const { error: brandingError } = await db.from("tenant_branding").upsert(
     {
       tenant_id: tenantId,
       primary_color: input.primaryColor,
@@ -2653,8 +2659,8 @@ export async function saveRemoteInstitutionSettings(
     municipalityFields?: Array<"secretariat" | "email" | "phone" | "address" | "site">;
   },
 ) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const remoteTenantId = normalizeUuid(
@@ -2662,7 +2668,7 @@ export async function saveRemoteInstitutionSettings(
   );
   if (!remoteTenantId) {
     console.error(
-      "[SIGAPRO][Supabase] saveRemoteInstitutionSettings: tenantId invalido",
+      "[SIGAPRO][Database] saveRemoteInstitutionSettings: tenantId invalido",
       {
         institutionId: settings.institutionId,
         tenantId: settings.tenantId,
@@ -2671,7 +2677,7 @@ export async function saveRemoteInstitutionSettings(
     throw new Error("Tenant inválido para salvar o branding institucional.");
   }
 
-  console.log("[SIGAPRO][Supabase] Salvando branding institucional", {
+  console.log("[SIGAPRO][Database] Salvando branding institucional", {
     remoteTenantId,
     logoUrl: settings.logoUrl,
     headerLogoUrl: settings.headerLogoUrl,
@@ -2812,7 +2818,7 @@ export async function saveRemoteInstitutionSettings(
   const municipalityUpdateResult = options?.skipMunicipalityUpdate
     ? { data: null, error: null }
     : await withTimeout(
-        (async () => supabase.from("municipalities").update(municipalityUpdatePayload).eq("id", remoteTenantId).select("id").maybeSingle())(),
+        (async () => db.from("municipalities").update(municipalityUpdatePayload).eq("id", remoteTenantId).select("id").maybeSingle())(),
         "municipalities update",
         12000,
       );
@@ -2844,14 +2850,14 @@ export async function saveRemoteInstitutionSettings(
     let lastError: { message?: string } | null = null;
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      const result = await supabase
+      const result = await db
         .from("municipality_branding")
         .upsert(currentPayload, { onConflict: "municipality_id" });
       lastError = result.error;
 
       if (!lastError) {
         console.log(
-          "[SIGAPRO][Supabase] municipality_branding salvo com sucesso",
+          "[SIGAPRO][Database] municipality_branding salvo com sucesso",
           { attempt },
         );
         if (typeof window !== "undefined") {
@@ -2870,7 +2876,7 @@ export async function saveRemoteInstitutionSettings(
       if (!missingColumn || !(missingColumn in currentPayload)) break;
 
       console.warn(
-        "[SIGAPRO][Supabase] Coluna ausente em municipality_branding, removendo e tentando novamente",
+        "[SIGAPRO][Database] Coluna ausente em municipality_branding, removendo e tentando novamente",
         { missingColumn },
       );
       delete currentPayload[missingColumn];
@@ -2915,7 +2921,7 @@ export async function saveRemoteInstitutionSettings(
 
   if (municipalityErrors.length === 0 && !onlyMissingRelations) {
     console.log(
-      "[SIGAPRO][Supabase] Branding salvo com sucesso via municipalities",
+      "[SIGAPRO][Database] Branding salvo com sucesso via municipalities",
       {
         remoteTenantId,
       },
@@ -2926,7 +2932,7 @@ export async function saveRemoteInstitutionSettings(
   if (!onlyMissingRelations) {
     const firstError = municipalityErrors[0];
     const formatted = formatSupabaseError(firstError);
-    console.error("[SIGAPRO][Supabase] Falha ao salvar branding", {
+    console.error("[SIGAPRO][Database] Falha ao salvar branding", {
       remoteTenantId,
       error: formatted,
     });
@@ -2937,7 +2943,7 @@ export async function saveRemoteInstitutionSettings(
   // Fallback: tenant_settings / tenant_branding (schema legado)
   // ------------------------------------------------------------------
   console.warn(
-    "[SIGAPRO][Supabase] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
+    "[SIGAPRO][Database] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
   );
 
   const settingsPayload = {
@@ -3010,7 +3016,7 @@ export async function saveRemoteInstitutionSettings(
       settings.registroProfissionalObrigatorio ?? true,
   };
 
-  const { error: settingsError } = await supabase
+  const { error: settingsError } = await db
     .from("tenant_settings")
     .upsert(settingsPayload, { onConflict: "tenant_id" });
 
@@ -3052,12 +3058,12 @@ export async function saveRemoteInstitutionSettings(
       settings.footerLogoFitMode || settings.logoFitMode || "contain",
   };
 
-  const { error: brandingError } = await supabase
+  const { error: brandingError } = await db
     .from("tenant_branding")
     .upsert(brandingFallbackPayload, { onConflict: "tenant_id" });
 
   if (brandingError && isMissingColumnError(brandingError)) {
-    const { error: legacyBrandingError } = await supabase
+    const { error: legacyBrandingError } = await db
       .from("tenant_branding")
       .upsert(
         {
@@ -3082,7 +3088,7 @@ export async function saveRemoteInstitutionSettings(
 }
 
 export async function upsertRemotePlan(plan: PlanItem) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Supabase indisponível.");
   }
 
@@ -3130,7 +3136,7 @@ export async function upsertRemotePlan(plan: PlanItem) {
 }
 
 export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssignment) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Supabase indisponível.");
   }
 
@@ -3180,11 +3186,11 @@ export type CommercialMaterialPayload = {
 };
 
 export async function saveRemoteCommercialMaterial(material: CommercialMaterialPayload) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
-  const userResult = await supabase.auth.getUser();
+  const userResult = await db.auth.getUser();
   const payload: Record<string, unknown> = {
     created_by: userResult.data.user?.id ?? null,
     plan_ids: material.planIds,
@@ -3206,7 +3212,7 @@ export async function saveRemoteCommercialMaterial(material: CommercialMaterialP
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("commercial_materials")
     .insert(payload)
     .select("id")
@@ -3234,7 +3240,7 @@ export type DemoContactRequestPayload = {
 };
 
 export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
-  if (!supabase) {
+  if (!db) {
     throw new Error("Supabase indisponivel para registrar a solicitacao.");
   }
 
@@ -3254,7 +3260,7 @@ export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
     },
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("demo_contact_requests")
     .insert(payload)
     .select("id")
@@ -3271,11 +3277,11 @@ export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
 }
 
 export async function loadPublicPlansCatalog() {
-  if (!supabase) {
+  if (!db) {
     return [] as PlanItem[];
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("plans")
     .select("*")
     .eq("is_public", true)
