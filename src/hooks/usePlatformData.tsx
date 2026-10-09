@@ -121,7 +121,7 @@ interface PlatformDataState {
     subdomain: string;
     primaryColor: string;
     accentColor: string;
-  }, options?: { skipRemoteSync?: boolean }) => Institution;
+  }) => Institution;
   saveInstitutionSettings: (settings: InstitutionSettings, options?: { skipRemoteSync?: boolean }) => Promise<void>;
   getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
   upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
@@ -522,14 +522,6 @@ function readPersistedStore(): PlatformStore | null {
 }
 
 
-function syncRemoteInBackground(label: string, operation: () => Promise<unknown>) {
-  if (!hasSupabaseEnv || !supabase) return;
-  void operation().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[SIGAPRO][Persistencia] ${label} ficou salvo localmente e pendente no remoto.`, { message });
-  });
-}
-
 function syncStore(store: PlatformStore) {
   if (typeof window === "undefined") {
     return;
@@ -736,7 +728,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
-    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
+    const upsertInstitution: PlatformDataState["upsertInstitution"] = (input) => {
       const tenantId = input.institutionId ?? `tenant-${crypto.randomUUID()}`;
       const existing = store.tenants.find((item) => item.id === tenantId);
 
@@ -833,23 +825,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return { ...current, tenants, tenantSettings };
       });
-
-      if (!options?.skipRemoteSync) {
-        syncRemoteInBackground("prefeitura", () =>
-          upsertRemoteInstitution({
-            institutionId: tenantId,
-            name: input.name,
-            city: input.city,
-            state: input.state,
-            status: input.status,
-            subdomain: input.subdomain,
-            cnpj: store.tenantSettings.find((item) => item.tenantId === tenantId)?.cnpj ?? "",
-            primaryColor: input.primaryColor,
-            accentColor: input.accentColor,
-            secretariat: store.tenantSettings.find((item) => item.tenantId === tenantId)?.secretariaResponsavel ?? "",
-          }),
-        );
-      }
 
       return nextTenant;
     };
