@@ -233,7 +233,7 @@ async function resolveMunicipalityRecordByHost(params: {
 
   // 1) Tentativa exata
   for (const candidate of list) {
-    const result = await supabase
+    const result = await backendClient
       .from("municipalities")
       .select("*")
       .or(`custom_domain.eq.${candidate},subdomain.eq.${candidate},slug.eq.${candidate}`)
@@ -251,7 +251,7 @@ async function resolveMunicipalityRecordByHost(params: {
 
   // 2) Tentativa flexível (ilike)
   for (const candidate of list) {
-    const result = await supabase
+    const result = await backendClient
       .from("municipalities")
       .select("*")
       .or(buildSubdomainOrFilter(candidate))
@@ -298,7 +298,7 @@ function getDevMunicipalityEnv() {
 
 async function fetchMunicipalityByName(name: string) {
   if (!hasBackendEnv || !backendClient || !name.trim()) return null;
-  const result = await supabase
+  const result = await backendClient
     .from("municipalities")
     .select("*")
     .ilike("name", `%${name.trim()}%`)
@@ -323,13 +323,14 @@ async function fetchDefaultMunicipalityRecord(
 
   const normalizedPreferred = (preferredName || "").trim();
   if (normalizedPreferred) {
-    const byName = await supabase
+    const byName = await backendClient
       .from("municipalities")
       .select("*")
       .ilike("name", `%${normalizedPreferred}%`)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
     if (byName.error) {
       if (!isMissingRelationError(byName.error, "public.municipalities")) {
         throw byName.error;
@@ -339,8 +340,11 @@ async function fetchDefaultMunicipalityRecord(
     }
   }
 
-  // Fallback: primeira prefeitura cadastrada
-  const fallback = await supabase
+  // Em produção, ausência de correspondência significa "município não encontrado".
+  // A primeira Prefeitura cadastrada só pode ser usada explicitamente em dev/local.
+  if (!allowFirstFallback) return null;
+
+  const fallback = await backendClient
     .from("municipalities")
     .select("*")
     .order("created_at", { ascending: true })
@@ -348,9 +352,7 @@ async function fetchDefaultMunicipalityRecord(
     .maybeSingle();
 
   if (fallback.error) {
-    if (isMissingRelationError(fallback.error, "public.municipalities")) {
-      return null;
-    }
+    if (isMissingRelationError(fallback.error, "public.municipalities")) return null;
     throw fallback.error;
   }
 
@@ -365,12 +367,12 @@ async function loadBrandingAndSettings(municipalityId: string) {
   if (!backendClient) return { branding: null, settings: null };
 
   const [brandingResult, settingsResult] = await Promise.all([
-    supabase
+    backendClient
       .from("municipality_branding")
       .select("*")
       .eq("municipality_id", municipalityId)
       .maybeSingle(),
-    supabase
+    backendClient
       .from("municipality_settings")
       .select("*")
       .eq("municipality_id", municipalityId)
@@ -673,7 +675,7 @@ export async function resolveCurrentMunicipality(options: {
   }
 
   if (normalizedHost) {
-    const byHost = await supabase
+    const byHost = await backendClient
       .from("municipalities")
       .select("*")
       .or(`custom_domain.ilike.${normalizedHost},slug.ilike.${normalizedHost}`)
@@ -689,7 +691,7 @@ export async function loadMunicipalityBundleByUserId(
 ): Promise<MunicipalityBundle | null> {
   if (!hasBackendEnv || !backendClient || !userId) return null;
 
-  const profileResult = await supabase
+  const profileResult = await backendClient
     .from("profiles")
     .select("municipality_id, updated_at, deleted_at")
     .eq("user_id", userId)
@@ -710,7 +712,7 @@ export async function loadMunicipalityBundleByUserId(
     | undefined;
 
   if (!municipalityId) {
-    const membershipResult = await supabase
+    const membershipResult = await backendClient
       .from("tenant_memberships")
       .select("tenant_id, deleted_at, is_active")
       .eq("user_id", userId)
@@ -736,7 +738,7 @@ export async function loadMunicipalityBundleByUserId(
 
   if (!municipalityId) return null;
 
-  const municipalityResult = await supabase
+  const municipalityResult = await backendClient
     .from("municipalities")
     .select("*")
     .eq("id", municipalityId)
@@ -764,7 +766,7 @@ export async function loadMunicipalityBundleById(
 ): Promise<MunicipalityBundle | null> {
   if (!hasBackendEnv || !backendClient || !municipalityId) return null;
 
-  const municipalityResult = await supabase
+  const municipalityResult = await backendClient
     .from("municipalities")
     .select("*")
     .eq("id", municipalityId)
@@ -798,7 +800,7 @@ export async function loadMunicipalityBundleBySubdomain(
   const candidates = buildSubdomainCandidates(subdomain);
   if (candidates.length === 0) return null;
 
-  let municipalityResult = await supabase
+  let municipalityResult = await backendClient
     .from("municipalities")
     .select("*")
     .or(buildSubdomainOrFilter(candidates[0]))
@@ -806,7 +808,7 @@ export async function loadMunicipalityBundleBySubdomain(
 
   if (!municipalityResult.data && !municipalityResult.error && candidates.length > 1) {
     for (let i = 1; i < candidates.length; i += 1) {
-      municipalityResult = await supabase
+      municipalityResult = await backendClient
         .from("municipalities")
         .select("*")
         .or(buildSubdomainOrFilter(candidates[i]))
@@ -840,7 +842,7 @@ export async function resolveMunicipalityIdBySubdomain(
   const candidates = buildSubdomainCandidates(subdomain);
   if (candidates.length === 0) return null;
 
-  let municipalityResult = await supabase
+  let municipalityResult = await backendClient
     .from("municipalities")
     .select("id, subdomain, slug")
     .or(buildSubdomainOrFilter(candidates[0]))
@@ -852,7 +854,7 @@ export async function resolveMunicipalityIdBySubdomain(
     candidates.length > 1
   ) {
     for (let i = 1; i < candidates.length; i += 1) {
-      municipalityResult = await supabase
+      municipalityResult = await backendClient
         .from("municipalities")
         .select("id, subdomain, slug")
         .or(buildSubdomainOrFilter(candidates[i]))
@@ -877,7 +879,7 @@ export async function resolveMunicipalityIdById(
 ): Promise<string | null> {
   if (!hasBackendEnv || !backendClient || !municipalityId) return null;
 
-  const municipalityResult = await supabase
+  const municipalityResult = await backendClient
     .from("municipalities")
     .select("id")
     .eq("id", municipalityId)
@@ -901,7 +903,7 @@ export async function loadMunicipalityBundleByHostname(
 
   const normalized = hostname.trim().toLowerCase();
 
-  const municipalityResult = await supabase
+  const municipalityResult = await backendClient
     .from("municipalities")
     .select("*")
     .or(`custom_domain.ilike.${normalized},subdomain.ilike.${normalized}`)
@@ -929,7 +931,7 @@ export async function loadMunicipalityCatalog(): Promise<MunicipalityBundle[]> {
 
   const [municipalitiesResult, brandingResult, settingsResult] =
     await Promise.all([
-      supabase
+      backendClient
         .from("municipalities")
         .select("*")
         .order("name", { ascending: true }),
