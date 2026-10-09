@@ -339,9 +339,12 @@ export interface TenantSettings {
   email: string;
   site: string;
   secretariaResponsavel: string;
+  secretariaTelefone?: string;
+  secretariaEmail?: string;
   diretoriaResponsavel: string;
   diretoriaTelefone: string;
   diretoriaEmail: string;
+  footerContactSource?: "secretaria" | "diretoria";
   horarioAtendimento: string;
   brasaoUrl: string;
   bandeiraUrl: string;
@@ -1266,9 +1269,12 @@ export const tenantSettings: TenantSettings[] = [
     email: "planejamento@campolimpopaulista.sp.gov.br",
     site: "https://campolimpopaulista.sp.gov.br",
     secretariaResponsavel: "Secretaria de Planejamento e Obras",
+    secretariaTelefone: "(11) 4000-1000",
+    secretariaEmail: "planejamento@campolimpopaulista.sp.gov.br",
     diretoriaResponsavel: "Diretoria de Aprovação de Projetos",
     diretoriaTelefone: "(11) 4000-1010",
     diretoriaEmail: "diretoria.aprovacao@campolimpopaulista.sp.gov.br",
+    footerContactSource: "diretoria",
     horarioAtendimento: "Segunda a sexta, das 8h as 17h",
     brasaoUrl: "",
     bandeiraUrl: "",

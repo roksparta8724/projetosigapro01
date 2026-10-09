@@ -675,9 +675,19 @@ export async function loadRemotePlatformStore() {
       email: resolveMunicipalityEmail(municipality),
       site: municipality.custom_domain ?? (typeof general.site === "string" ? general.site : ""),
       secretariaResponsavel: municipality.secretariat_name ?? "",
+      secretariaTelefone:
+        typeof general.secretariat_phone === "string"
+          ? general.secretariat_phone
+          : resolveMunicipalityPhone(municipality),
+      secretariaEmail:
+        typeof general.secretariat_email === "string"
+          ? general.secretariat_email
+          : resolveMunicipalityEmail(municipality),
       diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
       diretoriaTelefone: typeof general.directorship_phone === "string" ? general.directorship_phone : "",
       diretoriaEmail: typeof general.directorship_email === "string" ? general.directorship_email : "",
+      footerContactSource:
+        general.footer_contact_source === "secretaria" ? "secretaria" : "diretoria",
       horarioAtendimento: typeof general.office_hours === "string" ? general.office_hours : "",
       brasaoUrl: branding?.coat_of_arms_url ?? "",
       bandeiraUrl: typeof general.bandeira_url === "string" ? general.bandeira_url : "",
@@ -2199,6 +2209,8 @@ export async function saveRemoteInstitutionSettings(
       admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
       postal_code: settings.cep || null,
+      city: options?.municipalityCity?.trim() || null,
+      state: options?.municipalityState?.trim().toUpperCase() || null,
       site: settings.site || null,
       bandeira_url: settings.bandeiraUrl || null,
       imagem_hero_url: settings.imagemHeroUrl || null,
@@ -2206,9 +2218,12 @@ export async function saveRemoteInstitutionSettings(
       resumo_uso_solo: settings.resumoUsoSolo || null,
       leis_complementares: settings.leisComplementares || null,
       link_portal_cliente: settings.linkPortalCliente || null,
+      secretariat_phone: settings.secretariaTelefone || null,
+      secretariat_email: settings.secretariaEmail || null,
       directorship: settings.diretoriaResponsavel || null,
       directorship_phone: settings.diretoriaTelefone || null,
       directorship_email: settings.diretoriaEmail || null,
+      footer_contact_source: settings.footerContactSource || "diretoria",
       office_hours: settings.horarioAtendimento || null,
       pix_key: settings.chavePix || null,
       chave_pix: settings.chavePix || null,
@@ -2272,11 +2287,9 @@ export async function saveRemoteInstitutionSettings(
   if (includeMunicipalityField("secretariat")) municipalityUpdatePayload.secretariat_name = settings.secretariaResponsavel || null;
   if (includeMunicipalityField("email")) {
     municipalityUpdatePayload.email = settings.email || null;
-    municipalityUpdatePayload.contact_email = settings.email || null;
   }
   if (includeMunicipalityField("phone")) {
     municipalityUpdatePayload.phone = settings.telefone || null;
-    municipalityUpdatePayload.contact_phone = settings.telefone || null;
   }
   if (includeMunicipalityField("address")) municipalityUpdatePayload.address = settings.endereco || null;
   if (includeMunicipalityField("site")) municipalityUpdatePayload.custom_domain = settings.site || null;

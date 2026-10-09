@@ -528,9 +528,12 @@ export function ConfiguracoesPage() {
     email: settings?.email ?? "",
     site: settings?.site ?? "",
     secretariaResponsavel: settings?.secretariaResponsavel ?? "",
+    secretariaTelefone: settings?.secretariaTelefone ?? settings?.telefone ?? "",
+    secretariaEmail: settings?.secretariaEmail ?? settings?.email ?? "",
     diretoriaResponsavel: settings?.diretoriaResponsavel ?? "",
     diretoriaTelefone: settings?.diretoriaTelefone ?? "",
     diretoriaEmail: settings?.diretoriaEmail ?? "",
+    footerContactSource: settings?.footerContactSource ?? "diretoria",
     horarioAtendimento: settings?.horarioAtendimento ?? "",
     resumoPlanoDiretor: settings?.resumoPlanoDiretor ?? "",
     resumoUsoSolo: settings?.resumoUsoSolo ?? "",
@@ -770,9 +773,12 @@ export function ConfiguracoesPage() {
       email: nextSettings?.email ?? "",
       site: nextSettings?.site ?? "",
       secretariaResponsavel: nextSettings?.secretariaResponsavel ?? "",
+      secretariaTelefone: nextSettings?.secretariaTelefone ?? nextSettings?.telefone ?? "",
+      secretariaEmail: nextSettings?.secretariaEmail ?? nextSettings?.email ?? "",
       diretoriaResponsavel: nextSettings?.diretoriaResponsavel ?? "",
       diretoriaTelefone: nextSettings?.diretoriaTelefone ?? "",
       diretoriaEmail: nextSettings?.diretoriaEmail ?? "",
+      footerContactSource: nextSettings?.footerContactSource ?? "diretoria",
       horarioAtendimento: nextSettings?.horarioAtendimento ?? "",
       resumoPlanoDiretor: nextSettings?.resumoPlanoDiretor ?? "",
       resumoUsoSolo: nextSettings?.resumoUsoSolo ?? "",
@@ -2180,9 +2186,12 @@ export function ConfiguracoesPage() {
     email: settingsForm.email,
     site: settingsForm.site,
     secretariaResponsavel: settingsForm.secretariaResponsavel,
+    secretariaTelefone: settingsForm.secretariaTelefone,
+    secretariaEmail: settingsForm.secretariaEmail,
     diretoriaResponsavel: settingsForm.diretoriaResponsavel,
     diretoriaTelefone: settingsForm.diretoriaTelefone,
     diretoriaEmail: settingsForm.diretoriaEmail,
+    footerContactSource: settingsForm.footerContactSource,
     horarioAtendimento: settingsForm.horarioAtendimento,
     brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
     bandeiraUrl: bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
@@ -3073,14 +3082,25 @@ export function ConfiguracoesPage() {
                   <Input value={settingsForm.secretariaResponsavel} onChange={(event) => setSettingsField("secretariaResponsavel", event.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Horario de atendimento</Label>
+                  <Label>Horário de atendimento</Label>
                   <Input value={settingsForm.horarioAtendimento} onChange={(event) => setSettingsField("horarioAtendimento", event.target.value)} />
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Diretoria responsavel</Label>
+                  <Label>Telefone da secretaria</Label>
+                  <Input value={settingsForm.secretariaTelefone} onChange={(event) => setSettingsField("secretariaTelefone", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail da secretaria</Label>
+                  <Input value={settingsForm.secretariaEmail} onChange={(event) => setSettingsField("secretariaEmail", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Diretoria responsável</Label>
                   <Input value={settingsForm.diretoriaResponsavel} onChange={(event) => setSettingsField("diretoriaResponsavel", event.target.value)} />
                 </div>
                 <div className="space-y-2">
@@ -3089,9 +3109,29 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>E-mail da diretoria</Label>
-                <Input value={settingsForm.diretoriaEmail} onChange={(event) => setSettingsField("diretoriaEmail", event.target.value)} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>E-mail da diretoria</Label>
+                  <Input value={settingsForm.diretoriaEmail} onChange={(event) => setSettingsField("diretoriaEmail", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contato exibido no rodapé</Label>
+                  <Select
+                    value={settingsForm.footerContactSource}
+                    onValueChange={(value) => setSettingsField("footerContactSource", value as "secretaria" | "diretoria")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha o contato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="diretoria">Diretoria responsável</SelectItem>
+                      <SelectItem value="secretaria">Secretaria responsável</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs leading-5 text-slate-500">
+                    Define qual telefone e e-mail institucionais serão exibidos publicamente no rodapé.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
