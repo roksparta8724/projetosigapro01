@@ -362,7 +362,7 @@ export function MovementHistoryPage() {
             <div className="space-y-3">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{selectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy || selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
                 <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}>Concluir despacho</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
@@ -374,12 +374,12 @@ export function MovementHistoryPage() {
                 <Input value={batchSubject} onChange={(event) => setBatchSubject(event.target.value)} placeholder="Assunto institucional do despacho" className="sig-dispatch-field" />
                 <Select value={batchAssignedTo} onValueChange={(value) => setBatchAssignedTo(value === "__sem_atribuicao__" ? "" : value)}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Responsável de destino" /></SelectTrigger><SelectContent><SelectItem value="__sem_atribuicao__">Sem atribuição imediata</SelectItem>{unitUsers.map((user) => <SelectItem key={user.id} value={user.name}>{user.name} - {user.title}</SelectItem>)}</SelectContent></Select>
                 <Input type="date" value={batchDueDate} onChange={(event) => setBatchDueDate(event.target.value)} className="sig-dispatch-field" />
-                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => void handleBatchDispatch()} disabled={operationBusy} disabled={selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
+                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => void handleBatchDispatch()} disabled={operationBusy || selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                 <Input value={checkpoint} onChange={(event) => setCheckpoint(event.target.value)} placeholder="Definir ponto de controle" className="sig-dispatch-field" />
                 <Input value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Motivo da devolução" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy} disabled={selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy || selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
                 <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy} disabled={selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
