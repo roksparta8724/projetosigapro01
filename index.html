@@ -110,11 +110,13 @@
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-viewport {
-        width: 100%;
-        min-height: 100vh;
-        min-height: 100dvh;
-        transform: translateY(var(--sig-snapshot-scroll-offset, 0px));
-        transform-origin: top left;
+        position: absolute;
+        left: 0;
+        top: var(--sig-snapshot-top, 0px);
+        width: var(--sig-snapshot-viewport-width, 100vw);
+        min-width: var(--sig-snapshot-viewport-width, 100vw);
+        min-height: var(--sig-snapshot-viewport-height, 100vh);
+        transform: none;
       }
     </style>
   </head>
@@ -142,7 +144,9 @@
           var host = document.getElementById("sigapro-refresh-snapshot");
           if (!host) return;
           host.innerHTML = '<div class="sigapro-snapshot-viewport">' + snapshot.html + "</div>";
-          host.style.setProperty("--sig-snapshot-scroll-offset", String(-(snapshot.scrollY || 0)) + "px");
+          host.style.setProperty("--sig-snapshot-top", String(-(snapshot.scrollY || 0)) + "px");
+          host.style.setProperty("--sig-snapshot-viewport-width", String(snapshot.viewportWidth || window.innerWidth) + "px");
+          host.style.setProperty("--sig-snapshot-viewport-height", String(snapshot.viewportHeight || window.innerHeight) + "px");
           host.setAttribute("data-visible", "true");
         } catch (error) {
           try { window.sessionStorage.removeItem("sigapro.visual.snapshot.v1"); } catch (_) {}
