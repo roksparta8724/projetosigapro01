@@ -325,7 +325,9 @@ export async function loadRemotePlatformStore() {
     db.from("roles").select("*"),
     db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
     db.from("properties").select("*"),
-    db.from("payment_guides").select("*").order("created_at", { ascending: false }),
+    isNeonBackend
+      ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
+      : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
     db.from("process_parties").select("*"),
     db.from("process_documents").select("*").order("created_at", { ascending: false }),
     db.from("process_requirements").select("*").order("created_at", { ascending: false }),
