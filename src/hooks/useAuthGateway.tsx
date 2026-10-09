@@ -66,12 +66,22 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
         console.log("[Logout] signOut result");
         if (typeof window !== "undefined") {
           try {
+            const transientKeys = [
+              "sigapro.platform.session.v1",
+              "sigapro-platform-store",
+              "sigapro-platform-store.v2",
+              "sigapro:legacy-process-reconciliation-pending",
+              "sigapro-supabase-auth",
+            ];
+            transientKeys.forEach((key) => localStorage.removeItem(key));
+
             for (let i = localStorage.length - 1; i >= 0; i -= 1) {
               const key = localStorage.key(i);
               if (key && key.startsWith("sb-")) {
                 localStorage.removeItem(key);
               }
             }
+            // Rascunhos sigapro-protocol-draft:* são preservados de propósito.
           } catch {
             // ignore
           }
