@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppBootstrapProvider, useAppBootstrap } from "@/hooks/useAppBootstrap";
@@ -101,7 +101,14 @@ const neonMock = vi.hoisted(() => {
     changeEmail: vi.fn(async () => ({ data: { status: true }, error: null })),
   };
 
-  return { client, accountClient, authUser, profileId, municipalityId };
+  return {
+    client,
+    accountClient,
+    authUser,
+    profileId,
+    municipalityId,
+    emit: (event: string, session: { user: typeof authUser } | null) => listener?.(event, session),
+  };
 });
 
 vi.mock("@/integrations/backend/databaseClient", () => ({
@@ -223,6 +230,31 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(await screen.findByText("signed-in", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
     expect(neonMock.client.auth.signInWithPassword).toHaveBeenCalled();
+  });
+
+  it("preserves a stable authenticated session through a transient SIGNED_OUT event", async () => {
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+
+    neonMock.client.auth.getSession.mockResolvedValue({
+      data: { session: { user: neonMock.authUser } },
+    });
+
+    await act(async () => {
+      neonMock.emit("SIGNED_OUT", null);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
   });
 
   it("uses the Neon password recovery contract with redirect token flow", async () => {
