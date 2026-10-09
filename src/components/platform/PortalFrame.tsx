@@ -263,7 +263,15 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
-  const { loading, institutions, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
+  const {
+    loading,
+    dataError,
+    refreshRemoteStore,
+    institutions,
+    getInstitutionSettings,
+    getUserProfile,
+    processes,
+  } = usePlatformData();
   const { isItemVisible } = useUserMenuPreferences();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -1755,6 +1763,27 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               ) : null}
             </header>
 
+            {dataError && !loading ? (
+              <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Dados oficiais temporariamente indisponíveis</p>
+                    <p className="mt-1 text-sm leading-5 text-amber-800">
+                      O SIGAPRO não está simulando dados locais. Aguarde a reconexão com o banco oficial antes de concluir operações.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0 rounded-full border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                    onClick={() => void refreshRemoteStore().catch(() => undefined)}
+                  >
+                    Tentar novamente
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             {children}
           </div>
         </main>
@@ -1806,11 +1835,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     {tenantSettings?.endereco || "Endereço não informado"}
                   </p>
                   <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {municipality?.name
-                      ? `${municipality.name}${municipality.state ? ` / ${municipality.state}` : ""}`
-                      : "city" in (activeInstitution ?? {}) && activeInstitution?.city
-                        ? `${activeInstitution.city}${activeInstitution?.state ? ` / ${activeInstitution.state}` : ""}`
-                        : "Campo Limpo Paulista / SP"}
+                    {institutionFooterCity}
+                    {(municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : undefined))
+                      ? ` / ${municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : "")}`
+                      : ""}
                   </p>
                 </div>
               </div>
@@ -1822,12 +1850,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <div className="space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Contato</p>
                   <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
-                    {tenantSettings?.telefone || "Telefone não informado"}
+                    {institutionFooterPhone}
                   </p>
                   <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
                     <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-fit-copy block text-[#D6E7F4]" title={tenantSettings?.email || "E-mail não informado"}>
-                      {tenantSettings?.email || "E-mail não informado"}
+                    <span className="sig-fit-copy block text-[#D6E7F4]" title={institutionFooterEmail}>
+                      {institutionFooterEmail}
                     </span>
                   </div>
                 </div>
