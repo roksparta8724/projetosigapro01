@@ -53,7 +53,7 @@ function getMissingColumnName(error: unknown) {
   return match?.[1] ?? null;
 }
 
-function formatSupabaseError(error: unknown) {
+function formatDatabaseError(error: unknown) {
   if (!error || typeof error !== "object") return "Erro desconhecido do banco oficial.";
   const message =
     "message" in error && typeof error.message === "string" ? error.message : "";
@@ -2519,15 +2519,15 @@ export async function upsertRemoteInstitution(input: {
   const normalizedSubdomain = buildMunicipalitySlug(input.subdomain);
 
   if (!normalizedName) {
-    throw new Error("O nome da prefeitura é obrigatório para sincronizar com o Supabase.");
+    throw new Error("O nome da prefeitura é obrigatório para sincronizar com o banco oficial.");
   }
 
   if (!normalizedCity) {
-    throw new Error("A cidade da prefeitura é obrigatória para sincronizar com o Supabase.");
+    throw new Error("A cidade da prefeitura é obrigatória para sincronizar com o banco oficial.");
   }
 
   if (!normalizedState) {
-    throw new Error("O estado da prefeitura é obrigatório para sincronizar com o Supabase.");
+    throw new Error("O estado da prefeitura é obrigatório para sincronizar com o banco oficial.");
   }
 
   const tenantId = normalizeUuid(input.institutionId ?? input.tenantId) ?? crypto.randomUUID();
@@ -2826,7 +2826,7 @@ export async function saveRemoteInstitutionSettings(
     throw new Error("Prefeitura não encontrada ou sem permissão para atualizar seus dados institucionais.");
   }
   if (municipalityUpdateResult.error && !isMissingRelationError(municipalityUpdateResult.error, "public.municipalities")) {
-    throw new Error(formatSupabaseError(municipalityUpdateResult.error));
+    throw new Error(formatDatabaseError(municipalityUpdateResult.error));
   }
 
   const municipalitySettingsResult = options?.skipMunicipalitySettings
@@ -2931,7 +2931,7 @@ export async function saveRemoteInstitutionSettings(
 
   if (!onlyMissingRelations) {
     const firstError = municipalityErrors[0];
-    const formatted = formatSupabaseError(firstError);
+    const formatted = formatDatabaseError(firstError);
     console.error("[SIGAPRO][Database] Falha ao salvar branding", {
       remoteTenantId,
       error: formatted,
@@ -3089,7 +3089,7 @@ export async function saveRemoteInstitutionSettings(
 
 export async function upsertRemotePlan(plan: PlanItem) {
   if (!db) {
-    throw new Error("Supabase indisponível.");
+    throw new Error("Banco oficial indisponível.");
   }
 
   const payload: Record<string, unknown> = {
@@ -3137,7 +3137,7 @@ export async function upsertRemotePlan(plan: PlanItem) {
 
 export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssignment) {
   if (!db) {
-    throw new Error("Supabase indisponível.");
+    throw new Error("Banco oficial indisponível.");
   }
 
   const payload: Record<string, unknown> = {
@@ -3241,7 +3241,7 @@ export type DemoContactRequestPayload = {
 
 export async function saveDemoContactRequest(input: DemoContactRequestPayload) {
   if (!db) {
-    throw new Error("Supabase indisponivel para registrar a solicitacao.");
+    throw new Error("banco oficial indisponivel para registrar a solicitacao.");
   }
 
   const payload = {
