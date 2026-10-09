@@ -38,15 +38,15 @@ function assertEnv() {
   }
 }
 
-function buildPublicUrl(bucket: string, objectKey: string) {
+function buildPublicUrl(_bucket: string, objectKey: string) {
   const base = readEnvValue("R2_PUBLIC_BASE_URL");
   if (base) {
     return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
   }
-  const account = readEnvValue("R2_ACCOUNT_ID");
-  if (account) {
-    return `https://${bucket}.${account}.r2.cloudflarestorage.com/${objectKey.replace(/^\/+/, "")}`;
-  }
+
+  // Cloudflare R2 S3 endpoints are private API endpoints, not public asset URLs.
+  // When no public base URL is configured, callers must persist objectKey/filePath
+  // and request a signed GET URL when the asset is displayed.
   return "";
 }
 
