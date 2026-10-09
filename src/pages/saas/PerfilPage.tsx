@@ -123,23 +123,6 @@ function isRenderablePreviewUrl(value?: string | null) {
   );
 }
 
-type AvatarCropMetrics = {
-  frameWidth: number;
-  frameHeight: number;
-  naturalWidth: number;
-  naturalHeight: number;
-  baseScale: number;
-  minScale: number;
-  maxScale: number;
-};
-
-function buildAvatarImageStyle(scale: number, offsetX: number, offsetY: number) {
-  return {
-    transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-    transformOrigin: "center center",
-  } as const;
-}
-
 function loadImageElement(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new window.Image();
@@ -149,57 +132,6 @@ function loadImageElement(src: string) {
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("Não foi possível carregar a imagem para recorte."));
     image.src = src;
-  });
-}
-
-async function createCroppedAvatarFile(input: {
-  sourceUrl: string;
-  fileName: string;
-  mimeType?: string;
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-  metrics: AvatarCropMetrics;
-  outputSize?: number;
-}) {
-  const outputSize = input.outputSize ?? 512;
-  const image = await loadImageElement(input.sourceUrl);
-  const canvas = document.createElement("canvas");
-  canvas.width = outputSize;
-  canvas.height = outputSize;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Não foi possível preparar o recorte da imagem.");
-  }
-
-  const coverScale = Math.max(outputSize / image.naturalWidth, outputSize / image.naturalHeight);
-  const renderScale = coverScale * input.scale;
-  const renderWidth = image.naturalWidth * renderScale;
-  const renderHeight = image.naturalHeight * renderScale;
-  const outputOffsetX = input.offsetX * (outputSize / Math.max(input.metrics.frameWidth, 1));
-  const outputOffsetY = input.offsetY * (outputSize / Math.max(input.metrics.frameHeight, 1));
-  const x = outputSize / 2 - renderWidth / 2 + outputOffsetX;
-  const y = outputSize / 2 - renderHeight / 2 + outputOffsetY;
-
-  context.clearRect(0, 0, outputSize, outputSize);
-  context.drawImage(image, x, y, renderWidth, renderHeight);
-
-  const baseName = input.fileName.replace(/\.[^.]+$/, "") || "avatar";
-  const mimeType = input.mimeType === "image/png" ? "image/png" : "image/webp";
-  const extension = mimeType === "image/png" ? "png" : "webp";
-
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((result) => resolve(result), mimeType, 0.92);
-  });
-
-  if (!blob) {
-    throw new Error("Não foi possível gerar a versão final do avatar.");
-  }
-
-  return new File([blob], `${baseName}-avatar.${extension}`, {
-    type: mimeType,
-    lastModified: Date.now(),
   });
 }
 
@@ -301,7 +233,6 @@ export function PerfilPage() {
   const [accountStatus, setAccountStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
-  const [avatarCropMetrics, setAvatarCropMetrics] = useState<AvatarCropMetrics | null>(null);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
   const hydratedDraftRef = useRef(false);
@@ -634,7 +565,6 @@ export function PerfilPage() {
     const nextFile = files[0];
     if (!nextFile) {
       setAvatarFiles([]);
-      setAvatarCropMetrics(null);
       setForm((current) => ({
         ...current,
         avatarUrl: "",
@@ -657,7 +587,6 @@ export function PerfilPage() {
 
     setStatus("");
     setAvatarFiles(files.slice(0, 1));
-    setAvatarCropMetrics(null);
     setForm((current) => ({
       ...current,
       avatarScale: 1,
@@ -1054,48 +983,6 @@ export function PerfilPage() {
       let avatarOffsetX = form.avatarOffsetX;
       let avatarOffsetY = form.avatarOffsetY;
 
-      const avatarSourceUrl = avatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      if (avatarSourceUrl && avatarCropMetrics) {
-        try {
-          const croppedAvatarFile = await createCroppedAvatarFile({
-            sourceUrl: avatarSourceUrl,
-            fileName: avatarFiles[0]?.fileName || "foto-perfil",
-            mimeType: avatarFiles[0]?.file?.type,
-            scale: form.avatarScale,
-            offsetX: form.avatarOffsetX,
-            offsetY: form.avatarOffsetY,
-            metrics: avatarCropMetrics,
-          });
-
-          if (avatarObjectUrlRef.current) {
-            URL.revokeObjectURL(avatarObjectUrlRef.current);
-          }
-
-          const croppedPreviewUrl = URL.createObjectURL(croppedAvatarFile);
-          avatarObjectUrlRef.current = croppedPreviewUrl;
-
-          setAvatarFiles([
-            {
-              id: `avatar-cropped-${crypto.randomUUID()}`,
-              fileName: croppedAvatarFile.name,
-              mimeType: croppedAvatarFile.type,
-              sizeLabel: `${Math.max(1, Math.round(croppedAvatarFile.size / 1024))} KB`,
-              previewUrl: croppedPreviewUrl,
-              file: croppedAvatarFile,
-            },
-          ]);
-
-          avatarUploadFile = croppedAvatarFile;
-          avatarUrl = croppedPreviewUrl;
-          avatarScale = 1;
-          avatarOffsetX = 0;
-          avatarOffsetY = 0;
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Não foi possível preparar a foto recortada.");
-          return;
-        }
-      }
-
       if (avatarUploadFile) {
         try {
           const uploaded = await uploadFileToStorage({
@@ -1109,9 +996,6 @@ export function PerfilPage() {
             throw new Error("Configure a URL publica do R2 antes de salvar a foto.");
           }
           avatarUrl = uploaded.publicUrl;
-          avatarScale = 1;
-          avatarOffsetX = 0;
-          avatarOffsetY = 0;
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
           return;
@@ -1185,8 +1069,13 @@ export function PerfilPage() {
   ] as const;
 
   const avatarPreviewUrl = avatarFiles[0]?.previewUrl || form.avatarUrl || "";
-  const avatarPreviewImageStyle = useMemo(
-    () => buildAvatarImageStyle(form.avatarScale, form.avatarOffsetX, form.avatarOffsetY),
+  const avatarPreviewCrop = useMemo(
+    () => ({
+      scale: form.avatarScale,
+      offsetX: form.avatarOffsetX,
+      offsetY: form.avatarOffsetY,
+      editorSize: 320,
+    }),
     [form.avatarOffsetX, form.avatarOffsetY, form.avatarScale],
   );
 
@@ -1556,7 +1445,7 @@ export function PerfilPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
-                    <p className="mt-1 text-sm text-slate-500">A foto centraliza automaticamente, preenche o quadro e mantém zoom proporcional sem deformar.</p>
+                    <p className="mt-1 text-sm text-slate-500">A foto começa no enquadramento original, sem esticar nem aproximar. Depois você ajusta zoom e posição como preferir.</p>
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
                     <ImageFrameEditor
@@ -1565,10 +1454,10 @@ export function PerfilPage() {
                       offsetX={form.avatarOffsetX}
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
-                      onMetricsChange={setAvatarCropMetrics}
                       label="Foto do perfil"
-                      hint="Arraste para reposicionar, use o zoom para ajustar e mantenha o rosto bem enquadrado."
-                      fitMode="cover"
+                      hint="A imagem começa natural. Use o zoom somente se quiser aproximar e arraste para reposicionar."
+                      fitMode="contain"
+                      minScale={1}
                       shape="circle"
                       viewportClassName="h-[320px] w-[320px] max-w-full"
                       wrapperClassName="border-slate-200 bg-white"
@@ -1583,7 +1472,7 @@ export function PerfilPage() {
                           name={form.fullName || session.name}
                           imageUrl={avatarPreviewUrl}
                           size="xl"
-                          imageStyle={avatarPreviewImageStyle}
+                          crop={avatarPreviewCrop}
                         />
                         <div className="min-w-0">
                           <p className="truncate text-base font-semibold text-slate-950" title={form.fullName || session.name}>
@@ -1605,7 +1494,7 @@ export function PerfilPage() {
                             imageUrl={avatarPreviewUrl}
                             size="md"
                             className="border-white/20 bg-white/10"
-                            imageStyle={avatarPreviewImageStyle}
+                            crop={avatarPreviewCrop}
                             fallbackClassName="!bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
                           />
                         </div>
@@ -1613,7 +1502,7 @@ export function PerfilPage() {
                       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                         <p className="text-sm font-semibold text-slate-950">Enquadramento premium</p>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                          O recorte final é salvo em alta definição, já otimizado para o avatar da conta.
+                          A imagem original é preservada em alta definição; o enquadramento fica salvo separadamente e pode ser reajustado depois.
                         </p>
                       </div>
                     </div>
