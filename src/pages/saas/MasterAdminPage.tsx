@@ -83,7 +83,7 @@ const withTimeout = async <T,>(promise: Promise<T>, ms = 20000) => {
   let timeoutId: number | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = window.setTimeout(() => {
-      reject(new Error("Tempo limite ao salvar. Verifique a conexão com o Supabase."));
+      reject(new Error("Tempo limite ao salvar. Verifique a conexão com o banco oficial."));
     }, ms);
   });
 
@@ -111,13 +111,13 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
 };
 const pendingSyncStorageKey = "sigapro:pending-tenant-sync";
 const ensureSupabaseAvailable = async () => {
-  if (!supabase) throw new Error("Supabase indisponível.");
+  if (!supabase) throw new Error("Banco oficial indisponível.");
   const { error } = await withTimeout(
     supabase.from("municipalities").select("id").limit(1),
     8000,
   );
   if (error) {
-    throw new Error(error.message || "Falha ao conectar no Supabase.");
+    throw new Error(error.message || "Falha ao conectar no banco oficial.");
   }
 };
 
@@ -230,7 +230,7 @@ export function MasterAdminPage() {
     return [
       { id: "suspended", title: "Contas suspensas", description: suspendedCount > 0 ? `${suspendedCount} prefeitura${suspendedCount > 1 ? "s" : ""} com status suspenso.` : "Nenhuma Prefeitura suspensa no momento.", tone: suspendedCount > 0 ? ("danger" as const) : ("success" as const) },
       { id: "without-admin", title: "Gestão sem administrador", description: withoutAdmin > 0 ? `${withoutAdmin} prefeitura${withoutAdmin > 1 ? "s" : ""} sem administrador principal vinculado.` : "Todas as prefeituras possuem gestor principal.", tone: withoutAdmin > 0 ? ("warning" as const) : ("success" as const) },
-      { id: "environment", title: "Ambiente da plataforma", description: hasSupabaseEnv ? "Supabase conectado e sincronização remota ativa." : "Modo local ativo para homologação e simulação.", tone: hasSupabaseEnv ? ("success" as const) : ("default" as const) },
+      { id: "environment", title: "Ambiente da plataforma", description: hasSupabaseEnv ? "Neon conectado e persistência oficial ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasSupabaseEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
 
@@ -326,7 +326,7 @@ export function MasterAdminPage() {
   };
   const handleRetryRemoteSync = async () => {
     if (!pendingSync || !hasSupabaseEnv) return;
-    setStatusMessage("Tentando sincronizar com o Supabase...");
+    setStatusMessage("Tentando sincronizar com o banco oficial...");
     try {
       await ensureSupabaseAvailable();
       const remoteInstitution = await withRetry(() =>
@@ -374,10 +374,10 @@ export function MasterAdminPage() {
       setStatusMessage(
         unresolvedAdminEmails.length > 0
           ? `Sincronização concluída. Os contatos ${unresolvedAdminEmails.join(", ")} foram mantidos no cadastro e aguardam conta existente para vínculo automático.`
-          : "Sincronização concluída com o Supabase.",
+          : "Sincronização concluída com o banco oficial.",
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao sincronizar com o Supabase.";
+      const message = error instanceof Error ? error.message : "Falha ao sincronizar com o banco oficial.";
       setStatusMessage(`Sincronização pendente: ${message}`);
     }
   };
@@ -438,7 +438,7 @@ export function MasterAdminPage() {
         try {
           await ensureSupabaseAvailable();
         } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Supabase indisponível no momento.";
+          remoteSyncError = error instanceof Error ? error.message : "Banco oficial indisponível no momento.";
         }
       }
 
@@ -462,7 +462,7 @@ export function MasterAdminPage() {
           );
           savedTenant = upsertInstitution({ institutionId: remoteInstitution.id, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
         } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar com o Supabase.";
+          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar com o banco oficial.";
         }
       }
 
@@ -489,7 +489,7 @@ export function MasterAdminPage() {
             }
           }
         } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar configurações no Supabase.";
+          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar configurações no banco oficial.";
         }
       }
 
@@ -746,7 +746,7 @@ export function MasterAdminPage() {
                     ) : null}
                     {pendingSync ? (
                       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                        <span>Sincronização pendente com o Supabase.</span>
+                        <span>Sincronização pendente com o banco oficial.</span>
                         <Button type="button" variant="outline" className="h-9 rounded-full px-4 text-xs" onClick={handleRetryRemoteSync}>
                           Tentar sincronizar agora
                         </Button>
@@ -1010,7 +1010,7 @@ export function MasterAdminPage() {
                       <Workflow className="h-4 w-4 text-sky-200" />
                       Sincronização
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasSupabaseEnv ? "Supabase conectado para contas, branding e persistência comercial." : "Ambiente local em modo de demonstração para validação da operação."}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasSupabaseEnv ? "Neon conectado para contas, branding e persistência comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
                   </div>
                 </div>
               </SectionCard>
