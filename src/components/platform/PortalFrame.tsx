@@ -63,7 +63,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, desktopThemePresets, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { can, desktopThemePresets, getProcessPaymentGuides, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
@@ -425,10 +425,19 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const recentMarkerEntries = useMemo(() => bookmarkedMarkers.slice(0, 6), [bookmarkedMarkers]);
   const selectedMarkerColorLabel =
     MARKER_COLOR_OPTIONS.find((option) => option.value === markerColor)?.label ?? "Cor personalizada";
-  const notificationCount = visibleTenantProcesses.reduce(
-    (count, process) => count + (process.messages?.length ?? 0) + (process.dispatches?.length ?? 0),
-    0,
-  );
+  const notificationCount = visibleTenantProcesses.reduce((count, process) => {
+    const pendingRequirements = process.requirements.filter(
+      (item) => item.status === "aberta" || item.status === "respondida",
+    ).length;
+    const awaitingDispatches = process.dispatches.filter(
+      (item) => item.status === "aguardando",
+    ).length;
+    const pendingGuides = getProcessPaymentGuides(process, tenantSettings).filter(
+      (guide) => guide.status === "pendente",
+    ).length;
+
+    return count + pendingRequirements + awaitingDispatches + pendingGuides;
+  }, 0);
 
   const globalSearchItems = useMemo(() => {
     const items: {
