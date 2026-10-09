@@ -94,119 +94,62 @@
         min-height: 100dvh;
       }
 
-      #sigapro-boot-shell {
+      #sigapro-refresh-snapshot {
         display: none;
       }
 
-      html[data-sigapro-internal="true"][data-sigapro-booting="true"] #sigapro-boot-shell {
-        display: grid;
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] {
+        display: block;
         position: fixed;
         inset: 0;
         z-index: 2147483646;
-        grid-template-columns: 138px 1fr;
-        grid-template-rows: 68px 1fr;
-        background: #f3faf7;
-        pointer-events: none;
-      }
-
-      .sig-boot-topbar {
-        grid-column: 1 / -1;
-        background: #1f4f70;
-        border-bottom: 1px solid rgba(255,255,255,.12);
-        display: flex;
-        align-items: center;
-        padding: 0 20px;
-        gap: 12px;
-      }
-
-      .sig-boot-logo {
-        width: 84px;
-        height: 28px;
-        border-radius: 8px;
-        background: rgba(255,255,255,.94);
-      }
-
-      .sig-boot-topbar-fill {
-        margin-left: auto;
-        width: 245px;
-        height: 38px;
-        border-radius: 14px;
-        background: rgba(255,255,255,.12);
-      }
-
-      .sig-boot-sidebar {
-        background: #123f62;
-        padding: 18px 12px;
-      }
-
-      .sig-boot-side-line {
-        height: 44px;
-        border-radius: 14px;
-        margin-bottom: 10px;
-        background: rgba(255,255,255,.09);
-      }
-
-      .sig-boot-side-line.active {
-        background: rgba(96,165,250,.34);
-      }
-
-      .sig-boot-main {
-        padding: 22px;
         overflow: hidden;
+        background: var(--sig-initial-bg, #f3faf7);
+        pointer-events: none;
+        contain: layout paint style;
       }
 
-      .sig-boot-banner {
-        height: 116px;
-        border-radius: 22px;
-        background: #164667;
-        margin-bottom: 18px;
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-viewport {
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        transform: translateY(var(--sig-snapshot-scroll-offset, 0px));
+        transform-origin: top left;
       }
-
-      .sig-boot-card {
-        height: 86px;
-        border-radius: 18px;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 10px 28px rgba(15,23,42,.05);
-        margin-bottom: 16px;
-      }
-
-      .sig-boot-card.large {
-        height: 220px;
-      }
-
-      @media (max-width: 767px) {
-        html[data-sigapro-internal="true"][data-sigapro-booting="true"] #sigapro-boot-shell {
-          grid-template-columns: 1fr;
-          grid-template-rows: 60px 1fr;
-        }
-        .sig-boot-sidebar { display: none; }
-        .sig-boot-main { padding: 14px; }
       }
     </style>
   </head>
 
   <body>
-    <div id="sigapro-boot-shell" aria-hidden="true">
-      <div class="sig-boot-topbar">
-        <div class="sig-boot-logo"></div>
-        <div class="sig-boot-topbar-fill"></div>
-      </div>
-      <aside class="sig-boot-sidebar">
-        <div class="sig-boot-side-line"></div>
-        <div class="sig-boot-side-line active"></div>
-        <div class="sig-boot-side-line"></div>
-        <div class="sig-boot-side-line"></div>
-        <div class="sig-boot-side-line"></div>
-        <div class="sig-boot-side-line"></div>
-      </aside>
-      <main class="sig-boot-main">
-        <div class="sig-boot-banner"></div>
-        <div class="sig-boot-card"></div>
-        <div class="sig-boot-card large"></div>
-      </main>
-    </div>
+    <div id="sigapro-refresh-snapshot" aria-hidden="true"></div>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var key = "sigapro.visual.snapshot.v1";
+          var raw = window.sessionStorage.getItem(key);
+          if (!raw) return;
+          var snapshot = JSON.parse(raw);
+          var now = Date.now();
+          var valid =
+            snapshot &&
+            snapshot.host === window.location.host &&
+            snapshot.path === window.location.pathname &&
+            typeof snapshot.html === "string" &&
+            snapshot.html.length > 500 &&
+            typeof snapshot.savedAt === "number" &&
+            now - snapshot.savedAt < 120000;
+          if (!valid) return;
+          var host = document.getElementById("sigapro-refresh-snapshot");
+          if (!host) return;
+          host.innerHTML = '<div class="sigapro-snapshot-viewport">' + snapshot.html + "</div>";
+          host.style.setProperty("--sig-snapshot-scroll-offset", String(-(snapshot.scrollY || 0)) + "px");
+          host.setAttribute("data-visible", "true");
+        } catch (error) {
+          try { window.sessionStorage.removeItem("sigapro.visual.snapshot.v1"); } catch (_) {}
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
