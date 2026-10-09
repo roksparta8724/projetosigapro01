@@ -116,7 +116,7 @@ export function ImageFrameEditor({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; pointerId?: number } | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
-  const [naturalSize, setNaturalSize] = useState({ width: 1, height: 1 });
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [stableImageUrl, setStableImageUrl] = useState<string>(imageUrl);
 
   const effectiveMinScale = fitMode === "cover" ? Math.max(minScale ?? 1, 1) : minScale ?? DEFAULT_MIN_SCALE;
@@ -130,6 +130,7 @@ export function ImageFrameEditor({
 
   useEffect(() => {
     if (!stableImageUrl) return;
+    setNaturalSize({ width: 0, height: 0 });
     const image = new window.Image();
     image.onload = () => {
       setNaturalSize({
@@ -405,7 +406,7 @@ export function ImageFrameEditor({
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,rgba(15,23,42,0.08)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05)_0%,transparent_18%,transparent_82%,rgba(15,23,42,0.05)_100%)]" />
-            {stableImageUrl && isRenderableUrl(stableImageUrl) ? (
+            {stableImageUrl && isRenderableUrl(stableImageUrl) && naturalSize.width > 0 && naturalSize.height > 0 ? (
               <div
                 className="pointer-events-none absolute left-1/2 top-1/2"
                 style={{
