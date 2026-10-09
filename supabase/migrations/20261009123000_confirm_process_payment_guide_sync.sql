@@ -79,6 +79,16 @@ begin
              when _guide_kind='protocolo' then 'concluido'
              else triage_status
            end,
+         current_department=
+           case
+             when _guide_kind in ('protocolo','iss_obra') then 'Análise Técnica'
+             else 'Processo concluído'
+           end,
+         current_queue=
+           case
+             when _guide_kind in ('protocolo','iss_obra') then 'Análise Técnica'
+             else 'Concluído'
+           end,
          sla_stage=
            case
              when _guide_kind='protocolo' then 'analise tecnica'
