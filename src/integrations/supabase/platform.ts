@@ -243,8 +243,26 @@ function roleToAccessLevel(role: string): 1 | 2 | 3 {
 function normalizeStoredRole(role: string | null | undefined): SessionUser["role"] {
   if (role === "admin_master" || role === "master") return "master_admin";
   if (role === "admin_municipality" || role === "admin_prefeitura") return "prefeitura_admin";
+  if (role === "secretario" || role === "diretor") return "prefeitura_supervisor";
   if (role === "profissional" || role === "professional") return "profissional_externo";
-  return (role || "profissional_externo") as SessionUser["role"];
+
+  const supportedRoles: SessionUser["role"][] = [
+    "master_admin",
+    "master_ops",
+    "prefeitura_admin",
+    "prefeitura_supervisor",
+    "analista",
+    "financeiro",
+    "setor_intersetorial",
+    "fiscal",
+    "profissional_externo",
+    "property_owner",
+    "proprietario_consulta",
+  ];
+
+  return supportedRoles.includes(role as SessionUser["role"])
+    ? (role as SessionUser["role"])
+    : "profissional_externo";
 }
 
 function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
