@@ -1,11 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 
-type R2UploadRequest = {
-  bucket: string;
-  objectKey: string;
-  contentType: string;
-};
-
 export type R2UploadResult = {
   bucket: string;
   objectKey: string;
@@ -53,60 +47,6 @@ export function getObjectKeyFromPublicUrl(publicUrl: string) {
   } catch {
     return "";
   }
-}
-
-async function requestPresign(input: R2UploadRequest) {
-  const response = await fetch(buildApiUrl("/api/r2-presign"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(await getAuthorizationHeaders()),
-    },
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    const message = payload?.error || "Falha ao gerar link de upload.";
-    throw new Error(message);
-  }
-
-  return response.json() as Promise<{
-    uploadUrl: string;
-    publicUrl: string;
-    bucket: string;
-    objectKey: string;
-  }>;
-}
-
-export async function uploadToR2(input: {
-  bucket: string;
-  objectKey: string;
-  file: File;
-}) {
-  const { uploadUrl, publicUrl, bucket, objectKey } = await requestPresign({
-    bucket: input.bucket,
-    objectKey: input.objectKey,
-    contentType: input.file.type || "application/octet-stream",
-  });
-
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": input.file.type || "application/octet-stream",
-    },
-    body: input.file,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error("Falha ao enviar o arquivo para o storage.");
-  }
-
-  return {
-    bucket,
-    objectKey,
-    publicUrl,
-  } satisfies R2UploadResult;
 }
 
 async function requestSignedUrl(path: string, input: { bucket: string; objectKey: string; expiresIn?: number }) {
