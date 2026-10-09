@@ -1627,6 +1627,167 @@ export async function createRemoteExternalProcessV2(
 }
 
 
+
+async function callProcessRpc<T = Record<string, unknown>>(
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  if (!supabase) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw error;
+  return data as T;
+}
+
+export async function createRemoteProcessDispatch(input: {
+  processId: string;
+  from: string;
+  to: string;
+  subject: string;
+  dueAt?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+  priority?: "baixa" | "media" | "alta" | "critica";
+  assignedTo?: string | null;
+}) {
+  return callProcessRpc("create_process_dispatch", {
+    _process_id: input.processId,
+    _from_department: input.from,
+    _to_department: input.to,
+    _subject: input.subject,
+    _due_at: input.dueAt || null,
+    _visibility: input.visibility || "interno",
+    _priority: input.priority || "media",
+    _assigned_to: input.assignedTo || null,
+  });
+}
+
+export async function createRemoteProcessRequirement(input: {
+  processId: string;
+  title: string;
+  description: string;
+  dueAt?: string | null;
+  targetName?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+}) {
+  return callProcessRpc("create_process_requirement", {
+    _process_id: input.processId,
+    _title: input.title,
+    _description: input.description,
+    _due_at: input.dueAt || null,
+    _target_name: input.targetName || null,
+    _visibility: input.visibility || "misto",
+  });
+}
+
+export async function respondRemoteProcessRequirement(requirementId: string, response: string) {
+  return callProcessRpc("respond_process_requirement", {
+    _requirement_id: requirementId,
+    _response: response,
+  });
+}
+
+export async function completeRemoteProcessRequirement(requirementId: string) {
+  return callProcessRpc("complete_process_requirement", {
+    _requirement_id: requirementId,
+  });
+}
+
+export async function reviewRemoteProcessDocument(documentId: string, status: "aprovado" | "rejeitado") {
+  return callProcessRpc("review_process_document", {
+    _document_id: documentId,
+    _status: status,
+  });
+}
+
+export async function annotateRemoteProcessDocument(input: {
+  documentId: string;
+  x: number;
+  y: number;
+  note: string;
+}) {
+  return callProcessRpc("add_process_document_annotation", {
+    _document_id: input.documentId,
+    _x: input.x,
+    _y: input.y,
+    _note: input.note,
+  });
+}
+
+export async function sendRemoteProcessMessage(input: {
+  processId: string;
+  audience: "interno" | "externo" | "misto";
+  recipientName?: string | null;
+  message: string;
+}) {
+  return callProcessRpc("send_process_message", {
+    _process_id: input.processId,
+    _audience: input.audience,
+    _recipient_name: input.recipientName || null,
+    _message: input.message,
+  });
+}
+
+export async function reopenRemoteProcess(processId: string, reason: string) {
+  return callProcessRpc("reopen_process", {
+    _process_id: processId,
+    _reason: reason,
+  });
+}
+
+export async function setRemoteProcessStatus(input: {
+  processId: string;
+  status: string;
+  detail: string;
+  title?: string | null;
+}) {
+  return callProcessRpc("set_process_status", {
+    _process_id: input.processId,
+    _status_text: input.status,
+    _detail: input.detail,
+    _title: input.title || null,
+  });
+}
+
+export async function setRemoteProcessCheckpoint(processId: string, checkpoint: string) {
+  return callProcessRpc("set_process_checkpoint", {
+    _process_id: processId,
+    _checkpoint: checkpoint,
+  });
+}
+
+export async function setRemoteProcessHold(input: {
+  processId: string;
+  onHold: boolean;
+  reason?: string | null;
+}) {
+  return callProcessRpc("set_process_hold", {
+    _process_id: input.processId,
+    _on_hold: input.onHold,
+    _reason: input.reason || null,
+  });
+}
+
+export async function setRemoteProcessTransitVisibility(
+  processId: string,
+  visibility: "completo" | "restrito",
+) {
+  return callProcessRpc("set_process_transit_visibility", {
+    _process_id: processId,
+    _visibility: visibility,
+  });
+}
+
+export async function upsertRemoteProcessMarker(
+  processId: string,
+  label: string,
+  color: string,
+) {
+  return callProcessRpc("upsert_process_marker", {
+    _process_id: processId,
+    _label: label,
+    _color: color,
+  });
+}
+
 export async function issueRemoteProcessPaymentGuide(input: {
   processId: string;
   guideKind: "iss_obra" | "aprovacao_final";
