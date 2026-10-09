@@ -73,7 +73,7 @@ export function UserAvatar({
         <AvatarImage
           src={imageUrl ?? undefined}
           alt={name || "Usuario"}
-          className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
+          className={cn("sig-user-avatar-image h-full w-full", crop ? "object-contain bg-white" : "object-cover", imageClassName)}
           style={resolvedImageStyle}
           onError={() => setImageFailed(true)}
         />
