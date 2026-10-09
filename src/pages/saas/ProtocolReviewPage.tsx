@@ -14,7 +14,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { createRemoteExternalProcessV2 } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
   clearProtocolDraft,
   getProtocolFlowBasePath,
@@ -107,7 +107,7 @@ export function ProtocolReviewPage() {
         }
       | undefined;
 
-    if (hasSupabaseEnv && supabase) {
+    if (hasBackendEnv) {
       try {
         documents = await Promise.all(
           documents.map(async (document) => {
