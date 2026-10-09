@@ -375,15 +375,18 @@ export async function loadRemotePlatformStore() {
     console.warn("SIGAPRO: falha ao carregar tenant_memberships.", membershipsResult.error);
   }
 
+  const tolerateLegacyMissing = (error: unknown, relation: string) =>
+    !isNeonBackend && isMissingRelationError(error, relation) ? null : error;
+
   const errors = [
     profilesResult.error,
     membershipsResult.error,
-    isMissingRelationError(tenantsResult.error, "public.tenants") ? null : tenantsResult.error,
-    isMissingRelationError(brandingResult.error, "public.tenant_branding") ? null : brandingResult.error,
-    isMissingRelationError(settingsResult.error, "public.tenant_settings") ? null : settingsResult.error,
-    isMissingRelationError(municipalitiesResult.error, "public.municipalities") ? null : municipalitiesResult.error,
-    isMissingRelationError(municipalityBrandingResult.error, "public.municipality_branding") ? null : municipalityBrandingResult.error,
-    isMissingRelationError(municipalitySettingsResult.error, "public.municipality_settings") ? null : municipalitySettingsResult.error,
+    tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
+    tolerateLegacyMissing(brandingResult.error, "public.tenant_branding"),
+    tolerateLegacyMissing(settingsResult.error, "public.tenant_settings"),
+    tolerateLegacyMissing(municipalitiesResult.error, "public.municipalities"),
+    tolerateLegacyMissing(municipalityBrandingResult.error, "public.municipality_branding"),
+    tolerateLegacyMissing(municipalitySettingsResult.error, "public.municipality_settings"),
     rolesResult.error,
     processesResult.error,
     propertiesResult.error,
@@ -397,15 +400,11 @@ export async function loadRemotePlatformStore() {
     dispatchesResult.error,
     processMessagesResult.error,
     markersResult.error,
-    isMissingRelationError(ownerRequestsResult.error, "public.project_owner_requests") ? null : ownerRequestsResult.error,
-    isMissingRelationError(ownerLinksResult.error, "public.project_owner_links") ? null : ownerLinksResult.error,
-    isMissingRelationError(ownerMessagesResult.error, "public.owner_professional_messages")
-      ? null
-      : ownerMessagesResult.error,
-    isMissingRelationError(plansResult.error, "public.plans") ? null : plansResult.error,
-    isMissingRelationError(planAssignmentsResult.error, "public.client_plan_assignments")
-      ? null
-      : planAssignmentsResult.error,
+    tolerateLegacyMissing(ownerRequestsResult.error, "public.project_owner_requests"),
+    tolerateLegacyMissing(ownerLinksResult.error, "public.project_owner_links"),
+    tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
+    tolerateLegacyMissing(plansResult.error, "public.plans"),
+    tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
   ].filter(Boolean);
 
   if (errors.length > 0) {
