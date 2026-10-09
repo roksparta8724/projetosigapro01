@@ -31,7 +31,6 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
-import { saveRemoteProfile } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
@@ -546,14 +545,23 @@ export function PerfilPage() {
     };
 
     setForm((current) => ({ ...current, ...mergedProfile }));
-    void saveUserProfile(mergedProfile).catch((error) => {
-      console.error("[SIGAPRO][Perfil] Falha ao persistir dados iniciais reaproveitados", error);
-    });
-
-    delete allDrafts[session.email.trim().toLowerCase()];
-    window.localStorage.setItem(SIGNUP_DRAFTS_KEY, JSON.stringify(allDrafts));
     hydratedDraftRef.current = true;
-    setStatus("Dados iniciais do cadastro reaproveitados automaticamente no perfil.");
+
+    void (async () => {
+      try {
+        await saveUserProfile(mergedProfile);
+        delete allDrafts[session.email.trim().toLowerCase()];
+        window.localStorage.setItem(SIGNUP_DRAFTS_KEY, JSON.stringify(allDrafts));
+        setStatus("Dados iniciais do cadastro reaproveitados e salvos no banco oficial.");
+      } catch (error) {
+        console.error("[SIGAPRO][Perfil] Falha ao persistir dados iniciais reaproveitados", error);
+        setStatus(
+          error instanceof Error
+            ? `Não foi possível salvar os dados iniciais no banco oficial: ${error.message}`
+            : "Não foi possível salvar os dados iniciais no banco oficial.",
+        );
+      }
+    })();
   }, [profile, saveUserProfile, session.email, session.id, session.name]);
 
   const setField = (field: keyof typeof form, value: string) => {
@@ -1052,6 +1060,12 @@ export function PerfilPage() {
         avatarOffsetY,
       }));
       setStatus((current) => current || "Perfil atualizado com sucesso.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? `Não foi possível salvar o perfil no banco oficial: ${error.message}`
+          : "Não foi possível salvar o perfil no banco oficial.",
+      );
     } finally {
       setSaving(false);
     }
