@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenantSettings } from "@/lib/platform";
 import { buildTenantSettingsFromMunicipality, type Municipality, type MunicipalitySettings } from "@/lib/municipality";
-import { saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/supabase/platform";
+import { saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/backend/platform";
 
 const municipalityId = "49dac0b6-6352-4744-9aab-9ff91c59d970";
 const db = vi.hoisted(() => ({
@@ -9,8 +9,8 @@ const db = vi.hoisted(() => ({
   municipalityRow: { id: "49dac0b6-6352-4744-9aab-9ff91c59d970" } as { id: string } | null,
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
+vi.mock("@/integrations/backend/databaseClient", () => ({
+  databaseClient: {
     from: (table: string) => ({
       update: (payload: Record<string, unknown>) => {
         db.calls.push({ table, method: "update", payload });
@@ -28,6 +28,8 @@ vi.mock("@/integrations/supabase/client", () => ({
       },
     }),
   },
+  hasDatabaseEnv: true,
+  hasBackendEnv: true,
 }));
 
 describe("municipal settings persistence", () => {
