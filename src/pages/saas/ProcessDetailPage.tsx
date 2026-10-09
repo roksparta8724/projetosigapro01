@@ -268,7 +268,9 @@ export function ProcessDetailPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
-  const protocolGuide = paymentGuides[0];
+  const protocolGuide = paymentGuides.find((guide) => guide.kind === "protocolo");
+  const issGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
+  const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
