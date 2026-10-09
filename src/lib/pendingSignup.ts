@@ -1,4 +1,9 @@
-import type { User } from "@supabase/supabase-js";
+export type AuthUserLike = {
+  id?: string | null;
+  email?: string | null;
+  app_metadata?: Record<string, unknown> | null;
+  user_metadata?: Record<string, unknown> | null;
+};
 
 export type PendingSignup = {
   tenantId: string;
@@ -26,7 +31,7 @@ export type PendingSignup = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function readPendingSignup(
-  user: Pick<User, "email" | "user_metadata">,
+  user: Pick<AuthUserLike, "email" | "user_metadata">,
   existingRole: string | null,
   existingMunicipalityId: string | null,
 ): PendingSignup | null {
