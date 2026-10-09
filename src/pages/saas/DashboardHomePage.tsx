@@ -411,6 +411,8 @@ export function DashboardHomePage() {
     0,
   );
   const totalGuides = displayProcesses.reduce((sum, process) => sum + processGuides(process).length, 0);
+  const displayGuides = displayProcesses.flatMap((process) => processGuides(process));
+  const tenantGuides = tenantProcesses.flatMap((process) => processGuides(process));
   const averageTimelineDepth =
     displayProcesses.length === 0
       ? 0
@@ -436,12 +438,11 @@ export function DashboardHomePage() {
     };
   }, [institutions, sessionUsers.length, getInstitutionSettings]);
 
-  const financeMetrics = useMemo(() => {
-    const pending = tenantProcesses.filter((process) => process.status === "pagamento_pendente").length;
-    const confirmed = tenantProcesses.filter((process) => process.status === "pagamento_confirmado").length;
-    const issued = tenantProcesses.filter((process) => process.status === "guia_emitida").length;
-    return { pending, confirmed, issued };
-  }, [tenantProcesses]);
+  const financeMetrics = {
+    pending: tenantGuides.filter((guide) => guide.status === "pendente").length,
+    confirmed: tenantGuides.filter((guide) => guide.status === "compensada").length,
+    issued: tenantGuides.length,
+  };
 
   const analystMetrics = useMemo(() => {
     const inReview = tenantProcesses.filter((process) => process.status === "analise_tecnica").length;
@@ -475,15 +476,10 @@ export function DashboardHomePage() {
       ].filter((item) => item.total > 0),
     [scopedUsers.length, activeUsers, blockedUsers],
   );
-  const financeSituationChart = useMemo(
-    () =>
-      [
-        { label: "Pendentes", total: displayProcesses.filter((process) => process.status === "pagamento_pendente").length },
-        { label: "Emitidas", total: displayProcesses.filter((process) => process.status === "guia_emitida").length },
-        { label: "Compensadas", total: displayProcesses.filter((process) => process.status === "pagamento_confirmado").length },
-      ].filter((item) => item.total > 0),
-    [displayProcesses],
-  );
+  const financeSituationChart = [
+    { label: "Pendentes", total: displayGuides.filter((guide) => guide.status === "pendente").length },
+    { label: "Compensadas", total: displayGuides.filter((guide) => guide.status === "compensada").length },
+  ].filter((item) => item.total > 0);
 
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
 
