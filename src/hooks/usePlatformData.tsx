@@ -135,9 +135,9 @@ interface PlatformDataState {
   createInstitutionUser: (input: InstitutionUserInput) => SessionUser;
   createInstitutionProcess: (input: CreateInstitutionProcessInput) => ProcessRecord;
   getInstitutionPlanAssignment: (institutionId: string | null | undefined) => ClientPlanAssignment | undefined;
-  upsertPlan: (plan: PlanItem) => PlanItem;
-  duplicatePlan: (planId: string) => PlanItem | null;
-  saveClientPlanAssignment: (assignment: Omit<ClientPlanAssignment, "id" | "createdAt" | "updatedAt"> & { id?: string }) => ClientPlanAssignment;
+  upsertPlan: (plan: PlanItem) => Promise<PlanItem>;
+  duplicatePlan: (planId: string) => Promise<PlanItem | null>;
+  saveClientPlanAssignment: (assignment: Omit<ClientPlanAssignment, "id" | "createdAt" | "updatedAt"> & { id?: string }) => Promise<ClientPlanAssignment>;
   createOwnerRequest: (input: {
     processId: string;
     ownerUserId: string;
@@ -392,9 +392,9 @@ const demoState: PlatformDataState = {
   removeInstitution: () => undefined,
   createInstitutionUser: () => defaultStore.sessionUsers[0],
   createInstitutionProcess: () => defaultStore.processes[0],
-  upsertPlan: () => defaultStore.plans[0],
-  duplicatePlan: () => defaultStore.plans[0],
-  saveClientPlanAssignment: () => defaultStore.planAssignments[0],
+  upsertPlan: async () => defaultStore.plans[0],
+  duplicatePlan: async () => defaultStore.plans[0],
+  saveClientPlanAssignment: async () => defaultStore.planAssignments[0],
   createOwnerRequest: async () => ({ request: null, error: "Operacao indisponivel." }),
   respondOwnerRequest: async () => null,
   setOwnerChatEnabled: async () => null,
@@ -1274,11 +1274,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return createdProcess;
     };
 
-    const upsertPlan: PlatformDataState["upsertPlan"] = (plan) => {
+    const upsertPlan: PlatformDataState["upsertPlan"] = async (plan) => {
       const nextPlan: PlanItem = {
         ...plan,
         updatedAt: new Date().toISOString(),
       };
+
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível para salvar o plano.");
+      }
+
+      await upsertRemotePlan(nextPlan);
 
       updateStore((current) => {
         const plans = current.plans.some((item) => item.id === nextPlan.id)
@@ -1287,16 +1293,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return {
           ...current,
-          plans: [...plans].sort((left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR")),
+          plans: [...plans].sort(
+            (left, right) =>
+              left.displayOrder - right.displayOrder ||
+              left.name.localeCompare(right.name, "pt-BR"),
+          ),
         };
       });
-
-      syncRemoteInBackground("plano comercial", () => upsertRemotePlan(nextPlan));
 
       return nextPlan;
     };
 
-    const duplicatePlan: PlatformDataState["duplicatePlan"] = (planId) => {
+    const duplicatePlan: PlatformDataState["duplicatePlan"] = async (planId) => {
       const sourcePlan = store.plans.find((item) => item.id === planId);
       if (!sourcePlan) return null;
 
@@ -1311,19 +1319,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         updatedAt: new Date().toISOString(),
       };
 
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível para duplicar o plano.");
+      }
+
+      await upsertRemotePlan(duplicate);
+
       updateStore((current) => ({
         ...current,
         plans: [...current.plans, duplicate].sort(
-          (left, right) => left.displayOrder - right.displayOrder || left.name.localeCompare(right.name, "pt-BR"),
+          (left, right) =>
+            left.displayOrder - right.displayOrder ||
+            left.name.localeCompare(right.name, "pt-BR"),
         ),
       }));
-
-      syncRemoteInBackground("plano duplicado", () => upsertRemotePlan(duplicate));
 
       return duplicate;
     };
 
-    const saveClientPlanAssignment: PlatformDataState["saveClientPlanAssignment"] = (assignment) => {
+    const saveClientPlanAssignment: PlatformDataState["saveClientPlanAssignment"] = async (assignment) => {
       const now = new Date().toISOString();
       const nextAssignment: ClientPlanAssignment = {
         ...assignment,
@@ -1334,11 +1348,24 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         updatedAt: now,
       };
 
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível para salvar o vínculo comercial.");
+      }
+
+      await saveRemoteClientPlanAssignment(nextAssignment);
+
       updateStore((current) => {
         const linkedPlan = current.plans.find((item) => item.id === nextAssignment.planId);
         const planAssignments = current.planAssignments.some((item) => item.id === nextAssignment.id)
-          ? current.planAssignments.map((item) => (item.id === nextAssignment.id ? nextAssignment : item))
-          : [nextAssignment, ...current.planAssignments.filter((item) => item.municipalityId !== nextAssignment.municipalityId)];
+          ? current.planAssignments.map((item) =>
+              item.id === nextAssignment.id ? nextAssignment : item,
+            )
+          : [
+              nextAssignment,
+              ...current.planAssignments.filter(
+                (item) => item.municipalityId !== nextAssignment.municipalityId,
+              ),
+            ];
         const tenants = current.tenants.map((tenant) =>
           tenant.id === nextAssignment.municipalityId
             ? { ...tenant, plan: linkedPlan?.name ?? tenant.plan }
@@ -1347,8 +1374,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         return { ...current, planAssignments, tenants };
       });
-
-      syncRemoteInBackground("vinculo comercial", () => saveRemoteClientPlanAssignment(nextAssignment));
 
       return nextAssignment;
     };
