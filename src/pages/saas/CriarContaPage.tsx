@@ -24,8 +24,6 @@ import {
   type UserRole,
 } from "@/lib/platform";
 
-const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
-
 function normalizeInstitutionFingerprint(name: string, city?: string | null) {
   const base = `${name} ${city ?? ""}`
     .normalize("NFD")
@@ -304,21 +302,6 @@ export function CriarContaPage() {
       bio: form.bio,
     };
 
-    const saveSignupDraft = () => {
-      try {
-        const existingDraftsRaw = window.localStorage.getItem(SIGNUP_DRAFTS_KEY);
-        const existingDrafts = existingDraftsRaw
-          ? (JSON.parse(existingDraftsRaw) as Record<string, typeof draftProfile>)
-          : {};
-        window.localStorage.setItem(
-          SIGNUP_DRAFTS_KEY,
-          JSON.stringify({ ...existingDrafts, [normalizedEmail]: draftProfile }),
-        );
-      } catch {
-        // A conta pode ser criada mesmo quando o armazenamento local estiver indisponível.
-      }
-    };
-
     if (!hasBackendEnv || !backendClient) {
       setSubmitting(false);
       setError("Serviço de autenticação indisponível. Nenhuma conta foi criada.");
@@ -326,16 +309,16 @@ export function CriarContaPage() {
     }
 
     const emailRedirectTo =
-          typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
-        const { data, error: signUpError } = await backendClient.auth.signUp({
+      typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
+    const { data, error: signUpError } = await backendClient.auth.signUp({
           email: normalizedEmail,
           password: form.password,
-          options: {
-            emailRedirectTo,
-            data: {
-              role: form.role,
-              tenant_id: form.tenantId,
-            full_name: form.fullName,
+      options: {
+        emailRedirectTo,
+        data: {
+          role: form.role,
+          tenant_id: form.tenantId,
+          full_name: form.fullName,
             phone: form.phone,
             cpf_cnpj: cpf,
             rg: form.rg,
@@ -370,8 +353,6 @@ export function CriarContaPage() {
         setError("Não foi possível concluir o cadastro no serviço de autenticação.");
         return;
       }
-
-      saveSignupDraft();
 
       if (data.session) {
         try {
