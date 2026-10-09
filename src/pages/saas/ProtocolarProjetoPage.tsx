@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcess, registerRemoteExternalAccount } from "@/integrations/supabase/platform";
+import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/supabase/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
@@ -354,7 +354,7 @@ export function ProtocolarProjetoPage() {
           }),
         );
 
-        const remoteProcess = await createRemoteExternalProcess({
+        const remoteProcess = await createRemoteExternalProcessV2({
           tenantId: effectiveScopeId,
           createdBy: session.id,
           title: form.titulo,
@@ -376,6 +376,14 @@ export function ProtocolarProjetoPage() {
           },
           documents,
           guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
+          protocolPrefix: tenantSettings?.protocoloPrefixo || "PM",
+          remote: {
+            processId: "",
+            protocol: "",
+            guideNumber: "",
+            amount: tenantSettings?.taxaProtocolo ?? 35.24,
+            dueDate: "",
+          },
         });
 
         const issuedAt = new Date().toISOString();
