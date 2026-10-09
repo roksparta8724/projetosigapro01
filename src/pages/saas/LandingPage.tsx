@@ -293,7 +293,7 @@ export function LandingPage() {
     value: { label: "Participacao", color: "#60a5fa" },
   };
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-900 [font-family:Inter,sans-serif]">
+    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
       <LandingHeader navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
       <LandingDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
@@ -301,15 +301,15 @@ export function LandingPage() {
       <main className="overflow-hidden">
         <section
           id="hero"
-          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#f9fbfe_0%,#eef3f9_56%,#f5f7fb_100%)] pt-32 sm:pt-36"
+          className="relative overflow-hidden border-b border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_58%,#ffffff_100%)] pt-28 sm:pt-32"
         >
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_42%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.06),transparent_30%)]" />
-            <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
+            <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_8%_0%,rgba(15,61,93,0.10),transparent_36%),radial-gradient(circle_at_92%_8%,rgba(16,185,129,0.08),transparent_28%)]" />
+            <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:96px_96px]" />
           </div>
 
-          <div className="relative mx-auto max-w-[1660px] px-4 pb-14 sm:px-6 lg:px-7 lg:pb-18 xl:px-8 2xl:px-10">
-            <div className="grid gap-7 xl:grid-cols-[minmax(0,0.96fr)_minmax(620px,1.04fr)] xl:items-stretch xl:gap-8 2xl:gap-10">
+          <div className="relative mx-auto max-w-[1660px] px-4 pb-10 sm:px-6 lg:px-7 lg:pb-14 xl:px-8 2xl:px-10">
+            <div className="grid gap-7 xl:grid-cols-[minmax(0,0.96fr)_minmax(620px,1.04fr)] xl:items-start xl:gap-8 2xl:gap-10">
               <LandingReveal className="min-w-0 max-w-[780px] pt-2 sm:pt-3 xl:h-full">
                 <div className="flex h-full flex-col">
                   <div>
@@ -362,7 +362,7 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 xl:mt-auto xl:pt-5">
+                  <div className="mt-6">
                     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(188px,1fr))]">
                       {heroExecutiveMetrics.map((item) => (
                         <div key={item.label} className="flex min-h-[146px] min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white/94 px-4.5 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
@@ -458,7 +458,7 @@ export function LandingPage() {
                         </div>
                       </aside>
 
-                      <div className="min-w-0 bg-[#f8fafc] p-4 sm:p-5">
+                      <div className="min-w-0 bg-[#f7f7f5] p-4 sm:p-5">
                         <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
                           <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-700">Financeiro da Prefeitura</p>
@@ -708,7 +708,7 @@ export function LandingPage() {
 
         <section
           id="como-funciona"
-          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fd_100%)] py-18 sm:py-22 lg:py-24"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f7f7f5_100%)] py-14 sm:py-16 lg:py-18"
         >
           <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
@@ -745,7 +745,7 @@ export function LandingPage() {
 
         <section
           id="beneficios"
-          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f2f6fb_100%)] py-20 sm:py-24 lg:py-28"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] py-14 sm:py-16 lg:py-20"
         >
           <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
@@ -780,7 +780,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="modulos" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
+        <section id="modulos" className="scroll-mt-28 py-14 sm:py-16 lg:py-20">
           <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
               eyebrow="Modulos e recursos"
@@ -816,7 +816,7 @@ export function LandingPage() {
 
         <section
           id="perfis"
-          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f7faff_0%,#edf3f9_100%)] py-20 sm:py-24 lg:py-28"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc_0%,#f4f4f1_100%)] py-14 sm:py-16 lg:py-20"
         >
           <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
@@ -879,7 +879,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="py-20 sm:py-24 lg:py-28">
+        <section className="py-14 sm:py-16 lg:py-20">
           <div className="mx-auto grid max-w-[1580px] gap-8 px-4 sm:px-6 xl:grid-cols-[minmax(360px,0.86fr)_minmax(0,1.14fr)] xl:items-center lg:px-7 xl:px-8 2xl:px-10">
             <LandingReveal>
               <div className="max-w-[620px]">
@@ -968,7 +968,7 @@ export function LandingPage() {
 
         <section
           id="diferenciais"
-          className="scroll-mt-28 border-y border-slate-200/80 bg-white/88 py-20 sm:py-24 lg:py-28"
+          className="scroll-mt-28 border-y border-slate-200/80 bg-[#f8f8f6] py-14 sm:py-16 lg:py-20"
         >
           <div className="mx-auto max-w-[1580px] px-4 sm:px-6 lg:px-7 xl:px-8 2xl:px-10">
             <LandingSectionTitle
@@ -1007,7 +1007,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="faq" className="scroll-mt-28 py-20 sm:py-24 lg:py-28">
+        <section id="faq" className="scroll-mt-28 py-14 sm:py-16 lg:py-20">
           <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-7">
             <LandingSectionTitle
               eyebrow="Perguntas frequentes"
@@ -1024,7 +1024,7 @@ export function LandingPage() {
 
         <section
           id="contato"
-          className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#162238_100%)] py-20 text-white sm:py-24 lg:py-28"
+          className="scroll-mt-28 border-t border-slate-200 bg-[linear-gradient(135deg,#0b1f33_0%,#123f62_58%,#0d2f49_100%)] py-16 text-white sm:py-18 lg:py-20"
         >
           <div className="mx-auto grid max-w-[1580px] gap-8 px-4 sm:px-6 xl:grid-cols-[minmax(360px,1fr)_minmax(0,1fr)] xl:items-center lg:px-7 xl:px-8 2xl:px-10">
             <LandingReveal>
