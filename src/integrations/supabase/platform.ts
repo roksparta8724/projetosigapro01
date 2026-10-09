@@ -938,6 +938,7 @@ export async function loadRemotePlatformStore() {
         block: property?.block ?? "",
         area: Number(property?.area_m2 ?? 0),
         usage: property?.usage_type ?? "",
+        constructionStandard: property?.construction_standard ?? "",
       },
       triage: {
         status: (process.triage_status ?? "recebido") as ProcessRecord["triage"]["status"],
@@ -971,6 +972,7 @@ export async function loadRemotePlatformStore() {
           version: document.version ?? 1,
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
           fileName: document.file_name ?? undefined,
+          filePath: document.file_path ?? undefined,
           mimeType: document.mime_type ?? undefined,
           sizeLabel: document.size_label ?? undefined,
           previewUrl: document.preview_url ?? undefined,
