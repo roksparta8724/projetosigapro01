@@ -95,13 +95,14 @@ vi.mock("@/lib/tenant", () => ({
     isLocalhost: false,
   }),
 }));
-vi.mock("@/integrations/supabase/municipality", () => ({
+vi.mock("@/integrations/backend/municipality", () => ({
   loadCurrentMunicipalityBundle: vi.fn(async () => ({ municipality: { id: authMock.hostMunicipalityId } })),
   loadMunicipalityBundleById: vi.fn(),
 }));
-vi.mock("@/integrations/supabase/platform", () => ({
+vi.mock("@/integrations/backend/platform", () => ({
   registerRemoteExternalAccount: registrationMock.external,
   registerRemoteOwnerAccount: registrationMock.owner,
+  saveRemoteProfile: vi.fn(async () => undefined),
 }));
 
 function LoginProbe() {
@@ -131,7 +132,7 @@ describe("AppBootstrapProvider login", () => {
     authMock.setProfile("master_admin", null);
   });
 
-  it("does not await Supabase calls inside the auth callback", async () => {
+  it("does not await database calls inside the auth callback", async () => {
     render(
       <AppBootstrapProvider>
         <LoginProbe />
