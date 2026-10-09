@@ -122,7 +122,7 @@ vi.mock("@/lib/tenant", () => ({
     isLocalhost: false,
   }),
 }));
-vi.mock("@/integrations/supabase/municipality", () => ({
+vi.mock("@/integrations/backend/municipality", () => ({
   loadCurrentMunicipalityBundle: vi.fn(async () => null),
   loadMunicipalityBundleById: vi.fn(async (id: string) => ({
     municipality: { id },
@@ -130,7 +130,7 @@ vi.mock("@/integrations/supabase/municipality", () => ({
     settings: null,
   })),
 }));
-vi.mock("@/integrations/supabase/platform", () => ({
+vi.mock("@/integrations/backend/platform", () => ({
   registerRemoteExternalAccount: vi.fn(),
   registerRemoteOwnerAccount: vi.fn(),
 }));
