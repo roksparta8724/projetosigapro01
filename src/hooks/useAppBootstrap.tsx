@@ -736,6 +736,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return;
           }
           console.warn("[Bootstrap] Sem usuário autenticado");
+          writeBootstrapSnapshot(null);
+          clearPlatformSessionSnapshot();
           const devPreferredName =
             (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) || "";
         if (resolution.mode === "tenant") {
