@@ -577,6 +577,18 @@ function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<S
 }
 
 function getInitialPlatformStoreState() {
+  const localDev = isLocalDevHost();
+
+  // Em produção com backend configurado, nunca inicializa com seeds/demo.
+  // O cache é apenas a última leitura remota conhecida até o Neon responder.
+  if (hasSupabaseEnv && !localDev) {
+    const cachedRemote = readPersistedStore();
+    return {
+      store: cachedRemote ?? buildSanitizedStore({}, false),
+      source: "local" as const,
+    };
+  }
+
   const initialStore = readStore();
   return {
     store: initialStore,
