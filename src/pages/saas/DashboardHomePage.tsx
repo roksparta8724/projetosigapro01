@@ -33,7 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
+import { getProcessPaymentGuides, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
 
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
@@ -395,12 +395,22 @@ export function DashboardHomePage() {
   const completedCount = displayProcesses.filter((process) => completedStatuses.has(process.status)).length;
   const inProgressCount = displayProcesses.length - completedCount;
   const breachedCount = displayProcesses.filter((process) => process.sla.breached).length;
-  const pendingPayments = displayProcesses.filter((process) => process.payment.status === "pendente" && financeStatuses.has(process.status)).length;
+  const processGuides = (process: ProcessRecord) =>
+    getProcessPaymentGuides(
+      process,
+      getInstitutionSettings(process.municipalityId ?? process.tenantId),
+    );
+  const pendingPayments = displayProcesses.filter((process) =>
+    processGuides(process).some((guide) => guide.status === "pendente"),
+  ).length;
   const openRequirements = displayProcesses.filter((process) => getOpenRequirements(process) > 0).length;
   const totalMessages = displayProcesses.reduce((sum, process) => sum + process.messages.length, 0);
   const totalDispatches = displayProcesses.reduce((sum, process) => sum + process.dispatches.length, 0);
-  const paymentVolume = displayProcesses.reduce((sum, process) => sum + Number(process.payment.amount || 0), 0);
-  const totalGuides = displayProcesses.reduce((sum, process) => sum + (process.payment.guides?.length ?? 0), 0);
+  const paymentVolume = displayProcesses.reduce(
+    (sum, process) => sum + processGuides(process).reduce((guideSum, guide) => guideSum + Number(guide.amount || 0), 0),
+    0,
+  );
+  const totalGuides = displayProcesses.reduce((sum, process) => sum + processGuides(process).length, 0);
   const averageTimelineDepth =
     displayProcesses.length === 0
       ? 0
