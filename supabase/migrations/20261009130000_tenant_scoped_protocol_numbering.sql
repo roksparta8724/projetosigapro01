@@ -358,6 +358,9 @@ grant execute on function public.create_external_process_v2(uuid,jsonb,text,text
 -- O RPC v1 não participa mais do fluxo oficial. Mantido apenas para histórico do schema.
 revoke all on function public.create_external_process(
   uuid,text,text,text,text,text,text,text,numeric,text,text,text,text,text,jsonb,text
+) from public;
+revoke all on function public.create_external_process(
+  uuid,text,text,text,text,text,text,text,numeric,text,text,text,text,text,jsonb,text
 ) from authenticated;
 
 -- Estruturas globais antigas, sem consumidores após a migração.
