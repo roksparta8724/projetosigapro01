@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePlatformData } from "@/hooks/usePlatformData";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { loadPublicPlansCatalog } from "@/integrations/supabase/platform";
+import { loadPublicPlansCatalog } from "@/integrations/backend/platform";
 import { planCatalog, type PlanItem } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
@@ -117,7 +116,6 @@ export function PublicPlansPage() {
   const [remotePlans, setRemotePlans] = useState<PlanItem[]>([]);
 
   useEffect(() => {
-    if (!hasSupabaseEnv) return;
     let active = true;
     void loadPublicPlansCatalog()
       .then((items) => {
