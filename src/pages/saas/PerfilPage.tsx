@@ -320,6 +320,32 @@ export function PerfilPage() {
   }, [isMasterRole]);
 
   useEffect(() => {
+    if (!isMasterRole || !platformBranding) return;
+
+    setMasterBranding((current) => {
+      const next = updateMasterBranding(current, {
+        logoAlt: platformBranding.logoAlt || current.logoAlt,
+        logoUpdatedAt: platformBranding.updatedAt || current.logoUpdatedAt,
+        logoUpdatedBy: platformBranding.updatedBy || current.logoUpdatedBy,
+        footerText: platformBranding.footerText || current.footerText,
+        headerLogoScale: platformBranding.headerLogoScale,
+        headerLogoOffsetX: platformBranding.headerLogoOffsetX,
+        headerLogoOffsetY: platformBranding.headerLogoOffsetY,
+        headerLogoFrameMode: platformBranding.headerLogoFrameMode,
+        headerLogoFitMode: platformBranding.headerLogoFitMode,
+        footerLogoScale: platformBranding.footerLogoScale,
+        footerLogoOffsetX: platformBranding.footerLogoOffsetX,
+        footerLogoOffsetY: platformBranding.footerLogoOffsetY,
+        footerLogoFrameMode: platformBranding.footerLogoFrameMode,
+        footerLogoFitMode: platformBranding.footerLogoFitMode,
+      });
+      saveMasterBranding(next);
+      return next;
+    });
+    setMasterFooterText(platformBranding.footerText || "");
+  }, [isMasterRole, platformBranding]);
+
+  useEffect(() => {
     return () => {
       if (avatarObjectUrlRef.current) {
         URL.revokeObjectURL(avatarObjectUrlRef.current);
