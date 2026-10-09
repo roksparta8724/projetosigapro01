@@ -615,8 +615,19 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
-        if (event === "TOKEN_REFRESHED" && authUser?.id && lastAuthUserIdRef.current === authUser.id) {
+        const isSameStableSessionEvent =
+          initializedRef.current &&
+          Boolean(authUser?.id) &&
+          lastAuthUserIdRef.current === authUser?.id &&
+          (event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION");
+
+        // Neon/Supabase podem repetir eventos da MESMA sessão. Não refazer perfil/prefeitura
+        // nem alterar o estado visual quando a identidade já está estável.
+        if (isSameStableSessionEvent) {
           setIsReady(true);
+          setAuthResolved(true);
+          setStage("ready");
+          setLoading(false);
           return;
         }
 
