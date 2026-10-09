@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
@@ -17,6 +17,9 @@ const branding: InstitutionalBranding = {
 };
 
 describe("InstitutionalLogo", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("keeps the entire municipal logo inside a fixed card without crop transforms", () => {
     const { container } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
     const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
@@ -26,13 +29,19 @@ describe("InstitutionalLogo", () => {
     expect(image).not.toHaveStyle({ transform: expect.anything() });
   });
 
-  it("uses a neutral municipal fallback, never the SIGAPRO mark", () => {
+  it("uses a neutral municipal fallback after the hydration guard, never the SIGAPRO mark", () => {
+    vi.useFakeTimers();
     const { rerender } = render(<InstitutionalLogo branding={{ ...branding, logoUrl: "" }} fallbackLabel="Prefeitura A" variant="footer" />);
+
+    // Evita o flash "Prefeitura" durante a hidratação do branding no F5.
+    expect(screen.queryByRole("img", { name: "Prefeitura A" })).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(500));
     expect(screen.getByRole("img", { name: "Prefeitura A" })).toBeInTheDocument();
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
 
     rerender(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="footer" />);
     fireEvent.error(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+    act(() => vi.advanceTimersByTime(500));
     expect(screen.getByRole("img", { name: "Prefeitura A" })).toBeInTheDocument();
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
   });
