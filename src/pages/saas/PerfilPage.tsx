@@ -30,7 +30,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
-import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
@@ -46,49 +46,8 @@ import { getObjectKeyFromPublicUrl, getSignedUrlForObjectStrict } from "@/integr
 import { loadPlatformBranding, savePlatformBranding, uploadPlatformBrandingAsset } from "@/integrations/supabase/platform";
 import type { UserProfile } from "@/lib/platform";
 
-const SIGNUP_DRAFTS_KEY = "sigapro-signup-drafts";
-const PLATFORM_STORE_KEY = "sigapro-platform-store";
-
 function normalizeProfileEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
-}
-
-function normalizeIdentityText(value: string | null | undefined) {
-  return value?.trim().toLowerCase() ?? "";
-}
-
-function resolveStoredUserIdByIdentity(input: {
-  emailCandidates?: Array<string | null | undefined>;
-  nameCandidates?: Array<string | null | undefined>;
-}) {
-  if (typeof window === "undefined") return "";
-
-  try {
-    const raw = window.localStorage.getItem(PLATFORM_STORE_KEY);
-    if (!raw) return "";
-    const parsed = JSON.parse(raw) as {
-      sessionUsers?: Array<{ id?: string | null; email?: string | null; name?: string | null }>;
-    };
-    const users = parsed.sessionUsers ?? [];
-    const emails = new Set(
-      (input.emailCandidates ?? [])
-        .map((value) => normalizeProfileEmail(value))
-        .filter(Boolean),
-    );
-    const names = new Set(
-      (input.nameCandidates ?? [])
-        .map((value) => normalizeIdentityText(value))
-        .filter(Boolean),
-    );
-
-    const byEmail = users.find((user) => user.id && emails.has(normalizeProfileEmail(user.email)));
-    if (byEmail?.id) return byEmail.id;
-
-    const byName = users.find((user) => user.id && names.has(normalizeIdentityText(user.name)));
-    return byName?.id ?? "";
-  } catch {
-    return "";
-  }
 }
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
@@ -234,7 +193,6 @@ export function PerfilPage() {
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
-  const hydratedDraftRef = useRef(false);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -499,70 +457,6 @@ export function PerfilPage() {
       nextEmail: authenticatedEmail ?? session.email,
     }));
   }, [authenticatedEmail, session.email]);
-
-  useEffect(() => {
-    if (hydratedDraftRef.current || typeof window === "undefined") {
-      return;
-    }
-
-    const rawDrafts = window.localStorage.getItem(SIGNUP_DRAFTS_KEY);
-    if (!rawDrafts) {
-      hydratedDraftRef.current = true;
-      return;
-    }
-
-    const allDrafts = JSON.parse(rawDrafts) as Record<string, Omit<typeof form, "avatarUrl"> & { avatarUrl?: string }>;
-    const draft = allDrafts[session.email.trim().toLowerCase()];
-    if (!draft) {
-      hydratedDraftRef.current = true;
-      return;
-    }
-
-    const mergedProfile = {
-      userId: profile?.userId || profileUserId || session.id,
-      fullName: profile?.fullName || draft.fullName || session.name,
-      email: profile?.email || draft.email || session.email,
-      phone: profile?.phone || draft.phone || "",
-      cpfCnpj: profile?.cpfCnpj || draft.cpfCnpj || "",
-      rg: profile?.rg || draft.rg || "",
-      birthDate: profile?.birthDate || draft.birthDate || "",
-      professionalType: profile?.professionalType || draft.professionalType || "",
-      registrationNumber: profile?.registrationNumber || draft.registrationNumber || "",
-      companyName: profile?.companyName || draft.companyName || "",
-      addressLine: profile?.addressLine || draft.addressLine || "",
-      addressNumber: profile?.addressNumber || draft.addressNumber || "",
-      addressComplement: profile?.addressComplement || draft.addressComplement || "",
-      neighborhood: profile?.neighborhood || draft.neighborhood || "",
-      city: profile?.city || draft.city || "",
-      state: profile?.state || draft.state || "",
-      zipCode: profile?.zipCode || draft.zipCode || "",
-      avatarUrl: profile?.avatarUrl || draft.avatarUrl || "",
-      avatarScale: profile?.avatarScale ?? draft.avatarScale ?? 1,
-      avatarOffsetX: profile?.avatarOffsetX ?? draft.avatarOffsetX ?? 0,
-      avatarOffsetY: profile?.avatarOffsetY ?? draft.avatarOffsetY ?? 0,
-      useAvatarInHeader: profile?.useAvatarInHeader ?? draft.useAvatarInHeader ?? false,
-      bio: profile?.bio || draft.bio || "",
-    };
-
-    setForm((current) => ({ ...current, ...mergedProfile }));
-    hydratedDraftRef.current = true;
-
-    void (async () => {
-      try {
-        await saveUserProfile(mergedProfile);
-        delete allDrafts[session.email.trim().toLowerCase()];
-        window.localStorage.setItem(SIGNUP_DRAFTS_KEY, JSON.stringify(allDrafts));
-        setStatus("Dados iniciais do cadastro reaproveitados e salvos no banco oficial.");
-      } catch (error) {
-        console.error("[SIGAPRO][Perfil] Falha ao persistir dados iniciais reaproveitados", error);
-        setStatus(
-          error instanceof Error
-            ? `Não foi possível salvar os dados iniciais no banco oficial: ${error.message}`
-            : "Não foi possível salvar os dados iniciais no banco oficial.",
-        );
-      }
-    })();
-  }, [profile, saveUserProfile, session.email, session.id, session.name]);
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -973,12 +867,8 @@ export function PerfilPage() {
     setStatus("");
 
     try {
-      const fallbackUserId = resolveStoredUserIdByIdentity({
-        emailCandidates: [form.email, profile?.email, authenticatedEmail, session.email],
-        nameCandidates: [form.fullName, profile?.fullName, session.name],
-      });
       const stableSessionUserId = session.id && session.id !== "unknown" ? session.id : "";
-      const userId = profileUserId || stableSessionUserId || fallbackUserId;
+      const userId = profileUserId || stableSessionUserId || authenticatedUserId || "";
       if (!userId || userId === "unknown") {
         setStatus("Não foi possível identificar a conta atual para vincular os dados salvos.");
         return;
