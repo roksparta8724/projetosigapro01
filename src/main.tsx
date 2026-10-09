@@ -59,6 +59,7 @@ function releaseFrozenSnapshot() {
     snapshot.removeAttribute("data-visible");
     snapshot.replaceChildren();
   }
+  document.getElementById("sigapro-refresh-snapshot-css")?.remove();
   document.documentElement.removeAttribute("data-sigapro-booting");
 }
 
