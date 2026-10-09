@@ -166,14 +166,17 @@ export function ImageFrameEditor({
       naturalSize.height,
     );
     const safeScale = clamp(scale, effectiveMinScale, effectiveMaxScale);
-    const renderScale = baseScale * safeScale;
-    const width = naturalSize.width * renderScale;
-    const height = naturalSize.height * renderScale;
+    const baseWidth = naturalSize.width * baseScale;
+    const baseHeight = naturalSize.height * baseScale;
+    const width = baseWidth * safeScale;
+    const height = baseHeight * safeScale;
     const maxOffsetX = Math.max((width - frameSize.width) / 2, 0);
     const maxOffsetY = Math.max((height - frameSize.height) / 2, 0);
 
     return {
       baseScale,
+      baseWidth,
+      baseHeight,
       width,
       height,
       maxOffsetX,
@@ -403,18 +406,26 @@ export function ImageFrameEditor({
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,rgba(15,23,42,0.08)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05)_0%,transparent_18%,transparent_82%,rgba(15,23,42,0.05)_100%)]" />
             {stableImageUrl && isRenderableUrl(stableImageUrl) ? (
-              <img
-                src={stableImageUrl}
-                alt="Preview"
-                draggable={false}
-                className={cn("pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none", darkLogoPreview && "mix-blend-screen")}
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2"
                 style={{
-                  width: `${metrics.width}px`,
-                  height: `${metrics.height}px`,
-                  transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
+                  transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`,
                   transformOrigin: "center",
                 }}
-              />
+              >
+                <img
+                  src={stableImageUrl}
+                  alt="Preview"
+                  draggable={false}
+                  className={cn("block max-w-none select-none will-change-transform", darkLogoPreview && "mix-blend-screen")}
+                  style={{
+                    width: `${metrics.baseWidth}px`,
+                    height: `${metrics.baseHeight}px`,
+                    transform: `scale(${metrics.safeScale})`,
+                    transformOrigin: "center center",
+                  }}
+                />
+              </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
                 <ImageIcon className="h-6 w-6 text-slate-400/80" />
