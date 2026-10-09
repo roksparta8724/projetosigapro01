@@ -98,15 +98,14 @@ function getAllowedBuckets() {
   ]);
 }
 
-function buildPublicUrl(bucket: string, objectKey: string) {
+function buildPublicUrl(_bucket: string, objectKey: string) {
   const base = readEnv("R2_PUBLIC_BASE_URL");
   if (base) {
     return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
   }
-  const account = readEnv("R2_ACCOUNT_ID");
-  if (account) {
-    return `https://${bucket}.${account}.r2.cloudflarestorage.com/${objectKey.replace(/^\/+/, "")}`;
-  }
+
+  // O endpoint S3 do R2 é privado. Sem domínio público configurado,
+  // persistimos apenas o objectKey e geramos URL assinada no momento da leitura.
   return "";
 }
 
