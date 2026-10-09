@@ -2051,6 +2051,18 @@ export type PlatformBrandingRecord = {
   footerLogoObjectKey: string;
   footerLogoFileName: string;
   footerLogoMimeType: string;
+  logoAlt: string;
+  footerText: string;
+  headerLogoScale: number;
+  headerLogoOffsetX: number;
+  headerLogoOffsetY: number;
+  headerLogoFrameMode: "soft-square" | "rounded";
+  headerLogoFitMode: "contain" | "cover";
+  footerLogoScale: number;
+  footerLogoOffsetX: number;
+  footerLogoOffsetY: number;
+  footerLogoFrameMode: "soft-square" | "rounded";
+  footerLogoFitMode: "contain" | "cover";
   updatedAt: string;
   updatedBy?: string;
 };
@@ -2066,6 +2078,18 @@ function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingR
     footerLogoObjectKey: record.footer_logo_object_key ?? "",
     footerLogoFileName: record.footer_logo_file_name ?? "",
     footerLogoMimeType: record.footer_logo_mime_type ?? "",
+    logoAlt: record.logo_alt ?? "Logo institucional do SIGAPRO",
+    footerText: record.footer_text ?? "SIGAPRO — Sistema integrado de gestão e aprovação de projetos",
+    headerLogoScale: Number(record.header_logo_scale ?? 1),
+    headerLogoOffsetX: Number(record.header_logo_offset_x ?? 0),
+    headerLogoOffsetY: Number(record.header_logo_offset_y ?? 0),
+    headerLogoFrameMode: record.header_logo_frame_mode === "rounded" ? "rounded" : "soft-square",
+    headerLogoFitMode: record.header_logo_fit_mode === "cover" ? "cover" : "contain",
+    footerLogoScale: Number(record.footer_logo_scale ?? 1),
+    footerLogoOffsetX: Number(record.footer_logo_offset_x ?? 0),
+    footerLogoOffsetY: Number(record.footer_logo_offset_y ?? 0),
+    footerLogoFrameMode: record.footer_logo_frame_mode === "rounded" ? "rounded" : "soft-square",
+    footerLogoFitMode: record.footer_logo_fit_mode === "cover" ? "cover" : "contain",
     updatedAt: record.updated_at ?? "",
     updatedBy: record.updated_by ?? "",
   };
@@ -2105,6 +2129,18 @@ export async function savePlatformBranding(input: {
   mimeType: string;
   publicUrl?: string;
   updatedBy?: string;
+  logoAlt?: string;
+  footerText?: string;
+  headerLogoScale?: number;
+  headerLogoOffsetX?: number;
+  headerLogoOffsetY?: number;
+  headerLogoFrameMode?: "soft-square" | "rounded";
+  headerLogoFitMode?: "contain" | "cover";
+  footerLogoScale?: number;
+  footerLogoOffsetX?: number;
+  footerLogoOffsetY?: number;
+  footerLogoFrameMode?: "soft-square" | "rounded";
+  footerLogoFitMode?: "contain" | "cover";
 }) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
@@ -2120,6 +2156,24 @@ export async function savePlatformBranding(input: {
     updated_at: new Date().toISOString(),
     updated_by: input.updatedBy ?? null,
   };
+
+  const sharedLayout: Record<string, unknown> = {
+    logo_alt: input.logoAlt,
+    footer_text: input.footerText,
+    header_logo_scale: input.headerLogoScale,
+    header_logo_offset_x: input.headerLogoOffsetX,
+    header_logo_offset_y: input.headerLogoOffsetY,
+    header_logo_frame_mode: input.headerLogoFrameMode,
+    header_logo_fit_mode: input.headerLogoFitMode,
+    footer_logo_scale: input.footerLogoScale,
+    footer_logo_offset_x: input.footerLogoOffsetX,
+    footer_logo_offset_y: input.footerLogoOffsetY,
+    footer_logo_frame_mode: input.footerLogoFrameMode,
+    footer_logo_fit_mode: input.footerLogoFitMode,
+  };
+  for (const [key, value] of Object.entries(sharedLayout)) {
+    if (value !== undefined) payload[key] = value;
+  }
 
   if (input.variant === "header") {
     payload.header_logo_url = input.publicUrl ?? null;
