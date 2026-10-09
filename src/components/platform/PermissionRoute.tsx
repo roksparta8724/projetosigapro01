@@ -29,7 +29,19 @@ export function PermissionRoute({
     session.tenantId ??
     null;
 
-  if (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading) {
+  // Depois que a identidade autenticada já foi resolvida, sincronizações de fundo
+  // NUNCA podem desmontar a tela. Isso mantém brasão, dados e layout fixos sem loop visual.
+  const hasStableAuthenticatedView =
+    bootstrap.isReady &&
+    bootstrap.authResolved &&
+    Boolean(bootstrap.authUserId) &&
+    Boolean(bootstrap.profile?.userId);
+
+  const isInitialAccessResolution =
+    !hasStableAuthenticatedView &&
+    (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
+
+  if (isInitialAccessResolution) {
     return (
       <div className="min-h-screen bg-[#eef1f4]" aria-busy="true" aria-label="Validando acesso">
         <header className="h-[76px] border-b border-[#2f5575] bg-[linear-gradient(90deg,#173f61_0%,#29577f_100%)] shadow-[0_10px_28px_rgba(15,23,42,0.16)]">
