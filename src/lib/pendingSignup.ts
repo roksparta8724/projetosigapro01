@@ -7,6 +7,15 @@ export type PendingSignup = {
   email: string;
   cpfCnpj: string;
   phone: string;
+  rg: string;
+  birthDate: string;
+  addressLine: string;
+  addressNumber: string;
+  addressComplement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
   professionalType: string;
   registrationNumber: string;
   companyName: string;
@@ -39,6 +48,15 @@ export function readPendingSignup(
     email,
     cpfCnpj: read("cpf_cnpj"),
     phone: read("phone"),
+    rg: read("rg"),
+    birthDate: read("birth_date"),
+    addressLine: read("address_line"),
+    addressNumber: read("address_number"),
+    addressComplement: read("address_complement"),
+    neighborhood: read("neighborhood"),
+    city: read("city"),
+    state: read("state"),
+    zipCode: read("zip_code"),
     professionalType: read("professional_type"),
     registrationNumber: read("registration_number"),
     companyName: read("company_name"),
