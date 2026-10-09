@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/supabase/platform";
+import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
