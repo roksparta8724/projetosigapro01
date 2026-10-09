@@ -2029,7 +2029,9 @@ export function can(session: SessionUser, permission: Permission) {
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
   }
-  if (!rolePermissions[session.role].includes(permission)) {
+
+  const permissions = rolePermissions[session.role] ?? [];
+  if (!permissions.includes(permission)) {
     return false;
   }
 
