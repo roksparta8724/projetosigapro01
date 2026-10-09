@@ -10,10 +10,10 @@ import {
   type TenantSettings,
 } from "@/lib/platform";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
-import { loadPlatformBranding } from "@/integrations/supabase/platform";
+import { loadPlatformBranding } from "@/integrations/backend/platform";
 import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
-import { getMasterInstitutionBranding, loadMasterBranding } from "@/lib/masterBranding";
+import { getMasterInstitutionBranding, loadMasterBranding, saveMasterBranding, updateMasterBranding } from "@/lib/masterBranding";
 
 const MASTER_SIGNED_CACHE_TTL_MS = 1000 * 60 * 15;
 let cachedMasterHeaderSignedUrl = "";
@@ -181,6 +181,31 @@ export function useInstitutionBranding(tenantId?: string | null) {
       active = false;
     };
   }, [shouldUseMasterBranding]);
+
+  useEffect(() => {
+    if (!shouldUseMasterBranding || !platformBranding) return;
+
+    setMasterBrandingState((current) => {
+      const next = updateMasterBranding(current, {
+        logoAlt: platformBranding.logoAlt || current.logoAlt,
+        logoUpdatedAt: platformBranding.updatedAt || current.logoUpdatedAt,
+        logoUpdatedBy: platformBranding.updatedBy || current.logoUpdatedBy,
+        footerText: platformBranding.footerText || current.footerText,
+        headerLogoScale: platformBranding.headerLogoScale,
+        headerLogoOffsetX: platformBranding.headerLogoOffsetX,
+        headerLogoOffsetY: platformBranding.headerLogoOffsetY,
+        headerLogoFrameMode: platformBranding.headerLogoFrameMode,
+        headerLogoFitMode: platformBranding.headerLogoFitMode,
+        footerLogoScale: platformBranding.footerLogoScale,
+        footerLogoOffsetX: platformBranding.footerLogoOffsetX,
+        footerLogoOffsetY: platformBranding.footerLogoOffsetY,
+        footerLogoFrameMode: platformBranding.footerLogoFrameMode,
+        footerLogoFitMode: platformBranding.footerLogoFitMode,
+      });
+      saveMasterBranding(next);
+      return next;
+    });
+  }, [platformBranding, shouldUseMasterBranding]);
 
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
