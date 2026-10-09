@@ -1,7 +1,7 @@
 import { createClient as createNeonClient, SupabaseAuthAdapter } from "@neondatabase/neon-js";
 import { createAuthClient } from "@neondatabase/neon-js/auth";
 import { isNeonBackend, isNeonPreview, isNeonProduction } from "@/integrations/backend/config";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as legacySupabaseClient } from "@/integrations/supabase/client";
 
 const VALIDATED_NEON_AUTH_URL =
   "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth";
@@ -44,11 +44,11 @@ export const neonClient = hasNeonBackendEnv
     })
   : null;
 
-export const backendClient: any = isNeonBackend ? neonClient : supabase;
+export const backendClient: any = isNeonBackend ? neonClient : legacySupabaseClient;
 export const databaseClient: any = backendClient;
 
 export const hasDatabaseEnv = isNeonBackend
   ? hasNeonBackendEnv
-  : Boolean(supabase);
+  : Boolean(legacySupabaseClient);
 
 export const hasBackendEnv = hasDatabaseEnv;
