@@ -305,10 +305,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       "header",
     );
     const brandingUrl = scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
-    const hasVariantLogo = Boolean(
-      scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
-      scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
-    );
     const resolvedTenantHeaderLogo =
       scopedMunicipalityBranding?.headerLogoUrl ||
       brandingUrl ||
@@ -364,10 +360,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       "footer",
     );
     const brandingUrl = scopedMunicipalityBranding?.footerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
-    const hasVariantLogo = Boolean(
-      scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.footerLogoUrl ||
-      scopedMunicipalityBranding?.headerLogoObjectKey || scopedMunicipalityBranding?.footerLogoObjectKey,
-    );
     const resolvedTenantFooterLogo =
       scopedMunicipalityBranding?.footerLogoUrl ||
       brandingUrl ||
