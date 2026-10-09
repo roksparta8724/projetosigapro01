@@ -470,16 +470,21 @@ function isLegacyDemoTenantName(name: string | null | undefined) {
 }
 
 function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault = true): PlatformStore {
-  const sourceTenants = rawStore.tenants ?? defaultStore.tenants;
+  const fallback = <T,>(value: T[] | undefined, defaultValue: T[]) =>
+    value ?? (fallbackToDefault ? defaultValue : []);
+
+  const sourceTenants = fallback(rawStore.tenants, defaultStore.tenants);
   const legacyDemoIds = new Set(
     sourceTenants
       .filter((tenant) => isLegacyDemoTenantName(tenant.name))
       .map((tenant) => tenant.id),
   );
   const tenants = sourceTenants.filter((tenant) => !legacyDemoIds.has(tenant.id));
-  const processes = (rawStore.processes ?? defaultStore.processes)
+  const processes = fallback(rawStore.processes, defaultStore.processes)
     .filter(
-      (process) => !legacyDemoIds.has(process.tenantId) && !legacyDemoIds.has(process.municipalityId ?? ""),
+      (process) =>
+        !legacyDemoIds.has(process.tenantId) &&
+        !legacyDemoIds.has(process.municipalityId ?? ""),
     )
     .map((process) => ({
       ...process,
@@ -490,35 +495,43 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
     }));
   const validProcessIds = new Set(processes.map((process) => process.id));
 
-  const normalizedSessionUsers = (rawStore.sessionUsers ?? defaultStore.sessionUsers)
+  const normalizedSessionUsers = fallback(rawStore.sessionUsers, defaultStore.sessionUsers)
     .map((user) => normalizeSessionUserScope(user))
-    .filter((user) => !legacyDemoIds.has(user.tenantId ?? "") && !legacyDemoIds.has(user.municipalityId ?? ""));
-  const normalizedUserProfiles = (rawStore.userProfiles ?? (fallbackToDefault ? defaultStore.userProfiles : []));
+    .filter(
+      (user) =>
+        !legacyDemoIds.has(user.tenantId ?? "") &&
+        !legacyDemoIds.has(user.municipalityId ?? ""),
+    );
+  const normalizedUserProfiles = fallback(rawStore.userProfiles, defaultStore.userProfiles);
 
   return {
     tenants: tenants.length > 0 || !fallbackToDefault ? tenants : defaultStore.tenants,
-    tenantSettings: (rawStore.tenantSettings ?? defaultStore.tenantSettings)
+    tenantSettings: fallback(rawStore.tenantSettings, defaultStore.tenantSettings)
       .filter((item) => !legacyDemoIds.has(item.tenantId)),
     sessionUsers: normalizedSessionUsers,
     userProfiles: normalizedUserProfiles,
-    registrationRequests: (rawStore.registrationRequests ?? defaultStore.registrationRequests)
+    registrationRequests: fallback(rawStore.registrationRequests, defaultStore.registrationRequests)
       .map((request) => normalizeRegistrationRequestScope(request))
-      .filter((request) => !legacyDemoIds.has(request.tenantId) && !legacyDemoIds.has(request.municipalityId ?? "")),
-    ownerRequests: (rawStore.ownerRequests ?? defaultStore.ownerRequests).filter((request) =>
+      .filter(
+        (request) =>
+          !legacyDemoIds.has(request.tenantId) &&
+          !legacyDemoIds.has(request.municipalityId ?? ""),
+      ),
+    ownerRequests: fallback(rawStore.ownerRequests, defaultStore.ownerRequests).filter((request) =>
       validProcessIds.has(request.projectId),
     ),
-    ownerLinks: (rawStore.ownerLinks ?? defaultStore.ownerLinks).filter((link) =>
+    ownerLinks: fallback(rawStore.ownerLinks, defaultStore.ownerLinks).filter((link) =>
       validProcessIds.has(link.projectId),
     ),
-    ownerMessages: (rawStore.ownerMessages ?? defaultStore.ownerMessages).filter((message) =>
+    ownerMessages: fallback(rawStore.ownerMessages, defaultStore.ownerMessages).filter((message) =>
       validProcessIds.has(message.projectId),
     ),
     processes,
-    plans: rawStore.plans?.length ? rawStore.plans : fallbackToDefault ? defaultStore.plans : [],
-    planAssignments: rawStore.planAssignments ?? (fallbackToDefault ? defaultStore.planAssignments : []),
-    cmsSections: rawStore.cmsSections ?? (fallbackToDefault ? defaultStore.cmsSections : []),
-    checklistTemplates: rawStore.checklistTemplates ?? (fallbackToDefault ? defaultStore.checklistTemplates : []),
-    documentTemplates: rawStore.documentTemplates ?? (fallbackToDefault ? defaultStore.documentTemplates : []),
+    plans: fallback(rawStore.plans, defaultStore.plans),
+    planAssignments: fallback(rawStore.planAssignments, defaultStore.planAssignments),
+    cmsSections: fallback(rawStore.cmsSections, defaultStore.cmsSections),
+    checklistTemplates: fallback(rawStore.checklistTemplates, defaultStore.checklistTemplates),
+    documentTemplates: fallback(rawStore.documentTemplates, defaultStore.documentTemplates),
   };
 }
 
@@ -763,7 +776,10 @@ function syncStore(store: PlatformStore) {
 }
 
 function syncAuthUsers(users: SessionUser[]) {
-  if (typeof window === "undefined") {
+  // Legacy demo credentials are allowed only in isolated local development.
+  // Official authentication is handled by Better Auth/Neon and must never
+  // synthesize passwords in browser storage.
+  if (typeof window === "undefined" || hasSupabaseEnv || !isLocalDevHost()) {
     return;
   }
 
@@ -925,12 +941,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       try {
         const remote = await loadRemotePlatformStore();
         const sanitized = buildSanitizedStore(remote, false);
-        const localSnapshot = readPersistedStore();
-        const merged = mergeLocalAndRemoteStores(localSnapshot, sanitized);
         if (!active) return;
-        setStore(merged);
-        syncStore(merged);
-        syncAuthUsers(merged.sessionUsers);
+        setStore(sanitized);
+        syncStore(sanitized);
+        syncAuthUsers(sanitized.sessionUsers);
         setSource("remote");
         lastFetchedUserId.current = authenticatedUserId;
       } catch (error) {
@@ -938,10 +952,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (isAuthError(error) && supabase) {
           await supabase.auth.signOut();
         }
-        const nextStore = readStore();
+        const cachedStore = readPersistedStore();
+        const nextStore = cachedStore ?? buildSanitizedStore({}, false);
         setStore(nextStore);
         syncAuthUsers(nextStore.sessionUsers);
-        setSource(nextStore === defaultStore ? "demo" : "local");
+        setSource("local");
       } finally {
         if (active) setLoading(false);
       }
@@ -980,11 +995,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     try {
       const remote = await loadRemotePlatformStore();
       const sanitized = buildSanitizedStore(remote, false);
-      const localSnapshot = readPersistedStore();
-      const merged = mergeLocalAndRemoteStores(localSnapshot, sanitized);
-      setStore(merged);
-      syncStore(merged);
-      syncAuthUsers(merged.sessionUsers);
+      setStore(sanitized);
+      syncStore(sanitized);
+      syncAuthUsers(sanitized.sessionUsers);
       setSource("remote");
       lastFetchedUserId.current = authenticatedUserId;
     } catch (error) {
