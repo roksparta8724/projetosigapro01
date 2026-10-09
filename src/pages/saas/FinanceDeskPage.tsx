@@ -17,7 +17,6 @@ import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
-import { WorkflowStageBoard } from "@/components/platform/WorkflowStageBoard";
 import {
   PageMainContent,
   PageMainGrid,
@@ -28,6 +27,7 @@ import {
 import { StatCard } from "@/components/platform/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   defaultApprovalRateProfiles,
   defaultIssRateProfiles,
@@ -36,7 +36,6 @@ import {
   getVisibleProcessesByScope,
 } from "@/lib/platform";
 import {
-  defaultMunicipalWorkflowStages,
   type MunicipalFeeRule,
   type MunicipalFeeTable,
 } from "@/lib/govtech";
@@ -64,6 +63,7 @@ export function FinanceDeskPage() {
   const [feeStatus, setFeeStatus] = useState("");
   const [finalGuideStatus, setFinalGuideStatus] = useState("");
   const [finalGuideBusyId, setFinalGuideBusyId] = useState("");
+  const [workflowStatus, setWorkflowStatus] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
 
   const guides = processes.flatMap((process) =>
@@ -75,6 +75,7 @@ export function FinanceDeskPage() {
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
   const finalGuideCandidates = processes.filter((process) => {
+    if (tenantSettings?.finalApprovalFeeEnabled === false) return false;
     const processGuides = getProcessPaymentGuides(process, tenantSettings);
     const hasFinalGuide = processGuides.some((guide) => guide.kind === "aprovacao_final");
     const protocolPaid = processGuides.some(
@@ -87,8 +88,15 @@ export function FinanceDeskPage() {
       (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
     );
 
+    const currentFolder = process.processControl?.currentFolder?.toLowerCase() ?? "";
+    const latestDispatchTarget = process.dispatches[0]?.to?.toLowerCase() ?? "";
+    const routedToFinance =
+      currentFolder.includes("finance") ||
+      latestDispatchTarget.includes("finance");
+
     return (
       process.status === "analise_tecnica" &&
+      routedToFinance &&
       !process.processControl?.onHold &&
       !hasOpenRequirements &&
       !hasFinalGuide &&
@@ -96,6 +104,31 @@ export function FinanceDeskPage() {
       previouslyIssuedGuidesPaid
     );
   });
+
+  const handleWorkflowSetting = async (
+    key: "issStageEnabled" | "finalApprovalFeeEnabled",
+    enabled: boolean,
+  ) => {
+    if (!tenantSettings) {
+      setWorkflowStatus("Nenhuma Prefeitura ativa foi localizada para alterar o workflow.");
+      return;
+    }
+
+    setWorkflowStatus("");
+    try {
+      await saveInstitutionSettings({
+        ...tenantSettings,
+        [key]: enabled,
+      });
+      setWorkflowStatus("Workflow financeiro salvo no banco oficial.");
+    } catch (error) {
+      setWorkflowStatus(
+        error instanceof Error
+          ? `Não foi possível salvar o workflow financeiro: ${error.message}`
+          : "Não foi possível salvar o workflow financeiro no banco oficial.",
+      );
+    }
+  };
 
   const handleIssueFinalGuide = async (processId: string) => {
     setFinalGuideBusyId(processId);
@@ -767,12 +800,69 @@ export function FinanceDeskPage() {
         ) : null}
 
         {section === "workflow" ? (
-          <WorkflowStageBoard
-            currentStageCode="complementary_fee"
-            stages={defaultMunicipalWorkflowStages}
-            title="Workflow financeiro"
-            description="A etapa financeira cobre guia inicial, compensação, ISSQN complementar e fechamento final."
-          />
+          <SectionCard
+            title="Workflow financeiro da Prefeitura"
+            description="Defina quais etapas financeiras realmente fazem parte do processo municipal. Essas escolhas controlam o fluxo operacional."
+            icon={Landmark}
+          >
+            <div className="space-y-4">
+              {workflowStatus ? (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                  workflowStatus.startsWith("Workflow financeiro salvo")
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}>
+                  {workflowStatus}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <p className="text-sm font-semibold text-slate-950">1. Guia de protocolo</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Etapa inicial obrigatória para abertura do processo.
+                  </p>
+                  <Badge className="mt-4 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                    Sempre ativa
+                  </Badge>
+                </div>
+
+                <label className="flex cursor-pointer gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+                  <Checkbox
+                    checked={tenantSettings?.issStageEnabled !== false}
+                    onCheckedChange={(checked) =>
+                      void handleWorkflowSetting("issStageEnabled", Boolean(checked))
+                    }
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">2. ISSQN da obra</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Quando ativa, a Análise Técnica encaminha o processo ao IPTU/Fiscal e o setor emite a guia de ISSQN.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex cursor-pointer gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+                  <Checkbox
+                    checked={tenantSettings?.finalApprovalFeeEnabled !== false}
+                    onCheckedChange={(checked) =>
+                      void handleWorkflowSetting("finalApprovalFeeEnabled", Boolean(checked))
+                    }
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">3. Taxa final / Habite-se</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Quando ativa, o processo passa pelo Financeiro antes do deferimento final.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-900">
+                O fluxo operacional usa estas configurações como regra. Desativar uma etapa impede novas emissões daquela cobrança, sem alterar guias históricas já emitidas.
+              </div>
+            </div>
+          </SectionCard>
         ) : null}
 
         {section === "historico" ? (
