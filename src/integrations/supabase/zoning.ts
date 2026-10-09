@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { databaseClient as db } from "@/integrations/backend/databaseClient";
 import { type ZoningRule, type ZoningRuleStatus, type ZoningRuleType, type ZoningUseType } from "@/lib/zoning";
 
 type ZoningRuleInput = Omit<ZoningRule, "createdAt"> & { createdAt?: string };
@@ -59,11 +59,11 @@ function mapRuleToPayload(rule: ZoningRuleInput) {
 }
 
 export async function listRemoteZoningRules(municipalityId: string) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("zoning_rules")
     .select("*")
     .eq("municipality_id", municipalityId)
@@ -77,8 +77,8 @@ export async function listRemoteZoningRules(municipalityId: string) {
 }
 
 export async function saveRemoteZoningRule(rule: ZoningRuleInput) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
   const payload = mapRuleToPayload(rule);
@@ -91,7 +91,7 @@ export async function saveRemoteZoningRule(rule: ZoningRuleInput) {
         .eq("municipality_id", rule.municipalityId)
         .select("*")
         .single()
-    : supabase.from("zoning_rules").insert(payload).select("*").single();
+    : db.from("zoning_rules").insert(payload).select("*").single();
 
   const { data, error } = await query;
 
@@ -107,11 +107,11 @@ export async function updateRemoteZoningRuleStatus(input: {
   municipalityId: string;
   status: ZoningRuleStatus;
 }) {
-  if (!supabase) {
-    throw new Error("Supabase indisponivel.");
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("zoning_rules")
     .update({ status: input.status })
     .eq("id", input.id)
