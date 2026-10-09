@@ -56,11 +56,14 @@ import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/in
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
+  confirmRemoteProcessPaymentGuide,
   createRemoteOwnerMessage,
   createRemoteOwnerRequest,
+  issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
+  reissueRemoteProcessPaymentGuide,
   respondRemoteOwnerRequest,
   saveRemoteClientPlanAssignment,
   saveRemoteInstitutionSettings,
@@ -170,7 +173,8 @@ interface PlatformDataState {
     title?: string;
   }) => void;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => void;
-  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => void;
+  issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
+  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
   appendProcessDocuments: (processId: string, documents: ProcessDocument[], actor: string) => void;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => void;
   addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => void;
@@ -187,7 +191,7 @@ interface PlatformDataState {
   setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => void;
   setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => void;
   sendProcessMessage: (input: { processId: string; senderName: string; senderRole: string; audience: "interno" | "externo" | "misto"; recipientName?: string; message: string }) => void;
-  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => void;
+  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
 }
 
 interface PlatformStore {
@@ -393,7 +397,8 @@ const demoState: PlatformDataState = {
   completeRequirement: () => undefined,
   updateProcessStatus: () => undefined,
   reopenProcess: () => undefined,
-  markGuideAsPaid: () => undefined,
+  issuePaymentGuide: async () => undefined,
+  markGuideAsPaid: async () => undefined,
   appendProcessDocuments: () => undefined,
   reviewProcessDocument: () => undefined,
   addDocumentAnnotation: () => undefined,
@@ -410,7 +415,7 @@ const demoState: PlatformDataState = {
   setProcessOnHold: () => undefined,
   setProcessTransitVisibility: () => undefined,
   sendProcessMessage: () => undefined,
-  reissuePaymentGuide: () => undefined,
+  reissuePaymentGuide: async () => undefined,
 };
 
 const PlatformDataContext = createContext<PlatformDataState>(demoState);
