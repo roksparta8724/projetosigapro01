@@ -36,15 +36,17 @@ export function resolveBackendMode(input?: {
     input?.configured ?? import.meta.env.VITE_BACKEND ?? "",
   ).trim().toLowerCase();
 
-  // Production cutover: the official root domain and every municipal subdomain
-  // are pinned to the validated Neon branch. This intentionally takes precedence
-  // over a stale VITE_BACKEND=supabase value left in Vercel.
+  // Canonical architecture: Neon is the default backend everywhere.
+  // Supabase exists only as an explicit rollback/development compatibility mode.
+  // Official domains can never be redirected to Supabase by a stale env var.
   if (isNeonProductionHostname(resolvedHostname)) return "neon";
 
-  if (configured === "neon") return "neon";
   if (configured === "supabase") return "supabase";
+  if (configured === "neon") return "neon";
 
-  return isNeonPreviewHostname(resolvedHostname) ? "neon" : "supabase";
+  // Unknown hosts, previews and local development default to Neon. Anyone who
+  // intentionally needs the legacy backend must opt in with VITE_BACKEND=supabase.
+  return "neon";
 }
 
 export const backendMode: BackendMode = resolveBackendMode();
