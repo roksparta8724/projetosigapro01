@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { can, canAccessProcess, getMasterMetrics, getProcessById, sessionUsers } from "@/lib/platform";
 
 describe("platform RBAC", () => {
-  it("blocks master from opening process data directly", () => {
+  it("allows master to open process data through the transversal platform view", () => {
     const master = sessionUsers.find((user) => user.role === "master_admin");
     const process = getProcessById("proc-001");
 
     expect(master).toBeTruthy();
     expect(process).toBeTruthy();
-    expect(canAccessProcess(master!, process!)).toBe(false);
+    expect(canAccessProcess(master!, process!)).toBe(true);
   });
 
   it("allows external professional to see only own process", () => {
@@ -20,7 +20,7 @@ describe("platform RBAC", () => {
     expect(canAccessProcess(professional!, otherTenantProcess!)).toBe(false);
   });
 
-  it("keeps master capabilities focused on metrics and tenant governance", () => {
+  it("keeps master capabilities enabled for metrics and tenant governance", () => {
     const master = sessionUsers.find((user) => user.role === "master_admin");
     const metrics = getMasterMetrics();
 
