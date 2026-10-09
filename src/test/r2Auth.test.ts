@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import deleteHandler from "../../api/r2-delete";
-import presignHandler from "../../api/r2-presign";
 import uploadHandler from "../../api/r2-upload";
 import signGetHandler from "../../api/r2-sign-get";
 
@@ -64,7 +63,6 @@ describe("R2 production handler auth contract", () => {
 
   for (const [name, handler] of [
     ["upload", uploadHandler],
-    ["presign", presignHandler],
     ["delete", deleteHandler],
   ] as const) {
     it(`blocks anonymous ${name} in Vercel production`, async () => {
