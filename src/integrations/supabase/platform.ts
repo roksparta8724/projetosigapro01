@@ -644,11 +644,19 @@ export async function loadRemotePlatformStore() {
       adminContacts: normalizeAdminContacts(legacyExtra.admin_contacts),
       taxaProtocolo: Number(settings?.taxa_protocolo ?? 35.24),
       taxaIssPorMetroQuadrado: Number(settings?.taxa_iss_por_metro_quadrado ?? 0),
+      issStageEnabled:
+        typeof legacyExtra.iss_stage_enabled === "boolean"
+          ? legacyExtra.iss_stage_enabled
+          : true,
       issRateProfiles:
         Array.isArray(legacyExtra.iss_rate_profiles) && legacyExtra.iss_rate_profiles.length > 0
           ? (legacyExtra.iss_rate_profiles as TenantSettings["issRateProfiles"])
           : undefined,
       taxaAprovacaoFinal: Number(settings?.taxa_aprovacao_final ?? 0),
+      finalApprovalFeeEnabled:
+        typeof legacyExtra.final_approval_fee_enabled === "boolean"
+          ? legacyExtra.final_approval_fee_enabled
+          : true,
       approvalRateProfiles:
         Array.isArray(legacyExtra.approval_rate_profiles) && legacyExtra.approval_rate_profiles.length > 0
           ? (legacyExtra.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
@@ -2768,9 +2776,11 @@ export async function saveRemoteInstitutionSettings(
       fee_iss_m2: settings.taxaIssPorMetroQuadrado ?? 0,
       taxa_iss_por_metro_quadrado: settings.taxaIssPorMetroQuadrado ?? 0,
       iss_rate_profiles: settings.issRateProfiles ?? null,
+      iss_stage_enabled: settings.issStageEnabled ?? true,
       fee_final_approval: settings.taxaAprovacaoFinal ?? 0,
       taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
       approval_rate_profiles: settings.approvalRateProfiles ?? null,
+      final_approval_fee_enabled: settings.finalApprovalFeeEnabled ?? true,
       // escalas por variante no general_settings para leitura futura
       logo_scale: settings.logoScale ?? 1,
       logo_offset_x: settings.logoOffsetX ?? 0,
