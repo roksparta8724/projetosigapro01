@@ -3327,12 +3327,12 @@
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-searchbar,
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-trigger,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger {
-  border: 1px solid rgba(191, 219, 254, 0.12) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.045) 100%) !important;
+  border: 1px solid rgba(203, 213, 225, 0.92) !important;
+  background: linear-gradient(180deg, #f8fafc 0%, #e9eef4 100%) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 14px 26px rgba(2, 6, 23, 0.1) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 8px 18px rgba(15, 23, 42, 0.12) !important;
+  color: #334155 !important;
   min-width: 0;
 }
 
@@ -3344,12 +3344,12 @@
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-searchbar:focus-visible,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger:hover,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger:focus-visible {
-  border-color: rgba(125, 211, 252, 0.18) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.05) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.9) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f6 100%) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 14px 30px rgba(2, 6, 23, 0.11),
-    0 0 0 3px rgba(56, 189, 248, 0.05) !important;
+    inset 0 1px 0 #ffffff,
+    0 10px 22px rgba(15, 23, 42, 0.15),
+    0 0 0 3px rgba(148, 163, 184, 0.14) !important;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-icon,
@@ -3373,8 +3373,8 @@
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-label,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-label {
-  color: rgba(248, 251, 255, 0.9) !important;
-  font-weight: 600 !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-primary-group,
@@ -3517,9 +3517,9 @@
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-hint,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-hint {
-  border: 1px solid rgba(191, 219, 254, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(221, 234, 247, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: rgba(255, 255, 255, 0.76);
+  color: #64748b;
 }
 
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-profile-cluster,
