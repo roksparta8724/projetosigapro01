@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { databaseClient as db, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 
 export type MenuPreferenceKey =
@@ -20,13 +20,13 @@ interface MenuPreferencesState {
 }
 
 export function useUserMenuPreferences(): MenuPreferencesState {
-  const { authenticatedUserId } = useAuthGateway();
+  const { authenticatedProfileId } = useAuthGateway();
   const [hiddenItems, setHiddenItems] = useState<MenuPreferenceKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadPreferences = useCallback(async () => {
-    if (!authenticatedUserId || !supabase) {
+    if (!authenticatedProfileId || !db) {
       setHiddenItems([]);
       setLoading(false);
       return;
@@ -35,10 +35,10 @@ export function useUserMenuPreferences(): MenuPreferencesState {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await db
         .from("user_menu_preferences")
         .select("hidden_items")
-        .eq("user_id", authenticatedUserId)
+        .eq("profile_id", authenticatedProfileId)
         .maybeSingle();
 
       if (fetchError) {
@@ -55,7 +55,7 @@ export function useUserMenuPreferences(): MenuPreferencesState {
     } finally {
       setLoading(false);
     }
-  }, [authenticatedUserId]);
+  }, [authenticatedProfileId]);
 
   useEffect(() => {
     void loadPreferences();
@@ -63,7 +63,7 @@ export function useUserMenuPreferences(): MenuPreferencesState {
 
   const setItemHidden = useCallback(
     async (key: MenuPreferenceKey, hidden: boolean) => {
-      if (!authenticatedUserId || !supabase) return;
+      if (!authenticatedProfileId || !db) return;
 
       const nextHidden = new Set(hiddenItems);
       if (hidden) {
@@ -72,15 +72,13 @@ export function useUserMenuPreferences(): MenuPreferencesState {
         nextHidden.delete(key);
       }
 
-      const payload = {
-        user_id: authenticatedUserId,
-        hidden_items: Array.from(nextHidden),
-        updated_at: new Date().toISOString(),
-      };
+      if (!hasBackendEnv || !db) {
+        throw new Error("Banco oficial indisponível para salvar preferências do menu.");
+      }
 
-      const { error: upsertError } = await supabase
-        .from("user_menu_preferences")
-        .upsert(payload, { onConflict: "user_id" });
+      const { error: upsertError } = await db.rpc("save_user_menu_preferences", {
+        _hidden_items: Array.from(nextHidden),
+      });
 
       if (upsertError) {
         throw upsertError;
@@ -88,7 +86,7 @@ export function useUserMenuPreferences(): MenuPreferencesState {
 
       setHiddenItems(Array.from(nextHidden));
     },
-    [authenticatedUserId, hiddenItems],
+    [authenticatedProfileId, hiddenItems],
   );
 
   const isItemVisible = useCallback(
