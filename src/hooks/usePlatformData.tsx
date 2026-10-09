@@ -59,6 +59,7 @@ import {
   createRemoteProcessDispatch,
   createRemoteProcessRequirement,
   createRemoteOwnerRequest,
+  createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
@@ -316,6 +317,7 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 const LEGACY_STORAGE_KEY = "sigapro-platform-store";
 const STORAGE_KEY = "sigapro-platform-store.v2";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+const LEGACY_RECONCILIATION_PENDING_KEY = "sigapro:legacy-process-reconciliation-pending";
 type DeletedRecords = {
   institutions: string[];
 };
@@ -495,7 +497,9 @@ function syncStore(store: PlatformStore) {
   // Cache operacional é permitido somente no ambiente local de desenvolvimento.
   // Em produção, perfis/processos/documentos permanecem apenas em memória.
   if (hasBackendEnv && !isLocalDevHost()) {
-    window.localStorage.removeItem(STORAGE_KEY);
+    if (window.localStorage.getItem(LEGACY_RECONCILIATION_PENDING_KEY) !== "1") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
     return;
   }
 
@@ -552,16 +556,18 @@ function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<S
 function getInitialPlatformStoreState() {
   const localDev = isLocalDevHost();
 
-  // Em produção, dados operacionais nunca são restaurados do navegador.
-  // O Neon é a única fonte persistente; o bootstrap começa apenas com catálogo estático.
+  // Em produção, dados operacionais nunca são RESTAURADOS na interface.
+  // Entretanto, capturamos uma cópia do cache antigo apenas para uma migração
+  // controlada de protocolos que ainda não chegaram ao Neon.
   if (hasBackendEnv && !localDev) {
+    const legacyStore = readPersistedStore();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-      window.localStorage.removeItem(STORAGE_KEY);
     }
     return {
       store: staticCatalogStore,
       source: "local" as const,
+      legacyStore,
     };
   }
 
@@ -569,6 +575,7 @@ function getInitialPlatformStoreState() {
   return {
     store: initialStore,
     source: initialStore === defaultStore ? ("demo" as const) : ("local" as const),
+    legacyStore: null,
   };
 }
 
@@ -631,8 +638,118 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       // Mantem a UI com o ultimo estado valido enquanto sincroniza o remoto.
       setLoading(false);
       try {
-        const remote = await loadRemotePlatformStore();
-        const sanitized = buildSanitizedStore(remote, false);
+        let remote = await loadRemotePlatformStore();
+        let sanitized = buildSanitizedStore(remote, false);
+
+        const legacyStore = initialStateRef.current?.legacyStore ?? null;
+        const canReconcileLegacyProcesses =
+          !localDev &&
+          authenticatedRole === "profissional_externo" &&
+          Boolean(legacyStore?.processes.length);
+
+        if (canReconcileLegacyProcesses && legacyStore) {
+          const currentSession =
+            sanitized.sessionUsers.find((user) => user.id === authenticatedUserId) ??
+            sanitized.sessionUsers.find((user) => normalizeEmail(user.email) === normalizeEmail(authenticatedEmail));
+          const currentProfile = findUserProfile(
+            sanitized.userProfiles,
+            authenticatedUserId,
+            authenticatedEmail,
+          );
+          const currentName = (currentProfile?.fullName || currentSession?.name || "").trim().toLowerCase();
+          const scopeId =
+            authenticatedMunicipalityId ??
+            currentSession?.municipalityId ??
+            currentSession?.tenantId ??
+            null;
+          const remoteProtocols = new Set(
+            sanitized.processes
+              .map((process) => process.protocol?.trim().toLowerCase())
+              .filter(Boolean),
+          );
+
+          const candidates = legacyStore.processes.filter((process) => {
+            const protocol = process.protocol?.trim();
+            if (!scopeId || !protocol || protocol.startsWith("PRE-") || process.status === "rascunho") {
+              return false;
+            }
+
+            const processScope = process.municipalityId ?? process.tenantId;
+            if (processScope !== scopeId || remoteProtocols.has(protocol.toLowerCase())) {
+              return false;
+            }
+
+            const createdByCurrentUser = process.createdBy === authenticatedUserId;
+            const technicalLeadMatches =
+              Boolean(currentName) &&
+              process.technicalLead?.trim().toLowerCase() === currentName;
+
+            return createdByCurrentUser || technicalLeadMatches;
+          });
+
+          if (candidates.length > 0) {
+            window.localStorage.setItem(LEGACY_RECONCILIATION_PENDING_KEY, "1");
+            const settings = sanitized.tenantSettings.find((item) => item.tenantId === scopeId);
+            let migrationFailed = false;
+
+            for (const process of candidates) {
+              try {
+                await createRemoteExternalProcessV2({
+                  tenantId: scopeId!,
+                  createdBy: authenticatedUserId,
+                  title: process.title,
+                  type: process.type,
+                  address: process.address,
+                  ownerName: process.ownerName,
+                  ownerDocument: process.ownerDocument,
+                  technicalLead: process.technicalLead,
+                  tags: process.tags,
+                  notes: process.notes,
+                  property: process.property,
+                  documents: process.documents,
+                  guidePrefix: settings?.guiaPrefixo || "DAM",
+                  protocolPrefix: settings?.protocoloPrefixo || "PM",
+                  requestedProtocolNumber: process.protocol,
+                  remote: {
+                    processId: process.id,
+                    protocol: process.protocol,
+                    externalProtocol: process.externalProtocol,
+                    guideNumber: process.payment.guideNumber,
+                    amount: process.payment.amount,
+                    dueDate: process.payment.dueDate,
+                    issuedAt: process.payment.issuedAt,
+                    expiresAt: process.payment.expiresAt,
+                    status: process.status,
+                    guides: getProcessPaymentGuides(process, settings),
+                  },
+                });
+              } catch (migrationError) {
+                migrationFailed = true;
+                console.error("[SIGAPRO][Migração] Falha ao reconciliar protocolo legado", {
+                  protocol: process.protocol,
+                  error: migrationError,
+                });
+              }
+            }
+
+            if (!migrationFailed) {
+              window.localStorage.removeItem(LEGACY_RECONCILIATION_PENDING_KEY);
+              window.localStorage.removeItem(STORAGE_KEY);
+              initialStateRef.current.legacyStore = null;
+              remote = await loadRemotePlatformStore();
+              sanitized = buildSanitizedStore(remote, false);
+            }
+          } else {
+            window.localStorage.removeItem(LEGACY_RECONCILIATION_PENDING_KEY);
+            window.localStorage.removeItem(STORAGE_KEY);
+            initialStateRef.current.legacyStore = null;
+          }
+        } else if (!localDev) {
+          window.localStorage.removeItem(LEGACY_RECONCILIATION_PENDING_KEY);
+          window.localStorage.removeItem(STORAGE_KEY);
+          if (initialStateRef.current) initialStateRef.current.legacyStore = null;
+        }
+
         if (!active) return;
         setStore(sanitized);
         syncStore(sanitized);
