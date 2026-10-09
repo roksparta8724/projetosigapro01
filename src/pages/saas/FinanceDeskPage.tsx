@@ -56,12 +56,14 @@ type FinanceSection =
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [section, setSection] = useState<FinanceSection>("visao-geral");
   const [feeStatus, setFeeStatus] = useState("");
+  const [finalGuideStatus, setFinalGuideStatus] = useState("");
+  const [finalGuideBusyId, setFinalGuideBusyId] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
 
   const guides = processes.flatMap((process) =>
@@ -72,6 +74,47 @@ export function FinanceDeskPage() {
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
+  const finalGuideCandidates = processes.filter((process) => {
+    const processGuides = getProcessPaymentGuides(process, tenantSettings);
+    const hasFinalGuide = processGuides.some((guide) => guide.kind === "aprovacao_final");
+    const protocolPaid = processGuides.some(
+      (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+    );
+    const previouslyIssuedGuidesPaid = processGuides
+      .filter((guide) => guide.kind !== "aprovacao_final")
+      .every((guide) => guide.status === "compensada");
+    const hasOpenRequirements = process.requirements.some(
+      (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
+    );
+
+    return (
+      process.status === "analise_tecnica" &&
+      !process.processControl?.onHold &&
+      !hasOpenRequirements &&
+      !hasFinalGuide &&
+      protocolPaid &&
+      previouslyIssuedGuidesPaid
+    );
+  });
+
+  const handleIssueFinalGuide = async (processId: string) => {
+    setFinalGuideBusyId(processId);
+    setFinalGuideStatus("");
+
+    try {
+      await issuePaymentGuide(processId, session.name, "aprovacao_final");
+      setFinalGuideStatus("Guia final de aprovação emitida no banco oficial com sucesso.");
+    } catch (error) {
+      setFinalGuideStatus(
+        error instanceof Error
+          ? `Não foi possível emitir a guia final: ${error.message}`
+          : "Não foi possível emitir a guia final no banco oficial.",
+      );
+    } finally {
+      setFinalGuideBusyId("");
+    }
+  };
+
   const totalValue = guides.reduce((sum, { guide }) => sum + guide.amount, 0);
   const settledValue = settledGuides.reduce((sum, { guide }) => sum + guide.amount, 0);
 
@@ -447,8 +490,57 @@ export function FinanceDeskPage() {
         ) : null}
 
         {section === "guias" ? (
-          <TableCard title="Guias emitidas" description="Emissões do fluxo financeiro municipal, com leitura clara por protocolo, vencimento e valor." icon={ReceiptText}>
+          <TableCard title="Guias emitidas" description="Emissões reais do fluxo financeiro municipal, vinculadas ao banco oficial." icon={ReceiptText}>
             <div className="space-y-3">
+              {finalGuideStatus ? (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                  finalGuideStatus.startsWith("Guia final")
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}>
+                  {finalGuideStatus}
+                </div>
+              ) : null}
+
+              {finalGuideCandidates.length > 0 ? (
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-950">Prontos para taxa final / Habite-se</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Processos em análise técnica, sem pendências abertas e com cobranças anteriores compensadas.
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {finalGuideCandidates.map((process) => (
+                      <div
+                        key={`${process.id}:final-guide-candidate`}
+                        className="flex flex-col gap-3 rounded-2xl border border-indigo-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
+                          <p className="mt-1 line-clamp-1 text-sm text-slate-600">{process.title}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Área: {process.property.area.toFixed(2)} m² • Padrão: {process.property.constructionStandard || "não informado"}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild variant="outline" className="rounded-full">
+                            <Link to={`/processos/${process.id}`}>Conferir processo</Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            className="rounded-full"
+                            disabled={finalGuideBusyId === process.id}
+                            onClick={() => void handleIssueFinalGuide(process.id)}
+                          >
+                            {finalGuideBusyId === process.id ? "Emitindo..." : "Emitir taxa final"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {guidesByIssueDate.length === 0 ? (
                 <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                   Nenhuma guia emitida encontrada.
@@ -469,7 +561,9 @@ export function FinanceDeskPage() {
                         <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{process.title}</p>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
-                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Emissão: {guide.dueDate}</div>
+                        <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
+                          Emissão: {guide.issuedAt ? new Date(guide.issuedAt).toLocaleDateString("pt-BR") : "não informada"}
+                        </div>
                         <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
                         <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
                         <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
@@ -658,7 +752,7 @@ export function FinanceDeskPage() {
                 taxaAprovacaoFinal: Number(values.taxaAprovacaoFinal || 0),
                 approvalRateProfiles: values.approvalRateProfiles ?? defaultApprovalRateProfiles,
               });
-              setFeeStatus("Tabela financeira atualizada com sucesso. As guias pendentes foram recalculadas automaticamente conforme o tipo e o padrão da construção.");
+              setFeeStatus("Tabela financeira atualizada com sucesso. Os novos valores serão usados nas próximas emissões; guias já emitidas preservam o valor original.");
             }}
           />
         ) : null}
