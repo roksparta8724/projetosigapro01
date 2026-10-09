@@ -2104,8 +2104,10 @@ export function matchesInstitutionOperationalScope(scopeId: string | null | unde
 export const matchesInstitutionScope = matchesInstitutionOperationalScope;
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
+  // O Master possui visão transversal da plataforma. O banco continua sendo a
+  // autoridade final de acesso; esta verificação evita bloquear a UI após a rota.
   if (session.role === "master_admin" || session.role === "master_ops") {
-    return false;
+    return true;
   }
 
   const activeScopeId = scopeId || getOperationalScopeId(session);
@@ -2117,8 +2119,8 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
     return process.createdBy === session.id;
   }
 
-  if (session.role === "proprietario_consulta") {
-    return process.ownerName === session.name;
+  if (session.role === "property_owner" || session.role === "proprietario_consulta") {
+    return process.ownerName.trim().toLowerCase() === session.name.trim().toLowerCase();
   }
 
   return isInternalRole(session.role);
