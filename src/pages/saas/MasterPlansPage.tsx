@@ -39,8 +39,8 @@ import { TableCard } from "@/components/platform/TableCard";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFile } from "@/integrations/r2/client";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
-import { saveRemoteCommercialMaterial } from "@/integrations/supabase/platform";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
+import { saveRemoteCommercialMaterial } from "@/integrations/backend/platform";
 import { buildCommercialPdfBlob } from "@/lib/commercialPdf";
 import { cn } from "@/lib/utils";
 import { type ClientPlanAssignment, type PlanBillingCycle, type PlanContractStatus, type PlanItem } from "@/lib/platform";
@@ -945,7 +945,7 @@ export function MasterPlansPage() {
       createdAt: new Date().toISOString(),
     };
 
-    if (!hasSupabaseEnv) {
+    if (!hasBackendEnv) {
       persistGeneratedMaterials([record, ...generatedMaterials]);
       setRemoteError("Banco oficial indisponível.");
       setStatusMessage("Material mantido apenas como rascunho local. Ele ainda não foi salvo no banco oficial.");
