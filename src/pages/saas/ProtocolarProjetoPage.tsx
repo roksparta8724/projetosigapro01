@@ -26,13 +26,14 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
-import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
   defaultProtocolDraftForm,
+  clearProtocolDraft,
   readProtocolDraft,
   saveProtocolDraft,
   toStoredUploadedFiles,
@@ -307,6 +308,7 @@ export function ProtocolarProjetoPage() {
     );
 
     setSubmitting(true);
+    const uploadedObjectKeys: string[] = [];
 
     let remoteSeed:
       | {
@@ -338,6 +340,7 @@ export function ProtocolarProjetoPage() {
               folder: "protocolos",
             });
 
+            uploadedObjectKeys.push(uploaded.path);
             return { ...document, filePath: uploaded.path, previewUrl: uploaded.publicUrl };
           }),
         );
@@ -391,6 +394,15 @@ export function ProtocolarProjetoPage() {
             ? remoteError.message
             : "Não foi possível gravar o protocolo no banco oficial.";
         console.error("[ProtocolarProjeto] Falha na persistência remota", remoteError);
+
+        if (uploadedObjectKeys.length > 0) {
+          await Promise.allSettled(
+            uploadedObjectKeys.map((objectKey) =>
+              deleteFileFromStorage({ bucket: "process-documents", objectKey }),
+            ),
+          );
+        }
+
         setStatus(`Não foi possível concluir o protocolo: ${message}`);
         setSubmitting(false);
         return;
@@ -407,8 +419,16 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    await refreshRemoteStore();
-    setSubmitting(false);
+    clearProtocolDraft(session.id, effectiveScopeId, session.tenantId);
+
+    try {
+      await refreshRemoteStore();
+    } catch (refreshError) {
+      console.warn("[ProtocolarProjeto] Protocolo criado, mas a atualização imediata da tela falhou.", refreshError);
+    } finally {
+      setSubmitting(false);
+    }
+
     navigate(`/processos/${remoteSeed.processId}?aba=financeiro`);
   };
 
