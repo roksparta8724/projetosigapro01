@@ -321,9 +321,6 @@ const LEGACY_STORAGE_KEY = "sigapro-platform-store";
 const STORAGE_KEY = "sigapro-platform-store.v2";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 const LEGACY_RECONCILIATION_PENDING_KEY = "sigapro:legacy-process-reconciliation-pending";
-type DeletedRecords = {
-  institutions: string[];
-};
 const LEGACY_DEMO_TENANT_NAMES = new Set([
   "prefeitura de jardim da serra",
   "prefeitura jardim da serra",
