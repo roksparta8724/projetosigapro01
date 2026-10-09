@@ -364,8 +364,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
   const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
   const sidebarFill = darken(primaryColor, 6);
-  const topbarFill = darken(primaryColor, -12);
-  const footerFill = darken(primaryColor, -8);
+  const topbarFill = darken(primaryColor, -26);
+  const footerFill = sidebarFill;
   const darkSidebar = isDarkSurface(sidebarFill);
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
@@ -612,6 +612,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     ? "Governança central da plataforma"
     : institutionDisplayName;
   const accountStatusLabel = loading ? "Sincronizando" : "Conta ativa";
+  const processShortcutPath =
+    isMasterUser
+      ? "/dashboard/processos"
+      : session.role === "profissional_externo"
+        ? "/externo/controle"
+        : session.role === "proprietario_consulta" || session.role === "property_owner"
+          ? "/proprietario"
+          : "/prefeitura/protocolos";
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
@@ -958,7 +966,19 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           <div className="flex shrink-0 items-center gap-2 lg:hidden">
               <button
                 type="button"
-                onClick={() => navigate("/notificacoes")}
+                onClick={() => navigate(processShortcutPath)}
+                className={cn(
+                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  topbarIconButton,
+                )}
+                aria-label="Processos"
+                title="Processos"
+              >
+                <ScrollText className="h-[18px] w-[18px] text-white/92" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/notificacoes")
                 className={cn(
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
@@ -1080,7 +1100,20 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
                 <button
                   type="button"
-                  onClick={() => navigate("/notificacoes")}
+                  onClick={() => navigate(processShortcutPath)}
+                  className={cn(
+                    "sig-topbar-process-button relative",
+                    topbarUtilityButtonClass,
+                    topbarIconButton,
+                  )}
+                  aria-label="Processos"
+                  title="Processos"
+                >
+                  <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/notificacoes")
                   className={cn(
                     "sig-topbar-notification-button relative",
                     topbarUtilityButtonClass,
