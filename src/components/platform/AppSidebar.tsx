@@ -7,7 +7,7 @@ export type AppSidebarItem = {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: Array<{ to: string; label: string; icon?: React.ComponentType<{ className?: string }> }>;
+  children?: Array<{ to: string; label: string; icon?: React.ComponentType<{ className?: string }>; permission?: string }>;
 };
 
 export type AppSidebarGroup = {
