@@ -43,8 +43,12 @@ function normalizeRole(role: string | null | undefined): SessionUser["role"] {
   const raw = (role ?? "").toLowerCase();
   if (raw === "admin_master") return "master_admin";
   if (raw === "master") return "master_admin";
-  if (raw === "prefeitura_admin") return "prefeitura_admin";
-  if (raw === "prefeitura_supervisor") return "prefeitura_supervisor";
+  if (raw === "prefeitura_admin" || raw === "admin_municipality" || raw === "admin_prefeitura") {
+    return "prefeitura_admin";
+  }
+  if (raw === "prefeitura_supervisor" || raw === "secretario" || raw === "diretor") {
+    return "prefeitura_supervisor";
+  }
   if (raw === "master_ops") return "master_ops";
   if (raw === "profissional_externo" || raw === "professional_external" || raw === "professional" || raw === "profissional") {
     return "profissional_externo";
@@ -55,7 +59,7 @@ function normalizeRole(role: string | null | undefined): SessionUser["role"] {
   if (raw === "analista" || raw === "analyst") return "analista";
   if (raw === "setor_intersetorial") return "setor_intersetorial";
   if (raw === "fiscal") return "fiscal";
-  return "profissional_externo";
+  return "proprietario_consulta";
 }
 
 export function PlatformSessionProvider({ children }: { children: React.ReactNode }) {
