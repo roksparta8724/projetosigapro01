@@ -84,7 +84,7 @@ export async function saveRemoteZoningRule(rule: ZoningRuleInput) {
   const payload = mapRuleToPayload(rule);
 
   const query = rule.id
-    ? supabase
+    ? db
         .from("zoning_rules")
         .update(payload)
         .eq("id", rule.id)
