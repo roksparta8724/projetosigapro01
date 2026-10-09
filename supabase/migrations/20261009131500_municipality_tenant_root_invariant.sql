@@ -34,10 +34,10 @@ begin
   end;
 
   insert into public.tenants(
-    id, legal_name, display_name, city, state, status, subdomain, created_at, updated_at
+    id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
   )
   values(
-    new.id, _name, _name, _city, _state, _status, _subdomain,
+    new.id, _name, _name, '', _city, _state, _status, _subdomain,
     coalesce(new.created_at, now()), now()
   )
   on conflict (id) do update
@@ -61,12 +61,13 @@ for each row
 execute function public.sync_municipality_tenant_root();
 
 insert into public.tenants(
-  id, legal_name, display_name, city, state, status, subdomain, created_at, updated_at
+  id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
 )
 select
   m.id,
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
+  '',
   coalesce(
     nullif(btrim(to_jsonb(m)->>'city'),''),
     coalesce(nullif(btrim(m.name),''),'Prefeitura')
