@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
-import { hasSupabaseEnv, supabase } from "@/integrations/supabase/client";
+import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { loadMunicipalityCatalog } from "@/integrations/supabase/municipality";
 import { linkExistingUserToMunicipalityAdmin, saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/supabase/platform";
 import { buildTenantFromMunicipalityBundle } from "@/lib/municipality";
@@ -93,10 +93,10 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
   throw lastError;
 };
 const LEGACY_PENDING_SYNC_STORAGE_KEY = "sigapro:pending-tenant-sync";
-const ensureSupabaseAvailable = async () => {
-  if (!supabase) throw new Error("Banco oficial indisponível.");
+const ensureBackendAvailable = async () => {
+  if (!backendClient) throw new Error("Banco oficial indisponível.");
   const { error } = await withTimeout(
-    supabase.from("municipalities").select("id").limit(1),
+    backendClient.from("municipalities").select("id").limit(1),
     8000,
   );
   if (error) {
@@ -127,7 +127,7 @@ export function MasterAdminPage() {
     window.localStorage.removeItem(LEGACY_PENDING_SYNC_STORAGE_KEY);
   }, []);
 
-  useEffect(() => { let active = true; if (!hasSupabaseEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
+  useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
 
   const institutionCatalog = useMemo(() => {
     const merged = new Map<string, Institution>();
@@ -205,7 +205,7 @@ export function MasterAdminPage() {
     return [
       { id: "suspended", title: "Contas suspensas", description: suspendedCount > 0 ? `${suspendedCount} prefeitura${suspendedCount > 1 ? "s" : ""} com status suspenso.` : "Nenhuma Prefeitura suspensa no momento.", tone: suspendedCount > 0 ? ("danger" as const) : ("success" as const) },
       { id: "without-admin", title: "Gestão sem administrador", description: withoutAdmin > 0 ? `${withoutAdmin} prefeitura${withoutAdmin > 1 ? "s" : ""} sem administrador principal vinculado.` : "Todas as prefeituras possuem gestor principal.", tone: withoutAdmin > 0 ? ("warning" as const) : ("success" as const) },
-      { id: "environment", title: "Ambiente da plataforma", description: hasSupabaseEnv ? "Neon conectado e persistência oficial ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasSupabaseEnv ? ("success" as const) : ("default" as const) },
+      { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Neon conectado e persistência oficial ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
 
@@ -350,11 +350,11 @@ export function MasterAdminPage() {
       let linkedAdminCount = 0;
       const unresolvedAdminEmails: string[] = [];
 
-      if (!hasSupabaseEnv) {
+      if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A Prefeitura não foi salva.");
       }
 
-      await ensureSupabaseAvailable();
+      await ensureBackendAvailable();
 
       const remoteInstitution = await withRetry(() =>
         withTimeout(
@@ -893,7 +893,7 @@ export function MasterAdminPage() {
                       <Workflow className="h-4 w-4 text-sky-200" />
                       Sincronização
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasSupabaseEnv ? "Neon conectado para contas, branding e persistência comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasBackendEnv ? "Neon conectado para contas, branding e persistência comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
                   </div>
                 </div>
               </SectionCard>
