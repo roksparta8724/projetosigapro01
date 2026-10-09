@@ -123,7 +123,7 @@ const ensureSupabaseAvailable = async () => {
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
-  const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, removeInstitution, setInstitutionStatus, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, setInstitutionStatus, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
@@ -582,12 +582,24 @@ export function MasterAdminPage() {
               variant="outline"
               className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto"
               onClick={() => {
-                setInstitutionStatus(tenant.id, tenant.status === "suspenso" ? "ativo" : "suspenso");
-                setStatusMessage(
-                  tenant.status === "suspenso"
-                    ? `${tenant.name} reativada com sucesso.`
-                    : `${tenant.name} suspensa com sucesso.`,
-                );
+                void (async () => {
+                  const nextStatus = tenant.status === "suspenso" ? "ativo" : "suspenso";
+                  setStatusMessage("Atualizando status no banco oficial...");
+                  try {
+                    await setInstitutionStatus(tenant.id, nextStatus);
+                    setStatusMessage(
+                      nextStatus === "ativo"
+                        ? `${tenant.name} reativada no banco oficial com sucesso.`
+                        : `${tenant.name} suspensa no banco oficial com sucesso.`,
+                    );
+                  } catch (error) {
+                    setStatusMessage(
+                      error instanceof Error
+                        ? error.message
+                        : "Não foi possível alterar o status da Prefeitura no banco oficial.",
+                    );
+                  }
+                })();
               }}
             >
               {tenant.status === "suspenso" ? (
@@ -602,19 +614,7 @@ export function MasterAdminPage() {
                 </>
               )}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 lg:w-auto"
-              onClick={() => {
-                if (!window.confirm(`Deseja remover ${tenant.name} da carteira local?`)) return;
-                removeInstitution(tenant.id);
-                setStatusMessage(`${tenant.name} removida da carteira local.`);
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4 text-rose-300" />
-              Remover
-            </Button>
+
           </div>
         </div>
 
