@@ -180,6 +180,30 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
     expect(neonMock.client.rpc).toHaveBeenCalledWith("current_profile_id");
   });
+  it("retries current_profile_id when Neon auth propagation is transient", async () => {
+    let profileRpcAttempt = 0;
+    neonMock.client.rpc.mockImplementation(async (name: string) => {
+      if (name !== "current_profile_id") throw new Error(`Unexpected RPC: ${name}`);
+      profileRpcAttempt += 1;
+      if (profileRpcAttempt === 1) {
+        return { data: null, error: null };
+      }
+      return { data: neonMock.profileId, error: null };
+    });
+
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+
+    expect(await screen.findByText("signed-in", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+    expect(profileRpcAttempt).toBeGreaterThanOrEqual(2);
+  });
+
   it("uses the Neon password recovery contract with redirect token flow", async () => {
     window.history.replaceState(null, "", "/recuperar-senha?token=valid-reset-token");
 
