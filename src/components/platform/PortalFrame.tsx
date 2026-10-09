@@ -121,9 +121,9 @@ const navItems = [
     icon: Wallet,
     permission: "manage_financial" as Permission,
     children: [
-      { to: "/prefeitura/financeiro", label: "Visão geral", icon: LayoutDashboard },
-      { to: "/prefeitura/financeiro/protocolos", label: "Protocolos e recolhimento", icon: FileBarChart2 },
-      { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers },
+      { to: "/prefeitura/financeiro", label: "Visão geral", icon: LayoutDashboard, permission: "manage_financial" as Permission },
+      { to: "/prefeitura/financeiro/protocolos", label: "Protocolos e recolhimento", icon: FileBarChart2, permission: "manage_financial" as Permission },
+      { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers, permission: "manage_fiscal_financial" as Permission },
     ],
   },
   { key: "notifications", to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
@@ -370,12 +370,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
-  const visibleNavItems = navItems.filter((item) => {
-    if (!can(session, item.permission)) return false;
-    if (!item.key) return true;
-    if (item.essential) return true;
-    return isItemVisible(item.key as MenuPreferenceKey);
-  });
+  const visibleNavItems = navItems
+    .map((item) => {
+      const visibleChildren = (item.children ?? []).filter(
+        (child) => !child.permission || can(session, child.permission),
+      );
+      const parentAllowed = can(session, item.permission);
+      if (!parentAllowed && visibleChildren.length === 0) return null;
+      if (item.key && !item.essential && !isItemVisible(item.key as MenuPreferenceKey)) return null;
+      return { ...item, children: visibleChildren };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
