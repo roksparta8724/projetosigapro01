@@ -92,6 +92,7 @@ type DataSource = "demo" | "local" | "remote";
 interface PlatformDataState {
   source: DataSource;
   loading: boolean;
+  dataError: string | null;
   refreshRemoteStore: () => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
@@ -600,6 +601,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const [store, setStore] = useState<PlatformStore>(() => initialStateRef.current?.store ?? defaultStore);
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
+  const [dataError, setDataError] = useState<string | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -619,6 +621,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           // nunca restaura processos, usuários, guias ou Prefeituras do navegador.
           setStore(staticCatalogStore);
           setSource("local");
+          setDataError(null);
           setLoading(false);
           return;
         }
@@ -626,6 +629,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         const nextStore = readStore();
         setStore(nextStore);
         setSource(nextStore === defaultStore ? "demo" : "local");
+        setDataError(null);
         setLoading(false);
         return;
       }
@@ -754,6 +758,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setStore(sanitized);
         syncStore(sanitized);
         setSource("remote");
+        setDataError(null);
         lastFetchedUserId.current = authenticatedUserId;
       } catch (error) {
         if (!active) return;
@@ -766,6 +771,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             : readPersistedStore() ?? buildSanitizedStore({}, false);
         setStore(nextStore);
         setSource("local");
+        setDataError(
+          error instanceof Error && error.message
+            ? `Banco oficial indisponível: ${error.message}`
+            : "Banco oficial temporariamente indisponível.",
+        );
       } finally {
         if (active) setLoading(false);
       }
@@ -800,15 +810,27 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const refreshRemoteStore = async () => {
     if (!authenticatedUserId || !hasBackendEnv) {
-      throw new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
+      const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
+      setDataError(error.message);
+      throw error;
     }
 
-    const remote = await loadRemotePlatformStore();
-    const sanitized = buildSanitizedStore(remote, false);
-    setStore(sanitized);
-    syncStore(sanitized);
-    setSource("remote");
-    lastFetchedUserId.current = authenticatedUserId;
+    try {
+      const remote = await loadRemotePlatformStore();
+      const sanitized = buildSanitizedStore(remote, false);
+      setStore(sanitized);
+      syncStore(sanitized);
+      setSource("remote");
+      setDataError(null);
+      lastFetchedUserId.current = authenticatedUserId;
+    } catch (error) {
+      setDataError(
+        error instanceof Error && error.message
+          ? `Banco oficial indisponível: ${error.message}`
+          : "Banco oficial temporariamente indisponível.",
+      );
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -1258,6 +1280,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return {
       source,
       loading,
+      dataError,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,
@@ -1736,7 +1759,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       }
     };
-  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, loading, source, store]);
+  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, dataError, loading, source, store]);
 
   return <PlatformDataContext.Provider value={value}>{children}</PlatformDataContext.Provider>;
 }
