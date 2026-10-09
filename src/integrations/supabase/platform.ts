@@ -814,11 +814,17 @@ export async function loadRemotePlatformStore() {
       adminContacts: normalizeAdminContacts(general.admin_contacts),
       taxaProtocolo: readGeneralNumber(general, ["taxa_protocolo", "fee_protocol"], 35.24),
       taxaIssPorMetroQuadrado: readGeneralNumber(general, ["taxa_iss_por_metro_quadrado", "fee_iss_m2"], 0),
+      issStageEnabled:
+        typeof general.iss_stage_enabled === "boolean" ? general.iss_stage_enabled : true,
       issRateProfiles:
         Array.isArray(general.iss_rate_profiles) && general.iss_rate_profiles.length > 0
           ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
           : undefined,
       taxaAprovacaoFinal: readGeneralNumber(general, ["taxa_aprovacao_final", "fee_final_approval"], 0),
+      finalApprovalFeeEnabled:
+        typeof general.final_approval_fee_enabled === "boolean"
+          ? general.final_approval_fee_enabled
+          : true,
       approvalRateProfiles:
         Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
           ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
