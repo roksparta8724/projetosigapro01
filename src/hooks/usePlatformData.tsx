@@ -56,21 +56,34 @@ import { backendClient as supabase, hasBackendEnv as hasSupabaseEnv } from "@/in
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
+  annotateRemoteProcessDocument,
+  completeRemoteProcessRequirement,
   confirmRemoteProcessPaymentGuide,
   createRemoteOwnerMessage,
+  createRemoteProcessDispatch,
+  createRemoteProcessRequirement,
   createRemoteOwnerRequest,
   issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
   reissueRemoteProcessPaymentGuide,
+  reopenRemoteProcess,
   respondRemoteOwnerRequest,
+  respondRemoteProcessRequirement,
+  reviewRemoteProcessDocument,
   saveRemoteClientPlanAssignment,
   saveRemoteInstitutionSettings,
   saveRemoteProfile,
+  sendRemoteProcessMessage,
   setRemoteOwnerChatEnabled,
+  setRemoteProcessCheckpoint,
+  setRemoteProcessHold,
+  setRemoteProcessStatus,
+  setRemoteProcessTransitVisibility,
   upsertRemoteInstitution,
   upsertRemotePlan,
+  upsertRemoteProcessMarker,
 } from "@/integrations/supabase/platform";
 
 type CmsSection = (typeof seedCmsSections)[number];
@@ -162,35 +175,35 @@ interface PlatformDataState {
   createRegistrationRequest: (input: Omit<RegistrationRequest, "id" | "status" | "createdAt">) => RegistrationRequest;
   approveRegistrationRequest: (requestId: string) => SessionUser | null;
   createProcess: (input: CreateProcessInput) => ProcessRecord;
-  createRequirement: (input: { processId: string; title: string; description: string; dueDate: string; actor: string; targetName: string; visibility: "interno" | "externo" | "misto" }) => void;
-  respondRequirement: (input: { processId: string; requirementId: string; response: string; actor: string }) => void;
-  completeRequirement: (input: { processId: string; requirementId: string; actor: string }) => void;
+  createRequirement: (input: { processId: string; title: string; description: string; dueDate: string; actor: string; targetName: string; visibility: "interno" | "externo" | "misto" }) => Promise<void>;
+  respondRequirement: (input: { processId: string; requirementId: string; response: string; actor: string }) => Promise<void>;
+  completeRequirement: (input: { processId: string; requirementId: string; actor: string }) => Promise<void>;
   updateProcessStatus: (input: {
     processId: string;
     status: ProcessStatus;
     actor: string;
     detail: string;
     title?: string;
-  }) => void;
-  reopenProcess: (input: { processId: string; actor: string; reason: string }) => void;
+  }) => Promise<void>;
+  reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
   appendProcessDocuments: (processId: string, documents: ProcessDocument[], actor: string) => void;
-  reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => void;
-  addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => void;
-  addProcessMarker: (processId: string, marker: string, actor: string) => void;
-  addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => void;
+  reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
+  addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => Promise<void>;
+  addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
+  addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
   removeProcessMarker: (processId: string, marker: string, actor: string) => void;
   setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => void;
   setTenantStatus: (tenantId: string, status: Tenant["status"]) => void;
-  dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => void;
+  dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
   acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => void;
   completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => void;
   returnDispatches: (input: { processIds: string[]; actor: string; unit: string; reason?: string }) => void;
-  setProcessCheckpoint: (input: { processIds: string[]; actor: string; checkpoint: string }) => void;
-  setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => void;
-  setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => void;
-  sendProcessMessage: (input: { processId: string; senderName: string; senderRole: string; audience: "interno" | "externo" | "misto"; recipientName?: string; message: string }) => void;
+  setProcessCheckpoint: (input: { processIds: string[]; actor: string; checkpoint: string }) => Promise<void>;
+  setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => Promise<void>;
+  setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => Promise<void>;
+  sendProcessMessage: (input: { processId: string; senderName: string; senderRole: string; audience: "interno" | "externo" | "misto"; recipientName?: string; message: string }) => Promise<void>;
   reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
 }
 
@@ -392,29 +405,29 @@ const demoState: PlatformDataState = {
   createRegistrationRequest: () => defaultStore.registrationRequests[0],
   approveRegistrationRequest: () => null,
   createProcess: () => defaultStore.processes[0],
-  createRequirement: () => undefined,
-  respondRequirement: () => undefined,
-  completeRequirement: () => undefined,
-  updateProcessStatus: () => undefined,
-  reopenProcess: () => undefined,
+  createRequirement: async () => undefined,
+  respondRequirement: async () => undefined,
+  completeRequirement: async () => undefined,
+  updateProcessStatus: async () => undefined,
+  reopenProcess: async () => undefined,
   issuePaymentGuide: async () => undefined,
   markGuideAsPaid: async () => undefined,
   appendProcessDocuments: () => undefined,
-  reviewProcessDocument: () => undefined,
-  addDocumentAnnotation: () => undefined,
-  addProcessMarker: () => undefined,
-  addProcessMarkerWithColor: () => undefined,
+  reviewProcessDocument: async () => undefined,
+  addDocumentAnnotation: async () => undefined,
+  addProcessMarker: async () => undefined,
+  addProcessMarkerWithColor: async () => undefined,
   removeProcessMarker: () => undefined,
   setInstitutionStatus: () => undefined,
   setTenantStatus: () => undefined,
-  dispatchProcess: () => undefined,
+  dispatchProcess: async () => undefined,
   acknowledgeDispatchReceipt: () => undefined,
   completeDispatches: () => undefined,
   returnDispatches: () => undefined,
-  setProcessCheckpoint: () => undefined,
-  setProcessOnHold: () => undefined,
-  setProcessTransitVisibility: () => undefined,
-  sendProcessMessage: () => undefined,
+  setProcessCheckpoint: async () => undefined,
+  setProcessOnHold: async () => undefined,
+  setProcessTransitVisibility: async () => undefined,
+  sendProcessMessage: async () => undefined,
   reissuePaymentGuide: async () => undefined,
 };
 
