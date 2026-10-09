@@ -484,7 +484,8 @@ function buildSanitizedStore(rawStore: Partial<PlatformStore>, fallbackToDefault
     tenantSettings: fallback(rawStore.tenantSettings, defaultStore.tenantSettings)
       .filter((item) => !legacyDemoIds.has(item.tenantId)),
     sessionUsers: normalizedSessionUsers,
-    userProfiles: normalizedUserProfiles,    ownerRequests: fallback(rawStore.ownerRequests, defaultStore.ownerRequests).filter((request) =>
+    userProfiles: normalizedUserProfiles,
+    ownerRequests: fallback(rawStore.ownerRequests, defaultStore.ownerRequests).filter((request) =>
       validProcessIds.has(request.projectId),
     ),
     ownerLinks: fallback(rawStore.ownerLinks, defaultStore.ownerLinks).filter((link) =>
@@ -540,9 +541,15 @@ function readPersistedStore(): PlatformStore | null {
 
 
 function syncStore(store: PlatformStore) {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined") return;
+
+  // Cache operacional é permitido somente no ambiente local de desenvolvimento.
+  // Em produção, perfis/processos/documentos permanecem apenas em memória.
+  if (hasBackendEnv && !isLocalDevHost()) {
+    window.localStorage.removeItem(STORAGE_KEY);
     return;
   }
+
   const normalizedStore: PlatformStore = {
     ...store,
     sessionUsers: store.sessionUsers.map((user) => normalizeSessionUserScope(user)),
@@ -596,15 +603,15 @@ function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<S
 function getInitialPlatformStoreState() {
   const localDev = isLocalDevHost();
 
-  // Em produção, dados operacionais antigos do protótipo não são mais aceitos.
-  // O cache v2 só recebe snapshots que vieram do backend oficial.
+  // Em produção, dados operacionais nunca são restaurados do navegador.
+  // O Neon é a única fonte persistente; o bootstrap começa apenas com catálogo estático.
   if (hasBackendEnv && !localDev) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      window.localStorage.removeItem(STORAGE_KEY);
     }
-    const cachedRemote = readPersistedStore();
     return {
-      store: cachedRemote ?? staticCatalogStore,
+      store: staticCatalogStore,
       source: "local" as const,
     };
   }
@@ -687,8 +694,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (isAuthError(error) && backendClient) {
           await backendClient.auth.signOut();
         }
-        const cachedStore = readPersistedStore();
-        const nextStore = cachedStore ?? buildSanitizedStore({}, false);
+        const nextStore =
+          hasBackendEnv && !localDev
+            ? staticCatalogStore
+            : readPersistedStore() ?? buildSanitizedStore({}, false);
         setStore(nextStore);
         setSource("local");
       } finally {
