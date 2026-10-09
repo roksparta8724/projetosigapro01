@@ -32,10 +32,13 @@ export function PermissionRoute({
   // Depois que a identidade autenticada já foi resolvida, sincronizações de fundo
   // NUNCA podem desmontar a tela. Isso mantém brasão, dados e layout fixos sem loop visual.
   const hasStableAuthenticatedView =
-    bootstrap.isReady &&
-    bootstrap.authResolved &&
-    Boolean(bootstrap.authUserId) &&
-    Boolean(bootstrap.profile?.userId);
+    session.id !== "unknown" &&
+    Boolean(session.role) &&
+    (
+      Boolean(bootstrap.authUserId) ||
+      Boolean(bootstrap.profile?.userId) ||
+      Boolean(session.email)
+    );
 
   const isInitialAccessResolution =
     !hasStableAuthenticatedView &&
