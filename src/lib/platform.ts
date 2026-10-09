@@ -740,20 +740,31 @@ export function resolveIssRateProfile(
   usage: string | null | undefined,
   settings?: TenantSettings | null,
 ) {
-  const profiles =
-    settings?.issRateProfiles && settings.issRateProfiles.length > 0
-      ? settings.issRateProfiles
-      : defaultIssRateProfiles;
+  const profiles = settings?.issRateProfiles ?? [];
+  if (profiles.length === 0) return null;
 
   const normalizedUsage = normalizeUsageLabel(usage);
-  const matched =
+  return (
     profiles.find((profile) =>
       [profile.label, ...(profile.aliases ?? [])]
         .map((item) => normalizeUsageLabel(item))
         .some((item) => item.length > 0 && normalizedUsage.includes(item)),
-    ) ?? profiles[0];
+    ) ?? null
+  );
+}
 
-  return matched;
+export function isIssFeeConfigured(settings?: TenantSettings | null) {
+  return Boolean(
+    (settings?.issRateProfiles ?? []).some((profile) => Number(profile.rate) > 0) ||
+    Number(settings?.taxaIssPorMetroQuadrado ?? 0) > 0,
+  );
+}
+
+export function isFinalApprovalFeeConfigured(settings?: TenantSettings | null) {
+  return Boolean(
+    (settings?.approvalRateProfiles ?? []).some((profile) => Number(profile.rate) > 0) ||
+    Number(settings?.taxaAprovacaoFinal ?? 0) > 0,
+  );
 }
 
 export function calculateIssGuideAmount(
@@ -772,10 +783,8 @@ export function resolveApprovalRateProfile(
   standard: string | null | undefined,
   settings?: TenantSettings | null,
 ) {
-  const profiles =
-    settings?.approvalRateProfiles && settings.approvalRateProfiles.length > 0
-      ? settings.approvalRateProfiles
-      : defaultApprovalRateProfiles;
+  const profiles = settings?.approvalRateProfiles ?? [];
+  if (profiles.length === 0) return null;
 
   const normalizedUsage = normalizeUsageLabel(usage);
   const normalizedStandard = normalizeUsageLabel(standard || "medio");
