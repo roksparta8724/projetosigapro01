@@ -20,7 +20,7 @@ import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { createRemoteExternalProcessV2 } from "@/integrations/supabase/platform";
+import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   formatCurrency,
