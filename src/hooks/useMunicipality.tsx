@@ -52,16 +52,28 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
   const brandingFetchRef = useRef<{ id: string; inFlight: boolean }>({ id: "", inFlight: false });
 
   const activeInstitutionId =
-    tenant.municipalityId ?? bundle?.municipality?.id ?? session.municipalityId ?? session.tenantId ?? null;
+    bootstrap.scopeType === "platform"
+      ? null
+      : tenant.municipalityId ??
+        bundle?.municipality?.id ??
+        session.municipalityId ??
+        session.tenantId ??
+        null;
+
   const fallbackInstitutionBySubdomain =
     !activeInstitutionId && tenant.mode === "tenant" && tenant.subdomain
       ? institutions.find((item) => item.subdomain === tenant.subdomain) ?? null
       : null;
+
   const institution =
-    institutions.find((item) => item.id === activeInstitutionId) ??
-    fallbackInstitutionBySubdomain ??
-    null;
-  const fallbackInstitutionSettings = getInstitutionSettings(activeInstitutionId);
+    bootstrap.scopeType === "platform"
+      ? null
+      : institutions.find((item) => item.id === activeInstitutionId) ??
+        fallbackInstitutionBySubdomain ??
+        null;
+
+  const effectiveInstitutionId = activeInstitutionId ?? fallbackInstitutionBySubdomain?.id ?? null;
+  const fallbackInstitutionSettings = getInstitutionSettings(effectiveInstitutionId);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
