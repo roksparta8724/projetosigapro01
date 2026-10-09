@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   DEFAULT_MARKER_COLOR_ID,
   MARKER_COLOR_OPTIONS,
@@ -28,7 +29,11 @@ export type NewMarkerPreset = {
 
 export const SYSTEM_MARKER_IDS = new Set(["favorito", "prioridade", "pendencia", "retorno", "analise"]);
 
-const STORAGE_KEY = "sigapro-marker-presets";
+const LEGACY_STORAGE_KEY = "sigapro-marker-presets";
+
+function buildStorageKey(profileId: string) {
+  return `sigapro-marker-presets:${profileId}`;
+}
 
 const DEFAULT_PRESETS: MarkerPreset[] = [
   {
@@ -127,16 +132,42 @@ export function formatMarkerLabel(preset: Pick<MarkerPreset, "label" | "emoji">)
 }
 
 export function useMarkerPresets() {
-  const [presets, setPresets] = useState<MarkerPreset[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_PRESETS;
-    const stored = safeParse(window.localStorage.getItem(STORAGE_KEY));
-    return stored && stored.length > 0 ? stored : DEFAULT_PRESETS;
-  });
+  const { authenticatedProfileId, authenticatedUserId } = useAuthGateway();
+  const preferenceOwnerId = authenticatedProfileId || authenticatedUserId || "";
+  const [presets, setPresets] = useState<MarkerPreset[]>(DEFAULT_PRESETS);
+  const [loadedOwnerId, setLoadedOwnerId] = useState("");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-  }, [presets]);
+    if (typeof window === "undefined" || !preferenceOwnerId) {
+      setPresets(DEFAULT_PRESETS);
+      setLoadedOwnerId("");
+      return;
+    }
+
+    const scopedKey = buildStorageKey(preferenceOwnerId);
+    const scoped = safeParse(window.localStorage.getItem(scopedKey));
+    const legacy = scoped ? null : safeParse(window.localStorage.getItem(LEGACY_STORAGE_KEY));
+    const next = scoped ?? legacy ?? DEFAULT_PRESETS;
+
+    setPresets(next);
+    setLoadedOwnerId(preferenceOwnerId);
+
+    if (!scoped && legacy) {
+      window.localStorage.setItem(scopedKey, JSON.stringify(legacy));
+    }
+  }, [preferenceOwnerId]);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !preferenceOwnerId ||
+      loadedOwnerId !== preferenceOwnerId
+    ) {
+      return;
+    }
+
+    window.localStorage.setItem(buildStorageKey(preferenceOwnerId), JSON.stringify(presets));
+  }, [loadedOwnerId, preferenceOwnerId, presets]);
 
   const presetMap = useMemo(() => {
     const map = new Map<string, MarkerPreset>();
