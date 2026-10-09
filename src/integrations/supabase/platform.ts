@@ -1007,6 +1007,18 @@ export async function loadRemotePlatformStore() {
         visibleToExternal: Boolean(entry.visible_to_external),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
+      processControl: {
+        externalTransitView:
+          process.external_transit_view === "restrito" ? "restrito" : "completo",
+        currentFolder:
+          process.current_department ??
+          process.current_queue ??
+          process.sla_stage ??
+          "Fluxo em andamento",
+        checkpoint: process.process_checkpoint ?? undefined,
+        onHold: Boolean(process.is_on_hold),
+        onHoldReason: process.hold_reason ?? undefined,
+      },
       signatures: [],
       dispatches: dispatches.map((dispatch) => ({
         id: String(dispatch.id),
