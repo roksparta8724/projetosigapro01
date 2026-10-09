@@ -50,9 +50,16 @@ export function InstitutionalLogo({
       : ""
     : primaryUrl;
   const [loadedSource, setLoadedSource] = useState({ context, url: imageUrl });
-  const displayUrl = (imageUrl || primaryUrl) && loadedSource.context === context && loadedSource.url && !failedSources.includes(loadedSource.url)
-    ? loadedSource.url
-    : imageUrl;
+  const stableLoadedUrl =
+    loadedSource.context === context &&
+    loadedSource.url &&
+    !failedSources.includes(loadedSource.url)
+      ? loadedSource.url
+      : "";
+
+  // Nunca apaga a imagem institucional já carregada por causa de um estado transitório
+  // com URL vazia. Só troca depois que a nova fonte carregar com sucesso.
+  const displayUrl = stableLoadedUrl || imageUrl;
   const pendingUrl = imageUrl && imageUrl !== displayUrl ? imageUrl : "";
   const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(3.5, branding.logoScale)) : 1;
   // Master crops are authored in a 160px square editor and rendered in proportional square frames.
@@ -63,13 +70,13 @@ export function InstitutionalLogo({
   const showMasterCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
 
   useEffect(() => {
-    if (imageUrl) {
+    if (displayUrl) {
       setFallbackReady(false);
       return;
     }
     const timer = window.setTimeout(() => setFallbackReady(true), 500);
     return () => window.clearTimeout(timer);
-  }, [context, imageUrl]);
+  }, [context, displayUrl]);
 
   return (
     <div
