@@ -53,15 +53,14 @@ begin
   end;
 
   insert into public.tenants(
-    id, municipality_id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
+    id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
   )
   values(
-    new.id, new.id, _name, _name, _cnpj, _city, _state, _status, _subdomain,
+    new.id, _name, _name, _cnpj, _city, _state, _status, _subdomain,
     coalesce(new.created_at, now()), now()
   )
   on conflict (id) do update
-    set municipality_id=excluded.municipality_id,
-        legal_name=excluded.legal_name,
+    set legal_name=excluded.legal_name,
         display_name=excluded.display_name,
         city=excluded.city,
         state=excluded.state,
@@ -96,10 +95,9 @@ update public.tenants t
    and lower(coalesce(t.subdomain, '')) = lower(m.subdomain);
 
 insert into public.tenants(
-  id, municipality_id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
+  id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
 )
 select
-  m.id,
   m.id,
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
