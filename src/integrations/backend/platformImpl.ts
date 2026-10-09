@@ -2660,6 +2660,12 @@ export async function upsertRemoteInstitution(input: {
     throw municipalityError;
   }
 
+  if (isNeonBackend) {
+    throw new Error(
+      "Schema Neon incompleto: a tabela municipalities é obrigatória e o fallback tenant legado foi desativado.",
+    );
+  }
+
   const { error: tenantError } = await db.from("tenants").upsert(
     {
       id: tenantId,
@@ -3009,11 +3015,17 @@ export async function saveRemoteInstitutionSettings(
     throw new Error(formatted);
   }
 
+  if (isNeonBackend) {
+    throw new Error(
+      "Schema Neon incompleto: municipalities, municipality_settings e municipality_branding são obrigatórias. Nenhum dado foi salvo no schema legado.",
+    );
+  }
+
   // ------------------------------------------------------------------
-  // Fallback: tenant_settings / tenant_branding (schema legado)
+  // Fallback exclusivo do rollback Supabase: tenant_settings / tenant_branding
   // ------------------------------------------------------------------
   console.warn(
-    "[SIGAPRO][Database] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
+    "[SIGAPRO][Legacy Supabase] Tabelas municipality_* ausentes. Tentando fallback tenant_*",
   );
 
   const settingsPayload = {
