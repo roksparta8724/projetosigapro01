@@ -2267,146 +2267,52 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           return { ...current, processes };
         });
       },
-      markGuideAsPaid: (processId, actor, guideKind = "protocolo") => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) {
-              return process;
-            }
+      issuePaymentGuide: async (processId, actor, guideKind) => {
+        if (!hasSupabaseEnv) {
+          throw new Error("O banco oficial está indisponível para emitir a guia.");
+        }
 
-            const guides = (process.payment.guides ?? []).map((guide) =>
-              guide.kind === guideKind ? { ...guide, status: "compensada" as const } : guide,
-            );
-            const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
-            const issGuide = guides.find((guide) => guide.kind === "iss_obra");
-            const approvalGuide = guides.find((guide) => guide.kind === "aprovacao_final");
-            const nextStatus =
-              guideKind === "protocolo"
-                ? "analise_tecnica"
-                : guideKind === "iss_obra"
-                  ? "analise_tecnica"
-                  : approvalGuide?.status === "compensada"
-                    ? "deferido"
-                    : process.status;
-            const nextStage =
-              guideKind === "protocolo"
-                ? "Análise técnica"
-                : guideKind === "iss_obra"
-                  ? "Análise técnica após ISSQN"
-                  : approvalGuide?.status === "compensada"
-                    ? "Habite-se e aprovacao final"
-                    : process.sla.currentStage;
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
 
-            return {
-              ...process,
-              status: nextStatus,
-              triage: {
-                ...process.triage,
-                status: protocolGuide?.status === "compensada" ? "concluido" : process.triage.status,
-              },
-              sla: {
-                ...process.sla,
-                currentStage: nextStage,
-                breached: false,
-              },
-              payment: {
-                ...process.payment,
-                status: protocolGuide?.status === "compensada" ? "compensada" : process.payment.status,
-                guides,
-              },
-              dispatches: [
-                ...(guideKind === "protocolo"
-                  ? [
-                      {
-                        id: `dispatch-${crypto.randomUUID()}`,
-                        from: "Financeiro",
-                        to: "Análise técnica",
-                        subject: "Pagamento confirmado e processo liberado para análise",
-                        dueDate: new Date().toLocaleDateString("pt-BR"),
-                        status: "aguardando" as const,
-                        visibility: "interno" as const,
-                      },
-                    ]
-                  : guideKind === "iss_obra"
-                    ? [
-                        {
-                          id: `dispatch-${crypto.randomUUID()}`,
-                          from: "Setor de IPTU",
-                          to: "Análise técnica",
-                          subject: "ISSQN confirmado e projeto retornado para a fila técnica",
-                          dueDate: new Date().toLocaleDateString("pt-BR"),
-                          status: "aguardando" as const,
-                          visibility: "interno" as const,
-                        },
-                      ]
-                    : guideKind === "aprovacao_final"
-                      ? [
-                          {
-                            id: `dispatch-${crypto.randomUUID()}`,
-                            from: "Financeiro",
-                            to: "Habite-se",
-                            subject: "Taxa final compensada e processo apto para conclusao",
-                            dueDate: new Date().toLocaleDateString("pt-BR"),
-                            status: "aguardando" as const,
-                            visibility: "interno" as const,
-                          },
-                        ]
-                  : []),
-                ...process.dispatches,
-              ],
-              timeline: [
-                buildTimelineEntry(
-                  "Pagamento confirmado",
-                  `${
-                    guides.find((guide) => guide.kind === guideKind)?.label || "Guia"
-                  } compensada${
-                    guideKind === "protocolo"
-                      ? " e processo encaminhado automaticamente para a análise técnica."
-                      : guideKind === "iss_obra"
-                        ? " pelo Setor de IPTU, retornando o processo para análise técnica."
-                        : " e etapa final de habitese/aprovacao liberada."
-                  }`,
-                  actor,
-                ),
-                ...process.timeline,
-              ],
-              auditTrail: [
-                buildAuditEntry(
-                  "financeiro",
-                  "Pagamento confirmado",
-                  `${guides.find((guide) => guide.kind === guideKind)?.label || "Guia"} registrada como paga.${
-                    guideKind === "protocolo"
-                      ? " Processo enviado para a fila de análise."
-                      : guideKind === "iss_obra"
-                        ? " ISSQN confirmado pelo setor de IPTU."
-                        : " Taxa final de aprovacao confirmada."
-                  }`,
-                  actor,
-                  true,
-                ),
-                ...process.auditTrail,
-              ],
-              messages: [
-                {
-                  id: `message-${crypto.randomUUID()}`,
-                  senderName: actor,
-                  senderRole: "Financeiro",
-                  audience: "misto",
-                  message:
-                    guideKind === "protocolo"
-                      ? "Pagamento confirmado. O protocolo retornou ao fluxo de análise."
-                      : guideKind === "iss_obra"
-                        ? "ISSQN da obra confirmado. O processo voltou para a análise técnica."
-                        : "Taxa final de aprovacao confirmada. O processo avancou para a etapa final.",
-                  at: new Date().toLocaleString("pt-BR"),
-                },
-                ...process.messages,
-              ],
-            };
-          });
+        const settings = store.tenantSettings.find(
+          (item) => item.tenantId === (process.municipalityId ?? process.tenantId),
+        );
 
-          return { ...current, processes };
+        const amount =
+          guideKind === "iss_obra"
+            ? calculateIssGuideAmount(
+                process.property.area || 0,
+                process.property.usage,
+                settings,
+              )
+            : calculateApprovalGuideAmount(
+                process.property.area || 0,
+                process.property.usage,
+                process.property.constructionStandard,
+                settings,
+              );
+
+        await issueRemoteProcessPaymentGuide({
+          processId,
+          guideKind,
+          amount,
+          guidePrefix: settings?.guiaPrefixo || "DAM",
         });
+
+        await refreshRemoteStore();
+      },
+      markGuideAsPaid: async (processId, actor, guideKind = "protocolo") => {
+        if (!hasSupabaseEnv) {
+          throw new Error("O banco oficial está indisponível para confirmar o pagamento.");
+        }
+
+        await confirmRemoteProcessPaymentGuide({
+          processId,
+          guideKind,
+        });
+
+        await refreshRemoteStore();
       },
       appendProcessDocuments: (processId, documents, actor) => {
         updateStore((current) => {
@@ -2858,49 +2764,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           return { ...current, processes };
         });
       },
-      reissuePaymentGuide: (processId, actor, guideKind = "protocolo") => {
-        updateStore((current) => {
-          const processes = current.processes.map((process) => {
-            if (process.id !== processId) return process;
+      reissuePaymentGuide: async (processId, actor, guideKind = "protocolo") => {
+        if (!hasSupabaseEnv) {
+          throw new Error("O banco oficial está indisponível para reemitir a guia.");
+        }
 
-            const now = new Date();
-            const prefix = process.payment.guideNumber.split("-").slice(0, 2).join("-");
-            const serial = String(Math.floor(Math.random() * 90000) + 10000);
-            const nextCode =
-              guideKind === "protocolo"
-                ? `${prefix}-${serial}`
-                : guideKind === "iss_obra"
-                  ? `${prefix}-ISS-${serial}`
-                  : `${prefix}-APR-${serial}`;
-
-            return {
-              ...process,
-              payment: {
-                ...process.payment,
-                guideNumber: guideKind === "protocolo" ? nextCode : process.payment.guideNumber,
-                status: guideKind === "protocolo" ? "pendente" : process.payment.status,
-                issuedAt: now.toISOString(),
-                expiresAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-                guides: (process.payment.guides ?? []).map((guide) =>
-                  guide.kind === guideKind
-                    ? {
-                        ...guide,
-                        code: nextCode,
-                        status: "pendente",
-                        issuedAt: now.toISOString(),
-                        expiresAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-                      }
-                    : guide,
-                ),
-              },
-              timeline: [buildTimelineEntry("Guia reemitida", `Uma nova ${guideKind === "protocolo" ? "guia de recolhimento" : guideKind === "iss_obra" ? "guia de ISS da obra" : "guia final de aprovação"} foi emitida devido ao vencimento do Pix.`, actor), ...process.timeline],
-              auditTrail: [buildAuditEntry("financeiro", "Guia reemitida", "Nova guia emitida no modulo financeiro.", actor, true), ...process.auditTrail],
-            };
-          });
-
-          return { ...current, processes };
+        await reissueRemoteProcessPaymentGuide({
+          processId,
+          guideKind,
         });
-      },
+
+        await refreshRemoteStore();
+      }
     };
   }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, loading, source, store]);
 
