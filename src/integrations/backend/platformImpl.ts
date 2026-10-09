@@ -79,9 +79,34 @@ async function upsertWithColumnRetry(
   options?: { ignoreDuplicates?: boolean },
 ) {
   const currentPayload: Record<string, unknown> = { ...payload };
-  let lastError: { message?: string } | null = null;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  const firstResult = await db
+    .from(table)
+    .upsert(currentPayload, { onConflict, ignoreDuplicates: options?.ignoreDuplicates });
+
+  if (!firstResult.error) {
+    return firstResult;
+  }
+
+  // Neon é a fonte oficial. Divergência de schema deve falhar de forma explícita:
+  // nunca remover campos silenciosamente e persistir um registro incompleto.
+  if (isNeonBackend || !isMissingColumnError(firstResult.error)) {
+    return firstResult;
+  }
+
+  let lastError: { message?: string } | null = firstResult.error;
+
+  // Compatibilidade exclusiva do rollback Supabase legado.
+  for (let attempt = 1; attempt < 8; attempt += 1) {
+    const missingColumn = getMissingColumnName(lastError);
+    if (!missingColumn || !(missingColumn in currentPayload)) break;
+
+    console.warn(
+      `[SIGAPRO][Legacy Supabase] Coluna ausente em ${table}; removendo somente no modo de rollback`,
+      { missingColumn },
+    );
+    delete currentPayload[missingColumn];
+
     const result = await db
       .from(table)
       .upsert(currentPayload, { onConflict, ignoreDuplicates: options?.ignoreDuplicates });
@@ -90,17 +115,7 @@ async function upsertWithColumnRetry(
     if (!lastError) {
       return result;
     }
-
     if (!isMissingColumnError(lastError)) break;
-
-    const missingColumn = getMissingColumnName(lastError);
-    if (!missingColumn || !(missingColumn in currentPayload)) break;
-
-    console.warn(
-      `[SIGAPRO][Database] Coluna ausente em ${table}, removendo e tentando novamente`,
-      { missingColumn },
-    );
-    delete currentPayload[missingColumn];
   }
 
   return { error: lastError };
@@ -2878,7 +2893,7 @@ export async function saveRemoteInstitutionSettings(
         return result;
       }
 
-      if (!isMissingColumnError(lastError)) break;
+      if (!isMissingColumnError(lastError) || isNeonBackend) break;
 
       const missingColumn = getMissingColumnName(lastError);
       if (!missingColumn || !(missingColumn in currentPayload)) break;
