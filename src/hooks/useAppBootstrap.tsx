@@ -211,6 +211,20 @@ function readStoredSupabaseUser(): StoredSupabaseUser | null {
   }
 }
 
+function resolveAuthenticatedRole(
+  profile: AppBootstrapProfile | null,
+  authUser: Pick<AuthUserLike, "app_metadata">,
+): UserRole | null {
+  const profileRole = mapDbRoleCodeToAppRole(profile?.role);
+  if (profileRole) return profileRole;
+
+  // Neon é a fonte canônica: metadata do provedor não concede papel de negócio.
+  if (isNeonBackend) return null;
+
+  // Compatibilidade exclusiva do rollback Supabase legado.
+  return mapDbRoleCodeToAppRole(authUser.app_metadata?.role as string | undefined);
+}
+
 function resolveScopeType(role: UserRole | null): "platform" | "municipality" | "external" {
   if (role === "master_admin" || role === "master_ops") return "platform";
   if (role === "profissional_externo" || role === "proprietario_consulta" || role === "property_owner") {
@@ -678,10 +692,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           console.error("[Bootstrap] Falha ao concluir cadastro confirmado", signupError);
           setError(signupError instanceof Error ? signupError.message : "Falha ao vincular cadastro.");
         }
-        const mappedRole =
-          mapDbRoleCodeToAppRole(nextProfile?.role) ??
-          mapDbRoleCodeToAppRole(authUser.app_metadata?.role as string | undefined) ??
-          "profissional_externo";
+        const mappedRole = resolveAuthenticatedRole(nextProfile, authUser);
+        if (!mappedRole) {
+          throw new Error(
+            "Conta autenticada sem perfil ou papel ativo no banco oficial. Solicite a regularização do acesso.",
+          );
+        }
 
         const nextScopeType: "platform" | "municipality" | "external" =
           mappedRole === "master_admin" || mappedRole === "master_ops"
@@ -878,10 +894,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           if (nextProfile?.accountStatus === "blocked" || nextProfile?.accountStatus === "inactive") {
             throw new Error("Esta conta foi bloqueada ou desativada por um administrador.");
           }
-          const mappedRole =
-            mapDbRoleCodeToAppRole(nextProfile?.role) ??
-            mapDbRoleCodeToAppRole(data.user.app_metadata?.role as string | undefined) ??
-            "profissional_externo";
+          const mappedRole = resolveAuthenticatedRole(nextProfile, data.user);
+          if (!mappedRole) {
+            throw new Error(
+              "Conta autenticada sem perfil ou papel ativo no banco oficial. Solicite a regularização do acesso.",
+            );
+          }
           const nextScopeType: "platform" | "municipality" | "external" =
             mappedRole === "master_admin" || mappedRole === "master_ops"
               ? "platform"
