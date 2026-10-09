@@ -66,7 +66,6 @@ export function ProtocolDeskPage() {
   const { session } = usePlatformSession();
   const {
     processes: allProcesses,
-    markGuideAsPaid,
     getInstitutionSettings,
     dispatchProcess,
     getUserProfile,
@@ -78,7 +77,8 @@ export function ProtocolDeskPage() {
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
   const [protocolQuery, setProtocolQuery] = useState("");
-  const [manualGuideRegistered, setManualGuideRegistered] = useState<string | null>(null);
+  const [protocolActionStatus, setProtocolActionStatus] = useState("");
+  const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [section, setSection] = useState<ProtocolSection>("visao-geral");
   const currentUnit = session.department || session.title || "Setor de protocolo";
 
@@ -331,6 +331,44 @@ export function ProtocolDeskPage() {
     </div>
   );
 
+  const handleDispatchMatchedProcess = async (process: ProcessRecord) => {
+    const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
+      (guide) => guide.kind === "protocolo",
+    );
+
+    if (!protocolGuide || protocolGuide.status !== "compensada") {
+      setProtocolActionStatus("A guia de protocolo ainda não foi compensada. O despacho técnico permanece bloqueado.");
+      return;
+    }
+
+    setProtocolActionBusy(process.id);
+    setProtocolActionStatus("");
+
+    const due = new Date();
+    due.setDate(due.getDate() + 2);
+
+    try {
+      await dispatchProcess({
+        processId: process.id,
+        actor: session.name,
+        from: "Setor de protocolo",
+        to: "Análise técnica",
+        subject: "Despacho do protocolo para a fila técnica",
+        dueDate: due.toISOString().slice(0, 10),
+        visibility: "interno",
+      });
+      setProtocolActionStatus("Protocolo despachado para Análise Técnica e registrado no banco oficial.");
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível despachar o protocolo: ${error.message}`
+          : "Não foi possível despachar o protocolo no banco oficial.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
   const renderSearchPanel = ({
     title,
     description,
@@ -355,24 +393,11 @@ export function ProtocolDeskPage() {
 
           {matchedProcess ? (
             <div className="flex flex-col gap-3 lg:flex-row">
-              <Button
-                type="button"
-                className="rounded-full bg-[#143b63] hover:bg-[#123554]"
-                onClick={() => setManualGuideRegistered(matchedProcess.id)}
-              >
-                Registrar guia manual
-              </Button>
-
-              {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.status === "pendente" ? (
-                <Button
-                  type="button"
-                  className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => {
-                    setManualGuideRegistered(matchedProcess.id);
-                    markGuideAsPaid(matchedProcess.id, session.name, "protocolo");
-                  }}
-                >
-                  Confirmar pagamento
+              {getProcessPaymentGuides(matchedProcess, tenantSettings).find(
+                (guide) => guide.kind === "protocolo",
+              )?.status === "pendente" ? (
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link to="/prefeitura/financeiro/protocolos">Aguardando Financeiro</Link>
                 </Button>
               ) : null}
 
@@ -380,23 +405,29 @@ export function ProtocolDeskPage() {
                 type="button"
                 variant="outline"
                 className="rounded-full"
-                onClick={() =>
-                  dispatchProcess({
-                    processId: matchedProcess.id,
-                    actor: session.name,
-                    from: "Setor de protocolo",
-                    to: "Análise técnica",
-                    subject: "Despacho do protocolo para a fila técnica",
-                    dueDate: new Date().toLocaleDateString("pt-BR"),
-                    visibility: "interno",
-                  })
+                disabled={
+                  protocolActionBusy === matchedProcess.id ||
+                  getProcessPaymentGuides(matchedProcess, tenantSettings).find(
+                    (guide) => guide.kind === "protocolo",
+                  )?.status !== "compensada"
                 }
+                onClick={() => void handleDispatchMatchedProcess(matchedProcess)}
               >
-                Despachar protocolo
+                {protocolActionBusy === matchedProcess.id ? "Despachando..." : "Despachar para Análise"}
               </Button>
             </div>
           ) : null}
         </div>
+
+        {protocolActionStatus ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${
+            /não foi|ainda não|bloqueado/i.test(protocolActionStatus)
+              ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}>
+            {protocolActionStatus}
+          </div>
+        ) : null}
 
         {matchedProcess ? (
           <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
@@ -449,11 +480,7 @@ export function ProtocolDeskPage() {
               ))}
             </div>
 
-            {manualGuideRegistered === matchedProcess.id ? (
-              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-600 dark:text-amber-400">
-                Guia manual registrada com os dados preenchidos automaticamente pelo protocolo.
-              </div>
-            ) : null}
+
           </div>
         ) : protocolQuery.trim() ? (
           <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
