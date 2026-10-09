@@ -75,6 +75,25 @@ describe("InstitutionalLogo", () => {
     expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("/municipality-b-logo.png"));
   });
 
+  it("keeps the loaded municipal logo when branding temporarily loses its URL", () => {
+    const { rerender } = render(
+      <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />,
+    );
+    const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    fireEvent.load(image);
+
+    rerender(
+      <InstitutionalLogo
+        branding={{ ...branding, logoUrl: "" }}
+        fallbackLabel="Prefeitura A"
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+      .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+    expect(screen.queryByText("Prefeitura")).not.toBeInTheDocument();
+  });
+
   it("keeps the previous municipal logo if a replacement fails to load", () => {
     const { container, rerender } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />);
     rerender(<InstitutionalLogo branding={{ ...branding, logoUrl: "/broken-logo.png" }} fallbackLabel="Prefeitura A" />);
