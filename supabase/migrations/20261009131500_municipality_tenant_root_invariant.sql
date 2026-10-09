@@ -16,7 +16,7 @@ declare
   _subdomain text;
 begin
   _name := coalesce(nullif(btrim(new.name), ''), 'Prefeitura');
-  _city := coalesce(nullif(btrim(new.city), ''), _name);
+  _city := coalesce(nullif(btrim(to_jsonb(new)->>'city'), ''), _name);
   _state := upper(coalesce(nullif(btrim(new.state), ''), 'SP'));
   _subdomain := coalesce(nullif(btrim(new.subdomain), ''), nullif(btrim(new.slug), ''));
 
@@ -55,7 +55,7 @@ $function$;
 
 drop trigger if exists trg_sync_municipality_tenant_root on public.municipalities;
 create trigger trg_sync_municipality_tenant_root
-after insert or update of name, city, state, status, subdomain, slug
+after insert or update
 on public.municipalities
 for each row
 execute function public.sync_municipality_tenant_root();
@@ -67,7 +67,10 @@ select
   m.id,
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
   coalesce(nullif(btrim(m.name),''),'Prefeitura'),
-  coalesce(nullif(btrim(m.city),''),coalesce(nullif(btrim(m.name),''),'Prefeitura')),
+  coalesce(
+    nullif(btrim(to_jsonb(m)->>'city'),''),
+    coalesce(nullif(btrim(m.name),''),'Prefeitura')
+  ),
   upper(coalesce(nullif(btrim(m.state),''),'SP')),
   case lower(coalesce(m.status,'active'))
     when 'active' then 'ativo'::public.tenant_status
