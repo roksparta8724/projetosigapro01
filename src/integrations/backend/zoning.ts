@@ -1,2 +1,2 @@
-// Fachada canônica do módulo de zoneamento.
-export * from "@/integrations/supabase/zoning";
+// Fachada canônica de zoneamento.
+export * from "@/integrations/backend/zoningImpl";
