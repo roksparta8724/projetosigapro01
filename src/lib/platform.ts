@@ -144,26 +144,6 @@ export interface OwnerProfessionalMessage {
   readAt?: string | null;
   isSystemMessage?: boolean;
 }
-export interface RegistrationRequest {
-  id: string;
-  tenantId: string;
-  municipalityId?: string | null;
-  fullName: string;
-  email: string;
-  role: UserRole;
-  title: string;
-  phone: string;
-  cpfCnpj: string;
-  professionalType: string;
-  registrationNumber: string;
-  companyName: string;
-  avatarUrl: string;
-  bio: string;
-  status: "pendente" | "aprovado" | "rejeitado";
-  createdAt?: string;
-}
-export type InstitutionRegistrationRequest = RegistrationRequest & { institutionId?: string | null };
-
 function normalizeScopedEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
 }
@@ -211,13 +191,6 @@ export function normalizeSessionUserScope<T extends SessionUser>(user: T): T {
   return {
     ...user,
     ...resolveDefaultInstitutionScope(user),
-  };
-}
-
-export function normalizeRegistrationRequestScope<T extends RegistrationRequest>(request: T): T {
-  return {
-    ...request,
-    ...resolveDefaultInstitutionScope(request),
   };
 }
 
@@ -1232,7 +1205,6 @@ export const userProfiles: UserProfile[] = [
 export const ownerRequests: OwnerProjectRequest[] = [];
 export const ownerLinks: OwnerProjectLink[] = [];
 export const ownerMessages: OwnerProfessionalMessage[] = [];
-export const registrationRequests: RegistrationRequest[] = [];
 
 export const tenants: Tenant[] = [
   {
