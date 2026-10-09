@@ -20,6 +20,17 @@ begin
   _state := upper(coalesce(nullif(btrim(new.state), ''), 'SP'));
   _subdomain := coalesce(nullif(btrim(new.subdomain), ''), nullif(btrim(new.slug), ''));
 
+  -- O município é a entidade canônica. Se uma raiz técnica legada usa o
+  -- mesmo subdomínio com outro UUID, preservamos seus dados/FKs, mas retiramos
+  -- dela o endereço público antes de criar/atualizar a raiz canônica.
+  if _subdomain is not null then
+    update public.tenants
+       set subdomain = 'legacy-' || replace(id::text, '-', ''),
+           updated_at = now()
+     where id <> new.id
+       and lower(coalesce(subdomain, '')) = lower(_subdomain);
+  end if;
+
   _status := case lower(coalesce(new.status, 'active'))
     when 'active' then 'ativo'::public.tenant_status
     when 'ativo' then 'ativo'::public.tenant_status
@@ -59,6 +70,16 @@ after insert or update
 on public.municipalities
 for each row
 execute function public.sync_municipality_tenant_root();
+
+-- Libera subdomínios públicos ocupados por raízes técnicas legadas com UUID
+-- diferente. Nenhum tenant histórico é removido e nenhuma FK é reescrita.
+update public.tenants t
+   set subdomain = 'legacy-' || replace(t.id::text, '-', ''),
+       updated_at = now()
+  from public.municipalities m
+ where t.id <> m.id
+   and coalesce(m.subdomain, '') <> ''
+   and lower(coalesce(t.subdomain, '')) = lower(m.subdomain);
 
 insert into public.tenants(
   id, legal_name, display_name, cnpj, city, state, status, subdomain, created_at, updated_at
