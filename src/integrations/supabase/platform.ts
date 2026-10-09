@@ -1660,6 +1660,51 @@ export async function createRemoteProcessDispatch(input: {
   });
 }
 
+export async function acknowledgeRemoteProcessDispatch(dispatchId: string, unit: string) {
+  return callProcessRpc("acknowledge_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+  });
+}
+
+export async function completeRemoteProcessDispatch(dispatchId: string, unit: string) {
+  return callProcessRpc("complete_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+  });
+}
+
+export async function returnRemoteProcessDispatch(
+  dispatchId: string,
+  unit: string,
+  reason?: string | null,
+) {
+  return callProcessRpc("return_process_dispatch", {
+    _dispatch_id: dispatchId,
+    _unit: unit,
+    _reason: reason || null,
+  });
+}
+
+export async function removeRemoteProcessMarkerByLabel(processId: string, label: string) {
+  if (!supabase) throw new Error("Banco oficial indisponível.");
+
+  const { data: rows, error: findError } = await supabase
+    .from("process_markers")
+    .select("id")
+    .eq("process_id", processId)
+    .ilike("label", label)
+    .limit(1);
+
+  if (findError) throw findError;
+  const markerId = Array.isArray(rows) ? rows[0]?.id : null;
+  if (!markerId) return null;
+
+  return callProcessRpc("remove_process_marker", {
+    _marker_id: markerId,
+  });
+}
+
 export async function createRemoteProcessRequirement(input: {
   processId: string;
   title: string;
