@@ -27,6 +27,7 @@ import { TableCard } from "@/components/platform/TableCard";
 import {
   formatCurrency,
   getProcessPaymentGuides,
+  isIssFeeConfigured,
   getVisibleProcessesByScope,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -43,6 +44,7 @@ export function IptuDeskPage() {
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const issFeeConfigured = isIssFeeConfigured(tenantSettings);
 
   const issGuides = processes
     .map((process) => ({
@@ -61,7 +63,7 @@ export function IptuDeskPage() {
     );
 
   const awaitingIssGuide =
-    tenantSettings?.issStageEnabled === false
+    tenantSettings?.issStageEnabled === false || !issFeeConfigured
       ? []
       : processes.filter((process) => {
     const hasIssGuide = getProcessPaymentGuides(process, tenantSettings).some(
@@ -88,6 +90,10 @@ export function IptuDeskPage() {
   const handleIssueIssGuide = async (processId: string) => {
     if (tenantSettings?.issStageEnabled === false) {
       setIssueStatus("A etapa de ISSQN está desativada no workflow financeiro desta Prefeitura.");
+      return;
+    }
+    if (!issFeeConfigured) {
+      setIssueStatus("A tabela de ISSQN ainda não foi configurada pela Prefeitura.");
       return;
     }
 
@@ -191,6 +197,10 @@ export function IptuDeskPage() {
         {tenantSettings?.issStageEnabled === false ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             A etapa de ISSQN está desativada no workflow financeiro desta Prefeitura. Nenhuma nova guia de ISSQN será emitida.
+          </div>
+        ) : !issFeeConfigured ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            A etapa de ISSQN está ativa, mas a tabela municipal ainda não foi configurada. A emissão permanece bloqueada até o Administrador ou Financeiro salvar as alíquotas oficiais.
           </div>
         ) : null}
 
