@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { hasSupabaseEnv } from "@/integrations/supabase/client";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
   listRemoteZoningRules,
   saveRemoteZoningRule,
   updateRemoteZoningRuleStatus,
-} from "@/integrations/supabase/zoning";
+} from "@/integrations/backend/zoning";
 import { type ZoningRule, type ZoningRuleStatus } from "@/lib/zoning";
 
 const ZONING_STORAGE_KEY = "sigapro-zoning-rules-store";
 
 type ZoningRuleInput = Omit<ZoningRule, "createdAt"> & { createdAt?: string };
 type DataSource = "local" | "remote";
+
+function isLocalDevelopment() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".local") ||
+    host.startsWith("192.168.") ||
+    host.startsWith("10.")
+  );
+}
 
 function readLocalRules() {
   if (typeof window === "undefined") return [] as ZoningRule[];
@@ -83,8 +95,15 @@ export function useZoningRules(municipalityId: string | null) {
 
     setLoading(true);
 
-    if (!hasSupabaseEnv) {
-      loadLocal();
+    if (!hasBackendEnv) {
+      if (isLocalDevelopment()) {
+        loadLocal();
+        return;
+      }
+      setRules([]);
+      setSource("remote");
+      setError("Banco oficial indisponível. O zoneamento não será carregado de dados locais.");
+      setLoading(false);
       return;
     }
 
@@ -94,7 +113,13 @@ export function useZoningRules(municipalityId: string | null) {
       setSource("remote");
       setError(null);
     } catch (remoteError) {
-      loadLocal(normalizeRemoteError(remoteError));
+      if (isLocalDevelopment()) {
+        loadLocal(normalizeRemoteError(remoteError));
+        return;
+      }
+      setRules([]);
+      setSource("remote");
+      setError(normalizeRemoteError(remoteError));
       return;
     } finally {
       setLoading(false);
@@ -119,29 +144,31 @@ export function useZoningRules(municipalityId: string | null) {
       };
 
       try {
-        if (hasSupabaseEnv && source === "remote") {
+        if (hasBackendEnv) {
           const saved = await saveRemoteZoningRule(payload);
           setRules((current) =>
             [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) =>
               a.nome.localeCompare(b.nome, "pt-BR"),
             ),
           );
-          upsertLocalRule(saved);
+          setSource("remote");
+          setError(null);
           return saved;
         }
-      } catch {
-        setSource("local");
+
+        if (!isLocalDevelopment()) {
+          throw new Error("Banco oficial indisponível. A regra não foi salva.");
+        }
+      } catch (error) {
+        if (!isLocalDevelopment()) {
+          setError(normalizeRemoteError(error));
+          throw error;
+        }
       } finally {
         setSaving(false);
       }
 
-      const savedLocal = payload.id
-        ? payload
-        : {
-            ...payload,
-            id: `zoning-${crypto.randomUUID()}`,
-          };
-
+      const savedLocal = payload.id ? payload : { ...payload, id: `zoning-${crypto.randomUUID()}` };
       const next = upsertLocalRule(savedLocal).filter((item) => item.municipalityId === municipalityId);
       setRules(next.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
       setSource("local");
@@ -159,18 +186,26 @@ export function useZoningRules(municipalityId: string | null) {
       setSaving(true);
 
       try {
-        if (hasSupabaseEnv && source === "remote") {
+        if (hasBackendEnv) {
           const updated = await updateRemoteZoningRuleStatus({ id, municipalityId, status });
           setRules((current) =>
             current
               .map((item) => (item.id === updated.id ? updated : item))
               .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
           );
-          upsertLocalRule(updated);
+          setSource("remote");
+          setError(null);
           return updated;
         }
-      } catch {
-        setSource("local");
+
+        if (!isLocalDevelopment()) {
+          throw new Error("Banco oficial indisponível. O status não foi alterado.");
+        }
+      } catch (error) {
+        if (!isLocalDevelopment()) {
+          setError(normalizeRemoteError(error));
+          throw error;
+        }
       } finally {
         setSaving(false);
       }
