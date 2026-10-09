@@ -1470,7 +1470,7 @@ export function ConfiguracoesPage() {
             institutionId: resolvedTenantId,
             name: tenantForm.name,
             city: tenantForm.city,
-            state: tenantForm.state as any,
+            state: tenantForm.state,
             status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
             plan: tenantForm.plan,
             subdomain: normalizedSubdomain,
