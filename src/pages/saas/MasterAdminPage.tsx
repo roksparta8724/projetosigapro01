@@ -429,76 +429,19 @@ export function MasterAdminPage() {
     try {
       const currentSettings = activeTenant ? getInstitutionSettings(activeTenant.id) : undefined;
       const slug = normalizedSubdomain;
-      let savedTenant = upsertInstitution({ institutionId: selectedTenantId || undefined, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
-      let remoteSyncError: string | null = null;
       let linkedAdminCount = 0;
       const unresolvedAdminEmails: string[] = [];
 
-      if (hasSupabaseEnv) {
-        try {
-          await ensureSupabaseAvailable();
-        } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Banco oficial indisponível no momento.";
-        }
+      if (!hasSupabaseEnv) {
+        throw new Error("Banco oficial indisponível. A Prefeitura não foi salva.");
       }
 
-      if (hasSupabaseEnv && !remoteSyncError) {
-        try {
-          const remoteInstitution = await withRetry(() =>
-            withTimeout(
-              upsertRemoteInstitution({
-                institutionId: savedTenant.id,
-                name: form.name,
-                city: form.city,
-                state: form.state,
-                status: form.status,
-                subdomain: slug,
-                cnpj: form.cnpj,
-                primaryColor: form.primaryColor,
-                accentColor: form.accentColor,
-                secretariat: form.secretariat,
-              }),
-            ),
-          );
-          savedTenant = upsertInstitution({ institutionId: remoteInstitution.id, name: form.name, city: form.city, state: form.state, status: form.status, plan: form.plan, subdomain: slug, primaryColor: form.primaryColor, accentColor: form.accentColor });
-        } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar com o banco oficial.";
-        }
-      }
+      await ensureSupabaseAvailable();
 
-      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "", adminContacts: normalizedAdminContacts };
-      if (hasSupabaseEnv && !remoteSyncError) {
-        try {
-          await withRetry(() => withTimeout(saveRemoteInstitutionSettings(nextSettings)));
-          for (const admin of normalizedAdminContacts) {
-            const linked = await withRetry(() =>
-              withTimeout(
-                linkExistingUserToMunicipalityAdmin({
-                  email: admin.email,
-                  municipalityId: savedTenant.id,
-                  fullName: admin.fullName,
-                  title: admin.title,
-                  accessLevel: admin.accessLevel,
-                }),
-              ),
-            );
-            if (linked.linked) {
-              linkedAdminCount += 1;
-            } else if (linked.reason === "not_found") {
-              unresolvedAdminEmails.push(admin.email);
-            }
-          }
-        } catch (error) {
-          remoteSyncError = error instanceof Error ? error.message : "Falha ao sincronizar configurações no banco oficial.";
-        }
-      }
-
-      await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
-      setSelectedTenantId(savedTenant.id);
-      if (remoteSyncError) {
-        const pendingPayload: PendingTenantSync = {
-          institution: {
-            id: savedTenant.id,
+      const remoteInstitution = await withRetry(() =>
+        withTimeout(
+          upsertRemoteInstitution({
+            institutionId: selectedTenantId || undefined,
             name: form.name,
             city: form.city,
             state: form.state,
@@ -508,25 +451,57 @@ export function MasterAdminPage() {
             primaryColor: form.primaryColor,
             accentColor: form.accentColor,
             secretariat: form.secretariat,
-          },
-          settings: nextSettings,
-          updatedAt: new Date().toISOString(),
-        };
-        window.localStorage.setItem(pendingSyncStorageKey, JSON.stringify(pendingPayload));
-        setPendingSync(pendingPayload);
-        setStatusMessage(`Cadastro salvo como rascunho local. A persistência remota falhou: ${remoteSyncError}`);
-      } else {
-        window.localStorage.removeItem(pendingSyncStorageKey);
-        setPendingSync(null);
-        if (normalizedAdminContacts.length === 0) {
-          setStatusMessage("Prefeitura salva com sucesso e pronta para operação comercial.");
-        } else if (unresolvedAdminEmails.length > 0) {
-          setStatusMessage(
-            `Prefeitura salva com sucesso. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
-          );
-        } else {
-          setStatusMessage(`Prefeitura salva com sucesso e ${linkedAdminCount} administrador(es) foram vinculados ao município.`);
+          }),
+        ),
+      );
+
+      const savedTenant = upsertInstitution({
+        institutionId: remoteInstitution.id,
+        name: form.name,
+        city: form.city,
+        state: form.state,
+        status: form.status,
+        plan: form.plan,
+        subdomain: slug,
+        primaryColor: form.primaryColor,
+        accentColor: form.accentColor,
+      });
+
+      const nextSettings = { tenantId: savedTenant.id, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "", adminContacts: normalizedAdminContacts };
+      await withRetry(() => withTimeout(saveRemoteInstitutionSettings(nextSettings)));
+
+      for (const admin of normalizedAdminContacts) {
+        const linked = await withRetry(() =>
+          withTimeout(
+            linkExistingUserToMunicipalityAdmin({
+              email: admin.email,
+              municipalityId: savedTenant.id,
+              fullName: admin.fullName,
+              title: admin.title,
+              accessLevel: admin.accessLevel,
+            }),
+          ),
+        );
+        if (linked.linked) {
+          linkedAdminCount += 1;
+        } else if (linked.reason === "not_found") {
+          unresolvedAdminEmails.push(admin.email);
         }
+      }
+
+      await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
+      setSelectedTenantId(savedTenant.id);
+      window.localStorage.removeItem(pendingSyncStorageKey);
+      setPendingSync(null);
+
+      if (normalizedAdminContacts.length === 0) {
+        setStatusMessage("Prefeitura salva no banco oficial e pronta para operação comercial.");
+      } else if (unresolvedAdminEmails.length > 0) {
+        setStatusMessage(
+          `Prefeitura salva no banco oficial. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
+        );
+      } else {
+        setStatusMessage(`Prefeitura salva no banco oficial e ${linkedAdminCount} administrador(es) foram vinculados ao município.`);
       }
     } catch (error) {
       const message =
