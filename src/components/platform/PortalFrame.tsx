@@ -572,11 +572,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     "Município não informado";
   const footerUsesSecretariat = tenantSettings?.footerContactSource === "secretaria";
   const institutionFooterPhone = footerUsesSecretariat
-    ? tenantSettings?.secretariaTelefone || tenantSettings?.telefone || tenantSettings?.diretoriaTelefone || "Telefone não informado"
-    : tenantSettings?.diretoriaTelefone || tenantSettings?.secretariaTelefone || tenantSettings?.telefone || "Telefone não informado";
+    ? tenantSettings?.secretariaTelefone || "Telefone não informado"
+    : tenantSettings?.diretoriaTelefone || "Telefone não informado";
   const institutionFooterEmail = footerUsesSecretariat
-    ? tenantSettings?.secretariaEmail || tenantSettings?.email || tenantSettings?.diretoriaEmail || "E-mail não informado"
-    : tenantSettings?.diretoriaEmail || tenantSettings?.secretariaEmail || tenantSettings?.email || "E-mail não informado";
+    ? tenantSettings?.secretariaEmail || "E-mail não informado"
+    : tenantSettings?.diretoriaEmail || "E-mail não informado";
   const institutionFooterSignature =
     officialFooterText || "SIGAPRO — Plataforma institucional para aprovação de projetos";
   const activeThemePreset =
