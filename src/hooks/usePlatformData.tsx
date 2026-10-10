@@ -1284,7 +1284,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           ...normalizedProfile,
           ...confirmedProfile,
           userId: confirmedProfile.userId || normalizedProfile.userId,
-          email: normalizeEmail(confirmedProfile.email || persistedProfile.email),
+          email: normalizeEmail(confirmedProfile.email || normalizedProfile.email),
         };
 
         updateStore((current) => {
@@ -1302,7 +1302,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             : [persistedProfile, ...current.userProfiles];
 
           const cachedSession = readCachedPlatformSession();
-          const existingUser = current.sessionUsers.find((item) => item.id === normalizedProfile.userId);
+          const existingUser = current.sessionUsers.find(
+            (item) =>
+              item.id === persistedProfile.userId ||
+              normalizeEmail(item.email) === normalizeEmail(persistedProfile.email),
+          );
           const safeRole =
             (existingUser?.role ?? cachedSession?.role ?? authenticatedRole ?? "profissional_externo") as SessionUser["role"];
           const safeAccessLevel =
@@ -1314,7 +1318,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                 ? 2
                 : 1);
           const nextUser: SessionUser = normalizeSessionUserScope({
-            id: normalizedProfile.userId,
+            id: existingUser?.id || persistedProfile.userId,
             name: persistedProfile.fullName,
             role: safeRole,
             accessLevel: safeAccessLevel,
@@ -1334,7 +1338,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           });
 
           const sessionUsers = existingUser
-            ? current.sessionUsers.map((item) => (item.id === normalizedProfile.userId ? nextUser : item))
+            ? current.sessionUsers.map((item) =>
+                item.id === existingUser.id || normalizeEmail(item.email) === normalizeEmail(persistedProfile.email)
+                  ? nextUser
+                  : item,
+              )
             : [nextUser, ...current.sessionUsers];
 
           return { ...current, userProfiles, sessionUsers };
