@@ -1,0 +1,59 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = process.cwd();
+const saasDir = resolve(root, "src/pages/saas");
+
+function read(path: string) {
+  return readFileSync(resolve(root, path), "utf8");
+}
+
+describe("layout integrity regression", () => {
+  it("rejects invalid comma-separated arbitrary grid templates across SaaS pages", () => {
+    const offenders: string[] = [];
+
+    for (const file of readdirSync(saasDir)) {
+      if (!file.endsWith(".tsx") || file.endsWith(".test.tsx")) continue;
+      const source = readFileSync(resolve(saasDir, file), "utf8");
+      if (/grid-cols-\[[^\]"']*,[^\]"']*\]/.test(source)) {
+        offenders.push(file);
+      }
+    }
+
+    expect(offenders, `Invalid grid templates: ${offenders.join(", ")}`).toEqual([]);
+  });
+
+  it("keeps the shared app shell single-column until the sidebar leaves enough width", () => {
+    const pageLayout = read("src/components/platform/PageLayout.tsx");
+    expect(pageLayout).toContain(
+      "xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)]",
+    );
+    expect(pageLayout).not.toContain(
+      "lg:grid-cols-[minmax(0,2.35fr)_minmax(260px,0.82fr)]",
+    );
+  });
+
+  it("keeps process finance cards from compressing the PIX column", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    expect(detail).toContain(
+      "min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]",
+    );
+    expect(detail).toContain(
+      "sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]",
+    );
+    expect(detail).toContain("overflow-x-auto whitespace-nowrap");
+    expect(detail).not.toContain("xl:grid-cols-[1.05fr,0.95fr]");
+    expect(detail).not.toContain('className="mt-2 break-all text-xs text-slate-500"');
+  });
+
+  it("keeps finance subpages free from forced narrow PIX and early fixed widths", () => {
+    const protocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
+    const desk = read("src/pages/saas/FinanceDeskPage.tsx");
+
+    expect(protocols).not.toContain("line-clamp-3 break-all");
+    expect(protocols).toContain("overflow-x-auto whitespace-nowrap");
+    expect(desk).not.toContain("xl:min-w-[560px]");
+    expect(desk).toContain("2xl:min-w-[560px]");
+  });
+});
