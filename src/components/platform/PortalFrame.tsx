@@ -586,9 +586,18 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Atendimento e Aprovação",
               }
             : null;
-  const activeDepartmentOwnership =
-    (departmentOwnershipKey ? tenantSettings?.departmentOwnership?.[departmentOwnershipKey] : null) ||
-    defaultDepartmentOwnership;
+  const configuredDepartmentOwnership =
+    departmentOwnershipKey ? tenantSettings?.departmentOwnership?.[departmentOwnershipKey] : null;
+  const activeDepartmentOwnership = defaultDepartmentOwnership
+    ? {
+        secretaria:
+          configuredDepartmentOwnership?.secretaria?.trim() ||
+          defaultDepartmentOwnership.secretaria,
+        diretoria:
+          configuredDepartmentOwnership?.diretoria?.trim() ||
+          defaultDepartmentOwnership.diretoria,
+      }
+    : null;
   const institutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
