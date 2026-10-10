@@ -23,6 +23,8 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   parseMarker,
@@ -328,8 +330,8 @@ export function ExternalProcessControlPage() {
                   >
                     <div className="grid gap-4 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_1fr] 2xl:items-center">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold leading-6 text-slate-950" title={process.protocol}>
-                          {process.protocol}
+                        <p className="truncate text-[15px] font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
+                          {formatOfficialProcessNumber(process.protocol)}
                         </p>
                         <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.externalProtocol}>
                           {process.externalProtocol}
@@ -353,8 +355,8 @@ export function ExternalProcessControlPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900" title={process.title}>
-                          {process.title}
+                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>
+                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </p>
                         <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.type}>
                           {process.type}
@@ -440,8 +442,8 @@ export function ExternalProcessControlPage() {
                     .slice(0, 4)
                     .map((process) => (
                       <div key={`req-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm text-slate-700">
-                        <p className="text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
-                        <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                        <p className="text-[14px] font-semibold leading-6 text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                        <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                         <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
                           Exigência pendente
                         </p>
@@ -463,8 +465,8 @@ export function ExternalProcessControlPage() {
                 ) : (
                   recentMovements.map((process) => (
                     <div key={`recent-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-[14px] font-semibold leading-6 text-slate-900">{process.protocol}</p>
-                      <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{process.title}</p>
+                      <p className="text-[14px] font-semibold leading-6 text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                      <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       <p className="mt-2 text-[12px] uppercase tracking-[0.08em] text-slate-500">
                         Etapa: {process.sla?.currentStage || "Em andamento"}
                       </p>
