@@ -1092,8 +1092,16 @@ export function PerfilPage() {
     { label: "Gerenciar conta e senha", value: "conta-seguranca" },
   ] as const;
 
+  const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
   const statusMessage = status ? (
-    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+    <div
+      className={cn(
+        "rounded-2xl border px-4 py-3 text-sm",
+        statusIsError
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-emerald-100 bg-emerald-50 text-emerald-700",
+      )}
+    >
       {status}
     </div>
   ) : null;
@@ -1405,8 +1413,8 @@ export function PerfilPage() {
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
                       label="Foto do perfil"
-                      hint="A imagem começa natural. Use o zoom somente se quiser aproximar e arraste para reposicionar."
-                      fitMode="contain"
+                      hint="A foto preenche o círculo sem deformar. Ajuste zoom e posição para enquadrar rosto, logotipo ou marca com precisão."
+                      fitMode="cover"
                       minScale={1}
                       shape="circle"
                       viewportClassName="h-[320px] w-[320px] max-w-full"
