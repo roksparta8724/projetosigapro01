@@ -17,6 +17,8 @@ import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getGuideObservation,
   getGuideReference,
   getProcessPaymentGuides,
@@ -224,15 +226,15 @@ export function FinanceProtocolsPage() {
                           <div className="min-w-0 flex-1">
                             <p
                               className="sig-fit-title text-base font-medium leading-6 text-slate-900"
-                              title={process.protocol}
+                              title={formatOfficialProcessNumber(process.protocol)}
                             >
-                              {process.protocol}
+                              {formatOfficialProcessNumber(process.protocol)}
                             </p>
                             <p
                               className="mt-1 line-clamp-2 text-sm font-normal leading-6 text-slate-600"
-                              title={process.title}
+                              title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
                             >
-                              {process.title}
+                              {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
