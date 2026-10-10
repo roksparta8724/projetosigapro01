@@ -872,9 +872,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (isAuthError(error) && backendClient) {
           await backendClient.auth.signOut();
         }
+        const cachedVisualProfile = readProfileVisualCache();
         const nextStore =
           hasBackendEnv && !localDev
-            ? staticCatalogStore
+            ? cachedVisualProfile
+              ? { ...staticCatalogStore, userProfiles: [cachedVisualProfile] }
+              : staticCatalogStore
             : readPersistedStore() ?? buildSanitizedStore({}, false);
         setStore(nextStore);
         setSource("local");
@@ -924,7 +927,20 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     try {
       const remote = await loadRemotePlatformStore();
-      const sanitized = buildSanitizedStore(remote, false);
+      let sanitized = buildSanitizedStore(remote, false);
+      const cachedVisualProfile = readProfileVisualCache();
+      if (cachedVisualProfile) {
+        sanitized = {
+          ...sanitized,
+          userProfiles: mergeUserProfiles([cachedVisualProfile], sanitized.userProfiles),
+        };
+      }
+      const activeProfile = findUserProfile(
+        sanitized.userProfiles,
+        authenticatedUserId,
+        authenticatedEmail,
+      );
+      if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
       setStore(sanitized);
       syncStore(sanitized);
       setSource("remote");
