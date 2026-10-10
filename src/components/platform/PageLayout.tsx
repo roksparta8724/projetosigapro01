@@ -157,7 +157,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2.35fr)_minmax(260px,0.82fr)] lg:items-start xl:grid-cols-[minmax(0,2.5fr)_minmax(290px,0.84fr)] min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)]",
+        "sig-main-grid grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)]",
         className,
       )}
     >
