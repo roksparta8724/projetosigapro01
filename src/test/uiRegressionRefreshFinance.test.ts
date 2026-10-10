@@ -43,11 +43,21 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain('data-search-surface="light"');
   });
 
+  it("restaura hierarquia visual premium sem perder contraste", () => {
+    expect(portal).toContain("topbarFill = darken(primaryColor, -5)");
+    expect(portal).toContain("topbarHighlight = darken(primaryColor, -11)");
+    expect(css).toContain('background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important');
+    expect(css).toContain('color: var(--sig-primary-deep) !important');
+    expect(portal).toContain("normalizeInstitutionText");
+    expect(portal).toContain("Identidade institucional ativa");
+  });
+
   it("não quebra palavras institucionais dentro dos cards em zoom reduzido", () => {
     expect(css).toContain("Professional typography at browser/app zoom");
-    expect(css).toContain("word-break: keep-all !important");
+    expect(css).toContain("word-break: normal !important");
     expect(css).toContain("hyphens: none !important");
-    expect(css).toContain("font-size: clamp(1rem, 1.25vw, 1.5rem)");
+    expect(css).toContain("Commercial visual recovery");
+    expect(css).toContain("font-size: 0.69rem !important");
   });
 
   it("preserva a geometria exata do viewport no snapshot do F5", () => {
