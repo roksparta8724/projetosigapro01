@@ -129,6 +129,7 @@ export interface UserProfile {
   state: string;
   zipCode: string;
   avatarUrl: string;
+  avatarStorageRef?: string;
   avatarScale?: number;
   avatarOffsetX?: number;
   avatarOffsetY?: number;

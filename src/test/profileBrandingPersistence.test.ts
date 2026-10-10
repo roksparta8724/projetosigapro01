@@ -7,6 +7,8 @@ const logo = readFileSync(resolve(process.cwd(), "src/components/platform/Instit
 const config = readFileSync(resolve(process.cwd(), "src/pages/saas/ConfiguracoesPage.tsx"), "utf8");
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"), "utf8");
+const profilePage = readFileSync(resolve(process.cwd(), "src/pages/saas/PerfilPage.tsx"), "utf8");
+const storage = readFileSync(resolve(process.cwd(), "src/integrations/r2/storage.ts"), "utf8");
 
 describe("profile and branding persistence regressions", () => {
   it("keeps search text legible and the magnifier white on both surfaces", () => {
@@ -15,6 +17,9 @@ describe("profile and branding persistence regressions", () => {
     expect(css).toContain('background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important');
     expect(css).toContain('stroke: #ffffff !important');
     expect(css).toContain('color: #0f172a !important');
+    expect(css).toContain("Production search guard");
+    expect(css).not.toContain("Search must read as a neutral light control");
+    expect(css).not.toContain("Final topbar search treatment");
   });
 
   it("applies saved framing to municipal header and footer logos", () => {
@@ -40,5 +45,15 @@ describe("profile and branding persistence regressions", () => {
     expect(dataHook).toContain("const confirmedProfile = (await saveRemoteProfile(normalizedProfile))");
     expect(dataHook).toContain("sigapro-profile-updated");
     expect(dataHook).toContain("persistedProfile");
+  });
+
+  it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
+    expect(storage).toContain('persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`');
+    expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
+    expect(backend).toContain("resolveStoredProfileAvatar");
+    expect(backend).toContain("avatarStorageRef");
+    expect(profilePage).toContain("Salvando foto automaticamente...");
+    expect(profilePage).toContain("uploaded.persistentRef");
+    expect(profilePage).not.toContain("Configure a URL publica do R2 antes de salvar a foto.");
   });
 });

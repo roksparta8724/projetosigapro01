@@ -152,7 +152,7 @@ interface PlatformDataState {
     message: string;
     isSystemMessage?: boolean;
   }) => Promise<OwnerProfessionalMessage | null>;
-  saveUserProfile: (profile: UserProfile) => Promise<void>;
+  saveUserProfile: (profile: UserProfile) => Promise<UserProfile>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
   updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
   setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => Promise<SessionUser | null>;
@@ -1361,6 +1361,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             }),
           );
         }
+        return persistedProfile;
       },
       createTenantUser: async (input) => {
         if (!hasBackendEnv) throw new Error("Conexão com o banco indisponível.");
