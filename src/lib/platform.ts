@@ -88,23 +88,44 @@ export function formatOfficialProcessNumber(protocol: string) {
   if (auditMatch) {
     const year = auditMatch[1];
     const sequence = auditMatch[4].padStart(6, "0");
-    return `Processo nº ${sequence}/${year}`;
+    return `Processo Administrativo nº ${sequence}/${year}`;
   }
 
   const compactAuditMatch = value.match(/^AUDIT(?:-[A-Z0-9]+)?-(\d{4})-(\d+)$/i);
   if (compactAuditMatch) {
-    return `Processo nº ${compactAuditMatch[2].padStart(6, "0")}/${compactAuditMatch[1]}`;
+    return `Processo Administrativo nº ${compactAuditMatch[2].padStart(6, "0")}/${compactAuditMatch[1]}`;
   }
 
   return value;
 }
 
+function formatProfessionalProcessType(type?: string | null) {
+  const normalized = (type ?? "").trim().toLowerCase();
+  if (!normalized) return "Processo administrativo digital";
+
+  const labels: Record<string, string> = {
+    licenciamento: "Licenciamento Urbanístico",
+    aprovacao: "Aprovação de Projeto",
+    "aprovacao_projeto": "Aprovação de Projeto",
+    regularizacao: "Regularização Urbanística",
+    reforma: "Licenciamento de Reforma",
+    ampliacao: "Licenciamento de Ampliação",
+    demolicao: "Licenciamento de Demolição",
+    habitese: "Habite-se",
+    "habite-se": "Habite-se",
+  };
+
+  return labels[normalized] ?? normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toLocaleUpperCase("pt-BR"));
+}
+
 export function formatOfficialProcessTitle(input: { title: string; type?: string | null }) {
   const title = input.title?.trim() || "";
   if (/^AUDIT(?:\s|\b|-)/i.test(title)) {
-    return input.type?.trim() || "Processo administrativo digital";
+    return formatProfessionalProcessType(input.type);
   }
-  return title;
+  return title || formatProfessionalProcessType(input.type);
 }
 
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
