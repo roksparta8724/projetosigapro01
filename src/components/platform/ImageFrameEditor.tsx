@@ -375,6 +375,29 @@ export function ImageFrameEditor({
         </div>
       </div>
 
+      {shape === "circle" && stableImageUrl && naturalSize.width > 0 && naturalSize.height > 0 ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Imagem original</p>
+            <p className="text-xs text-slate-500">
+              {naturalSize.width} × {naturalSize.height}px
+            </p>
+          </div>
+          <div className="flex min-h-[120px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+            <img
+              src={stableImageUrl}
+              alt="Imagem original sem recorte"
+              draggable={false}
+              className="max-h-[220px] max-w-full object-contain"
+              style={{ aspectRatio: `${naturalSize.width} / ${naturalSize.height}` }}
+            />
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Esta é a proporção real do arquivo. Nenhum alongamento é aplicado.
+          </p>
+        </div>
+      ) : null}
+
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
         <div className={cn(
           "relative rounded-[34px]",
