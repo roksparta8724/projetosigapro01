@@ -386,7 +386,7 @@ export function ImageFrameEditor({
             <div
               className={cn(
                 "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
-                shape === "circle" ? "rounded-full" : "rounded-[26px]",
+                "rounded-[26px]",
               )}
             />
           ) : null}
@@ -395,7 +395,7 @@ export function ImageFrameEditor({
             className={cn(
               "relative h-[180px] w-[180px] cursor-grab overflow-hidden active:cursor-grabbing",
               darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50",
-              shape === "circle" ? "rounded-full" : "rounded-[26px]",
+              "rounded-[26px]",
               viewportClassName,
             )}
             onPointerDown={handlePointerDown}
@@ -433,14 +433,31 @@ export function ImageFrameEditor({
                 <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Preview</span>
               </div>
             )}
+
+            {shape === "circle" ? (
+              <div className="pointer-events-none absolute inset-0 z-20">
+                <div className="absolute inset-0 rounded-full border-2 border-white/95 shadow-[0_0_0_999px_rgba(15,23,42,0.22),inset_0_0_0_1px_rgba(15,23,42,0.18),0_0_0_1px_rgba(255,255,255,0.85)]" />
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/80 bg-slate-950/75 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-lg backdrop-blur-sm">
+                  Área final do avatar
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
-        <p className="text-sm text-slate-600 dark:text-slate-200">
-          Zoom atual: <span className="font-semibold text-slate-950 dark:text-slate-100">{clamp(scale, effectiveMinScale, effectiveMaxScale).toFixed(2)}x</span>
-        </p>
+      <div className="mt-4 grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="min-w-0">
+          <p className="text-sm text-slate-600 dark:text-slate-200">
+            Zoom atual: <span className="font-semibold text-slate-950 dark:text-slate-100">{clamp(scale, effectiveMinScale, effectiveMaxScale).toFixed(2)}x</span>
+          </p>
+          {naturalSize.width > 0 && naturalSize.height > 0 ? (
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Original: <span className="font-medium text-slate-700 dark:text-slate-200">{naturalSize.width} × {naturalSize.height}px</span>
+              {" • "}proporção preservada
+            </p>
+          ) : null}
+        </div>
         <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
           {wheelZoomRequiresModifier ? "Arraste + Ctrl Scroll" : "Arraste + Scroll"}
         </p>
