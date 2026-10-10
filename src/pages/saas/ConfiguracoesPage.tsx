@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
+import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -2775,6 +2776,21 @@ export function ConfiguracoesPage() {
                         setLogoRemovalRequested(files.length ? null : "header");
                       }}
                     />
+                    <ImageFrameEditor
+                      imageUrl={draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? settings?.logoUrl ?? ""}
+                      scale={draftHeaderLogoConfig.scale}
+                      offsetX={draftHeaderLogoConfig.offsetX}
+                      offsetY={draftHeaderLogoConfig.offsetY}
+                      onChange={setDraftHeaderLogoConfig}
+                      label="Ajuste do logo do cabeçalho"
+                      hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
+                      fitMode="contain"
+                      minScale={0.35}
+                      maxScale={5}
+                      zoomStep={0.1}
+                      frameClassName="justify-start"
+                      viewportClassName="h-[170px] w-[220px]"
+                    />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
                         Remover logo
@@ -2833,6 +2849,21 @@ export function ConfiguracoesPage() {
                         setDraftFooterLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "footer");
                       }}
+                    />
+                    <ImageFrameEditor
+                      imageUrl={draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? settings?.logoUrl ?? ""}
+                      scale={draftFooterLogoConfig.scale}
+                      offsetX={draftFooterLogoConfig.offsetX}
+                      offsetY={draftFooterLogoConfig.offsetY}
+                      onChange={setDraftFooterLogoConfig}
+                      label="Ajuste do logo do rodapé"
+                      hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
+                      fitMode="contain"
+                      minScale={0.35}
+                      maxScale={5}
+                      zoomStep={0.1}
+                      frameClassName="justify-start"
+                      viewportClassName="h-[170px] w-[220px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
