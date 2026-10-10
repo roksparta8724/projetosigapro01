@@ -21,6 +21,8 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAccessProcess,
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getGuideObservation,
   getGuideReference,
   getProcessById,
@@ -596,11 +598,11 @@ export function ProcessDetailPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Processo administrativo" title={`${process.protocol} - ${process.title}`}>
+    <PortalFrame eyebrow="Processo administrativo" title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}>
       <PageShell>
       <PageHero
         eyebrow="Painel do processo"
-        title={`${process.protocol} - ${process.title}`}
+        title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}
         description="Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
         icon={Workflow}
         actions={
@@ -638,7 +640,7 @@ export function ProcessDetailPage() {
       <Card className={cardShell}>
         <CardContent className="p-6">
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-lg font-medium text-slate-900">Projeto: {process.protocol}</p>
+            <p className="text-lg font-medium text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
             <Badge variant="outline" className={statusTone(process.status)}>
               {statusLabel(process.status)}
             </Badge>
