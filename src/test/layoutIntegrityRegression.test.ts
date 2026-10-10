@@ -10,15 +10,24 @@ function read(path: string) {
 }
 
 describe("layout integrity regression", () => {
-  it("rejects invalid comma-separated arbitrary grid templates across SaaS pages", () => {
+  it("rejects top-level commas in arbitrary grid templates across SaaS pages", () => {
     const offenders: string[] = [];
+
+    const hasTopLevelComma = (template: string) => {
+      let depth = 0;
+      for (const char of template) {
+        if (char === "(") depth += 1;
+        if (char === ")") depth = Math.max(0, depth - 1);
+        if (char === "," && depth === 0) return true;
+      }
+      return false;
+    };
 
     for (const file of readdirSync(saasDir)) {
       if (!file.endsWith(".tsx") || file.endsWith(".test.tsx")) continue;
       const source = readFileSync(resolve(saasDir, file), "utf8");
-      if (/grid-cols-\[[^\]"']*,[^\]"']*\]/.test(source)) {
-        offenders.push(file);
-      }
+      const templates = Array.from(source.matchAll(/grid-cols-\[([^\]]+)\]/g), (match) => match[1]);
+      if (templates.some(hasTopLevelComma)) offenders.push(file);
     }
 
     expect(offenders, `Invalid grid templates: ${offenders.join(", ")}`).toEqual([]);
@@ -71,7 +80,7 @@ describe("layout integrity regression", () => {
 
     expect(protocols).not.toContain("line-clamp-3 break-all");
     expect(protocols).toContain("overflow-x-auto whitespace-nowrap");
-    expect(desk).not.toContain("xl:min-w-[560px]");
+    expect(desk).not.toMatch(/\sxl:min-w-\[560px\]/);
     expect(desk).toContain("2xl:min-w-[560px]");
   });
 });
