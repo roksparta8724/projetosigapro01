@@ -648,7 +648,7 @@ export function DashboardHomePage() {
         ))}
       </PageStatsRow>
 
-      <PageMainGrid className="lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.78fr)] xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)] min-[1680px]:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.84fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)] min-[1680px]:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.84fr)]">
         <PageMainContent>
           <TableCard
             title={isExternal ? "Ritmo recente da sua carteira" : "Ritmo operacional recente"}
@@ -762,7 +762,7 @@ export function DashboardHomePage() {
         <MetricCard title="Reapresentacao" value={`${displayProcesses.filter((process) => process.status === "reapresentacao").length}`} helper="Protocolos retornados para nova submissao." icon={ArrowRight} tone="amber" />
       </PageStatsRow>
 
-      <PageMainGrid className="lg:grid-cols-[minmax(0,1.48fr)_minmax(260px,0.8fr)] xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.82fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.82fr)]">
         <PageMainContent>
           <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Distribuicao por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
@@ -826,7 +826,7 @@ export function DashboardHomePage() {
         <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante financeiro total monitorado." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
 
-      <PageMainGrid className="lg:grid-cols-[minmax(0,1.42fr)_minmax(260px,0.86fr)] xl:grid-cols-[minmax(0,1.58fr)_minmax(280px,0.88fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.58fr)_minmax(280px,0.88fr)]">
         <PageMainContent>
           <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Situacao financeira" description="Comparativo entre guias emitidas, pendentes e compensadas." icon={Wallet} data={financeSituationChart} />
@@ -891,7 +891,7 @@ export function DashboardHomePage() {
         <MetricCard title="Administradores" value={`${adminUsers}`} helper="Perfis com governanca elevada." icon={Building2} tone="amber" />
       </PageStatsRow>
 
-      <PageMainGrid className="lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.88fr)] xl:grid-cols-[minmax(0,1.54fr)_minmax(280px,0.9fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.54fr)_minmax(280px,0.9fr)]">
         <PageMainContent>
           <div className="grid gap-6 2xl:grid-cols-2">
             <DistributionCard title="Distribuicao por perfil" description="Leitura dos perfis mais relevantes no recorte atual." icon={Users2} data={roleChart} />
@@ -919,7 +919,7 @@ export function DashboardHomePage() {
         <MetricCard title="Mensagens" value={`${totalMessages}`} helper="Interacoes trocadas no universo visivel." icon={Activity} tone="default" />
       </PageStatsRow>
 
-      <PageMainGrid className="lg:grid-cols-[minmax(0,1.44fr)_minmax(260px,0.84fr)] xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.86fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.86fr)]">
         <PageMainContent>
           <SectionCard title="Saude operacional detalhada" description="Risco, prazo, acao e equilibrio da operacao atual." icon={Activity} contentClassName="grid gap-4 md:grid-cols-2">
             {healthSignals.map((signal) => (
