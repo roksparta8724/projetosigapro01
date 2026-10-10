@@ -203,8 +203,8 @@ export function FinanceProtocolsPage() {
           />
         </PageStatsRow>
 
-        <PageMainGrid>
-          <PageMainContent className="xl:col-span-12">
+        <PageMainGrid className="grid-cols-1 xl:grid-cols-1">
+          <PageMainContent>
             <SectionCard
               title="Lista de processos e guias"
               description="Consulte, imprima a DAM e confirme o recolhimento de protocolo, ISSQN da obra e aprovação final."
