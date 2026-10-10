@@ -1144,6 +1144,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
+                  data-search-surface={inverseMainTheme ? "light" : "dark"}
                 >
                   <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
                     <Search className="h-[18px] w-[18px]" />
