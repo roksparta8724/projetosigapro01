@@ -384,7 +384,6 @@ export function ProcessDetailPage() {
     { key: "financeiro", label: "Financeiro" },
     { key: "historico", label: "Histórico" },
   ] as const;
-  const financeFocused = activeTab === "financeiro";
   const showPrimaryDetailColumn = ["resumo", "imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["resumo", "analise", "financeiro", "historico"].includes(activeTab);
   const useSplitDetailLayout = ["resumo", "historico"].includes(activeTab);
