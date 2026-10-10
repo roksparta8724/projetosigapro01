@@ -30,6 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getChecklistTemplate,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
@@ -268,8 +270,8 @@ export function AnalystDeskPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={process.protocol}>
-                      {process.protocol}
+                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
+                      {formatOfficialProcessNumber(process.protocol)}
                     </p>
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
@@ -284,7 +286,7 @@ export function AnalystDeskPage() {
                     ) : null}
                   </div>
 
-                  <p className="mt-2 text-sm font-medium text-slate-900">{process.title}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                   <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}>
                     {process.address} • IPTU {process.property.iptu} • Matrícula {process.property.registration}
                   </p>
@@ -613,8 +615,8 @@ export function AnalystDeskPage() {
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{process.title}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                           </div>
                           <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
                             {process.sla.breached ? "Crítico" : process.sla.hoursRemaining <= 12 ? "Urgente" : "Normal"}
@@ -850,8 +852,8 @@ export function AnalystDeskPage() {
                   ) : (
                     recentDecisions.map((process) => (
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
-                        <p className="mt-1 text-sm text-slate-800">{process.title}</p>
+                        <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                        <p className="mt-1 text-sm text-slate-800">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                         <p className="mt-1 text-sm text-slate-500">{process.ownerName}</p>
                       </div>
                     ))
@@ -866,8 +868,8 @@ export function AnalystDeskPage() {
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{process.title}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                           </div>
                           <Badge variant="outline" className={statusTone(process.status)}>
                             {statusLabel(process.status)}

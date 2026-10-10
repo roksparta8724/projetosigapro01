@@ -364,7 +364,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
   const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
   const sidebarFill = darken(primaryColor, 6);
-  const topbarFill = darken(primaryColor, -26);
+  const topbarFill = darken(primaryColor, -34);
+  const topbarHighlight = darken(primaryColor, -48);
+  const topbarDepth = darken(primaryColor, -24);
   const footerFill = sidebarFill;
   const darkSidebar = isDarkSurface(sidebarFill);
   const bannerMid = darken(primaryColor, -4);
@@ -968,6 +970,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           "--sig-primary-soft": withAlpha(primaryColor, "0.12"),
           "--sig-sidebar": sidebarFill,
           "--sig-topbar": topbarFill,
+          "--sig-topbar-highlight": topbarHighlight,
+          "--sig-topbar-depth": topbarDepth,
           "--sig-footer": footerFill,
           "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
           "--sig-sidebar-fill": sidebarFill,
@@ -993,9 +997,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       <div
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
-          borderBottomColor: withAlpha(primaryColor, "0.22"),
-          backgroundColor: "var(--sig-topbar)",
-          boxShadow: `0 6px 18px ${withAlpha(primaryColor, "0.12")}`,
+          borderBottomColor: withAlpha(primaryColor, "0.18"),
+          background: "linear-gradient(180deg, var(--sig-topbar-highlight) 0%, var(--sig-topbar) 44%, var(--sig-topbar-depth) 100%)",
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 ${withAlpha(primaryColor, "0.16")}, 0 8px 24px ${withAlpha(primaryColor, "0.14")}`,
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
@@ -1144,6 +1148,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
+                  data-search-surface={inverseMainTheme ? "light" : "dark"}
                 >
                   <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
                     <Search className="h-[18px] w-[18px]" />
@@ -1576,8 +1581,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 <div className="mt-2 space-y-1">
                   <DropdownMenuItem
                     className={cn(
-                      "group rounded-[18px] px-3 py-3 text-left text-[13px]",
-                      darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                      "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
+                      darkTopbar
+                        ? "text-slate-100 hover:border-white/14 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(2,6,23,0.16)] focus:border-white/14 focus:bg-white/10"
+                        : "text-slate-700 hover:border-slate-200 hover:bg-slate-100 hover:shadow-sm focus:border-slate-200 focus:bg-slate-100",
                     )}
                     onClick={() => navigate("/perfil")}
                   >
@@ -1597,8 +1604,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   {can(session, "manage_tenant_branding") ? (
                     <DropdownMenuItem
                       className={cn(
-                        "group rounded-[18px] px-3 py-3 text-left text-[13px]",
-                        darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                        "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
+                        darkTopbar
+                        ? "text-slate-100 hover:border-white/14 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(2,6,23,0.16)] focus:border-white/14 focus:bg-white/10"
+                        : "text-slate-700 hover:border-slate-200 hover:bg-slate-100 hover:shadow-sm focus:border-slate-200 focus:bg-slate-100",
                       )}
                       onClick={() => navigate("/configuracoes")}
                     >
@@ -1618,8 +1627,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
                   <DropdownMenuItem
                     className={cn(
-                      "group rounded-[18px] px-3 py-3 text-left text-[13px]",
-                      darkTopbar ? "text-slate-100 focus:bg-white/8" : "text-slate-700 focus:bg-slate-100/90",
+                      "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
+                      darkTopbar
+                        ? "text-slate-100 hover:border-white/14 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(2,6,23,0.16)] focus:border-white/14 focus:bg-white/10"
+                        : "text-slate-700 hover:border-slate-200 hover:bg-slate-100 hover:shadow-sm focus:border-slate-200 focus:bg-slate-100",
                     )}
                     onClick={async () => {
                       await handleSignOut("/acesso");
@@ -1652,14 +1663,14 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                         <DropdownMenuItem
                           key={item.id}
                           className={cn(
-                            "group rounded-[16px] px-3 py-2.5 text-left text-[13px]",
+                            "group cursor-pointer rounded-[16px] border border-transparent px-3 py-2.5 text-left text-[13px] transition-all duration-150",
                             darkTopbar
                               ? item.id === session.id
                                 ? "bg-white/10 text-white"
-                                : "text-slate-200 focus:bg-white/8"
+                                : "text-slate-200 hover:border-white/14 hover:bg-white/10 focus:border-white/14 focus:bg-white/10"
                               : item.id === session.id
                                 ? "bg-slate-100 text-slate-950"
-                                : "text-slate-700 focus:bg-slate-100/90",
+                                : "text-slate-700 hover:border-slate-200 hover:bg-slate-100 focus:border-slate-200 focus:bg-slate-100",
                           )}
                           onClick={() => setActiveSession(item.id)}
                         >
@@ -1684,10 +1695,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
                 <DropdownMenuItem
                   className={cn(
-                    "group rounded-[18px] px-3 py-3 text-left text-[13px]",
+                    "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
                     darkTopbar
-                      ? "text-rose-100 focus:bg-rose-400/10"
-                      : "text-rose-700 focus:bg-rose-50",
+                      ? "text-rose-100 hover:border-rose-300/30 hover:bg-rose-300/12 hover:shadow-[0_8px_22px_rgba(127,29,29,0.18)] focus:border-rose-300/30 focus:bg-rose-300/12"
+                      : "text-rose-700 hover:border-rose-200 hover:bg-rose-50 hover:shadow-sm focus:border-rose-200 focus:bg-rose-50",
                   )}
                   onClick={async () => {
                     await handleSignOut("/acesso");

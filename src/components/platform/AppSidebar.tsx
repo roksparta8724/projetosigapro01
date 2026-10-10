@@ -108,7 +108,7 @@ function SidebarInner({
                       : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
                     parentActive
                       ? darkSurface
-                        ? "border border-white/18 bg-[var(--sig-topbar)] text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]"
+                        ? "border border-white/85 bg-white text-[var(--sig-primary-deep)] shadow-[0_10px_26px_rgba(2,6,23,0.22)]"
                         : "border border-slate-300 bg-white text-slate-950"
                       : darkSurface
                         ? "border border-white/[0.06] text-slate-300 hover:border-white/10 hover:bg-white/[0.045] hover:text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
@@ -134,7 +134,7 @@ function SidebarInner({
                               expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
-                                  ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                                  ? "border-slate-200 bg-slate-100 text-[var(--sig-primary-deep)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
                                   ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
@@ -156,7 +156,7 @@ function SidebarInner({
                                 "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
                                 parentActive
                                   ? darkSurface
-                                    ? "font-semibold text-white"
+                                    ? "font-semibold text-[var(--sig-primary-deep)]"
                                     : "font-semibold text-slate-950"
                                   : darkSurface
                                     ? "font-medium text-slate-200"
@@ -175,7 +175,7 @@ function SidebarInner({
                                 isExpanded ? "rotate-180" : "rotate-0",
                                 parentActive
                                   ? darkSurface
-                                    ? "text-white/90"
+                                    ? "text-[var(--sig-primary-deep)]"
                                     : "text-slate-600"
                                   : darkSurface
                                     ? "text-white/75"
@@ -200,7 +200,7 @@ function SidebarInner({
                               expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
-                                  ? "border-white/16 bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                                  ? "border-slate-200 bg-slate-100 text-[var(--sig-primary-deep)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
                                   ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
@@ -222,7 +222,7 @@ function SidebarInner({
                                 "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
                                 parentActive
                                   ? darkSurface
-                                    ? "font-semibold text-white"
+                                    ? "font-semibold text-[var(--sig-primary-deep)]"
                                     : "font-semibold text-slate-950"
                                   : darkSurface
                                     ? "font-medium text-slate-200"
@@ -259,7 +259,7 @@ function SidebarInner({
                                     "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
                                     childActive
                                       ? darkSurface
-                                        ? "border border-white/14 bg-white/[0.08] text-white shadow-[0_10px_24px_rgba(2,6,23,0.16)]"
+                                        ? "border border-white/85 bg-white text-[var(--sig-primary-deep)] shadow-[0_10px_24px_rgba(2,6,23,0.20)]"
                                         : "border border-slate-300 bg-white text-slate-950"
                                       : darkSurface
                                         ? "border border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
@@ -271,16 +271,16 @@ function SidebarInner({
                                       "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition-all duration-300",
                                       childActive
                                         ? darkSurface
-                                          ? "bg-white/80"
+                                          ? "bg-[var(--sig-primary-deep)]"
                                           : "bg-sky-600"
                                         : "bg-transparent",
                                     )}
                                     aria-hidden="true"
                                   />
                                   {ChildIcon ? (
-                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
+                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-white/90" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
+                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
                                   )}
                                   <span className="min-w-0 flex-1 truncate">{child.label}</span>
                                 </Link>

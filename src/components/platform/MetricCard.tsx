@@ -31,7 +31,7 @@ export function MetricCard({
           </p>
           <p
             className={cn(
-              "sig-metric-value mt-2 min-w-0 max-w-full break-words text-[1.36rem] font-semibold leading-[1.08] tracking-[-0.018em] text-slate-950",
+              "sig-metric-value mt-2 min-w-0 max-w-full font-semibold tracking-[-0.018em] text-slate-950",
               valueClassName,
             )}
             title={valueTitle ?? value}

@@ -30,7 +30,7 @@ export function StatCard({
           <p className="sig-fit-title text-[11px] uppercase tracking-[0.14em] text-slate-500" title={label}>{label}</p>
           <p
             className={cn(
-              "mt-2 min-w-0 sig-fit-title text-[1.35rem] font-semibold leading-tight tracking-[-0.015em] text-slate-950 sm:text-[1.5rem]",
+              "mt-2 min-w-0 max-w-full sig-fit-title font-semibold tracking-[-0.015em] text-slate-950",
               valueClassName,
             )}
             title={valueTitle ?? value}

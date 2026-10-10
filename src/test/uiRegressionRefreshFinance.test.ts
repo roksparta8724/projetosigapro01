@@ -38,6 +38,16 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("stroke: #ffffff !important");
     expect(css).toContain("color: #0f172a !important");
     expect(css).toContain("stroke: #0f172a !important");
+    expect(portal).toContain('data-search-surface={inverseMainTheme ? "light" : "dark"}');
+    expect(css).toContain('data-search-surface="dark"');
+    expect(css).toContain('data-search-surface="light"');
+  });
+
+  it("não quebra palavras institucionais dentro dos cards em zoom reduzido", () => {
+    expect(css).toContain("Professional typography at browser/app zoom");
+    expect(css).toContain("word-break: keep-all !important");
+    expect(css).toContain("hyphens: none !important");
+    expect(css).toContain("font-size: clamp(1rem, 1.25vw, 1.5rem)");
   });
 
   it("preserva a geometria exata do viewport no snapshot do F5", () => {
