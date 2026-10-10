@@ -153,7 +153,7 @@ export function GlobalSearchPage() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">
-                    Protocolo encontrado: {exactProcess.protocol}
+                    Protocolo encontrado: {formatOfficialProcessNumber(exactProcess.protocol)}
                   </p>
                   <p className="text-xs text-slate-500">{exactProcess.title}</p>
                 </div>
@@ -169,8 +169,8 @@ export function GlobalSearchPage() {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">{process.protocol}</p>
-                    <p className="text-xs text-slate-500">{process.title}</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="text-xs text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                   </div>
                   <Button asChild variant="outline" className="h-9 rounded-full text-xs">
                     <Link to={`/processos/${process.id}`}>
