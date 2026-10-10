@@ -64,6 +64,9 @@ describe("profile and branding persistence regressions", () => {
     expect(dataHook).toContain("avatarStorageRef");
     expect(userAvatar).toContain("stableImageUrl");
     expect(userAvatar).toContain("resolvedImageUrl");
+    expect(userAvatar).toContain("const preload = new Image()");
+    expect(userAvatar).toContain("preload.onload");
+    expect(userAvatar).toContain("const resolvedImageUrl = stableImageUrl || imageUrl ||");
   });
 
   it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
