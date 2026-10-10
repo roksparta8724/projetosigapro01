@@ -3762,10 +3762,9 @@ html {
 }
 
 @media (min-width: 1024px) {
-  .sig-stat-card .sig-fit-title,
+  .sig-stat-card .sig-stat-value,
   .sig-metric-card .sig-metric-value {
-    font-size: clamp(1rem, 1.25vw, 1.5rem);
-    line-height: 1.14;
+    line-height: 1.16;
   }
 }
 
@@ -3782,9 +3781,9 @@ html {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% -35%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.07) 26%, transparent 52%),
-    linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 28%, rgba(255,255,255,0.035) 72%, transparent 100%);
-  mix-blend-mode: screen;
+    radial-gradient(circle at 18% -38%, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 24%, transparent 48%),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 0%, transparent 32%, rgba(255,255,255,0.025) 72%, transparent 100%);
+  mix-blend-mode: soft-light;
 }
 
 .sig-premium-topbar::after {
@@ -3804,4 +3803,78 @@ html {
 
 .sig-premium-topbar .sig-topbar-control:not(.sig-topbar-search-trigger) {
   backdrop-filter: blur(10px) saturate(1.08);
+}
+
+
+/* Commercial visual recovery: active navigation must stay readable on every theme. */
+.sig-sidebar-panel [data-sidebar-active="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  border-color: rgba(255,255,255,0.92) !important;
+  color: var(--sig-primary-deep) !important;
+  box-shadow:
+    0 10px 24px rgba(2,6,23,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.96) !important;
+}
+
+.sig-sidebar-panel [data-sidebar-active="true"] *,
+.sig-sidebar-panel [data-sidebar-active="true"] .sig-sidebar-label,
+.sig-sidebar-panel [data-sidebar-active="true"] .sig-sidebar-icon,
+.sig-sidebar-panel [data-sidebar-active="true"] .sig-sidebar-icon svg {
+  color: var(--sig-primary-deep) !important;
+  stroke: currentColor !important;
+}
+
+.sig-sidebar-panel [data-sidebar-active="true"] .sig-sidebar-icon {
+  background: rgba(15,23,42,0.045) !important;
+  border-color: rgba(15,23,42,0.10) !important;
+}
+
+/* Search contrast is tied to the visible card, never to inherited topbar colors. */
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] {
+  background: linear-gradient(180deg, #111827 0%, #020617 100%) !important;
+  border-color: rgba(2,6,23,0.92) !important;
+  color: #ffffff !important;
+}
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] *,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] svg,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.16) !important;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] {
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%) !important;
+  border-color: rgba(203,213,225,0.95) !important;
+  color: #0f172a !important;
+}
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] *,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] svg,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] svg * {
+  color: #0f172a !important;
+  stroke: #0f172a !important;
+  opacity: 1 !important;
+}
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon {
+  background: #e2e8f0 !important;
+  border-color: rgba(148,163,184,0.42) !important;
+}
+
+/* Refined card typography: labels stay compact; values wrap only between words. */
+.sig-stat-card > div > div:first-child > p:first-child,
+.sig-metric-card .sig-metric-title {
+  font-size: 0.69rem !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0.12em !important;
+}
+.sig-stat-card .sig-stat-value,
+.sig-metric-card .sig-metric-value,
+.sig-fit-title {
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
 }

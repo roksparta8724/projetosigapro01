@@ -363,10 +363,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
   const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
-  const sidebarFill = darken(primaryColor, 6);
-  const topbarFill = darken(primaryColor, -34);
-  const topbarHighlight = darken(primaryColor, -48);
-  const topbarDepth = darken(primaryColor, -24);
+  const sidebarFill = darken(primaryColor, 9);
+  const topbarFill = darken(primaryColor, -5);
+  const topbarHighlight = darken(primaryColor, -11);
+  const topbarDepth = darken(primaryColor, 2);
   const footerFill = sidebarFill;
   const darkSidebar = isDarkSurface(sidebarFill);
   const bannerMid = darken(primaryColor, -4);
@@ -600,11 +600,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           defaultDepartmentOwnership.diretoria,
       }
     : null;
-  const institutionDisplaySubtitle =
+  const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
     tenantSettings?.secretariaResponsavel ||
-    "Departamento responsável";
+    "Identidade institucional ativa";
+  const normalizeInstitutionText = (value: string) =>
+    value.trim().toLocaleLowerCase("pt-BR").replace(/\s+/g, " ");
+  const institutionDisplaySubtitle =
+    normalizeInstitutionText(rawInstitutionDisplaySubtitle) === normalizeInstitutionText(institutionDisplayName)
+      ? tenantSettings?.secretariaResponsavel?.trim() || "Identidade institucional ativa"
+      : rawInstitutionDisplaySubtitle;
   const institutionFooterTitle =
     tenantSettings?.secretariaResponsavel ||
     officialHeaderText ||
@@ -998,8 +1004,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
           borderBottomColor: withAlpha(primaryColor, "0.18"),
-          background: "linear-gradient(180deg, var(--sig-topbar-highlight) 0%, var(--sig-topbar) 44%, var(--sig-topbar-depth) 100%)",
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 ${withAlpha(primaryColor, "0.16")}, 0 8px 24px ${withAlpha(primaryColor, "0.14")}`,
+          background: "linear-gradient(180deg, var(--sig-topbar-highlight) 0%, var(--sig-topbar) 48%, var(--sig-topbar-depth) 100%)",
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 ${withAlpha(primaryColor, "0.24")}, 0 8px 24px ${withAlpha(primaryColor, "0.18")}`,
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
@@ -1832,7 +1838,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="sig-fit-title max-w-[64ch] text-base font-medium leading-tight text-[#FFFFFF] drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-[1.02rem] lg:text-[1.08rem]" title={institutionDisplayName}>
+                      <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base" title={institutionDisplayName}>
                         {institutionDisplayName}
                       </p>
                       <p className="mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm">
