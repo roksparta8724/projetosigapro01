@@ -220,6 +220,10 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.directorship_email === "string" &&
         general.directorship_email) ||
       base.diretoriaEmail,
+    departmentOwnership:
+      general.department_ownership && typeof general.department_ownership === "object"
+        ? (general.department_ownership as TenantSettings["departmentOwnership"])
+        : base.departmentOwnership,
     horarioAtendimento:
       (typeof general.office_hours === "string" && general.office_hours) ||
       base.horarioAtendimento,
