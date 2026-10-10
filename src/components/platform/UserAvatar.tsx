@@ -52,16 +52,33 @@ export function UserAvatar({
       setImageFailed(false);
       return;
     }
-    if (imageUrl) {
-      setStableImageUrl(imageUrl);
-      setImageFailed(false);
+
+    if (!imageUrl || imageUrl === stableImageUrl) {
+      if (imageUrl) setImageFailed(false);
       return;
     }
-    setImageFailed(false);
-  }, [imageUrl]);
+
+    let cancelled = false;
+    const preload = new Image();
+    preload.decoding = "async";
+    preload.onload = () => {
+      if (cancelled) return;
+      setStableImageUrl(imageUrl);
+      setImageFailed(false);
+    };
+    preload.onerror = () => {
+      if (cancelled) return;
+      if (!stableImageUrl) setImageFailed(true);
+    };
+    preload.src = imageUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, stableImageUrl]);
 
   const initials = useMemo(() => getInitials(name), [name]);
-  const resolvedImageUrl = imageUrl || stableImageUrl;
+  const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && !imageFailed;
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const cropRatio = crop ? sizePixels[size] / Math.max(crop.editorSize ?? 320, 1) : 1;
