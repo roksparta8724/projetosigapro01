@@ -865,7 +865,7 @@ export function ProcessDetailPage() {
         </Card>
       </div>
 
-      <div className={`mt-5 grid gap-5 ${financeFocused ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1.26fr)_minmax(280px,0.84fr)] xl:grid-cols-[minmax(0,1.38fr)_minmax(320px,0.86fr)]"}`}>
+      <div className={`mt-5 grid gap-5 ${financeFocused ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1.38fr)_minmax(300px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.82fr)]"}`}>
         <div className="grid gap-6">
           {(activeTab === "resumo" || activeTab === "imovel") && (
           <Card className={cardShell}>
