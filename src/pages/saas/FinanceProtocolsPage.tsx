@@ -263,7 +263,11 @@ export function FinanceProtocolsPage() {
                         <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                           <div className="rounded-[16px] border border-[#d8e4f1] bg-[#f8fbff] px-4 py-3 text-sm font-normal leading-snug text-[#123860]">
                             <p className="sig-label">PIX copia e cola</p>
-                            <p className="mt-2 line-clamp-3 break-all">{pixPayload}</p>
+                            <div className="mt-2 max-w-full overflow-hidden rounded-xl border border-[#d8e4f1] bg-white/80">
+  <p className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5 text-[#123860]" title={pixPayload}>
+    {pixPayload}
+  </p>
+</div>
                           </div>
                           <Button
                             type="button"
