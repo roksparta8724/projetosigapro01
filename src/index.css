@@ -3676,3 +3676,37 @@ html {
   border-color: rgba(148,163,184,0.42) !important;
   background: #e2e8f0 !important;
 }
+
+
+/* Topbar search contrast hardening: every visual inside the search follows its surface. */
+[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger,
+[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger * {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger svg,
+[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger,
+[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger * {
+  color: #0f172a !important;
+  opacity: 1 !important;
+}
+
+[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger svg,
+[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger svg * {
+  color: #0f172a !important;
+  stroke: #0f172a !important;
+}
