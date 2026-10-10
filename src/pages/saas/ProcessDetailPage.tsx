@@ -1260,7 +1260,7 @@ export function ProcessDetailPage() {
                 </div>
               </div>
               <div className="grid min-w-0 gap-4 min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]">
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+                <div className="min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Guia de Recolhimento</p>
