@@ -68,6 +68,7 @@ export function ProtocolDeskPage() {
     processes: allProcesses,
     getInstitutionSettings,
     dispatchProcess,
+    markGuideAsPaid,
     getUserProfile,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -331,6 +332,35 @@ export function ProtocolDeskPage() {
     </div>
   );
 
+  const handleConfirmProtocolPayment = async (process: ProcessRecord) => {
+    const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
+      (guide) => guide.kind === "protocolo",
+    );
+
+    if (!protocolGuide || protocolGuide.status !== "pendente") {
+      setProtocolActionStatus("A guia de protocolo já está confirmada ou não está disponível para baixa.");
+      return;
+    }
+
+    setProtocolActionBusy(`payment-${process.id}`);
+    setProtocolActionStatus("");
+
+    try {
+      await markGuideAsPaid(process.id, session.name, "protocolo");
+      setProtocolActionStatus(
+        "Pagamento recebido no Protocolo e confirmado no banco oficial. O processo foi liberado para continuidade.",
+      );
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível confirmar o pagamento: ${error.message}`
+          : "Não foi possível confirmar o pagamento no banco oficial.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
   const handleDispatchMatchedProcess = async (process: ProcessRecord) => {
     const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
       (guide) => guide.kind === "protocolo",
@@ -396,8 +426,15 @@ export function ProtocolDeskPage() {
               {getProcessPaymentGuides(matchedProcess, tenantSettings).find(
                 (guide) => guide.kind === "protocolo",
               )?.status === "pendente" ? (
-                <Button asChild variant="outline" className="rounded-full">
-                  <Link to="/prefeitura/financeiro/protocolos">Aguardando Financeiro</Link>
+                <Button
+                  type="button"
+                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                  disabled={protocolActionBusy === `payment-${matchedProcess.id}`}
+                  onClick={() => void handleConfirmProtocolPayment(matchedProcess)}
+                >
+                  {protocolActionBusy === `payment-${matchedProcess.id}`
+                    ? "Confirmando..."
+                    : "Confirmar pagamento recebido"}
                 </Button>
               ) : null}
 
