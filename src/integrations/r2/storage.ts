@@ -71,7 +71,11 @@ export async function uploadFileToStorage(input: {
     : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
 
   const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
-  return { path: uploaded.objectKey, publicUrl: uploaded.publicUrl };
+  return {
+    path: uploaded.objectKey,
+    publicUrl: uploaded.publicUrl,
+    persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`,
+  };
 }
 
 
