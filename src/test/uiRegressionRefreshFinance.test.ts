@@ -8,6 +8,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+  const protocolDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
 
   it("remove o atalho Ctrl K visível da busca", () => {
     expect(portal).not.toContain("Ctrl K");
@@ -31,14 +32,17 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   });
 
   it("preserva a geometria exata do viewport no snapshot do F5", () => {
-    expect(main).toContain("viewportWidth: window.innerWidth");
+    expect(main).toContain("viewportWidth: document.documentElement.clientWidth || window.innerWidth");
     expect(main).toContain("viewportHeight: window.innerHeight");
     expect(main).toContain("cssText: collectLoadedCssText()");
-    expect(html).toContain("snapshot.cssText");
-    expect(html).toContain("sigapro-refresh-snapshot-css");
+    expect(main).toContain("function restoreFrozenSnapshot()");
+    expect(main).toContain("restoreFrozenSnapshot();");
+    expect(main).toContain("sigapro-refresh-snapshot-css");
+    expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
     expect(html).toContain("--sig-snapshot-viewport-width");
     expect(html).toContain("--sig-snapshot-viewport-height");
     expect(html).toContain("transform: none");
+    expect(html).not.toContain("contain: layout paint style");
   });
 
   it("permite que a unidade de Protocolo confirme recebimento da guia inicial", () => {
@@ -46,5 +50,8 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(processDetail).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(processDetail).toContain("Confirmar pagamento recebido");
     expect(processDetail).toContain('process.status === "pagamento_pendente"');
+    expect(protocolDesk).toContain("handleConfirmProtocolPayment");
+    expect(protocolDesk).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
+    expect(protocolDesk).toContain("Confirmar pagamento recebido");
   });
 });

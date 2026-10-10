@@ -106,7 +106,6 @@
         overflow: hidden;
         background: var(--sig-initial-bg, #f3faf7);
         pointer-events: none;
-        contain: layout paint style;
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-viewport {
@@ -124,41 +123,6 @@
   <body>
     <div id="sigapro-refresh-snapshot" aria-hidden="true"></div>
     <div id="root"></div>
-    <script>
-      (function () {
-        try {
-          var key = "sigapro.visual.snapshot.v1";
-          var raw = window.sessionStorage.getItem(key);
-          if (!raw) return;
-          var snapshot = JSON.parse(raw);
-          var now = Date.now();
-          var valid =
-            snapshot &&
-            snapshot.host === window.location.host &&
-            snapshot.path === window.location.pathname &&
-            typeof snapshot.html === "string" &&
-            snapshot.html.length > 500 &&
-            typeof snapshot.savedAt === "number" &&
-            now - snapshot.savedAt < 120000;
-          if (!valid) return;
-          var host = document.getElementById("sigapro-refresh-snapshot");
-          if (!host) return;
-          if (typeof snapshot.cssText === "string" && snapshot.cssText.length > 0) {
-            var cachedStyle = document.createElement("style");
-            cachedStyle.id = "sigapro-refresh-snapshot-css";
-            cachedStyle.textContent = snapshot.cssText;
-            document.head.appendChild(cachedStyle);
-          }
-          host.innerHTML = '<div class="sigapro-snapshot-viewport">' + snapshot.html + "</div>";
-          host.style.setProperty("--sig-snapshot-top", String(-(snapshot.scrollY || 0)) + "px");
-          host.style.setProperty("--sig-snapshot-viewport-width", String(snapshot.viewportWidth || window.innerWidth) + "px");
-          host.style.setProperty("--sig-snapshot-viewport-height", String(snapshot.viewportHeight || window.innerHeight) + "px");
-          host.setAttribute("data-visible", "true");
-        } catch (error) {
-          try { window.sessionStorage.removeItem("sigapro.visual.snapshot.v1"); } catch (_) {}
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
