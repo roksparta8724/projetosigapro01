@@ -3781,3 +3781,11 @@ html {
   opacity: 1 !important;
   visibility: visible !important;
 }
+
+
+/* Layout integrity: a main grid with no real side panel must never reserve an empty column. */
+.sig-main-grid > :only-child {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}

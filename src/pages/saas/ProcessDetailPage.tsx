@@ -384,7 +384,9 @@ export function ProcessDetailPage() {
     { key: "financeiro", label: "Financeiro" },
     { key: "historico", label: "Histórico" },
   ] as const;
-  const financeFocused = activeTab === "financeiro";
+  const showPrimaryDetailColumn = ["resumo", "imovel", "documentos", "historico"].includes(activeTab);
+  const showSecondaryDetailColumn = ["resumo", "analise", "financeiro", "historico"].includes(activeTab);
+  const useSplitDetailLayout = ["resumo", "historico"].includes(activeTab);
   const cardShell = "rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = paymentGuides.find((guide) => guide.kind === guideKind);
@@ -865,8 +867,9 @@ export function ProcessDetailPage() {
         </Card>
       </div>
 
-      <div className={`mt-5 grid gap-5 ${financeFocused ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1.26fr)_minmax(280px,0.84fr)] xl:grid-cols-[minmax(0,1.38fr)_minmax(320px,0.86fr)]"}`}>
-        <div className="grid gap-6">
+      <div className={`mt-5 grid min-w-0 gap-5 ${useSplitDetailLayout ? "xl:grid-cols-[minmax(0,1.38fr)_minmax(300px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.82fr)]" : "grid-cols-1"}`}>
+        {showPrimaryDetailColumn ? (
+        <div className="grid min-w-0 gap-6">
           {(activeTab === "resumo" || activeTab === "imovel") && (
           <Card className={cardShell}>
             <CardHeader>
@@ -875,7 +878,7 @@ export function ProcessDetailPage() {
                 Dados do Imóvel e do Protocolo
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
+            <CardContent className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Proprietário: ${process.ownerName}`}>Proprietário: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerName}</span></div>
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Documento mascarado: ${process.ownerDocument}`}>Documento mascarado: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerDocument}</span></div>
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Responsável Técnico: ${process.technicalLead}`}>Responsável Técnico: <span className="sig-fit-copy mt-1 block text-slate-800">{process.technicalLead}</span></div>
@@ -1047,8 +1050,10 @@ export function ProcessDetailPage() {
           </Card>
           )}
         </div>
+        ) : null}
 
-        <div className="grid gap-6">
+        {showSecondaryDetailColumn ? (
+        <div className="grid min-w-0 gap-6">
           {(activeTab === "resumo" || activeTab === "analise") && (
           <Card className={cardShell}>
             <CardHeader>
@@ -1242,7 +1247,7 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                 <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
                   <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 1</p>
                   <p className="mt-2 text-sm font-medium text-slate-900">Protocolo e Recolhimento</p>
@@ -1259,8 +1264,8 @@ export function ProcessDetailPage() {
                   <p className="mt-2 text-sm text-slate-600">Só aparece no fechamento do processo, quando a taxa final de aprovação for solicitada.</p>
                 </div>
               </div>
-              <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+              <div className="grid min-w-0 gap-4 min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]">
+                <div className="min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Guia de Recolhimento</p>
@@ -1314,13 +1319,20 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                 </div>
-              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]">
+                <div className="flex min-w-0 justify-center rounded-2xl border border-slate-200 bg-white p-4">
                   <PixQrCode value={pixPayload} />
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-600">
+                <div className="min-w-0 rounded-2xl border border-slate-200 p-4 text-sm text-slate-600">
                   <p className="font-medium text-slate-950">Pix Copia e Cola da Guia de Protocolo</p>
-                  <p className="mt-2 break-all text-xs text-slate-500">{pixPayload}</p>
+                  <div className="mt-3 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <p
+                      className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5 text-slate-600"
+                      title={pixPayload}
+                    >
+                      {pixPayload}
+                    </p>
+                  </div>
                   <div className="mt-4 grid gap-2">
                     <div className="rounded-xl bg-slate-50 p-3">Taxa de protocolo: {formatCurrency(protocolGuide?.amount || 0)}</div>
                     <div className="rounded-xl bg-slate-50 p-3">As guias de ISSQN e aprovação aparecem somente quando forem solicitadas nas próximas etapas.</div>
@@ -1549,6 +1561,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
         </div>
+        ) : null}
       </div>
 
       <Dialog open={!!viewerDocument} onOpenChange={(open) => !open && setViewerDocumentId(null)}>

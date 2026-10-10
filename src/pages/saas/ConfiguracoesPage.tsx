@@ -2587,8 +2587,8 @@ export function ConfiguracoesPage() {
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
-      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4">
-        {activeSettingsView === "branding" ? <PageMainContent className="xl:col-span-12">
+      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
+        {activeSettingsView === "branding" ? <PageMainContent className="w-full">
         <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
             {session.tenantId === null ? (
               <div className="space-y-3">
@@ -2980,7 +2980,7 @@ export function ConfiguracoesPage() {
         </SectionCard>
         </PageMainContent> : null}
         {activeSettingsView === "platform" && isMasterRole ? (
-          <PageMainContent className="xl:col-span-12">
+          <PageMainContent className="w-full">
             <SectionCard
               title="Administração da plataforma"
               description="Defina a identidade visual exclusiva do ambiente Master."
@@ -3131,7 +3131,7 @@ export function ConfiguracoesPage() {
           </PageMainContent>
         ) : null}
 
-        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="xl:col-span-12">
+        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
         <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (

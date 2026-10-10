@@ -605,7 +605,7 @@ export function FinanceDeskPage() {
               ) : (
                 guidesByIssueDate.map(({ process, guide }) => (
                   <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={guide.code}>{guide.code}</p>
@@ -614,10 +614,10 @@ export function FinanceDeskPage() {
                             {guide.status === "compensada" ? "Confirmada" : "Pendente"}
                           </Badge>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${process.protocol} • ${process.ownerName}`}>{process.protocol} • {process.ownerName}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${formatOfficialProcessNumber(process.protocol)} • ${process.ownerName}`}>{formatOfficialProcessNumber(process.protocol)} • {process.ownerName}</p>
                         <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       </div>
-                      <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
+                      <div className="grid w-full gap-2 text-sm text-slate-600 sm:grid-cols-2 2xl:w-auto 2xl:min-w-[560px] 2xl:grid-cols-4">
                         <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
                           Emissão: {guide.issuedAt ? new Date(guide.issuedAt).toLocaleDateString("pt-BR") : "não informada"}
                         </div>
@@ -649,7 +649,7 @@ export function FinanceDeskPage() {
                   ) : (
                     pendingGuides.map(({ process, guide }) => (
                       <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.protocol}>{formatOfficialProcessNumber(process.protocol)}</p>
@@ -660,7 +660,7 @@ export function FinanceDeskPage() {
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-800" title={process.ownerName}>{process.ownerName}</p>
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
-                          <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
+                          <div className="grid w-full gap-2 text-sm text-slate-600 sm:grid-cols-2 2xl:w-auto 2xl:min-w-[560px] 2xl:grid-cols-4">
                             <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
                             <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
                             <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>

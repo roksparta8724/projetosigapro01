@@ -39,7 +39,7 @@ export function ClientePortalPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#d4e7f7]">Portal Institucional do Cliente</p>
             <h1 className="mt-2 text-2xl font-semibold uppercase tracking-[0.02em] text-white">{match.name}</h1>
           </div>
-          <div className="grid gap-8 px-8 py-8 lg:grid-cols-[1.05fr,0.95fr]">
+          <div className="grid gap-8 px-8 py-8 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <p className="text-[14px] font-semibold uppercase tracking-[0.18em] text-[#bfe5ff]">{settings?.secretariaResponsavel || "Secretaria Responsável"}</p>
               <p className="mt-4 max-w-3xl text-[18px] leading-8 text-slate-100">
@@ -107,7 +107,7 @@ export function ClientePortalPage() {
                 <span className="font-semibold">Entrega ao Cliente</span>
               </div>
               <p className="text-sm text-slate-600">O link de entrega desta prefeitura é:</p>
-              <p className="mt-2 break-all rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">{publicLink}</p>
+              <p className="mt-2 break-words rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">{publicLink}</p>
             </CardContent>
           </Card>
 
