@@ -43,6 +43,13 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain('data-search-surface="light"');
   });
 
+  it("não quebra palavras institucionais dentro dos cards em zoom reduzido", () => {
+    expect(css).toContain("Professional typography at browser/app zoom");
+    expect(css).toContain("word-break: keep-all !important");
+    expect(css).toContain("hyphens: none !important");
+    expect(css).toContain("font-size: clamp(1rem, 1.25vw, 1.5rem)");
+  });
+
   it("preserva a geometria exata do viewport no snapshot do F5", () => {
     expect(main).toContain("viewportWidth: document.documentElement.clientWidth || window.innerWidth");
     expect(main).toContain("viewportHeight: window.innerHeight");
