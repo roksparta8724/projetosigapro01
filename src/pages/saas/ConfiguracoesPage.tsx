@@ -1890,7 +1890,7 @@ export function ConfiguracoesPage() {
         "municipality_branding upsert",
         saveRemoteInstitutionSettings(nextSettingsForSave, {
           skipMunicipalityUpdate: true,
-          skipMunicipalitySettings: true,
+          skipMunicipalitySettings: false,
         }),
         20000,
       );
@@ -1906,6 +1906,28 @@ export function ConfiguracoesPage() {
       const confirmedUrl = variant === "header" ? confirmedBranding?.header_logo_url : confirmedBranding?.footer_logo_url;
       if (confirmationError || !confirmedBranding || (confirmedKey || "") !== (expectedKey || "") || (confirmedUrl || "") !== (expectedUrl || "")) {
         throw new Error("O banco não confirmou o logo municipal. Verifique as colunas e as permissões de branding antes de tentar novamente.");
+      }
+
+      const { data: confirmedSettings, error: confirmedSettingsError } = await backendClient
+        .from("municipality_settings")
+        .select("general_settings")
+        .eq("municipality_id", savedTenant.id)
+        .maybeSingle();
+      const confirmedGeneral = (confirmedSettings?.general_settings ?? {}) as Record<string, unknown>;
+      const expectedScale = variant === "footer" ? nextSettingsForSave.footerLogoScale : nextSettingsForSave.headerLogoScale;
+      const expectedOffsetX = variant === "footer" ? nextSettingsForSave.footerLogoOffsetX : nextSettingsForSave.headerLogoOffsetX;
+      const expectedOffsetY = variant === "footer" ? nextSettingsForSave.footerLogoOffsetY : nextSettingsForSave.headerLogoOffsetY;
+      const confirmedScale = Number(confirmedGeneral[variant === "footer" ? "footer_logo_scale" : "header_logo_scale"] ?? 1);
+      const confirmedOffsetX = Number(confirmedGeneral[variant === "footer" ? "footer_logo_offset_x" : "header_logo_offset_x"] ?? 0);
+      const confirmedOffsetY = Number(confirmedGeneral[variant === "footer" ? "footer_logo_offset_y" : "header_logo_offset_y"] ?? 0);
+      if (
+        confirmedSettingsError ||
+        !confirmedSettings ||
+        Math.abs(confirmedScale - Number(expectedScale ?? 1)) > 0.001 ||
+        Math.abs(confirmedOffsetX - Number(expectedOffsetX ?? 0)) > 0.001 ||
+        Math.abs(confirmedOffsetY - Number(expectedOffsetY ?? 0)) > 0.001
+      ) {
+        throw new Error("O banco não confirmou o enquadramento do logo. O zoom e a posição não foram aplicados.");
       }
     }
 
