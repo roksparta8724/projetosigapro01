@@ -364,7 +364,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
   const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
   const sidebarFill = darken(primaryColor, 6);
-  const topbarFill = darken(primaryColor, -26);
+  const topbarFill = darken(primaryColor, -34);
+  const topbarHighlight = darken(primaryColor, -48);
+  const topbarDepth = darken(primaryColor, -24);
   const footerFill = sidebarFill;
   const darkSidebar = isDarkSurface(sidebarFill);
   const bannerMid = darken(primaryColor, -4);
@@ -968,6 +970,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
           "--sig-primary-soft": withAlpha(primaryColor, "0.12"),
           "--sig-sidebar": sidebarFill,
           "--sig-topbar": topbarFill,
+          "--sig-topbar-highlight": topbarHighlight,
+          "--sig-topbar-depth": topbarDepth,
           "--sig-footer": footerFill,
           "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
           "--sig-sidebar-fill": sidebarFill,
@@ -993,9 +997,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       <div
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
-          borderBottomColor: withAlpha(primaryColor, "0.22"),
-          backgroundColor: "var(--sig-topbar)",
-          boxShadow: `0 6px 18px ${withAlpha(primaryColor, "0.12")}`,
+          borderBottomColor: withAlpha(primaryColor, "0.18"),
+          background: "linear-gradient(180deg, var(--sig-topbar-highlight) 0%, var(--sig-topbar) 44%, var(--sig-topbar-depth) 100%)",
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 ${withAlpha(primaryColor, "0.16")}, 0 8px 24px ${withAlpha(primaryColor, "0.14")}`,
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
