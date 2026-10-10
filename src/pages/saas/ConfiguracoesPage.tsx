@@ -2417,7 +2417,7 @@ export function ConfiguracoesPage() {
             <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Portal institucional</p>
-                <p className="sig-fit-title mt-2 break-all text-sm font-semibold leading-6 text-slate-900">
+                <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-900">
                   {publicPortalLink || "Não configurado"}
                 </p>
               </div>
