@@ -82,6 +82,31 @@ export interface SessionUser {
 }
 export type InstitutionSessionUser = SessionUser & { institutionId?: string | null };
 
+export function formatOfficialProcessNumber(protocol: string) {
+  const value = protocol?.trim() || "";
+  const auditMatch = value.match(/^AUDIT(?:-[A-Z0-9]+)?-(\d{4})(\d{2})(\d{2})-(\d+)$/i);
+  if (auditMatch) {
+    const year = auditMatch[1];
+    const sequence = auditMatch[4].padStart(6, "0");
+    return `Processo nº ${sequence}/${year}`;
+  }
+
+  const compactAuditMatch = value.match(/^AUDIT(?:-[A-Z0-9]+)?-(\d{4})-(\d+)$/i);
+  if (compactAuditMatch) {
+    return `Processo nº ${compactAuditMatch[2].padStart(6, "0")}/${compactAuditMatch[1]}`;
+  }
+
+  return value;
+}
+
+export function formatOfficialProcessTitle(input: { title: string; type?: string | null }) {
+  const title = input.title?.trim() || "";
+  if (/^AUDIT(?:\s|\b|-)/i.test(title)) {
+    return input.type?.trim() || "Processo administrativo digital";
+  }
+  return title;
+}
+
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
 
