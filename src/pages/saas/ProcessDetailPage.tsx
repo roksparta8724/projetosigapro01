@@ -385,6 +385,9 @@ export function ProcessDetailPage() {
     { key: "historico", label: "Histórico" },
   ] as const;
   const financeFocused = activeTab === "financeiro";
+  const showPrimaryDetailColumn = ["resumo", "imovel", "documentos", "historico"].includes(activeTab);
+  const showSecondaryDetailColumn = ["resumo", "analise", "financeiro", "historico"].includes(activeTab);
+  const useSplitDetailLayout = ["resumo", "historico"].includes(activeTab);
   const cardShell = "rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = paymentGuides.find((guide) => guide.kind === guideKind);
@@ -865,8 +868,9 @@ export function ProcessDetailPage() {
         </Card>
       </div>
 
-      <div className={`mt-5 grid gap-5 ${financeFocused ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1.38fr)_minmax(300px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.82fr)]"}`}>
-        <div className="grid gap-6">
+      <div className={`mt-5 grid min-w-0 gap-5 ${useSplitDetailLayout ? "xl:grid-cols-[minmax(0,1.38fr)_minmax(300px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.82fr)]" : "grid-cols-1"}`}>
+        {showPrimaryDetailColumn ? (
+        <div className="grid min-w-0 gap-6">
           {(activeTab === "resumo" || activeTab === "imovel") && (
           <Card className={cardShell}>
             <CardHeader>
@@ -1047,8 +1051,10 @@ export function ProcessDetailPage() {
           </Card>
           )}
         </div>
+        ) : null}
 
-        <div className="grid gap-6">
+        {showSecondaryDetailColumn ? (
+        <div className="grid min-w-0 gap-6">
           {(activeTab === "resumo" || activeTab === "analise") && (
           <Card className={cardShell}>
             <CardHeader>
@@ -1556,6 +1562,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
         </div>
+        ) : null}
       </div>
 
       <Dialog open={!!viewerDocument} onOpenChange={(open) => !open && setViewerDocumentId(null)}>
