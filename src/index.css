@@ -201,9 +201,9 @@
     color: hsl(var(--foreground));
     max-width: 100%;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -227,9 +227,9 @@
     color: hsl(var(--foreground));
     max-width: 42ch;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
   }
 
   .sig-subtitle {
@@ -238,9 +238,9 @@
     font-weight: 500;
     color: hsl(var(--muted-foreground));
     max-width: 72ch;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
   }
 
   .sig-label {
@@ -368,8 +368,8 @@
   .sig-text-wrap {
     min-width: 0;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: normal;
+    overflow-wrap: normal;
+    word-break: keep-all;
   }
 
   .sig-truncate {
@@ -382,9 +382,9 @@
   .sig-fit-title {
     min-width: 0;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -394,9 +394,9 @@
   .sig-fit-copy {
     min-width: 0;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
     line-height: 1.55;
     display: -webkit-box;
     -webkit-line-clamp: 4;
@@ -629,8 +629,8 @@
   .sig-main-shell .sig-metric-card :is(.sig-metric-title, .sig-metric-value, .sig-metric-helper) {
     min-width: 0;
     max-width: 100%;
-    overflow-wrap: break-word;
-    word-break: normal;
+    overflow-wrap: normal;
+    word-break: keep-all;
   }
 
   .sig-main-shell .sig-metric-card .sig-metric-title {
@@ -669,9 +669,9 @@
   .sig-main-shell .sig-section-label,
   .sig-main-shell .sig-meta,
   .sig-main-shell .sig-email {
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
   }
 
   .sig-table-scroll {
@@ -3731,4 +3731,40 @@ html {
   color: #0f172a !important;
   stroke: #0f172a !important;
   opacity: 1 !important;
+}
+
+
+/* Professional typography at browser/app zoom: never split institutional words inside cards. */
+.sig-page-title,
+.sig-section-title,
+.sig-fit-title,
+.sig-metric-title,
+.sig-metric-value,
+.sig-stat-card .sig-fit-title,
+.sig-card-title,
+.sig-label {
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  hyphens: none !important;
+  text-wrap: pretty;
+}
+
+.sig-stat-card,
+.sig-metric-card,
+.sig-stat-card > div,
+.sig-metric-card > div {
+  min-width: 0;
+}
+
+.sig-stat-card .sig-fit-title,
+.sig-metric-card .sig-metric-value {
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .sig-stat-card .sig-fit-title,
+  .sig-metric-card .sig-metric-value {
+    font-size: clamp(1rem, 1.25vw, 1.5rem);
+    line-height: 1.14;
+  }
 }
