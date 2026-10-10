@@ -24,6 +24,24 @@ describe("layout integrity regression", () => {
     expect(offenders, `Invalid grid templates: ${offenders.join(", ")}`).toEqual([]);
   });
 
+  it("expands single-content main grids instead of reserving a dead side column", () => {
+    const pageLayout = read("src/components/platform/PageLayout.tsx");
+    const css = read("src/index.css");
+    const financeProtocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
+    const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(pageLayout).toContain("[&>*:only-child]:col-span-full");
+    expect(css).toContain(".sig-main-grid > :only-child");
+    expect(css).toContain("grid-column: 1 / -1 !important");
+    expect(financeProtocols).toContain('PageMainGrid className="grid-cols-1 xl:grid-cols-1"');
+    expect(settings).toContain('PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1"');
+    expect(detail).toContain("showPrimaryDetailColumn");
+    expect(detail).toContain("showSecondaryDetailColumn");
+    expect(detail).toContain("useSplitDetailLayout");
+    expect(detail).toContain("[grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]");
+  });
+
   it("keeps the shared app shell single-column until the sidebar leaves enough width", () => {
     const pageLayout = read("src/components/platform/PageLayout.tsx");
     expect(pageLayout).toContain(
