@@ -3710,3 +3710,25 @@ html {
   color: #0f172a !important;
   stroke: #0f172a !important;
 }
+
+
+/* Search foreground follows the actual search-card surface, not inherited topbar/theme colors. */
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"],
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-label,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon svg,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"],
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-label,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon svg,
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon svg * {
+  color: #0f172a !important;
+  stroke: #0f172a !important;
+  opacity: 1 !important;
+}
