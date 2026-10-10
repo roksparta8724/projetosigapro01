@@ -2351,15 +2351,45 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const { error } = await db
+    const { data, error } = await db
       .from("profiles")
       .update({ ...profileFields, updated_at: new Date().toISOString() })
-      .eq("id", profileId);
+      .eq("id", profileId)
+      .select("id,full_name,email,phone,cpf_cnpj,rg,birth_date,professional_type,registration_number,company_name,address_line,address_number,address_complement,neighborhood,city,state,zip_code,avatar_url,avatar_scale,avatar_offset_x,avatar_offset_y,use_avatar_in_header,bio")
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message || "Falha ao salvar o perfil no banco.");
     }
-    return;
+    if (!data) {
+      throw new Error("O banco não confirmou a atualização do perfil.");
+    }
+
+    return {
+      userId: data.id ?? profileId,
+      fullName: data.full_name ?? profile.fullName,
+      email: data.email ?? profile.email,
+      phone: data.phone ?? "",
+      cpfCnpj: data.cpf_cnpj ?? "",
+      rg: data.rg ?? "",
+      birthDate: data.birth_date ?? "",
+      professionalType: data.professional_type ?? "",
+      registrationNumber: data.registration_number ?? "",
+      companyName: data.company_name ?? "",
+      addressLine: data.address_line ?? "",
+      addressNumber: data.address_number ?? "",
+      addressComplement: data.address_complement ?? "",
+      neighborhood: data.neighborhood ?? "",
+      city: data.city ?? "",
+      state: data.state ?? "",
+      zipCode: data.zip_code ?? "",
+      avatarUrl: data.avatar_url ?? "",
+      avatarScale: Number(data.avatar_scale ?? 1),
+      avatarOffsetX: Number(data.avatar_offset_x ?? 0),
+      avatarOffsetY: Number(data.avatar_offset_y ?? 0),
+      useAvatarInHeader: Boolean(data.use_avatar_in_header ?? false),
+      bio: data.bio ?? "",
+    } satisfies UserProfile;
   }
 
   const payload: Record<string, unknown> = {
@@ -2376,7 +2406,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
     error = result.error;
 
     if (!error) {
-      return;
+      return profile;
     }
 
     if (!isMissingColumnError(error)) {
