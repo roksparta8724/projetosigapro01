@@ -3323,60 +3323,6 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-searchbar,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-searchbar,
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-trigger,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger {
-  border: 1px solid rgba(203, 213, 225, 0.92) !important;
-  background: linear-gradient(180deg, #f8fafc 0%, #e9eef4 100%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.96),
-    0 8px 18px rgba(15, 23, 42, 0.12) !important;
-  color: #334155 !important;
-  min-width: 0;
-}
-
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-searchbar:hover,
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-searchbar:focus-visible,
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-trigger:hover,
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-trigger:focus-visible,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-searchbar:hover,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-searchbar:focus-visible,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger:hover,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-trigger:focus-visible {
-  border-color: rgba(148, 163, 184, 0.9) !important;
-  background: linear-gradient(180deg, #ffffff 0%, #eef2f6 100%) !important;
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 10px 22px rgba(15, 23, 42, 0.15),
-    0 0 0 3px rgba(148, 163, 184, 0.14) !important;
-}
-
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-icon,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-icon {
-  background: rgba(255, 255, 255, 0.09) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 :is(.sig-topbar-menu-icon, .sig-topbar-search-icon) {
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.82) !important;
-  background: linear-gradient(180deg, #f5fafc 0%, #e1ebf2 100%) !important;
-  color: #183b51 !important;
-  box-shadow: inset 0 1px 0 #ffffff, 0 4px 10px rgba(6, 23, 37, 0.12) !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0 :is(.sig-topbar-menu-trigger, .sig-topbar-search-trigger):is(:hover, :focus-visible) :is(.sig-topbar-menu-icon, .sig-topbar-search-icon) {
-  background: #ffffff !important;
-  color: #0e5870 !important;
-}
-
-[data-layout-mode="default"] .sig-premium-topbar .sig-topbar-search-label,
-[data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-search-label {
-  color: #334155 !important;
-  font-weight: 700 !important;
-}
-
 [data-layout-mode="default"] .sig-premium-topbar .sig-topbar-primary-group,
 [data-layout-mode="inverse-main"] .sig-premium-topbar .sig-topbar-primary-group {
   gap: 1.25rem;
@@ -3565,71 +3511,6 @@
   background: #ffffff !important;
 }
 
-
-/* Search must read as a neutral light control, independent from the white topbar text rules. */
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger),
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) :is(span, p, kbd, strong) {
-  color: #334155 !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) svg {
-  color: #334155 !important;
-  stroke: #334155 !important;
-  fill: none !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-hint {
-  color: #64748b !important;
-  background: rgba(255,255,255,0.84) !important;
-  border-color: rgba(148,163,184,0.36) !important;
-}
-
-
-/* Final topbar search treatment: integrated with every theme, never a white card. */
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0.14) 100%) !important;
-  color: #f8fafc !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 8px 18px rgba(2, 6, 23, 0.10) !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger):is(:hover, :focus-visible) {
-  border-color: rgba(255, 255, 255, 0.26) !important;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.30) 0%, rgba(15, 23, 42, 0.20) 100%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 10px 22px rgba(2, 6, 23, 0.14) !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-icon {
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: rgba(15, 23, 42, 0.26) !important;
-  color: #dbeafe !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-icon svg {
-  color: #dbeafe !important;
-  stroke: #dbeafe !important;
-  fill: none !important;
-}
-
-:is([data-layout-mode="default"], [data-layout-mode="inverse-main"]) .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-label {
-  color: #f8fafc !important;
-  font-weight: 700 !important;
-}
 
 html {
   scrollbar-gutter: stable;
@@ -3847,4 +3728,56 @@ html {
   overflow-wrap: normal !important;
   word-break: normal !important;
   hyphens: none !important;
+}
+
+
+/* Production search guard: visible card decides contrast, with no inherited topbar override. */
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="dark"] {
+  background: linear-gradient(180deg, #111827 0%, #0b1220 48%, #020617 100%) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: #ffffff !important;
+}
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-label,
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon,
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon svg,
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="light"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 48%, #eef2f7 100%) !important;
+  border-color: rgba(203,213,225,0.95) !important;
+  color: #0f172a !important;
+}
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-label {
+  color: #0f172a !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon {
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  border-color: rgba(15,23,42,0.88) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon svg,
+.sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0
+.sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
