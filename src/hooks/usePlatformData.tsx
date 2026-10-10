@@ -238,6 +238,7 @@ function mergeUserProfileRecord(localProfile?: UserProfile, remoteProfile?: User
     state: hasMeaningfulValue(remoteProfile.state) ? remoteProfile.state : localProfile.state,
     zipCode: hasMeaningfulValue(remoteProfile.zipCode) ? remoteProfile.zipCode : localProfile.zipCode,
     avatarUrl: hasMeaningfulValue(remoteProfile.avatarUrl) ? remoteProfile.avatarUrl : localProfile.avatarUrl,
+    avatarStorageRef: hasMeaningfulValue(remoteProfile.avatarStorageRef) ? remoteProfile.avatarStorageRef : localProfile.avatarStorageRef,
     avatarScale: remoteProfile.avatarScale ?? localProfile.avatarScale ?? 1,
     avatarOffsetX: remoteProfile.avatarOffsetX ?? localProfile.avatarOffsetX ?? 0,
     avatarOffsetY: remoteProfile.avatarOffsetY ?? localProfile.avatarOffsetY ?? 0,
@@ -320,6 +321,7 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 const LEGACY_STORAGE_KEY = "sigapro-platform-store";
 const STORAGE_KEY = "sigapro-platform-store.v2";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+const PROFILE_VISUAL_CACHE_KEY = "sigapro.profile.visual.v1";
 const LEGACY_RECONCILIATION_PENDING_KEY = "sigapro:legacy-process-reconciliation-pending";
 const LEGACY_DEMO_TENANT_NAMES = new Set([
   "prefeitura de jardim da serra",
@@ -549,6 +551,70 @@ function readCachedPlatformSession(): SessionUser | null {
   }
 }
 
+function readProfileVisualCache(): UserProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(PROFILE_VISUAL_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as Partial<UserProfile> & { cachedAt?: number };
+    if (!cached.userId || !cached.avatarUrl) return null;
+
+    const currentSession = readCachedPlatformSession();
+    const sameIdentity =
+      currentSession?.id === cached.userId ||
+      (currentSession?.email && normalizeEmail(currentSession.email) === normalizeEmail(cached.email));
+    if (!sameIdentity) return null;
+
+    return {
+      userId: cached.userId,
+      fullName: cached.fullName ?? currentSession?.name ?? "",
+      email: cached.email ?? currentSession?.email ?? "",
+      phone: "",
+      cpfCnpj: "",
+      rg: "",
+      birthDate: "",
+      professionalType: "",
+      registrationNumber: "",
+      companyName: "",
+      addressLine: "",
+      addressNumber: "",
+      addressComplement: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      avatarUrl: cached.avatarUrl,
+      avatarStorageRef: cached.avatarStorageRef ?? "",
+      avatarScale: cached.avatarScale ?? 1,
+      avatarOffsetX: cached.avatarOffsetX ?? 0,
+      avatarOffsetY: cached.avatarOffsetY ?? 0,
+      useAvatarInHeader: cached.useAvatarInHeader ?? false,
+      bio: "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function syncProfileVisualCache(profile: UserProfile) {
+  if (typeof window === "undefined" || !profile.userId || !profile.avatarUrl) return;
+  window.sessionStorage.setItem(
+    PROFILE_VISUAL_CACHE_KEY,
+    JSON.stringify({
+      userId: profile.userId,
+      fullName: profile.fullName,
+      email: profile.email,
+      avatarUrl: profile.avatarUrl,
+      avatarStorageRef: profile.avatarStorageRef ?? "",
+      avatarScale: profile.avatarScale ?? 1,
+      avatarOffsetX: profile.avatarOffsetX ?? 0,
+      avatarOffsetY: profile.avatarOffsetY ?? 0,
+      useAvatarInHeader: profile.useAvatarInHeader ?? false,
+      cachedAt: Date.now(),
+    }),
+  );
+}
+
 function syncProfileToPlatformSession(profile: UserProfile, fallback?: Partial<SessionUser>) {
   if (typeof window === "undefined" || !profile.userId || profile.userId === "unknown") return;
   const current = readCachedPlatformSession();
@@ -590,8 +656,11 @@ function getInitialPlatformStoreState() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
+    const cachedVisualProfile = readProfileVisualCache();
     return {
-      store: staticCatalogStore,
+      store: cachedVisualProfile
+        ? { ...staticCatalogStore, userProfiles: [cachedVisualProfile] }
+        : staticCatalogStore,
       source: "local" as const,
       legacyStore,
     };
@@ -780,6 +849,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }
 
         if (!active) return;
+        const cachedVisualProfile = readProfileVisualCache();
+        if (cachedVisualProfile) {
+          sanitized = {
+            ...sanitized,
+            userProfiles: mergeUserProfiles([cachedVisualProfile], sanitized.userProfiles),
+          };
+        }
+        const activeProfile = findUserProfile(
+          sanitized.userProfiles,
+          authenticatedUserId,
+          authenticatedEmail,
+        );
+        if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
         setStore(sanitized);
         syncStore(sanitized);
         setSource("remote");
@@ -1348,6 +1430,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           return { ...current, userProfiles, sessionUsers };
         });
 
+        syncProfileVisualCache(persistedProfile);
         syncProfileToPlatformSession(persistedProfile, {
           role: authenticatedRole as SessionUser["role"],
           email: authenticatedEmail ?? undefined,
