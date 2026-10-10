@@ -1465,7 +1465,7 @@ export function PerfilPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
-                    <p className="mt-1 text-sm text-slate-500">A foto começa no enquadramento original, sem esticar nem aproximar. Depois você ajusta zoom e posição como preferir.</p>
+                    <p className="mt-1 text-sm text-slate-500">O quadro mantém a proporção real da imagem. O círculo mostra exatamente a área que será usada no avatar.</p>
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
                     <ImageFrameEditor
@@ -1475,7 +1475,7 @@ export function PerfilPage() {
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
                       label="Foto do perfil"
-                      hint="A foto preenche o círculo sem deformar. Ajuste zoom e posição para enquadrar rosto, logotipo ou marca com precisão."
+                      hint="A imagem permanece na proporção original, sem esticar. Arraste e ajuste o zoom olhando o círculo-guia do recorte final."
                       fitMode="cover"
                       minScale={1}
                       shape="circle"
