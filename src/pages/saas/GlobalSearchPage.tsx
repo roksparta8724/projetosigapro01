@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMunicipality } from "@/hooks/useMunicipality";
-import { can, matchesOperationalScope } from "@/lib/platform";
+import { can, formatOfficialProcessNumber, formatOfficialProcessTitle, matchesOperationalScope } from "@/lib/platform";
 
 export function GlobalSearchPage() {
   const [params] = useSearchParams();
