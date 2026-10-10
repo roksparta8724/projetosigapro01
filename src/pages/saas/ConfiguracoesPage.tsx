@@ -533,6 +533,14 @@ export function ConfiguracoesPage() {
     diretoriaResponsavel: settings?.diretoriaResponsavel ?? "",
     diretoriaTelefone: settings?.diretoriaTelefone ?? "",
     diretoriaEmail: settings?.diretoriaEmail ?? "",
+    protocoloSecretaria: settings?.departmentOwnership?.protocolo?.secretaria ?? "Secretaria de Administração",
+    protocoloDiretoria: settings?.departmentOwnership?.protocolo?.diretoria ?? "Diretoria de Protocolo",
+    analiseSecretaria: settings?.departmentOwnership?.analise?.secretaria ?? settings?.secretariaResponsavel ?? "Secretaria de Urbanismo",
+    analiseDiretoria: settings?.departmentOwnership?.analise?.diretoria ?? settings?.diretoriaResponsavel ?? "Diretoria de Urbanismo",
+    financeiroSecretaria: settings?.departmentOwnership?.financeiro?.secretaria ?? "Secretaria de Finanças",
+    financeiroDiretoria: settings?.departmentOwnership?.financeiro?.diretoria ?? "Diretoria Financeira",
+    acessoExternoSecretaria: settings?.departmentOwnership?.acesso_externo?.secretaria ?? settings?.secretariaResponsavel ?? "Secretaria de Urbanismo",
+    acessoExternoDiretoria: settings?.departmentOwnership?.acesso_externo?.diretoria ?? settings?.diretoriaResponsavel ?? "Diretoria de Atendimento e Aprovação",
     footerContactSource: settings?.footerContactSource ?? "diretoria",
     horarioAtendimento: settings?.horarioAtendimento ?? "",
     resumoPlanoDiretor: settings?.resumoPlanoDiretor ?? "",
@@ -778,6 +786,14 @@ export function ConfiguracoesPage() {
       diretoriaResponsavel: nextSettings?.diretoriaResponsavel ?? "",
       diretoriaTelefone: nextSettings?.diretoriaTelefone ?? "",
       diretoriaEmail: nextSettings?.diretoriaEmail ?? "",
+      protocoloSecretaria: nextSettings?.departmentOwnership?.protocolo?.secretaria ?? "Secretaria de Administração",
+      protocoloDiretoria: nextSettings?.departmentOwnership?.protocolo?.diretoria ?? "Diretoria de Protocolo",
+      analiseSecretaria: nextSettings?.departmentOwnership?.analise?.secretaria ?? nextSettings?.secretariaResponsavel ?? "Secretaria de Urbanismo",
+      analiseDiretoria: nextSettings?.departmentOwnership?.analise?.diretoria ?? nextSettings?.diretoriaResponsavel ?? "Diretoria de Urbanismo",
+      financeiroSecretaria: nextSettings?.departmentOwnership?.financeiro?.secretaria ?? "Secretaria de Finanças",
+      financeiroDiretoria: nextSettings?.departmentOwnership?.financeiro?.diretoria ?? "Diretoria Financeira",
+      acessoExternoSecretaria: nextSettings?.departmentOwnership?.acesso_externo?.secretaria ?? nextSettings?.secretariaResponsavel ?? "Secretaria de Urbanismo",
+      acessoExternoDiretoria: nextSettings?.departmentOwnership?.acesso_externo?.diretoria ?? nextSettings?.diretoriaResponsavel ?? "Diretoria de Atendimento e Aprovação",
       footerContactSource: nextSettings?.footerContactSource ?? "diretoria",
       horarioAtendimento: nextSettings?.horarioAtendimento ?? "",
       resumoPlanoDiretor: nextSettings?.resumoPlanoDiretor ?? "",
@@ -2210,6 +2226,24 @@ export function ConfiguracoesPage() {
     diretoriaResponsavel: settingsForm.diretoriaResponsavel,
     diretoriaTelefone: settingsForm.diretoriaTelefone,
     diretoriaEmail: settingsForm.diretoriaEmail,
+    departmentOwnership: {
+      protocolo: {
+        secretaria: settingsForm.protocoloSecretaria.trim(),
+        diretoria: settingsForm.protocoloDiretoria.trim(),
+      },
+      analise: {
+        secretaria: settingsForm.analiseSecretaria.trim(),
+        diretoria: settingsForm.analiseDiretoria.trim(),
+      },
+      financeiro: {
+        secretaria: settingsForm.financeiroSecretaria.trim(),
+        diretoria: settingsForm.financeiroDiretoria.trim(),
+      },
+      acesso_externo: {
+        secretaria: settingsForm.acessoExternoSecretaria.trim(),
+        diretoria: settingsForm.acessoExternoDiretoria.trim(),
+      },
+    },
     footerContactSource: settingsForm.footerContactSource,
     horarioAtendimento: settingsForm.horarioAtendimento,
     brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
@@ -2574,9 +2608,20 @@ export function ConfiguracoesPage() {
                       email: "",
                       site: "",
                       secretariaResponsavel: "",
+                      secretariaTelefone: "",
+                      secretariaEmail: "",
                       diretoriaResponsavel: "",
                       diretoriaTelefone: "",
                       diretoriaEmail: "",
+                      protocoloSecretaria: "Secretaria de Administração",
+                      protocoloDiretoria: "Diretoria de Protocolo",
+                      analiseSecretaria: "Secretaria de Urbanismo",
+                      analiseDiretoria: "Diretoria de Urbanismo",
+                      financeiroSecretaria: "Secretaria de Finanças",
+                      financeiroDiretoria: "Diretoria Financeira",
+                      acessoExternoSecretaria: "Secretaria de Urbanismo",
+                      acessoExternoDiretoria: "Diretoria de Atendimento e Aprovação",
+                      footerContactSource: "diretoria",
                       horarioAtendimento: "",
                       resumoPlanoDiretor: "",
                       resumoUsoSolo: "",
@@ -3097,7 +3142,7 @@ export function ConfiguracoesPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Secretaria responsável</Label>
+                  <Label>Secretaria institucional padrão</Label>
                   <Input value={settingsForm.secretariaResponsavel} onChange={(event) => setSettingsField("secretariaResponsavel", event.target.value)} />
                 </div>
                 <div className="space-y-2">
@@ -3119,12 +3164,75 @@ export function ConfiguracoesPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Diretoria responsável</Label>
+                  <Label>Diretoria institucional padrão</Label>
                   <Input value={settingsForm.diretoriaResponsavel} onChange={(event) => setSettingsField("diretoriaResponsavel", event.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Telefone da diretoria</Label>
                   <Input value={settingsForm.diretoriaTelefone} onChange={(event) => setSettingsField("diretoriaTelefone", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-slate-950">Secretarias e diretorias por departamento</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    O administrador da Prefeitura pode adaptar os nomes à estrutura administrativa local. Estes nomes aparecem somente no módulo correspondente.
+                  </p>
+                </div>
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Protocolo</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Secretaria</Label>
+                        <Input value={settingsForm.protocoloSecretaria} onChange={(event) => setSettingsField("protocoloSecretaria", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Diretoria</Label>
+                        <Input value={settingsForm.protocoloDiretoria} onChange={(event) => setSettingsField("protocoloDiretoria", event.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Análise</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Secretaria</Label>
+                        <Input value={settingsForm.analiseSecretaria} onChange={(event) => setSettingsField("analiseSecretaria", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Diretoria</Label>
+                        <Input value={settingsForm.analiseDiretoria} onChange={(event) => setSettingsField("analiseDiretoria", event.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Financeiro</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Secretaria</Label>
+                        <Input value={settingsForm.financeiroSecretaria} onChange={(event) => setSettingsField("financeiroSecretaria", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Diretoria</Label>
+                        <Input value={settingsForm.financeiroDiretoria} onChange={(event) => setSettingsField("financeiroDiretoria", event.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Acesso externo</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Secretaria</Label>
+                        <Input value={settingsForm.acessoExternoSecretaria} onChange={(event) => setSettingsField("acessoExternoSecretaria", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Diretoria</Label>
+                        <Input value={settingsForm.acessoExternoDiretoria} onChange={(event) => setSettingsField("acessoExternoDiretoria", event.target.value)} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

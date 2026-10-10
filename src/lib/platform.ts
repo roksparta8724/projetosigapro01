@@ -304,6 +304,13 @@ export interface InstitutionAdminContact {
   accessLevel: 2 | 3;
 }
 
+export type DepartmentOwnershipKey = "protocolo" | "analise" | "financeiro" | "acesso_externo";
+
+export interface DepartmentOwnershipEntry {
+  secretaria: string;
+  diretoria: string;
+}
+
 export interface TenantSettings {
   tenantId: string;
   cnpj: string;
@@ -318,6 +325,7 @@ export interface TenantSettings {
   diretoriaResponsavel: string;
   diretoriaTelefone: string;
   diretoriaEmail: string;
+  departmentOwnership?: Partial<Record<DepartmentOwnershipKey, DepartmentOwnershipEntry>>;
   footerContactSource?: "secretaria" | "diretoria";
   horarioAtendimento: string;
   brasaoUrl: string;

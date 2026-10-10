@@ -9,18 +9,21 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
   const protocolDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
+  const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
 
   it("remove o atalho Ctrl K visível da busca", () => {
     expect(portal).not.toContain("Ctrl K");
   });
 
-  it("mostra somente o nome da diretoria no banner", () => {
-    const bannerStart = portal.indexOf('Diretoria responsável');
-    const bannerEnd = portal.indexOf('</header>', bannerStart);
-    const banner = portal.slice(bannerStart, bannerEnd);
-    expect(banner).toContain("tenantSettings.diretoriaResponsavel");
-    expect(banner).not.toContain("tenantSettings.diretoriaTelefone");
-    expect(banner).not.toContain("tenantSettings.diretoriaEmail");
+  it("mostra a estrutura configurada do departamento atual no banner", () => {
+    expect(portal).toContain("departmentOwnershipKey");
+    expect(portal).toContain("activeDepartmentOwnership");
+    expect(portal).toContain("Estrutura do departamento");
+    expect(portal).toContain("Secretaria de Finanças");
+    expect(portal).toContain("Diretoria Financeira");
+    expect(portal).toContain("Secretaria de Administração");
+    expect(portal).toContain("Diretoria de Protocolo");
+    expect(portal).not.toContain(">Diretoria responsável<");
   });
 
   it("inverte o contraste da busca entre tema claro e escuro", () => {
@@ -53,5 +56,10 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(protocolDesk).toContain("handleConfirmProtocolPayment");
     expect(protocolDesk).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
+  });
+
+  it("não deixa referência quebrada na rota de protocolos financeiros", () => {
+    expect(financeProtocols).not.toContain("FinanceSectionNav");
+    expect(financeProtocols).toContain("Voltar ao Financeiro");
   });
 });
