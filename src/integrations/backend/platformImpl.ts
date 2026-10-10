@@ -1,6 +1,6 @@
 import { databaseClient as db } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { uploadFile } from "@/integrations/r2/client";
+import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -18,6 +18,35 @@ import {
   type TenantSettings,
   type UserProfile,
 } from "@/lib/platform";
+
+
+const PROFILE_ASSET_REF_PREFIX = "r2:";
+
+async function resolveStoredProfileAvatar(value: string | null | undefined) {
+  const raw = (value ?? "").trim();
+  if (!raw) return "";
+  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+
+  const objectKey = raw.startsWith(PROFILE_ASSET_REF_PREFIX)
+    ? raw.slice(PROFILE_ASSET_REF_PREFIX.length)
+    : raw.startsWith("municipalities/")
+      ? raw
+      : "";
+
+  if (!objectKey) return raw;
+
+  const bucket =
+    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
+  try {
+    return await getSignedUrlForObjectStrict({ bucket, objectKey });
+  } catch (error) {
+    console.warn("[SIGAPRO][ProfileAvatar] Falha ao resolver avatar privado do R2.", {
+      objectKey,
+      error,
+    });
+    return "";
+  }
+}
 
 function isMissingRelationError(error: unknown, relationName: string) {
   if (!error || typeof error !== "object") return false;
@@ -875,7 +904,7 @@ export async function loadRemotePlatformStore() {
     ),
   ];
 
-  const userProfiles: UserProfile[] = (profilesResult.data ?? []).map((profile) => ({
+  const userProfiles: UserProfile[] = await Promise.all((profilesResult.data ?? []).map(async (profile) => ({
     userId: (isNeonBackend ? profile.id : profile.user_id) ?? profile.id,
     fullName: profile.full_name ?? "",
     email: profile.email ?? "",
@@ -893,13 +922,13 @@ export async function loadRemotePlatformStore() {
     city: profile.city ?? "",
     state: profile.state ?? "",
     zipCode: profile.zip_code ?? "",
-    avatarUrl: profile.avatar_url ?? "",
+    avatarUrl: await resolveStoredProfileAvatar(profile.avatar_url ?? ""),
     avatarScale: Number(profile.avatar_scale ?? 1),
     avatarOffsetX: Number(profile.avatar_offset_x ?? 0),
     avatarOffsetY: Number(profile.avatar_offset_y ?? 0),
     useAvatarInHeader: Boolean(profile.use_avatar_in_header ?? false),
     bio: profile.bio ?? "",
-  }));
+  })));
 
   const membershipUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
@@ -2383,7 +2412,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
       city: data.city ?? "",
       state: data.state ?? "",
       zipCode: data.zip_code ?? "",
-      avatarUrl: data.avatar_url ?? "",
+      avatarUrl: await resolveStoredProfileAvatar(data.avatar_url ?? ""),
       avatarScale: Number(data.avatar_scale ?? 1),
       avatarOffsetX: Number(data.avatar_offset_x ?? 0),
       avatarOffsetY: Number(data.avatar_offset_y ?? 0),
