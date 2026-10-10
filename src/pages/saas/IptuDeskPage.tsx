@@ -333,7 +333,7 @@ export function IptuDeskPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-base font-semibold text-slate-950">
-                              {process.protocol}
+                              {formatOfficialProcessNumber(process.protocol)}
                             </p>
                             <Badge
                               variant="outline"
@@ -365,9 +365,9 @@ export function IptuDeskPage() {
 
                           <p
                             className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-900"
-                            title={process.title}
+                            title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
                           >
-                            {process.title}
+                            {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                           </p>
                           <p
                             className="mt-1 sig-fit-copy text-sm text-slate-500"
