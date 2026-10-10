@@ -56,6 +56,16 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
   });
 
+  it("keeps the last valid avatar visible while remote profile data revalidates", () => {
+    expect(dataHook).toContain("PROFILE_VISUAL_CACHE_KEY");
+    expect(dataHook).toContain("window.sessionStorage.setItem");
+    expect(dataHook).toContain("readProfileVisualCache");
+    expect(dataHook).toContain("mergeUserProfiles([cachedVisualProfile], sanitized.userProfiles)");
+    expect(dataHook).toContain("avatarStorageRef");
+    expect(userAvatar).toContain("stableImageUrl");
+    expect(userAvatar).toContain("resolvedImageUrl");
+  });
+
   it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
     expect(storage).toContain('persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");

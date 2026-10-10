@@ -32,6 +32,8 @@ import {
   defaultApprovalRateProfiles,
   defaultIssRateProfiles,
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   isFinalApprovalFeeConfigured,
@@ -472,7 +474,7 @@ export function FinanceDeskPage() {
                       criticalDispatches.slice(0, 2).map((item) => (
                         <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950">{item.protocol}</p>
+                            <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                             <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
                               {item.priority}
                             </Badge>
@@ -524,7 +526,7 @@ export function FinanceDeskPage() {
                     ) : (
                       recentFinancialEvents.slice(0, 3).map((event) => (
                         <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(event.protocol)}</p>
                           <p className="mt-1 text-sm text-slate-800">{event.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
                           <p className="mt-2 text-xs text-slate-500">{event.actor} • {event.at}</p>
@@ -572,8 +574,8 @@ export function FinanceDeskPage() {
                         className="flex flex-col gap-3 rounded-2xl border border-indigo-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
-                          <p className="mt-1 line-clamp-1 text-sm text-slate-600">{process.title}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                          <p className="mt-1 line-clamp-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                           <p className="mt-1 text-xs text-slate-500">
                             Área: {process.property.area.toFixed(2)} m² • Padrão: {process.property.constructionStandard || "não informado"}
                           </p>
@@ -613,7 +615,7 @@ export function FinanceDeskPage() {
                           </Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${process.protocol} • ${process.ownerName}`}>{process.protocol} • {process.ownerName}</p>
-                        <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{process.title}</p>
+                        <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 xl:min-w-[560px] xl:grid-cols-4">
                         <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
@@ -650,7 +652,7 @@ export function FinanceDeskPage() {
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.protocol}>{process.protocol}</p>
+                              <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.protocol}>{formatOfficialProcessNumber(process.protocol)}</p>
                               <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
                                 {guide.label}
                               </Badge>
@@ -735,7 +737,7 @@ export function FinanceDeskPage() {
                       <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
+                            <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
                             <p className="mt-1 text-sm text-slate-800">{guide.label}</p>
                             <p className="mt-1 sig-fit-copy text-sm text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
@@ -897,7 +899,7 @@ export function FinanceDeskPage() {
               ) : (
                 recentFinancialEvents.map((event) => (
                   <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-slate-950">{event.protocol}</p>
+                    <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(event.protocol)}</p>
                     <p className="mt-1 text-sm text-slate-800">{event.title}</p>
                     <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
                     <p className="mt-2 text-xs text-slate-500">{event.actor} • {event.at}</p>

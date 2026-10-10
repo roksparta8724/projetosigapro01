@@ -34,6 +34,8 @@ import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   parseMarker,
@@ -261,7 +263,7 @@ export function ProtocolDeskPage() {
                     ) : null}
                   </div>
 
-                  <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-900" title={process.title}>{process.title}</p>
+                  <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-900" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
 
                   <div className="mt-3 flex min-w-0 items-center gap-2">
                     <UserAvatar

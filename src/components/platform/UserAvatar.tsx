@@ -44,13 +44,25 @@ export function UserAvatar({
   title,
 }: UserAvatarProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
 
   useEffect(() => {
+    if (imageUrl === "") {
+      setStableImageUrl("");
+      setImageFailed(false);
+      return;
+    }
+    if (imageUrl) {
+      setStableImageUrl(imageUrl);
+      setImageFailed(false);
+      return;
+    }
     setImageFailed(false);
   }, [imageUrl]);
 
   const initials = useMemo(() => getInitials(name), [name]);
-  const showImage = Boolean(imageUrl) && !imageFailed;
+  const resolvedImageUrl = imageUrl || stableImageUrl;
+  const showImage = Boolean(resolvedImageUrl) && !imageFailed;
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const cropRatio = crop ? sizePixels[size] / Math.max(crop.editorSize ?? 320, 1) : 1;
   const resolvedImageStyle = crop
@@ -71,7 +83,7 @@ export function UserAvatar({
     >
       {showImage ? (
         <AvatarImage
-          src={imageUrl ?? undefined}
+          src={resolvedImageUrl || undefined}
           alt={name || "Usuario"}
           className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
           style={resolvedImageStyle}

@@ -10,6 +10,8 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getOwnerLinksForOwner,
   getOwnerMessagesForLink,
   getOwnerRequestsForOwner,
@@ -223,7 +225,7 @@ export function OwnerPortalPage() {
                     <div className="mt-4 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-emerald-200/80">Protocolo validado</p>
-                        <p className="mt-1 text-lg font-semibold text-white">{requestProcessSummary.protocol}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{formatOfficialProcessNumber(requestProcessSummary.protocol)}</p>
                         <p className="mt-1 text-sm text-emerald-100/90">{requestProcessSummary.title}</p>
                       </div>
                       <Badge variant="outline" className="rounded-full text-emerald-100">
@@ -263,8 +265,8 @@ export function OwnerPortalPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm text-slate-300">Protocolo</p>
-                              <p className="text-base font-semibold text-white">{process.protocol}</p>
-                              <p className="mt-1 text-sm text-slate-300">{process.title}</p>
+                              <p className="text-base font-semibold text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+                              <p className="mt-1 text-sm text-slate-300">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                             </div>
                             <Badge variant="outline" className="rounded-full text-slate-200">
                               {statusLabel(process.status)}
@@ -345,7 +347,7 @@ export function OwnerPortalPage() {
                     </div>
                     <div className="rounded-[16px] border border-white/10 bg-white/5 p-4">
                       <p className="text-sm text-slate-300">Protocolo</p>
-                      <p className="text-lg font-semibold text-white">{selectedProcess.protocol}</p>
+                      <p className="text-lg font-semibold text-white">{formatOfficialProcessNumber(selectedProcess.protocol)}</p>
                       <p className="mt-1 text-sm text-slate-300">{selectedProcess.title}</p>
                       <p className="mt-2 text-xs text-slate-400">Status atual: {statusLabel(selectedProcess.status)}</p>
                     </div>

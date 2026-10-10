@@ -11,7 +11,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { getVisibleProcessesByScope } from "@/lib/platform";
+import { formatOfficialProcessNumber, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -139,7 +139,7 @@ export function ExternalHistoryPage() {
                       <p className="text-sm font-semibold text-slate-900">{entry.title}</p>
                       <p className="mt-1 text-sm text-slate-600">{entry.detail}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
-                        {entry.process.protocol} · {entry.actor}
+                        {formatOfficialProcessNumber(entry.process.protocol)} · {entry.actor}
                       </p>
                     </div>
                     <p className="text-xs font-semibold text-slate-500">
