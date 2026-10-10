@@ -560,7 +560,40 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     maxLength: 30,
   });
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
-  const institutionDisplaySubtitle = officialHeaderText || tenantSettings?.secretariaResponsavel || "Departamento responsável";
+  const departmentOwnershipKey =
+    location.pathname.startsWith("/prefeitura/financeiro")
+      ? "financeiro"
+      : location.pathname.startsWith("/prefeitura/protocolos")
+        ? "protocolo"
+        : location.pathname.startsWith("/prefeitura/analise")
+          ? "analise"
+          : location.pathname.startsWith("/externo")
+            ? "acesso_externo"
+            : null;
+  const defaultDepartmentOwnership =
+    departmentOwnershipKey === "financeiro"
+      ? { secretaria: "Secretaria de Finanças", diretoria: "Diretoria Financeira" }
+      : departmentOwnershipKey === "protocolo"
+        ? { secretaria: "Secretaria de Administração", diretoria: "Diretoria de Protocolo" }
+        : departmentOwnershipKey === "analise"
+          ? {
+              secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
+              diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo",
+            }
+          : departmentOwnershipKey === "acesso_externo"
+            ? {
+                secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
+                diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Atendimento e Aprovação",
+              }
+            : null;
+  const activeDepartmentOwnership =
+    (departmentOwnershipKey ? tenantSettings?.departmentOwnership?.[departmentOwnershipKey] : null) ||
+    defaultDepartmentOwnership;
+  const institutionDisplaySubtitle =
+    activeDepartmentOwnership?.secretaria ||
+    officialHeaderText ||
+    tenantSettings?.secretariaResponsavel ||
+    "Departamento responsável";
   const institutionFooterTitle =
     tenantSettings?.secretariaResponsavel ||
     officialHeaderText ||
@@ -1792,7 +1825,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </div>
               </div>
 
-              {tenantSettings?.diretoriaResponsavel ? (
+              {activeDepartmentOwnership?.diretoria ? (
                 <div
                   className="mt-4 overflow-hidden rounded-[10px] border shadow-sm"
                   style={{
@@ -1801,10 +1834,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   }}
                 >
                   <div className="px-5 py-2.5 md:px-6">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Diretoria responsável</p>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Estrutura do departamento</p>
                   </div>
-                  <div className="border-t border-white/10 px-5 py-4 md:px-6">
-                    <p className="text-sm font-medium text-white">{tenantSettings.diretoriaResponsavel}</p>
+                  <div className="grid gap-2 border-t border-white/10 px-5 py-4 md:grid-cols-2 md:px-6">
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Secretaria</p>
+                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.secretaria}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Diretoria</p>
+                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.diretoria}</p>
+                    </div>
                   </div>
                 </div>
               ) : null}
