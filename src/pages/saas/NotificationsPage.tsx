@@ -17,7 +17,7 @@ import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
 import { TableContainer } from "@/components/platform/TableContainer";
-import { getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import { formatOfficialProcessNumber, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -41,7 +41,7 @@ export function NotificationsPage() {
       processes.flatMap((process) =>
         process.messages.map((message) => ({
           id: message.id,
-          title: process.protocol,
+          title: formatOfficialProcessNumber(process.protocol),
           description: message.message,
           meta: `Mensagem · ${message.at}`,
           badge: "Mensagem",
@@ -64,7 +64,7 @@ export function NotificationsPage() {
       processes.flatMap((process) =>
         process.dispatches.map((dispatch) => ({
           id: dispatch.id,
-          title: `${process.protocol} · ${dispatch.subject}`,
+          title: `${formatOfficialProcessNumber(process.protocol)} · ${dispatch.subject}`,
           description: `${dispatch.from} -> ${dispatch.to}`,
           meta: `Trâmite · prazo ${dispatch.dueDate}`,
           badge: dispatch.status,
@@ -89,7 +89,7 @@ export function NotificationsPage() {
           .filter((item) => item.status === "aberta" || item.status === "respondida")
           .map((item) => ({
             id: item.id,
-            title: `${process.protocol} · ${item.title}`,
+            title: `${formatOfficialProcessNumber(process.protocol)} · ${item.title}`,
             description: item.description,
             meta: `Pendência · prazo ${item.dueDate}`,
             badge: item.status,
@@ -112,7 +112,7 @@ export function NotificationsPage() {
       processes.flatMap((process) =>
         getProcessPaymentGuides(process, tenantSettingsCompat).map((guide) => ({
           id: `${process.id}-guide-${guide.kind}`,
-          title: `${process.protocol} · ${guide.label}`,
+          title: `${formatOfficialProcessNumber(process.protocol)} · ${guide.label}`,
           description: `${guide.code} · status ${guide.status} · vencimento ${guide.dueDate}`,
           meta: "Financeiro",
           badge: guide.status,
