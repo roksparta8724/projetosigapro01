@@ -33,7 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getProcessPaymentGuides, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
+import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
 
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
@@ -735,8 +735,8 @@ export function DashboardHomePage() {
                   <div key={process.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{process.protocol}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{process.title}</p>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{formatOfficialProcessNumber(process.protocol)}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
                       </div>
                       <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white dark:bg-sky-400/12 dark:text-sky-200">
@@ -803,8 +803,8 @@ export function DashboardHomePage() {
               <div className="space-y-3">
                 {recentProcesses.map((process) => (
                   <div key={process.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]">
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{process.protocol}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{process.title}</p>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{getLatestMovement(process)}</p>
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-400">{getLatestMovementDate(process)}</p>
                   </div>
@@ -869,8 +869,8 @@ export function DashboardHomePage() {
                   .filter((process) => financeStatuses.has(process.status))
                   .map((process) => (
                     <div key={process.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{process.protocol}</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{process.title}</p>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{formatOfficialProcessNumber(process.protocol)}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
                     </div>
                   ))}
@@ -938,8 +938,8 @@ export function DashboardHomePage() {
               <div className="space-y-3">
                 {priorityProcesses.map((process) => (
                   <div key={process.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]">
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{process.protocol}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{process.title}</p>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-400">{getLatestMovementDate(process)}</p>
                   </div>
