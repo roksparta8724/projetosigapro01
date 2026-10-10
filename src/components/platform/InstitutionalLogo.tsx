@@ -100,12 +100,12 @@ export function InstitutionalLogo({
   const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
   const pendingUrl = imageUrl && imageUrl !== displayUrl ? imageUrl : "";
 
-  const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(3.5, branding.logoScale)) : 1;
+  const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(5, branding.logoScale)) : 1;
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showMasterCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
+  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
     if (displayUrl) {
@@ -153,7 +153,7 @@ export function InstitutionalLogo({
                 "block h-full w-full max-w-full select-none object-contain object-center",
                 isMaster && "mix-blend-screen",
               )}
-              style={showMasterCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` } : undefined}
+              style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
               fetchPriority="high"

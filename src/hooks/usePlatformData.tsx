@@ -1279,15 +1279,34 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("Banco oficial indisponível para salvar o perfil.");
         }
 
-        await saveRemoteProfile(normalizedProfile);
+        const confirmedProfile = (await saveRemoteProfile(normalizedProfile)) ?? normalizedProfile;
+        const persistedProfile: UserProfile = {
+          ...normalizedProfile,
+          ...confirmedProfile,
+          userId: confirmedProfile.userId || normalizedProfile.userId,
+          email: normalizeEmail(confirmedProfile.email || normalizedProfile.email),
+        };
 
         updateStore((current) => {
-          const userProfiles = current.userProfiles.some((item) => item.userId === normalizedProfile.userId)
-            ? current.userProfiles.map((item) => (item.userId === normalizedProfile.userId ? normalizedProfile : item))
-            : [normalizedProfile, ...current.userProfiles];
+          const userProfiles = current.userProfiles.some(
+            (item) =>
+              item.userId === persistedProfile.userId ||
+              normalizeEmail(item.email) === normalizeEmail(persistedProfile.email),
+          )
+            ? current.userProfiles.map((item) =>
+                item.userId === persistedProfile.userId ||
+                normalizeEmail(item.email) === normalizeEmail(persistedProfile.email)
+                  ? persistedProfile
+                  : item,
+              )
+            : [persistedProfile, ...current.userProfiles];
 
           const cachedSession = readCachedPlatformSession();
-          const existingUser = current.sessionUsers.find((item) => item.id === normalizedProfile.userId);
+          const existingUser = current.sessionUsers.find(
+            (item) =>
+              item.id === persistedProfile.userId ||
+              normalizeEmail(item.email) === normalizeEmail(persistedProfile.email),
+          );
           const safeRole =
             (existingUser?.role ?? cachedSession?.role ?? authenticatedRole ?? "profissional_externo") as SessionUser["role"];
           const safeAccessLevel =
@@ -1299,14 +1318,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                 ? 2
                 : 1);
           const nextUser: SessionUser = normalizeSessionUserScope({
-            id: normalizedProfile.userId,
-            name: normalizedProfile.fullName,
+            id: existingUser?.id || persistedProfile.userId,
+            name: persistedProfile.fullName,
             role: safeRole,
             accessLevel: safeAccessLevel,
             tenantId: existingUser?.tenantId ?? cachedSession?.tenantId ?? authenticatedMunicipalityId ?? null,
             municipalityId: existingUser?.municipalityId ?? cachedSession?.municipalityId ?? authenticatedMunicipalityId ?? null,
             title: existingUser?.title ?? cachedSession?.title ?? "Profissional Externo",
-            email: normalizedProfile.email,
+            email: persistedProfile.email,
             accountStatus: existingUser?.accountStatus ?? cachedSession?.accountStatus ?? "active",
             userType: existingUser?.userType ?? cachedSession?.userType ?? "Usuário",
             department: existingUser?.department ?? cachedSession?.department ?? "",
@@ -1319,18 +1338,29 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           });
 
           const sessionUsers = existingUser
-            ? current.sessionUsers.map((item) => (item.id === normalizedProfile.userId ? nextUser : item))
+            ? current.sessionUsers.map((item) =>
+                item.id === existingUser.id || normalizeEmail(item.email) === normalizeEmail(persistedProfile.email)
+                  ? nextUser
+                  : item,
+              )
             : [nextUser, ...current.sessionUsers];
 
           return { ...current, userProfiles, sessionUsers };
         });
 
-        syncProfileToPlatformSession(normalizedProfile, {
+        syncProfileToPlatformSession(persistedProfile, {
           role: authenticatedRole as SessionUser["role"],
           email: authenticatedEmail ?? undefined,
           municipalityId: authenticatedMunicipalityId ?? null,
           tenantId: authenticatedMunicipalityId ?? null,
         });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("sigapro-profile-updated", {
+              detail: persistedProfile,
+            }),
+          );
+        }
       },
       createTenantUser: async (input) => {
         if (!hasBackendEnv) throw new Error("Conexão com o banco indisponível.");
