@@ -32,12 +32,14 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("background: linear-gradient(180deg, #111827 0%, #020617 100%)");
     expect(css).toContain('[data-theme-family="dark"]');
     expect(css).toContain("background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%)");
-    expect(css).toContain("Topbar search contrast hardening");
-    expect(css).toContain(".sig-topbar-search-trigger *");
+    expect(css).toContain("Premium search: one source of truth");
+    expect(css).toContain('data-search-surface="dark"');
+    expect(css).toContain('data-search-surface="light"');
     expect(css).toContain("color: #ffffff !important");
     expect(css).toContain("stroke: #ffffff !important");
     expect(css).toContain("color: #0f172a !important");
     expect(css).toContain("stroke: #0f172a !important");
+    expect(css).toContain("visibility: visible !important");
     expect(portal).toContain('data-search-surface={inverseMainTheme ? "light" : "dark"}');
     expect(css).toContain('data-search-surface="dark"');
     expect(css).toContain('data-search-surface="light"');
