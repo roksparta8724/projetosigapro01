@@ -614,7 +614,7 @@ export function FinanceDeskPage() {
                             {guide.status === "compensada" ? "Confirmada" : "Pendente"}
                           </Badge>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${process.protocol} • ${process.ownerName}`}>{process.protocol} • {process.ownerName}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-800" title={`${formatOfficialProcessNumber(process.protocol)} • ${process.ownerName}`}>{formatOfficialProcessNumber(process.protocol)} • {process.ownerName}</p>
                         <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={process.title}>{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       </div>
                       <div className="grid w-full gap-2 text-sm text-slate-600 sm:grid-cols-2 2xl:w-auto 2xl:min-w-[560px] 2xl:grid-cols-4">
