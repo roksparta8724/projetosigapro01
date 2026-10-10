@@ -12,7 +12,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { formatCurrency, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import { formatCurrency, formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -151,11 +151,11 @@ export function ExternalPaymentsPage() {
                 <div key={`${process.id}-${guide.code}`} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
                   <div className="grid gap-4 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:items-center">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-slate-950">{process.protocol}</p>
+                      <p className="truncate text-[15px] font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
                       <p className="mt-1 truncate text-[13px] text-slate-500">{process.externalProtocol}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold text-slate-900">{process.title}</p>
+                      <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
                     </div>
                     <div className="min-w-0">
@@ -210,7 +210,7 @@ export function ExternalPaymentsPage() {
                   .slice(0, 3)
                   .map((item) => (
                     <div key={`side-${item.process.id}-${item.guide.code}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-sm font-semibold text-slate-900">{item.process.protocol}</p>
+                      <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(item.process.protocol)}</p>
                       <p className="mt-1 text-sm text-slate-600">{formatCurrency(item.guide.amount)}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">
                         {item.status === "vencida" ? "Vencida" : "Pendente"}
