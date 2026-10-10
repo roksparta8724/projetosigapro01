@@ -26,6 +26,8 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getProcessPaymentGuides,
   isIssFeeConfigured,
   getVisibleProcessesByScope,
@@ -284,8 +286,8 @@ export function IptuDeskPage() {
                           className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
                         >
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 line-clamp-1 text-sm text-slate-600">{process.title}</p>
+                            <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                            <p className="mt-1 line-clamp-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                             <p className="mt-1 text-xs text-slate-500">
                               Área: {process.property.area.toFixed(2)} m² • Uso: {process.property.usage || "não informado"}
                             </p>
@@ -505,7 +507,7 @@ export function IptuDeskPage() {
                     key={entry.id}
                     className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                   >
-                    <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
+                    <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
                     <p className="mt-1 text-sm text-slate-700">{entry.title}</p>
                     <p className="mt-1 text-xs text-slate-500">{entry.detail}</p>
                     <p className="mt-2 text-xs text-slate-400">{entry.at}</p>
