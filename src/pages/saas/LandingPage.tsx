@@ -166,6 +166,11 @@ const faqItems = [
     answer:
       "Sim. Pareceres, exigencias, movimentacoes e decisoes permanecem registrados com mais clareza operacional.",
   },
+  {
+    question: "Existem referencias municipais de aprovacao digital de projetos?",
+    answer:
+      "Sim. Jundiai/SP utiliza o SAEPRO — Sistema de Aprovacao Eletronica de Projetos de Obras — como ambiente oficial para protocolo, acompanhamento e aprovacao digital de projetos de obras. Essa referencia publica ajuda a demonstrar como a digitalizacao desse fluxo ja faz parte da realidade municipal brasileira.",
+  },
 ] as const;
 
 const heroPillars = [
