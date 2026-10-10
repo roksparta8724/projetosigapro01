@@ -767,6 +767,10 @@ export async function loadRemotePlatformStore() {
       diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
       diretoriaTelefone: typeof general.directorship_phone === "string" ? general.directorship_phone : "",
       diretoriaEmail: typeof general.directorship_email === "string" ? general.directorship_email : "",
+      departmentOwnership:
+        general.department_ownership && typeof general.department_ownership === "object"
+          ? (general.department_ownership as TenantSettings["departmentOwnership"])
+          : undefined,
       footerContactSource:
         general.footer_contact_source === "secretaria" ? "secretaria" : "diretoria",
       horarioAtendimento: typeof general.office_hours === "string" ? general.office_hours : "",
@@ -2777,6 +2781,7 @@ export async function saveRemoteInstitutionSettings(
       directorship: settings.diretoriaResponsavel || null,
       directorship_phone: settings.diretoriaTelefone || null,
       directorship_email: settings.diretoriaEmail || null,
+      department_ownership: settings.departmentOwnership ?? null,
       footer_contact_source: settings.footerContactSource || "diretoria",
       office_hours: settings.horarioAtendimento || null,
       pix_key: settings.chavePix || null,
