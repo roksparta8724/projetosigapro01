@@ -512,14 +512,21 @@ export function PerfilPage() {
       return;
     }
 
-    setStatus("");
-    setAvatarFiles(files.slice(0, 1));
+    const selectedFiles = files.slice(0, 1);
+    setStatus(nextFile.file ? "Salvando foto automaticamente..." : "");
+    setAvatarFiles(selectedFiles);
     setForm((current) => ({
       ...current,
       avatarScale: 1,
       avatarOffsetX: 0,
       avatarOffsetY: 0,
     }));
+
+    if (nextFile.file) {
+      window.setTimeout(() => {
+        void handleSubmit({ preventDefault: () => {} } as FormEvent, selectedFiles);
+      }, 0);
+    }
   };
 
   useEffect(() => {
@@ -899,7 +906,7 @@ export function PerfilPage() {
     setAccountStatus(result.message || "Senha atualizada com sucesso.");
   };
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent, avatarOverride?: UploadedFileItem[]) => {
     event.preventDefault();
     setSaving(true);
     setStatus("");
@@ -912,11 +919,13 @@ export function PerfilPage() {
         return;
       }
 
-      let avatarUrl = avatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarUploadFile = avatarFiles[0]?.file;
-      let avatarScale = form.avatarScale;
-      let avatarOffsetX = form.avatarOffsetX;
-      let avatarOffsetY = form.avatarOffsetY;
+      const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
+      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
+      let avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
+      let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
+      let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
 
       if (avatarUploadFile) {
         try {
@@ -927,10 +936,8 @@ export function PerfilPage() {
             file: avatarUploadFile,
             folder: "avatars",
           });
-          if (!uploaded.publicUrl) {
-            throw new Error("Configure a URL publica do R2 antes de salvar a foto.");
-          }
-          avatarUrl = uploaded.publicUrl;
+          avatarStorageRef = uploaded.persistentRef;
+          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
           return;
@@ -959,6 +966,7 @@ export function PerfilPage() {
         state: form.state,
         zipCode: form.zipCode,
         avatarUrl,
+        avatarStorageRef,
         avatarScale,
         avatarOffsetX,
         avatarOffsetY,
@@ -966,15 +974,16 @@ export function PerfilPage() {
         bio: form.bio,
       };
 
-      await saveUserProfile(nextProfile);
-      if (avatarUrl) {
+      const savedProfile = await saveUserProfile(nextProfile);
+      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      if (savedAvatarUrl) {
         setAvatarFiles([
           {
             id: `avatar-saved-${crypto.randomUUID()}`,
             fileName: "foto-perfil",
             mimeType: "image/*",
             sizeLabel: "imagem salva",
-            previewUrl: avatarUrl,
+            previewUrl: savedAvatarUrl,
           },
         ]);
       }
@@ -982,10 +991,10 @@ export function PerfilPage() {
         ...current,
         fullName: resolvedFullName,
         email: resolvedEmail,
-        avatarUrl,
-        avatarScale,
-        avatarOffsetX,
-        avatarOffsetY,
+        avatarUrl: savedAvatarUrl,
+        avatarScale: savedProfile.avatarScale ?? avatarScale,
+        avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
+        avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
       }));
       setStatus((current) => current || "Perfil atualizado com sucesso.");
     } catch (error) {
