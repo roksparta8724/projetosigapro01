@@ -2367,59 +2367,50 @@ export async function saveRemoteProfile(profile: UserProfile) {
   };
 
   if (isNeonBackend) {
-    const profileIdResult = await db.rpc("current_profile_id");
-    if (profileIdResult.error) {
-      throw new Error(profileIdResult.error.message || "Falha ao resolver o perfil autenticado.");
-    }
-
-    const profileId =
-      typeof profileIdResult.data === "string"
-        ? profileIdResult.data
-        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
-
-    if (!profileId) {
-      throw new Error("Perfil Neon autenticado nao encontrado.");
-    }
-
-    const { data, error } = await db
-      .from("profiles")
-      .update({ ...profileFields, updated_at: new Date().toISOString() })
-      .eq("id", profileId)
-      .select("id,full_name,email,phone,cpf_cnpj,rg,birth_date,professional_type,registration_number,company_name,address_line,address_number,address_complement,neighborhood,city,state,zip_code,avatar_url,avatar_scale,avatar_offset_x,avatar_offset_y,use_avatar_in_header,bio")
-      .maybeSingle();
+    const { data, error } = await db.rpc("update_current_profile", {
+      _payload: profileFields,
+    });
 
     if (error) {
       throw new Error(error.message || "Falha ao salvar o perfil no banco.");
     }
-    if (!data) {
+    if (!data || typeof data !== "object") {
       throw new Error("O banco não confirmou a atualização do perfil.");
     }
 
+    const row = data as Record<string, unknown>;
+    const profileId = String(row.profile_id || profile.userId || "");
+    if (!profileId) {
+      throw new Error("Perfil Neon autenticado nao encontrado.");
+    }
+
+    const storedAvatar = String(row.avatar_url || profile.avatarStorageRef || profile.avatarUrl || "");
+
     return {
-      userId: data.id ?? profileId,
-      fullName: data.full_name ?? profile.fullName,
-      email: data.email ?? profile.email,
-      phone: data.phone ?? "",
-      cpfCnpj: data.cpf_cnpj ?? "",
-      rg: data.rg ?? "",
-      birthDate: data.birth_date ?? "",
-      professionalType: data.professional_type ?? "",
-      registrationNumber: data.registration_number ?? "",
-      companyName: data.company_name ?? "",
-      addressLine: data.address_line ?? "",
-      addressNumber: data.address_number ?? "",
-      addressComplement: data.address_complement ?? "",
-      neighborhood: data.neighborhood ?? "",
-      city: data.city ?? "",
-      state: data.state ?? "",
-      zipCode: data.zip_code ?? "",
-      avatarUrl: await resolveStoredProfileAvatar(data.avatar_url ?? ""),
-      avatarStorageRef: data.avatar_url ?? "",
-      avatarScale: Number(data.avatar_scale ?? 1),
-      avatarOffsetX: Number(data.avatar_offset_x ?? 0),
-      avatarOffsetY: Number(data.avatar_offset_y ?? 0),
-      useAvatarInHeader: Boolean(data.use_avatar_in_header ?? false),
-      bio: data.bio ?? "",
+      userId: profileId,
+      fullName: String(row.full_name ?? profile.fullName ?? ""),
+      email: String(row.email ?? profile.email ?? ""),
+      phone: String(row.phone ?? ""),
+      cpfCnpj: String(row.cpf_cnpj ?? ""),
+      rg: String(row.rg ?? ""),
+      birthDate: String(row.birth_date ?? ""),
+      professionalType: String(row.professional_type ?? ""),
+      registrationNumber: String(row.registration_number ?? ""),
+      companyName: String(row.company_name ?? ""),
+      addressLine: String(row.address_line ?? ""),
+      addressNumber: String(row.address_number ?? ""),
+      addressComplement: String(row.address_complement ?? ""),
+      neighborhood: String(row.neighborhood ?? ""),
+      city: String(row.city ?? ""),
+      state: String(row.state ?? ""),
+      zipCode: String(row.zip_code ?? ""),
+      avatarUrl: await resolveStoredProfileAvatar(storedAvatar),
+      avatarStorageRef: storedAvatar,
+      avatarScale: Number(row.avatar_scale ?? 1),
+      avatarOffsetX: Number(row.avatar_offset_x ?? 0),
+      avatarOffsetY: Number(row.avatar_offset_y ?? 0),
+      useAvatarInHeader: Boolean(row.use_avatar_in_header ?? false),
+      bio: String(row.bio ?? ""),
     } satisfies UserProfile;
   }
 

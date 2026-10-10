@@ -34,6 +34,7 @@ import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { cn } from "@/lib/utils";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -193,6 +194,8 @@ export function PerfilPage() {
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
+  const avatarFrameDirtyRef = useRef(false);
+  const avatarFrameSaveTimerRef = useRef<number | null>(null);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -566,6 +569,7 @@ export function PerfilPage() {
   }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+    avatarFrameDirtyRef.current = true;
     setForm((current) => ({
       ...current,
       avatarScale: scale,
@@ -573,6 +577,64 @@ export function PerfilPage() {
       avatarOffsetY: offsetY,
     }));
   };
+
+  const updateAvatarHeaderVisibility = (checked: boolean) => {
+    avatarFrameDirtyRef.current = true;
+    setForm((current) => ({ ...current, useAvatarInHeader: checked }));
+  };
+
+  useEffect(() => {
+    if (!avatarFrameDirtyRef.current || !profile?.avatarUrl) return;
+
+    if (avatarFrameSaveTimerRef.current) {
+      window.clearTimeout(avatarFrameSaveTimerRef.current);
+    }
+
+    avatarFrameSaveTimerRef.current = window.setTimeout(() => {
+      void (async () => {
+        avatarFrameDirtyRef.current = false;
+        setStatus("Salvando enquadramento automaticamente...");
+        try {
+          const savedProfile = await saveUserProfile({
+            ...profile,
+            avatarScale: form.avatarScale,
+            avatarOffsetX: form.avatarOffsetX,
+            avatarOffsetY: form.avatarOffsetY,
+            useAvatarInHeader: form.useAvatarInHeader,
+          });
+          setForm((current) => ({
+            ...current,
+            avatarUrl: savedProfile.avatarUrl || current.avatarUrl,
+            avatarScale: savedProfile.avatarScale ?? current.avatarScale,
+            avatarOffsetX: savedProfile.avatarOffsetX ?? current.avatarOffsetX,
+            avatarOffsetY: savedProfile.avatarOffsetY ?? current.avatarOffsetY,
+            useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
+          }));
+          setStatus("Enquadramento salvo automaticamente.");
+        } catch (error) {
+          avatarFrameDirtyRef.current = true;
+          setStatus(
+            error instanceof Error
+              ? `Não foi possível salvar o enquadramento: ${error.message}`
+              : "Não foi possível salvar o enquadramento.",
+          );
+        }
+      })();
+    }, 700);
+
+    return () => {
+      if (avatarFrameSaveTimerRef.current) {
+        window.clearTimeout(avatarFrameSaveTimerRef.current);
+      }
+    };
+  }, [
+    form.avatarOffsetX,
+    form.avatarOffsetY,
+    form.avatarScale,
+    form.useAvatarInHeader,
+    profile,
+    saveUserProfile,
+  ]);
 
   const setAccountField = (field: keyof typeof accountForm, value: string) => {
     setAccountForm((current) => ({ ...current, [field]: value }));
@@ -1092,8 +1154,16 @@ export function PerfilPage() {
     { label: "Gerenciar conta e senha", value: "conta-seguranca" },
   ] as const;
 
+  const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
   const statusMessage = status ? (
-    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+    <div
+      className={cn(
+        "rounded-2xl border px-4 py-3 text-sm",
+        statusIsError
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-emerald-100 bg-emerald-50 text-emerald-700",
+      )}
+    >
       {status}
     </div>
   ) : null;
@@ -1405,8 +1475,8 @@ export function PerfilPage() {
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
                       label="Foto do perfil"
-                      hint="A imagem começa natural. Use o zoom somente se quiser aproximar e arraste para reposicionar."
-                      fitMode="contain"
+                      hint="A foto preenche o círculo sem deformar. Ajuste zoom e posição para enquadrar rosto, logotipo ou marca com precisão."
+                      fitMode="cover"
                       minScale={1}
                       shape="circle"
                       viewportClassName="h-[320px] w-[320px] max-w-full"
@@ -1462,7 +1532,7 @@ export function PerfilPage() {
                       <p className="text-sm font-semibold text-slate-950">Exibir foto no cabeçalho</p>
                       <p className="mt-1 text-sm text-slate-500">Ative para mostrar a foto junto da identificação.</p>
                     </div>
-                    <Switch checked={form.useAvatarInHeader} onCheckedChange={(checked) => setForm((current) => ({ ...current, useAvatarInHeader: checked }))} />
+                    <Switch checked={form.useAvatarInHeader} onCheckedChange={updateAvatarHeaderVisibility} />
                   </div>
                 </div>
               ) : null}
