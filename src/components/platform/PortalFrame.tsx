@@ -1149,7 +1149,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   type="button"
                   onClick={() => setCommandOpen(true)}
                   className={cn(
-                    "sig-topbar-search sig-topbar-search-trigger group flex h-[42px] w-full items-center gap-3 rounded-[16px] px-3.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none",
+                    "sig-topbar-search sig-topbar-search-trigger group flex h-[42px] w-full items-center gap-3 rounded-[16px] px-3.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                     topbarSearchButton,
                   )}
                   aria-label="Busca global"
@@ -1159,7 +1159,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
                     <Search className="h-[18px] w-[18px]" />
                   </span>
-                  <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-medium tracking-[0.01em] text-white/90">
+                  <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-semibold tracking-[0.01em]">
                     Pesquisar
                   </span>
                 </button>

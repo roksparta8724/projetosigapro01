@@ -26,18 +26,21 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(portal).not.toContain(">Diretoria responsável<");
   });
 
-  it("inverte o contraste da busca entre tema claro e escuro", () => {
+  it("controla o contraste da busca pela superfície real do card", () => {
     expect(portal).toContain('data-theme-family={inverseMainTheme ? "dark" : "light"}');
-    expect(css).toContain('[data-theme-family="light"]');
-    expect(css).toContain("background: linear-gradient(180deg, #111827 0%, #020617 100%)");
-    expect(css).toContain('[data-theme-family="dark"]');
-    expect(css).toContain("background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%)");
-    expect(css).toContain("Topbar search contrast hardening");
-    expect(css).toContain(".sig-topbar-search-trigger *");
+    expect(css).toContain("Premium search: one source of truth");
+    expect(css).not.toContain("Search contrast is intentionally inverted by theme family");
+    expect(css).not.toContain("Topbar search contrast hardening");
+    expect(css).not.toContain("Search foreground follows the actual search-card surface");
+    expect(css).toContain("background: linear-gradient(180deg, #111827 0%, #0b1220 48%, #020617 100%)");
+    expect(css).toContain("background: linear-gradient(180deg, #ffffff 0%, #f8fafc 48%, #eef2f7 100%)");
+    expect(css).toContain('data-search-surface="dark"');
+    expect(css).toContain('data-search-surface="light"');
     expect(css).toContain("color: #ffffff !important");
     expect(css).toContain("stroke: #ffffff !important");
     expect(css).toContain("color: #0f172a !important");
     expect(css).toContain("stroke: #0f172a !important");
+    expect(css).toContain("visibility: visible !important");
     expect(portal).toContain('data-search-surface={inverseMainTheme ? "light" : "dark"}');
     expect(css).toContain('data-search-surface="dark"');
     expect(css).toContain('data-search-surface="light"');

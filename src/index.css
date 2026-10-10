@@ -3636,84 +3636,41 @@ html {
 }
 
 
-/* Search contrast is intentionally inverted by theme family. */
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) {
-  border-color: rgba(15, 23, 42, 0.92) !important;
-  background: linear-gradient(180deg, #111827 0%, #020617 100%) !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,6,23,0.18) !important;
+
+/* Premium search: one source of truth, driven only by data-search-surface. */
+.sig-premium-topbar .sig-topbar-search-trigger {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.16);
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-label,
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon,
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon svg {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
+.sig-premium-topbar .sig-topbar-search-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.65;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0) 100%);
 }
 
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon {
+.sig-premium-topbar .sig-topbar-search-trigger > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] {
+  background: linear-gradient(180deg, #111827 0%, #0b1220 48%, #020617 100%) !important;
   border-color: rgba(255,255,255,0.16) !important;
-  background: rgba(255,255,255,0.08) !important;
-}
-
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
-:is(.sig-topbar-searchbar, .sig-topbar-search-trigger) {
-  border-color: rgba(203, 213, 225, 0.92) !important;
-  background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%) !important;
-  color: #0f172a !important;
-  box-shadow: inset 0 1px 0 #ffffff, 0 8px 18px rgba(2,6,23,0.16) !important;
-}
-
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-label,
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon,
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon svg {
-  color: #0f172a !important;
-  stroke: #0f172a !important;
-}
-
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0 .sig-topbar-search-icon {
-  border-color: rgba(148,163,184,0.42) !important;
-  background: #e2e8f0 !important;
-}
-
-
-/* Topbar search contrast hardening: every visual inside the search follows its surface. */
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger,
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger * {
   color: #ffffff !important;
-  opacity: 1 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 10px 24px rgba(2,6,23,0.24) !important;
 }
 
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger svg,
-[data-theme-family="light"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger svg * {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
-}
-
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger,
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger * {
-  color: #0f172a !important;
-  opacity: 1 !important;
-}
-
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger svg,
-[data-theme-family="dark"] .sig-premium-topbar.fixed.inset-x-0.top-0
-.sig-topbar-search-trigger svg * {
-  color: #0f172a !important;
-  stroke: #0f172a !important;
-}
-
-
-/* Search foreground follows the actual search-card surface, not inherited topbar/theme colors. */
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"],
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-label,
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon,
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon svg,
@@ -3721,9 +3678,25 @@ html {
   color: #ffffff !important;
   stroke: #ffffff !important;
   opacity: 1 !important;
+  visibility: visible !important;
 }
 
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"],
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon {
+  display: inline-flex !important;
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 48%, #eef2f7 100%) !important;
+  border-color: rgba(203,213,225,0.92) !important;
+  color: #0f172a !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.98),
+    0 10px 24px rgba(15,23,42,0.14) !important;
+}
+
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-label,
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon,
 .sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon svg,
@@ -3731,6 +3704,31 @@ html {
   color: #0f172a !important;
   stroke: #0f172a !important;
   opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon {
+  display: inline-flex !important;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  border: 1px solid rgba(148,163,184,0.38) !important;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger:hover,
+.sig-premium-topbar .sig-topbar-search-trigger:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.035) saturate(1.03);
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger .sig-topbar-search-label {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.sig-premium-topbar .sig-topbar-search-trigger .sig-topbar-search-icon,
+.sig-premium-topbar .sig-topbar-search-trigger .sig-topbar-search-icon svg {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 
@@ -3827,41 +3825,6 @@ html {
 .sig-sidebar-panel [data-sidebar-active="true"] .sig-sidebar-icon {
   background: rgba(15,23,42,0.045) !important;
   border-color: rgba(15,23,42,0.10) !important;
-}
-
-/* Search contrast is tied to the visible card, never to inherited topbar colors. */
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] {
-  background: linear-gradient(180deg, #111827 0%, #020617 100%) !important;
-  border-color: rgba(2,6,23,0.92) !important;
-  color: #ffffff !important;
-}
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] *,
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] svg,
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] svg * {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
-  opacity: 1 !important;
-}
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="dark"] .sig-topbar-search-icon {
-  background: rgba(255,255,255,0.10) !important;
-  border-color: rgba(255,255,255,0.16) !important;
-}
-
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] {
-  background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%) !important;
-  border-color: rgba(203,213,225,0.95) !important;
-  color: #0f172a !important;
-}
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] *,
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] svg,
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] svg * {
-  color: #0f172a !important;
-  stroke: #0f172a !important;
-  opacity: 1 !important;
-}
-.sig-premium-topbar .sig-topbar-search-trigger[data-search-surface="light"] .sig-topbar-search-icon {
-  background: #e2e8f0 !important;
-  border-color: rgba(148,163,184,0.42) !important;
 }
 
 /* Refined card typography: labels stay compact; values wrap only between words. */
