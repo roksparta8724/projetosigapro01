@@ -658,7 +658,7 @@ export function CriarContaPage() {
                   </>
                 ) : null}
 
-                <div className="grid gap-4 md:grid-cols-[1.35fr,0.65fr]">
+                <div className="grid gap-4 md:grid-cols-[1.35fr_0.65fr]">
                   <div className="space-y-2">
                     <Label>Endereço *</Label>
                     <Input
@@ -695,7 +695,7 @@ export function CriarContaPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-[1fr,0.4fr,0.7fr]">
+                <div className="grid gap-4 md:grid-cols-[1fr_0.4fr_0.7fr]">
                   <div className="space-y-2">
                     <Label>Cidade do endereço *</Label>
                     <Input
