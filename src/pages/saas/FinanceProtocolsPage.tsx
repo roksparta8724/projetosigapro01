@@ -158,7 +158,11 @@ export function FinanceProtocolsPage() {
           title="Guias DAM, confirmação financeira e segunda via por processo"
           description="A equipe financeira acompanha protocolo, ISSQN da obra e aprovação final em uma fila única de arrecadação."
           icon={Receipt}
-          actions={<FinanceSectionNav />}
+          actions={
+            <Button asChild variant="outline" className="rounded-full">
+              <Link to="/prefeitura/financeiro">Voltar ao Financeiro</Link>
+            </Button>
+          }
         />
 
         {financialStatus ? (
