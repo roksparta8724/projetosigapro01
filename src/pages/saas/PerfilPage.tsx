@@ -34,6 +34,7 @@ import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { cn } from "@/lib/utils";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
