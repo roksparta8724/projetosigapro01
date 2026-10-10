@@ -47,6 +47,11 @@ export function UserAvatar({
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
 
   useEffect(() => {
+    if (imageUrl === "") {
+      setStableImageUrl("");
+      setImageFailed(false);
+      return;
+    }
     if (imageUrl) {
       setStableImageUrl(imageUrl);
       setImageFailed(false);
