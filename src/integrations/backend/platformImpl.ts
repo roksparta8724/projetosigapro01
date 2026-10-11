@@ -2533,6 +2533,99 @@ export async function linkExistingUserToMunicipalityAdmin(input: {
   };
 }
 
+export type MunicipalDepartmentRecord = {
+  id: string;
+  municipalityId: string;
+  code: string;
+  name: string;
+  description: string;
+  email: string;
+  phone: string;
+  isActive: boolean;
+  parentDepartmentId: string | null;
+  unitType: string;
+  sortOrder: number;
+};
+
+function mapMunicipalDepartment(row: Record<string, unknown>): MunicipalDepartmentRecord {
+  return {
+    id: String(row.id),
+    municipalityId: String(row.municipality_id),
+    code: String(row.code ?? ""),
+    name: String(row.name ?? ""),
+    description: String(row.description ?? ""),
+    email: String(row.email ?? ""),
+    phone: String(row.phone ?? ""),
+    isActive: row.is_active !== false,
+    parentDepartmentId: row.parent_department_id ? String(row.parent_department_id) : null,
+    unitType: String(row.unit_type ?? "departamento"),
+    sortOrder: Number(row.sort_order ?? 100),
+  };
+}
+
+export async function listRemoteMunicipalDepartments(municipalityId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db
+    .from("departments")
+    .select("id, municipality_id, code, name, description, email, phone, is_active, parent_department_id, unit_type, sort_order")
+    .eq("municipality_id", municipalityId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message || "Não foi possível carregar o organograma.");
+  return (data ?? []).map((row) => mapMunicipalDepartment(row as Record<string, unknown>));
+}
+
+export async function upsertRemoteMunicipalDepartment(input: {
+  municipalityId: string;
+  departmentId?: string | null;
+  name: string;
+  code?: string;
+  description?: string;
+  email?: string;
+  phone?: string;
+  parentDepartmentId?: string | null;
+  unitType?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("upsert_municipal_department_v1", {
+    _municipality_id: input.municipalityId,
+    _department_id: input.departmentId ?? null,
+    _name: input.name,
+    _code: input.code ?? null,
+    _description: input.description ?? null,
+    _email: input.email ?? null,
+    _phone: input.phone ?? null,
+    _parent_department_id: input.parentDepartmentId ?? null,
+    _unit_type: input.unitType ?? "departamento",
+    _sort_order: input.sortOrder ?? 100,
+    _is_active: input.isActive ?? true,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar a unidade do organograma.");
+  return mapMunicipalDepartment((data ?? {}) as Record<string, unknown>);
+}
+
+export async function assignRemoteProfileDepartment(input: {
+  municipalityId: string;
+  profileId: string;
+  departmentId: string | null;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("assign_profile_department_v1", {
+    _municipality_id: input.municipalityId,
+    _profile_id: input.profileId,
+    _department_id: input.departmentId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível vincular o usuário ao departamento.");
+  return data as {
+    profile_id: string;
+    municipality_id: string;
+    department_id: string | null;
+    department_name: string | null;
+  };
+}
+
 export async function manageRemoteUserAccess(input: {
   userId: string;
   municipalityId: string;
