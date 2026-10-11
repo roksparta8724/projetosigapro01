@@ -61,15 +61,15 @@ create policy "commercial_materials_master_manage"
 on public.commercial_materials
 for all
 to authenticated
-using (public.is_admin_master())
-with check (public.is_admin_master());
+using (public.is_master())
+with check (public.is_master());
 
 drop policy if exists "commercial_materials_public_share_read" on public.commercial_materials;
 create policy "commercial_materials_public_share_read"
 on public.commercial_materials
 for select
-to anon, authenticated
+to anonymous, authenticated
 using (is_public = true and status = 'active' and share_slug is not null);
 
-grant select on public.commercial_materials to anon;
+grant select on public.commercial_materials to anonymous;
 grant select, insert, update, delete on public.commercial_materials to authenticated;
