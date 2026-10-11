@@ -49,23 +49,22 @@ describe("profile and branding persistence regressions", () => {
     expect(dataHook).toContain("persistedProfile");
   });
 
-  it("renders premium avatars as true circles with the whole uploaded image visible", () => {
+  it("renders premium avatars as true edge-to-edge social profile circles", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
-    expect(userAvatar).toContain('crop ? "object-contain" : "inset-0 h-full w-full object-cover"');
-    expect(userAvatar).toContain("Math.hypot(naturalSize.width, naturalSize.height)");
-    expect(userAvatar).toContain("safeImageWidth");
-    expect(userAvatar).toContain("safeImageHeight");
+    expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center");
+    expect(userAvatar).not.toContain("safeCircleScale");
+    expect(userAvatar).not.toContain("safeImageWidth");
+    expect(userAvatar).not.toContain("safeImageHeight");
     expect(imageFrameEditor).toContain('data-image-frame-shape={shape}');
     expect(imageFrameEditor).toContain('width: "min(320px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
     expect(imageFrameEditor).toContain('borderRadius: "9999px"');
     expect(imageFrameEditor).not.toContain('crossOrigin = "anonymous"');
-    expect(imageFrameEditor).toContain("Math.hypot(naturalWidth, naturalHeight)");
     expect(imageFrameEditor).toContain("sig-image-frame-canvas");
-    expect(css).toContain(".sig-image-frame-canvas");
-    expect(profilePage).toContain('fitMode="contain"');
-    expect(profilePage).not.toContain('viewportClassName="w-full max-w-[320px]"');
-    expect(profilePage).toContain("sem cortes, ovalização ou deformação");
+    expect(css).toContain(".sig-image-frame-canvas > img");
+    expect(css).toContain("object-fit: cover !important");
+    expect(profilePage).toContain('fitMode="cover"');
+    expect(profilePage).toContain("preenche todo o círculo");
     expect(profilePage).toContain("Enquadramento salvo automaticamente.");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");

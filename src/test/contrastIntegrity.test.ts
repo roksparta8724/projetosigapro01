@@ -19,11 +19,16 @@ describe("global contrast integrity", () => {
 
   it("keeps inverse controls readable on remapped dark surfaces", () => {
     expect(css).toContain("Global contrast contract");
+    expect(css).toContain("Final contrast matrix");
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"]');
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="input"]');
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="select-trigger"]');
     expect(css).toContain("color: #e8eef9 !important");
     expect(css).toContain("color: #eef4ff !important");
+    expect(css).toContain(".sig-dark-panel");
+    expect(css).toContain(".sig-theme-chip");
+    expect(css).toContain('[data-ui="badge"][class*="bg-emerald"]');
+    expect(css).toContain('[data-ui="badge"][class*="bg-amber"]');
   });
 
   it("keeps default light controls readable and fixes direct low-contrast combinations", () => {

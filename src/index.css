@@ -3958,3 +3958,161 @@ html {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+
+/* Final contrast matrix: surfaces and typography must agree in every layout mode.
+   This is intentionally based on component/surface semantics, not page-specific colors. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .sig-page-header,
+  .sig-section-card,
+  .sig-ui-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) {
+  color: #eef4ff;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .sig-page-header,
+  .sig-section-card,
+  .sig-ui-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(.text-slate-950,.text-slate-900,.text-slate-800) {
+  color: #f4f8ff !important;
+  -webkit-text-fill-color: #f4f8ff !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .sig-page-header,
+  .sig-section-card,
+  .sig-ui-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(.text-slate-700,.text-slate-600) {
+  color: #d4dfef !important;
+  -webkit-text-fill-color: #d4dfef !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .sig-page-header,
+  .sig-section-card,
+  .sig-ui-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(.text-slate-500,.text-slate-400,.sig-subtitle,.sig-label,.sig-section-label,.sig-metric-helper,.sig-metric-title) {
+  color: #afbed2 !important;
+  -webkit-text-fill-color: #afbed2 !important;
+}
+
+/* Light chips/pills inside inverse cards are converted to dark glass instead of
+   leaving pale text on a white surface. This also covers raw span chips. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-white"],
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-slate-50"],
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-slate-100"] {
+  background: rgba(255,255,255,0.075) !important;
+  border-color: rgba(148,163,184,0.24) !important;
+  color: #edf4ff !important;
+  -webkit-text-fill-color: #edf4ff !important;
+}
+
+/* Semantic badges keep meaning and contrast instead of inheriting one generic color. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-emerald"] {
+  background: rgba(16,185,129,0.14) !important;
+  color: #a7f3d0 !important;
+  -webkit-text-fill-color: #a7f3d0 !important;
+  border-color: rgba(52,211,153,0.28) !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-amber"] {
+  background: rgba(245,158,11,0.14) !important;
+  color: #fde68a !important;
+  -webkit-text-fill-color: #fde68a !important;
+  border-color: rgba(251,191,36,0.28) !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-red"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-rose"] {
+  background: rgba(244,63,94,0.13) !important;
+  color: #fecdd3 !important;
+  -webkit-text-fill-color: #fecdd3 !important;
+  border-color: rgba(251,113,133,0.26) !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-sky"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="bg-blue"] {
+  background: rgba(59,130,246,0.14) !important;
+  color: #bfdbfe !important;
+  -webkit-text-fill-color: #bfdbfe !important;
+  border-color: rgba(96,165,250,0.28) !important;
+}
+
+/* The old generic badge override was too broad. Specific badge/surface rules above
+   now decide the visible foreground, while unstyled outline badges stay readable. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"]:not([class*="bg-"]) {
+  color: #e8eef9 !important;
+  -webkit-text-fill-color: #e8eef9 !important;
+}
+
+/* Light mode gets the symmetrical guard: any explicit pale pill/card uses dark text. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-white"],
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-slate-50"],
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="badge"],
+  .sig-theme-chip,
+  span.rounded-full,
+  div.rounded-full
+)[class*="bg-slate-100"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Avatar/profile media is an image surface, not a themed card. The circle stays
+   perfectly round and the bitmap fills it edge-to-edge like social profile photos. */
+.sig-image-frame-canvas,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas {
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+}
+.sig-image-frame-canvas > img,
+.sig-user-avatar-root > .sig-user-avatar-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+}
