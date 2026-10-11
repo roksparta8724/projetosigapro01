@@ -224,14 +224,14 @@ export type RecoverableProcessFile = {
   lastModified: string | null;
 };
 
-export async function listRecoverableProcessFiles(input?: { since?: string }) {
+export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
   const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(await getAuthorizationHeaders()),
     },
-    body: JSON.stringify({ since: input?.since }),
+    body: JSON.stringify({ since: input?.since, processId: input?.processId }),
   });
 
   const payload = (await response.json().catch(() => ({}))) as {
