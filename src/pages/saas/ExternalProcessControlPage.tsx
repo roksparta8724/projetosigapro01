@@ -333,8 +333,8 @@ export function ExternalProcessControlPage() {
                         <p className="truncate text-[15px] font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
                           {formatOfficialProcessNumber(process.protocol)}
                         </p>
-                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.externalProtocol}>
-                          {process.externalProtocol}
+                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>
+                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </p>
                         {process.tags?.length ? (
                           <div className="mt-2 flex flex-wrap gap-2">
