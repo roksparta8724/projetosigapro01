@@ -493,8 +493,18 @@ export function ImageFrameEditor({
               </>
             ) : null}
             {stableImageUrl && isRenderableUrl(stableImageUrl) && naturalSize.width > 0 && naturalSize.height > 0 ? (
-              <div
-                className="pointer-events-none absolute left-1/2 top-1/2"
+              <>
+                {shape === "circle" ? (
+                  <img
+                    src={stableImageUrl}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="sig-image-frame-background pointer-events-none absolute inset-0 h-full w-full select-none object-contain object-center opacity-30"
+                  />
+                ) : null}
+                <div
+                  className="pointer-events-none absolute left-1/2 top-1/2"
                 style={{
                   transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`,
                   transformOrigin: "center",
@@ -512,7 +522,8 @@ export function ImageFrameEditor({
                     transformOrigin: "center center",
                   }}
                 />
-              </div>
+                </div>
+              </>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
                 <ImageIcon className="h-6 w-6 text-slate-400/80" />
