@@ -10,6 +10,7 @@ const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/pl
 const profilePage = readFileSync(resolve(process.cwd(), "src/pages/saas/PerfilPage.tsx"), "utf8");
 const storage = readFileSync(resolve(process.cwd(), "src/integrations/r2/storage.ts"), "utf8");
 const userAvatar = readFileSync(resolve(process.cwd(), "src/components/platform/UserAvatar.tsx"), "utf8");
+const imageFrameEditor = readFileSync(resolve(process.cwd(), "src/components/platform/ImageFrameEditor.tsx"), "utf8");
 
 describe("profile and branding persistence regressions", () => {
   it("keeps search text legible and the magnifier white on both surfaces", () => {
@@ -49,7 +50,11 @@ describe("profile and branding persistence regressions", () => {
   });
 
   it("renders premium avatars with proportional circular cover and autosaves framing", () => {
-    expect(userAvatar).toContain('"sig-user-avatar-image absolute inset-0 h-full w-full object-cover"');
+    expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
+    expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none object-cover object-center");
+    expect(imageFrameEditor).toContain('shape === "circle" ? "aspect-square h-auto w-full max-w-[320px] rounded-full"');
+    expect(imageFrameEditor).toContain('style={shape === "circle" ? { aspectRatio: "1 / 1" } : undefined}');
+    expect(profilePage).toContain('viewportClassName="w-full max-w-[320px]"');
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("Enquadramento salvo automaticamente.");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
@@ -66,6 +71,10 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("resolvedImageUrl");
     expect(userAvatar).toContain("const preload = new Image()");
     expect(userAvatar).toContain("preload.onload");
+    expect(userAvatar).toContain("emptyClearTimerRef");
+    expect(userAvatar).toContain("1200");
+    expect(imageFrameEditor).toContain("Stale-while-revalidate visual");
+    expect(imageFrameEditor).not.toContain("setNaturalSize({ width: 0, height: 0 })");
     expect(userAvatar).toContain("const resolvedImageUrl = stableImageUrl || imageUrl ||");
   });
 
