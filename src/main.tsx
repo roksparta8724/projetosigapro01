@@ -9,7 +9,7 @@ let pendingRefreshLocation = "";
 let scrollPersistRaf = 0;
 
 function currentLocationKey() {
-  return currentLocationKey();
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
 function persistNavigationState() {
