@@ -626,6 +626,11 @@ export interface ProcessRecord {
     assignedTo?: string;
     notes?: string;
   };
+  analysis?: {
+    assignedTo?: string;
+    assignedProfileId?: string;
+    startedAt?: string;
+  };
   checklistType: string;
   sla: {
     currentStage: string;

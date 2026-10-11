@@ -1089,6 +1089,11 @@ export async function loadRemotePlatformStore() {
         assignedTo: process.triage_assigned_to ?? undefined,
         notes: process.triage_notes ?? undefined,
       },
+      analysis: {
+        assignedTo: process.analysis_assigned_to ?? undefined,
+        assignedProfileId: process.analysis_assigned_to_profile_id ?? undefined,
+        startedAt: process.analysis_started_at ?? undefined,
+      },
       checklistType: process.checklist_type ?? process.process_type,
       sla: {
         currentStage: process.sla_stage ?? "Fluxo em andamento",
@@ -1876,6 +1881,12 @@ export async function reopenRemoteProcess(processId: string, reason: string) {
   return callProcessRpc("reopen_process", {
     _process_id: processId,
     _reason: reason,
+  });
+}
+
+export async function startRemoteProcessAnalysis(processId: string) {
+  return callProcessRpc("start_process_analysis", {
+    _process_id: processId,
   });
 }
 
