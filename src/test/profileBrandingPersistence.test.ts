@@ -55,8 +55,10 @@ describe("profile and branding persistence regressions", () => {
     expect(imageFrameEditor).toContain("sig-image-frame-stage");
     expect(imageFrameEditor).toContain('width: "min(360px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
-    expect(imageFrameEditor).toContain('radial-gradient(circle at center');
+    expect(imageFrameEditor).toContain("0 0 0 999px rgba(2, 6, 23, 0.58)")
     expect(imageFrameEditor).toContain('inset-[8%]');
+    expect(imageFrameEditor).toContain("sig-image-frame-background");
+    expect(imageFrameEditor).toContain("opacity-45");
     expect(imageFrameEditor).toContain("cropFrameSize");
     expect(imageFrameEditor).not.toContain('crossOrigin = "anonymous"');
     expect(css).toContain(".sig-image-frame-stage");
