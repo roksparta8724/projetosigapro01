@@ -206,11 +206,19 @@ export function ImageFrameEditor({
     return () => observer.disconnect();
   }, []);
 
+  const cropFrameSize = useMemo(
+    () => ({
+      width: shape === "circle" ? frameSize.width * 0.84 : frameSize.width,
+      height: shape === "circle" ? frameSize.height * 0.84 : frameSize.height,
+    }),
+    [frameSize.height, frameSize.width, shape],
+  );
+
   const metrics = useMemo(() => {
     const baseScale = resolveBaseScale(
       fitMode,
-      frameSize.width,
-      frameSize.height,
+      cropFrameSize.width,
+      cropFrameSize.height,
       naturalSize.width,
       naturalSize.height,
       shape,
@@ -220,8 +228,8 @@ export function ImageFrameEditor({
     const baseHeight = naturalSize.height * baseScale;
     const width = baseWidth * safeScale;
     const height = baseHeight * safeScale;
-    const maxOffsetX = Math.max((width - frameSize.width) / 2, 0);
-    const maxOffsetY = Math.max((height - frameSize.height) / 2, 0);
+    const maxOffsetX = Math.max((width - cropFrameSize.width) / 2, 0);
+    const maxOffsetY = Math.max((height - cropFrameSize.height) / 2, 0);
 
     return {
       baseScale,
@@ -237,8 +245,8 @@ export function ImageFrameEditor({
     effectiveMaxScale,
     effectiveMinScale,
     fitMode,
-    frameSize.height,
-    frameSize.width,
+    cropFrameSize.height,
+    cropFrameSize.width,
     naturalSize.height,
     naturalSize.width,
     scale,
@@ -246,7 +254,7 @@ export function ImageFrameEditor({
   ]);
 
   useEffect(() => {
-    if (!frameSize.width || !frameSize.height) return;
+    if (!cropFrameSize.width || !cropFrameSize.height) return;
     const nextOffsetX = clamp(offsetX, -metrics.maxOffsetX, metrics.maxOffsetX);
     const nextOffsetY = clamp(offsetY, -metrics.maxOffsetY, metrics.maxOffsetY);
     const nextScale = clamp(scale, effectiveMinScale, effectiveMaxScale);
@@ -261,8 +269,8 @@ export function ImageFrameEditor({
   }, [
     effectiveMaxScale,
     effectiveMinScale,
-    frameSize.height,
-    frameSize.width,
+    cropFrameSize.height,
+    cropFrameSize.width,
     metrics.maxOffsetX,
     metrics.maxOffsetY,
     offsetX,
@@ -272,10 +280,10 @@ export function ImageFrameEditor({
   ]);
 
   useEffect(() => {
-    if (!onMetricsChange || !frameSize.width || !frameSize.height || !naturalSize.width || !naturalSize.height) return;
+    if (!onMetricsChange || !cropFrameSize.width || !cropFrameSize.height || !naturalSize.width || !naturalSize.height) return;
     onMetricsChange({
-      frameWidth: frameSize.width,
-      frameHeight: frameSize.height,
+      frameWidth: cropFrameSize.width,
+      frameHeight: cropFrameSize.height,
       naturalWidth: naturalSize.width,
       naturalHeight: naturalSize.height,
       baseScale: metrics.baseScale,
@@ -285,8 +293,8 @@ export function ImageFrameEditor({
   }, [
     effectiveMaxScale,
     effectiveMinScale,
-    frameSize.height,
-    frameSize.width,
+    cropFrameSize.height,
+    cropFrameSize.width,
     metrics.baseScale,
     naturalSize.height,
     naturalSize.width,
@@ -294,7 +302,7 @@ export function ImageFrameEditor({
   ]);
 
   const updateScale = (nextScale: number, focalPoint?: { x: number; y: number }) => {
-    if (!frameSize.width || !frameSize.height) return;
+    if (!cropFrameSize.width || !cropFrameSize.height) return;
 
     if (!focalPoint) {
       onChange(
@@ -302,8 +310,8 @@ export function ImageFrameEditor({
           nextScale,
           nextOffsetX: offsetX,
           nextOffsetY: offsetY,
-          frameWidth: frameSize.width,
-          frameHeight: frameSize.height,
+          frameWidth: cropFrameSize.width,
+          frameHeight: cropFrameSize.height,
           naturalWidth: naturalSize.width,
           naturalHeight: naturalSize.height,
           fitMode,
@@ -457,7 +465,7 @@ export function ImageFrameEditor({
             className={cn(
               "relative cursor-grab overflow-hidden active:cursor-grabbing",
               shape === "circle"
-                ? "sig-image-frame-canvas shrink-0 rounded-full border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
+                ? "sig-image-frame-stage shrink-0 rounded-[28px] border border-slate-700/70 bg-slate-950/20 shadow-[0_18px_42px_rgba(2,6,23,0.2)]"
                 : "h-[180px] w-[180px] rounded-[26px]",
               shape !== "circle" && (darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50"),
               viewportClassName,
@@ -465,10 +473,9 @@ export function ImageFrameEditor({
             style={
               shape === "circle"
                 ? {
-                    width: "min(320px, 100%)",
+                    width: "min(360px, 100%)",
                     height: "auto",
                     aspectRatio: "1 / 1",
-                    borderRadius: "9999px",
                     flex: "0 0 auto",
                   }
                 : undefined
@@ -514,7 +521,16 @@ export function ImageFrameEditor({
             )}
 
             {shape === "circle" ? (
-              <div className="pointer-events-none absolute inset-0 z-20 rounded-full ring-2 ring-white/95 ring-offset-1 ring-offset-slate-300/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)]" />
+              <>
+                <div
+                  className="pointer-events-none absolute inset-0 z-10"
+                  style={{
+                    background:
+                      "radial-gradient(circle at center, transparent 0 41.8%, rgba(2, 6, 23, 0.58) 42.2%, rgba(2, 6, 23, 0.72) 100%)",
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-[8%] z-20 rounded-full border-2 border-white/95 shadow-[0_0_0_1px_rgba(15,23,42,0.28),0_12px_32px_rgba(2,6,23,0.22)]" />
+              </>
             ) : null}
           </div>
         </div>
