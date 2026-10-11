@@ -40,6 +40,17 @@ describe("commercial plan enforcement", () => {
     expect(master).toContain("Plano contratado");
   });
 
+  it("validates tenant scope and storage quota before writing to R2", () => {
+    const uploadApi = read("api/r2-upload.ts");
+    expect(uploadApi).toContain('callDataApiRpc(req, "has_tenant_access"');
+    expect(uploadApi).toContain('capability =');
+    expect(uploadApi).toContain('"storage_bytes"');
+    expect(uploadApi).toContain('assert_municipality_entitlement_v1');
+    expect(uploadApi.indexOf('assert_municipality_entitlement_v1')).toBeLessThan(
+      uploadApi.indexOf('new S3Client'),
+    );
+  });
+
   it("tracks real file bytes for storage quota", () => {
     const protocol = read("src/pages/saas/ProtocolarProjetoPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
