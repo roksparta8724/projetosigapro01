@@ -4362,6 +4362,16 @@ html {
   -webkit-text-fill-color: #0f172a !important;
 }
 
+
+/* In the light theme sig-dark-panel/sig-inverse-panel are intentionally rendered
+   as white cards. Any non-interactive copy that still carries a light-text utility
+   must therefore be normalized to a dark foreground. */
+[data-layout-mode="default"] .sig-main-shell :is(.sig-dark-panel,.sig-inverse-panel):is(.text-white,.text-slate-50,.text-slate-100),
+[data-layout-mode="default"] .sig-main-shell :is(.sig-dark-panel,.sig-inverse-panel) :is(h1,h2,h3,h4,h5,h6,p,label):is(.text-white,.text-slate-50,.text-slate-100) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
 /* Semantic light cards are converted to tinted dark surfaces on inverse pages.
    Badges/chips keep their dedicated rules; this block is for card-like containers. */
 [data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is([class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"]):not([data-ui="badge"]):not(.sig-theme-chip) {
