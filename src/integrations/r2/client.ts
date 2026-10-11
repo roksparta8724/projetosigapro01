@@ -217,6 +217,35 @@ export async function uploadFile(input: {
   }
 }
 
+export type RecoverableProcessFile = {
+  objectKey: string;
+  fileName: string;
+  size: number;
+  lastModified: string | null;
+};
+
+export async function listRecoverableProcessFiles(input?: { since?: string }) {
+  const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await getAuthorizationHeaders()),
+    },
+    body: JSON.stringify({ since: input?.since }),
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    files?: RecoverableProcessFile[];
+    error?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error || "Falha ao localizar uploads anteriores.");
+  }
+
+  return Array.isArray(payload.files) ? payload.files : [];
+}
+
 export async function deleteFile(input: { bucket: string; objectKey: string }) {
   const response = await fetch(buildApiUrl("/api/r2-delete"), {
     method: "POST",
