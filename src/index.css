@@ -3871,3 +3871,90 @@ html {
 [data-image-frame-shape="circle"] > div {
   max-width: 320px;
 }
+
+
+/* Circular media surfaces are deliberately light even inside the inverse theme.
+   A transparent/black gap inside the crop reads as a cut image, so this canvas
+   is isolated from the commercial dark-surface remapping. */
+.sig-image-frame-canvas,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(203, 213, 225, 0.96) !important;
+}
+.sig-image-frame-canvas img,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas img,
+.sig-user-avatar-image {
+  background: #ffffff !important;
+}
+
+/* Finance guide surface: no light card with washed-out light text in inverse mode. */
+[data-layout-mode="default"] .sig-main-shell .sig-finance-guide-card,
+[data-layout-mode="default"] .sig-main-shell .sig-finance-pix-surface,
+[data-layout-mode="default"] .sig-main-shell .sig-finance-pix-code {
+  background: #ffffff !important;
+  color: #123860 !important;
+  -webkit-text-fill-color: #123860 !important;
+  border-color: #d8e4f1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-guide-card {
+  background: linear-gradient(180deg, rgba(12, 24, 40, 0.92) 0%, rgba(8, 19, 33, 0.9) 100%) !important;
+  border-color: rgba(125, 211, 252, 0.18) !important;
+  color: #eef4ff !important;
+  -webkit-text-fill-color: #eef4ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-pix-surface,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-pix-code {
+  background: rgba(17, 34, 55, 0.94) !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #e6f2ff !important;
+  -webkit-text-fill-color: #e6f2ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-pix-surface .sig-label,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-pix-surface p,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-pix-code p {
+  color: #e6f2ff !important;
+  -webkit-text-fill-color: #e6f2ff !important;
+}
+
+/* Project-wide contrast recovery for custom Tailwind hex surfaces that are not
+   covered by the normal bg-white/bg-slate theme remapping. Near-white custom
+   surfaces become dark glass in inverse mode, so their typography stays legible. */
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-[#f"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-[#F"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-[#e"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-[#E"] {
+  background: linear-gradient(180deg, rgba(12, 24, 40, 0.9) 0%, rgba(9, 20, 34, 0.86) 100%) !important;
+  border-color: rgba(125, 211, 252, 0.16) !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="text-[#0"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="text-[#1"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="text-[#2"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="text-[#3"] {
+  color: #e8eef9 !important;
+  -webkit-text-fill-color: #e8eef9 !important;
+}
+
+/* The inverse remapping above must never recolor the explicit media canvas. */
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas {
+  background: #ffffff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas [class*="text-[#0"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas [class*="text-[#1"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas [class*="text-[#2"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-canvas [class*="text-[#3"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Light theme guard: nested light-on-light text is corrected even when the
+   text class is on a child instead of the card container itself. */
+[data-layout-mode="default"] .sig-main-shell .bg-white .text-white,
+[data-layout-mode="default"] .sig-main-shell .bg-slate-50 .text-white,
+[data-layout-mode="default"] .sig-main-shell .bg-slate-100 .text-white,
+[data-layout-mode="default"] .sig-main-shell .bg-white .text-slate-50,
+[data-layout-mode="default"] .sig-main-shell .bg-slate-50 .text-slate-50,
+[data-layout-mode="default"] .sig-main-shell .bg-slate-100 .text-slate-50 {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
