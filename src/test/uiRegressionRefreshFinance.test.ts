@@ -9,6 +9,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
   const protocolDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
+  const analystDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
   const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
 
   it("remove o atalho Ctrl K visível da busca", () => {
@@ -75,6 +76,29 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(html).toContain("--sig-snapshot-viewport-height");
     expect(html).toContain("transform: none");
     expect(html).not.toContain("contain: layout paint style");
+  });
+
+
+  it("não espreme cards de dados em colunas laterais estreitas", () => {
+    expect(css).toContain(".sig-responsive-data-grid");
+    expect(css).toContain("repeat(auto-fit, minmax(min(100%, 148px), 1fr))");
+    expect(protocolDesk).toContain('<div className="sig-responsive-data-grid mt-4">');
+    expect(protocolDesk).not.toContain('mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-5');
+    expect(analystDesk).toContain('<div className="sig-responsive-data-grid mt-4">');
+    expect(analystDesk).not.toContain('mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5');
+  });
+
+  it("garante contraste legível também nos cards semânticos claros", () => {
+    expect(css).toContain("SIGAPRO RESPONSIVE CARD + CONTRAST AUDIT 2026-10-11");
+    expect(css).toContain('[class*="bg-amber-50"]');
+    expect(css).toContain('[class*="bg-emerald-50"]');
+    expect(css).toContain('[class*="bg-red-50"]');
+    expect(css).toContain('[class*="bg-sky-50"]');
+    expect(css).toContain("background: rgba(245,158,11,0.10) !important");
+    expect(css).toContain("background: rgba(16,185,129,0.10) !important");
+    expect(css).toContain("background: rgba(244,63,94,0.10) !important");
+    expect(css).toContain("background: rgba(59,130,246,0.10) !important");
+    expect(css).toContain("A light surface must never inherit a light foreground");
   });
 
   it("permite que a unidade de Protocolo confirme recebimento da guia inicial", () => {
