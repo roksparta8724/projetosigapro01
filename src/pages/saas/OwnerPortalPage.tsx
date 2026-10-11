@@ -46,6 +46,7 @@ export function OwnerPortalPage() {
   const [requestProcessSummary, setRequestProcessSummary] = useState<{
     protocol: string;
     title: string;
+    type?: string | null;
     status: ProcessStatus;
   } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
@@ -97,6 +98,7 @@ export function OwnerPortalPage() {
       setRequestProcessSummary({
         protocol: response.process.protocol,
         title: response.process.title,
+        type: response.process.type,
         status: response.process.status,
       });
     }
@@ -226,7 +228,7 @@ export function OwnerPortalPage() {
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-emerald-200/80">Protocolo validado</p>
                         <p className="mt-1 text-lg font-semibold text-white">{formatOfficialProcessNumber(requestProcessSummary.protocol)}</p>
-                        <p className="mt-1 text-sm text-emerald-100/90">{requestProcessSummary.title}</p>
+                        <p className="mt-1 text-sm text-emerald-100/90">{formatOfficialProcessTitle({ title: requestProcessSummary.title, type: requestProcessSummary.type })}</p>
                       </div>
                       <Badge variant="outline" className="rounded-full text-emerald-100">
                         {statusLabel(requestProcessSummary.status)}
@@ -313,8 +315,8 @@ export function OwnerPortalPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="text-sm text-slate-300">Protocolo</p>
-                          <p className="text-base font-semibold text-white">{process?.protocol ?? "Processo"}</p>
-                          <p className="mt-1 text-sm text-slate-300">{process?.title ?? "Acompanhamento solicitado."}</p>
+                          <p className="text-base font-semibold text-white">{process ? formatOfficialProcessNumber(process.protocol) : "Processo"}</p>
+                          <p className="mt-1 text-sm text-slate-300">{process ? formatOfficialProcessTitle({ title: process.title, type: process.type }) : "Acompanhamento solicitado."}</p>
                         </div>
                         <Badge variant="outline" className="rounded-full text-slate-200">
                           {request.status === "approved"
@@ -348,7 +350,7 @@ export function OwnerPortalPage() {
                     <div className="rounded-[16px] border border-white/10 bg-white/5 p-4">
                       <p className="text-sm text-slate-300">Protocolo</p>
                       <p className="text-lg font-semibold text-white">{formatOfficialProcessNumber(selectedProcess.protocol)}</p>
-                      <p className="mt-1 text-sm text-slate-300">{selectedProcess.title}</p>
+                      <p className="mt-1 text-sm text-slate-300">{formatOfficialProcessTitle({ title: selectedProcess.title, type: selectedProcess.type })}</p>
                       <p className="mt-2 text-xs text-slate-400">Status atual: {statusLabel(selectedProcess.status)}</p>
                     </div>
 
