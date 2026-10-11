@@ -45,6 +45,7 @@ export function UserAvatar({
 }: UserAvatarProps) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const emptyClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -85,6 +86,10 @@ export function UserAvatar({
         // used to avoid swapping before the browser has prepared the bitmap.
       }
       if (cancelled) return;
+      setNaturalSize({
+        width: preload.naturalWidth || 1,
+        height: preload.naturalHeight || 1,
+      });
       setStableImageUrl(imageUrl);
       setFailedImageUrl("");
     };
@@ -115,11 +120,21 @@ export function UserAvatar({
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
-  const cropRatio = crop ? sizePixels[size] / Math.max(crop.editorSize ?? 320, 1) : 1;
+  const diameter = sizePixels[size];
+  const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
+  const naturalDiagonal = Math.hypot(naturalSize.width, naturalSize.height);
+  const safeCircleScale = naturalDiagonal > 0 ? (diameter * 0.96) / naturalDiagonal : 0;
+  const safeImageWidth = safeCircleScale > 0 ? naturalSize.width * safeCircleScale : diameter / Math.SQRT2;
+  const safeImageHeight = safeCircleScale > 0 ? naturalSize.height * safeCircleScale : diameter / Math.SQRT2;
   const resolvedImageStyle = crop
     ? {
-        transform: `translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
+        width: `${safeImageWidth}px`,
+        height: `${safeImageHeight}px`,
+        left: "50%",
+        top: "50%",
+        transform: `translate(-50%, -50%) translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
         transformOrigin: "center center",
+        backgroundColor: "#ffffff",
       }
     : imageStyle;
 
@@ -154,11 +169,18 @@ export function UserAvatar({
           alt={name || "Usuario"}
           decoding="async"
           className={cn(
-            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-center",
-            crop ? "object-contain" : "object-cover",
+            "sig-user-avatar-image absolute block max-w-none bg-white object-center",
+            crop ? "object-contain" : "inset-0 h-full w-full object-cover",
             imageClassName,
           )}
           style={resolvedImageStyle}
+          onLoad={(event) => {
+            const nextWidth = event.currentTarget.naturalWidth || 1;
+            const nextHeight = event.currentTarget.naturalHeight || 1;
+            if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
+              setNaturalSize({ width: nextWidth, height: nextHeight });
+            }
+          }}
           onError={() => setFailedImageUrl(resolvedImageUrl)}
         />
       ) : null}
