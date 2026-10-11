@@ -1298,7 +1298,7 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "historico" && (
-          <Card className="rounded-[28px] border-slate-200">
+          <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <ArrowRightLeft className="h-5 w-5" />
