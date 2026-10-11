@@ -11,13 +11,8 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import {
-  PointerEvent as ReactPointerEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +65,7 @@ export function DocumentAnalysisPage() {
   const canUseAnalysis =
     !!process &&
     !!document &&
+    ["prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role) &&
     isInternalRole(session.role) &&
     canAccessProcess(session, process, effectiveScopeId);
 
@@ -285,7 +281,7 @@ export function DocumentAnalysisPage() {
               {document.label}
             </h1>
             <p className="mt-1 text-xs text-slate-400">
-              Processo nº {formatOfficialProcessNumber(process)}
+              {formatOfficialProcessNumber(process.protocol)}
               {document.fileName ? ` • ${document.fileName}` : ""}
             </p>
           </div>
