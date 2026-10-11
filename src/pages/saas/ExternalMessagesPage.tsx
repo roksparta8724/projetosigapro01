@@ -10,7 +10,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { getOwnerLinksForProfessional, getOwnerMessagesForLink, getOwnerRequestsForProfessional } from "@/lib/platform";
+import { formatOfficialProcessNumber, formatOfficialProcessTitle, getOwnerLinksForProfessional, getOwnerMessagesForLink, getOwnerRequestsForProfessional } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
@@ -129,8 +129,8 @@ export function ExternalMessagesPage() {
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                           <p className="text-sm text-slate-500">Protocolo</p>
-                          <p className="text-base font-semibold text-slate-900">{process?.protocol ?? "Processo"}</p>
-                          <p className="mt-1 text-sm text-slate-600">{process?.title ?? "Solicitação de acompanhamento"}</p>
+                          <p className="text-base font-semibold text-slate-900">{process ? formatOfficialProcessNumber(process.protocol) : "Processo"}</p>
+                          <p className="mt-1 text-sm text-slate-600">{process ? formatOfficialProcessTitle({ title: process.title, type: process.type }) : "Solicitação de acompanhamento"}</p>
                           <p className="mt-2 text-sm text-slate-500">
                             Proprietário: {ownerProfile?.fullName ?? "Não informado"}
                           </p>
@@ -209,7 +209,7 @@ export function ExternalMessagesPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="text-sm text-slate-500">Protocolo</p>
-                          <p className="text-base font-semibold text-slate-900">{process?.protocol ?? "Processo"}</p>
+                          <p className="text-base font-semibold text-slate-900">{process ? formatOfficialProcessNumber(process.protocol) : "Processo"}</p>
                           <p className="mt-1 text-sm text-slate-600">{ownerProfile?.fullName ?? "Proprietário"}</p>
                         </div>
                         <Badge variant="outline" className="rounded-full">
@@ -268,7 +268,7 @@ export function ExternalMessagesPage() {
                 <>
                   <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-3">
                     <p className="text-sm text-slate-500">Protocolo</p>
-                    <p className="text-base font-semibold text-slate-900">{selectedOwnerProcess?.protocol ?? "Processo"}</p>
+                    <p className="text-base font-semibold text-slate-900">{selectedOwnerProcess ? formatOfficialProcessNumber(selectedOwnerProcess.protocol) : "Processo"}</p>
                     <p className="mt-1 text-sm text-slate-600">{selectedOwnerProfile?.fullName ?? "Proprietário"}</p>
                   </div>
                   <div className="space-y-3">
