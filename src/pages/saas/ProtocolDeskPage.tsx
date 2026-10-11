@@ -232,7 +232,7 @@ export function ProtocolDeskPage() {
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
                     </Badge>
-                    <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-700">
+                    <Badge variant="outline" className="sig-theme-chip rounded-full border-slate-200 bg-white text-slate-700">
                       {isDeskFlow ? "Balcão" : "Online"}
                     </Badge>
                     {process.tags?.length ? (
@@ -724,7 +724,7 @@ export function ProtocolDeskPage() {
                           <p className="text-sm font-semibold text-slate-950">Atendimento balcão</p>
                           <p className="mt-1 text-sm text-slate-500">Protocolos com apoio presencial do setor.</p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                        <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {deskProtocols.length} entrada{deskProtocols.length === 1 ? "" : "s"}
                         </span>
                       </div>
@@ -746,7 +746,7 @@ export function ProtocolDeskPage() {
                           <p className="text-sm font-semibold text-slate-950">Atendimento online</p>
                           <p className="mt-1 text-sm text-slate-500">Entradas digitais prontas para conferência.</p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                        <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {onlineProtocolItems.length} entrada{onlineProtocolItems.length === 1 ? "" : "s"}
                         </span>
                       </div>
