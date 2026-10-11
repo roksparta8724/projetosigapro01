@@ -122,19 +122,10 @@ export function UserAvatar({
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
   const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
-  const naturalDiagonal = Math.hypot(naturalSize.width, naturalSize.height);
-  const safeCircleScale = naturalDiagonal > 0 ? (diameter * 0.96) / naturalDiagonal : 0;
-  const safeImageWidth = safeCircleScale > 0 ? naturalSize.width * safeCircleScale : diameter / Math.SQRT2;
-  const safeImageHeight = safeCircleScale > 0 ? naturalSize.height * safeCircleScale : diameter / Math.SQRT2;
   const resolvedImageStyle = crop
     ? {
-        width: `${safeImageWidth}px`,
-        height: `${safeImageHeight}px`,
-        left: "50%",
-        top: "50%",
-        transform: `translate(-50%, -50%) translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
+        transform: `translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
         transformOrigin: "center center",
-        backgroundColor: "#ffffff",
       }
     : imageStyle;
 
@@ -169,8 +160,7 @@ export function UserAvatar({
           alt={name || "Usuario"}
           decoding="async"
           className={cn(
-            "sig-user-avatar-image absolute block max-w-none bg-white object-center",
-            crop ? "object-contain" : "inset-0 h-full w-full object-cover",
+            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center",
             imageClassName,
           )}
           style={resolvedImageStyle}
