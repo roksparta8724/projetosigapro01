@@ -8,6 +8,9 @@ const input = readFileSync(resolve(process.cwd(), "src/components/ui/input.tsx")
 const select = readFileSync(resolve(process.cwd(), "src/components/ui/select.tsx"), "utf8");
 const button = readFileSync(resolve(process.cwd(), "src/components/ui/button.tsx"), "utf8");
 const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
+const card = readFileSync(resolve(process.cwd(), "src/components/ui/card.tsx"), "utf8");
+const tableCard = readFileSync(resolve(process.cwd(), "src/components/platform/TableCard.tsx"), "utf8");
+const statCard = readFileSync(resolve(process.cwd(), "src/components/platform/StatCard.tsx"), "utf8");
 
 describe("global contrast integrity", () => {
   it("marks core controls so inverse and default layouts can enforce readable text", () => {
@@ -15,11 +18,15 @@ describe("global contrast integrity", () => {
     expect(input).toContain('data-ui="input"');
     expect(select).toContain('data-ui="select-trigger"');
     expect(button).toContain('data-ui="button"');
+    expect(card).toContain('data-ui="card"');
+    expect(tableCard).toContain('data-ui="card"');
+    expect(statCard).toContain('data-ui="card"');
   });
 
   it("keeps inverse controls readable on remapped dark surfaces", () => {
     expect(css).toContain("Global contrast contract");
     expect(css).toContain("Final contrast matrix");
+    expect(css).toContain("SIGAPRO FINAL SURFACE / CONTRAST CONTRACT");
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"]');
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="input"]');
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="select-trigger"]');
@@ -29,6 +36,8 @@ describe("global contrast integrity", () => {
     expect(css).toContain(".sig-theme-chip");
     expect(css).toContain('[data-ui="badge"][class*="bg-emerald"]');
     expect(css).toContain('[data-ui="badge"][class*="bg-amber"]');
+    expect(css).toContain('.sig-theme-chip');
+    expect(css).toContain(':not(.sig-image-frame-stage):not(.sig-user-avatar-root)');
   });
 
   it("keeps default light controls readable and fixes direct low-contrast combinations", () => {
