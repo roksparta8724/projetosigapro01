@@ -28,6 +28,8 @@ describe("commercial plan enforcement", () => {
     expect(migration).toContain("trg_guard_plan_process_insert_v1");
     expect(migration).toContain("trg_guard_plan_membership_write_v1");
     expect(migration).toContain("trg_guard_plan_department_write_v1");
+    expect(migration).toContain("trg_guard_plan_assignment_capacity_v1");
+    expect(migration).toContain("trg_guard_plan_definition_update_v1");
   });
 
   it("requires a commercial plan when a municipality is created", () => {
