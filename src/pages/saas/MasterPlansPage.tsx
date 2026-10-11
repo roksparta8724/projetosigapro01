@@ -665,6 +665,7 @@ export function MasterPlansPage() {
   const [responsibleName, setResponsibleName] = useState("Direção SIGAPRO");
   const [responsibleRole, setResponsibleRole] = useState("Diretor responsável SIGAPRO");
   const [responsibleEmail, setResponsibleEmail] = useState("");
+  const [signatureImageDataUrl, setSignatureImageDataUrl] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [proposalValidity, setProposalValidity] = useState("");
   const [commercialObservations, setCommercialObservations] = useState("");
@@ -705,12 +706,6 @@ export function MasterPlansPage() {
     () => selectedInstitutionSettings?.adminContacts?.[0],
     [selectedInstitutionSettings],
   );
-
-  useEffect(() => {
-    if (!selectedInstitutionId && safeInstitutions[0]?.id) {
-      setSelectedInstitutionId(safeInstitutions[0].id);
-    }
-  }, [safeInstitutions, selectedInstitutionId]);
 
   useEffect(() => {
     if (!assignmentPlanId && safePlans[0]?.id) {
@@ -922,9 +917,27 @@ export function MasterPlansPage() {
     window.localStorage.setItem("sigapro-commercial-materials", JSON.stringify(nextRecords));
   };
 
+  const handleSignatureImageChange = (file?: File | null) => {
+    if (!file) {
+      setSignatureImageDataUrl("");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage("A assinatura deve ser uma imagem PNG, JPG ou WEBP.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSignatureImageDataUrl(typeof reader.result === "string" ? reader.result : "");
+      setStatusMessage("");
+    };
+    reader.onerror = () => setStatusMessage("Não foi possível ler a imagem da assinatura.");
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveCommercialMaterial = async (storage?: { pdfUrl?: string; objectKey?: string }) => {
-    if (!selectedInstitutionId || !selectedInstitution) {
-      setStatusMessage("Selecione uma prefeitura antes de gerar a proposta.");
+    if (!customerName.trim()) {
+      setStatusMessage("Informe a Prefeitura ou cliente da proposta.");
       return null;
     }
     if (selectedCommercialPlans.length === 0) {
@@ -972,6 +985,9 @@ export function MasterPlansPage() {
         generatedContent: {
           customMessage,
           hidePrices: hideCommercialPrices,
+          clientSource: selectedInstitutionId ? "municipality_registry" : "manual",
+          selectedMunicipalityId: selectedInstitutionId || null,
+          hasSignatureImage: Boolean(signatureImageDataUrl),
           pdfObjectKey: storage?.objectKey,
           plans: selectedCommercialPlans.map((plan) => ({
             id: plan.id,
@@ -1012,8 +1028,8 @@ export function MasterPlansPage() {
   };
 
   const handleExportCommercialPdf = async () => {
-    if (!selectedInstitutionId || !selectedInstitution) {
-      setStatusMessage("Selecione uma prefeitura antes de gerar a proposta.");
+    if (!customerName.trim()) {
+      setStatusMessage("Informe a Prefeitura ou cliente da proposta.");
       return;
     }
     if (selectedCommercialPlans.length === 0) {
@@ -1031,6 +1047,7 @@ export function MasterPlansPage() {
       responsibleName,
       responsibleRole,
       responsibleEmail,
+      signatureImageDataUrl,
       customMessage,
       validityDate: proposalValidity,
       observations: commercialObservations,
@@ -1490,12 +1507,60 @@ export function MasterPlansPage() {
                       <p className="sig-label">4. Personalizacao</p>
                       <h3 className="mt-1 text-xl font-semibold tracking-[-0.03em] text-slate-950">Dados do cliente e condicoes</h3>
                     </div>
+                    <div className="space-y-2">
+                      <Label>Usar cadastro de Prefeitura existente (opcional)</Label>
+                      <Select
+                        value={selectedInstitutionId || "__manual"}
+                        onValueChange={(value) => {
+                          if (value === "__manual") {
+                            setSelectedInstitutionId("");
+                            setCustomerName("");
+                            setCustomerContact("");
+                            return;
+                          }
+                          const institution = safeInstitutions.find((item) => item.id === value);
+                          setSelectedInstitutionId(value);
+                          if (institution) setCustomerName(institution.name || "");
+                        }}
+                      >
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue placeholder="Preenchimento manual" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__manual">Preenchimento manual — novo cliente</SelectItem>
+                          {safeInstitutions.map((institution) => (
+                            <SelectItem key={institution.id} value={institution.id}>
+                              {institution.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-slate-500">
+                        O gerador não vincula automaticamente nenhuma Prefeitura. Só usa um cadastro existente quando você selecionar aqui.
+                      </p>
+                    </div>
                     <div className="grid gap-4 lg:grid-cols-2">
                       <div className="space-y-2"><Label>Prefeitura / cliente</Label><Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Prefeitura Municipal de..." /></div>
                       <div className="space-y-2"><Label>Contato do cliente</Label><Input value={customerContact} onChange={(event) => setCustomerContact(event.target.value)} placeholder="Secretaria, gestor ou e-mail" /></div>
                       <div className="space-y-2"><Label>Responsavel SIGAPRO</Label><Input value={responsibleName} onChange={(event) => setResponsibleName(event.target.value)} /></div>
                       <div className="space-y-2"><Label>Cargo / assinatura</Label><Input value={responsibleRole} onChange={(event) => setResponsibleRole(event.target.value)} /></div>
                       <div className="space-y-2"><Label>E-mail institucional da assinatura</Label><Input type="email" value={responsibleEmail} onChange={(event) => setResponsibleEmail(event.target.value)} placeholder="contato@sigapro.govtech" /></div>
+                      <div className="space-y-2">
+                        <Label>Assinatura digitalizada (opcional)</Label>
+                        <Input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(event) => handleSignatureImageChange(event.target.files?.[0])}
+                        />
+                        {signatureImageDataUrl ? (
+                          <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+                            <img src={signatureImageDataUrl} alt="Prévia da assinatura" className="h-16 max-w-[220px] object-contain object-left" />
+                            <Button type="button" variant="outline" className="rounded-full" onClick={() => setSignatureImageDataUrl("")}>
+                              Remover
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="space-y-2"><Label>Validade da proposta</Label><Input type="date" value={proposalValidity} onChange={(event) => setProposalValidity(event.target.value)} /></div>
                       <label className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
                         Ocultar valores no material
