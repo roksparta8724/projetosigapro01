@@ -557,4 +557,142 @@ $;
 grant execute on function public.municipality_plan_entitlements_v1(uuid) to authenticated;
 grant execute on function public.assert_municipality_entitlement_v1(uuid,text,bigint) to authenticated;
 
+
+create or replace function public.guard_plan_assignment_capacity_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+set row_security = off
+as $
+declare
+  _plan public.plans%rowtype;
+  _users bigint := 0;
+  _processes bigint := 0;
+  _departments bigint := 0;
+  _storage_bytes bigint := 0;
+begin
+  select * into _plan from public.plans where id=new.plan_id limit 1;
+  if _plan.id is null then raise exception 'Plano informado nao existe.'; end if;
+
+  if new.contract_status in ('ativo','trial','upgrade','downgrade') and not _plan.is_active then
+    raise exception 'Nao e permitido ativar contrato com plano inativo.';
+  end if;
+  if new.starts_at is not null and new.ends_at is not null and new.ends_at < new.starts_at then
+    raise exception 'A vigencia do contrato e invalida: a data final e anterior a data inicial.';
+  end if;
+
+  select count(distinct tm.profile_id) into _users
+  from public.tenant_memberships tm
+  join public.roles r on r.id=tm.role_id
+  where tm.tenant_id=new.municipality_id
+    and tm.profile_id is not null and tm.is_active=true and tm.deleted_at is null
+    and r.code::text not in ('master_admin','master_ops','admin_master','profissional','profissional_externo','proprietario_consulta');
+
+  select count(*) into _processes
+  from public.processes p
+  where coalesce(p.municipality_id,p.tenant_id)=new.municipality_id and p.archived_at is null;
+
+  select count(*) into _departments
+  from public.departments d
+  where d.municipality_id=new.municipality_id and d.is_active=true;
+
+  select coalesce(sum(greatest(coalesce(pd.file_size_bytes,0),0)),0) into _storage_bytes
+  from public.process_documents pd
+  where coalesce(pd.municipality_id,pd.tenant_id)=new.municipality_id and pd.is_valid=true;
+
+  if _plan.max_users is not null and _users > _plan.max_users then
+    raise exception 'Este plano permite % usuarios, mas a Prefeitura ja utiliza %.',_plan.max_users,_users;
+  end if;
+  if _plan.max_processes is not null and _processes > _plan.max_processes then
+    raise exception 'Este plano permite % processos, mas a Prefeitura ja utiliza %.',_plan.max_processes,_processes;
+  end if;
+  if _plan.max_departments is not null and _departments > _plan.max_departments then
+    raise exception 'Este plano permite % unidades, mas a Prefeitura ja utiliza %.',_plan.max_departments,_departments;
+  end if;
+  if _plan.max_storage_gb is not null and _storage_bytes > (_plan.max_storage_gb::bigint * 1024 * 1024 * 1024) then
+    raise exception 'Este plano nao comporta o armazenamento ja utilizado pela Prefeitura.';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists trg_guard_plan_assignment_capacity_v1 on public.client_plan_assignments;
+create trigger trg_guard_plan_assignment_capacity_v1
+before insert or update of plan_id,contract_status,starts_at,ends_at
+on public.client_plan_assignments
+for each row execute function public.guard_plan_assignment_capacity_v1();
+
+create or replace function public.guard_plan_definition_update_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+set row_security = off
+as $
+declare
+  _assignment record;
+  _users bigint;
+  _processes bigint;
+  _departments bigint;
+  _storage_bytes bigint;
+begin
+  if old.is_active=true and new.is_active=false and exists(
+    select 1 from public.client_plan_assignments a
+    where a.plan_id=old.id
+      and a.contract_status in ('ativo','trial','upgrade','downgrade')
+      and (a.starts_at is null or a.starts_at<=current_date)
+      and (a.ends_at is null or a.ends_at>=current_date)
+  ) then
+    raise exception 'Nao e permitido desativar um plano com contratos vigentes.';
+  end if;
+
+  for _assignment in
+    select a.municipality_id
+    from public.client_plan_assignments a
+    where a.plan_id=old.id
+      and a.contract_status in ('ativo','trial','upgrade','downgrade')
+      and (a.starts_at is null or a.starts_at<=current_date)
+      and (a.ends_at is null or a.ends_at>=current_date)
+  loop
+    select count(distinct tm.profile_id) into _users
+    from public.tenant_memberships tm
+    join public.roles r on r.id=tm.role_id
+    where tm.tenant_id=_assignment.municipality_id
+      and tm.profile_id is not null and tm.is_active=true and tm.deleted_at is null
+      and r.code::text not in ('master_admin','master_ops','admin_master','profissional','profissional_externo','proprietario_consulta');
+
+    select count(*) into _processes from public.processes p
+    where coalesce(p.municipality_id,p.tenant_id)=_assignment.municipality_id and p.archived_at is null;
+
+    select count(*) into _departments from public.departments d
+    where d.municipality_id=_assignment.municipality_id and d.is_active=true;
+
+    select coalesce(sum(greatest(coalesce(pd.file_size_bytes,0),0)),0) into _storage_bytes
+    from public.process_documents pd
+    where coalesce(pd.municipality_id,pd.tenant_id)=_assignment.municipality_id and pd.is_valid=true;
+
+    if new.max_users is not null and _users > new.max_users then
+      raise exception 'Novo limite de usuarios e menor que o uso atual de uma Prefeitura vinculada.';
+    end if;
+    if new.max_processes is not null and _processes > new.max_processes then
+      raise exception 'Novo limite de processos e menor que o uso atual de uma Prefeitura vinculada.';
+    end if;
+    if new.max_departments is not null and _departments > new.max_departments then
+      raise exception 'Novo limite de unidades e menor que o uso atual de uma Prefeitura vinculada.';
+    end if;
+    if new.max_storage_gb is not null and _storage_bytes > (new.max_storage_gb::bigint * 1024 * 1024 * 1024) then
+      raise exception 'Novo limite de armazenamento e menor que o uso atual de uma Prefeitura vinculada.';
+    end if;
+  end loop;
+  return new;
+end;
+$;
+
+drop trigger if exists trg_guard_plan_definition_update_v1 on public.plans;
+create trigger trg_guard_plan_definition_update_v1
+before update of is_active,max_users,max_processes,max_departments,max_storage_gb
+on public.plans
+for each row execute function public.guard_plan_definition_update_v1();
+
 commit;
