@@ -11,7 +11,7 @@
   Users2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -88,11 +88,13 @@ function isoDateAfterDays(days: number) {
 }
 
 export function AnalystDeskPage() {
+  const navigate = useNavigate();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const {
     processes: allProcesses,
     updateProcessStatus,
+    startProcessAnalysis,
     dispatchProcess,
     createRequirement,
     documentTemplates,
@@ -254,6 +256,23 @@ export function AnalystDeskPage() {
     }
   };
 
+  const handleStartAnalysis = async (process: ProcessRecord) => {
+    if (process.analysis?.startedAt) {
+      navigate(`/processos/${process.id}?aba=analise`);
+      return;
+    }
+
+    const ok = await runAnalystAction(
+      `start-${process.id}`,
+      "Análise Urbanística iniciada. O processo foi atribuído ao analista e aberto na mesa de trabalho.",
+      () => startProcessAnalysis(process.id),
+    );
+
+    if (ok) {
+      navigate(`/processos/${process.id}?aba=analise`);
+    }
+  };
+
   const navItems = [
     { value: "visao-geral", label: "Visão geral", helper: "Resumo, prioridades e ação" },
     { value: "fila", label: "Fila de análise", helper: "Operação técnica principal" },
@@ -281,6 +300,8 @@ export function AnalystDeskPage() {
           const issStageEnabled = tenantSettings?.issStageEnabled !== false;
           const issSatisfied = !issStageEnabled || issGuide?.status === "compensada";
           const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
+          const analysisStarted = Boolean(process.analysis?.startedAt);
+          const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
 
           return (
             <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -319,11 +340,13 @@ export function AnalystDeskPage() {
 
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="sig-label">Responsável</p>
-                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.technicalLead}>
-                    {process.technicalLead}
+                  <p className="sig-label">Responsável pela análise</p>
+                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
+                    {currentAnalyst}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">Analista atual</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {analysisStarted ? "Análise assumida e registrada" : "Clique em Iniciar análise para assumir"}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Etapa atual</p>
@@ -374,25 +397,16 @@ export function AnalystDeskPage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant={analysisStarted ? "default" : "outline"}
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                   disabled={Boolean(actionBusy)}
-                  onClick={() =>
-                    void runAnalystAction(
-                      `start-${process.id}`,
-                      "Análise iniciada e registrada no banco oficial.",
-                      () =>
-                        updateProcessStatus({
-                          processId: process.id,
-                          status: "analise_tecnica",
-                          actor: session.name,
-                          title: "Análise iniciada",
-                          detail: "Processo distribuído para a mesa técnica.",
-                        }),
-                    )
-                  }
+                  onClick={() => void handleStartAnalysis(process)}
                 >
-                  Iniciar análise
+                  {actionBusy === `start-${process.id}`
+                    ? "Iniciando..."
+                    : analysisStarted
+                      ? "Continuar análise"
+                      : "Iniciar análise"}
                 </Button>
                 <Button
                   type="button"
@@ -434,7 +448,7 @@ export function AnalystDeskPage() {
                       type="button"
                       variant="outline"
                       className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                      disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                      disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                       onClick={() =>
                         void runAnalystAction(
                           `iptu-${process.id}`,
@@ -461,7 +475,7 @@ export function AnalystDeskPage() {
                     type="button"
                     variant="outline"
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                    disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                    disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
                       void runAnalystAction(
                         `finance-${process.id}`,
@@ -489,7 +503,7 @@ export function AnalystDeskPage() {
                     type="button"
                     variant="outline"
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                    disabled={Boolean(actionBusy) || pendingRequirements.length > 0}
+                    disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
                       void runAnalystAction(
                         `defer-${process.id}`,
