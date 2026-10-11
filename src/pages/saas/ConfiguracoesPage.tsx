@@ -3030,10 +3030,31 @@ export function ConfiguracoesPage() {
                       </div>
                     </div>
                     <div className="min-w-0 space-y-3">
-                      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-                        O card à esquerda mostra a marca completa, com a mesma proporção usada no cabeçalho.
-                      </div>
+                      <ImageFrameEditor
+                        imageUrl={masterHeaderActiveUrl}
+                        scale={draftMasterHeaderConfig.scale}
+                        offsetX={draftMasterHeaderConfig.offsetX}
+                        offsetY={draftMasterHeaderConfig.offsetY}
+                        onChange={updateMasterLogoFrame("header")}
+                        label="Enquadramento do cabeçalho"
+                        hint="Clique e arraste o logo para posicionar. Use – e + para ajustar o zoom com precisão."
+                        fitMode="contain"
+                        minScale={0.35}
+                        maxScale={5}
+                        zoomStep={0.1}
+                        frameClassName="justify-start"
+                        viewportClassName="h-[190px] w-[240px]"
+                        darkLogoPreview
+                      />
                       <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => setDraftMasterHeaderConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                        >
+                          Resetar posição
+                        </Button>
                         <Button
                           type="button"
                           className="rounded-2xl bg-slate-950 hover:bg-slate-900"
@@ -3066,10 +3087,31 @@ export function ConfiguracoesPage() {
                       </div>
                     </div>
                     <div className="min-w-0 space-y-3">
-                      <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-                        O card à esquerda mostra a marca completa, com a mesma proporção usada no rodapé.
-                      </div>
+                      <ImageFrameEditor
+                        imageUrl={masterFooterActiveUrl}
+                        scale={draftMasterFooterConfig.scale}
+                        offsetX={draftMasterFooterConfig.offsetX}
+                        offsetY={draftMasterFooterConfig.offsetY}
+                        onChange={updateMasterLogoFrame("footer")}
+                        label="Enquadramento do rodapé"
+                        hint="Clique e arraste o logo para posicionar. Use – e + para ajustar o zoom com precisão."
+                        fitMode="contain"
+                        minScale={0.35}
+                        maxScale={5}
+                        zoomStep={0.1}
+                        frameClassName="justify-start"
+                        viewportClassName="h-[190px] w-[240px]"
+                        darkLogoPreview
+                      />
                       <div className="flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => setDraftMasterFooterConfig({ scale: 1, offsetX: 0, offsetY: 0 })}
+                        >
+                          Resetar posição
+                        </Button>
                         <Button
                           type="button"
                           className="rounded-2xl bg-slate-950 hover:bg-slate-900"
