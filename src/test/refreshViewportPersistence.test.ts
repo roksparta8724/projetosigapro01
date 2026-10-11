@@ -21,7 +21,7 @@ describe("refresh viewport persistence", () => {
   });
 
   it("keeps the frozen snapshot visible until the real page reaches the stored viewport", () => {
-    expect(main).toContain("Keep the frozen frame visible while React reaches the same viewport");
+    expect(main).toContain("Não remover o frame congelado enquanto a página real ainda não possui");
     expect(main).toContain("snapshot.removeAttribute");
     expect(main).toContain("snapshot.replaceChildren");
   });
