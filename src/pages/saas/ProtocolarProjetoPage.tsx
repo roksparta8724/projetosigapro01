@@ -315,6 +315,7 @@ export function ProtocolarProjetoPage() {
         fileName: file.fileName,
         mimeType: file.mimeType,
         sizeLabel: file.sizeLabel,
+        fileSizeBytes: file.file?.size,
         previewUrl: file.previewUrl,
       })),
     );
@@ -353,7 +354,12 @@ export function ProtocolarProjetoPage() {
             });
 
             uploadedObjectKeys.push(uploaded.path);
-            return { ...document, filePath: uploaded.path, previewUrl: uploaded.publicUrl };
+            return {
+              ...document,
+              filePath: uploaded.path,
+              fileSizeBytes: originalFile.size,
+              previewUrl: uploaded.publicUrl,
+            };
           }),
         );
 
