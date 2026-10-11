@@ -1465,7 +1465,7 @@ export function PerfilPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
-                    <p className="mt-1 text-sm text-slate-500">O quadro mantém a proporção real da imagem. O círculo mostra exatamente a área que será usada no avatar.</p>
+                    <p className="mt-1 text-sm text-slate-500">O recorte final é sempre circular e 1:1. A imagem preenche o círculo sem alongamento nem deformação.</p>
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
                     <ImageFrameEditor
@@ -1475,11 +1475,12 @@ export function PerfilPage() {
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
                       label="Foto do perfil"
-                      hint="A imagem permanece na proporção original, sem esticar. Arraste e ajuste o zoom olhando o círculo-guia do recorte final."
+                      hint="Arraste para centralizar. O preenchimento usa a proporção original e nunca transforma o círculo em oval."
                       fitMode="cover"
                       minScale={1}
                       shape="circle"
-                      viewportClassName="h-[320px] w-[320px] max-w-full"
+                      frameClassName="w-full"
+                      viewportClassName="w-full max-w-[320px]"
                       wrapperClassName="border-slate-200 bg-white"
                     />
                     <div className="space-y-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] p-5">

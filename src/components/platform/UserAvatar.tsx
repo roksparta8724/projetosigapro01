@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { UserRound } from "@/components/platform/PremiumIcons";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -45,12 +45,28 @@ export function UserAvatar({
 }: UserAvatarProps) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
+  const emptyClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (emptyClearTimerRef.current) {
+      window.clearTimeout(emptyClearTimerRef.current);
+      emptyClearTimerRef.current = null;
+    }
+
     if (imageUrl === "") {
-      setStableImageUrl("");
-      setFailedImageUrl("");
-      return;
+      // Profile refreshes can briefly expose an empty avatar before the signed
+      // URL is resolved. Delay clearing so a valid image never flashes away.
+      emptyClearTimerRef.current = window.setTimeout(() => {
+        setStableImageUrl("");
+        setFailedImageUrl("");
+        emptyClearTimerRef.current = null;
+      }, 1200);
+      return () => {
+        if (emptyClearTimerRef.current) {
+          window.clearTimeout(emptyClearTimerRef.current);
+          emptyClearTimerRef.current = null;
+        }
+      };
     }
 
     // A refresh may temporarily return no profile while the remote store is
@@ -87,6 +103,14 @@ export function UserAvatar({
     };
   }, [imageUrl, stableImageUrl]);
 
+  useEffect(() => {
+    return () => {
+      if (emptyClearTimerRef.current) {
+        window.clearTimeout(emptyClearTimerRef.current);
+      }
+    };
+  }, []);
+
   const initials = useMemo(() => getInitials(name), [name]);
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
@@ -103,7 +127,7 @@ export function UserAvatar({
     <Avatar
       className={cn(
         sizeClasses[size],
-        "sig-user-avatar-root shrink-0 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
+        "sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
         className,
       )}
       title={title || name || "Usuario"}
@@ -129,7 +153,7 @@ export function UserAvatar({
           src={resolvedImageUrl || undefined}
           alt={name || "Usuario"}
           decoding="async"
-          className={cn("sig-user-avatar-image absolute inset-0 h-full w-full object-cover", imageClassName)}
+          className={cn("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none object-cover object-center", imageClassName)}
           style={resolvedImageStyle}
           onError={() => setFailedImageUrl(resolvedImageUrl)}
         />

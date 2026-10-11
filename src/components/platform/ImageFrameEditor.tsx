@@ -117,29 +117,70 @@ export function ImageFrameEditor({
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; pointerId?: number } | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
-  const [stableImageUrl, setStableImageUrl] = useState<string>(imageUrl);
+  const [stableImageUrl, setStableImageUrl] = useState<string>(() => isRenderableUrl(imageUrl) ? imageUrl : "");
 
   const effectiveMinScale = fitMode === "cover" ? Math.max(minScale ?? 1, 1) : minScale ?? DEFAULT_MIN_SCALE;
   const effectiveMaxScale = Math.max(maxScale ?? DEFAULT_MAX_SCALE, effectiveMinScale + 0.1);
 
+  // Stale-while-revalidate visual: never blank the editor while a renewed
+  // signed URL or freshly uploaded blob is loading. Promote the new source
+  // only after the browser has decoded it, preserving both image and metrics.
   useEffect(() => {
-    if (isRenderableUrl(imageUrl)) {
-      setStableImageUrl(imageUrl);
+    if (!isRenderableUrl(imageUrl) || imageUrl === stableImageUrl) return;
+
+    let cancelled = false;
+    const nextImage = new window.Image();
+    nextImage.decoding = "async";
+    if (/^https?:\/\//i.test(imageUrl)) {
+      nextImage.crossOrigin = "anonymous";
     }
-  }, [imageUrl]);
+
+    const promote = async () => {
+      try {
+        await nextImage.decode();
+      } catch {
+        // onload already confirms the bitmap can be used.
+      }
+      if (cancelled) return;
+      setNaturalSize({
+        width: nextImage.naturalWidth || 1,
+        height: nextImage.naturalHeight || 1,
+      });
+      setStableImageUrl(imageUrl);
+    };
+
+    nextImage.onload = () => {
+      void promote();
+    };
+    nextImage.src = imageUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, stableImageUrl]);
 
   useEffect(() => {
-    if (!stableImageUrl) return;
-    setNaturalSize({ width: 0, height: 0 });
+    if (!stableImageUrl || naturalSize.width > 0 || naturalSize.height > 0) return;
+
+    let cancelled = false;
     const image = new window.Image();
+    image.decoding = "async";
+    if (/^https?:\/\//i.test(stableImageUrl)) {
+      image.crossOrigin = "anonymous";
+    }
     image.onload = () => {
+      if (cancelled) return;
       setNaturalSize({
         width: image.naturalWidth || 1,
         height: image.naturalHeight || 1,
       });
     };
     image.src = stableImageUrl;
-  }, [stableImageUrl]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [naturalSize.height, naturalSize.width, stableImageUrl]);
 
   useEffect(() => {
     const element = frameRef.current;
@@ -375,32 +416,17 @@ export function ImageFrameEditor({
         </div>
       </div>
 
-      {shape === "circle" && stableImageUrl && naturalSize.width > 0 && naturalSize.height > 0 ? (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Imagem original</p>
-            <p className="text-xs text-slate-500">
-              {naturalSize.width} × {naturalSize.height}px
-            </p>
-          </div>
-          <div className="flex min-h-[120px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
-            <img
-              src={stableImageUrl}
-              alt="Imagem original sem recorte"
-              draggable={false}
-              className="max-h-[220px] max-w-full object-contain"
-              style={{ aspectRatio: `${naturalSize.width} / ${naturalSize.height}` }}
-            />
-          </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Esta é a proporção real do arquivo. Nenhum alongamento é aplicado.
-          </p>
+      {shape === "circle" && naturalSize.width > 0 && naturalSize.height > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+          <span>Recorte final circular • proporção preservada</span>
+          <span>{naturalSize.width} × {naturalSize.height}px</span>
         </div>
       ) : null}
 
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
         <div className={cn(
-          "relative rounded-[34px]",
+          "relative",
+          shape === "circle" ? "w-full max-w-[344px] rounded-full" : "rounded-[34px]",
           darkLogoPreview
             ? "bg-transparent"
             : "border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]",
@@ -409,18 +435,21 @@ export function ImageFrameEditor({
             <div
               className={cn(
                 "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
-                "rounded-[26px]",
+                shape === "circle" ? "rounded-full" : "rounded-[26px]",
               )}
             />
           ) : null}
           <div
             ref={frameRef}
             className={cn(
-              "relative h-[180px] w-[180px] cursor-grab overflow-hidden active:cursor-grabbing",
+              "relative cursor-grab overflow-hidden active:cursor-grabbing",
+              shape === "circle"
+                ? "aspect-square h-auto w-full max-w-[320px] rounded-full"
+                : "h-[180px] w-[180px] rounded-[26px]",
               darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50",
-              "rounded-[26px]",
               viewportClassName,
             )}
+            style={shape === "circle" ? { aspectRatio: "1 / 1" } : undefined}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -458,12 +487,7 @@ export function ImageFrameEditor({
             )}
 
             {shape === "circle" ? (
-              <div className="pointer-events-none absolute inset-0 z-20">
-                <div className="absolute inset-0 rounded-full border-2 border-white/95 shadow-[0_0_0_999px_rgba(15,23,42,0.22),inset_0_0_0_1px_rgba(15,23,42,0.18),0_0_0_1px_rgba(255,255,255,0.85)]" />
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/80 bg-slate-950/75 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-lg backdrop-blur-sm">
-                  Área final do avatar
-                </div>
-              </div>
+              <div className="pointer-events-none absolute inset-0 z-20 rounded-full ring-2 ring-white/95 ring-offset-1 ring-offset-slate-200/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14),0_14px_35px_rgba(15,23,42,0.14)]" />
             ) : null}
           </div>
         </div>
