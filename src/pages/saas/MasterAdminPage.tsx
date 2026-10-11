@@ -47,7 +47,7 @@ const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): Institut
     }))
     .filter((draft) => draft.email || draft.fullName);
 
-const emptyTenantForm = { name: "", city: "", state: "SP", status: "implantacao" as Institution["status"], plan: "Plano institucional", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
+const emptyTenantForm = { name: "", city: "", state: "SP", status: "implantacao" as Institution["status"], plan: "", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
 const createAdminDraft = (): AdminContactDraft => ({ id: `admin-${crypto.randomUUID()}`, email: "", fullName: "", title: roleSuggestedTitles.prefeitura_admin, accessLevel: 3 });
 const normalizeSlug = (value: string) =>
   value
@@ -114,7 +114,22 @@ const ensureBackendAvailable = async () => {
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
-  const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, setInstitutionStatus, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const {
+    institutions,
+    sessionUsers,
+    metrics,
+    plans,
+    upsertInstitution,
+    saveInstitutionSettings,
+    setInstitutionStatus,
+    updateTenantUser,
+    setUserAccountStatus,
+    deleteUserAccount,
+    getInstitutionSettings,
+    getInstitutionPlanAssignment,
+    saveClientPlanAssignment,
+    getUserProfile,
+  } = usePlatformData();
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
   const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(false);
@@ -180,6 +195,10 @@ export function MasterAdminPage() {
     return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }, [institutions, remoteInstitutions]);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
+  const activeCommercialPlans = useMemo(
+    () => plans.filter((plan) => plan.isActive && plan.isVisibleInMaster),
+    [plans],
+  );
   const activeTenantUsers = useMemo(
     () => sessionUsers.filter((user) => user.tenantId === selectedTenantId || user.municipalityId === selectedTenantId),
     [selectedTenantId, sessionUsers],
@@ -432,6 +451,16 @@ export function MasterAdminPage() {
       return;
     }
 
+    const selectedPlan = activeCommercialPlans.find(
+      (plan) => plan.id === form.plan || plan.name === form.plan,
+    );
+    if (!selectedPlan) {
+      setStatusMessage("Selecione um plano comercial ativo antes de salvar a Prefeitura.");
+      setSaving(false);
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     const normalizedAdminContacts = normalizeAdminContactsFromDrafts(admins);
     const incompleteAdmin = normalizedAdminContacts.find((admin) => !admin.email || !admin.fullName);
     if (incompleteAdmin) {
@@ -484,6 +513,36 @@ export function MasterAdminPage() {
 
       const savedTenantId = remoteInstitution.id;
 
+      const previousPlanAssignment = getInstitutionPlanAssignment(savedTenantId);
+      await withRetry(() =>
+        withTimeout(
+          saveClientPlanAssignment({
+            id: previousPlanAssignment?.id,
+            municipalityId: savedTenantId,
+            planId: selectedPlan.id,
+            contractStatus:
+              form.status === "suspenso"
+                ? "suspenso"
+                : form.status === "implantacao"
+                  ? "trial"
+                  : "ativo",
+            startsAt: form.contractStart || new Date().toISOString().slice(0, 10),
+            endsAt: form.contractEnd || "",
+            billingCycle: selectedPlan.billingCycle,
+            billingNotes: form.contractNumber
+              ? `Contrato ${form.contractNumber}`
+              : "Plano vinculado pelo cadastro Master.",
+            customPrice:
+              Number(form.monthlyFee || 0) > 0 && Number(form.monthlyFee) !== Number(selectedPlan.price)
+                ? Number(form.monthlyFee)
+                : null,
+            isCustom:
+              selectedPlan.isCustom ||
+              (Number(form.monthlyFee || 0) > 0 && Number(form.monthlyFee) !== Number(selectedPlan.price)),
+          }),
+        ),
+      );
+
       const nextSettings = { tenantId: savedTenantId, cnpj: form.cnpj || currentSettings?.cnpj || "", endereco: form.address || currentSettings?.endereco || "", telefone: form.phone || currentSettings?.telefone || "", email: form.email || currentSettings?.email || "", site: form.site || currentSettings?.site || "", secretariaResponsavel: form.secretariat || currentSettings?.secretariaResponsavel || "", secretariaTelefone: currentSettings?.secretariaTelefone || currentSettings?.telefone || "", secretariaEmail: currentSettings?.secretariaEmail || currentSettings?.email || "", footerContactSource: currentSettings?.footerContactSource || "diretoria", diretoriaResponsavel: form.directorate || currentSettings?.diretoriaResponsavel || "", diretoriaTelefone: form.directorPhone || currentSettings?.diretoriaTelefone || "", diretoriaEmail: form.directorEmail || currentSettings?.diretoriaEmail || "", horarioAtendimento: currentSettings?.horarioAtendimento || "", brasaoUrl: currentSettings?.brasaoUrl || "", bandeiraUrl: currentSettings?.bandeiraUrl || "", logoUrl: currentSettings?.logoUrl || "", imagemHeroUrl: currentSettings?.imagemHeroUrl || "", resumoPlanoDiretor: currentSettings?.resumoPlanoDiretor || "", resumoUsoSolo: currentSettings?.resumoUsoSolo || "", leisComplementares: currentSettings?.leisComplementares || "", linkPortalCliente: buildTenantLink(slug, form.site || currentSettings?.site), protocoloPrefixo: currentSettings?.protocoloPrefixo || "PM", guiaPrefixo: currentSettings?.guiaPrefixo || "DAM", chavePix: currentSettings?.chavePix || "", beneficiarioArrecadacao: currentSettings?.beneficiarioArrecadacao || form.name, taxaProtocolo: currentSettings?.taxaProtocolo ?? 35.24, taxaIssPorMetroQuadrado: currentSettings?.taxaIssPorMetroQuadrado ?? 0, issRateProfiles: currentSettings?.issRateProfiles, issStageEnabled: currentSettings?.issStageEnabled ?? true, taxaAprovacaoFinal: currentSettings?.taxaAprovacaoFinal ?? 0, approvalRateProfiles: currentSettings?.approvalRateProfiles, finalApprovalFeeEnabled: currentSettings?.finalApprovalFeeEnabled ?? true, registroProfissionalObrigatorio: currentSettings?.registroProfissionalObrigatorio ?? true, contractNumber: form.contractNumber || currentSettings?.contractNumber || "", contractStart: form.contractStart || currentSettings?.contractStart || "", contractEnd: form.contractEnd || currentSettings?.contractEnd || "", monthlyFee: Number(form.monthlyFee || 0), setupFee: Number(form.setupFee || 0), signatureMode: form.signatureMode, clientDeliveryLink: form.clientDeliveryLink || buildTenantLink(slug, form.site || currentSettings?.site), logoScale: currentSettings?.logoScale ?? 1, logoOffsetX: currentSettings?.logoOffsetX ?? 0, logoOffsetY: currentSettings?.logoOffsetY ?? 0, headerLogoScale: currentSettings?.headerLogoScale ?? currentSettings?.logoScale ?? 1, headerLogoOffsetX: currentSettings?.headerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, headerLogoOffsetY: currentSettings?.headerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, footerLogoScale: currentSettings?.footerLogoScale ?? currentSettings?.logoScale ?? 1, footerLogoOffsetX: currentSettings?.footerLogoOffsetX ?? currentSettings?.logoOffsetX ?? 0, footerLogoOffsetY: currentSettings?.footerLogoOffsetY ?? currentSettings?.logoOffsetY ?? 0, logoAlt: currentSettings?.logoAlt || `Logo institucional de ${form.name}`, logoUpdatedAt: currentSettings?.logoUpdatedAt || "", logoUpdatedBy: currentSettings?.logoUpdatedBy || "", logoFrameMode: currentSettings?.logoFrameMode || "soft-square", logoFitMode: currentSettings?.logoFitMode || "contain", headerLogoFrameMode: currentSettings?.headerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", headerLogoFitMode: currentSettings?.headerLogoFitMode || currentSettings?.logoFitMode || "contain", footerLogoFrameMode: currentSettings?.footerLogoFrameMode || currentSettings?.logoFrameMode || "soft-square", footerLogoFitMode: currentSettings?.footerLogoFitMode || currentSettings?.logoFitMode || "contain", planoDiretorArquivoNome: currentSettings?.planoDiretorArquivoNome || "", planoDiretorArquivoUrl: currentSettings?.planoDiretorArquivoUrl || "", usoSoloArquivoNome: currentSettings?.usoSoloArquivoNome || "", usoSoloArquivoUrl: currentSettings?.usoSoloArquivoUrl || "", leisArquivoNome: currentSettings?.leisArquivoNome || "", leisArquivoUrl: currentSettings?.leisArquivoUrl || "", adminContacts: normalizedAdminContacts };
       await withRetry(() => withTimeout(saveRemoteInstitutionSettings(nextSettings)));
 
@@ -512,7 +571,7 @@ export function MasterAdminPage() {
         city: form.city,
         state: form.state,
         status: form.status,
-        plan: form.plan,
+        plan: selectedPlan.name,
         subdomain: slug,
         primaryColor: form.primaryColor,
         accentColor: form.accentColor,
@@ -812,8 +871,31 @@ export function MasterAdminPage() {
                         </Select>
                       </div>
                     <div className="space-y-2 xl:col-span-9">
-                      <Label>Plano</Label>
-                      <Input value={form.plan} onChange={(event) => handleSetForm("plan", event.target.value)} className="sig-admin-input" />
+                      <Label>Plano contratado</Label>
+                      <Select
+                        value={activeCommercialPlans.find((plan) => plan.id === form.plan || plan.name === form.plan)?.id ?? ""}
+                        onValueChange={(value) => {
+                          const plan = activeCommercialPlans.find((item) => item.id === value);
+                          handleSetForm("plan", plan?.name ?? "");
+                          if (plan && (!form.monthlyFee || form.monthlyFee === 0)) {
+                            handleSetForm("monthlyFee", plan.price);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="sig-admin-input">
+                          <SelectValue placeholder="Selecione o plano comercial" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeCommercialPlans.map((plan) => (
+                            <SelectItem key={plan.id} value={plan.id}>
+                              {plan.name} • {plan.price > 0 ? formatCurrency(plan.price) : "Sob consulta"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-slate-500">
+                        O plano selecionado controla módulos e limites no banco e na interface desta Prefeitura.
+                      </p>
                     </div>
                     </div>
                     <div className="space-y-4">
