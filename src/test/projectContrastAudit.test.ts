@@ -24,10 +24,13 @@ describe("project-wide foreground/background contrast audit", () => {
     for (const file of files) {
       const source = readFileSync(file, "utf8");
       for (const className of extractStaticClassNames(source)) {
-        const lightSurface = /(?:^|\s)bg-(?:white|slate-(?:50|100)|gray-(?:50|100))(?:\s|\/|$)/.test(className);
-        const lightText = /(?:^|\s)text-(?:white|slate-(?:50|100)|gray-(?:50|100))(?:\s|\/|$)/.test(className);
-        const darkSurface = /(?:^|\s)bg-(?:black|slate-(?:900|950)|gray-(?:900|950))(?:\s|\/|$)/.test(className);
-        const darkText = /(?:^|\s)text-(?:black|slate-(?:900|950)|gray-(?:900|950))(?:\s|\/|$)/.test(className);
+        // Only opaque surfaces are contradictory by themselves. Utilities such
+        // as bg-white/5 or bg-white/[0.08] are intentional glass overlays on
+        // dark surfaces and correctly pair with white text.
+        const lightSurface = /(?:^|\s)bg-(?:white|slate-(?:50|100)|gray-(?:50|100))(?:\s|$)/.test(className);
+        const lightText = /(?:^|\s)text-(?:white|slate-(?:50|100)|gray-(?:50|100))(?:\s|$)/.test(className);
+        const darkSurface = /(?:^|\s)bg-(?:black|slate-(?:900|950)|gray-(?:900|950))(?:\s|$)/.test(className);
+        const darkText = /(?:^|\s)text-(?:black|slate-(?:900|950)|gray-(?:900|950))(?:\s|$)/.test(className);
 
         if ((lightSurface && lightText) || (darkSurface && darkText)) {
           violations.push(`${relative(process.cwd(), file)} :: ${className}`);
