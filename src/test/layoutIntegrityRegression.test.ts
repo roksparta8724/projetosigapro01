@@ -88,6 +88,14 @@ describe("layout integrity regression", () => {
     expect(detail).not.toContain('className="mt-2 break-all text-xs text-slate-500"');
   });
 
+  it("keeps dark surfaces and disabled actions readable in every theme family", () => {
+    const css = read("src/index.css");
+    expect(css).toContain("SIGAPRO CONTRAST SAFETY NET 2026-10-11");
+    expect(css).toContain('[class~="bg-slate-950"]');
+    expect(css).toContain('[data-ui="button"]:disabled:is(');
+    expect(css).toContain("color: #f8fafc !important");
+  });
+
   it("keeps finance subpages free from forced narrow PIX and early fixed widths", () => {
     const protocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
     const desk = read("src/pages/saas/FinanceDeskPage.tsx");
