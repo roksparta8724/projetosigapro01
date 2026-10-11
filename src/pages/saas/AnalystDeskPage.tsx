@@ -332,7 +332,7 @@ export function AnalystDeskPage() {
 
                 <Link
                   to={`/processos/${process.id}`}
-                  className="inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white sm:w-auto"
+                  className="sig-dark-action-btn inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white sm:w-auto"
                 >
                   Abrir processo
                 </Link>
