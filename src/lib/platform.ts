@@ -510,6 +510,7 @@ export interface ProcessDocument {
   filePath?: string;
   mimeType?: string;
   sizeLabel?: string;
+  fileSizeBytes?: number;
   previewUrl?: string;
 }
 
