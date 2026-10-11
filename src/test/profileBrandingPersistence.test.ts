@@ -49,7 +49,7 @@ describe("profile and branding persistence regressions", () => {
   });
 
   it("renders premium avatars with proportional circular cover and autosaves framing", () => {
-    expect(userAvatar).toContain('"sig-user-avatar-image h-full w-full object-cover"');
+    expect(userAvatar).toContain('"sig-user-avatar-image absolute inset-0 h-full w-full object-cover"');
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("Enquadramento salvo automaticamente.");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
