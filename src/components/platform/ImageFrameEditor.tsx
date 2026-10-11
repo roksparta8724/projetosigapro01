@@ -500,7 +500,7 @@ export function ImageFrameEditor({
                     alt=""
                     aria-hidden="true"
                     draggable={false}
-                    className="sig-image-frame-background pointer-events-none absolute inset-0 h-full w-full select-none object-contain object-center opacity-30"
+                    className="sig-image-frame-background pointer-events-none absolute inset-0 h-full w-full select-none object-contain object-center opacity-45"
                   />
                 ) : null}
                 <div
@@ -532,16 +532,13 @@ export function ImageFrameEditor({
             )}
 
             {shape === "circle" ? (
-              <>
-                <div
-                  className="pointer-events-none absolute inset-0 z-10"
-                  style={{
-                    background:
-                      "radial-gradient(circle at center, transparent 0 41.8%, rgba(2, 6, 23, 0.58) 42.2%, rgba(2, 6, 23, 0.72) 100%)",
-                  }}
-                />
-                <div className="pointer-events-none absolute inset-[8%] z-20 rounded-full border-2 border-white/95 shadow-[0_0_0_1px_rgba(15,23,42,0.28),0_12px_32px_rgba(2,6,23,0.22)]" />
-              </>
+              <div
+                className="pointer-events-none absolute inset-[8%] z-20 rounded-full border-2 border-white/95"
+                style={{
+                  boxShadow:
+                    "0 0 0 999px rgba(2, 6, 23, 0.58), 0 0 0 1px rgba(15, 23, 42, 0.28), 0 12px 32px rgba(2, 6, 23, 0.22)",
+                }}
+              />
             ) : null}
           </div>
         </div>
