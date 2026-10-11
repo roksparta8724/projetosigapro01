@@ -33,7 +33,10 @@ describe("process document persistence regressions", () => {
 
   it("can recover authenticated orphan R2 uploads without exposing another user's prefix", () => {
     expect(recoveryApi).toContain("current_profile_id");
-    expect(recoveryApi).toContain("municipalities/${auth.municipalityId}/protocols/${auth.userId}/");
+    expect(recoveryApi).toContain("principalIds");
+    expect(recoveryApi).toContain("auth.profileId");
+    expect(recoveryApi).toContain("auth.userId");
+    expect(recoveryApi).toContain("municipalities/${auth.municipalityId}/protocols/${principalId}/");
     expect(recoveryApi).not.toContain("body.userId");
     expect(recoveryApi).not.toContain("body.municipalityId");
     expect(r2Client).toContain("listRecoverableProcessFiles");
