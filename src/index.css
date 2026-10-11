@@ -4529,3 +4529,85 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   object-fit: contain !important;
   object-position: center !important;
 }
+
+
+/* ===== SIGAPRO CONTRAST SAFETY NET 2026-10-11 =====
+   Dark utility surfaces must never carry dark foregrounds, regardless of theme preset. */
+.sig-main-shell :is(
+  [class~="bg-slate-800"],[class~="bg-slate-900"],[class~="bg-slate-950"],
+  [class~="bg-gray-800"],[class~="bg-gray-900"],[class~="bg-gray-950"],
+  [class~="bg-zinc-800"],[class~="bg-zinc-900"],[class~="bg-zinc-950"],
+  [class~="bg-neutral-800"],[class~="bg-neutral-900"],[class~="bg-neutral-950"],
+  [class~="bg-stone-800"],[class~="bg-stone-900"],[class~="bg-stone-950"],
+  [class~="bg-black"]
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+.sig-main-shell :is(
+  [class~="bg-slate-800"],[class~="bg-slate-900"],[class~="bg-slate-950"],
+  [class~="bg-gray-800"],[class~="bg-gray-900"],[class~="bg-gray-950"],
+  [class~="bg-zinc-800"],[class~="bg-zinc-900"],[class~="bg-zinc-950"],
+  [class~="bg-neutral-800"],[class~="bg-neutral-900"],[class~="bg-neutral-950"],
+  [class~="bg-stone-800"],[class~="bg-stone-900"],[class~="bg-stone-950"],
+  [class~="bg-black"]
+) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .text-black
+) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+.sig-main-shell :is(
+  [class~="bg-slate-800"],[class~="bg-slate-900"],[class~="bg-slate-950"],
+  [class~="bg-gray-800"],[class~="bg-gray-900"],[class~="bg-gray-950"],
+  [class~="bg-zinc-800"],[class~="bg-zinc-900"],[class~="bg-zinc-950"],
+  [class~="bg-neutral-800"],[class~="bg-neutral-900"],[class~="bg-neutral-950"],
+  [class~="bg-stone-800"],[class~="bg-stone-900"],[class~="bg-stone-950"],
+  [class~="bg-black"]
+) svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Disabled dark actions stay visibly disabled without becoming unreadable. */
+.sig-main-shell [data-ui="button"]:disabled:is(
+  [class~="bg-slate-800"],[class~="bg-slate-900"],[class~="bg-slate-950"],
+  [class~="bg-gray-800"],[class~="bg-gray-900"],[class~="bg-gray-950"],
+  [class~="bg-black"]
+) {
+  background: #475569 !important;
+  border-color: #64748b !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 0.82 !important;
+}
+
+/* A disabled light action uses a readable muted foreground in every preset. */
+.sig-main-shell [data-ui="button"]:disabled:not(
+  [class~="bg-slate-800"]
+):not([class~="bg-slate-900"]):not([class~="bg-slate-950"]):not(
+  [class~="bg-gray-800"]
+):not([class~="bg-gray-900"]):not([class~="bg-gray-950"]):not([class~="bg-black"]) {
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* Inputs/selects are explicit surfaces: foreground follows the rendered surface, not an ancestor card. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="input"],[data-ui="select-trigger"],textarea
+) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="input"],[data-ui="select-trigger"],textarea
+) {
+  background-color: rgba(15,23,42,0.72) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  border-color: rgba(148,163,184,0.34) !important;
+}
