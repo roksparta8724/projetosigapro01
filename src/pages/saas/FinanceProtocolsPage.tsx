@@ -220,7 +220,7 @@ export function FinanceProtocolsPage() {
                     return (
                       <div
                         key={`${process.id}:${guide.code}`}
-                        className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
+                        className="sig-finance-guide-card rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0 flex-1">
@@ -261,10 +261,10 @@ export function FinanceProtocolsPage() {
                         </div>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                          <div className="rounded-[16px] border border-[#d8e4f1] bg-[#f8fbff] px-4 py-3 text-sm font-normal leading-snug text-[#123860]">
+                          <div className="sig-finance-pix-surface rounded-[16px] border border-[#d8e4f1] bg-[#f8fbff] px-4 py-3 text-sm font-normal leading-snug text-[#123860]">
                             <p className="sig-label">PIX copia e cola</p>
-                            <div className="mt-2 max-w-full overflow-hidden rounded-xl border border-[#d8e4f1] bg-white/80">
-  <p className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5 text-[#123860]" title={pixPayload}>
+                            <div className="sig-finance-pix-code mt-2 max-w-full overflow-hidden rounded-xl border border-[#d8e4f1] bg-white/80">
+  <p className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5" title={pixPayload}>
     {pixPayload}
   </p>
 </div>
