@@ -291,6 +291,18 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
+    const detachedUploads = documentItems.filter((item) => {
+      const selected = findFilesForLabel(item.label);
+      return selected.length > 0 && selected.some((file) => !file.file);
+    });
+
+    if (detachedUploads.length > 0) {
+      setStatus(
+        `Reabra os arquivos antes de protocolar: ${detachedUploads.map((item) => item.label).join(", ")}. Após um F5 o navegador preserva os nomes, mas não pode reutilizar o conteúdo local do arquivo sem nova seleção.`,
+      );
+      return;
+    }
+
     let documents = documentItems.flatMap((item) =>
       findFilesForLabel(item.label).map((file) => ({
         id: `doc-${crypto.randomUUID()}`,
@@ -345,6 +357,13 @@ export function ProtocolarProjetoPage() {
           }),
         );
 
+        const documentsWithoutStorage = documents.filter((document) => !document.filePath);
+        if (documentsWithoutStorage.length > 0) {
+          throw new Error(
+            `Falha ao persistir no armazenamento: ${documentsWithoutStorage.map((document) => document.label).join(", ")}.`,
+          );
+        }
+
         const remoteProcess = await createRemoteExternalProcessV2({
           tenantId: effectiveScopeId,
           createdBy: session.id,
@@ -377,12 +396,18 @@ export function ProtocolarProjetoPage() {
           },
         });
 
-        if (remoteProcess.existing && documents.length > 0) {
-          await appendProcessDocuments(
+        if (documents.length > 0) {
+          const syncResult = await appendProcessDocuments(
             remoteProcess.process_id,
             documents,
             session.name,
           );
+
+          if (Number(syncResult.synced || 0) !== documents.length) {
+            throw new Error(
+              `O protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
+            );
+          }
         }
 
         const issuedAt = new Date().toISOString();

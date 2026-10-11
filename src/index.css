@@ -4116,3 +4116,220 @@ html {
   object-fit: cover !important;
   object-position: center center !important;
 }
+
+
+/* ===== SIGAPRO FINAL SURFACE / CONTRAST CONTRACT =====
+   Appended last on purpose: visible surface decides foreground in every page/subpage. */
+
+/* Crop editor: square stage shows the whole photo dimmed outside the final circle.
+   The image itself fills the stage; only the center circle remains fully bright. */
+.sig-image-frame-stage,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-stage,
+[data-layout-mode="default"] .sig-main-shell .sig-image-frame-stage {
+  width: min(360px, 100%) !important;
+  max-width: 360px !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  background: #0b1626 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+.sig-image-frame-stage img,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-image-frame-stage img,
+[data-layout-mode="default"] .sig-main-shell .sig-image-frame-stage img {
+  display: block !important;
+  max-width: none !important;
+  background: transparent !important;
+}
+
+/* Shared card semantics. No page may depend on accidental inherited foreground. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"],
+  .sig-ui-card,
+  .sig-section-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) {
+  background: linear-gradient(180deg, rgba(12,25,42,0.96) 0%, rgba(8,20,35,0.94) 100%) !important;
+  border-color: rgba(125,211,252,0.17) !important;
+  color: #eef5ff !important;
+  -webkit-text-fill-color: #eef5ff !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"],
+  .sig-ui-card,
+  .sig-section-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(
+  h1,h2,h3,h4,h5,h6,
+  .sig-card-title,.sig-section-title,.sig-page-title,.sig-stat-value,.sig-metric-value,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-gray-950,.text-gray-900,.text-gray-800
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"],
+  .sig-ui-card,
+  .sig-section-card,
+  .sig-stat-card,
+  .sig-metric-card,
+  .sig-strong-card,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(
+  p,span,label,
+  .sig-subtitle,.sig-label,.sig-section-label,.sig-metric-helper,
+  .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
+) {
+  color: #c7d4e6 !important;
+  -webkit-text-fill-color: #c7d4e6 !important;
+}
+
+/* Pale inner surfaces inside inverse pages are converted to dark glass.
+   This is the class of bug shown by white cards/chips with white text. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,
+  [class*="bg-white/"],[class*="bg-slate-50/"],[class*="bg-slate-100/"]
+):not(.sig-image-frame-stage):not(.sig-user-avatar-root):not(.sig-user-avatar-image) {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: rgba(148,163,184,0.20) !important;
+  color: #edf4ff !important;
+  -webkit-text-fill-color: #edf4ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,
+  [class*="bg-white/"],[class*="bg-slate-50/"],[class*="bg-slate-100/"]
+):not(.sig-image-frame-stage):not(.sig-user-avatar-root):not(.sig-user-avatar-image)
+:is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .text-white,.text-slate-50,.text-slate-100
+) {
+  color: #e9f1fc !important;
+  -webkit-text-fill-color: #e9f1fc !important;
+}
+
+/* Chips/pills are explicit surfaces, not inherited text. */
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"] {
+  background: rgba(255,255,255,0.075) !important;
+  border-color: rgba(148,163,184,0.26) !important;
+  color: #f3f7fd !important;
+  -webkit-text-fill-color: #f3f7fd !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip *,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* Preserve semantic meaning with readable foregrounds. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="emerald"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="emerald"] {
+  background: rgba(16,185,129,0.14) !important;
+  border-color: rgba(52,211,153,0.32) !important;
+  color: #b7f7da !important;
+  -webkit-text-fill-color: #b7f7da !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="amber"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="amber"] {
+  background: rgba(245,158,11,0.15) !important;
+  border-color: rgba(251,191,36,0.34) !important;
+  color: #ffe7a3 !important;
+  -webkit-text-fill-color: #ffe7a3 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="red"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="rose"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="red"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="rose"] {
+  background: rgba(244,63,94,0.14) !important;
+  border-color: rgba(251,113,133,0.30) !important;
+  color: #ffd0d8 !important;
+  -webkit-text-fill-color: #ffd0d8 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="sky"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"][class*="blue"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="sky"],
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-theme-chip[class*="blue"] {
+  background: rgba(59,130,246,0.15) !important;
+  border-color: rgba(96,165,250,0.32) !important;
+  color: #c9e2ff !important;
+  -webkit-text-fill-color: #c9e2ff !important;
+}
+
+/* Core form controls always get a foreground paired with their visible background. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="input"],[data-ui="select-trigger"],textarea
+) {
+  background: rgba(255,255,255,0.045) !important;
+  border-color: rgba(148,163,184,0.25) !important;
+  color: #f2f6fc !important;
+  -webkit-text-fill-color: #f2f6fc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="input"],textarea
+)::placeholder {
+  color: #9fb0c7 !important;
+  -webkit-text-fill-color: #9fb0c7 !important;
+  opacity: 1 !important;
+}
+
+/* Symmetrical light-theme contract. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"],.sig-ui-card,.sig-section-card,.sig-stat-card,.sig-metric-card
+) {
+  background: #ffffff !important;
+  border-color: rgba(203,213,225,0.90) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"],.sig-ui-card,.sig-section-card,.sig-stat-card,.sig-metric-card,
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100
+) :is(
+  h1,h2,h3,h4,h5,h6,
+  .text-white,.text-slate-50,.text-slate-100,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"],.sig-ui-card,.sig-section-card,.sig-stat-card,.sig-metric-card,
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100
+) :is(
+  .text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-600,.text-gray-500,.text-gray-400,
+  .sig-subtitle,.sig-label,.sig-section-label,.sig-metric-helper
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+[data-layout-mode="default"] .sig-main-shell .sig-theme-chip,
+[data-layout-mode="default"] .sig-main-shell [data-ui="badge"] {
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+
+/* Explicit disabled buttons remain readable but clearly inactive. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"]:disabled {
+  opacity: 0.72 !important;
+  color: #aebed3 !important;
+  -webkit-text-fill-color: #aebed3 !important;
+}
+[data-layout-mode="default"] .sig-main-shell [data-ui="button"]:disabled {
+  opacity: 0.62 !important;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}

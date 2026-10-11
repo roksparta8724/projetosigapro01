@@ -172,7 +172,11 @@ interface PlatformDataState {
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
-  appendProcessDocuments: (processId: string, documents: ProcessDocument[], actor: string) => Promise<void>;
+  appendProcessDocuments: (
+    processId: string,
+    documents: ProcessDocument[],
+    actor: string,
+  ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
   addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => Promise<void>;
   addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
@@ -1703,13 +1707,22 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       appendProcessDocuments: async (processId, documents, actor) => {
-        if (documents.length === 0) return;
+        if (documents.length === 0) {
+          return { process_id: processId, synced: 0, inserted: 0, updated: 0, stored: 0 };
+        }
         if (!hasBackendEnv) {
           throw new Error("Banco oficial indisponível para anexar documentos.");
         }
 
-        await appendRemoteProcessDocuments(processId, documents);
+        const result = await appendRemoteProcessDocuments(processId, documents) as {
+          process_id: string;
+          synced: number;
+          inserted: number;
+          updated: number;
+          stored: number;
+        };
         await refreshRemoteStore();
+        return result;
       },
       reviewProcessDocument: async (processId, documentId, status, actor) => {
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para revisar documento.");
