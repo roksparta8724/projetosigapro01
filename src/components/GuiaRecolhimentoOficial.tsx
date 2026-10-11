@@ -1414,11 +1414,16 @@ export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const popup = window.open("", "_blank", "width=1100,height=980");
-  if (!popup) return;
-  popup.document.open();
-  popup.document.write(buildGuiaRecolhimentoOficialHtml(props, options));
-  popup.document.close();
+  const html = buildGuiaRecolhimentoOficialHtml(props, options);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const previewUrl = URL.createObjectURL(blob);
+  const popup = window.open(previewUrl, "_blank");
+  if (!popup) {
+    URL.revokeObjectURL(previewUrl);
+    return;
+  }
+  popup.focus();
+  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
 }
 
 
