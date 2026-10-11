@@ -152,7 +152,7 @@ export function ExternalPaymentsPage() {
                   <div className="grid gap-4 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:items-center">
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
-                      <p className="mt-1 truncate text-[13px] text-slate-500">{process.externalProtocol}</p>
+                      <p className="mt-1 truncate text-[13px] text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
