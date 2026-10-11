@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Building2, Copy, CreditCard, Landmark, PencilLine, Plus, Search, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
+import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Search, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
@@ -20,14 +20,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { loadMunicipalityCatalog } from "@/integrations/backend/municipality";
-import { linkExistingUserToMunicipalityAdmin, saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integrations/backend/platform";
+import {
+  assignRemoteProfileDepartment,
+  linkExistingUserToMunicipalityAdmin,
+  listRemoteMunicipalDepartments,
+  saveRemoteInstitutionSettings,
+  upsertRemoteInstitution,
+  upsertRemoteMunicipalDepartment,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
 import { buildTenantFromMunicipalityBundle } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type InstitutionAdminContact, type SessionUser, type UserRole } from "@/lib/platform";
 
 type SignatureMode = "eletronica" | "manual" | "icp_brasil";
 type UserGroup = "todos" | "internos" | "externos" | "administradores";
-type WorkspaceView = "visao-geral" | "carteira" | "cadastro" | "usuarios";
+type WorkspaceView = "visao-geral" | "carteira" | "cadastro" | "organograma" | "usuarios";
 type AdminContactDraft = { id: string; email: string; fullName: string; title: string; accessLevel: 2 | 3 };
 const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): InstitutionAdminContact[] =>
   drafts
@@ -119,6 +127,18 @@ export function MasterAdminPage() {
   const [userStatusFilter, setUserStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
   const [userGroup, setUserGroup] = useState<UserGroup>("todos");
+  const [masterDepartments, setMasterDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [orgBusy, setOrgBusy] = useState(false);
+  const [orgForm, setOrgForm] = useState({
+    name: "",
+    unitType: "departamento",
+    parentDepartmentId: "",
+    description: "",
+    email: "",
+    phone: "",
+  });
+  const [assignmentUserId, setAssignmentUserId] = useState("");
+  const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -128,6 +148,22 @@ export function MasterAdminPage() {
   }, []);
 
   useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
+
+  useEffect(() => {
+    let active = true;
+    if (!selectedTenantId) {
+      setMasterDepartments([]);
+      return () => { active = false; };
+    }
+    void listRemoteMunicipalDepartments(selectedTenantId)
+      .then((rows) => {
+        if (active) setMasterDepartments(rows);
+      })
+      .catch((error) => {
+        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
+      });
+    return () => { active = false; };
+  }, [selectedTenantId]);
 
   const institutionCatalog = useMemo(() => {
     const merged = new Map<string, Institution>();
@@ -143,6 +179,18 @@ export function MasterAdminPage() {
     return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }, [institutions, remoteInstitutions]);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
+  const activeTenantUsers = useMemo(
+    () => sessionUsers.filter((user) => user.tenantId === selectedTenantId || user.municipalityId === selectedTenantId),
+    [selectedTenantId, sessionUsers],
+  );
+  const activeMasterDepartments = useMemo(
+    () => masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
+    [masterDepartments],
+  );
+  const rootMasterDepartments = useMemo(
+    () => activeMasterDepartments.filter((item) => !item.parentDepartmentId),
+    [activeMasterDepartments],
+  );
   const knownAdministrativeUsers = useMemo(() => sessionUsers.filter((user) => ["prefeitura_admin", "master_admin", "master_ops", "prefeitura_supervisor"].includes(user.role)), [sessionUsers]);
   const availableKnownUsers = useMemo(() => {
     const map = new Map<string, SessionUser>();
@@ -223,6 +271,54 @@ export function MasterAdminPage() {
   }, [sessionUsers, userGroup, userRoleFilter, userSearch, userStatusFilter]);
 
   const handleSetForm = <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => setForm((current) => ({ ...current, [field]: value }));
+
+  const handleMasterCreateDepartment = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedTenantId || !orgForm.name.trim() || orgBusy) return;
+    setOrgBusy(true);
+    setStatusMessage("Salvando unidade na Prefeitura selecionada...");
+    try {
+      await upsertRemoteMunicipalDepartment({
+        municipalityId: selectedTenantId,
+        name: orgForm.name.trim(),
+        unitType: orgForm.unitType,
+        parentDepartmentId: orgForm.parentDepartmentId || null,
+        description: orgForm.description.trim(),
+        email: orgForm.email.trim(),
+        phone: orgForm.phone.trim(),
+        sortOrder: activeMasterDepartments.length * 10 + 10,
+      });
+      const rows = await listRemoteMunicipalDepartments(selectedTenantId);
+      setMasterDepartments(rows);
+      setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+      setStatusMessage(`Organograma de ${activeTenant?.name || "Prefeitura"} atualizado.`);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar a unidade.");
+    } finally {
+      setOrgBusy(false);
+    }
+  };
+
+  const handleMasterAssignDepartment = async () => {
+    if (!selectedTenantId || !assignmentUserId) return;
+    setOrgBusy(true);
+    setStatusMessage("Atualizando lotação do usuário...");
+    try {
+      await assignRemoteProfileDepartment({
+        municipalityId: selectedTenantId,
+        profileId: assignmentUserId,
+        departmentId: assignmentDepartmentId || null,
+      });
+      const department = activeMasterDepartments.find((item) => item.id === assignmentDepartmentId);
+      await updateTenantUser(assignmentUserId, { department: department?.name ?? "" });
+      setStatusMessage("Lotação atualizada no organograma da Prefeitura.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível alterar a lotação.");
+    } finally {
+      setOrgBusy(false);
+    }
+  };
+
   const handleSelectTenant = (tenantId: string) => { setSelectedTenantId(tenantId); setWorkspaceView("cadastro"); setStatusMessage(""); window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); };
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
@@ -603,7 +699,7 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalSectionNav value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+        <InternalSectionNav value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
 
         {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => renderInstitutionCard(tenant))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
@@ -900,6 +996,151 @@ export function MasterAdminPage() {
               </SectionCard>
             </PageSideContent>
           </PageMainGrid>
+        ) : null}
+
+        {workspaceView === "organograma" ? (
+          !activeTenant ? (
+            <SectionCard title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
+              <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900" onClick={() => setWorkspaceView("carteira")}>
+                Escolher Prefeitura
+              </Button>
+            </SectionCard>
+          ) : (
+            <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(330px,0.82fr)] xl:items-start">
+              <PageMainContent>
+                <TableCard
+                  title={`Organograma • ${activeTenant.name}`}
+                  description="Estrutura exclusiva desta Prefeitura. O Master pode montar e ajustar a organização quando o cliente solicitar."
+                  icon={Network}
+                >
+                  <div className="space-y-5">
+                    {activeMasterDepartments.length === 0 ? (
+                      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                        Esta Prefeitura ainda não possui organograma cadastrado.
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                        {rootMasterDepartments.map((department) => {
+                          const children = activeMasterDepartments.filter((item) => item.parentDepartmentId === department.id);
+                          const users = activeTenantUsers.filter((user) => user.department === department.name);
+                          return (
+                            <div key={department.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                              <div className="flex items-start gap-3">
+                                <div className="sig-section-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-sky-700">
+                                  <Building2 className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{department.unitType}</p>
+                                  <p className="mt-1 text-base font-semibold text-slate-950">{department.name}</p>
+                                  <p className="mt-1 text-sm text-slate-500">{users.length} usuário(s) lotado(s)</p>
+                                </div>
+                              </div>
+                              {children.length > 0 ? (
+                                <div className="mt-4 space-y-2">
+                                  {children.map((child) => (
+                                    <div key={child.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                      <p className="text-sm font-semibold text-slate-900">{child.name}</p>
+                                      <p className="mt-1 text-xs text-slate-500">{child.unitType}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </TableCard>
+
+                <SectionCard title="Lotação da equipe" description="O Master também pode posicionar usuários na estrutura interna quando estiver fazendo a implantação para o cliente." icon={Users2}>
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                    <div className="space-y-2">
+                      <Label>Usuário</Label>
+                      <Select value={assignmentUserId || "__none"} onValueChange={(value) => setAssignmentUserId(value === "__none" ? "" : value)}>
+                        <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Escolha um usuário" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">Selecione</SelectItem>
+                          {activeTenantUsers.map((user) => <SelectItem key={user.id} value={user.id}>{user.name} • {user.email}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unidade</Label>
+                      <Select value={assignmentDepartmentId || "__none"} onValueChange={(value) => setAssignmentDepartmentId(value === "__none" ? "" : value)}>
+                        <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Escolha a unidade" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">Sem lotação</SelectItem>
+                          {activeMasterDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" disabled={!assignmentUserId || orgBusy} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
+                      Salvar lotação
+                    </Button>
+                  </div>
+                </SectionCard>
+              </PageMainContent>
+
+              <PageSideContent>
+                <SectionCard
+                  title="Montar estrutura"
+                  description="As alterações ficam somente na Prefeitura selecionada."
+                  icon={Plus}
+                  contentClassName="space-y-4"
+                >
+                  <form className="space-y-4" onSubmit={handleMasterCreateDepartment}>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Prefeitura</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{activeTenant.name}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nome da unidade</Label>
+                      <Input value={orgForm.name} onChange={(event) => setOrgForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Financeiro, Protocolo, Obras" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo</Label>
+                      <Select value={orgForm.unitType} onValueChange={(value) => setOrgForm((current) => ({ ...current, unitType: value }))}>
+                        <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="secretaria">Secretaria</SelectItem>
+                          <SelectItem value="diretoria">Diretoria</SelectItem>
+                          <SelectItem value="departamento">Departamento</SelectItem>
+                          <SelectItem value="setor">Setor</SelectItem>
+                          <SelectItem value="coordenadoria">Coordenadoria</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unidade superior</Label>
+                      <Select value={orgForm.parentDepartmentId || "__root"} onValueChange={(value) => setOrgForm((current) => ({ ...current, parentDepartmentId: value === "__root" ? "" : value }))}>
+                        <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__root">Nível principal</SelectItem>
+                          {activeMasterDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descrição</Label>
+                      <Input value={orgForm.description} onChange={(event) => setOrgForm((current) => ({ ...current, description: event.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>E-mail da unidade</Label>
+                      <Input type="email" value={orgForm.email} onChange={(event) => setOrgForm((current) => ({ ...current, email: event.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefone</Label>
+                      <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} />
+                    </div>
+                    <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                      {orgBusy ? "Salvando..." : "Adicionar unidade"}
+                    </Button>
+                  </form>
+                </SectionCard>
+              </PageSideContent>
+            </PageMainGrid>
+          )
         ) : null}
 
         {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-4">{filteredSystemUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado com os filtros atuais.</div> : null}{filteredSystemUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent> : null}
