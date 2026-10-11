@@ -126,7 +126,7 @@ export function ProtocolarProjetoPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { refreshRemoteStore, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments } = usePlatformData();
 
   const profile = getUserProfile(session.id);
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -376,6 +376,14 @@ export function ProtocolarProjetoPage() {
             dueDate: "",
           },
         });
+
+        if (remoteProcess.existing && documents.length > 0) {
+          await appendProcessDocuments(
+            remoteProcess.process_id,
+            documents,
+            session.name,
+          );
+        }
 
         const issuedAt = new Date().toISOString();
 

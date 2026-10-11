@@ -19,6 +19,8 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
   formatCurrency,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   statusLabel,
@@ -122,8 +124,8 @@ export function ExternalPortalPage() {
                   ) : (
                     recentActivity.map((process) => (
                       <div key={process.id} className="mt-3 rounded-[10px] border border-slate-200/80 bg-white/60 p-3">
-                        <p className="text-sm font-semibold text-slate-900">{process.protocol}</p>
-                        <p className="mt-1 text-sm text-slate-600">{process.title}</p>
+                        <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                        <p className="mt-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                         <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">
                           {statusLabel(process.status)}
                         </p>
@@ -138,7 +140,7 @@ export function ExternalPortalPage() {
                   ) : (
                     pendingGuides.slice(0, 3).map(({ process, guide }) => (
                       <div key={`${process.id}-${guide.code}`} className="mt-3 rounded-[10px] border border-slate-200/80 bg-white/60 p-3">
-                        <p className="text-sm font-semibold text-slate-900">{process.protocol}</p>
+                        <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
                         <p className="mt-1 text-sm text-slate-600">Guia {guide.code}</p>
                         <p className="mt-1 text-xs uppercase tracking-[0.14em] text-rose-500">
                           {formatCurrency(guide.amount)}
@@ -167,8 +169,8 @@ export function ExternalPortalPage() {
                   .slice(0, 3)
                   .map((process) => (
                     <div key={process.id} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-sm font-semibold text-slate-900">{process.protocol}</p>
-                      <p className="mt-1 text-sm text-slate-600">{process.title}</p>
+                      <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                      <p className="mt-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
                         Exigência pendente
                       </p>

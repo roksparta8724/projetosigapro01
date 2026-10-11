@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
@@ -18,11 +19,14 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   canAccessProcess,
   formatCurrency,
+  formatOfficialProcessLabel,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
+  formatProfessionalProcessType,
   getGuideObservation,
   getGuideReference,
   getProcessById,
@@ -33,6 +37,7 @@ import {
   statusTone,
   type PaymentGuideKind,
   type ProcessTransitVisibility,
+  URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 
 function buildDocumentPreview(documentLabel: string, fileName: string | undefined, tenantName: string | undefined) {
@@ -138,7 +143,7 @@ export function ProcessDetailPage() {
   const [searchParams] = useSearchParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
@@ -161,6 +166,7 @@ export function ProcessDetailPage() {
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
+  const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
@@ -307,7 +313,7 @@ export function ProcessDetailPage() {
     { key: "dados", label: "Dados da obra", done: true },
     { key: "responsaveis", label: "Responsaveis", done: true },
     { key: "documentos", label: "Documentacao", done: uploadedCount > 0 },
-    { key: "analise", label: "Análise Técnica", done: ["analise_tecnica", "deferido"].includes(process.status) },
+    { key: "analise", label: URBAN_ANALYSIS_DEPARTMENT, done: ["analise_tecnica", "deferido"].includes(process.status) },
     { key: "confirmacao", label: "Confirmacao", done: protocolGuide?.status === "compensada" || process.status === "deferido" },
   ];
   const externalRecipientName = process.technicalLead || process.ownerName;
@@ -319,7 +325,7 @@ export function ProcessDetailPage() {
       [
         "Recepção de Protocolo",
         "Triagem",
-        "Análise Técnica",
+        URBAN_ANALYSIS_DEPARTMENT,
         "Setor Intersetorial",
         "Setor de IPTU",
         "Financeiro",
@@ -336,7 +342,11 @@ export function ProcessDetailPage() {
         .map((item) => item!.trim()),
     ),
   );
-  const currentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
+  const rawCurrentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
+  const currentFolder =
+    process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
+      ? URBAN_ANALYSIS_DEPARTMENT
+      : rawCurrentFolder;
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
       ? "Luxo"
@@ -370,7 +380,7 @@ export function ProcessDetailPage() {
     { key: "resumo", label: "Resumo" },
     { key: "imovel", label: "Imóvel" },
     { key: "documentos", label: `Documentos (${uploadedCount})` },
-    { key: "analise", label: "Análise Técnica" },
+    { key: "analise", label: "Análise Urbanística" },
     { key: "financeiro", label: "Financeiro" },
     { key: "historico", label: "Histórico" },
   ] as const;
@@ -560,6 +570,59 @@ export function ProcessDetailPage() {
       y: ((event.clientY - rect.top) / rect.height) * 100,
     });
   };
+  const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
+    const selected = documentUploads[document.id]?.[0];
+    if (!selected?.file) {
+      setProcessActionStatus("Selecione um arquivo antes de enviar.");
+      return;
+    }
+
+    const ok = await runProcessAction(
+      `upload-document-${document.id}`,
+      async () => {
+        const uploaded = await uploadFileToStorage({
+          bucket: "process-documents",
+          tenantId: effectiveScopeId,
+          userId: session.id,
+          file: selected.file!,
+          folder: "protocolos",
+        });
+
+        await appendProcessDocuments(
+          process.id,
+          [
+            {
+              id: `doc-${crypto.randomUUID()}`,
+              label: document.label,
+              required: document.required,
+              uploaded: true,
+              signed: false,
+              reviewStatus: "pendente",
+              annotations: [],
+              version: Math.max(1, Number(document.version || 0) + 1),
+              source: isInternalRole(session.role) ? "prefeitura" : "profissional",
+              fileName: selected.fileName,
+              filePath: uploaded.path,
+              mimeType: selected.mimeType,
+              sizeLabel: selected.sizeLabel,
+              previewUrl: uploaded.publicUrl || undefined,
+            },
+          ],
+          session.name,
+        );
+      },
+      `${document.label} anexado ao processo e disponibilizado para a análise urbanística.`,
+    );
+
+    if (ok) {
+      setDocumentUploads((current) => {
+        const next = { ...current };
+        delete next[document.id];
+        return next;
+      });
+    }
+  };
+
   const handleSaveAnnotation = async () => {
     if (!viewerDocument || !annotationPoint || !annotationDraft.trim()) return;
     const ok = await runProcessAction(
@@ -580,11 +643,11 @@ export function ProcessDetailPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Processo administrativo" title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}>
+    <PortalFrame eyebrow={formatProfessionalProcessType(process.type)} title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}>
       <PageShell>
       <PageHero
         eyebrow="Painel do processo"
-        title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}
+        title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
         description="Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
         icon={Workflow}
         actions={
@@ -862,6 +925,35 @@ export function ProcessDetailPage() {
                       ) : null}
                     </div>
                   </div>
+                  {!document.uploaded ? (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                      <p className="text-sm font-semibold text-amber-900">Documento ainda não persistido no processo</p>
+                      <p className="mt-1 text-sm leading-6 text-amber-800">
+                        Se este arquivo já foi selecionado anteriormente, ele não chegou ao banco oficial. Reenvie aqui para vinculá-lo definitivamente à análise urbanística.
+                      </p>
+                      <div className="mt-3">
+                        <FileDropZone
+                          title={document.label}
+                          description="PDF ou imagem. O arquivo será salvo no armazenamento oficial e vinculado a este processo."
+                          accept=".pdf,image/*"
+                          multiple={false}
+                          allowPreview
+                          files={documentUploads[document.id] ?? []}
+                          onFilesSelected={(selected) =>
+                            setDocumentUploads((current) => ({ ...current, [document.id]: selected }))
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        className="mt-3 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+                        disabled={processActionBusy === `upload-document-${document.id}` || !(documentUploads[document.id]?.[0]?.file)}
+                        onClick={() => void handleUploadMissingDocument(document)}
+                      >
+                        {processActionBusy === `upload-document-${document.id}` ? "Enviando..." : "Anexar ao processo"}
+                      </Button>
+                    </div>
+                  ) : null}
                   {(document.previewUrl || document.uploaded) ? (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                       {document.filePath && !documentAccessUrls[document.id] ? (

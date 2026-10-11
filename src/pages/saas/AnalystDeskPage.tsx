@@ -39,6 +39,7 @@ import {
   statusLabel,
   statusTone,
   type ProcessRecord,
+  URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -103,10 +104,13 @@ export function AnalystDeskPage() {
   const [section, setSection] = useState<AnalystSection>("visao-geral");
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
-  const currentUnit = session.department || session.title || "Análise Técnica";
+  const currentUnit =
+    session.role === "analista"
+      ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
+      : URBAN_ANALYSIS_DEPARTMENT;
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter((item) => {
-    const haystack = `${item.protocol} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu}`.toLowerCase();
+    const haystack = `${formatOfficialProcessNumber(item.protocol)} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
 
@@ -121,18 +125,28 @@ export function AnalystDeskPage() {
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
   const blockedItems = processes.filter(
-    (item) => item.status === "pendencia_documental" || item.status === "pagamento_pendente",
+    (item) => item.status === "pendencia_documental" || item.status === "exigencia",
+  );
+  const analysisWorkItems = processes.filter((item) =>
+    [
+      "distribuicao",
+      "analise_tecnica",
+      "pendencia_documental",
+      "exigencia",
+      "reapresentacao",
+      "despacho_intersetorial",
+    ].includes(item.status),
   );
 
   const queue = useMemo(
     () =>
-      [...processes].sort((a, b) => {
+      [...analysisWorkItems].sort((a, b) => {
         const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0;
         const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0;
         if (aPriority !== bPriority) return bPriority - aPriority;
         return a.sla.hoursRemaining - b.sla.hoursRemaining;
       }),
-    [processes],
+    [analysisWorkItems],
   );
 
   const urgentProtocols = queue.slice(0, 5);
@@ -259,6 +273,9 @@ export function AnalystDeskPage() {
         items.map((process) => {
           const pendingRequirements = getOpenRequirements(process);
           const checklist = getChecklistTemplate(process.checklistType, process.tenantId);
+          const requiredDocuments = process.documents.filter((document) => document.required);
+          const uploadedRequiredDocuments = requiredDocuments.filter((document) => document.uploaded);
+          const missingRequiredDocuments = requiredDocuments.length - uploadedRequiredDocuments.length;
           const processGuides = getProcessPaymentGuides(process, tenantSettings);
           const issGuide = processGuides.find((guide) => guide.kind === "iss_obra");
           const issStageEnabled = tenantSettings?.issStageEnabled !== false;
@@ -327,13 +344,13 @@ export function AnalystDeskPage() {
                     {pendingRequirements[0]?.title || "Sem exigências abertas"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="sig-label">Checklist</p>
+                <div className={`rounded-2xl border p-4 ${missingRequiredDocuments > 0 ? "border-amber-200 bg-amber-50/70" : "border-emerald-200 bg-emerald-50/70"}`}>
+                  <p className="sig-label">Documentos obrigatórios</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">
-                    {checklist?.items.length || process.documents.length} itens
+                    {uploadedRequiredDocuments.length}/{requiredDocuments.length || checklist?.items.filter((item) => item.required).length || 0} enviados
                   </p>
                   <p className="mt-1 sig-fit-copy text-xs text-slate-500" title={process.checklistType}>
-                    {process.checklistType}
+                    {missingRequiredDocuments > 0 ? `${missingRequiredDocuments} pendente(s) para análise` : "Documentação obrigatória disponível"}
                   </p>
                 </div>
               </div>
@@ -426,7 +443,7 @@ export function AnalystDeskPage() {
                             dispatchProcess({
                               processId: process.id,
                               actor: session.name,
-                              from: "Análise Técnica",
+                              from: "Análise Urbanística",
                               to: "Setor de IPTU / Fiscal",
                               subject: "Conferência fiscal e emissão da guia de ISSQN",
                               dueDate: isoDateAfterDays(3),
@@ -453,7 +470,7 @@ export function AnalystDeskPage() {
                           dispatchProcess({
                             processId: process.id,
                             actor: session.name,
-                            from: "Análise Técnica",
+                            from: "Análise Urbanística",
                             to: "Financeiro",
                             subject:
                               dispatchTemplate?.title ||
@@ -483,7 +500,7 @@ export function AnalystDeskPage() {
                             status: "deferido",
                             actor: session.name,
                             title: "Processo deferido",
-                            detail: "Análise técnica concluída. Taxa final desativada no workflow financeiro municipal.",
+                            detail: "Análise Urbanística concluída. Taxa final desativada no workflow financeiro municipal.",
                           }),
                       )
                     }
@@ -505,7 +522,7 @@ export function AnalystDeskPage() {
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões">
       <PageShell>
         <PageHeader
-          eyebrow="Análise técnica"
+          eyebrow="Análise Urbanística"
           title="Fila técnica, prioridade e decisão"
           description="Conduza a análise diária com foco em prazo, pendências e decisão técnica."
           icon={Stamp}
@@ -517,8 +534,8 @@ export function AnalystDeskPage() {
                 downloadCsv("relatorio-analise.csv", [
                   ["Protocolo", "Projeto", "Status", "SLA", "Pendências", "Responsável"],
                   ...processes.map((process) => [
-                    process.protocol,
-                    process.title,
+                    formatOfficialProcessNumber(process.protocol),
+                    formatOfficialProcessTitle({ title: process.title, type: process.type }),
                     statusLabel(process.status),
                     `${process.sla.currentStage} - ${process.sla.hoursRemaining}h`,
                     String(getOpenRequirements(process).length),
@@ -675,7 +692,7 @@ export function AnalystDeskPage() {
                     criticalDispatches.slice(0, 3).map((item) => (
                       <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                           <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
                             {item.priority}
                           </Badge>
@@ -726,7 +743,7 @@ export function AnalystDeskPage() {
                     (process) =>
                       getOpenRequirements(process).length > 0 ||
                       process.status === "pendencia_documental" ||
-                      process.status === "pagamento_pendente",
+                      process.status === "exigencia",
                   ),
                   "Nenhum item com pendência técnica no momento.",
                 )}
@@ -744,7 +761,7 @@ export function AnalystDeskPage() {
                   />
                   <AlertCard
                     title="💰 Pagamento"
-                    description={`${blockedItems.filter((item) => item.status === "pagamento_pendente").length} processo(s) aguardam regularização financeira.`}
+                    description="Pagamentos ficam na fila do Protocolo/Financeiro e não entram na mesa urbanística."
                     tone={blockedItems.some((item) => item.status === "pagamento_pendente") ? "warning" : "success"}
                     icon={TimerReset}
                   />
@@ -822,7 +839,7 @@ export function AnalystDeskPage() {
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-950">{item.protocol}</p>
+                              <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                               <Badge variant="outline" className={statusTone(item.status)}>
                                 {statusLabel(item.status)}
                               </Badge>

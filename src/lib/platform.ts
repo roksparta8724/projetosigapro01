@@ -88,18 +88,23 @@ export function formatOfficialProcessNumber(protocol: string) {
   if (auditMatch) {
     const year = auditMatch[1];
     const sequence = auditMatch[4].padStart(6, "0");
-    return `Processo Administrativo nº ${sequence}/${year}`;
+    return `Processo nº ${sequence}/${year}`;
   }
 
   const compactAuditMatch = value.match(/^AUDIT(?:-[A-Z0-9]+)?-(\d{4})-(\d+)$/i);
   if (compactAuditMatch) {
-    return `Processo Administrativo nº ${compactAuditMatch[2].padStart(6, "0")}/${compactAuditMatch[1]}`;
+    return `Processo nº ${compactAuditMatch[2].padStart(6, "0")}/${compactAuditMatch[1]}`;
+  }
+
+  const officialMatch = value.match(/^[A-Z0-9]+-(\d{4})-(\d+)$/i);
+  if (officialMatch) {
+    return `Processo nº ${officialMatch[2].padStart(6, "0")}/${officialMatch[1]}`;
   }
 
   return value;
 }
 
-function formatProfessionalProcessType(type?: string | null) {
+export function formatProfessionalProcessType(type?: string | null) {
   const normalized = (type ?? "").trim().toLowerCase();
   if (!normalized) return "Processo administrativo digital";
 
@@ -127,6 +132,16 @@ export function formatOfficialProcessTitle(input: { title: string; type?: string
   }
   return title || formatProfessionalProcessType(input.type);
 }
+
+export function formatOfficialProcessLabel(input: { protocol: string; type?: string | null }) {
+  const number = formatOfficialProcessNumber(input.protocol);
+  const typeLabel = formatProfessionalProcessType(input.type);
+  const match = number.match(/^Processo nº\s+(.+)$/i);
+  return match ? `Processo de ${typeLabel} nº ${match[1]}` : number;
+}
+
+export const URBAN_ANALYSIS_DEPARTMENT = "Análise Urbanística";
+export const PROTOCOL_DEPARTMENT = "Protocolo";
 
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
@@ -1728,6 +1743,18 @@ const checklistCertidao = [
 
 export const checklistTemplates: ChecklistTemplate[] = [
   {
+    id: "check-licenciamento",
+    tenantId: null,
+    processType: "licenciamento",
+    items: checklistPadraoProjeto,
+  },
+  {
+    id: "check-licenciamento-urbanistico",
+    tenantId: null,
+    processType: "Licenciamento Urbanístico",
+    items: checklistPadraoProjeto,
+  },
+  {
     id: "check-residencial",
     tenantId: null,
     processType: "Aprovação de projeto residencial",
@@ -2281,7 +2308,15 @@ export function statusTone(status: ProcessStatus) {
 }
 
 export function statusLabel(status: ProcessStatus) {
-  return status.replaceAll("_", " ");
+  const labels: Partial<Record<ProcessStatus, string>> = {
+    analise_tecnica: "Análise Urbanística",
+    despacho_intersetorial: "Despacho intersetorial",
+    pagamento_pendente: "Pagamento pendente",
+    pagamento_confirmado: "Pagamento confirmado",
+    pendencia_documental: "Pendência documental",
+    guia_emitida: "Guia emitida",
+  };
+  return labels[status] ?? status.replaceAll("_", " ");
 }
 
 export function generateProtocol(records: ProcessRecord[]) {

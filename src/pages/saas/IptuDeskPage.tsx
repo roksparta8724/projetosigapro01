@@ -484,7 +484,7 @@ export function IptuDeskPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-950">
-                          {process.protocol}
+                          {formatOfficialProcessNumber(process.protocol)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">{guide.code}</p>
                       </div>

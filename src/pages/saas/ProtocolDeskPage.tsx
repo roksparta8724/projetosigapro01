@@ -42,6 +42,7 @@ import {
   statusLabel,
   statusTone,
   type ProcessRecord,
+  URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -69,7 +70,6 @@ export function ProtocolDeskPage() {
   const {
     processes: allProcesses,
     getInstitutionSettings,
-    dispatchProcess,
     markGuideAsPaid,
     getUserProfile,
   } = usePlatformData();
@@ -226,8 +226,8 @@ export function ProtocolDeskPage() {
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={process.protocol}>
-                      {process.protocol}
+                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
+                      {formatOfficialProcessNumber(process.protocol)}
                     </p>
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
@@ -350,51 +350,13 @@ export function ProtocolDeskPage() {
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        "Pagamento recebido no Protocolo e confirmado no banco oficial. O processo foi liberado para continuidade.",
+        `Pagamento confirmado. O processo foi encaminhado automaticamente para ${URBAN_ANALYSIS_DEPARTMENT}.`,
       );
     } catch (error) {
       setProtocolActionStatus(
         error instanceof Error
           ? `Não foi possível confirmar o pagamento: ${error.message}`
           : "Não foi possível confirmar o pagamento no banco oficial.",
-      );
-    } finally {
-      setProtocolActionBusy("");
-    }
-  };
-
-  const handleDispatchMatchedProcess = async (process: ProcessRecord) => {
-    const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
-      (guide) => guide.kind === "protocolo",
-    );
-
-    if (!protocolGuide || protocolGuide.status !== "compensada") {
-      setProtocolActionStatus("A guia de protocolo ainda não foi compensada. O despacho técnico permanece bloqueado.");
-      return;
-    }
-
-    setProtocolActionBusy(process.id);
-    setProtocolActionStatus("");
-
-    const due = new Date();
-    due.setDate(due.getDate() + 2);
-
-    try {
-      await dispatchProcess({
-        processId: process.id,
-        actor: session.name,
-        from: "Setor de protocolo",
-        to: "Análise técnica",
-        subject: "Despacho do protocolo para a fila técnica",
-        dueDate: due.toISOString().slice(0, 10),
-        visibility: "interno",
-      });
-      setProtocolActionStatus("Protocolo despachado para Análise Técnica e registrado no banco oficial.");
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível despachar o protocolo: ${error.message}`
-          : "Não foi possível despachar o protocolo no banco oficial.",
       );
     } finally {
       setProtocolActionBusy("");
@@ -440,20 +402,13 @@ export function ProtocolDeskPage() {
                 </Button>
               ) : null}
 
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                disabled={
-                  protocolActionBusy === matchedProcess.id ||
-                  getProcessPaymentGuides(matchedProcess, tenantSettings).find(
-                    (guide) => guide.kind === "protocolo",
-                  )?.status !== "compensada"
-                }
-                onClick={() => void handleDispatchMatchedProcess(matchedProcess)}
-              >
-                {protocolActionBusy === matchedProcess.id ? "Despachando..." : "Despachar para Análise"}
-              </Button>
+              {getProcessPaymentGuides(matchedProcess, tenantSettings).find(
+                (guide) => guide.kind === "protocolo",
+              )?.status === "compensada" ? (
+                <div className="inline-flex min-h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-800">
+                  Encaminhado automaticamente para {URBAN_ANALYSIS_DEPARTMENT}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -473,7 +428,7 @@ export function ProtocolDeskPage() {
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="sig-label">Protocolo</p>
-                <p className="mt-2 text-sm font-semibold text-slate-950">{matchedProcess.protocol}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(matchedProcess.protocol)}</p>
               </div>
               <div>
                 <p className="sig-label">Guia principal</p>
@@ -591,7 +546,7 @@ export function ProtocolDeskPage() {
                     <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
                           <p className="mt-1 text-sm text-slate-800">{entry.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>
                         </div>
@@ -634,7 +589,7 @@ export function ProtocolDeskPage() {
                       criticalDispatches.slice(0, 2).map((item) => (
                         <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                             <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
                               {item.priority}
                             </Badge>
@@ -707,7 +662,7 @@ export function ProtocolDeskPage() {
                       <div className="space-y-3">
                         {assignedAtProtocol.slice(0, 2).map((item) => (
                           <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                             <p className="mt-1 text-sm text-slate-500">{item.assignedTo}</p>
                           </div>
                         ))}
@@ -910,7 +865,7 @@ export function ProtocolDeskPage() {
                     <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
                           <p className="mt-1 text-sm text-slate-800">{entry.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>
                         </div>
