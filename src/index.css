@@ -4200,7 +4200,7 @@ html {
 [data-layout-mode="inverse-main"] .sig-main-shell :is(
   .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,
   [class*="bg-white/"],[class*="bg-slate-50/"],[class*="bg-slate-100/"]
-):not(.sig-image-frame-stage):not(.sig-user-avatar-root) {
+):not(.sig-image-frame-stage):not(.sig-user-avatar-root):not(.sig-user-avatar-image) {
   background: rgba(255,255,255,0.055) !important;
   border-color: rgba(148,163,184,0.20) !important;
   color: #edf4ff !important;
@@ -4209,7 +4209,7 @@ html {
 [data-layout-mode="inverse-main"] .sig-main-shell :is(
   .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,
   [class*="bg-white/"],[class*="bg-slate-50/"],[class*="bg-slate-100/"]
-):not(.sig-image-frame-stage):not(.sig-user-avatar-root)
+):not(.sig-image-frame-stage):not(.sig-user-avatar-root):not(.sig-user-avatar-image)
 :is(
   .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
   .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
