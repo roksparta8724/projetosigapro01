@@ -4444,3 +4444,88 @@ html {
   -webkit-text-fill-color: inherit !important;
 }
 
+
+
+/* ===== SIGAPRO FINAL THEME INTEGRITY 2026-10-11 =====
+   Last-mile contrast and institutional media rules. These intentionally live at
+   the end of the stylesheet so generic theme remaps cannot override them. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+) :is(h1,h2,h3,h4,h5,h6,p,label,.sig-label,.sig-subtitle,.sig-section-label,.sig-meta) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+) > svg,
+[data-layout-mode="default"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+) :is(h1,h2,h3,h4,h5,h6,p,label) > svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+):not(.sig-institution-logo-surface) {
+  color: #eef4ff !important;
+  -webkit-text-fill-color: #eef4ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+):not(.sig-institution-logo-surface) :is(h1,h2,h3,h4,h5,h6,p,label,.sig-label,.sig-subtitle,.sig-section-label,.sig-meta) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+):not(.sig-institution-logo-surface) > svg,
+[data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
+  .sig-dark-panel, .sig-inverse-panel
+):not(.sig-institution-logo-surface) :is(h1,h2,h3,h4,h5,h6,p,label) > svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Municipality branding is a fixed white media surface in every theme. */
+html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="default"] .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #d7dee8 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  isolation: isolate;
+}
+html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] > div,
+html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] > div > div {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] img {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
