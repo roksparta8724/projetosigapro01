@@ -32,6 +32,7 @@ import { ExternalMessagesPage } from "@/pages/saas/ExternalMessagesPage";
 import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
 import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
 import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
+import { DocumentAnalysisPage } from "@/pages/saas/DocumentAnalysisPage";
 import { PerfilPage } from "@/pages/saas/PerfilPage";
 import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
 import { NotificationsPage } from "@/pages/saas/NotificationsPage";
@@ -343,6 +344,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <ConfiguracoesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/processos/:processId/documentos/:documentId/analisar"
+          element={
+            <PermissionRoute permission="view_own_processes">
+              <DocumentAnalysisPage />
             </PermissionRoute>
           }
         />
