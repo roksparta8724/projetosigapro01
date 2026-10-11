@@ -30,6 +30,24 @@ describe("InstitutionalLogo", () => {
     expect(image).not.toHaveStyle({ transform: expect.anything() });
   });
 
+
+  it("keeps municipal footer and preview logos fully visible without saved crop transforms", () => {
+    const footer = render(
+      <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="footer" />,
+    );
+    const footerImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    expect(footerImage).toHaveClass("object-contain", "object-center");
+    expect(footerImage).not.toHaveStyle({ transform: expect.anything() });
+    footer.unmount();
+
+    render(
+      <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="preview" />,
+    );
+    const previewImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
+    expect(previewImage).toHaveClass("object-contain", "object-center");
+    expect(previewImage).not.toHaveStyle({ transform: expect.anything() });
+  });
+
   it("never hides a valid logo behind opacity or a white loading skeleton", () => {
     const { container } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
     const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
