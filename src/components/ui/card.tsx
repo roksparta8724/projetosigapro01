@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
   <div
+    data-ui="card"
     ref={ref}
     className={cn(
       "sig-ui-card rounded-[24px] border border-slate-200/90 bg-white text-card-foreground shadow-[0_10px_26px_rgba(15,23,42,0.05)] transition-all duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.07)]",
