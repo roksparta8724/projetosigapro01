@@ -15,6 +15,7 @@ type BuildCommercialPdfOptions = {
   responsibleName: string;
   responsibleRole: string;
   responsibleEmail: string;
+  signatureImageDataUrl?: string;
   customMessage: string;
   validityDate: string;
   observations: string;
@@ -381,6 +382,7 @@ export async function buildCommercialPdfBlob({
   responsibleName,
   responsibleRole,
   responsibleEmail,
+  signatureImageDataUrl,
   customMessage,
   validityDate,
   observations,
@@ -389,6 +391,11 @@ export async function buildCommercialPdfBlob({
 }: BuildCommercialPdfOptions) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const topbarLogoAsset = await loadLogoAsset("sigapro-topbar-logo.png");
+  const signatureAsset = signatureImageDataUrl
+    ? await readImageMetrics(signatureImageDataUrl)
+        .then((metrics) => ({ dataUrl: signatureImageDataUrl, ...metrics }))
+        .catch(() => null)
+    : null;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const marginX = 16;
@@ -823,7 +830,9 @@ export async function buildCommercialPdfBlob({
       8.8,
       4.1,
     );
-    const blockHeight = 32 + nameBox.height + roleBox.height + emailBox.height + dateBox.height + clientBox.height + noteBox.height;
+    const signatureVisualHeight = signatureAsset ? 24 : 0;
+    const blockHeight =
+      32 + signatureVisualHeight + nameBox.height + roleBox.height + emailBox.height + dateBox.height + clientBox.height + noteBox.height;
     ensurePageSpace(blockHeight + 4, "Assinatura institucional");
 
     drawRoundedCard(pdf, marginX, y, contentWidth, blockHeight, "light");
@@ -831,11 +840,26 @@ export async function buildCommercialPdfBlob({
     pdf.setFontSize(7);
     setTextColor(pdf, palette.blue);
     pdf.text("ASSINATURA INSTITUCIONAL", marginX + 6, y + 8);
+
+    if (signatureAsset) {
+      const maxW = 62;
+      const maxH = 20;
+      const ratio = signatureAsset.width / signatureAsset.height;
+      let renderW = maxW;
+      let renderH = renderW / ratio;
+      if (renderH > maxH) {
+        renderH = maxH;
+        renderW = renderH * ratio;
+      }
+      pdf.addImage(signatureAsset.dataUrl, "PNG", marginX + 6, y + 12, renderW, renderH);
+    }
+
     setDrawColor(pdf, palette.ink);
     pdf.setLineWidth(0.3);
-    pdf.line(marginX + 6, y + 19, marginX + 86, y + 19);
+    const lineY = y + (signatureAsset ? 37 : 19);
+    pdf.line(marginX + 6, lineY, marginX + 86, lineY);
 
-    let cursorY = y + 26;
+    let cursorY = lineY + 7;
     cursorY = drawTextLines(pdf, nameBox.lines, marginX + 6, cursorY, 12, 5.1, palette.ink, "bold");
     cursorY += 0.7;
     cursorY = drawTextLines(pdf, roleBox.lines, marginX + 6, cursorY, 9, 4.2, palette.text);
