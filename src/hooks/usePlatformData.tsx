@@ -75,6 +75,7 @@ import {
   saveRemoteProfile,
   sendRemoteProcessMessage,
   setRemoteOwnerChatEnabled,
+  startRemoteProcessAnalysis,
   setRemoteProcessCheckpoint,
   setRemoteProcessHold,
   setRemoteProcessStatus,
@@ -167,6 +168,7 @@ interface PlatformDataState {
     detail: string;
     title?: string;
   }) => Promise<void>;
+  startProcessAnalysis: (processId: string) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
@@ -1640,6 +1642,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           detail,
           title,
         });
+        await refreshRemoteStore();
+      },
+      startProcessAnalysis: async (processId) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para iniciar análise.");
+
+        await startRemoteProcessAnalysis(processId);
         await refreshRemoteStore();
       },
       reopenProcess: async ({ processId, actor, reason }) => {
