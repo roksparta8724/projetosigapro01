@@ -105,7 +105,15 @@ export function InstitutionalLogo({
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
+  const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
+  const municipalLogoStyle =
+    !isMaster && (variant === "header" || variant === "footer" || variant === "preview")
+      ? {
+          objectFit: "contain" as const,
+          objectPosition: "center center",
+          transform: "none",
+        }
+      : undefined;
 
   useEffect(() => {
     if (displayUrl) {
@@ -153,7 +161,11 @@ export function InstitutionalLogo({
                 "block h-full w-full max-w-full select-none object-contain object-center",
                 isMaster && "mix-blend-screen",
               )}
-              style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
+              style={
+                showCrop
+                  ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" }
+                  : municipalLogoStyle
+              }
               loading="eager"
               decoding="sync"
               fetchPriority="high"
