@@ -3,6 +3,8 @@ import App from "./App.tsx";
 import "./index.css";
 
 const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v1";
+let pendingRefreshScrollY: number | null = null;
+let pendingRefreshLocation = "";
 
 function isInternalPath(pathname: string) {
   const publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
@@ -39,7 +41,7 @@ function persistVisualSnapshot() {
       VISUAL_SNAPSHOT_KEY,
       JSON.stringify({
         host: window.location.host,
-        path: window.location.pathname,
+        path: `${window.location.pathname}${window.location.search}${window.location.hash}`,
         html: root.innerHTML,
         cssText: collectLoadedCssText(),
         scrollY: window.scrollY || 0,
@@ -71,9 +73,10 @@ function restoreFrozenSnapshot() {
       savedAt?: number;
     };
 
+    const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const valid =
       snapshot.host === window.location.host &&
-      snapshot.path === window.location.pathname &&
+      snapshot.path === currentLocation &&
       typeof snapshot.html === "string" &&
       snapshot.html.length > 500 &&
       typeof snapshot.savedAt === "number" &&
@@ -92,7 +95,9 @@ function restoreFrozenSnapshot() {
     }
 
     host.innerHTML = `<div class="sigapro-snapshot-viewport">${snapshot.html}</div>`;
-    host.style.setProperty("--sig-snapshot-top", `${-(snapshot.scrollY || 0)}px`);
+    pendingRefreshScrollY = Math.max(0, snapshot.scrollY || 0);
+    pendingRefreshLocation = currentLocation;
+    host.style.setProperty("--sig-snapshot-top", `${-pendingRefreshScrollY}px`);
     host.style.setProperty(
       "--sig-snapshot-viewport-width",
       `${snapshot.viewportWidth || document.documentElement.clientWidth || window.innerWidth}px`,
@@ -113,12 +118,32 @@ function restoreFrozenSnapshot() {
 
 function releaseFrozenSnapshot() {
   const snapshot = document.getElementById("sigapro-refresh-snapshot");
-  if (snapshot) {
-    snapshot.removeAttribute("data-visible");
-    snapshot.replaceChildren();
-  }
-  document.getElementById("sigapro-refresh-snapshot-css")?.remove();
-  document.documentElement.removeAttribute("data-sigapro-booting");
+  const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const restoreScroll =
+    pendingRefreshScrollY !== null &&
+    pendingRefreshLocation === currentLocation
+      ? pendingRefreshScrollY
+      : null;
+
+  const finalize = () => {
+    if (restoreScroll !== null) {
+      window.scrollTo({ top: restoreScroll, left: 0, behavior: "auto" });
+    }
+    if (snapshot) {
+      snapshot.removeAttribute("data-visible");
+      snapshot.replaceChildren();
+    }
+    document.getElementById("sigapro-refresh-snapshot-css")?.remove();
+    document.documentElement.removeAttribute("data-sigapro-booting");
+    pendingRefreshScrollY = null;
+    pendingRefreshLocation = "";
+  };
+
+  // Keep the frozen frame visible while React reaches the same viewport.
+  // This prevents the F5 sequence from visibly jumping to the top of the page.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(finalize);
+  });
 }
 
 window.addEventListener("beforeunload", persistVisualSnapshot, { capture: true });
