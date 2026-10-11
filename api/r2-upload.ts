@@ -32,6 +32,49 @@ function readBearer(req: Req) {
   return match?.[1]?.trim() || "";
 }
 
+function getDataApiUrl() {
+  return (
+    readEnv("R2_AUTH_DATA_API_URL") ||
+    readEnv("VITE_NEON_DATA_API_URL") ||
+    VALIDATED_NEON_DATA_API_URL
+  ).replace(/\/+$/, "");
+}
+
+function extractMunicipalityId(objectKey: string) {
+  const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
+  return match?.[1] || "";
+}
+
+async function callDataApiRpc(req: Req, fn: string, body: Record<string, unknown>) {
+  const token = readBearer(req);
+  if (!token) {
+    return { ok: false as const, status: 401, payload: null, error: "Autenticação necessária." };
+  }
+
+  try {
+    const response = await fetch(`${getDataApiUrl()}/rpc/${fn}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null);
+    return {
+      ok: response.ok,
+      status: response.status,
+      payload,
+      error:
+        payload && typeof payload === "object" && "message" in (payload as Record<string, unknown>)
+          ? String((payload as Record<string, unknown>).message || "")
+          : "",
+    } as const;
+  } catch {
+    return { ok: false as const, status: 503, payload: null, error: "Validação contratual indisponível." };
+  }
+}
+
 async function requireAuthenticatedProfile(req: Req) {
   if (!isR2AuthRequired()) {
     return { ok: true as const, profileId: null as string | null };
@@ -42,11 +85,7 @@ async function requireAuthenticatedProfile(req: Req) {
     return { ok: false as const, status: 401, error: "Autenticação necessária." };
   }
 
-  const dataApiUrl = (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
+  const dataApiUrl = getDataApiUrl();
 
   try {
     const response = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {
@@ -202,6 +241,48 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const buffer = Buffer.from(base64, "base64");
+    const municipalityId = extractMunicipalityId(objectKey);
+
+    if (municipalityId) {
+      const accessCheck = await callDataApiRpc(req, "has_tenant_access", {
+        target_tenant: municipalityId,
+      });
+      const hasTenantAccess =
+        accessCheck.ok &&
+        (accessCheck.payload === true ||
+          accessCheck.payload === "true" ||
+          (accessCheck.payload &&
+            typeof accessCheck.payload === "object" &&
+            Boolean((accessCheck.payload as Record<string, unknown>).has_tenant_access)));
+
+      if (!hasTenantAccess) {
+        json(res, accessCheck.status === 401 ? 401 : 403, {
+          error: "Sem acesso ao armazenamento desta Prefeitura.",
+        });
+        return;
+      }
+
+      const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+      const capability =
+        bucket === documentBucket ? "storage_bytes" : "module:Configurações";
+      const increment = bucket === documentBucket ? buffer.byteLength : 0;
+      const entitlement = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
+        _municipality_id: municipalityId,
+        _capability: capability,
+        _increment: increment,
+      });
+
+      if (!entitlement.ok) {
+        json(res, 409, {
+          error:
+            entitlement.error ||
+            (capability === "storage_bytes"
+              ? "O envio excede o limite de armazenamento contratado."
+              : "O plano desta Prefeitura não permite alterar arquivos institucionais."),
+        });
+        return;
+      }
+    }
 
     const client = new S3Client({
       region: "auto",
