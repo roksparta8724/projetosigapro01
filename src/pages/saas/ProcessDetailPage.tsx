@@ -18,6 +18,7 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
   getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
@@ -163,6 +164,7 @@ export function ProcessDetailPage() {
   const { processId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { session } = usePlatformSession();
+  const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -201,6 +203,8 @@ export function ProcessDetailPage() {
   const [processActionBusy, setProcessActionBusy] = useState("");
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
+    if (tab === "analise" && !planEntitlements.canUseModule("Analise tecnica")) return;
+    if (tab === "financeiro" && !planEntitlements.canUseModule("Financeiro")) return;
     setActiveTab(tab);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("aba", tab);
@@ -209,10 +213,22 @@ export function ProcessDetailPage() {
 
   useEffect(() => {
     const requested = searchParams.get("aba") as ProcessTab | null;
-    if (requested && validProcessTabs.includes(requested) && requested !== activeTab) {
-      setActiveTab(requested);
+    if (!requested || !validProcessTabs.includes(requested)) return;
+
+    const allowed =
+      (requested !== "analise" || planEntitlements.canUseModule("Analise tecnica")) &&
+      (requested !== "financeiro" || planEntitlements.canUseModule("Financeiro"));
+
+    if (!allowed) {
+      if (activeTab !== "resumo") setActiveTab("resumo");
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("aba", "resumo");
+      setSearchParams(nextParams, { replace: true });
+      return;
     }
-  }, [activeTab, searchParams]);
+
+    if (requested !== activeTab) setActiveTab(requested);
+  }, [activeTab, planEntitlements, searchParams, setSearchParams]);
 
 
   const process = processId ? getProcessById(processId, processes) : undefined;
@@ -483,13 +499,21 @@ export function ProcessDetailPage() {
   });
   const visibleAuditTrail = process.auditTrail.filter((item) => item.visibleToExternal || canViewCompleteTransit);
   const tabItems = [
-    { key: "resumo", label: "Resumo" },
-    { key: "imovel", label: "Imóvel" },
-    { key: "documentos", label: `Documentos (${uploadedCount})` },
-    { key: "analise", label: "Análise Urbanística" },
-    { key: "financeiro", label: "Financeiro" },
-    { key: "historico", label: "Histórico" },
-  ] as const;
+    { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
+    { key: "imovel" as ProcessTab, label: "Imóvel", enabled: true },
+    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: true },
+    {
+      key: "analise" as ProcessTab,
+      label: "Análise Urbanística",
+      enabled: planEntitlements.canUseModule("Analise tecnica"),
+    },
+    {
+      key: "financeiro" as ProcessTab,
+      label: "Financeiro",
+      enabled: planEntitlements.canUseModule("Financeiro"),
+    },
+    { key: "historico" as ProcessTab, label: "Histórico", enabled: true },
+  ].filter((item) => item.enabled);
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
   const useSplitDetailLayout = activeTab === "historico";
@@ -1655,7 +1679,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {activeTab === "analise" && (
+          {activeTab === "analise" && planEntitlements.canUseModule("Assinatura") && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
