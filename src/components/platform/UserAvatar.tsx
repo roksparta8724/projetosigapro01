@@ -153,7 +153,11 @@ export function UserAvatar({
           src={resolvedImageUrl || undefined}
           alt={name || "Usuario"}
           decoding="async"
-          className={cn("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none object-cover object-center", imageClassName)}
+          className={cn(
+            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-center",
+            crop ? "object-contain" : "object-cover",
+            imageClassName,
+          )}
           style={resolvedImageStyle}
           onError={() => setFailedImageUrl(resolvedImageUrl)}
         />

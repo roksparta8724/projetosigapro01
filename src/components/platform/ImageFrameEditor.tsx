@@ -131,9 +131,6 @@ export function ImageFrameEditor({
     let cancelled = false;
     const nextImage = new window.Image();
     nextImage.decoding = "async";
-    if (/^https?:\/\//i.test(imageUrl)) {
-      nextImage.crossOrigin = "anonymous";
-    }
 
     const promote = async () => {
       try {
@@ -165,9 +162,6 @@ export function ImageFrameEditor({
     let cancelled = false;
     const image = new window.Image();
     image.decoding = "async";
-    if (/^https?:\/\//i.test(stableImageUrl)) {
-      image.crossOrigin = "anonymous";
-    }
     image.onload = () => {
       if (cancelled) return;
       setNaturalSize({
@@ -424,40 +418,56 @@ export function ImageFrameEditor({
       ) : null}
 
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
-        <div className={cn(
-          "relative",
-          shape === "circle" ? "w-full max-w-[344px] rounded-full" : "rounded-[34px]",
-          darkLogoPreview
-            ? "bg-transparent"
-            : "border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]",
-        )}>
-          {!darkLogoPreview ? (
-            <div
-              className={cn(
-                "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
-                shape === "circle" ? "rounded-full" : "rounded-[26px]",
-              )}
-            />
+        <div
+          data-image-frame-shape={shape}
+          className={cn(
+            "relative",
+            shape === "circle"
+              ? "flex w-full items-center justify-center bg-transparent p-0"
+              : "rounded-[34px]",
+            shape !== "circle" && (
+              darkLogoPreview
+                ? "bg-transparent"
+                : "border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]"
+            ),
+          )}
+        >
+          {!darkLogoPreview && shape !== "circle" ? (
+            <div className="pointer-events-none absolute inset-[12px] rounded-[26px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10" />
           ) : null}
           <div
             ref={frameRef}
             className={cn(
               "relative cursor-grab overflow-hidden active:cursor-grabbing",
               shape === "circle"
-                ? "aspect-square h-auto w-full max-w-[320px] rounded-full"
+                ? "shrink-0 rounded-full border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
                 : "h-[180px] w-[180px] rounded-[26px]",
-              darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50",
+              shape !== "circle" && (darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50"),
               viewportClassName,
             )}
-            style={shape === "circle" ? { aspectRatio: "1 / 1" } : undefined}
+            style={
+              shape === "circle"
+                ? {
+                    width: "min(320px, 100%)",
+                    height: "auto",
+                    aspectRatio: "1 / 1",
+                    borderRadius: "9999px",
+                    flex: "0 0 auto",
+                  }
+                : undefined
+            }
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onWheel={handleWheel}
           >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,rgba(15,23,42,0.08)_100%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05)_0%,transparent_18%,transparent_82%,rgba(15,23,42,0.05)_100%)]" />
+            {shape !== "circle" ? (
+              <>
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_52%,rgba(15,23,42,0.08)_100%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05)_0%,transparent_18%,transparent_82%,rgba(15,23,42,0.05)_100%)]" />
+              </>
+            ) : null}
             {stableImageUrl && isRenderableUrl(stableImageUrl) && naturalSize.width > 0 && naturalSize.height > 0 ? (
               <div
                 className="pointer-events-none absolute left-1/2 top-1/2"
@@ -487,7 +497,7 @@ export function ImageFrameEditor({
             )}
 
             {shape === "circle" ? (
-              <div className="pointer-events-none absolute inset-0 z-20 rounded-full ring-2 ring-white/95 ring-offset-1 ring-offset-slate-200/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14),0_14px_35px_rgba(15,23,42,0.14)]" />
+              <div className="pointer-events-none absolute inset-0 z-20 rounded-full ring-2 ring-white/95 ring-offset-1 ring-offset-slate-300/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)]" />
             ) : null}
           </div>
         </div>
