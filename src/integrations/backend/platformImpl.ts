@@ -1851,14 +1851,22 @@ export async function reviewRemoteProcessDocument(documentId: string, status: "a
 
 export async function annotateRemoteProcessDocument(input: {
   documentId: string;
+  kind: "text" | "highlight";
+  page: number;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   note: string;
 }) {
-  return callProcessRpc("add_process_document_annotation", {
+  return callProcessRpc("add_process_document_annotation_v2", {
     _document_id: input.documentId,
+    _kind: input.kind,
+    _page: input.page,
     _x: input.x,
     _y: input.y,
+    _width: input.width ?? 0,
+    _height: input.height ?? 0,
     _note: input.note,
   });
 }

@@ -178,7 +178,20 @@ interface PlatformDataState {
     actor: string,
   ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
-  addDocumentAnnotation: (processId: string, documentId: string, annotation: { x: number; y: number; note: string; author: string }) => Promise<void>;
+  addDocumentAnnotation: (
+    processId: string,
+    documentId: string,
+    annotation: {
+      kind: "text" | "highlight";
+      page: number;
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      note: string;
+      author: string;
+    },
+  ) => Promise<void>;
   addProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
   removeProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
@@ -1737,8 +1750,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         await annotateRemoteProcessDocument({
           documentId,
+          kind: annotation.kind,
+          page: annotation.page,
           x: annotation.x,
           y: annotation.y,
+          width: annotation.width,
+          height: annotation.height,
           note: normalized,
         });
         await refreshRemoteStore();

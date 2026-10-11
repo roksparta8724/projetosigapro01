@@ -42,6 +42,7 @@ describe("process document persistence regressions", () => {
     expect(r2Client).toContain("listRecoverableProcessFiles");
     expect(processDetail).toContain("Buscar uploads anteriores");
     expect(processDetail).toContain("handleRecoverStoredDocument");
-    expect(processDetail).toContain("Somente arquivos confirmados no armazenamento oficial e no banco contam como enviados.");
+    expect(processDetail).toContain("Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável.");
+    expect(processDetail).toContain('const canUploadProcessDocuments = session.role === "profissional_externo"');
   });
 });
