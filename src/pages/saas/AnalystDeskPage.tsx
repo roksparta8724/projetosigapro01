@@ -125,18 +125,28 @@ export function AnalystDeskPage() {
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
   const blockedItems = processes.filter(
-    (item) => item.status === "pendencia_documental" || item.status === "pagamento_pendente",
+    (item) => item.status === "pendencia_documental" || item.status === "exigencia",
+  );
+  const analysisWorkItems = processes.filter((item) =>
+    [
+      "distribuicao",
+      "analise_tecnica",
+      "pendencia_documental",
+      "exigencia",
+      "reapresentacao",
+      "despacho_intersetorial",
+    ].includes(item.status),
   );
 
   const queue = useMemo(
     () =>
-      [...processes].sort((a, b) => {
+      [...analysisWorkItems].sort((a, b) => {
         const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0;
         const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0;
         if (aPriority !== bPriority) return bPriority - aPriority;
         return a.sla.hoursRemaining - b.sla.hoursRemaining;
       }),
-    [processes],
+    [analysisWorkItems],
   );
 
   const urgentProtocols = queue.slice(0, 5);
@@ -733,7 +743,7 @@ export function AnalystDeskPage() {
                     (process) =>
                       getOpenRequirements(process).length > 0 ||
                       process.status === "pendencia_documental" ||
-                      process.status === "pagamento_pendente",
+                      process.status === "exigencia",
                   ),
                   "Nenhum item com pendência técnica no momento.",
                 )}
@@ -751,7 +761,7 @@ export function AnalystDeskPage() {
                   />
                   <AlertCard
                     title="💰 Pagamento"
-                    description={`${blockedItems.filter((item) => item.status === "pagamento_pendente").length} processo(s) aguardam regularização financeira.`}
+                    description="Pagamentos ficam na fila do Protocolo/Financeiro e não entram na mesa urbanística."
                     tone={blockedItems.some((item) => item.status === "pagamento_pendente") ? "warning" : "success"}
                     icon={TimerReset}
                   />
