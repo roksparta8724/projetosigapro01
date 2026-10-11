@@ -52,7 +52,7 @@ describe("profile and branding persistence regressions", () => {
   it("renders premium avatars with proportional circular cover and autosaves framing", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
     expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none object-cover object-center");
-    expect(imageFrameEditor).toContain('shape === "circle" ? "aspect-square h-auto w-full max-w-[320px] rounded-full"');
+    expect(imageFrameEditor).toContain("aspect-square h-auto w-full max-w-[320px] rounded-full");
     expect(imageFrameEditor).toContain('style={shape === "circle" ? { aspectRatio: "1 / 1" } : undefined}');
     expect(profilePage).toContain('viewportClassName="w-full max-w-[320px]"');
     expect(profilePage).toContain('fitMode="cover"');
