@@ -46,7 +46,6 @@ export function OwnerPortalPage() {
   const [requestProcessSummary, setRequestProcessSummary] = useState<{
     protocol: string;
     title: string;
-    type?: string | null;
     status: ProcessStatus;
   } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
@@ -98,7 +97,6 @@ export function OwnerPortalPage() {
       setRequestProcessSummary({
         protocol: response.process.protocol,
         title: response.process.title,
-        type: response.process.type,
         status: response.process.status,
       });
     }
@@ -228,7 +226,10 @@ export function OwnerPortalPage() {
                       <div>
                         <p className="text-xs uppercase tracking-[0.16em] text-emerald-200/80">Protocolo validado</p>
                         <p className="mt-1 text-lg font-semibold text-white">{formatOfficialProcessNumber(requestProcessSummary.protocol)}</p>
-                        <p className="mt-1 text-sm text-emerald-100/90">{formatOfficialProcessTitle({ title: requestProcessSummary.title, type: requestProcessSummary.type })}</p>
+                        <p className="mt-1 text-sm text-emerald-100/90">{formatOfficialProcessTitle({
+                          title: requestProcessSummary.title,
+                          type: /^AUDIT(?:\s|\b|-)/i.test(requestProcessSummary.title) ? "licenciamento" : undefined,
+                        })}</p>
                       </div>
                       <Badge variant="outline" className="rounded-full text-emerald-100">
                         {statusLabel(requestProcessSummary.status)}
