@@ -223,8 +223,8 @@ export function ProtocolDeskPage() {
 
           return (
             <div key={process.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
                       {formatOfficialProcessNumber(process.protocol)}
@@ -277,7 +277,7 @@ export function ProtocolDeskPage() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-wrap gap-2 xl:w-auto">
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                   <MarkerSelector
                     processId={process.id}
                     tags={process.tags}
@@ -290,7 +290,7 @@ export function ProtocolDeskPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
+              <div className="sig-responsive-data-grid mt-4">
                 <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
                   <p className="sig-label">Abertura</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={getOpeningDate(process)}>{getOpeningDate(process)}</p>
@@ -425,7 +425,7 @@ export function ProtocolDeskPage() {
 
         {matchedProcess ? (
           <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="sig-responsive-data-grid">
               <div>
                 <p className="sig-label">Protocolo</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(matchedProcess.protocol)}</p>

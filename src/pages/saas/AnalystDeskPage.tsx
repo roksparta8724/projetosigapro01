@@ -305,8 +305,8 @@ export function AnalystDeskPage() {
 
           return (
             <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
                       {formatOfficialProcessNumber(process.protocol)}
@@ -338,7 +338,7 @@ export function AnalystDeskPage() {
                 </Link>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <div className="sig-responsive-data-grid mt-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Responsável pela análise</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
@@ -923,7 +923,7 @@ export function AnalystDeskPage() {
                 description="Carga da equipe, tempo médio, vencimentos e leitura consolidada do desempenho técnico."
                 icon={Users2}
               >
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="sig-responsive-data-grid sig-responsive-data-grid-wide">
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
                     <p className="sig-label">Tempo médio</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{averageSlaHours}h</p>
@@ -957,7 +957,7 @@ export function AnalystDeskPage() {
                     productivityByAnalyst.map((item) => (
                       <div key={item.analyst} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="text-sm font-semibold text-slate-950">{item.analyst}</p>
-                        <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-3 xl:grid-cols-4">
+                        <div className="sig-responsive-data-grid mt-3 text-sm text-slate-600">
                           <div className="rounded-xl bg-slate-50 p-3">Fila: {item.total}</div>
                           <div className="rounded-xl bg-slate-50 p-3">Concluídos: {item.deferidos}</div>
                           <div className="rounded-xl bg-slate-50 p-3">Pendências: {item.exigencias}</div>

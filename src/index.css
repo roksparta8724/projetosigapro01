@@ -4333,3 +4333,114 @@ html {
   color: #64748b !important;
   -webkit-text-fill-color: #64748b !important;
 }
+
+
+/* ===== SIGAPRO RESPONSIVE CARD + CONTRAST AUDIT 2026-10-11 =====
+   Container-driven data grids prevent desktop viewport breakpoints from squeezing
+   five cards into a narrow sidebar. */
+.sig-responsive-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+.sig-responsive-data-grid > * {
+  min-width: 0;
+  width: 100%;
+}
+.sig-responsive-data-grid-wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+}
+
+/* A light surface must never inherit a light foreground in the default theme.
+   These selectors cover the surface element itself, not only its descendants. */
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label):is(.bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100):is(.text-white,.text-slate-50,.text-slate-100),
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label)[class*="bg-white/"]:is(.text-white,.text-slate-50,.text-slate-100),
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label)[class*="bg-slate-50/"]:is(.text-white,.text-slate-50,.text-slate-100),
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label)[class*="bg-slate-100/"]:is(.text-white,.text-slate-50,.text-slate-100) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+
+/* In the light theme sig-dark-panel/sig-inverse-panel are intentionally rendered
+   as white cards. Any non-interactive copy that still carries a light-text utility
+   must therefore be normalized to a dark foreground. */
+[data-layout-mode="default"] .sig-main-shell :is(.sig-dark-panel,.sig-inverse-panel):is(.text-white,.text-slate-50,.text-slate-100),
+[data-layout-mode="default"] .sig-main-shell :is(.sig-dark-panel,.sig-inverse-panel) :is(h1,h2,h3,h4,h5,h6,p,label):is(.text-white,.text-slate-50,.text-slate-100) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Semantic light cards are converted to tinted dark surfaces on inverse pages.
+   Badges/chips keep their dedicated rules; this block is for card-like containers. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is([class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"]):not([data-ui="badge"]):not(.sig-theme-chip) {
+  background: rgba(245,158,11,0.10) !important;
+  border-color: rgba(251,191,36,0.28) !important;
+  color: #ffe9a8 !important;
+  -webkit-text-fill-color: #ffe9a8 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is([class*="bg-emerald-50"],[class*="bg-green-50"]):not([data-ui="badge"]):not(.sig-theme-chip) {
+  background: rgba(16,185,129,0.10) !important;
+  border-color: rgba(52,211,153,0.27) !important;
+  color: #c9f7df !important;
+  -webkit-text-fill-color: #c9f7df !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is([class*="bg-red-50"],[class*="bg-rose-50"]):not([data-ui="badge"]):not(.sig-theme-chip) {
+  background: rgba(244,63,94,0.10) !important;
+  border-color: rgba(251,113,133,0.27) !important;
+  color: #ffd6de !important;
+  -webkit-text-fill-color: #ffd6de !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is([class*="bg-sky-50"],[class*="bg-blue-50"],[class*="bg-cyan-50"]):not([data-ui="badge"]):not(.sig-theme-chip) {
+  background: rgba(59,130,246,0.10) !important;
+  border-color: rgba(96,165,250,0.28) !important;
+  color: #d6eaff !important;
+  -webkit-text-fill-color: #d6eaff !important;
+}
+
+/* Text inside those semantic surfaces inherits a foreground matched to the visible
+   background, even when page/card ancestors previously forced another theme color. */
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li,label):is(
+  [class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"],
+  [class*="bg-emerald-50"],[class*="bg-green-50"],
+  [class*="bg-red-50"],[class*="bg-rose-50"],
+  [class*="bg-sky-50"],[class*="bg-blue-50"],[class*="bg-cyan-50"]
+):not([data-ui="badge"]):not(.sig-theme-chip) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,
+  .text-white,.text-slate-50,.text-slate-100,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .sig-label,.sig-subtitle,.sig-section-label
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* In the default/light theme the same semantic surfaces always use dark readable
+   copy, including accidental text-white utilities on the surface or descendants. */
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label):is(
+  [class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"],
+  [class*="bg-emerald-50"],[class*="bg-green-50"],
+  [class*="bg-red-50"],[class*="bg-rose-50"],
+  [class*="bg-sky-50"],[class*="bg-blue-50"],[class*="bg-cyan-50"]
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li,label):is(
+  [class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"],
+  [class*="bg-emerald-50"],[class*="bg-green-50"],
+  [class*="bg-red-50"],[class*="bg-rose-50"],
+  [class*="bg-sky-50"],[class*="bg-blue-50"],[class*="bg-cyan-50"]
+):not([data-ui="badge"]):not(.sig-theme-chip) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,
+  .text-white,.text-slate-50,.text-slate-100,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .sig-label,.sig-subtitle,.sig-section-label
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
