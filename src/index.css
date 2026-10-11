@@ -4611,3 +4611,107 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   -webkit-text-fill-color: #f8fafc !important;
   border-color: rgba(148,163,184,0.34) !important;
 }
+
+
+/* ===== SIGAPRO SEMANTIC CONTRAST CONTRACT 2026-10-11 =====
+   Final authority for interactive surfaces across every light/dark preset. */
+.sig-main-shell [data-ui="button"][data-button-variant="default"],
+.sig-main-shell .sig-dark-action-btn {
+  background-color: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="default"] *,
+.sig-main-shell .sig-dark-action-btn * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="default"] svg,
+.sig-main-shell .sig-dark-action-btn svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+.sig-main-shell [data-ui="button"][data-button-variant="destructive"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="destructive"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-ui="button"][data-button-variant="outline"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #15314f !important;
+  -webkit-text-fill-color: #15314f !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][data-button-variant="outline"] {
+  background: rgba(15,23,42,0.58) !important;
+  border-color: rgba(148,163,184,0.38) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="outline"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="outline"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-ui="button"][data-button-variant="secondary"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][data-button-variant="secondary"] {
+  background: rgba(255,255,255,0.10) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="secondary"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* Disabled state is readable in both families and never becomes dark-on-dark/light-on-light. */
+.sig-main-shell [data-ui="button"]:disabled {
+  opacity: 0.68 !important;
+}
+.sig-main-shell [data-ui="button"][data-button-variant="default"]:disabled,
+.sig-main-shell .sig-dark-action-btn[aria-disabled="true"],
+.sig-main-shell .sig-dark-action-btn:disabled {
+  background: #475569 !important;
+  border-color: #64748b !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* Plain card-like white utilities are normalized by theme family. */
+[data-layout-mode="default"] .sig-main-shell :is(div,section,article,li)[class~="bg-white"][class*="rounded"][class*="border"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li)[class~="bg-white"][class*="rounded"][class*="border"]:not(.sig-institution-logo-surface) {
+  background-color: rgba(15,23,42,0.72) !important;
+  border-color: rgba(148,163,184,0.24) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li)[class~="bg-white"][class*="rounded"][class*="border"]:not(.sig-institution-logo-surface) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
+) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell :is(div,section,article,li)[class~="bg-white"][class*="rounded"][class*="border"]:not(.sig-institution-logo-surface) svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
