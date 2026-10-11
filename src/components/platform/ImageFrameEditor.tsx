@@ -51,13 +51,24 @@ function resolveBaseScale(
   frameHeight: number,
   naturalWidth: number,
   naturalHeight: number,
+  shape: "rounded" | "circle" = "rounded",
 ) {
   if (!frameWidth || !frameHeight || !naturalWidth || !naturalHeight) return 1;
-  return (
-    fitMode === "cover"
-      ? Math.max(frameWidth / naturalWidth, frameHeight / naturalHeight)
-      : Math.min(frameWidth / naturalWidth, frameHeight / naturalHeight)
-  ) || 1;
+
+  if (fitMode === "cover") {
+    return Math.max(frameWidth / naturalWidth, frameHeight / naturalHeight) || 1;
+  }
+
+  if (shape === "circle") {
+    // A rectangular bitmap only fits completely inside a circle when its
+    // diagonal stays inside the circle diameter. This prevents the circle mask
+    // from cutting any edge/corner of the uploaded photo or logo.
+    const diameter = Math.min(frameWidth, frameHeight);
+    const imageDiagonal = Math.hypot(naturalWidth, naturalHeight);
+    return imageDiagonal > 0 ? (diameter * 0.96) / imageDiagonal : 1;
+  }
+
+  return Math.min(frameWidth / naturalWidth, frameHeight / naturalHeight) || 1;
 }
 
 function clampOffsets(input: {
@@ -69,6 +80,7 @@ function clampOffsets(input: {
   naturalWidth: number;
   naturalHeight: number;
   fitMode: "contain" | "cover";
+  shape: "rounded" | "circle";
   minScale: number;
   maxScale: number;
 }) {
@@ -79,6 +91,7 @@ function clampOffsets(input: {
     input.frameHeight,
     input.naturalWidth,
     input.naturalHeight,
+    input.shape,
   );
   const renderScale = baseScale * safeScale;
   const width = input.naturalWidth * renderScale;
@@ -200,6 +213,7 @@ export function ImageFrameEditor({
       frameSize.height,
       naturalSize.width,
       naturalSize.height,
+      shape,
     );
     const safeScale = clamp(scale, effectiveMinScale, effectiveMaxScale);
     const baseWidth = naturalSize.width * baseScale;
@@ -228,6 +242,7 @@ export function ImageFrameEditor({
     naturalSize.height,
     naturalSize.width,
     scale,
+    shape,
   ]);
 
   useEffect(() => {
@@ -292,6 +307,7 @@ export function ImageFrameEditor({
           naturalWidth: naturalSize.width,
           naturalHeight: naturalSize.height,
           fitMode,
+          shape,
           minScale: effectiveMinScale,
           maxScale: effectiveMaxScale,
         }),
@@ -440,7 +456,7 @@ export function ImageFrameEditor({
             className={cn(
               "relative cursor-grab overflow-hidden active:cursor-grabbing",
               shape === "circle"
-                ? "shrink-0 rounded-full border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
+                ? "sig-image-frame-canvas shrink-0 rounded-full border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
                 : "h-[180px] w-[180px] rounded-[26px]",
               shape !== "circle" && (darkLogoPreview ? "bg-slate-950" : "bg-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] dark:bg-slate-50"),
               viewportClassName,
