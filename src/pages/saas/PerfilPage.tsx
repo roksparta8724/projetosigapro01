@@ -1465,7 +1465,7 @@ export function PerfilPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
-                    <p className="mt-1 text-sm text-slate-500">O preview final é sempre circular e 1:1. A imagem inteira fica visível dentro do círculo, sem cortes, ovalização ou deformação.</p>
+                    <p className="mt-1 text-sm text-slate-500">O preview final é circular e 1:1. A imagem preenche todo o círculo, como em foto de perfil de rede social, sem faixas vazias nem deformação.</p>
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
                     <ImageFrameEditor
@@ -1475,8 +1475,8 @@ export function PerfilPage() {
                       offsetY={form.avatarOffsetY}
                       onChange={updateAvatarFrame}
                       label="Foto do perfil"
-                      hint="A imagem usa a proporção original e cabe inteira no círculo. Use o zoom somente se quiser aproximar."
-                      fitMode="contain"
+                      hint="A imagem preenche todo o círculo. Arraste para escolher o enquadramento e use o zoom se quiser aproximar."
+                      fitMode="cover"
                       minScale={1}
                       shape="circle"
                       frameClassName="w-full"
