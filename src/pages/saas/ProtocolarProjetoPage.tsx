@@ -25,10 +25,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
-import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
+import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
@@ -125,12 +126,34 @@ export function ProtocolarProjetoPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
+  const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments } = usePlatformData();
+  const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments, processes } = usePlatformData();
 
   const profile = getUserProfile(session.id);
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const scopedProcesses = useMemo(
+    () => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)),
+    [effectiveScopeId, processes],
+  );
+  const activeProcessCount = useMemo(
+    () => scopedProcesses.filter((process) => process.status !== "arquivado").length,
+    [scopedProcesses],
+  );
+  const knownStorageBytes = useMemo(
+    () =>
+      scopedProcesses.reduce(
+        (total, process) =>
+          total +
+          process.documents.reduce(
+            (documentTotal, document) => documentTotal + Number(document.fileSizeBytes || 0),
+            0,
+          ),
+        0,
+      ),
+    [scopedProcesses],
+  );
 
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -274,6 +297,29 @@ export function ProtocolarProjetoPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (
+      planEntitlements.maxProcesses != null &&
+      activeProcessCount >= planEntitlements.maxProcesses
+    ) {
+      setStatus(
+        `Limite do plano atingido: ${activeProcessCount}/${planEntitlements.maxProcesses} processos ativos. Solicite upgrade antes de abrir outro protocolo.`,
+      );
+      return;
+    }
+
+    const pendingUploadBytes = Object.values(files)
+      .flat()
+      .reduce((total, item) => total + Number(item.file?.size || 0), 0);
+    if (planEntitlements.maxStorageGb != null) {
+      const maxStorageBytes = planEntitlements.maxStorageGb * 1024 * 1024 * 1024;
+      if (knownStorageBytes + pendingUploadBytes > maxStorageBytes) {
+        setStatus(
+          `O envio ultrapassa o limite de armazenamento do plano (${planEntitlements.maxStorageGb} GB). Remova arquivos ou solicite upgrade.`,
+        );
+        return;
+      }
+    }
     setStatus("");
 
     if (!effectiveScopeId) {
