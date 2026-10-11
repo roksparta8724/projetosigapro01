@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
 const tenantAdmin = readFileSync(resolve(root, "src/pages/saas/TenantAdminPage.tsx"), "utf8");
+const masterAdmin = readFileSync(resolve(root, "src/pages/saas/MasterAdminPage.tsx"), "utf8");
 const backend = readFileSync(resolve(root, "src/integrations/backend/platformImpl.ts"), "utf8");
 const migration = readFileSync(
   resolve(root, "supabase/migrations/20261011195500_municipal_organization_chart.sql"),
@@ -27,6 +28,15 @@ describe("municipal organization chart", () => {
     expect(tenantAdmin).toContain("Departamento no organograma");
     expect(tenantAdmin).toContain("assignRemoteProfileDepartment");
     expect(backend).toContain("assign_profile_department_v1");
+  });
+
+  it("lets the Master configure the organogram inside each selected municipality", () => {
+    expect(masterAdmin).toContain('value: "organograma"');
+    expect(masterAdmin).toContain("Organograma •");
+    expect(masterAdmin).toContain("activeTenant.name");
+    expect(masterAdmin).toContain("handleMasterCreateDepartment");
+    expect(masterAdmin).toContain("handleMasterAssignDepartment");
+    expect(masterAdmin).toContain("As alterações ficam somente na Prefeitura selecionada.");
   });
 
   it("persists parent hierarchy and municipality scope in the database", () => {
