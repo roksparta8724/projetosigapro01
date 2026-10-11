@@ -49,20 +49,17 @@ describe("profile and branding persistence regressions", () => {
     expect(dataHook).toContain("persistedProfile");
   });
 
-  it("renders premium avatars as true edge-to-edge social profile circles", () => {
+  it("renders a professional crop stage with a bright final circle and dimmed outer image", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
     expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center");
-    expect(userAvatar).not.toContain("safeCircleScale");
-    expect(userAvatar).not.toContain("safeImageWidth");
-    expect(userAvatar).not.toContain("safeImageHeight");
-    expect(imageFrameEditor).toContain('data-image-frame-shape={shape}');
-    expect(imageFrameEditor).toContain('width: "min(320px, 100%)"');
+    expect(imageFrameEditor).toContain("sig-image-frame-stage");
+    expect(imageFrameEditor).toContain('width: "min(360px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
-    expect(imageFrameEditor).toContain('borderRadius: "9999px"');
+    expect(imageFrameEditor).toContain('radial-gradient(circle at center');
+    expect(imageFrameEditor).toContain('inset-[8%]');
+    expect(imageFrameEditor).toContain("cropFrameSize");
     expect(imageFrameEditor).not.toContain('crossOrigin = "anonymous"');
-    expect(imageFrameEditor).toContain("sig-image-frame-canvas");
-    expect(css).toContain(".sig-image-frame-canvas > img");
-    expect(css).toContain("object-fit: cover !important");
+    expect(css).toContain(".sig-image-frame-stage");
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("preenche todo o círculo");
     expect(profilePage).toContain("Enquadramento salvo automaticamente.");
