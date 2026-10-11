@@ -128,7 +128,9 @@ const AppRoutes = () => {
           path="/dashboard/processos"
           element={
             <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
+              <PlanModuleRoute module="Protocolo digital">
+                <DashboardHomePage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -136,7 +138,9 @@ const AppRoutes = () => {
           path="/dashboard/financeiro"
           element={
             <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
+              <PlanModuleRoute module="Financeiro">
+                <DashboardHomePage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -152,7 +156,9 @@ const AppRoutes = () => {
           path="/dashboard/operacional"
           element={
             <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
+              <PlanModuleRoute module="Protocolo digital">
+                <DashboardHomePage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -176,7 +182,9 @@ const AppRoutes = () => {
           path="/prefeitura"
           element={
             <PermissionRoute permission="manage_tenant_users">
-              <TenantAdminPage />
+              <PlanModuleRoute module="Configurações">
+                <TenantAdminPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -302,7 +310,9 @@ const AppRoutes = () => {
           path="/proprietario"
           element={
             <PermissionRoute permission="view_own_processes">
-              <OwnerPortalPage />
+              <PlanModuleRoute module="Acesso externo">
+                <OwnerPortalPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
