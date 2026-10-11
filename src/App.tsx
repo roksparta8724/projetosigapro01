@@ -9,6 +9,7 @@ import { PlatformDataProvider } from "@/hooks/usePlatformData";
 import { MunicipalityProvider } from "@/hooks/useMunicipality";
 import { TenantProvider } from "@/hooks/useTenant";
 import { PermissionRoute } from "@/components/platform/PermissionRoute";
+import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { AcessoPage } from "@/pages/saas/AcessoPage";
 import { LandingPage } from "@/pages/saas/LandingPage";
 import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
@@ -183,7 +184,9 @@ const AppRoutes = () => {
           path="/prefeitura/analise"
           element={
             <PermissionRoute permission="review_processes">
-              <AnalystDeskPage />
+              <PlanModuleRoute module="Analise tecnica">
+                <AnalystDeskPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -191,7 +194,9 @@ const AppRoutes = () => {
           path="/prefeitura/protocolos"
           element={
             <PermissionRoute permission="manage_protocols">
-              <ProtocolDeskPage />
+              <PlanModuleRoute module="Protocolo digital">
+                <ProtocolDeskPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -199,7 +204,9 @@ const AppRoutes = () => {
           path="/prefeitura/protocolos/novo"
           element={
             <PermissionRoute permission="manage_protocols">
-              <ProtocolarProjetoPage />
+              <PlanModuleRoute module="Protocolo digital">
+                <ProtocolarProjetoPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -207,7 +214,9 @@ const AppRoutes = () => {
           path="/prefeitura/financeiro"
           element={
             <PermissionRoute permission="manage_financial">
-              <FinanceDeskPage />
+              <PlanModuleRoute module="Financeiro">
+                <FinanceDeskPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -215,7 +224,9 @@ const AppRoutes = () => {
           path="/prefeitura/financeiro/protocolos"
           element={
             <PermissionRoute permission="manage_financial">
-              <FinanceProtocolsPage />
+              <PlanModuleRoute module="Financeiro">
+                <FinanceProtocolsPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -223,7 +234,9 @@ const AppRoutes = () => {
           path="/prefeitura/financeiro/iptu"
           element={
             <PermissionRoute permission="manage_fiscal_financial">
-              <IptuDeskPage />
+              <PlanModuleRoute module="Financeiro">
+                <IptuDeskPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -279,7 +292,9 @@ const AppRoutes = () => {
           path="/externo"
           element={
             <PermissionRoute permission="submit_processes">
-              <ExternalPortalPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalPortalPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -295,7 +310,9 @@ const AppRoutes = () => {
           path="/externo/protocolar"
           element={
             <PermissionRoute permission="submit_processes">
-              <ProtocolarProjetoPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ProtocolarProjetoPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -303,7 +320,9 @@ const AppRoutes = () => {
           path="/externo/controle"
           element={
             <PermissionRoute permission="submit_processes">
-              <ExternalProcessControlPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalProcessControlPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -311,7 +330,9 @@ const AppRoutes = () => {
           path="/externo/pagamentos"
           element={
             <PermissionRoute permission="submit_processes">
-              <ExternalPaymentsPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalPaymentsPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -319,7 +340,9 @@ const AppRoutes = () => {
           path="/externo/historico"
           element={
             <PermissionRoute permission="submit_processes">
-              <ExternalHistoryPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalHistoryPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -327,7 +350,9 @@ const AppRoutes = () => {
           path="/externo/mensagens"
           element={
             <PermissionRoute permission="submit_processes">
-              <ExternalMessagesPage />
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalMessagesPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -343,7 +368,9 @@ const AppRoutes = () => {
           path="/configuracoes"
           element={
             <PermissionRoute permission="manage_own_profile">
-              <ConfiguracoesPage />
+              <PlanModuleRoute module="Configurações">
+                <ConfiguracoesPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -351,7 +378,9 @@ const AppRoutes = () => {
           path="/processos/:processId/documentos/:documentId/analisar"
           element={
             <PermissionRoute permission="view_own_processes">
-              <DocumentAnalysisPage />
+              <PlanModuleRoute module="Analise tecnica">
+                <DocumentAnalysisPage />
+              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
