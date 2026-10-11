@@ -1530,7 +1530,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           municipalityId: currentUser.municipalityId ?? currentUser.tenantId ?? "",
           role: input.role ?? currentUser.role,
           name: input.name ?? currentUser.name,
-          title: input.title ?? input.department ?? currentUser.title,
+          title: input.title ?? currentUser.title,
           accessLevel: input.accessLevel ?? currentUser.accessLevel,
         });
 
@@ -1538,7 +1538,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           ...currentUser,
           ...input,
           ...remote,
-          department: remote?.title ?? input.department ?? input.title ?? currentUser.department ?? currentUser.title,
+          department: input.department ?? currentUser.department ?? remote?.title ?? input.title ?? currentUser.title,
         };
 
         updateStore((current) => ({
