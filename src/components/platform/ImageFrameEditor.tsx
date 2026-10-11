@@ -425,7 +425,8 @@ export function ImageFrameEditor({
 
       <div className={cn("mt-4 flex justify-center", frameClassName)}>
         <div className={cn(
-          "relative rounded-[34px]",
+          "relative",
+          shape === "circle" ? "w-full max-w-[344px] rounded-full" : "rounded-[34px]",
           darkLogoPreview
             ? "bg-transparent"
             : "border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-700/70 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.75)_0%,rgba(2,6,23,0.9)_100%)]",
@@ -434,7 +435,7 @@ export function ImageFrameEditor({
             <div
               className={cn(
                 "pointer-events-none absolute inset-[12px] border border-white/80 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] dark:border-white/10",
-                "rounded-[26px]",
+                shape === "circle" ? "rounded-full" : "rounded-[26px]",
               )}
             />
           ) : null}
