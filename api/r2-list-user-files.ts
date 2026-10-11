@@ -124,6 +124,7 @@ async function resolveAuthenticatedScope(req: Req) {
 
     return {
       ok: true as const,
+      profileId,
       userId: row.user_id,
       municipalityId: row.municipality_id,
     };
@@ -171,24 +172,38 @@ export default async function handler(req: Req, res: Res) {
         ? new Date(body.since)
         : new Date(Date.now() - 1000 * 60 * 60 * 24 * 30);
 
-    const prefix = `municipalities/${auth.municipalityId}/protocols/${auth.userId}/`;
+    // Neon sessions use the profile id as the business session id today.
+    // Older builds could have used the auth user id. Both prefixes are derived
+    // server-side from the authenticated profile, so recovery remains scoped.
+    const principalIds = Array.from(
+      new Set([auth.profileId, auth.userId].filter((value): value is string => Boolean(value))),
+    );
     const client = new S3Client({
       region: "auto",
       endpoint,
       credentials: { accessKeyId, secretAccessKey },
     });
 
-    const result = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: prefix,
-        MaxKeys: 250,
-      }),
+    const results = await Promise.all(
+      principalIds.map((principalId) =>
+        client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: `municipalities/${auth.municipalityId}/protocols/${principalId}/`,
+            MaxKeys: 250,
+          }),
+        ),
+      ),
     );
 
-    const files = (result.Contents || [])
+    const files = results
+      .flatMap((result) => result.Contents || [])
       .filter((item) => item.Key && item.LastModified && item.LastModified >= since)
       .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
+      .filter(
+        (item, index, all) =>
+          all.findIndex((candidate) => candidate.Key === item.Key) === index,
+      )
       .map((item) => ({
         objectKey: item.Key!,
         fileName: parseOriginalName(item.Key!),
