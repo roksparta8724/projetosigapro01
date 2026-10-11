@@ -117,6 +117,7 @@ export function MasterAdminPage() {
   const { institutions, sessionUsers, metrics, upsertInstitution, saveInstitutionSettings, setInstitutionStatus, updateTenantUser, setUserAccountStatus, deleteUserAccount, getInstitutionSettings, getUserProfile } = usePlatformData();
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
+  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
@@ -210,6 +211,7 @@ export function MasterAdminPage() {
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
   useEffect(() => {
+    if (isCreatingNewInstitution) return;
     if (institutionCatalog.length === 0) {
       if (selectedTenantId) setSelectedTenantId("");
       return;
@@ -227,9 +229,14 @@ export function MasterAdminPage() {
     if (nextPreferred !== selectedTenantId) {
       setSelectedTenantId(nextPreferred);
     }
-  }, [institutionCatalog, selectedTenantId]);
+  }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId]);
 
   useEffect(() => {
+    if (isCreatingNewInstitution) {
+      setForm(emptyTenantForm);
+      setAdmins([createAdminDraft()]);
+      return;
+    }
     if (!activeTenant) { setForm(emptyTenantForm); setAdmins([createAdminDraft()]); return; }
     const settings = getInstitutionSettings(activeTenant.id);
     const prefeituraAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === activeTenant.id || user.municipalityId === activeTenant.id) && user.role === "prefeitura_admin");
@@ -241,7 +248,7 @@ export function MasterAdminPage() {
           ? settings!.adminContacts!.map((admin) => ({ id: `admin-contact-${admin.email}`, email: admin.email, fullName: admin.fullName, title: admin.title, accessLevel: admin.accessLevel >= 3 ? 3 : 2 }))
           : [createAdminDraft()],
     );
-  }, [activeTenant, getInstitutionSettings, knownAdministrativeUsers]);
+  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, knownAdministrativeUsers]);
 
   const platformAlerts = useMemo(() => {
     const suspendedCount = institutionCatalog.filter((tenant) => tenant.status === "suspenso").length;
@@ -319,7 +326,13 @@ export function MasterAdminPage() {
     }
   };
 
-  const handleSelectTenant = (tenantId: string) => { setSelectedTenantId(tenantId); setWorkspaceView("cadastro"); setStatusMessage(""); window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); };
+  const handleSelectTenant = (tenantId: string) => {
+    setIsCreatingNewInstitution(false);
+    setSelectedTenantId(tenantId);
+    setWorkspaceView("cadastro");
+    setStatusMessage("");
+    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   const removeAdminRow = (id: string) => setAdmins((current) => (current.length > 1 ? current.filter((item) => item.id !== id) : current));
@@ -441,7 +454,7 @@ export function MasterAdminPage() {
       return;
     }
     try {
-      const currentSettings = activeTenant ? getInstitutionSettings(activeTenant.id) : undefined;
+      const currentSettings = !isCreatingNewInstitution && activeTenant ? getInstitutionSettings(activeTenant.id) : undefined;
       const slug = normalizedSubdomain;
       let linkedAdminCount = 0;
       const unresolvedAdminEmails: string[] = [];
@@ -455,7 +468,7 @@ export function MasterAdminPage() {
       const remoteInstitution = await withRetry(() =>
         withTimeout(
           upsertRemoteInstitution({
-            institutionId: selectedTenantId || undefined,
+            institutionId: isCreatingNewInstitution ? undefined : selectedTenantId || undefined,
             name: form.name,
             city: form.city,
             state: form.state,
@@ -505,6 +518,7 @@ export function MasterAdminPage() {
         accentColor: form.accentColor,
       }, { remoteConfirmed: true });
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
+      setIsCreatingNewInstitution(false);
       setSelectedTenantId(savedTenant.id);
 
       if (normalizedAdminContacts.length === 0) {
@@ -527,7 +541,18 @@ export function MasterAdminPage() {
     } finally { setSaving(false); }
   };
 
-  const resetForNewInstitution = () => { setSelectedTenantId(""); setWorkspaceView("cadastro"); setForm(emptyTenantForm); setAdmins([createAdminDraft()]); setStatusMessage(""); window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); };
+  const resetForNewInstitution = () => {
+    setIsCreatingNewInstitution(true);
+    setSelectedTenantId("");
+    setWorkspaceView("cadastro");
+    setForm(emptyTenantForm);
+    setAdmins([createAdminDraft()]);
+    setMasterDepartments([]);
+    setAssignmentUserId("");
+    setAssignmentDepartmentId("");
+    setStatusMessage("");
+    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   const renderInstitutionCard = (tenant: Institution) => {
     const settings = getInstitutionSettings(tenant.id);
@@ -735,8 +760,8 @@ export function MasterAdminPage() {
                   <div className="grid gap-5 xl:grid-cols-12">
                       <div className="sig-dark-panel flex min-h-[140px] min-w-0 flex-col rounded-[24px] border border-slate-200 p-5 shadow-sm xl:col-span-7">
                         <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Conta selecionada</p>
-                        <p className="mt-3 text-[1.35rem] font-semibold leading-[1.22] tracking-[-0.02em] text-slate-950 sig-url-display" title={activeTenant?.name || "Nova Prefeitura"}>
-                          {activeTenant?.name || "Nova Prefeitura"}
+                        <p className="mt-3 text-[1.35rem] font-semibold leading-[1.22] tracking-[-0.02em] text-slate-950 sig-url-display" title={isCreatingNewInstitution ? "Nova Prefeitura" : activeTenant?.name || "Nova Prefeitura"}>
+                          {isCreatingNewInstitution ? "Nova Prefeitura" : activeTenant?.name || "Nova Prefeitura"}
                         </p>
                         <p className="pt-3 text-sm leading-6 text-slate-500">Ficha comercial e institucional.</p>
                       </div>
@@ -970,7 +995,7 @@ export function MasterAdminPage() {
                 <div className="space-y-4">
                   <div className="sig-dark-panel rounded-[22px] border border-slate-200 px-4 py-4 shadow-sm">
                     <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Conta ativa</p>
-                    <p className="mt-2 text-balance text-[1rem] font-semibold leading-6 tracking-[-0.02em] text-slate-950">{activeTenant?.name || "Nova Prefeitura"}</p>
+                    <p className="mt-2 text-balance text-[1rem] font-semibold leading-6 tracking-[-0.02em] text-slate-950">{isCreatingNewInstitution ? "Nova Prefeitura" : activeTenant?.name || "Nova Prefeitura"}</p>
                   </div>
                   <div className="sig-dark-panel rounded-[22px] border border-slate-200 px-4 py-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
