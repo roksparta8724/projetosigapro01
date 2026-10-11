@@ -216,11 +216,17 @@ export function ProcessDetailPage() {
 
 
   const process = processId ? getProcessById(processId, processes) : undefined;
+  const canUploadProcessDocuments = session.role === "profissional_externo";
 
   useEffect(() => {
     let cancelled = false;
 
-    if (!process || activeTab !== "documentos" || !process.documents.some((document) => !document.uploaded)) {
+    if (
+      !canUploadProcessDocuments ||
+      !process ||
+      activeTab !== "documentos" ||
+      !process.documents.some((document) => !document.uploaded)
+    ) {
       return () => {
         cancelled = true;
       };
@@ -262,7 +268,7 @@ export function ProcessDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, process]);
+  }, [activeTab, canUploadProcessDocuments, process]);
 
   useEffect(() => {
     let cancelled = false;
@@ -376,6 +382,10 @@ export function ProcessDetailPage() {
     );
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
+  const visibleDocumentRows = canUploadProcessDocuments
+    ? process.documents
+    : process.documents.filter((document) => document.uploaded);
+  const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
   const getDocumentAccessUrl = (document: typeof process.documents[number]) =>
     document.filePath
@@ -661,6 +671,10 @@ export function ProcessDetailPage() {
     });
   };
   const handleRecoverStoredDocument = async (document: typeof process.documents[number]) => {
+    if (!canUploadProcessDocuments) {
+      setProcessActionStatus("Somente o profissional externo pode anexar ou recuperar documentos do protocolo.");
+      return;
+    }
     const objectKey = recoverableSelection[document.id];
     const candidate = recoverableFiles.find((file) => file.objectKey === objectKey);
     if (!candidate) {
@@ -683,7 +697,7 @@ export function ProcessDetailPage() {
               reviewStatus: "pendente",
               annotations: [],
               version: Math.max(1, Number(document.version || 0) + 1),
-              source: isInternalRole(session.role) ? "prefeitura" : "profissional",
+              source: "profissional",
               fileName: candidate.fileName,
               filePath: candidate.objectKey,
               mimeType: inferMimeType(candidate.fileName),
@@ -711,6 +725,10 @@ export function ProcessDetailPage() {
   };
 
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
+    if (!canUploadProcessDocuments) {
+      setProcessActionStatus("Somente o profissional externo pode enviar documentos para o processo.");
+      return;
+    }
     const selected = documentUploads[document.id]?.[0];
     if (!selected?.file) {
       setProcessActionStatus("Selecione um arquivo antes de enviar.");
@@ -769,8 +787,12 @@ export function ProcessDetailPage() {
       "annotation",
       () =>
         addDocumentAnnotation(process.id, viewerDocument.id, {
+          kind: "text",
+          page: 1,
           x: annotationPoint.x,
           y: annotationPoint.y,
+          width: 0,
+          height: 0,
           note: annotationDraft,
           author: session.name,
         }),
@@ -1007,7 +1029,7 @@ export function ProcessDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <FileStack className="h-5 w-5" />
-                Checklist documental
+                {canUploadProcessDocuments ? "Documentos do protocolo" : "Documentos enviados pelo profissional"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1015,72 +1037,99 @@ export function ProcessDetailPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-950">
-                      {uploadedCount}/{process.documents.length} arquivo(s) persistido(s)
+                      {uploadedCount}/{process.documents.length} arquivo(s) enviado(s)
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      Somente arquivos confirmados no armazenamento oficial e no banco contam como enviados.
+                      {canUploadProcessDocuments
+                        ? "Envie aqui os documentos obrigatórios. O analista municipal recebe os arquivos em modo somente leitura para conferência."
+                        : "Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável."}
                     </p>
-                    {recoverableStatus ? (
+                    {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
+                      <p className="mt-2 text-sm font-medium text-amber-700">
+                        {pendingExternalDocumentCount} item(ns) do checklist ainda aguardam envio do profissional.
+                      </p>
+                    ) : null}
+                    {canUploadProcessDocuments && recoverableStatus ? (
                       <p className="mt-2 text-sm font-medium text-sky-700">{recoverableStatus}</p>
                     ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={recoverableLoading}
-                    onClick={() => {
-                      setRecoverableStatus("");
-                      setRecoverableFiles([]);
-                      const reload = async () => {
-                        setRecoverableLoading(true);
-                        try {
-                          const files = await listRecoverableProcessFiles();
-                          const alreadyLinked = new Set(
-                            process.documents
-                              .map((document) => document.filePath)
-                              .filter((value): value is string => Boolean(value)),
-                          );
-                          const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
-                          setRecoverableFiles(available);
-                          setRecoverableStatus(
-                            available.length > 0
-                              ? `${available.length} upload(s) anterior(es) encontrado(s).`
-                              : "Nenhum upload anterior disponível para recuperação.",
-                          );
-                        } catch (error) {
-                          setRecoverableStatus(
-                            error instanceof Error ? error.message : "Falha ao procurar uploads anteriores.",
-                          );
-                        } finally {
-                          setRecoverableLoading(false);
-                        }
-                      };
-                      void reload();
-                    }}
-                  >
-                    {recoverableLoading ? "Procurando..." : "Buscar uploads anteriores"}
-                  </Button>
+                  {canUploadProcessDocuments ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      disabled={recoverableLoading}
+                      onClick={() => {
+                        setRecoverableStatus("");
+                        setRecoverableFiles([]);
+                        const reload = async () => {
+                          setRecoverableLoading(true);
+                          try {
+                            const files = await listRecoverableProcessFiles();
+                            const alreadyLinked = new Set(
+                              process.documents
+                                .map((document) => document.filePath)
+                                .filter((value): value is string => Boolean(value)),
+                            );
+                            const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
+                            setRecoverableFiles(available);
+                            setRecoverableStatus(
+                              available.length > 0
+                                ? `${available.length} upload(s) anterior(es) encontrado(s).`
+                                : "Nenhum upload anterior disponível para recuperação.",
+                            );
+                          } catch (error) {
+                            setRecoverableStatus(
+                              error instanceof Error ? error.message : "Falha ao procurar uploads anteriores.",
+                            );
+                          } finally {
+                            setRecoverableLoading(false);
+                          }
+                        };
+                        void reload();
+                      }}
+                    >
+                      {recoverableLoading ? "Procurando..." : "Buscar uploads anteriores"}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
-              {process.documents.map((document) => (
+
+              {!canUploadProcessDocuments && visibleDocumentRows.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                  <FileStack className="mx-auto h-8 w-8 text-slate-400" />
+                  <p className="mt-3 font-semibold text-slate-900">
+                    Nenhum documento foi enviado pelo profissional até o momento.
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    O analista não anexa documentos em nome do profissional. Assim que o responsável externo enviar os arquivos, eles aparecerão automaticamente aqui para análise.
+                  </p>
+                </div>
+              ) : null}
+
+              {visibleDocumentRows.map((document) => (
                 <div key={document.id} className="rounded-2xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-slate-950">{document.label}</p>
-                      <p className="text-sm text-slate-500">
-                        Arquivo: {document.fileName || "não informado"} - {document.mimeType || "sem tipo"} - {document.sizeLabel || "sem tamanho"}
+                      <p className="mt-1 truncate text-sm text-slate-500">
+                        {document.fileName || "Arquivo ainda não enviado"}
+                        {document.mimeType ? ` • ${document.mimeType}` : ""}
+                        {document.sizeLabel ? ` • ${document.sizeLabel}` : ""}
                       </p>
+                      {document.uploaded ? (
+                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
+                          Origem: {document.source === "profissional" ? "Profissional responsável" : document.source}
+                        </p>
+                      ) : null}
                     </div>
+
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="outline" className="rounded-full">
                         {document.required ? "Obrigatório" : "Opcional"}
                       </Badge>
                       <Badge variant="outline" className="rounded-full">
                         {document.uploaded ? "Enviado" : "Pendente"}
-                      </Badge>
-                      <Badge variant="outline" className="rounded-full">
-                        {document.signed ? "Assinado" : "Sem assinatura"}
                       </Badge>
                       <Badge
                         variant="outline"
@@ -1094,7 +1143,20 @@ export function ProcessDetailPage() {
                       >
                         {document.reviewStatus || "pendente"}
                       </Badge>
-                      {(document.previewUrl || document.uploaded) ? (
+
+                      {canReviewDocuments && document.uploaded ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${document.id}/analisar`;
+                            window.open(analysisUrl, "_blank", "noopener,noreferrer");
+                          }}
+                          className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                          Abrir para análise
+                        </button>
+                      ) : (document.previewUrl || document.uploaded) ? (
                         <button
                           type="button"
                           disabled={Boolean(document.filePath && !documentAccessUrls[document.id])}
@@ -1105,6 +1167,7 @@ export function ProcessDetailPage() {
                           Preview
                         </button>
                       ) : null}
+
                       {(document.previewUrl || document.uploaded) && getDocumentFallbackUrl(document) ? (
                         <a
                           href={getDocumentFallbackUrl(document)}
@@ -1117,11 +1180,12 @@ export function ProcessDetailPage() {
                       ) : null}
                     </div>
                   </div>
-                  {!document.uploaded ? (
+
+                  {canUploadProcessDocuments && !document.uploaded ? (
                     <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                      <p className="text-sm font-semibold text-amber-900">Documento ainda não persistido no processo</p>
+                      <p className="text-sm font-semibold text-amber-900">Documento pendente de envio</p>
                       <p className="mt-1 text-sm leading-6 text-amber-800">
-                        O banco oficial ainda não possui este arquivo. Você pode recuperar um upload anterior localizado no R2 ou selecionar o arquivo novamente.
+                        Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto.
                       </p>
                       {recoverableFiles.length > 0 ? (
                         <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -1158,10 +1222,11 @@ export function ProcessDetailPage() {
                           </Button>
                         </div>
                       ) : null}
+
                       <div className="mt-3">
                         <FileDropZone
                           title={document.label}
-                          description="PDF ou imagem. O arquivo será salvo no armazenamento oficial e vinculado a este processo."
+                          description="PDF ou imagem. O arquivo será salvo no armazenamento oficial e ficará disponível para análise da Prefeitura."
                           accept=".pdf,image/*"
                           multiple={false}
                           allowPreview
@@ -1174,14 +1239,20 @@ export function ProcessDetailPage() {
                       <Button
                         type="button"
                         className="mt-3 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                        disabled={processActionBusy === `upload-document-${document.id}` || !(documentUploads[document.id]?.[0]?.file)}
+                        disabled={
+                          processActionBusy === `upload-document-${document.id}` ||
+                          !(documentUploads[document.id]?.[0]?.file)
+                        }
                         onClick={() => void handleUploadMissingDocument(document)}
                       >
-                        {processActionBusy === `upload-document-${document.id}` ? "Enviando..." : "Anexar ao processo"}
+                        {processActionBusy === `upload-document-${document.id}`
+                          ? "Enviando..."
+                          : "Enviar documento"}
                       </Button>
                     </div>
                   ) : null}
-                  {(document.previewUrl || document.uploaded) ? (
+
+                  {!canReviewDocuments && document.uploaded ? (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                       {document.filePath && !documentAccessUrls[document.id] ? (
                         documentAccessErrors[document.id] ? (
@@ -1200,12 +1271,20 @@ export function ProcessDetailPage() {
                           className="h-72 w-full"
                         />
                       ) : (
-                        <img src={getDocumentFallbackUrl(document)} alt={document.fileName || document.label} className="max-h-80 w-full object-contain" />
+                        <img
+                          src={getDocumentFallbackUrl(document)}
+                          alt={document.fileName || document.label}
+                          className="max-h-80 w-full object-contain"
+                        />
                       )}
                     </div>
                   ) : null}
+
                   {canReviewDocuments && document.uploaded ? (
-                    <div className="mt-4 flex flex-wrap gap-3">
+                    <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                      <p className="mr-auto text-sm text-slate-500">
+                        Abra o documento em uma nova guia para usar marca-texto, observações e análise detalhada.
+                      </p>
                       <Button
                         type="button"
                         variant="outline"
@@ -1218,7 +1297,7 @@ export function ProcessDetailPage() {
                           )
                         }
                       >
-                        Aprovar documento
+                        Aprovar
                       </Button>
                       <Button
                         type="button"
@@ -1232,16 +1311,8 @@ export function ProcessDetailPage() {
                           )
                         }
                       >
-                        Rejeitar documento
+                        Rejeitar
                       </Button>
-                      {document.reviewedBy ? (
-                        <div className="self-center">
-                          <div className="flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                            <UserAvatar name={document.reviewedBy} imageUrl={getProfileByName(document.reviewedBy)?.avatarUrl} size="sm" />
-                            <span className="sig-fit-copy" title={`Ultima revisao por ${document.reviewedBy}`}>Ultima revisao por {document.reviewedBy}</span>
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>
