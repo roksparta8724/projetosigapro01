@@ -2308,7 +2308,15 @@ export function statusTone(status: ProcessStatus) {
 }
 
 export function statusLabel(status: ProcessStatus) {
-  return status.replaceAll("_", " ");
+  const labels: Partial<Record<ProcessStatus, string>> = {
+    analise_tecnica: "Análise Urbanística",
+    despacho_intersetorial: "Despacho intersetorial",
+    pagamento_pendente: "Pagamento pendente",
+    pagamento_confirmado: "Pagamento confirmado",
+    pendencia_documental: "Pendência documental",
+    guia_emitida: "Guia emitida",
+  };
+  return labels[status] ?? status.replaceAll("_", " ");
 }
 
 export function generateProtocol(records: ProcessRecord[]) {
