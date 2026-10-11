@@ -42,6 +42,7 @@ import {
   statusLabel,
   statusTone,
   type ProcessRecord,
+  URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -69,7 +70,6 @@ export function ProtocolDeskPage() {
   const {
     processes: allProcesses,
     getInstitutionSettings,
-    dispatchProcess,
     markGuideAsPaid,
     getUserProfile,
   } = usePlatformData();
@@ -350,51 +350,13 @@ export function ProtocolDeskPage() {
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        "Pagamento recebido no Protocolo e confirmado no banco oficial. O processo foi liberado para continuidade.",
+        `Pagamento confirmado. O processo foi encaminhado automaticamente para ${URBAN_ANALYSIS_DEPARTMENT}.`,
       );
     } catch (error) {
       setProtocolActionStatus(
         error instanceof Error
           ? `Não foi possível confirmar o pagamento: ${error.message}`
           : "Não foi possível confirmar o pagamento no banco oficial.",
-      );
-    } finally {
-      setProtocolActionBusy("");
-    }
-  };
-
-  const handleDispatchMatchedProcess = async (process: ProcessRecord) => {
-    const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
-      (guide) => guide.kind === "protocolo",
-    );
-
-    if (!protocolGuide || protocolGuide.status !== "compensada") {
-      setProtocolActionStatus("A guia de protocolo ainda não foi compensada. O despacho técnico permanece bloqueado.");
-      return;
-    }
-
-    setProtocolActionBusy(process.id);
-    setProtocolActionStatus("");
-
-    const due = new Date();
-    due.setDate(due.getDate() + 2);
-
-    try {
-      await dispatchProcess({
-        processId: process.id,
-        actor: session.name,
-        from: "Setor de protocolo",
-        to: "Análise técnica",
-        subject: "Despacho do protocolo para a fila técnica",
-        dueDate: due.toISOString().slice(0, 10),
-        visibility: "interno",
-      });
-      setProtocolActionStatus("Protocolo despachado para Análise Técnica e registrado no banco oficial.");
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível despachar o protocolo: ${error.message}`
-          : "Não foi possível despachar o protocolo no banco oficial.",
       );
     } finally {
       setProtocolActionBusy("");
@@ -440,20 +402,13 @@ export function ProtocolDeskPage() {
                 </Button>
               ) : null}
 
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                disabled={
-                  protocolActionBusy === matchedProcess.id ||
-                  getProcessPaymentGuides(matchedProcess, tenantSettings).find(
-                    (guide) => guide.kind === "protocolo",
-                  )?.status !== "compensada"
-                }
-                onClick={() => void handleDispatchMatchedProcess(matchedProcess)}
-              >
-                {protocolActionBusy === matchedProcess.id ? "Despachando..." : "Despachar para Análise"}
-              </Button>
+              {getProcessPaymentGuides(matchedProcess, tenantSettings).find(
+                (guide) => guide.kind === "protocolo",
+              )?.status === "compensada" ? (
+                <div className="inline-flex min-h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-800">
+                  Encaminhado automaticamente para {URBAN_ANALYSIS_DEPARTMENT}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
