@@ -167,10 +167,10 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown };
-    const since =
+    let since =
       typeof body.since === "string" && !Number.isNaN(Date.parse(body.since))
         ? new Date(body.since)
-        : new Date(Date.now() - 1000 * 60 * 60 * 24 * 90);
+        : new Date(Date.now() - 1000 * 60 * 60 * 24 * 7);
 
     const processId = typeof body.processId === "string" ? body.processId.trim() : "";
     let principalIds = Array.from(
@@ -188,7 +188,7 @@ export default async function handler(req: Req, res: Res) {
       const token = readBearer(req);
 
       const processResponse = await fetch(
-        `${dataApiUrl}/processes?id=eq.${encodeURIComponent(processId)}&select=id,municipality_id,created_by,created_by_profile_id&limit=1`,
+        `${dataApiUrl}/processes?id=eq.${encodeURIComponent(processId)}&select=id,municipality_id,created_by,created_by_profile_id,created_at&limit=1`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -201,6 +201,7 @@ export default async function handler(req: Req, res: Res) {
         municipality_id?: string | null;
         created_by?: string | null;
         created_by_profile_id?: string | null;
+        created_at?: string | null;
       }>;
       const processRow = Array.isArray(processRows) ? processRows[0] : null;
 
@@ -211,6 +212,11 @@ export default async function handler(req: Req, res: Res) {
       ) {
         json(res, 403, { error: "Processo indisponível para recuperação de documentos." });
         return;
+      }
+
+      if (processRow.created_at && !Number.isNaN(Date.parse(processRow.created_at))) {
+        const processCreatedAt = new Date(processRow.created_at);
+        if (processCreatedAt > since) since = processCreatedAt;
       }
 
       let creatorUserId = processRow.created_by || "";
