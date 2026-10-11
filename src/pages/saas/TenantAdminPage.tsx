@@ -19,6 +19,7 @@ import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, ro
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
   assignRemoteProfileDepartment,
   listRemoteMunicipalDepartments,
@@ -58,12 +59,20 @@ function getPriorityTone(process: ProcessRecord) {
 export function TenantAdminPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
+  const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
+  const internalTenantUsers = useMemo(
+    () =>
+      tenantUsers.filter(
+        (user) => !["profissional_externo", "proprietario_consulta"].includes(user.role),
+      ),
+    [tenantUsers],
+  );
   const currentUnit = activeInstitution?.secretariaResponsavel || session.department || session.title || "Administração da Prefeitura";
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const hasPendingGuide = (process: ProcessRecord) =>
@@ -176,6 +185,16 @@ export function TenantAdminPage() {
       return;
     }
 
+    if (
+      planEntitlements.maxUsers != null &&
+      internalTenantUsers.length >= planEntitlements.maxUsers
+    ) {
+      setStatusMessage(
+        `Limite do plano atingido: ${internalTenantUsers.length}/${planEntitlements.maxUsers} usuários internos. Faça upgrade do plano antes de vincular outra conta.`,
+      );
+      return;
+    }
+
     if (savingUserId) return;
     setSavingUserId("new");
     setStatusMessage("Confirmando vínculo no banco...");
@@ -238,6 +257,15 @@ export function TenantAdminPage() {
   const handleCreateDepartment = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId || !orgForm.name.trim() || orgBusy) return;
+    if (
+      planEntitlements.maxDepartments != null &&
+      activeDepartments.length >= planEntitlements.maxDepartments
+    ) {
+      setStatusMessage(
+        `Limite do plano atingido: ${activeDepartments.length}/${planEntitlements.maxDepartments} unidades no organograma.`,
+      );
+      return;
+    }
     setOrgBusy(true);
     setStatusMessage("Salvando unidade no organograma...");
     try {
