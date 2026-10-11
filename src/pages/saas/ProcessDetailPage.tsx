@@ -21,8 +21,10 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAccessProcess,
   formatCurrency,
+  formatOfficialProcessLabel,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
+  formatProfessionalProcessType,
   getGuideObservation,
   getGuideReference,
   getProcessById,
@@ -33,6 +35,7 @@ import {
   statusTone,
   type PaymentGuideKind,
   type ProcessTransitVisibility,
+  URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 
 function buildDocumentPreview(documentLabel: string, fileName: string | undefined, tenantName: string | undefined) {
@@ -307,7 +310,7 @@ export function ProcessDetailPage() {
     { key: "dados", label: "Dados da obra", done: true },
     { key: "responsaveis", label: "Responsaveis", done: true },
     { key: "documentos", label: "Documentacao", done: uploadedCount > 0 },
-    { key: "analise", label: "Análise Técnica", done: ["analise_tecnica", "deferido"].includes(process.status) },
+    { key: "analise", label: URBAN_ANALYSIS_DEPARTMENT, done: ["analise_tecnica", "deferido"].includes(process.status) },
     { key: "confirmacao", label: "Confirmacao", done: protocolGuide?.status === "compensada" || process.status === "deferido" },
   ];
   const externalRecipientName = process.technicalLead || process.ownerName;
@@ -319,7 +322,7 @@ export function ProcessDetailPage() {
       [
         "Recepção de Protocolo",
         "Triagem",
-        "Análise Técnica",
+        URBAN_ANALYSIS_DEPARTMENT,
         "Setor Intersetorial",
         "Setor de IPTU",
         "Financeiro",
@@ -336,7 +339,11 @@ export function ProcessDetailPage() {
         .map((item) => item!.trim()),
     ),
   );
-  const currentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
+  const rawCurrentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
+  const currentFolder =
+    process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
+      ? URBAN_ANALYSIS_DEPARTMENT
+      : rawCurrentFolder;
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
       ? "Luxo"
@@ -370,7 +377,7 @@ export function ProcessDetailPage() {
     { key: "resumo", label: "Resumo" },
     { key: "imovel", label: "Imóvel" },
     { key: "documentos", label: `Documentos (${uploadedCount})` },
-    { key: "analise", label: "Análise Técnica" },
+    { key: "analise", label: "Análise Urbanística" },
     { key: "financeiro", label: "Financeiro" },
     { key: "historico", label: "Histórico" },
   ] as const;
@@ -580,11 +587,11 @@ export function ProcessDetailPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Processo administrativo" title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}>
+    <PortalFrame eyebrow={formatProfessionalProcessType(process.type)} title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}>
       <PageShell>
       <PageHero
         eyebrow="Painel do processo"
-        title={`${formatOfficialProcessNumber(process.protocol)} - ${formatOfficialProcessTitle({ title: process.title, type: process.type })}`}
+        title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
         description="Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
         icon={Workflow}
         actions={
