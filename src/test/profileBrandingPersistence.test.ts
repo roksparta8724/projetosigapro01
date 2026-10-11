@@ -49,13 +49,17 @@ describe("profile and branding persistence regressions", () => {
     expect(dataHook).toContain("persistedProfile");
   });
 
-  it("renders premium avatars with proportional circular cover and autosaves framing", () => {
+  it("renders premium avatars as true circles with the whole uploaded image visible", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
-    expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none object-cover object-center");
-    expect(imageFrameEditor).toContain("aspect-square h-auto w-full max-w-[320px] rounded-full");
-    expect(imageFrameEditor).toContain('style={shape === "circle" ? { aspectRatio: "1 / 1" } : undefined}');
-    expect(profilePage).toContain('viewportClassName="w-full max-w-[320px]"');
-    expect(profilePage).toContain('fitMode="cover"');
+    expect(userAvatar).toContain('crop ? "object-contain" : "object-cover"');
+    expect(imageFrameEditor).toContain('data-image-frame-shape={shape}');
+    expect(imageFrameEditor).toContain('width: "min(320px, 100%)"');
+    expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
+    expect(imageFrameEditor).toContain('borderRadius: "9999px"');
+    expect(imageFrameEditor).not.toContain('crossOrigin = "anonymous"');
+    expect(profilePage).toContain('fitMode="contain"');
+    expect(profilePage).not.toContain('viewportClassName="w-full max-w-[320px]"');
+    expect(profilePage).toContain("sem cortes, ovalização ou deformação");
     expect(profilePage).toContain("Enquadramento salvo automaticamente.");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
