@@ -494,8 +494,12 @@ export interface ProcessDocument {
   reviewedBy?: string;
   annotations?: Array<{
     id: string;
+    kind?: "text" | "highlight";
+    page?: number;
     x: number;
     y: number;
+    width?: number;
+    height?: number;
     note: string;
     author: string;
     createdAt: string;
