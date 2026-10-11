@@ -1252,7 +1252,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             ];
         const tenants = current.tenants.map((tenant) =>
           tenant.id === nextAssignment.municipalityId
-            ? { ...tenant, plan: linkedPlan?.name ?? tenant.plan }
+            ? {
+                ...tenant,
+                plan: linkedPlan?.name ?? tenant.plan,
+                activeModules: linkedPlan?.modulesIncluded ?? tenant.activeModules,
+              }
             : tenant,
         );
 
