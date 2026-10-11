@@ -1064,7 +1064,7 @@
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
   [data-layout-mode="inverse-main"] .sig-main-shell a[class*="bg-white"]:not([class*="bg-slate-950"]):not([class*="bg-primary"]),
   [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][class*="bg-white"] {
-    color: #0f172a !important;
+    color: #e8eef9 !important;
   }
 
   [data-layout-mode="inverse-main"] .sig-main-shell button[class*="bg-white"] .text-white,
@@ -3788,4 +3788,83 @@ html {
   grid-column: 1 / -1 !important;
   width: 100% !important;
   min-width: 0 !important;
+}
+
+
+/* Global contrast contract: every core control and common card surface must remain legible
+   when the commercial inverse layout remaps nominally-light Tailwind surfaces to dark glass. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"] {
+  color: #e8eef9 !important;
+  -webkit-text-fill-color: #e8eef9 !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="input"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="select-trigger"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.035) 100%) !important;
+  color: #eef4ff !important;
+  -webkit-text-fill-color: #eef4ff !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  caret-color: #f8fafc;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="input"]::placeholder {
+  color: #aebed3 !important;
+  -webkit-text-fill-color: #aebed3 !important;
+  opacity: 1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="select-trigger"] > span,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="select-trigger"] svg {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  stroke: currentColor !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"]:not(:disabled) {
+  -webkit-text-fill-color: currentColor;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"]:disabled {
+  opacity: 0.72 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][class*="bg-white"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][class*="bg-background"] {
+  color: #e8eef9 !important;
+  -webkit-text-fill-color: #e8eef9 !important;
+}
+
+/* Direct low-contrast class combinations are corrected even outside the shared primitives. */
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white"][class*="text-slate-"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-slate-50"][class*="text-slate-"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-slate-100"][class*="text-slate-"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-white"][class*="text-gray-"],
+[data-layout-mode="inverse-main"] .sig-main-shell [class*="bg-slate-50"][class*="text-gray-"] {
+  color: #e8eef9 !important;
+  -webkit-text-fill-color: #e8eef9 !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-ui="badge"][class*="border"],
+[data-layout-mode="default"] .sig-main-shell [data-ui="input"],
+[data-layout-mode="default"] .sig-main-shell [data-ui="select-trigger"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell [data-ui="input"]::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  opacity: 1 !important;
+}
+[data-layout-mode="default"] .sig-main-shell [class*="bg-white"][class*="text-white"],
+[data-layout-mode="default"] .sig-main-shell [class*="bg-slate-50"][class*="text-white"],
+[data-layout-mode="default"] .sig-main-shell [class*="bg-slate-100"][class*="text-white"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* The editor crop itself is geometric, not decorative: never let theme rules stretch it. */
+[data-image-frame-shape="circle"] > [data-radix-scroll-area-viewport],
+[data-image-frame-shape="circle"] > div {
+  max-width: 320px;
 }
