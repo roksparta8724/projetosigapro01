@@ -16,9 +16,9 @@ const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
 const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v1";
 
 const variantClasses = {
-  header: "h-[112px] w-[188px] p-4 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[140px] w-[188px] p-4",
-  preview: "h-[140px] w-full max-w-[204px] p-4",
+  header: "h-[112px] w-[188px] p-2.5 lg:h-[120px] lg:w-[204px]",
+  footer: "h-[140px] w-[188px] p-2.5",
+  preview: "h-[140px] w-full max-w-[204px] p-2.5",
   compact: "h-10 w-10 p-1.5",
   login: "h-full w-full p-2",
 } as const;
@@ -106,14 +106,6 @@ export function InstitutionalLogo({
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
   const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
-  const municipalLogoStyle =
-    !isMaster && (variant === "header" || variant === "footer" || variant === "preview")
-      ? {
-          objectFit: "contain" as const,
-          objectPosition: "center center",
-          transform: "none",
-        }
-      : undefined;
 
   useEffect(() => {
     if (displayUrl) {
@@ -161,11 +153,7 @@ export function InstitutionalLogo({
                 "block h-full w-full max-w-full select-none object-contain object-center",
                 isMaster && "mix-blend-screen",
               )}
-              style={
-                showCrop
-                  ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" }
-                  : municipalLogoStyle
-              }
+              style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
               fetchPriority="high"
