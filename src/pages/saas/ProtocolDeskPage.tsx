@@ -473,7 +473,7 @@ export function ProtocolDeskPage() {
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="sig-label">Protocolo</p>
-                <p className="mt-2 text-sm font-semibold text-slate-950">{matchedProcess.protocol}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(matchedProcess.protocol)}</p>
               </div>
               <div>
                 <p className="sig-label">Guia principal</p>
@@ -591,7 +591,7 @@ export function ProtocolDeskPage() {
                     <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
                           <p className="mt-1 text-sm text-slate-800">{entry.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>
                         </div>
@@ -634,7 +634,7 @@ export function ProtocolDeskPage() {
                       criticalDispatches.slice(0, 2).map((item) => (
                         <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                             <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
                               {item.priority}
                             </Badge>
@@ -707,7 +707,7 @@ export function ProtocolDeskPage() {
                       <div className="space-y-3">
                         {assignedAtProtocol.slice(0, 2).map((item) => (
                           <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{item.protocol}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                             <p className="mt-1 text-sm text-slate-500">{item.assignedTo}</p>
                           </div>
                         ))}
@@ -910,7 +910,7 @@ export function ProtocolDeskPage() {
                     <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{entry.protocol}</p>
+                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
                           <p className="mt-1 text-sm text-slate-800">{entry.title}</p>
                           <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>
                         </div>
