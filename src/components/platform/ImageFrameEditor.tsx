@@ -495,16 +495,19 @@ export function ImageFrameEditor({
             {stableImageUrl && isRenderableUrl(stableImageUrl) && naturalSize.width > 0 && naturalSize.height > 0 ? (
               <>
                 {shape === "circle" ? (
-                  <img
-                    src={stableImageUrl}
-                    alt=""
-                    aria-hidden="true"
-                    draggable={false}
-                    className="sig-image-frame-background pointer-events-none absolute inset-0 h-full w-full select-none object-contain object-center opacity-45"
-                  />
+                  <>
+                    <img
+                      src={stableImageUrl}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                      className="sig-image-frame-background pointer-events-none absolute inset-0 h-full w-full select-none object-contain object-center opacity-45"
+                    />
+                    <div className="sig-image-frame-final-surface pointer-events-none absolute inset-[8%] z-[1] rounded-full bg-white" />
+                  </>
                 ) : null}
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2"
+                  className="pointer-events-none absolute left-1/2 top-1/2 z-[2]"
                 style={{
                   transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`,
                   transformOrigin: "center",
