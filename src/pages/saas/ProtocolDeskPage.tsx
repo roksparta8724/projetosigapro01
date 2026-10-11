@@ -226,8 +226,8 @@ export function ProtocolDeskPage() {
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={process.protocol}>
-                      {process.protocol}
+                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
+                      {formatOfficialProcessNumber(process.protocol)}
                     </p>
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
