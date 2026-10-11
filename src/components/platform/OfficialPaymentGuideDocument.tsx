@@ -487,8 +487,14 @@ export function openOfficialPaymentGuideWindow(
   data: OfficialPaymentGuideData,
   options?: { autoPrint?: boolean; title?: string },
 ) {
-  const popup = window.open("", "_blank", "width=1080,height=980");
-  if (!popup) return;
-  popup.document.write(buildOfficialPaymentGuideHtml(data, options));
-  popup.document.close();
+  const html = buildOfficialPaymentGuideHtml(data, options);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const previewUrl = URL.createObjectURL(blob);
+  const popup = window.open(previewUrl, "_blank");
+  if (!popup) {
+    URL.revokeObjectURL(previewUrl);
+    return;
+  }
+  popup.focus();
+  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
 }
