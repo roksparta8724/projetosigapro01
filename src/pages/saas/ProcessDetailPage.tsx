@@ -377,7 +377,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
   const useSplitDetailLayout = activeTab === "historico";
-  const cardShell = "rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
+  const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = paymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
