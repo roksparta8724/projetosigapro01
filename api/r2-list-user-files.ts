@@ -166,18 +166,82 @@ export default async function handler(req: Req, res: Res) {
       throw new Error("Armazenamento de documentos indisponível.");
     }
 
-    const body = (await readJsonBody(req)) as { since?: unknown };
+    const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown };
     const since =
       typeof body.since === "string" && !Number.isNaN(Date.parse(body.since))
         ? new Date(body.since)
-        : new Date(Date.now() - 1000 * 60 * 60 * 24 * 30);
+        : new Date(Date.now() - 1000 * 60 * 60 * 24 * 90);
 
-    // Neon sessions use the profile id as the business session id today.
-    // Older builds could have used the auth user id. Both prefixes are derived
-    // server-side from the authenticated profile, so recovery remains scoped.
-    const principalIds = Array.from(
+    const processId = typeof body.processId === "string" ? body.processId.trim() : "";
+    let principalIds = Array.from(
       new Set([auth.profileId, auth.userId].filter((value): value is string => Boolean(value))),
     );
+
+    // When a municipal analyst is viewing a process, recover only uploads that
+    // belong to the professional who created that same accessible process.
+    if (processId) {
+      const dataApiUrl = (
+        readEnv("R2_AUTH_DATA_API_URL") ||
+        readEnv("VITE_NEON_DATA_API_URL") ||
+        VALIDATED_NEON_DATA_API_URL
+      ).replace(/\/+$/, "");
+      const token = readBearer(req);
+
+      const processResponse = await fetch(
+        `${dataApiUrl}/processes?id=eq.${encodeURIComponent(processId)}&select=id,municipality_id,created_by,created_by_profile_id&limit=1`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        },
+      );
+      const processRows = (await processResponse.json().catch(() => [])) as Array<{
+        id?: string;
+        municipality_id?: string | null;
+        created_by?: string | null;
+        created_by_profile_id?: string | null;
+      }>;
+      const processRow = Array.isArray(processRows) ? processRows[0] : null;
+
+      if (
+        !processResponse.ok ||
+        !processRow?.id ||
+        processRow.municipality_id !== auth.municipalityId
+      ) {
+        json(res, 403, { error: "Processo indisponível para recuperação de documentos." });
+        return;
+      }
+
+      let creatorUserId = processRow.created_by || "";
+      if (processRow.created_by_profile_id) {
+        const creatorResponse = await fetch(
+          `${dataApiUrl}/profiles?id=eq.${encodeURIComponent(processRow.created_by_profile_id)}&select=user_id&limit=1`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          },
+        );
+        const creatorRows = (await creatorResponse.json().catch(() => [])) as Array<{
+          user_id?: string | null;
+        }>;
+        if (creatorResponse.ok && creatorRows[0]?.user_id) {
+          creatorUserId = creatorRows[0].user_id || creatorUserId;
+        }
+      }
+
+      principalIds = Array.from(
+        new Set(
+          [
+            processRow.created_by_profile_id || "",
+            creatorUserId,
+            processRow.created_by || "",
+          ].filter(Boolean),
+        ),
+      );
+    }
     const client = new S3Client({
       region: "auto",
       endpoint,
