@@ -252,7 +252,7 @@ export function ProcessDetailPage() {
         setRecoverableFiles(available);
         if (available.length > 0) {
           setRecoverableStatus(
-            `${available.length} upload(s) anterior(es) encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+            `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
           );
         }
       } catch (error) {
