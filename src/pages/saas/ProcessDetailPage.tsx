@@ -255,7 +255,7 @@ export function ProcessDetailPage() {
               <p className="font-semibold">Este perfil não pode visualizar documentos nem dados processuais desta prefeitura.</p>
             </div>
             <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-              O administrador geral consegue testar os acessos, mas o conteudo sigiloso permanece bloqueado.
+              O administrador geral consegue testar os acessos, mas o conteúdo sigiloso permanece bloqueado.
             </p>
           </CardContent>
         </Card>
@@ -704,7 +704,7 @@ export function ProcessDetailPage() {
         </Card>
       </div>
 
-      {activeTab === "historico" ? (
+      {(activeTab === "resumo" || activeTab === "historico") ? (
       <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
@@ -1189,7 +1189,7 @@ export function ProcessDetailPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
                     <div className="rounded-2xl border border-[#d8e4f1] bg-white p-4">
                       <p className="text-[10px] font-normal uppercase tracking-[0.1em] text-slate-400">Valor</p>
                       <p className="mt-2 text-lg font-medium text-[#123860]">{formatCurrency(protocolGuide?.amount || 0)}</p>
@@ -1286,7 +1286,7 @@ export function ProcessDetailPage() {
                         <div>Hash: {block.evidence.hash}</div>
                         <div>IP: {block.evidence.ip}</div>
                         <div>Agente: {block.evidence.userAgent}</div>
-                        <div>Versao assinada: v{block.evidence.signedVersion}</div>
+                        <div>Versão assinada: v{block.evidence.signedVersion}</div>
                         <div>Carimbo: {block.evidence.timestampAuthority}</div>
                       </div>
                     ) : null}
@@ -1388,7 +1388,7 @@ export function ProcessDetailPage() {
                           </Badge>
                         </div>
                       </div>
-                      <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <p className="sig-label">Origem</p>
                           <p className="mt-2 text-sm font-medium text-slate-900">{dispatch.from}</p>
@@ -1410,8 +1410,8 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "historico") && (
-          <Card className="rounded-[28px] border-slate-200">
+          {activeTab === "historico" && (
+          <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <Workflow className="h-5 w-5" />
@@ -1478,7 +1478,7 @@ export function ProcessDetailPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <DialogTitle className="text-left text-lg text-slate-950">{viewerDocument?.label}</DialogTitle>
-                <p className="mt-1 text-sm text-slate-500">{viewerDocument?.fileName || "Documento tecnico"}</p>
+                <p className="mt-1 text-sm text-slate-500">{viewerDocument?.fileName || "Documento técnico"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" className="rounded-full" onClick={() => setViewerZoom((value) => Math.max(0.6, Number((value - 0.2).toFixed(2))))}>
