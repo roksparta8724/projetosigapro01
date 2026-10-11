@@ -155,7 +155,7 @@ export function GlobalSearchPage() {
                   <p className="text-sm font-semibold text-slate-900">
                     Protocolo encontrado: {formatOfficialProcessNumber(exactProcess.protocol)}
                   </p>
-                  <p className="text-xs text-slate-500">{exactProcess.title}</p>
+                  <p className="text-xs text-slate-500">{formatOfficialProcessTitle({ title: exactProcess.title, type: exactProcess.type })}</p>
                 </div>
                 <Button asChild className="h-9 rounded-full text-xs">
                   <Link to={`/processos/${exactProcess.id}`}>Abrir protocolo</Link>
