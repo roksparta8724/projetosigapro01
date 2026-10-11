@@ -18,7 +18,11 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import {
+  getSignedUrlForObjectStrict,
+  listRecoverableProcessFiles,
+  type RecoverableProcessFile,
+} from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   canAccessProcess,
@@ -39,6 +43,23 @@ import {
   type ProcessTransitVisibility,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "tamanho não informado";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function inferMimeType(fileName: string) {
+  const normalized = fileName.toLowerCase();
+  if (normalized.endsWith(".pdf")) return "application/pdf";
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".jpeg") || normalized.endsWith(".jpg")) return "image/jpeg";
+  return "application/octet-stream";
+}
 
 function buildDocumentPreview(documentLabel: string, fileName: string | undefined, tenantName: string | undefined) {
   const html = `
@@ -170,6 +191,10 @@ export function ProcessDetailPage() {
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
   const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
+  const [recoverableFiles, setRecoverableFiles] = useState<RecoverableProcessFile[]>([]);
+  const [recoverableSelection, setRecoverableSelection] = useState<Record<string, string>>({});
+  const [recoverableStatus, setRecoverableStatus] = useState("");
+  const [recoverableLoading, setRecoverableLoading] = useState(false);
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
@@ -191,6 +216,53 @@ export function ProcessDetailPage() {
 
 
   const process = processId ? getProcessById(processId, processes) : undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!process || activeTab !== "documentos" || !process.documents.some((document) => !document.uploaded)) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadRecoverableFiles = async () => {
+      setRecoverableLoading(true);
+      setRecoverableStatus("");
+      try {
+        const files = await listRecoverableProcessFiles();
+        if (cancelled) return;
+        const alreadyLinked = new Set(
+          process.documents
+            .map((document) => document.filePath)
+            .filter((value): value is string => Boolean(value)),
+        );
+        const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
+        setRecoverableFiles(available);
+        if (available.length > 0) {
+          setRecoverableStatus(
+            `${available.length} upload(s) anterior(es) encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRecoverableStatus(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível procurar uploads anteriores.",
+          );
+        }
+      } finally {
+        if (!cancelled) setRecoverableLoading(false);
+      }
+    };
+
+    void loadRecoverableFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, process]);
 
   useEffect(() => {
     let cancelled = false;
@@ -588,6 +660,56 @@ export function ProcessDetailPage() {
       y: ((event.clientY - rect.top) / rect.height) * 100,
     });
   };
+  const handleRecoverStoredDocument = async (document: typeof process.documents[number]) => {
+    const objectKey = recoverableSelection[document.id];
+    const candidate = recoverableFiles.find((file) => file.objectKey === objectKey);
+    if (!candidate) {
+      setProcessActionStatus("Escolha um upload anterior para recuperar.");
+      return;
+    }
+
+    const ok = await runProcessAction(
+      `recover-document-${document.id}`,
+      async () => {
+        const result = await appendProcessDocuments(
+          process.id,
+          [
+            {
+              id: `doc-${crypto.randomUUID()}`,
+              label: document.label,
+              required: document.required,
+              uploaded: true,
+              signed: false,
+              reviewStatus: "pendente",
+              annotations: [],
+              version: Math.max(1, Number(document.version || 0) + 1),
+              source: isInternalRole(session.role) ? "prefeitura" : "profissional",
+              fileName: candidate.fileName,
+              filePath: candidate.objectKey,
+              mimeType: inferMimeType(candidate.fileName),
+              sizeLabel: formatBytes(candidate.size),
+            },
+          ],
+          session.name,
+        );
+
+        if (Number(result.synced || 0) !== 1) {
+          throw new Error("O arquivo foi localizado, mas não foi confirmado no processo.");
+        }
+      },
+      `${document.label} recuperado do armazenamento e vinculado ao processo.`,
+    );
+
+    if (ok) {
+      setRecoverableFiles((current) => current.filter((file) => file.objectKey !== objectKey));
+      setRecoverableSelection((current) => {
+        const next = { ...current };
+        delete next[document.id];
+        return next;
+      });
+    }
+  };
+
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     const selected = documentUploads[document.id]?.[0];
     if (!selected?.file) {
@@ -889,6 +1011,58 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {uploadedCount}/{process.documents.length} arquivo(s) persistido(s)
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Somente arquivos confirmados no armazenamento oficial e no banco contam como enviados.
+                    </p>
+                    {recoverableStatus ? (
+                      <p className="mt-2 text-sm font-medium text-sky-700">{recoverableStatus}</p>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={recoverableLoading}
+                    onClick={() => {
+                      setRecoverableStatus("");
+                      setRecoverableFiles([]);
+                      const reload = async () => {
+                        setRecoverableLoading(true);
+                        try {
+                          const files = await listRecoverableProcessFiles();
+                          const alreadyLinked = new Set(
+                            process.documents
+                              .map((document) => document.filePath)
+                              .filter((value): value is string => Boolean(value)),
+                          );
+                          const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
+                          setRecoverableFiles(available);
+                          setRecoverableStatus(
+                            available.length > 0
+                              ? `${available.length} upload(s) anterior(es) encontrado(s).`
+                              : "Nenhum upload anterior disponível para recuperação.",
+                          );
+                        } catch (error) {
+                          setRecoverableStatus(
+                            error instanceof Error ? error.message : "Falha ao procurar uploads anteriores.",
+                          );
+                        } finally {
+                          setRecoverableLoading(false);
+                        }
+                      };
+                      void reload();
+                    }}
+                  >
+                    {recoverableLoading ? "Procurando..." : "Buscar uploads anteriores"}
+                  </Button>
+                </div>
+              </div>
               {process.documents.map((document) => (
                 <div key={document.id} className="rounded-2xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -947,8 +1121,43 @@ export function ProcessDetailPage() {
                     <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
                       <p className="text-sm font-semibold text-amber-900">Documento ainda não persistido no processo</p>
                       <p className="mt-1 text-sm leading-6 text-amber-800">
-                        Se este arquivo já foi selecionado anteriormente, ele não chegou ao banco oficial. Reenvie aqui para vinculá-lo definitivamente à análise urbanística.
+                        O banco oficial ainda não possui este arquivo. Você pode recuperar um upload anterior localizado no R2 ou selecionar o arquivo novamente.
                       </p>
+                      {recoverableFiles.length > 0 ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <Select
+                            value={recoverableSelection[document.id] || ""}
+                            onValueChange={(value) =>
+                              setRecoverableSelection((current) => ({ ...current, [document.id]: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Escolher upload anterior" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {recoverableFiles.map((file) => (
+                                <SelectItem key={file.objectKey} value={file.objectKey}>
+                                  {file.fileName} • {formatBytes(file.size)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full"
+                            disabled={
+                              processActionBusy === `recover-document-${document.id}` ||
+                              !recoverableSelection[document.id]
+                            }
+                            onClick={() => void handleRecoverStoredDocument(document)}
+                          >
+                            {processActionBusy === `recover-document-${document.id}`
+                              ? "Recuperando..."
+                              : "Recuperar arquivo"}
+                          </Button>
+                        </div>
+                      ) : null}
                       <div className="mt-3">
                         <FileDropZone
                           title={document.label}
