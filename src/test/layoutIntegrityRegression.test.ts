@@ -61,16 +61,30 @@ describe("layout integrity regression", () => {
     );
   });
 
-  it("keeps process finance cards from compressing the PIX column", () => {
+  it("keeps process detail cards readable at browser zoom without viewport-driven compression", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
     expect(detail).toContain(
-      "min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]",
+      "[grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]",
     );
     expect(detail).toContain(
+      "[grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]",
+    );
+    expect(detail).toContain("content-start auto-rows-max");
+    expect(detail).toContain('activeTab !== "resumo"');
+    expect(detail).toContain(
+      'const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);',
+    );
+    expect(detail).toContain(
+      'const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);',
+    );
+    expect(detail).not.toContain(
+      "min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]",
+    );
+    expect(detail).not.toContain(
       "sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]",
     );
     expect(detail).toContain("overflow-x-auto whitespace-nowrap");
-    expect(detail).not.toContain("xl:grid-cols-[1.05fr,0.95fr]");
     expect(detail).not.toContain('className="mt-2 break-all text-xs text-slate-500"');
   });
 

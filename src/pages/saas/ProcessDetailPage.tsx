@@ -53,9 +53,9 @@ function buildDocumentPreview(documentLabel: string, fileName: string | undefine
           <div class="brand">SIGAPRO - PREVIEW DOCUMENTAL</div>
           <div class="title">${documentLabel}</div>
           <div class="meta">
-            <p><strong>Arquivo:</strong> ${fileName || "Nao informado"}</p>
+            <p><strong>Arquivo:</strong> ${fileName || "Não informado"}</p>
             <p><strong>Prefeitura:</strong> ${tenantName || "Nao vinculada"}</p>
-            <p><strong>Visualizacao:</strong> Documento demonstrativo para conferência no software.</p>
+            <p><strong>Visualização:</strong> Documento demonstrativo para conferência no software.</p>
           </div>
         </div>
       </body>
@@ -255,7 +255,7 @@ export function ProcessDetailPage() {
               <p className="font-semibold">Este perfil não pode visualizar documentos nem dados processuais desta prefeitura.</p>
             </div>
             <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-              O administrador geral consegue testar os acessos, mas o conteudo sigiloso permanece bloqueado.
+              O administrador geral consegue testar os acessos, mas o conteúdo sigiloso permanece bloqueado.
             </p>
           </CardContent>
         </Card>
@@ -374,10 +374,10 @@ export function ProcessDetailPage() {
     { key: "financeiro", label: "Financeiro" },
     { key: "historico", label: "Histórico" },
   ] as const;
-  const showPrimaryDetailColumn = ["resumo", "imovel", "documentos", "historico"].includes(activeTab);
-  const showSecondaryDetailColumn = ["resumo", "analise", "financeiro", "historico"].includes(activeTab);
-  const useSplitDetailLayout = ["resumo", "historico"].includes(activeTab);
-  const cardShell = "rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
+  const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
+  const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
+  const useSplitDetailLayout = activeTab === "historico";
+  const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = paymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
@@ -630,7 +630,7 @@ export function ProcessDetailPage() {
           <p className="mt-1 text-sm text-slate-500">Etapa atual: {statusLabel(process.status)} • Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}</p>
 
           <div className="mt-6 rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-5">
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))]">
               {flowSteps.map((step, index) => (
                 <div key={step.key} className="relative">
                   {index < flowSteps.length - 1 ? <div className="absolute left-[52%] top-5 hidden h-px w-full bg-slate-300 md:block" /> : null}
@@ -645,7 +645,7 @@ export function ProcessDetailPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 rounded-xl bg-slate-100 p-1 md:grid-cols-6">
+          <div className="mt-4 grid gap-2 rounded-xl bg-slate-100 p-1 [grid-template-columns:repeat(auto-fit,minmax(min(100%,118px),1fr))]">
             {tabItems.map((tab) => (
               <button
                 key={tab.key}
@@ -660,8 +660,8 @@ export function ProcessDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-12">
-        <Card className={`${cardShell} xl:col-span-5`}>
+      <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -671,13 +671,13 @@ export function ProcessDetailPage() {
                 {process.type}
               </Badge>
             </div>
-            <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - Prefeitura ${tenant?.name || ""}`}>
+            <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - Prefeitura ${tenant?.name || ""}`}>
               Protocolo oficial {process.externalProtocol} - Prefeitura {tenant?.name}
             </p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} xl:col-span-3`}>
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Guia</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={protocolGuide?.code || "Sem guia"}>{protocolGuide?.code || "Sem guia"}</p>
@@ -685,27 +685,28 @@ export function ProcessDetailPage() {
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} xl:col-span-2`}>
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900">
               {uploadedCount}/{process.documents.length}
             </p>
-            <p className="sig-field-help mt-2">Checklist com versao, nome do arquivo e assinatura</p>
+            <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} xl:col-span-2`}>
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">SLA atual</p>
-            <p className="mt-3 line-clamp-2 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
-            <p className="sig-field-help mt-2 line-clamp-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+            <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
+            <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
             {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-12">
-        <Card className={`${cardShell} xl:col-span-8`}>
+      {(activeTab === "resumo" || activeTab === "historico") ? (
+      <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
@@ -715,7 +716,7 @@ export function ProcessDetailPage() {
                   A unidade atual é <span className="font-medium text-slate-700">{currentFolder}</span>. Os despachos formais mantêm a conversa entre Protocolo, Análise, Financeiro, Setor de IPTU, Fiscalização, Habite-se e demais setores.
                 </p>
               </div>
-              <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3 xl:min-w-[320px]">
+              <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr))] xl:min-w-[320px]">
                 <div>
                   <p className="sig-label">Unidade atual</p>
                   <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={currentFolder}>{currentFolder}</p>
@@ -732,7 +733,7 @@ export function ProcessDetailPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} xl:col-span-4`}>
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Acesso externo ao fluxo</p>
             <p className="mt-2 text-base font-medium text-slate-900">
@@ -770,11 +771,13 @@ export function ProcessDetailPage() {
           </CardContent>
         </Card>
       </div>
+      ) : null}
 
-      <div className={`mt-5 grid min-w-0 gap-5 ${useSplitDetailLayout ? "xl:grid-cols-[minmax(0,1.38fr)_minmax(300px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.82fr)]" : "grid-cols-1"}`}>
+      {activeTab !== "resumo" ? (
+      <div className={`mt-5 grid min-w-0 items-start gap-5 ${useSplitDetailLayout ? "xl:grid-cols-[minmax(0,1.38fr)_minmax(320px,0.86fr)] min-[1600px]:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.82fr)]" : "grid-cols-1"}`}>
         {showPrimaryDetailColumn ? (
-        <div className="grid min-w-0 gap-6">
-          {(activeTab === "resumo" || activeTab === "imovel") && (
+        <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
+          {activeTab === "imovel" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -796,7 +799,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "documentos") && (
+          {activeTab === "documentos" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -816,7 +819,7 @@ export function ProcessDetailPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="outline" className="rounded-full">
-                        {document.required ? "Obrigatorio" : "Opcional"}
+                        {document.required ? "Obrigatório" : "Opcional"}
                       </Badge>
                       <Badge variant="outline" className="rounded-full">
                         {document.uploaded ? "Enviado" : "Pendente"}
@@ -928,7 +931,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "historico") && (
+          {activeTab === "historico" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -957,8 +960,8 @@ export function ProcessDetailPage() {
         ) : null}
 
         {showSecondaryDetailColumn ? (
-        <div className="grid min-w-0 gap-6">
-          {(activeTab === "resumo" || activeTab === "analise") && (
+        <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
+          {activeTab === "analise" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -971,7 +974,7 @@ export function ProcessDetailPage() {
                 <form className="space-y-3" onSubmit={handleCreateRequirement}>
                   <Input value={requirementTitle} onChange={(event) => setRequirementTitle(event.target.value)} placeholder="Título da exigência" />
                   <Input value={requirementDescription} onChange={(event) => setRequirementDescription(event.target.value)} placeholder="Descreva a exigência formal" />
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
                     <Input type="date" value={requirementDueDate} onChange={(event) => setRequirementDueDate(event.target.value)} />
                     <Select value={requirementVisibility} onValueChange={(value) => setRequirementVisibility(value as "interno" | "externo" | "misto")}>
                       <SelectTrigger className="rounded-2xl">
@@ -1068,7 +1071,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "analise") && (
+          {activeTab === "analise" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -1078,10 +1081,10 @@ export function ProcessDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <form className="flex flex-col gap-3" onSubmit={handleSendMessage}>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
                   <Select value={messageRecipient} onValueChange={setMessageRecipient}>
                     <SelectTrigger className="rounded-2xl">
-                      <SelectValue placeholder="Escolha o destinatario" />
+                      <SelectValue placeholder="Escolha o destinatário" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todos os envolvidos permitidos</SelectItem>
@@ -1106,9 +1109,9 @@ export function ProcessDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="interno">Interno - Só Prefeitura Vê</SelectItem>
-                      <SelectItem value="externo">Externo - Só o Profissional Vê</SelectItem>
-                      <SelectItem value="misto">Misto - Ambos Veem</SelectItem>
+                      <SelectItem value="interno">Interno - Só a Prefeitura vê</SelectItem>
+                      <SelectItem value="externo">Externo - Só o profissional vê</SelectItem>
+                      <SelectItem value="misto">Misto - Ambos veem</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1142,7 +1145,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "financeiro") && (
+          {activeTab === "financeiro" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -1151,7 +1154,7 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid items-stretch gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
                 <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
                   <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 1</p>
                   <p className="mt-2 text-sm font-medium text-slate-900">Protocolo e Recolhimento</p>
@@ -1168,7 +1171,7 @@ export function ProcessDetailPage() {
                   <p className="mt-2 text-sm text-slate-600">Só aparece no fechamento do processo, quando a taxa final de aprovação for solicitada.</p>
                 </div>
               </div>
-              <div className="grid min-w-0 gap-4 min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]">
+              <div className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
                 <div className="min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1186,7 +1189,7 @@ export function ProcessDetailPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
                     <div className="rounded-2xl border border-[#d8e4f1] bg-white p-4">
                       <p className="text-[10px] font-normal uppercase tracking-[0.1em] text-slate-400">Valor</p>
                       <p className="mt-2 text-lg font-medium text-[#123860]">{formatCurrency(protocolGuide?.amount || 0)}</p>
@@ -1223,7 +1226,7 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                 </div>
-              <div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]">
+              <div className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
                 <div className="flex min-w-0 justify-center rounded-2xl border border-slate-200 bg-white p-4">
                   <PixQrCode value={pixPayload} />
                 </div>
@@ -1248,7 +1251,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "analise") && (
+          {activeTab === "analise" && (
           <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
@@ -1283,7 +1286,7 @@ export function ProcessDetailPage() {
                         <div>Hash: {block.evidence.hash}</div>
                         <div>IP: {block.evidence.ip}</div>
                         <div>Agente: {block.evidence.userAgent}</div>
-                        <div>Versao assinada: v{block.evidence.signedVersion}</div>
+                        <div>Versão assinada: v{block.evidence.signedVersion}</div>
                         <div>Carimbo: {block.evidence.timestampAuthority}</div>
                       </div>
                     ) : null}
@@ -1294,8 +1297,8 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "analise" || activeTab === "historico") && (
-          <Card className="rounded-[28px] border-slate-200">
+          {activeTab === "historico" && (
+          <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <ArrowRightLeft className="h-5 w-5" />
@@ -1314,7 +1317,7 @@ export function ProcessDetailPage() {
                       Unidade atual: {currentFolder}
                     </Badge>
                   </div>
-                  <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
                     <Select value={dispatchFrom} onValueChange={setDispatchFrom}>
                       <SelectTrigger className="rounded-2xl">
                         <SelectValue placeholder="Origem do despacho" />
@@ -1342,7 +1345,7 @@ export function ProcessDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px_180px]">
+                  <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
                     <Input value={dispatchSubject} onChange={(event) => setDispatchSubject(event.target.value)} placeholder="Assunto do despacho ou encaminhamento" />
                     <Input type="date" value={dispatchDueDate} onChange={(event) => setDispatchDueDate(event.target.value)} />
                     <Select value={dispatchVisibility} onValueChange={(value) => setDispatchVisibility(value as "interno" | "externo" | "misto")}>
@@ -1385,7 +1388,7 @@ export function ProcessDetailPage() {
                           </Badge>
                         </div>
                       </div>
-                      <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <p className="sig-label">Origem</p>
                           <p className="mt-2 text-sm font-medium text-slate-900">{dispatch.from}</p>
@@ -1407,8 +1410,8 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {(activeTab === "resumo" || activeTab === "historico") && (
-          <Card className="rounded-[28px] border-slate-200">
+          {activeTab === "historico" && (
+          <Card className={cardShell}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <Workflow className="h-5 w-5" />
@@ -1467,6 +1470,7 @@ export function ProcessDetailPage() {
         </div>
         ) : null}
       </div>
+      ) : null}
 
       <Dialog open={!!viewerDocument} onOpenChange={(open) => !open && setViewerDocumentId(null)}>
         <DialogContent className="max-h-[96vh] max-w-[96vw] overflow-hidden border-slate-200 p-0">
@@ -1474,7 +1478,7 @@ export function ProcessDetailPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <DialogTitle className="text-left text-lg text-slate-950">{viewerDocument?.label}</DialogTitle>
-                <p className="mt-1 text-sm text-slate-500">{viewerDocument?.fileName || "Documento tecnico"}</p>
+                <p className="mt-1 text-sm text-slate-500">{viewerDocument?.fileName || "Documento técnico"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" className="rounded-full" onClick={() => setViewerZoom((value) => Math.max(0.6, Number((value - 0.2).toFixed(2))))}>
