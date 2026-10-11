@@ -1142,19 +1142,47 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         throw new Error("Banco oficial indisponível para alterar o status da Prefeitura.");
       }
 
+      const assignment = store.planAssignments.find((item) => item.municipalityId === tenantId);
+      if (!assignment && status !== "suspenso") {
+        throw new Error("Vincule um plano comercial antes de ativar esta Prefeitura.");
+      }
+
       const settings = store.tenantSettings.find((item) => item.tenantId === tenantId);
-      await upsertRemoteInstitution({
-        institutionId: tenantId,
-        name: tenant.name,
-        city: tenant.city,
-        state: tenant.state,
-        status,
-        subdomain: tenant.subdomain,
-        cnpj: settings?.cnpj ?? "",
-        primaryColor: tenant.theme.primary,
-        accentColor: tenant.theme.accent,
-        secretariat: settings?.secretariaResponsavel ?? "",
-      });
+      const saveInstitutionStatus = (nextStatus: Tenant["status"]) =>
+        upsertRemoteInstitution({
+          institutionId: tenantId,
+          name: tenant.name,
+          city: tenant.city,
+          state: tenant.state,
+          status: nextStatus,
+          subdomain: tenant.subdomain,
+          cnpj: settings?.cnpj ?? "",
+          primaryColor: tenant.theme.primary,
+          accentColor: tenant.theme.accent,
+          secretariat: settings?.secretariaResponsavel ?? "",
+        });
+
+      await saveInstitutionStatus(status);
+
+      if (assignment) {
+        const previousContractStatus = assignment.contractStatus;
+        const nextContractStatus =
+          status === "suspenso"
+            ? "suspenso"
+            : previousContractStatus === "trial"
+              ? "trial"
+              : "ativo";
+        try {
+          await saveRemoteClientPlanAssignment({
+            ...assignment,
+            contractStatus: nextContractStatus,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          await saveInstitutionStatus(tenant.status).catch(() => undefined);
+          throw error;
+        }
+      }
 
       await refreshRemoteStore();
     };
