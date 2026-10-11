@@ -332,6 +332,7 @@ export function ImageFrameEditor({
         naturalWidth: naturalSize.width,
         naturalHeight: naturalSize.height,
         fitMode,
+        shape,
         minScale: effectiveMinScale,
         maxScale: effectiveMaxScale,
       }),
