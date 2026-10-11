@@ -26,7 +26,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
-import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, processTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
@@ -429,14 +429,16 @@ export function ProtocolarProjetoPage() {
         console.error("[ProtocolarProjeto] Falha na persistência remota", remoteError);
 
         if (uploadedObjectKeys.length > 0) {
-          await Promise.allSettled(
-            uploadedObjectKeys.map((objectKey) =>
-              deleteFileFromStorage({ bucket: "process-documents", objectKey }),
-            ),
-          );
+          console.warn("[ProtocolarProjeto] Uploads preservados no R2 para recuperação segura.", {
+            count: uploadedObjectKeys.length,
+          });
         }
 
-        setStatus(`Não foi possível concluir o protocolo: ${message}`);
+        setStatus(
+          uploadedObjectKeys.length > 0
+            ? `Não foi possível concluir o protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
+            : `Não foi possível concluir o protocolo: ${message}`,
+        );
         setSubmitting(false);
         return;
       }
