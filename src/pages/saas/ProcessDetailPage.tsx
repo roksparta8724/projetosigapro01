@@ -140,7 +140,7 @@ function buildProtocolGuideHtml(input: {
 
 export function ProcessDetailPage() {
   const { processId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
@@ -159,8 +159,11 @@ export function ProcessDetailPage() {
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
-  const [activeTab, setActiveTab] = useState<"resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico">(
-    (searchParams.get("aba") as "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico") || "resumo",
+  type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico";
+  const validProcessTabs: ProcessTab[] = ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"];
+  const initialTab = searchParams.get("aba") as ProcessTab | null;
+  const [activeTab, setActiveTab] = useState<ProcessTab>(
+    initialTab && validProcessTabs.includes(initialTab) ? initialTab : "resumo",
   );
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
@@ -172,6 +175,21 @@ export function ProcessDetailPage() {
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
+  const setProcessTab = (tab: ProcessTab) => {
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("aba", tab);
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  useEffect(() => {
+    const requested = searchParams.get("aba") as ProcessTab | null;
+    if (requested && validProcessTabs.includes(requested) && requested !== activeTab) {
+      setActiveTab(requested);
+    }
+  }, [activeTab, searchParams]);
+
+
   const process = processId ? getProcessById(processId, processes) : undefined;
 
   useEffect(() => {
@@ -713,7 +731,7 @@ export function ProcessDetailPage() {
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => setProcessTab(tab.key)}
                 className={`rounded-[10px] px-3 py-2 text-sm font-medium transition ${activeTab === tab.key ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
               >
                 {tab.label}
