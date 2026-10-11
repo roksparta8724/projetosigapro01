@@ -51,12 +51,18 @@ describe("profile and branding persistence regressions", () => {
 
   it("renders premium avatars as true circles with the whole uploaded image visible", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
-    expect(userAvatar).toContain('crop ? "object-contain" : "object-cover"');
+    expect(userAvatar).toContain('crop ? "object-contain" : "inset-0 h-full w-full object-cover"');
+    expect(userAvatar).toContain("Math.hypot(naturalSize.width, naturalSize.height)");
+    expect(userAvatar).toContain("safeImageWidth");
+    expect(userAvatar).toContain("safeImageHeight");
     expect(imageFrameEditor).toContain('data-image-frame-shape={shape}');
     expect(imageFrameEditor).toContain('width: "min(320px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
     expect(imageFrameEditor).toContain('borderRadius: "9999px"');
     expect(imageFrameEditor).not.toContain('crossOrigin = "anonymous"');
+    expect(imageFrameEditor).toContain("Math.hypot(naturalWidth, naturalHeight)");
+    expect(imageFrameEditor).toContain("sig-image-frame-canvas");
+    expect(css).toContain(".sig-image-frame-canvas");
     expect(profilePage).toContain('fitMode="contain"');
     expect(profilePage).not.toContain('viewportClassName="w-full max-w-[320px]"');
     expect(profilePage).toContain("sem cortes, ovalização ou deformação");
