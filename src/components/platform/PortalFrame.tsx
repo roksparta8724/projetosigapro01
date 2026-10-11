@@ -1320,7 +1320,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                           <div className="min-w-0">
                             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores</p>
                             <p className="mt-1 text-[13px] leading-5 text-slate-500">
-                              Gerencie atalhos visuais com status real, edicao rapida e rastreabilidade coerente.
+                              Seus marcadores ficam vinculados ao seu usuário. Crie, nomeie, edite e aplique no processo atual.
                             </p>
                           </div>
                           <div className="sig-marker-header-badge shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
@@ -1417,7 +1417,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Novo marcador</p>
                         <p className="mt-1 text-[12px] leading-5 text-slate-500">
-                          Crie um rotulo institucional para destacar etapas, exigencias e prioridades reais da tramitacao.
+                          Crie um marcador pessoal com o nome e a cor que preferir para organizar sua rotina.
                         </p>
                       </div>
                       {markerSavePulse ? (
@@ -1489,7 +1489,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                           label: nextLabel,
                           emoji: "",
                           color: markerColor,
-                          description: "Marcador personalizado da operacao municipal.",
+                          description: "Marcador personalizado deste usuário.",
                         });
                         setMarkerLabel("");
                         setPendingMarkerRemovalId(null);
