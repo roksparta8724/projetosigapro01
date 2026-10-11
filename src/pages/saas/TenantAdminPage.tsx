@@ -1,5 +1,5 @@
-﻿import { FormEvent, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock3, FileText, PencilLine, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, FileText, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,16 @@ import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, ro
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import {
+  assignRemoteProfileDepartment,
+  listRemoteMunicipalDepartments,
+  upsertRemoteMunicipalDepartment,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
 
 const tenantRoles: UserRole[] = ["prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
-type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "historico";
+type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
 
 function getStatusTone(status: AccountStatus) {
   if (status === "blocked") return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
@@ -86,6 +92,45 @@ export function TenantAdminPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [form, setForm] = useState({ fullName: "", email: "", role: "analista" as UserRole, title: roleSuggestedTitles.analista, accessLevel: "1" });
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "analista" as UserRole, title: "", accessLevel: "1", department: "", userType: "" });
+  const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [orgBusy, setOrgBusy] = useState(false);
+  const [orgForm, setOrgForm] = useState({
+    name: "",
+    unitType: "departamento",
+    parentDepartmentId: "",
+    description: "",
+    email: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    let active = true;
+    if (!effectiveScopeId) {
+      setDepartments([]);
+      return () => { active = false; };
+    }
+    void listRemoteMunicipalDepartments(effectiveScopeId)
+      .then((rows) => {
+        if (active) setDepartments(rows);
+      })
+      .catch((error) => {
+        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma.");
+      });
+    return () => { active = false; };
+  }, [effectiveScopeId]);
+
+  const activeDepartments = useMemo(
+    () => departments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
+    [departments],
+  );
+  const rootDepartments = useMemo(
+    () => activeDepartments.filter((item) => !item.parentDepartmentId),
+    [activeDepartments],
+  );
+  const usersWithoutDepartment = useMemo(
+    () => tenantUsers.filter((user) => !user.department || !activeDepartments.some((item) => item.name === user.department)),
+    [activeDepartments, tenantUsers],
+  );
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -168,11 +213,53 @@ export function TenantAdminPage() {
     }
   };
   const handleSaveEdit = async (userId: string) => {
+    const selectedDepartment = activeDepartments.find((item) => item.name === editForm.department) ?? null;
+    if (effectiveScopeId) {
+      try {
+        await assignRemoteProfileDepartment({
+          municipalityId: effectiveScopeId,
+          profileId: userId,
+          departmentId: selectedDepartment?.id ?? null,
+        });
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar o departamento.");
+        return;
+      }
+    }
+
     const saved = await runUserCommand(userId, () => updateTenantUser(userId, {
       name: editForm.name.trim(), role: editForm.role, title: editForm.title.trim(),
+      department: selectedDepartment?.name ?? "",
       accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3,
-    }), (updated) => `Dados de ${updated.name} atualizados no banco.`);
+    }), (updated) => `Dados de ${updated.name} e posição no organograma atualizados.`);
     if (saved) setEditingUserId(null);
+  };
+
+  const handleCreateDepartment = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!effectiveScopeId || !orgForm.name.trim() || orgBusy) return;
+    setOrgBusy(true);
+    setStatusMessage("Salvando unidade no organograma...");
+    try {
+      await upsertRemoteMunicipalDepartment({
+        municipalityId: effectiveScopeId,
+        name: orgForm.name.trim(),
+        unitType: orgForm.unitType,
+        parentDepartmentId: orgForm.parentDepartmentId || null,
+        description: orgForm.description.trim(),
+        email: orgForm.email.trim(),
+        phone: orgForm.phone.trim(),
+        sortOrder: activeDepartments.length * 10 + 10,
+      });
+      const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
+      setDepartments(rows);
+      setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+      setStatusMessage("Unidade adicionada ao organograma da Prefeitura.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar a unidade.");
+    } finally {
+      setOrgBusy(false);
+    }
   };
   const canManageAccount = (user: SessionUser) => user.id !== session.id && user.role !== "prefeitura_admin";
   const handleBlockToggle = (user: SessionUser) => {
@@ -240,8 +327,20 @@ export function TenantAdminPage() {
                 <Input value={editForm.email} readOnly className="bg-slate-50" />
               </div>
               <div className="space-y-2">
-                <Label>Setor / cargo</Label>
+                <Label>Cargo / função</Label>
                 <Input value={editForm.title} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Departamento no organograma</Label>
+                <Select value={editForm.department || "__none"} onValueChange={(value) => setEditForm((current) => ({ ...current, department: value === "__none" ? "" : value }))}>
+                  <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Sem departamento</SelectItem>
+                    {activeDepartments.map((department) => (
+                      <SelectItem key={department.id} value={department.name}>{department.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Perfil</Label>
@@ -366,6 +465,7 @@ export function TenantAdminPage() {
             { value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" },
             { value: "fila", label: "Fila operacional", helper: "Protocolos e prioridades" },
             { value: "usuarios", label: "Usuários", helper: "Equipe e acessos" },
+            { value: "organograma", label: "Organograma", helper: "Estrutura e lotação" },
             { value: "historico", label: "Histórico", helper: "Atividades recentes" },
           ]}
         />
@@ -541,6 +641,130 @@ export function TenantAdminPage() {
 
         {workspaceView === "usuarios" ? <PageMainGrid className="xl:grid-cols-[minmax(0,2.08fr)_minmax(300px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Vincular conta existente" description="A conta precisa estar confirmada e vinculada a esta Prefeitura. O papel interno só é ativado após confirmação no banco." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura vinculada</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil</Label><Select value={form.role} onValueChange={(value) => setForm((current) => ({ ...current, role: value as UserRole, title: roleSuggestedTitles[value as UserRole] }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Cargo ou setor</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Selecione ou digite um cargo existente" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist><p className="text-xs leading-5 text-slate-500">Os cargos existentes desta Prefeitura aparecem como sugestão para manter o padrão institucional.</p></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><Button type="submit" disabled={Boolean(savingUserId)} className="h-12 w-full rounded-2xl bg-slate-950 hover:bg-slate-900">{savingUserId === "new" ? "Confirmando vínculo..." : "Vincular conta"}</Button></form></SectionCard></PageSideContent></PageMainGrid> : null}
 
+
+        {workspaceView === "organograma" ? (
+          <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.82fr)] xl:items-start">
+            <PageMainContent>
+              <TableCard
+                title="Organograma municipal"
+                description="A Prefeitura define livremente secretarias, diretorias, departamentos e setores, além da lotação de cada usuário."
+                icon={Network}
+              >
+                <div className="space-y-5">
+                  {activeDepartments.length === 0 ? (
+                    <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                      Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado; depois o administrador poderá distribuir a equipe entre as unidades.
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                      {rootDepartments.map((department) => {
+                        const children = activeDepartments.filter((item) => item.parentDepartmentId === department.id);
+                        const directUsers = tenantUsers.filter((user) => user.department === department.name);
+                        return (
+                          <div key={department.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="sig-section-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-sky-700">
+                                <Building2 className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{department.unitType}</p>
+                                <p className="mt-1 text-base font-semibold text-slate-950">{department.name}</p>
+                                {department.description ? <p className="mt-1 text-sm leading-6 text-slate-500">{department.description}</p> : null}
+                              </div>
+                            </div>
+                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Equipe direta</p>
+                              <p className="mt-1 text-sm font-medium text-slate-900">{directUsers.length} usuário(s)</p>
+                              {directUsers.slice(0, 4).map((user) => <p key={user.id} className="mt-1 text-xs text-slate-600">{user.name} • {user.title}</p>)}
+                            </div>
+                            {children.length > 0 ? (
+                              <div className="mt-3 space-y-2">
+                                {children.map((child) => {
+                                  const childUsers = tenantUsers.filter((user) => user.department === child.name);
+                                  return (
+                                    <div key={child.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                      <p className="text-sm font-semibold text-slate-900">{child.name}</p>
+                                      <p className="mt-1 text-xs text-slate-500">{child.unitType} • {childUsers.length} usuário(s)</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {usersWithoutDepartment.length > 0 ? (
+                    <div className="rounded-[24px] border border-amber-200 bg-amber-50/70 p-5">
+                      <p className="text-sm font-semibold text-amber-900">Usuários ainda sem lotação definida</p>
+                      <p className="mt-1 text-sm leading-6 text-amber-800">Edite o usuário na aba Usuários e escolha a unidade do organograma.</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {usersWithoutDepartment.map((user) => (
+                          <Badge key={user.id} variant="outline" className="border-amber-300 bg-white text-amber-900">{user.name}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </TableCard>
+            </PageMainContent>
+            <PageSideContent>
+              <SectionCard
+                title="Montar organograma"
+                description="Crie a estrutura conforme a realidade de cada Prefeitura. Nenhum setor é imposto pelo SIGAPRO."
+                icon={Plus}
+                contentClassName="space-y-4"
+              >
+                <form className="space-y-4" onSubmit={handleCreateDepartment}>
+                  <div className="space-y-2">
+                    <Label>Nome da unidade</Label>
+                    <Input value={orgForm.name} onChange={(event) => setOrgForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Protocolo, Financeiro, Obras" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo</Label>
+                    <Select value={orgForm.unitType} onValueChange={(value) => setOrgForm((current) => ({ ...current, unitType: value }))}>
+                      <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="secretaria">Secretaria</SelectItem>
+                        <SelectItem value="diretoria">Diretoria</SelectItem>
+                        <SelectItem value="departamento">Departamento</SelectItem>
+                        <SelectItem value="setor">Setor</SelectItem>
+                        <SelectItem value="coordenadoria">Coordenadoria</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unidade superior</Label>
+                    <Select value={orgForm.parentDepartmentId || "__root"} onValueChange={(value) => setOrgForm((current) => ({ ...current, parentDepartmentId: value === "__root" ? "" : value }))}>
+                      <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__root">Nível principal</SelectItem>
+                        {activeDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Descrição</Label>
+                    <Input value={orgForm.description} onChange={(event) => setOrgForm((current) => ({ ...current, description: event.target.value }))} placeholder="Responsabilidade da unidade" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-mail institucional</Label>
+                    <Input type="email" value={orgForm.email} onChange={(event) => setOrgForm((current) => ({ ...current, email: event.target.value }))} placeholder="Opcional" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone</Label>
+                    <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Opcional" />
+                  </div>
+                  <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                    {orgBusy ? "Salvando..." : "Adicionar ao organograma"}
+                  </Button>
+                </form>
+              </SectionCard>
+            </PageSideContent>
+          </PageMainGrid>
+        ) : null}
 
         {workspaceView === "historico" ? <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]"><PageMainContent><TableCard title="Movimentações recentes" description="Trilha curta de trâmites, pareceres e ações da operação municipal." icon={Clock3}><div className="space-y-3">{recentActivity.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma movimentação recente encontrada.</div> : recentActivity.map((item, index) => <div key={`${item.processId}-${index}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-slate-950">{item.protocol}</p><Badge variant="outline" className={statusTone(item.status)}>{statusLabel(item.status)}</Badge></div><p className="mt-1 text-sm font-medium text-slate-800">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p></div><div className="text-sm text-slate-500"><p>{item.actor}</p><p>{item.at}</p></div></div></div>)}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Aprovações recentes" description="Deferimentos já concluídos e liberados pela operação municipal." icon={CheckCircle2} contentClassName="space-y-3">{recentApprovals.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">Nenhum deferimento recente encontrado.</div> : recentApprovals.map((process) => <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-sm font-semibold text-slate-950">{process.protocol}</p><p className="mt-1 text-sm text-slate-800">{process.title}</p><p className="mt-1 text-sm text-slate-500">{process.ownerName}</p></div>)}</SectionCard></PageSideContent></PageMainGrid> : null}
       </PageShell>
