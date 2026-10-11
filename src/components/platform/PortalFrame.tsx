@@ -100,10 +100,10 @@ function normalizeLayoutThemeOverride(theme: LayoutThemeOverride | null): Layout
 }
 
 const navItems = [
-  { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true },
-  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true },
-  { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true },
-  { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true },
+  { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
     to: "/prefeitura/protocolos",
@@ -130,14 +130,15 @@ const navItems = [
       { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers, permission: "manage_fiscal_financial" as Permission },
     ],
   },
-  { key: "notifications", to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission },
-  { key: "history", to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission },
+  { key: "notifications", to: "/notificacoes", label: "Notificações", icon: Bell, permission: "manage_own_profile" as Permission, module: undefined as PlanModuleName | undefined },
+  { key: "history", to: "/historico", label: "Histórico", icon: History, permission: "manage_own_profile" as Permission, module: undefined as PlanModuleName | undefined },
   {
     key: "legislation",
     to: "/legislacao",
     label: "Legislação",
     icon: BookOpenText,
     permission: "manage_own_profile" as Permission,
+    module: undefined as PlanModuleName | undefined,
     children: [
       { to: "/legislacao", label: "Visão geral", icon: BookOpenText },
       { to: "/legislacao/zoneamento", label: "Zoneamento", icon: Layers },
