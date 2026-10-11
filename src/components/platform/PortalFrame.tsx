@@ -61,9 +61,11 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
+import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { can, desktopThemePresets, getProcessPaymentGuides, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
@@ -108,18 +110,20 @@ const navItems = [
     label: "Protocolos",
     icon: ScrollText,
     permission: "manage_protocols" as Permission,
+    module: "Protocolo digital" as PlanModuleName,
     children: [
       { to: "/prefeitura/protocolos", label: "Visão geral", icon: LayoutDashboard },
       { to: "/prefeitura/protocolos/novo", label: "Novo protocolo", icon: PlusCircle },
     ],
   },
-  { key: "analysis", to: "/prefeitura/analise", label: "Análise", icon: Search, permission: "review_processes" as Permission },
+  { key: "analysis", to: "/prefeitura/analise", label: "Análise", icon: Search, permission: "review_processes" as Permission, module: "Analise tecnica" as PlanModuleName },
   {
     key: "finance",
     to: "/prefeitura/financeiro",
     label: "Financeiro",
     icon: Wallet,
     permission: "manage_financial" as Permission,
+    module: "Financeiro" as PlanModuleName,
     children: [
       { to: "/prefeitura/financeiro", label: "Visão geral", icon: LayoutDashboard, permission: "manage_financial" as Permission },
       { to: "/prefeitura/financeiro/protocolos", label: "Protocolos e recolhimento", icon: FileBarChart2, permission: "manage_financial" as Permission },
@@ -145,6 +149,7 @@ const navItems = [
       label: "Acesso Externo",
       icon: IdCard,
       permission: "submit_processes" as Permission,
+      module: "Acesso externo" as PlanModuleName,
       children: [
         { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
         { to: "/externo/protocolar", label: "Protocolar", icon: ListChecks },
@@ -154,7 +159,7 @@ const navItems = [
         { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
       ],
     },
-  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true },
+  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
 const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/configuracoes"];
@@ -277,6 +282,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     removeProcessMarker,
   } = usePlatformData();
   const { isItemVisible } = useUserMenuPreferences();
+  const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
@@ -378,6 +384,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
   const visibleNavItems = navItems
     .map((item) => {
+      if (item.module && !planEntitlements.canUseModule(item.module)) return null;
       const visibleChildren = (item.children ?? []).filter(
         (child) => !child.permission || can(session, child.permission),
       );
