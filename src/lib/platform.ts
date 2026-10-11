@@ -140,6 +140,9 @@ export function formatOfficialProcessLabel(input: { protocol: string; type?: str
   return match ? `Processo de ${typeLabel} nº ${match[1]}` : number;
 }
 
+export const URBAN_ANALYSIS_DEPARTMENT = "Análise Urbanística";
+export const PROTOCOL_DEPARTMENT = "Protocolo";
+
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
 
