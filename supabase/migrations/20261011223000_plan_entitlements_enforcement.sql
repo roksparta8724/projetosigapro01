@@ -411,6 +411,33 @@ create trigger trg_guard_plan_payment_guide_v1
 before insert or update of guide_kind on public.payment_guides
 for each row execute function public.guard_plan_payment_guide_v1();
 
+drop policy if exists "client_plan_assignments_tenant_read" on public.client_plan_assignments;
+create policy "client_plan_assignments_tenant_read"
+on public.client_plan_assignments
+for select
+to authenticated
+using (public.has_tenant_access(municipality_id));
+
+drop policy if exists "plans_tenant_read_assigned" on public.plans;
+create policy "plans_tenant_read_assigned"
+on public.plans
+for select
+to authenticated
+using (
+  is_active=true
+  and exists (
+    select 1 from public.client_plan_assignments a
+    where a.plan_id=plans.id
+      and public.has_tenant_access(a.municipality_id)
+  )
+);
+
+update public.plans
+set modules_included='["Protocolo digital","Analise tecnica","Configurações","Acesso externo"]'::jsonb,
+    description='Fluxo essencial para prefeituras que estão iniciando a digitalização do protocolo e da análise técnica.',
+    updated_at=now()
+where id='plan-basic';
+
 grant execute on function public.municipality_plan_entitlements_v1(uuid) to authenticated;
 grant execute on function public.assert_municipality_entitlement_v1(uuid,text,bigint) to authenticated;
 
