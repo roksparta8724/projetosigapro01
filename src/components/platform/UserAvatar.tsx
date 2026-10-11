@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { UserRound } from "@/components/platform/PremiumIcons";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
@@ -43,32 +43,42 @@ export function UserAvatar({
   fallbackClassName,
   title,
 }: UserAvatarProps) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
 
   useEffect(() => {
     if (imageUrl === "") {
       setStableImageUrl("");
-      setImageFailed(false);
+      setFailedImageUrl("");
       return;
     }
 
-    if (!imageUrl || imageUrl === stableImageUrl) {
-      if (imageUrl) setImageFailed(false);
-      return;
-    }
+    // A refresh may temporarily return no profile while the remote store is
+    // revalidating. Keep the last valid avatar instead of flashing the fallback.
+    if (!imageUrl || imageUrl === stableImageUrl) return;
 
     let cancelled = false;
     const preload = new Image();
     preload.decoding = "async";
-    preload.onload = () => {
+
+    const promoteImage = async () => {
+      try {
+        await preload.decode();
+      } catch {
+        // onload already confirms that the resource is usable; decode is only
+        // used to avoid swapping before the browser has prepared the bitmap.
+      }
       if (cancelled) return;
       setStableImageUrl(imageUrl);
-      setImageFailed(false);
+      setFailedImageUrl("");
+    };
+
+    preload.onload = () => {
+      void promoteImage();
     };
     preload.onerror = () => {
       if (cancelled) return;
-      if (!stableImageUrl) setImageFailed(true);
+      if (!stableImageUrl) setFailedImageUrl(imageUrl);
     };
     preload.src = imageUrl;
 
@@ -79,7 +89,7 @@ export function UserAvatar({
 
   const initials = useMemo(() => getInitials(name), [name]);
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
-  const showImage = Boolean(resolvedImageUrl) && !imageFailed;
+  const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const cropRatio = crop ? sizePixels[size] / Math.max(crop.editorSize ?? 320, 1) : 1;
   const resolvedImageStyle = crop
@@ -98,19 +108,11 @@ export function UserAvatar({
       )}
       title={title || name || "Usuario"}
     >
-      {showImage ? (
-        <AvatarImage
-          src={resolvedImageUrl || undefined}
-          alt={name || "Usuario"}
-          className={cn("sig-user-avatar-image h-full w-full object-cover", imageClassName)}
-          style={resolvedImageStyle}
-          onError={() => setImageFailed(true)}
-        />
-      ) : null}
-      <AvatarFallback
+      <span
+        aria-hidden="true"
         style={{ color: "#0f172a" }}
         className={cn(
-          "sig-user-avatar-fallback bg-[linear-gradient(180deg,#f8fbff_0%,#dbe6f1_100%)] font-semibold !text-[#0f172a]",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#dbe6f1_100%)] font-semibold !text-[#0f172a]",
           fallbackClassName,
         )}
       >
@@ -121,7 +123,17 @@ export function UserAvatar({
         ) : (
           <UserRound className="sig-user-avatar-icon h-[52%] w-[52%] !text-[#334155]" style={{ color: "#334155" }} />
         )}
-      </AvatarFallback>
+      </span>
+      {showImage ? (
+        <img
+          src={resolvedImageUrl || undefined}
+          alt={name || "Usuario"}
+          decoding="async"
+          className={cn("sig-user-avatar-image absolute inset-0 h-full w-full object-cover", imageClassName)}
+          style={resolvedImageStyle}
+          onError={() => setFailedImageUrl(resolvedImageUrl)}
+        />
+      ) : null}
     </Avatar>
   );
 }

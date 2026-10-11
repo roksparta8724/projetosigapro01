@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, Workflow, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import {
   getProcessPaymentGuides,
   isInternalRole,
   matchesOperationalScope,
-  parseMarker,
   statusLabel,
   statusTone,
   type PaymentGuideKind,
@@ -139,10 +138,8 @@ export function ProcessDetailPage() {
   const [searchParams] = useSearchParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, addProcessMarkerWithColor, removeProcessMarker, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const [marker, setMarker] = useState("");
-  const [markerColor, setMarkerColor] = useState("#1d4ed8");
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
   const [messageRecipient, setMessageRecipient] = useState("todos");
@@ -157,7 +154,6 @@ export function ProcessDetailPage() {
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
-  const [selectedQuickMarker, setSelectedQuickMarker] = useState("em andamento");
   const [activeTab, setActiveTab] = useState<"resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico">(
     (searchParams.get("aba") as "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico") || "resumo",
   );
@@ -370,12 +366,6 @@ export function ProcessDetailPage() {
     return !isInternalRole(session.role);
   });
   const visibleAuditTrail = process.auditTrail.filter((item) => item.visibleToExternal || canViewCompleteTransit);
-  const quickMarkers = [
-    { label: "em andamento", color: "#2563eb" },
-    { label: "concluído", color: "#16a34a" },
-    { label: "aguardando retorno", color: "#d97706" },
-    { label: "pendência", color: "#dc2626" },
-  ];
   const tabItems = [
     { key: "resumo", label: "Resumo" },
     { key: "imovel", label: "Imóvel" },
@@ -480,16 +470,6 @@ export function ProcessDetailPage() {
     );
   };
 
-  const handleAddMarker = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!marker.trim()) return;
-    const ok = await runProcessAction(
-      "marker",
-      () => addProcessMarkerWithColor(process.id, marker, markerColor, session.name),
-      "Marcador salvo no processo.",
-    );
-    if (ok) setMarker("");
-  };
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault();
     if (!message.trim()) return;
@@ -648,82 +628,6 @@ export function ProcessDetailPage() {
             </Badge>
           </div>
           <p className="mt-1 text-sm text-slate-500">Etapa atual: {statusLabel(process.status)} • Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}</p>
-
-          <div className="mt-5 rounded-[8px] border border-[#E5E7EB] bg-[#FBFDFF] p-4 shadow-sm">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Marcadores deste processo</p>
-                <div className="mt-3 rounded-[8px] border border-[#E5E7EB] bg-white p-3">
-                  <div className="flex flex-wrap gap-2">
-                  {process.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
-                      style={{
-                        backgroundColor: `${parseMarker(tag).color}18`,
-                        color: parseMarker(tag).color,
-                      }}
-                    >
-                      {parseMarker(tag).label}
-                      <button type="button" onClick={() =>
-                        void runProcessAction(
-                          "remove-marker",
-                          () => removeProcessMarker(process.id, tag, session.name),
-                          "Marcador removido.",
-                        )
-                      } className="rounded-full p-0.5 transition hover:bg-black/10">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                  </div>
-                </div>
-              </div>
-              <div className="xl:min-w-[390px]">
-                <form className="rounded-[8px] border border-[#E5E7EB] bg-white p-3" onSubmit={handleAddMarker}>
-                  <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto]">
-                    <Input value={marker} onChange={(event) => setMarker(event.target.value)} placeholder="Criar marcador deste processo" className="rounded-2xl" />
-                    <Input type="color" value={markerColor} onChange={(event) => setMarkerColor(event.target.value)} className="h-11 w-16 rounded-2xl p-1" />
-                    <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900">
-                      Salvar Marcador
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-            <div className="mt-4 rounded-[8px] border border-[#E5E7EB] bg-white p-3">
-              <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
-                <Select value={selectedQuickMarker} onValueChange={setSelectedQuickMarker}>
-                  <SelectTrigger className="rounded-2xl">
-                    <SelectValue placeholder="Escolha um marcador rápido" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {quickMarkers.map((item) => (
-                      <SelectItem key={item.label} value={item.label}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => {
-                    const quickMarker = quickMarkers.find((item) => item.label === selectedQuickMarker);
-                    if (!quickMarker) return;
-                    void runProcessAction(
-                      "quick-marker",
-                      () => addProcessMarkerWithColor(process.id, quickMarker.label, quickMarker.color, session.name),
-                      "Marcador salvo no processo.",
-                    );
-                  }}
-                >
-                  Aplicar Marcador
-                </Button>
-              </div>
-            </div>
-          </div>
 
           <div className="mt-6 rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-5">
             <div className="grid gap-4 md:grid-cols-5">

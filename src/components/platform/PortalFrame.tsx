@@ -248,6 +248,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [editingMarkerLabel, setEditingMarkerLabel] = useState("");
   const [editingMarkerColor, setEditingMarkerColor] = useState("#2563eb");
+  const [markerActionBusy, setMarkerActionBusy] = useState(false);
+  const [markerActionStatus, setMarkerActionStatus] = useState("");
   const [themeOverride, setThemeOverride] = useState<LayoutThemeOverride | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -271,6 +273,8 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     getInstitutionSettings,
     getUserProfile,
     processes,
+    addProcessMarkerWithColor,
+    removeProcessMarker,
   } = usePlatformData();
   const { isItemVisible } = useUserMenuPreferences();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
@@ -411,6 +415,12 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   ];
 
   const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(activeInstitutionId, process));
+  const currentProcessRouteMatch = location.pathname.match(/^\/processos\/([^/?#]+)/);
+  const currentProcessId = currentProcessRouteMatch?.[1] ? decodeURIComponent(currentProcessRouteMatch[1]) : "";
+  const currentProcess = currentProcessId
+    ? visibleTenantProcesses.find((process) => process.id === currentProcessId) ?? null
+    : null;
+  const currentProcessMarker = currentProcess?.tags?.[0] ? parseMarker(currentProcess.tags[0]) : null;
   const bookmarkedProcesses = visibleTenantProcesses.filter((process) => (process.tags ?? []).length > 0);
   const bookmarkedMarkers = useMemo(
     () =>
@@ -546,7 +556,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     fallback: "Usuário institucional",
     maxLength: 34,
   });
-  const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null;
+  const topbarAvatarImageUrl = userProfile
+    ? (userProfile.avatarUrl?.trim() || "")
+    : null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
@@ -780,11 +792,79 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     const profileRole = humanizeRoleLabel(profile?.professionalType?.trim() || roleLabels[item.role], "Usuário");
     return `${profileName} - ${profileRole}`;
   };
+  const applyMarkerToCurrentProcess = async (preset: MarkerPreset) => {
+    if (!currentProcess || !preset.active || markerActionBusy) return;
+
+    const nextLabel = preset.label.trim();
+    if (!nextLabel) return;
+
+    setMarkerActionBusy(true);
+    setMarkerActionStatus("");
+    try {
+      const existingTags = currentProcess.tags ?? [];
+      const alreadyApplied = existingTags.some(
+        (tag) => parseMarker(tag).label.trim().toLowerCase() === nextLabel.toLowerCase(),
+      );
+
+      // A process has one operational marker. Replacing it from the topbar
+      // prevents parallel marker systems and keeps the process view clean.
+      for (const tag of existingTags) {
+        const parsed = parseMarker(tag);
+        if (alreadyApplied && parsed.label.trim().toLowerCase() === nextLabel.toLowerCase()) {
+          continue;
+        }
+        await removeProcessMarker(currentProcess.id, tag, session.name);
+      }
+
+      if (!alreadyApplied) {
+        await addProcessMarkerWithColor(
+          currentProcess.id,
+          nextLabel,
+          preset.color || "#2563eb",
+          session.name,
+        );
+      }
+
+      setMarkerActionStatus(`Marcador "${nextLabel}" aplicado ao processo.`);
+    } catch (error) {
+      setMarkerActionStatus(
+        error instanceof Error ? error.message : "Não foi possível aplicar o marcador.",
+      );
+    } finally {
+      setMarkerActionBusy(false);
+    }
+  };
+
+  const clearCurrentProcessMarker = async () => {
+    if (!currentProcess || markerActionBusy) return;
+
+    const existingTags = currentProcess.tags ?? [];
+    if (existingTags.length === 0) return;
+
+    setMarkerActionBusy(true);
+    setMarkerActionStatus("");
+    try {
+      for (const tag of existingTags) {
+        await removeProcessMarker(currentProcess.id, tag, session.name);
+      }
+      setMarkerActionStatus("Marcador removido deste processo.");
+    } catch (error) {
+      setMarkerActionStatus(
+        error instanceof Error ? error.message : "Não foi possível remover o marcador.",
+      );
+    } finally {
+      setMarkerActionBusy(false);
+    }
+  };
+
   const renderMarkerCard = (preset: MarkerPreset, sectionLabel: string) => {
     const isEditing = editingMarkerId === preset.id;
     const isPendingRemoval = pendingMarkerRemovalId === preset.id;
     const statusLabel = preset.active ? "Ativo" : "Inativo";
     const badgeLabel = preset.system ? "Sistema" : "Personalizado";
+    const isAppliedToCurrentProcess =
+      !!currentProcessMarker &&
+      currentProcessMarker.label.trim().toLowerCase() === preset.label.trim().toLowerCase();
 
     return (
       <div
@@ -937,6 +1017,24 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             </div>
           </div>
         )}
+        {currentProcess && !isEditing ? (
+          <button
+            type="button"
+            className={cn(
+              "sig-marker-apply mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border text-[11px] font-semibold transition",
+              isAppliedToCurrentProcess
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+            )}
+            onClick={() => {
+              void applyMarkerToCurrentProcess(preset);
+            }}
+            disabled={!preset.active || markerActionBusy || isAppliedToCurrentProcess}
+          >
+            <Check className="h-3.5 w-3.5" />
+            {isAppliedToCurrentProcess ? "Aplicado neste processo" : "Aplicar neste processo"}
+          </button>
+        ) : null}
       </div>
     );
   };
@@ -1222,7 +1320,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                           <div className="min-w-0">
                             <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores</p>
                             <p className="mt-1 text-[13px] leading-5 text-slate-500">
-                              Gerencie atalhos visuais com status real, edicao rapida e rastreabilidade coerente.
+                              Seus marcadores ficam vinculados ao seu usuário. Crie, nomeie, edite e aplique no processo atual.
                             </p>
                           </div>
                           <div className="sig-marker-header-badge shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
@@ -1261,12 +1359,65 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </DropdownMenuLabel>
 
                 <div className="mt-3 space-y-3">
+                  {currentProcess ? (
+                    <section className="sig-marker-current rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Marcador deste processo
+                          </p>
+                          <p className="mt-1 truncate text-[12px] text-slate-500">
+                            {currentProcess.protocol || currentProcess.title || "Processo administrativo"}
+                          </p>
+                        </div>
+                        {currentProcessMarker ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[11px] border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100"
+                            onClick={() => {
+                              void clearCurrentProcessMarker();
+                            }}
+                            disabled={markerActionBusy}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Remover
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 flex items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                        <span
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border"
+                          style={markerIconSurface(currentProcessMarker?.color || "#64748b")}
+                        >
+                          <Flag
+                            className="h-4 w-4 sig-flag-filled"
+                            style={{
+                              color: currentProcessMarker?.color || "#64748b",
+                              fill: currentProcessMarker?.color || "#64748b",
+                            }}
+                          />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12px] font-semibold text-slate-900">
+                            {currentProcessMarker?.label || "Sem marcador aplicado"}
+                          </p>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Escolha abaixo um marcador seu para aplicar ou substituir o atual.
+                          </p>
+                        </div>
+                      </div>
+                      {markerActionStatus ? (
+                        <p className="mt-3 text-[11px] leading-5 text-slate-500">{markerActionStatus}</p>
+                      ) : null}
+                    </section>
+                  ) : null}
+
                   <section className="sig-marker-composer rounded-[22px] border p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Novo marcador</p>
                         <p className="mt-1 text-[12px] leading-5 text-slate-500">
-                          Crie um rotulo institucional para destacar etapas, exigencias e prioridades reais da tramitacao.
+                          Crie um marcador pessoal com o nome e a cor que preferir para organizar sua rotina.
                         </p>
                       </div>
                       {markerSavePulse ? (
@@ -1338,7 +1489,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                           label: nextLabel,
                           emoji: "",
                           color: markerColor,
-                          description: "Marcador personalizado da operacao municipal.",
+                          description: "Marcador personalizado deste usuário.",
                         });
                         setMarkerLabel("");
                         setPendingMarkerRemovalId(null);
