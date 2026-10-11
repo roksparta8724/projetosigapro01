@@ -96,6 +96,16 @@ describe("layout integrity regression", () => {
     expect(css).toContain("color: #f8fafc !important");
   });
 
+  it("keeps Master header and footer logos interactive like the profile image editor", () => {
+    const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
+    expect(settings).toContain('label="Enquadramento do cabeçalho"');
+    expect(settings).toContain('label="Enquadramento do rodapé"');
+    expect(settings).toContain('onChange={updateMasterLogoFrame("header")}');
+    expect(settings).toContain('onChange={updateMasterLogoFrame("footer")}');
+    expect(settings).toContain("Clique e arraste o logo para posicionar");
+    expect(settings).toContain("Resetar posição");
+  });
+
   it("keeps finance subpages free from forced narrow PIX and early fixed widths", () => {
     const protocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
     const desk = read("src/pages/saas/FinanceDeskPage.tsx");
