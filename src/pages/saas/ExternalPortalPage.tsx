@@ -111,6 +111,22 @@ export function ExternalPortalPage() {
           }}
         />
 
+        {savedDraft ? (
+          <div className="flex flex-col gap-3 rounded-[18px] border border-sky-200 bg-sky-50/80 px-4 py-3 shadow-sm dark:border-sky-400/20 dark:bg-sky-400/10 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                Rascunho em andamento · {savedDraft.draftNumber}
+              </p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                {savedDraftFileCount} documento(s) vinculados · atualizado em {new Date(savedDraft.updatedAt).toLocaleString("pt-BR")}
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 rounded-full">
+              <Link to="/externo/protocolar">Continuar rascunho</Link>
+            </Button>
+          </div>
+        ) : null}
+
         <StatsCards>
           <MetricCard title="Em andamento" value={String(activeProcesses)} helper="Protocolos ativos" icon={Waypoints} tone="blue" />
           <MetricCard title="Exigências abertas" value={String(pendingRequirements)} helper="Pendências com retorno" icon={AlertCircle} tone="amber" />
