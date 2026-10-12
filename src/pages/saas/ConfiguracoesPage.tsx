@@ -2756,7 +2756,7 @@ export function ConfiguracoesPage() {
                     className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
-                    <div className="rounded-[22px] px-5 pb-4 pt-4" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
+                    <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
                       <p className="text-[10px] uppercase tracking-[0.12em] text-[#d4e7f7]">Visual institucional</p>
                       <p className="mt-2 text-sm leading-6 text-white md:text-[15px]">Cabecalho institucional</p>
                     </div>
@@ -2999,7 +2999,7 @@ export function ConfiguracoesPage() {
                   </p>
                   <div className="mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(460px,0.9fr)_minmax(560px,1.1fr)]">
                     <div
-                      className="min-w-0 overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                      className="sig-fixed-dark-surface min-w-0 overflow-hidden rounded-[30px] p-6 text-white shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                       style={{ background: `linear-gradient(135deg, ${masterPrimaryColor} 0%, ${darken(masterPrimaryColor, -6)} 58%, ${darken(masterPrimaryColor, -10)} 100%)` }}
                     >
                       <div
@@ -3080,7 +3080,7 @@ export function ConfiguracoesPage() {
                   </div>
                   <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                     <div
-                      className="min-w-0 rounded-[28px] p-5 shadow-sm"
+                      className="sig-fixed-dark-surface min-w-0 rounded-[28px] p-5 text-white shadow-sm"
                       style={{ background: `linear-gradient(135deg, ${darken(masterPrimaryColor, 2)} 0%, ${masterPrimaryColor} 48%, ${darken(masterPrimaryColor, 10)} 100%)` }}
                     >
                       <div className="flex items-center justify-center py-3">
