@@ -115,7 +115,21 @@
         width: var(--sig-snapshot-viewport-width, 100vw);
         min-width: var(--sig-snapshot-viewport-width, 100vw);
         min-height: var(--sig-snapshot-viewport-height, 100vh);
-        transform: none;
+        transform: none !important;
+        contain: layout paint style;
+      }
+
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::before,
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+        caret-color: transparent !important;
+      }
+
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] ~ #root {
+        visibility: hidden !important;
       }
     </style>
   </head>
