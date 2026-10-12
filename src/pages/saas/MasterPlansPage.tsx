@@ -1092,7 +1092,7 @@ export function MasterPlansPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="sig-fit-title text-xl font-semibold text-slate-950" title={plan.name}>{plan.name}</p>
-              {plan.badge ? <Badge className="rounded-full bg-slate-950 px-3 py-1 text-white hover:bg-slate-950">{plan.badge}</Badge> : null}
+              {plan.badge ? <Badge className="sig-plan-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{plan.badge}</Badge> : null}
             </div>
             <p className="mt-1 sig-fit-copy text-sm leading-6 text-slate-500" title={plan.subtitle}>{plan.subtitle}</p>
           </div>
@@ -1163,7 +1163,7 @@ export function MasterPlansPage() {
                 <Wand2 className="mr-2 h-4 w-4 text-sky-200" />
                 Gerar material
               </Button>
-              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => openPlanDialog()}>
+              <Button type="button" className="sig-force-dark-action rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={() => openPlanDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Novo plano
               </Button>
@@ -1229,7 +1229,7 @@ export function MasterPlansPage() {
                 <SectionCard title="Link comercial" description="Página separada da landing para enviar quando quiser." icon={Share2}>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="sig-fit-copy text-sm font-medium text-slate-900" title={shareLink}>{shareLink}</p>
-                    <Button type="button" className="mt-4 w-full rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleCopyShareLink}>
+                    <Button type="button" className="sig-force-dark-action mt-4 w-full rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={handleCopyShareLink}>
                       <Copy className="mr-2 h-4 w-4" />
                       Copiar link
                     </Button>
@@ -1245,7 +1245,7 @@ export function MasterPlansPage() {
             title="Catálogo de planos"
             description="Crie, edite, duplique, desative e controle visibilidade comercial."
             icon={CreditCard}
-            actions={<Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => openPlanDialog()}><Plus className="mr-2 h-4 w-4" />Novo plano</Button>}
+            actions={<Button type="button" className="sig-force-dark-action rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={() => openPlanDialog()}><Plus className="mr-2 h-4 w-4" />Novo plano</Button>}
           >
             {safePlans.length === 0 ? (
               <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
@@ -1280,7 +1280,7 @@ export function MasterPlansPage() {
                             <p className="mt-1 text-sm text-slate-500">{institution.city}/{institution.state}</p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge className="rounded-full bg-slate-950 px-3 py-1 text-white hover:bg-slate-950">{plan?.name ?? "Sem plano"}</Badge>
+                            <Badge className="sig-plan-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{plan?.name ?? "Sem plano"}</Badge>
                             <Badge variant="outline" className="rounded-full border-slate-300 text-slate-600">{assignment ? contractLabels[assignment.contractStatus] : "Não vinculado"}</Badge>
                             <Button type="button" variant="outline" className="sig-dark-action-btn h-10 rounded-full text-slate-50" onClick={() => setSelectedInstitutionId(institution.id)}>
                               <PencilLine className="mr-2 h-4 w-4 text-sky-200" />
@@ -1347,7 +1347,7 @@ export function MasterPlansPage() {
                     <Label>Observações comerciais</Label>
                     <Textarea value={assignmentNotes} onChange={(event) => setAssignmentNotes(event.target.value)} rows={4} />
                   </div>
-                  <Button type="submit" className="w-full rounded-full bg-slate-950 hover:bg-slate-900" disabled={!safePlans.length || !safeInstitutions.length}>
+                  <Button type="submit" className="sig-force-dark-action w-full rounded-full bg-slate-950 !text-white hover:bg-slate-900" disabled={!safePlans.length || !safeInstitutions.length}>
                     Salvar vínculo
                   </Button>
                 </form>
@@ -1376,7 +1376,7 @@ export function MasterPlansPage() {
                     <p className="sig-label">Link atual</p>
                     <p className="mt-2 sig-fit-copy text-sm font-medium text-slate-900" title={shareLink}>{shareLink}</p>
                   </div>
-                  <Button type="button" className="w-full rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleCopyShareLink}>
+                  <Button type="button" className="sig-force-dark-action w-full rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={handleCopyShareLink}>
                     <Copy className="mr-2 h-4 w-4" />
                     Copiar link compartilhável
                   </Button>
@@ -1399,7 +1399,7 @@ export function MasterPlansPage() {
                       <Copy className="mr-2 h-4 w-4 text-sky-200" />
                       Copiar link
                     </Button>
-                    <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleExportCommercialPdf} disabled={!selectedCommercialPlans.length}>
+                    <Button type="button" className="sig-force-dark-action rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={handleExportCommercialPdf} disabled={!selectedCommercialPlans.length}>
                       <FileDown className="mr-2 h-4 w-4" />
                       Exportar PDF
                     </Button>
@@ -1413,7 +1413,7 @@ export function MasterPlansPage() {
                         <p className="sig-label">1. Planos</p>
                         <h3 className="mt-1 text-xl font-semibold tracking-[-0.03em] text-slate-950">Selecione o material de venda</h3>
                       </div>
-                      <Badge className="w-fit rounded-full bg-slate-950 px-3 py-1 text-white hover:bg-slate-950">
+                      <Badge className="sig-plan-dark-badge w-fit rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">
                         {selectedCommercialPlans.length} selecionado(s)
                       </Badge>
                     </div>
@@ -1632,7 +1632,7 @@ export function MasterPlansPage() {
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Button type="button" className="w-full rounded-full bg-slate-950 hover:bg-slate-900" onClick={handleExportCommercialPdf} disabled={!selectedCommercialPlans.length}>
+                      <Button type="button" className="sig-force-dark-action w-full rounded-full bg-slate-950 !text-white hover:bg-slate-900" onClick={handleExportCommercialPdf} disabled={!selectedCommercialPlans.length}>
                         <FileDown className="mr-2 h-4 w-4" />
                         Gerar PDF profissional
                       </Button>
@@ -1740,7 +1740,7 @@ export function MasterPlansPage() {
                       <label className="flex items-center gap-2"><Checkbox checked={draft.isFeatured} onCheckedChange={(checked) => setDraft((current) => ({ ...current, isFeatured: Boolean(checked) }))} />Marcar como destaque comercial</label>
                     </div>
                   </div>
-                  <Button type="submit" className="h-12 rounded-full bg-slate-950 hover:bg-slate-900">Salvar plano</Button>
+                  <Button type="submit" className="sig-force-dark-action h-12 rounded-full bg-slate-950 !text-white hover:bg-slate-900">Salvar plano</Button>
                 </div>
               </form>
             </div>
