@@ -89,7 +89,9 @@ function compactDraft(payload: ProtocolDraftPayload): ProtocolDraftPayload {
         items.map((item) => ({
           ...item,
           previewUrl:
-            item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
+            item.previewUrl &&
+            !item.previewUrl.startsWith("blob:") &&
+            item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
               ? item.previewUrl
               : undefined,
         })),
@@ -257,7 +259,9 @@ export function toStoredUploadedFiles(files: Record<string, UploadedFileItem[]>)
         mimeType: item.mimeType,
         sizeLabel: item.sizeLabel,
         previewUrl:
-          item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
+          item.previewUrl &&
+          !item.previewUrl.startsWith("blob:") &&
+          item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
             ? item.previewUrl
             : undefined,
         storagePath: item.storagePath,
