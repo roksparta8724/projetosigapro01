@@ -1508,8 +1508,8 @@ export function PerfilPage() {
                       <div data-contrast-card="dark" className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
-                            <p className="mt-1 text-sm">Leitura compacta do avatar institucional.</p>
+                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
+                            <p className="sig-dark-preview-copy mt-1 text-sm">Leitura compacta do avatar institucional.</p>
                           </div>
                           <UserAvatar
                             name={form.fullName || session.name}
@@ -1556,14 +1556,14 @@ export function PerfilPage() {
                       <div data-contrast-card="dark" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em]">Cabeçalho Master</p>
-                            <p className="mt-2 text-sm">Pré-visualização do topo institucional.</p>
+                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Cabeçalho Master</p>
+                            <p className="sig-dark-preview-copy mt-2 text-sm">Pré-visualização do topo institucional.</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterHeaderBranding} fallbackLabel="SIGAPRO" variant="header" />
                             <div className="min-w-[120px]">
-                              <p className="break-words text-sm font-semibold text-white">SIGAPRO</p>
-                              <p className="text-xs">Ambiente Master</p>
+                              <p className="sig-dark-preview-title break-words text-sm font-semibold">SIGAPRO</p>
+                              <p className="sig-dark-preview-copy text-xs">Ambiente Master</p>
                             </div>
                           </div>
                         </div>
@@ -1628,8 +1628,8 @@ export function PerfilPage() {
                       <div data-contrast-card="dark" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em]">Rodapé Master</p>
-                            <p className="mt-2 text-sm">Pré-visualização do rodapé institucional.</p>
+                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Rodapé Master</p>
+                            <p className="sig-dark-preview-copy mt-2 text-sm">Pré-visualização do rodapé institucional.</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
