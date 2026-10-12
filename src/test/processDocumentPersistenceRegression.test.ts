@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const protocolPage = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolarProjetoPage.tsx"), "utf8");
 const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 const fileDropZone = readFileSync(resolve(process.cwd(), "src/components/platform/FileDropZone.tsx"), "utf8");
+const documentViewer = readFileSync(resolve(process.cwd(), "src/pages/saas/DocumentViewerPage.tsx"), "utf8");
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const r2Client = readFileSync(resolve(process.cwd(), "src/integrations/r2/client.ts"), "utf8");
 const recoveryApi = readFileSync(resolve(process.cwd(), "api/r2-list-user-files.ts"), "utf8");
@@ -44,6 +45,13 @@ describe("process document persistence regressions", () => {
     expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
     expect(processDetail).not.toContain('className="h-72 w-full"');
+  });
+
+  it("keeps the dedicated document tab stable across background process updates", () => {
+    expect(documentViewer).not.toContain("}, [allowed, document]);");
+    expect(documentViewer).toContain("document?.filePath");
+    expect(documentViewer).toContain("document?.previewUrl");
+    expect(documentViewer).toContain('className="h-full w-full border-0 bg-white"');
   });
 
   it("requires a real R2 file path and idempotently links it in the official process", () => {
