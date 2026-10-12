@@ -37,7 +37,18 @@ const municipalProfilePresets = [
 ] as const;
 
 function getMunicipalProfileSelectValue(role: UserRole, title: string) {
-  const preset = municipalProfilePresets.find((item) => item.label.toLocaleLowerCase("pt-BR") === title.trim().toLocaleLowerCase("pt-BR"));
+  const normalizedTitle = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+  const preset = municipalProfilePresets.find((item) => {
+    const normalizedLabel = item.label
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR");
+    return normalizedTitle.includes(normalizedLabel);
+  });
   return preset?.key ?? role;
 }
 
