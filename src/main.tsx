@@ -187,6 +187,7 @@ function restoreFrozenSnapshot() {
     pendingRefreshScrollY = Math.max(0, snapshot.scrollY || 0);
     pendingRefreshLocation = currentLocation;
     host.style.setProperty("--sig-snapshot-top", `${-pendingRefreshScrollY}px`);
+    host.style.setProperty("--sig-snapshot-scroll-y", `${pendingRefreshScrollY}px`);
     host.style.setProperty(
       "--sig-snapshot-viewport-width",
       `${snapshot.viewportWidth || document.documentElement.clientWidth || window.innerWidth}px`,
