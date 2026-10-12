@@ -6000,3 +6000,21 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   stroke: currentColor !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* ===== DRAFTS PAGE DARK ACTION CONTRAST ===== */
+.sig-main-shell [data-draft-dark-action="true"],
+.sig-main-shell [data-draft-dark-action="true"]:hover {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.sig-main-shell [data-draft-dark-action="true"] *,
+.sig-main-shell [data-draft-dark-action="true"] a,
+.sig-main-shell [data-draft-dark-action="true"] span,
+.sig-main-shell [data-draft-dark-action="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
