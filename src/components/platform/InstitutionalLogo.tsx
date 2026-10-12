@@ -16,11 +16,11 @@ const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
 const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v1";
 
 const variantClasses = {
-  header: "h-[112px] w-[188px] p-2.5 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[140px] w-[188px] p-2.5",
-  preview: "h-[140px] w-full max-w-[204px] p-2.5",
-  compact: "h-10 w-10 p-1.5",
-  login: "h-full w-full p-2",
+  header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
+  footer: "h-[140px] w-[188px] p-0",
+  preview: "h-[140px] w-full max-w-[204px] p-0",
+  compact: "h-10 w-10 p-0",
+  login: "h-full w-full p-0",
 } as const;
 
 const masterVariantClasses = {
@@ -167,6 +167,7 @@ export function InstitutionalLogo({
               alt={branding.logoAlt || fallbackLabel}
               className={cn(
                 "block h-full w-full max-w-full select-none object-contain object-center",
+                !isMaster && "rounded-[22px] bg-white",
                 isMaster && "mix-blend-screen",
               )}
               style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
