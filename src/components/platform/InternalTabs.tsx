@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { InternalSectionNav } from "@/components/platform/PageLayout";
 
@@ -20,7 +20,7 @@ export function InternalTabs({
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!persistInUrl) return;
     const params = new URLSearchParams(location.search);
     const requested = params.get(urlParam);
