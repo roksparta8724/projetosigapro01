@@ -1,4 +1,4 @@
-import { DragEvent, useRef, useState } from "react";
+import { DragEvent, useEffect, useRef, useState } from "react";
 import { Download, FileImage, FileText, RefreshCcw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,15 +37,6 @@ function sizeLabel(size: number) {
   return `${size} B`;
 }
 
-function toDataUrl(file: File) {
-  return new Promise<string | undefined>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : undefined);
-    reader.onerror = () => resolve(undefined);
-    reader.readAsDataURL(file);
-  });
-}
-
 function canPreview(mimeType: string) {
   return mimeType.startsWith("image/") || mimeType === "application/pdf";
 }
@@ -63,8 +54,24 @@ export function FileDropZone({
   onFilesRemoved,
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const ownedPreviewUrlsRef = useRef<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
   const interactionLocked = busy || disabled;
+
+  useEffect(
+    () => () => {
+      ownedPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      ownedPreviewUrlsRef.current.clear();
+    },
+    [],
+  );
+
+  const createLocalPreview = (file: File) => {
+    if (!allowPreview || !canPreview(file.type || "")) return undefined;
+    const url = URL.createObjectURL(file);
+    ownedPreviewUrlsRef.current.add(url);
+    return url;
+  };
 
   const processFiles = async (selectedFiles: FileList | null) => {
     if (interactionLocked) return;
@@ -74,17 +81,15 @@ export function FileDropZone({
       return;
     }
 
-    const nextFiles = await Promise.all(
-      selected.map(async (file) => ({
-        id: `upload-${crypto.randomUUID()}`,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeLabel: sizeLabel(file.size),
-        previewUrl: allowPreview && canPreview(file.type || "") ? await toDataUrl(file) : undefined,
-        file,
-        fileSizeBytes: file.size,
-      })),
-    );
+    const nextFiles = selected.map((file) => ({
+      id: `upload-${crypto.randomUUID()}`,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      sizeLabel: sizeLabel(file.size),
+      previewUrl: createLocalPreview(file),
+      file,
+      fileSizeBytes: file.size,
+    }));
 
     await onFilesSelected(multiple ? [...files, ...nextFiles] : nextFiles.slice(0, 1));
 
@@ -149,7 +154,7 @@ export function FileDropZone({
             <Button
               type="button"
               variant="outline"
-              className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
+              className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
               onClick={openFilePicker}
               disabled={interactionLocked}
             >
@@ -217,7 +222,7 @@ export function FileDropZone({
                     <Button
                       type="button"
                       variant="outline"
-                      className="min-h-[42px] w-full rounded-full text-slate-400 dark:border-white/12 dark:text-slate-500 sm:w-auto"
+                      className="min-h-[42px] w-full rounded-full text-slate-400 transition-colors duration-150 dark:border-white/12 dark:text-slate-500 sm:w-auto"
                       disabled
                     >
                       <Download className="mr-2 h-4 w-4 shrink-0" />
@@ -227,7 +232,7 @@ export function FileDropZone({
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-[42px] w-full rounded-full text-slate-700 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
+                    className="min-h-[42px] w-full rounded-full text-slate-700 transition-colors duration-150 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={openFilePicker}
                     disabled={interactionLocked}
                   >
@@ -237,7 +242,7 @@ export function FileDropZone({
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-[42px] w-full rounded-full text-red-600 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
+                    className="min-h-[42px] w-full rounded-full text-red-600 transition-colors duration-150 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={() => removeFile(file.id)}
                     disabled={interactionLocked}
                   >
