@@ -29,6 +29,7 @@ import { ProtocolDeskPage } from "@/pages/saas/ProtocolDeskPage";
 import { IptuDeskPage } from "@/pages/saas/IptuDeskPage";
 import { ExternalPortalPage } from "@/pages/saas/ExternalPortalPage";
 import { ExternalProcessControlPage } from "@/pages/saas/ExternalProcessControlPage";
+import { ExternalDraftsPage } from "@/pages/saas/ExternalDraftsPage";
 import { ExternalPaymentsPage } from "@/pages/saas/ExternalPaymentsPage";
 import { ExternalHistoryPage } from "@/pages/saas/ExternalHistoryPage";
 import { ExternalMessagesPage } from "@/pages/saas/ExternalMessagesPage";
@@ -360,6 +361,16 @@ const AppRoutes = () => {
             <PermissionRoute permission="submit_processes">
               <PlanModuleRoute module="Acesso externo">
                 <ExternalProcessControlPage />
+              </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/externo/controle/rascunhos"
+          element={
+            <PermissionRoute permission="submit_processes">
+              <PlanModuleRoute module="Acesso externo">
+                <ExternalDraftsPage />
               </PlanModuleRoute>
             </PermissionRoute>
           }
