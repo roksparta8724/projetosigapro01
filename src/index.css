@@ -5095,3 +5095,57 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   stroke: currentColor !important;
   opacity: 1 !important;
 }
+
+
+/* ===== SIGAPRO ABSOLUTE DARK CONTRAST OVERRIDE 2026-10-12 =====
+   Highest-specificity final rule for deliberately dark cards/actions in light or dark themes. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface,
+html body .sig-main-shell .sig-fixed-dark-surface {
+  background: #020617 !important;
+  background-color: #020617 !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface *,
+html body .sig-main-shell .sig-fixed-dark-surface * {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface svg,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface svg,
+html body .sig-main-shell .sig-fixed-dark-surface svg {
+  color: #f8fafc !important;
+  stroke: #f8fafc !important;
+  fill: none;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-force-dark-action,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-force-dark-action,
+html body .sig-main-shell .sig-force-dark-action,
+html body [data-layout-mode="default"] .sig-main-shell [data-ui="button"][data-button-variant="default"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][data-button-variant="default"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-force-dark-action *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-force-dark-action *,
+html body .sig-main-shell .sig-force-dark-action *,
+html body [data-layout-mode="default"] .sig-main-shell [data-ui="button"][data-button-variant="default"] *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-ui="button"][data-button-variant="default"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-ui="badge"].sig-force-dark-action,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-ui="badge"].sig-force-dark-action,
+html body .sig-main-shell [data-ui="badge"].sig-force-dark-action {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
