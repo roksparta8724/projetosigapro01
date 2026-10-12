@@ -5342,3 +5342,23 @@ html body [data-layout-mode="default"] .sig-main-shell [data-profile-dark-card="
   color: #dbeafe !important;
   -webkit-text-fill-color: #dbeafe !important;
 }
+
+
+/* ===== PLAN DARK BADGE CONTRAST 2026-10-12 ===== */
+html body .sig-main-shell .sig-plan-dark-badge,
+html body [data-layout-mode="default"] .sig-main-shell .sig-plan-dark-badge,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-plan-dark-badge {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell .sig-plan-dark-badge *,
+html body [data-layout-mode="default"] .sig-main-shell .sig-plan-dark-badge *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-plan-dark-badge * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
