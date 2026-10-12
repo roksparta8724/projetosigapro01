@@ -108,6 +108,15 @@ describe("layout integrity regression", () => {
     expect(settings).toContain('wrapperClassName="sig-master-logo-editor"');
   });
 
+  it("keeps a global neutral contrast contract for dark and light surfaces", () => {
+    const css = read("src/index.css");
+    expect(css).toContain("SIGAPRO GLOBAL SURFACE CONTRAST AUDIT 2026-10-12");
+    expect(css).toContain(".bg-slate-950");
+    expect(css).toContain(".bg-white");
+    expect(css).toContain("color: #f8fafc !important");
+    expect(css).toContain("color: #0f172a !important");
+  });
+
   it("keeps hard contrast on dark buttons and cards regardless of theme inheritance", () => {
     const css = read("src/index.css");
     expect(css).toContain("SIGAPRO HARD CONTRAST GUARD 2026-10-12");
