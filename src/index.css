@@ -5416,3 +5416,49 @@ html body .sig-institution-logo-surface[data-logo-context="municipality"] img {
   object-fit: contain !important;
   object-position: center !important;
 }
+
+
+/* ===== MUNICIPAL LOGO CLEAN SURFACE 2026-10-12 =====
+   One invariant for every municipal logo in every theme:
+   white rounded surface, no border, no frame, no translucent outline, no shadow. */
+html body .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="default"] .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="inverse-main"] .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-sidebar-mode="default"] .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-sidebar-mode="inverse-main"] .sig-institution-logo-surface[data-logo-context="municipality"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-institution-logo-surface[data-logo-context="municipality"] > div,
+html body .sig-institution-logo-surface[data-logo-context="municipality"] > div > div {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html body .sig-institution-logo-surface[data-logo-context="municipality"] img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
