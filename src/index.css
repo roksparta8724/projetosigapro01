@@ -5526,3 +5526,20 @@ html body .sig-main-shell [data-sidebar-active="true"] * {
     max-width: var(--sig-sidebar-stripe-width, 304px) !important;
   }
 }
+
+
+/* ===== CADASTRO E GESTAO: HEADER PREVIEW WHITE TEXT ONLY ===== */
+html body .sig-main-shell [data-institutional-header-preview="true"],
+html body .sig-main-shell [data-institutional-header-preview="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-institutional-header-preview="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
