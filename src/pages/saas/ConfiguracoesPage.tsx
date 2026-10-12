@@ -2817,7 +2817,7 @@ export function ConfiguracoesPage() {
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
                         Remover logo
                       </Button>
-                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
+                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                       <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
@@ -2899,7 +2899,7 @@ export function ConfiguracoesPage() {
                       >
                         Remover logo
                       </Button>
-                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
+                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
                         {logoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                     </div>
@@ -3058,7 +3058,7 @@ export function ConfiguracoesPage() {
                         </Button>
                         <Button
                           type="button"
-                          className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                          className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900"
                           onClick={() => handleConfirmMasterLogo("header")}
                           disabled={masterLogoSaving === "header"}
                         >
@@ -3116,7 +3116,7 @@ export function ConfiguracoesPage() {
                         </Button>
                         <Button
                           type="button"
-                          className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                          className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900"
                           onClick={() => handleConfirmMasterLogo("footer")}
                           disabled={masterLogoSaving === "footer"}
                         >
@@ -3481,7 +3481,7 @@ export function ConfiguracoesPage() {
                 </div>
               ) : null}
 
-              <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 hover:bg-slate-900">
+              <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
                 Atualizar perfil da prefeitura
               </Button>
             </form>
