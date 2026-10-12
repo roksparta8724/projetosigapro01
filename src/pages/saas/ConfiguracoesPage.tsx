@@ -2753,7 +2753,7 @@ export function ConfiguracoesPage() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
-                    className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                    className="sig-institutional-dark-preview overflow-hidden rounded-[30px] p-6 text-white shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
@@ -2772,8 +2772,7 @@ export function ConfiguracoesPage() {
                           {tenantForm.name || "Prefeitura"}
                         </p>
                         <p
-                          className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
-                          style={{ color: tenantForm.accentColor }}
+                          className="sig-institutional-dark-preview-muted mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
                         >
                           {settingsForm.secretariaResponsavel || "Secretaria responsável"}
                         </p>
