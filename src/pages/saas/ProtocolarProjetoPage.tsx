@@ -339,9 +339,13 @@ export function ProtocolarProjetoPage() {
     if (!effectiveScopeId) {
       throw new Error("O perfil atual não está vinculado a uma Prefeitura.");
     }
+    if (uploadBusyRef.current) {
+      throw new Error("Aguarde o arquivo atual terminar de ser salvo antes de salvar o rascunho.");
+    }
 
+    const snapshot = filesRef.current;
     const persistedEntries = await Promise.all(
-      Object.entries(files).map(async ([label, items]) => {
+      Object.entries(snapshot).map(async ([label, items]) => {
         const persistedItems = await Promise.all(
           items.map(async (item) => {
             if (item.storagePath) return item;
@@ -364,7 +368,9 @@ export function ProtocolarProjetoPage() {
               ...item,
               storagePath: uploaded.path,
               fileSizeBytes: item.file.size,
-              previewUrl: uploaded.publicUrl || item.previewUrl,
+              // Mantém o preview local já carregado. Trocar o src pelo URL remoto
+              // logo após o upload fazia imagem/iframe recarregar e o card "piscar".
+              previewUrl: item.previewUrl || uploaded.publicUrl,
             };
           }),
         );
@@ -385,26 +391,39 @@ export function ProtocolarProjetoPage() {
       throw new Error("Não foi possível registrar o rascunho neste navegador.");
     }
 
-    setFiles(persistedFiles);
+    replaceFiles(persistedFiles);
     return persistedFiles;
   };
 
   const handleDocumentFilesSelected = async (label: string, selected: UploadedFileItem[]) => {
-    const previous = files[label] ?? [];
-    const optimisticFiles = { ...files, [label]: selected };
-    const newlyUploadedPaths: string[] = [];
+    const currentFiles = filesRef.current;
+    const previous = currentFiles[label] ?? [];
 
-    // Em uma abertura nova, selecionar/substituir arquivo altera somente a
-    // sessão atual. O rascunho só nasce quando o usuário clicar em Salvar.
+    // Em uma abertura nova não há persistência remota imediata. A alteração é
+    // síncrona e sempre parte do estado mais atual para não perder outro anexo.
     if (!isResumingDraft) {
-      setFiles(optimisticFiles);
+      replaceFiles({ ...filesRef.current, [label]: selected });
       setStatus("");
       return;
     }
 
-    // Atualiza o card imediatamente para nunca deixar o arquivo anterior "preso"
-    // visualmente enquanto o novo anexo é persistido.
-    setFiles(optimisticFiles);
+    // Um único upload por vez no rascunho evita conclusões fora de ordem
+    // sobrescrevendo o estado de outro documento.
+    if (uploadBusyRef.current) {
+      setStatus("Aguarde o documento atual terminar de ser salvo antes de enviar outro arquivo.");
+      return;
+    }
+
+    uploadBusyRef.current = true;
+    setUploadingLabels((current) => ({ ...current, [label]: true }));
+    const newlyUploadedPaths: string[] = [];
+
+    // Na substituição mostramos o arquivo novo imediatamente, mas mantemos o
+    // preview local e a mesma geometria. Na exclusão mantemos o card antigo
+    // até a confirmação para evitar sumir e reaparecer em caso de falha.
+    if (selected.length > 0) {
+      replaceFiles({ ...filesRef.current, [label]: selected });
+    }
 
     try {
       if (!effectiveScopeId) {
@@ -438,12 +457,16 @@ export function ProtocolarProjetoPage() {
             ...item,
             storagePath: uploaded.path,
             fileSizeBytes: item.file.size,
-            previewUrl: uploaded.publicUrl || item.previewUrl,
+            // Não troca o preview já renderizado por outro URL durante a
+            // persistência: isso eliminou reload visual e mudança de altura.
+            previewUrl: item.previewUrl || uploaded.publicUrl,
           };
         }),
       );
 
-      const persistedFiles = { ...files, [label]: persistedSelected };
+      // Sempre mescla com o estado mais recente. Nunca usa a closure antiga de
+      // "files", que podia apagar um upload concluído em outro card.
+      const persistedFiles = { ...filesRef.current, [label]: persistedSelected };
       const saved = saveProtocolDraft(session.id, effectiveScopeId, {
         draftNumber,
         form,
@@ -455,7 +478,6 @@ export function ProtocolarProjetoPage() {
         throw new Error("Não foi possível atualizar o rascunho neste navegador.");
       }
 
-      // Só depois do novo estado estar salvo removemos o objeto antigo.
       const retainedPaths = new Set(
         persistedSelected.map((item) => item.storagePath).filter(Boolean) as string[],
       );
@@ -463,7 +485,7 @@ export function ProtocolarProjetoPage() {
         (item) => item.storagePath && !retainedPaths.has(item.storagePath),
       );
 
-      setFiles(persistedFiles);
+      replaceFiles(persistedFiles);
 
       await Promise.allSettled(
         removedStoredFiles.map((removed) =>
@@ -484,8 +506,9 @@ export function ProtocolarProjetoPage() {
         setStatus("Documento excluído do rascunho com sucesso.");
       }
     } catch (error) {
-      // A troca é transacional: se o novo arquivo falhar, o anterior permanece.
-      setFiles((current) => ({ ...current, [label]: previous }));
+      // Rollback visual em uma única troca estável. O arquivo anterior não é
+      // removido do R2 antes de o novo estado estar confirmado.
+      replaceFiles({ ...filesRef.current, [label]: previous });
 
       await Promise.allSettled(
         newlyUploadedPaths.map((objectKey) =>
@@ -499,6 +522,13 @@ export function ProtocolarProjetoPage() {
       const message =
         error instanceof Error ? error.message : "Não foi possível atualizar o documento.";
       setStatus(`Não foi possível substituir/excluir o documento: ${message}. O arquivo anterior foi mantido.`);
+    } finally {
+      uploadBusyRef.current = false;
+      setUploadingLabels((current) => {
+        const next = { ...current };
+        delete next[label];
+        return next;
+      });
     }
   };
 
