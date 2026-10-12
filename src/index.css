@@ -5528,3 +5528,30 @@ html body .sig-main-shell [data-sidebar-active="true"] * {
 }
 
 
+
+
+/* ===== INSTITUTIONAL DARK PREVIEW CONTRAST ===== */
+html body .sig-main-shell .sig-institutional-dark-preview,
+html body .sig-main-shell .sig-institutional-dark-preview :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-institutional-dark-preview .sig-institutional-dark-preview-muted {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+
+html body .sig-main-shell .sig-institutional-dark-preview :is(svg) {
+  color: #f8fafc !important;
+  stroke: currentColor !important;
+}
+
+html body .sig-main-shell .sig-institutional-dark-preview .bg-white\/10,
+html body .sig-main-shell .sig-institutional-dark-preview [class*="bg-white/10"] {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
