@@ -193,6 +193,7 @@ export function ProcessDetailPage() {
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
   const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
+  const [requirementUploads, setRequirementUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [recoverableFiles, setRecoverableFiles] = useState<RecoverableProcessFile[]>([]);
   const [recoverableSelection, setRecoverableSelection] = useState<Record<string, string>>({});
   const [recoverableStatus, setRecoverableStatus] = useState("");
@@ -232,12 +233,15 @@ export function ProcessDetailPage() {
 
 
   const process = processId ? getProcessById(processId, processes) : undefined;
-  const canUploadProcessDocuments = session.role === "profissional_externo";
+  const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
     session.role === "prefeitura_admin" ||
     session.role === "prefeitura_supervisor" ||
     session.role === "analista";
+  const canAttachToRequirement = (item: typeof process.requirements[number]) =>
+    item.status === "aberta" &&
+    (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
 
   useEffect(() => {
     let cancelled = false;
@@ -404,7 +408,7 @@ export function ProcessDetailPage() {
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
   const visibleDocumentRows =
-    canUploadProcessDocuments || (canRecoverStoredDocuments && recoverableFiles.length > 0)
+    isInternalRole(session.role)
       ? process.documents
       : process.documents.filter((document) => document.uploaded);
   const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
@@ -808,6 +812,62 @@ export function ProcessDetailPage() {
       setDocumentUploads((current) => {
         const next = { ...current };
         delete next[document.id];
+        return next;
+      });
+    }
+  };
+
+  const handleRequirementAttachment = async (item: typeof process.requirements[number]) => {
+    if (!canAttachToRequirement(item)) {
+      setProcessActionStatus("O envio de anexos só fica disponível enquanto o comunique-se estiver aberto.");
+      return;
+    }
+    const selected = requirementUploads[item.id]?.[0];
+    if (!selected?.file) {
+      setProcessActionStatus("Selecione um arquivo antes de anexar.");
+      return;
+    }
+
+    const ok = await runProcessAction(
+      `requirement-upload-${item.id}`,
+      async () => {
+        const uploaded = await uploadFileToStorage({
+          bucket: "process-documents",
+          tenantId: effectiveScopeId,
+          userId: session.id,
+          file: selected.file!,
+          folder: "comunique-se",
+        });
+
+        await appendProcessDocuments(
+          process.id,
+          [{
+            id: `doc-${crypto.randomUUID()}`,
+            label: `Comunique-se: ${item.title}`,
+            required: false,
+            uploaded: true,
+            signed: false,
+            reviewStatus: "pendente",
+            annotations: [],
+            version: 1,
+            source: isInternalRole(session.role) ? "prefeitura" : "profissional",
+            fileName: selected.fileName,
+            filePath: uploaded.path,
+            mimeType: selected.mimeType,
+            sizeLabel: selected.sizeLabel,
+            fileSizeBytes: selected.file.size,
+            previewUrl: uploaded.publicUrl || undefined,
+          }],
+          session.name,
+        );
+      },
+      "Arquivo anexado ao comunique-se.",
+    );
+
+    if (ok) {
+      setRequirementUploads((current) => {
+        const next = { ...current };
+        delete next[item.id];
         return next;
       });
     }
@@ -1442,6 +1502,39 @@ export function ProcessDetailPage() {
                         <span className="sig-fit-copy" title={`Prazo ${item.dueDate} - criado por ${item.createdBy}`}>Prazo {item.dueDate} - criado por {item.createdBy}</span>
                       </div>
                       {item.response ? <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{item.response}</div> : null}
+
+                      {canAttachToRequirement(item) ? (
+                        <div className="mt-3 rounded-2xl border border-slate-200 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            Anexos do comunique-se
+                          </p>
+                          <FileDropZone
+                            title={isInternalRole(session.role) ? "Anexar documento da Prefeitura" : "Anexar documento solicitado"}
+                            description={isInternalRole(session.role)
+                              ? "Arquivo interno ou complementar vinculado a esta exigência."
+                              : "Envie somente o documento solicitado pelo analista nesta exigência."}
+                            accept=".pdf,image/*"
+                            multiple={false}
+                            allowPreview
+                            files={requirementUploads[item.id] ?? []}
+                            onFilesSelected={(selected) =>
+                              setRequirementUploads((current) => ({ ...current, [item.id]: selected }))
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-3 rounded-full"
+                            disabled={
+                              processActionBusy === `requirement-upload-${item.id}` ||
+                              !(requirementUploads[item.id]?.[0]?.file)
+                            }
+                            onClick={() => void handleRequirementAttachment(item)}
+                          >
+                            {processActionBusy === `requirement-upload-${item.id}` ? "Anexando..." : "Anexar ao comunique-se"}
+                          </Button>
+                        </div>
+                      ) : null}
 
                       {!isInternalRole(session.role) && item.status === "aberta" ? (
                         <div className="mt-3 flex flex-col gap-3">
