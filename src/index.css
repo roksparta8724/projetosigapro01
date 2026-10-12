@@ -5266,3 +5266,33 @@ html body .sig-main-shell [data-contrast-card="dark"] svg {
   stroke: #f8fafc !important;
   opacity: 1 !important;
 }
+
+
+/* ===== SIGAPRO DARK PREVIEW ABSOLUTE FOREGROUND 2026-10-12 ===== */
+html body div.sig-app-frame[data-layout-mode="default"] .sig-main-shell .sig-dark-preview-title,
+html body div.sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-preview-title,
+html body .sig-main-shell .sig-dark-preview-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body div.sig-app-frame[data-layout-mode="default"] .sig-main-shell .sig-dark-preview-copy,
+html body div.sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell .sig-dark-preview-copy,
+html body .sig-main-shell .sig-dark-preview-copy {
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] .sig-dark-preview-title,
+html body .sig-main-shell [data-contrast-card="dark"] .sig-dark-preview-copy,
+html body .sig-main-shell .sig-fixed-dark-surface .sig-dark-preview-title,
+html body .sig-main-shell .sig-fixed-dark-surface .sig-dark-preview-copy {
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
