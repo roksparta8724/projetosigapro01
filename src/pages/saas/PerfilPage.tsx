@@ -1194,6 +1194,36 @@ export function PerfilPage() {
 
   return (
     <PortalFrame eyebrow="MEU PERFIL" title="Conta, identidade e vínculos institucionais">
+      <style>{`
+        .sig-main-shell [data-profile-dark-card="true"] {
+          background: #020617 !important;
+          background-color: #020617 !important;
+          border-color: #334155 !important;
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+        .sig-main-shell [data-profile-dark-card="true"] p,
+        .sig-main-shell [data-profile-dark-card="true"] span,
+        .sig-main-shell [data-profile-dark-card="true"] strong,
+        .sig-main-shell [data-profile-dark-card="true"] small,
+        .sig-main-shell [data-profile-dark-card="true"] label {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+          opacity: 1 !important;
+          filter: none !important;
+          mix-blend-mode: normal !important;
+        }
+        .sig-main-shell [data-profile-dark-card="true"] p + p,
+        .sig-main-shell [data-profile-dark-card="true"] .sig-dark-preview-copy {
+          color: #dbeafe !important;
+          -webkit-text-fill-color: #dbeafe !important;
+        }
+        .sig-main-shell [data-profile-dark-card="true"] svg {
+          color: #ffffff !important;
+          stroke: #ffffff !important;
+          opacity: 1 !important;
+        }
+      `}</style>
       <PageShell>
         <PageHero
           eyebrow="Conta do usuário"
@@ -1505,7 +1535,7 @@ export function PerfilPage() {
                           </p>
                         </div>
                       </div>
-                      <div data-contrast-card="dark" className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
+                      <div data-profile-dark-card="true" className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
@@ -1553,7 +1583,7 @@ export function PerfilPage() {
                     icon={Building2}
                   >
                     <div className="space-y-6">
-                      <div data-contrast-card="dark" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
+                      <div data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Cabeçalho Master</p>
@@ -1625,7 +1655,7 @@ export function PerfilPage() {
                         </div>
                       </div>
 
-                      <div data-contrast-card="dark" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
+                      <div data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Rodapé Master</p>
