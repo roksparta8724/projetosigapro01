@@ -41,6 +41,7 @@ import {
   statusLabel,
   statusTone,
   type PaymentGuideKind,
+  type ProcessRecord,
   type ProcessTransitVisibility,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
@@ -63,7 +64,7 @@ function toProcessRouteKey(protocol: string) {
     .replace(/^-|-$/g, "");
 }
 
-function resolveProcessFromRoute(processes: ReturnType<typeof getProcessById>[] extends never[] ? never[] : any[], routeValue?: string) {
+function resolveProcessFromRoute(processes: ProcessRecord[], routeValue?: string) {
   if (!routeValue) return undefined;
   const decoded = decodeURIComponent(routeValue).trim();
   const byId = getProcessById(decoded, processes);
