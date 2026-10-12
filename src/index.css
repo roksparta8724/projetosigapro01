@@ -6050,3 +6050,20 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Desktop account menu: Radix is rendered in a portal while the app uses
+   document zoom. Pin this one large menu to the viewport edge so it never
+   appears floating toward the center. The trigger itself remains slightly
+   inset inside the topbar. */
+@media (min-width: 1024px) {
+  .sig-topbar-account-dropdown {
+    position: fixed !important;
+    top: 74px !important;
+    right: 12px !important;
+    left: auto !important;
+    transform: none !important;
+    transform-origin: top right !important;
+    margin: 0 !important;
+  }
+}
