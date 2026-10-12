@@ -7,7 +7,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { can } from "@/lib/platform";
+import { can, canAccessMunicipalArea, isInternalRole } from "@/lib/platform";
 import type { Permission } from "@/lib/platform";
 
 export function PermissionRoute({
@@ -18,6 +18,7 @@ export function PermissionRoute({
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, signOut, authenticatedUserId } = useAuthGateway();
   const bootstrap = useAppBootstrap();
   const { sessionUsers } = usePlatformData();
@@ -129,7 +130,29 @@ export function PermissionRoute({
     );
   }
 
-  if (!isActuallyBlocked && can(session, permission)) {
+  const isMunicipalEmployee =
+    isInternalRole(session.role) && session.role !== "prefeitura_admin";
+
+  const isAdminOnlyMunicipalPath =
+    location.pathname === "/prefeitura" ||
+    location.pathname.startsWith("/prefeitura/organograma") ||
+    location.pathname.startsWith("/configuracoes");
+
+  const requiredOperationalArea =
+    location.pathname.startsWith("/prefeitura/protocolos")
+      ? "protocolos"
+      : location.pathname.startsWith("/prefeitura/analise")
+        ? "analise"
+        : location.pathname.startsWith("/prefeitura/financeiro")
+          ? "financeiro"
+          : null;
+
+  const departmentRouteAllowed =
+    !isMunicipalEmployee ||
+    (!isAdminOnlyMunicipalPath &&
+      (!requiredOperationalArea || canAccessMunicipalArea(session, requiredOperationalArea)));
+
+  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed) {
     return <>{children}</>;
   }
 
