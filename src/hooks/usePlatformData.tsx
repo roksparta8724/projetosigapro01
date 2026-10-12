@@ -93,6 +93,7 @@ interface PlatformDataState {
   source: DataSource;
   loading: boolean;
   dataError: string | null;
+  dataReadyForCurrentUser: boolean;
   refreshRemoteStore: () => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
@@ -715,19 +716,22 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const [dataError, setDataError] = useState<string | null>(null);
+  const [remoteContextUserId, setRemoteContextUserId] = useState<string | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
+  const allowRemoteInLocal =
+    (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
+  const localDev = isLocalDevHost();
+  const expectsRemoteStore = Boolean(hasBackendEnv && (!localDev || allowRemoteInLocal));
 
   useEffect(() => {
     let active = true;
-    const allowRemoteInLocal =
-      (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
-    const localDev = isLocalDevHost();
 
     const bootstrap = async () => {
       if (authLoading) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
+        if (!authenticatedUserId) setRemoteContextUserId(null);
 
         if (hasBackendEnv && !localDev) {
           // Sessão ausente/expirada em produção: mantém apenas catálogo estático,
@@ -886,6 +890,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setSource("remote");
         setDataError(null);
         lastFetchedUserId.current = authenticatedUserId;
+        setRemoteContextUserId(authenticatedUserId);
       } catch (error) {
         if (!active) return;
         if (isAuthError(error) && backendClient) {
@@ -900,6 +905,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             : readPersistedStore() ?? buildSanitizedStore({}, false);
         setStore(nextStore);
         setSource("local");
+        setRemoteContextUserId(null);
         setDataError(
           error instanceof Error && error.message
             ? `Banco oficial indisponível: ${error.message}`
@@ -965,6 +971,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       setSource("remote");
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
+      setRemoteContextUserId(authenticatedUserId);
     } catch (error) {
       setDataError(
         error instanceof Error && error.message
@@ -1395,10 +1402,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return message;
     };
 
+    const dataReadyForCurrentUser =
+      !expectsRemoteStore ||
+      Boolean(
+        authenticatedUserId &&
+        source === "remote" &&
+        remoteContextUserId === authenticatedUserId,
+      );
+
     return {
       source,
       loading,
       dataError,
+      dataReadyForCurrentUser,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,
@@ -1941,7 +1957,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       }
     };
-  }, [authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, dataError, loading, source, store]);
+  }, [
+    authenticatedEmail,
+    authenticatedMunicipalityId,
+    authenticatedRole,
+    authenticatedUserId,
+    dataError,
+    expectsRemoteStore,
+    loading,
+    remoteContextUserId,
+    source,
+    store,
+  ]);
 
   return <PlatformDataContext.Provider value={value}>{children}</PlatformDataContext.Provider>;
 }
