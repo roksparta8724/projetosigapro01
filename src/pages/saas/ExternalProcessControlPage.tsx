@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
+import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FilePenLine, FileText, Filter, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
+import { readProtocolDraft } from "@/lib/protocolDraft";
 import {
   formatCurrency,
   formatOfficialProcessNumber,
@@ -100,6 +101,7 @@ export function ExternalProcessControlPage() {
 
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const savedDraft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const filteredProcesses = useMemo(() => {
@@ -216,6 +218,24 @@ export function ExternalProcessControlPage() {
             if (target) navigate(target.route);
           }}
         />
+
+        <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+          <Button type="button" className="rounded-xl bg-slate-950 text-white hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950">
+            <FolderKanban className="mr-2 h-4 w-4" />
+            Processos protocolados
+          </Button>
+          <Button asChild variant="ghost" className="rounded-xl">
+            <Link to="/externo/controle/rascunhos">
+              <FilePenLine className="mr-2 h-4 w-4" />
+              Rascunhos
+              {savedDraft ? (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
+                  1
+                </span>
+              ) : null}
+            </Link>
+          </Button>
+        </div>
 
         <StatsCards>
           <MetricCard
