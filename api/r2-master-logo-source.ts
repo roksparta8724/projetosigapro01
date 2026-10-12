@@ -31,14 +31,14 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
-    const accessKeyId = env("R2_ACCESS_KEY_ID").replace(/\s+/g, "");
-    const hexOnly = accessKeyId.replace(/[^a-fA-F0-9]/g, "");
+    const accessKeyId = env("R2_ACCESS_KEY_ID");
+    const secretAccessKey = env("R2_SECRET_ACCESS_KEY");
     const client = new S3Client({
       region: "auto",
       endpoint: env("R2_ENDPOINT"),
       credentials: {
-        accessKeyId: hexOnly.length >= 32 ? hexOnly.slice(0, 32) : accessKeyId,
-        secretAccessKey: env("R2_SECRET_ACCESS_KEY").replace(/\s+/g, ""),
+        accessKeyId,
+        secretAccessKey,
       },
     });
     const object = await client.send(new GetObjectCommand({
