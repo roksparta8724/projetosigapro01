@@ -27,7 +27,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
-import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
@@ -36,6 +36,7 @@ import {
   defaultProtocolDraftForm,
   clearProtocolDraft,
   readProtocolDraft,
+  restoreUploadedFiles,
   saveProtocolDraft,
   toStoredUploadedFiles,
   type ProtocolDraftForm,
@@ -157,6 +158,7 @@ export function ProtocolarProjetoPage() {
 
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
   const [draftNumber, setDraftNumber] = useState(createDraftNumber());
   const [form, setForm] = useState<ProtocolDraftForm>({
@@ -168,11 +170,11 @@ export function ProtocolarProjetoPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
     const draft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
 
     if (draft) {
       setDraftNumber(draft.draftNumber);
-      setFiles(toStoredUploadedFiles(draft.files));
       setForm({
         ...defaultProtocolDraftForm,
         ...draft.form,
@@ -181,7 +183,13 @@ export function ProtocolarProjetoPage() {
         telefone: draft.form.telefone || profile?.phone || "",
         email: draft.form.email || profile?.email || session.email,
       });
-      return;
+
+      void restoreUploadedFiles(draft.files).then((restored) => {
+        if (!cancelled) setFiles(restored);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     setForm((current) => ({
@@ -191,6 +199,10 @@ export function ProtocolarProjetoPage() {
       telefone: profile?.phone ?? "",
       email: profile?.email ?? session.email,
     }));
+
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveScopeId, profile, session.email, session.id, session.name, session.tenantId]);
 
   const checklistTemplate = useMemo(
@@ -278,21 +290,114 @@ export function ProtocolarProjetoPage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const persistDraft = () => {
-    saveProtocolDraft(session.id, effectiveScopeId, {
-      draftNumber,
-      form,
-      files: toStoredUploadedFiles(files),
-      updatedAt: new Date().toISOString(),
-    });
-  };
-
   const findFilesForLabel = (label: string) =>
     Object.entries(files).find(([key]) => normalizeLabel(key) === normalizeLabel(label))?.[1] ?? [];
 
-  const handleSaveDraft = () => {
-    persistDraft();
-    setStatus("Rascunho salvo com sucesso. Os dados do protocolo e a lista atual de arquivos ficaram registrados.");
+  const persistDraft = async () => {
+    if (!effectiveScopeId) {
+      throw new Error("O perfil atual não está vinculado a uma Prefeitura.");
+    }
+
+    const persistedEntries = await Promise.all(
+      Object.entries(files).map(async ([label, items]) => {
+        const persistedItems = await Promise.all(
+          items.map(async (item) => {
+            if (item.storagePath) return item;
+
+            if (!item.file) {
+              throw new Error(
+                `O arquivo "${item.fileName}" pertence a um rascunho antigo e precisa ser selecionado uma única vez para migrar ao armazenamento permanente.`,
+              );
+            }
+
+            const uploaded = await uploadFileToStorage({
+              bucket: "process-documents",
+              tenantId: effectiveScopeId,
+              userId: session.id,
+              file: item.file,
+              folder: "protocolos",
+            });
+
+            return {
+              ...item,
+              storagePath: uploaded.path,
+              fileSizeBytes: item.file.size,
+              previewUrl: uploaded.publicUrl || item.previewUrl,
+            };
+          }),
+        );
+
+        return [label, persistedItems] as const;
+      }),
+    );
+
+    const persistedFiles = Object.fromEntries(persistedEntries) as Record<string, UploadedFileItem[]>;
+    const saved = saveProtocolDraft(session.id, effectiveScopeId, {
+      draftNumber,
+      form,
+      files: toStoredUploadedFiles(persistedFiles),
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (!saved) {
+      throw new Error("Não foi possível registrar o rascunho neste navegador.");
+    }
+
+    setFiles(persistedFiles);
+    return persistedFiles;
+  };
+
+  const handleDocumentFilesSelected = (label: string, selected: UploadedFileItem[]) => {
+    const previous = files[label] ?? [];
+    const selectedIds = new Set(selected.map((item) => item.id));
+    const removedStoredFiles = previous.filter(
+      (item) => item.storagePath && !selectedIds.has(item.id),
+    );
+
+    setFiles((current) => ({ ...current, [label]: selected }));
+
+    for (const removed of removedStoredFiles) {
+      void deleteFileFromStorage({
+        bucket: "process-documents",
+        objectKey: removed.storagePath!,
+      }).catch((error) => {
+        console.warn("[SIGAPRO][Rascunho] Não foi possível remover anexo substituído.", {
+          objectKey: removed.storagePath,
+          error,
+        });
+      });
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (savingDraft || submitting) return;
+
+    setSavingDraft(true);
+    setStatus("Salvando rascunho e preservando os documentos...");
+    try {
+      const persisted = await persistDraft();
+      const persistedCount = Object.values(persisted).reduce(
+        (total, items) => total + items.filter((item) => Boolean(item.storagePath)).length,
+        0,
+      );
+      setStatus(
+        persistedCount > 0
+          ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados e serão reutilizados após F5 ou ao voltar depois.`
+          : "Rascunho salvo com sucesso. Você pode sair e continuar depois.",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Não foi possível salvar o rascunho completo.";
+      saveProtocolDraft(session.id, effectiveScopeId, {
+        draftNumber,
+        form,
+        files: toStoredUploadedFiles(files),
+        updatedAt: new Date().toISOString(),
+      });
+      setStatus(`O rascunho dos dados foi mantido, mas os documentos ainda não ficaram preservados: ${message}`);
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -339,12 +444,12 @@ export function ProtocolarProjetoPage() {
 
     const detachedUploads = documentItems.filter((item) => {
       const selected = findFilesForLabel(item.label);
-      return selected.length > 0 && selected.some((file) => !file.file);
+      return selected.length > 0 && selected.some((file) => !file.file && !file.storagePath);
     });
 
     if (detachedUploads.length > 0) {
       setStatus(
-        `Reabra os arquivos antes de protocolar: ${detachedUploads.map((item) => item.label).join(", ")}. Após um F5 o navegador preserva os nomes, mas não pode reutilizar o conteúdo local do arquivo sem nova seleção.`,
+        `Alguns anexos pertencem a um rascunho antigo e ainda não estão no armazenamento permanente: ${detachedUploads.map((item) => item.label).join(", ")}. Selecione esses arquivos uma única vez e salve o rascunho novamente.`,
       );
       return;
     }
@@ -361,8 +466,9 @@ export function ProtocolarProjetoPage() {
         fileName: file.fileName,
         mimeType: file.mimeType,
         sizeLabel: file.sizeLabel,
-        fileSizeBytes: file.file?.size,
-        previewUrl: file.previewUrl,
+        fileSizeBytes: file.file?.size ?? file.fileSizeBytes,
+        filePath: file.storagePath,
+        previewUrl: file.storagePath ? undefined : file.previewUrl,
       })),
     );
 
@@ -385,6 +491,8 @@ export function ProtocolarProjetoPage() {
       try {
         documents = await Promise.all(
           documents.map(async (document) => {
+            if (document.filePath) return document;
+
             const originalFile = findFilesForLabel(document.label).find(
               (item) => item.fileName === document.fileName && item.file,
             )?.file;
@@ -789,7 +897,7 @@ export function ProtocolarProjetoPage() {
                             multiple={false}
                             allowPreview
                             files={files[item.label] ?? []}
-                            onFilesSelected={(selected) => setFiles((current) => ({ ...current, [item.label]: selected }))}
+                            onFilesSelected={(selected) => handleDocumentFilesSelected(item.label, selected)}
                           />
                         </div>
                       );
@@ -817,8 +925,14 @@ export function ProtocolarProjetoPage() {
             </Button>
 
             <div className="flex flex-col gap-3 md:flex-row">
-              <Button type="button" variant="outline" className="rounded-full" onClick={handleSaveDraft}>
-                Salvar rascunho
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => void handleSaveDraft()}
+                disabled={savingDraft || submitting}
+              >
+                {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
               </Button>
               <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting}>
                 {submitting ? "Protocolando projeto..." : "Protocolar projeto"}
