@@ -22,6 +22,12 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
 
   componentDidCatch(error: Error) {
     console.error("[ErrorBoundary] SIGAPRO runtime error:", error);
+
+    // Se uma tela falhar de verdade, não deixar o snapshot premium cobrindo
+    // indefinidamente a interface. Em operação normal esse evento não interfere.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sigapro-app-stable"));
+    }
   }
 
   render() {
