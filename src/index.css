@@ -3497,13 +3497,13 @@
 /* Municipality logo surface must remain identical in light and inverse themes. */
 .sig-institution-logo-surface[data-logo-context="municipality"] {
   background: #ffffff !important;
-  border-color: rgba(226, 232, 240, 0.95) !important;
+  border-color: #d7dee8 !important;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12) !important;
 }
 
 [data-layout-mode="inverse-main"] .sig-main-shell .sig-institution-logo-surface[data-logo-context="municipality"] {
   background: #ffffff !important;
-  border-color: rgba(226, 232, 240, 0.95) !important;
+  border-color: #d7dee8 !important;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12) !important;
 }
 
@@ -5380,4 +5380,39 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-tenant-dark-bad
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
+}
+
+
+/* ===== MUNICIPAL LOGO SURFACE — IDENTICAL IN EVERY THEME 2026-10-12 ===== */
+html body .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="default"] .sig-institution-logo-surface[data-logo-context="municipality"],
+html body [data-layout-mode="inverse-main"] .sig-institution-logo-surface[data-logo-context="municipality"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d7dee8 !important;
+  border-color: #d7dee8 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12) !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-institution-logo-surface[data-logo-context="municipality"] > div,
+html body .sig-institution-logo-surface[data-logo-context="municipality"] > div > div {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html body .sig-institution-logo-surface[data-logo-context="municipality"] img {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  object-fit: contain !important;
+  object-position: center !important;
 }
