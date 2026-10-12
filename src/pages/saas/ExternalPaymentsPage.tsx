@@ -48,11 +48,13 @@ export function ExternalPaymentsPage() {
   const guides = useMemo(
     () =>
       processes.flatMap((process) =>
-        getProcessPaymentGuides(process, tenantSettings).map((guide) => ({
-          process,
-          guide,
-          status: getGuideStatus(guide),
-        })),
+        getProcessPaymentGuides(process, tenantSettings)
+          .filter((guide) => guide.kind === "protocolo" || Boolean(guide.issuedAt && guide.code?.trim()))
+          .map((guide) => ({
+            process,
+            guide,
+            status: getGuideStatus(guide),
+          })),
       ),
     [processes, tenantSettings],
   );
