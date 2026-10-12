@@ -119,6 +119,14 @@
         contain: layout paint style;
       }
 
+      /* O conteúdo acompanha o scroll salvo, mas o chrome fixo permanece preso ao viewport. */
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-premium-topbar {
+        top: var(--sig-snapshot-scroll-y, 0px) !important;
+        transform: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::before,
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::after {
@@ -175,6 +183,7 @@
           var scrollY = Math.max(0, Number(snapshot.scrollY) || 0);
           host.innerHTML = '<div class="sigapro-snapshot-viewport">' + snapshot.html + "</div>";
           host.style.setProperty("--sig-snapshot-top", String(-scrollY) + "px");
+          host.style.setProperty("--sig-snapshot-scroll-y", String(scrollY) + "px");
           host.style.setProperty(
             "--sig-snapshot-viewport-width",
             String(snapshot.viewportWidth || document.documentElement.clientWidth || window.innerWidth) + "px"
