@@ -2753,6 +2753,7 @@ export function ConfiguracoesPage() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
+                    data-institutional-header-preview="true"
                     className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
