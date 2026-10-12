@@ -108,6 +108,19 @@ describe("layout integrity regression", () => {
     expect(settings).toContain('wrapperClassName="sig-master-logo-editor"');
   });
 
+  it("switches adaptive cards atomically between light and dark themes", () => {
+    const css = read("src/index.css");
+    const pageLayout = read("src/components/platform/PageLayout.tsx");
+    const stat = read("src/components/platform/StatCard.tsx");
+    const metric = read("src/components/platform/MetricCard.tsx");
+    expect(css).toContain("SIGAPRO ATOMIC THEME SURFACES 2026-10-12");
+    expect(css).toContain('[data-surface="adaptive-card"]');
+    expect(css).toContain("transition-property: transform, box-shadow, border-color");
+    expect(pageLayout).toContain('data-surface="adaptive-card"');
+    expect(stat).toContain('data-surface="adaptive-card"');
+    expect(metric).toContain('data-surface="adaptive-card"');
+  });
+
   it("keeps a global neutral contrast contract for dark and light surfaces", () => {
     const css = read("src/index.css");
     expect(css).toContain("SIGAPRO GLOBAL SURFACE CONTRAST AUDIT 2026-10-12");
