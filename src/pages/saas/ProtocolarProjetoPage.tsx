@@ -347,25 +347,108 @@ export function ProtocolarProjetoPage() {
     return persistedFiles;
   };
 
-  const handleDocumentFilesSelected = (label: string, selected: UploadedFileItem[]) => {
+  const handleDocumentFilesSelected = async (label: string, selected: UploadedFileItem[]) => {
     const previous = files[label] ?? [];
-    const selectedIds = new Set(selected.map((item) => item.id));
-    const removedStoredFiles = previous.filter(
-      (item) => item.storagePath && !selectedIds.has(item.id),
-    );
+    const optimisticFiles = { ...files, [label]: selected };
+    const newlyUploadedPaths: string[] = [];
 
-    setFiles((current) => ({ ...current, [label]: selected }));
+    // Atualiza o card imediatamente para nunca deixar o arquivo anterior "preso"
+    // visualmente enquanto o novo anexo é persistido.
+    setFiles(optimisticFiles);
 
-    for (const removed of removedStoredFiles) {
-      void deleteFileFromStorage({
-        bucket: "process-documents",
-        objectKey: removed.storagePath!,
-      }).catch((error) => {
-        console.warn("[SIGAPRO][Rascunho] Não foi possível remover anexo substituído.", {
-          objectKey: removed.storagePath,
-          error,
-        });
+    try {
+      if (!effectiveScopeId) {
+        throw new Error("O perfil atual não está vinculado a uma Prefeitura.");
+      }
+
+      if (selected.length > 0) {
+        setStatus(`Salvando "${selected[0].fileName}" no rascunho...`);
+      } else {
+        setStatus(`Removendo "${previous[0]?.fileName || label}" do rascunho...`);
+      }
+
+      const persistedSelected = await Promise.all(
+        selected.map(async (item) => {
+          if (item.storagePath) return item;
+
+          if (!item.file) {
+            throw new Error(`O arquivo "${item.fileName}" precisa ser selecionado novamente.`);
+          }
+
+          const uploaded = await uploadFileToStorage({
+            bucket: "process-documents",
+            tenantId: effectiveScopeId,
+            userId: session.id,
+            file: item.file,
+            folder: "protocolos",
+          });
+          newlyUploadedPaths.push(uploaded.path);
+
+          return {
+            ...item,
+            storagePath: uploaded.path,
+            fileSizeBytes: item.file.size,
+            previewUrl: uploaded.publicUrl || item.previewUrl,
+          };
+        }),
+      );
+
+      const persistedFiles = { ...files, [label]: persistedSelected };
+      const saved = saveProtocolDraft(session.id, effectiveScopeId, {
+        draftNumber,
+        form,
+        files: toStoredUploadedFiles(persistedFiles),
+        updatedAt: new Date().toISOString(),
       });
+
+      if (!saved) {
+        throw new Error("Não foi possível atualizar o rascunho neste navegador.");
+      }
+
+      // Só depois do novo estado estar salvo removemos o objeto antigo.
+      const retainedPaths = new Set(
+        persistedSelected.map((item) => item.storagePath).filter(Boolean) as string[],
+      );
+      const removedStoredFiles = previous.filter(
+        (item) => item.storagePath && !retainedPaths.has(item.storagePath),
+      );
+
+      setFiles(persistedFiles);
+
+      await Promise.allSettled(
+        removedStoredFiles.map((removed) =>
+          deleteFileFromStorage({
+            bucket: "process-documents",
+            objectKey: removed.storagePath!,
+          }),
+        ),
+      );
+
+      if (persistedSelected.length > 0) {
+        setStatus(
+          previous.length > 0
+            ? `Documento substituído com sucesso por "${persistedSelected[0].fileName}". O rascunho já foi atualizado.`
+            : `Documento "${persistedSelected[0].fileName}" anexado e salvo no rascunho.`,
+        );
+      } else {
+        setStatus("Documento excluído do rascunho com sucesso.");
+      }
+    } catch (error) {
+      // A troca é transacional: se o novo arquivo falhar, o anterior permanece.
+      setFiles((current) => ({ ...current, [label]: previous }));
+
+      await Promise.allSettled(
+        newlyUploadedPaths.map((objectKey) =>
+          deleteFileFromStorage({
+            bucket: "process-documents",
+            objectKey,
+          }),
+        ),
+      );
+
+      const message =
+        error instanceof Error ? error.message : "Não foi possível atualizar o documento.";
+      setStatus(`Não foi possível substituir/excluir o documento: ${message}. O arquivo anterior foi mantido.`);
     }
   };
 
