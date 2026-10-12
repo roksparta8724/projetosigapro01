@@ -5902,3 +5902,31 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* ===== LANDING WHITE ELEMENTS EXACT FOREGROUND ===== */
+[data-landing-hero-badge="true"] {
+  background: rgba(255,255,255,0.96) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-landing-hero-badge="true"] *,
+[data-landing-hero-badge="true"]::before,
+[data-landing-hero-badge="true"]::after {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-landing-header-access="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-landing-header-access="true"] *,
+[data-landing-header-access="true"]::before,
+[data-landing-header-access="true"]::after {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
