@@ -5234,3 +5234,35 @@ html body [data-layout-mode="default"] .sig-main-shell :is(
   --sig-card-fg: #0f172a;
   --sig-card-muted: #475569;
 }
+
+
+/* ===== PROFILE DARK CARDS — DIRECT CONTRACT 2026-10-12 =====
+   Exact cards from Perfil > Foto e identidade. */
+html body .sig-main-shell [data-contrast-card="dark"] {
+  background: #020617 !important;
+  background-color: #020617 !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] p,
+html body .sig-main-shell [data-contrast-card="dark"] span,
+html body .sig-main-shell [data-contrast-card="dark"] strong,
+html body .sig-main-shell [data-contrast-card="dark"] small,
+html body .sig-main-shell [data-contrast-card="dark"] label {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] p + p {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] svg {
+  color: #f8fafc !important;
+  stroke: #f8fafc !important;
+  opacity: 1 !important;
+}
