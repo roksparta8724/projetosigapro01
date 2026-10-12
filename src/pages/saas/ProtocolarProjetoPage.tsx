@@ -185,6 +185,16 @@ export function ProtocolarProjetoPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Não inicializa o fluxo antes de o escopo municipal existir. Assim o
+    // usuário nunca seleciona arquivos em um contexto que será reiniciado
+    // alguns instantes depois quando a Prefeitura terminar de carregar.
+    if (!effectiveScopeId) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const draft = resumeDraftNumber
       ? readProtocolDraft(
           session.id,
@@ -205,6 +215,18 @@ export function ProtocolarProjetoPage() {
         telefone: draft.form.telefone || profilePhone,
         email: draft.form.email || profileEmail || session.email,
       });
+
+      // Renderiza primeiro a estrutura já persistida, sem esperar URLs
+      // assinadas. Depois só atualiza o src do preview dentro de uma área de
+      // altura fixa. Isso evita o bloco inteiro aparecer de uma vez e empurrar
+      // a página quando um rascunho é reaberto.
+      const restoredShell = Object.fromEntries(
+        Object.entries(draft.files).map(([label, items]) => [
+          label,
+          items.map((item) => ({ ...item } as UploadedFileItem)),
+        ]),
+      ) as Record<string, UploadedFileItem[]>;
+      replaceFiles(restoredShell);
 
       void restoreUploadedFiles(draft.files).then((restored) => {
         if (!cancelled) replaceFiles(restored);
@@ -236,15 +258,28 @@ export function ProtocolarProjetoPage() {
     };
   }, [
     effectiveScopeId,
+    resumeDraftNumber,
+    session.id,
+    session.tenantId,
+  ]);
+
+  // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
+  // campos vazios; nunca reinicializa anexos nem o rascunho já em edição.
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      profissional: current.profissional || profileFullName || session.name,
+      registro: current.registro || profileRegistrationNumber,
+      telefone: current.telefone || profilePhone,
+      email: current.email || profileEmail || session.email,
+    }));
+  }, [
     profileEmail,
     profileFullName,
     profilePhone,
     profileRegistrationNumber,
-    resumeDraftNumber,
     session.email,
-    session.id,
     session.name,
-    session.tenantId,
   ]);
 
   const checklistTemplate = useMemo(
