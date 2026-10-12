@@ -1149,8 +1149,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         return { ok: true, message: "Senha atualizada." };
       },
       signOut: async () => {
+        // Troca de conta precisa ser visualmente atomica: removemos a identidade
+        // atual antes de qualquer chamada de rede, para que a rota protegida saia
+        // imediatamente e nunca exponha um estado intermediario da conta anterior.
         explicitSignOutRef.current = true;
         authEventRef.current = "SIGNED_OUT";
+        bootstrapEpochRef.current += 1;
+        setAuthChange(null);
+        pendingBootstrapRef.current = null;
         lastAuthUserIdRef.current = null;
         initializedRef.current = false;
         needsInitialRevalidationRef.current = false;
@@ -1163,8 +1169,19 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         };
         writeBootstrapSnapshot(null);
         clearPlatformSessionSnapshot();
-        setLoading(true);
-        setStage("bootstrapping_auth");
+
+        setAuthUserId(null);
+        setAuthEmail(null);
+        setRole(null);
+        setProfile(null);
+        setScopeType("municipality");
+        setMunicipalityBundle(null);
+        setError(null);
+        setAuthResolved(true);
+        setIsReady(true);
+        setStage("ready");
+        setLoading(false);
+
         try {
           if (hasBackendEnv && backendClient) {
             await Promise.race([
@@ -1178,16 +1195,6 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             ]);
           }
         } finally {
-          setAuthUserId(null);
-          setAuthEmail(null);
-          setRole(null);
-          setProfile(null);
-          setScopeType("municipality");
-          setMunicipalityBundle(null);
-          setError(null);
-          setIsReady(true);
-          setStage("ready");
-          setLoading(false);
           explicitSignOutRef.current = false;
         }
       },
