@@ -1195,33 +1195,48 @@ export function PerfilPage() {
   return (
     <PortalFrame eyebrow="MEU PERFIL" title="Conta, identidade e vínculos institucionais">
       <style>{`
-        .sig-main-shell [data-profile-dark-card="true"] {
+        html body #profile-preview-topbar-card,
+        html body #profile-master-header-card,
+        html body #profile-master-footer-card {
           background: #020617 !important;
           background-color: #020617 !important;
           border-color: #334155 !important;
           color: #ffffff !important;
           -webkit-text-fill-color: #ffffff !important;
         }
-        .sig-main-shell [data-profile-dark-card="true"] p,
-        .sig-main-shell [data-profile-dark-card="true"] span,
-        .sig-main-shell [data-profile-dark-card="true"] strong,
-        .sig-main-shell [data-profile-dark-card="true"] small,
-        .sig-main-shell [data-profile-dark-card="true"] label {
+
+        html body #profile-preview-topbar-title,
+        html body #profile-master-header-title,
+        html body #profile-master-header-brand,
+        html body #profile-master-footer-title {
           color: #ffffff !important;
           -webkit-text-fill-color: #ffffff !important;
           opacity: 1 !important;
+          visibility: visible !important;
           filter: none !important;
           mix-blend-mode: normal !important;
         }
-        .sig-main-shell [data-profile-dark-card="true"] p + p,
-        .sig-main-shell [data-profile-dark-card="true"] .sig-dark-preview-copy {
-          color: #dbeafe !important;
-          -webkit-text-fill-color: #dbeafe !important;
+
+        html body #profile-preview-topbar-copy,
+        html body #profile-master-header-copy,
+        html body #profile-master-header-meta,
+        html body #profile-master-footer-copy,
+        html body #profile-master-footer-card p {
+          color: #e2e8f0 !important;
+          -webkit-text-fill-color: #e2e8f0 !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          filter: none !important;
+          mix-blend-mode: normal !important;
         }
-        .sig-main-shell [data-profile-dark-card="true"] svg {
+
+        html body #profile-preview-topbar-card svg,
+        html body #profile-master-header-card svg,
+        html body #profile-master-footer-card svg {
           color: #ffffff !important;
           stroke: #ffffff !important;
           opacity: 1 !important;
+          visibility: visible !important;
         }
       `}</style>
       <PageShell>
@@ -1535,11 +1550,11 @@ export function PerfilPage() {
                           </p>
                         </div>
                       </div>
-                      <div data-profile-dark-card="true" className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
+                      <div id="profile-preview-topbar-card" data-profile-dark-card="true" className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
-                            <p className="sig-dark-preview-copy mt-1 text-sm">Leitura compacta do avatar institucional.</p>
+                            <p id="profile-preview-topbar-title" className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
+                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">Leitura compacta do avatar institucional.</p>
                           </div>
                           <UserAvatar
                             name={form.fullName || session.name}
@@ -1583,17 +1598,17 @@ export function PerfilPage() {
                     icon={Building2}
                   >
                     <div className="space-y-6">
-                      <div data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
+                      <div id="profile-master-header-card" data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Cabeçalho Master</p>
-                            <p className="sig-dark-preview-copy mt-2 text-sm">Pré-visualização do topo institucional.</p>
+                            <p id="profile-master-header-title" className="text-xs font-semibold uppercase tracking-[0.22em]">Cabeçalho Master</p>
+                            <p id="profile-master-header-copy" className="mt-2 text-sm">Pré-visualização do topo institucional.</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterHeaderBranding} fallbackLabel="SIGAPRO" variant="header" />
                             <div className="min-w-[120px]">
-                              <p className="sig-dark-preview-title break-words text-sm font-semibold">SIGAPRO</p>
-                              <p className="sig-dark-preview-copy text-xs">Ambiente Master</p>
+                              <p id="profile-master-header-brand" className="break-words text-sm font-semibold">SIGAPRO</p>
+                              <p id="profile-master-header-meta" className="text-xs">Ambiente Master</p>
                             </div>
                           </div>
                         </div>
@@ -1655,11 +1670,11 @@ export function PerfilPage() {
                         </div>
                       </div>
 
-                      <div data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
+                      <div id="profile-master-footer-card" data-profile-dark-card="true" className="rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="sig-dark-preview-title text-xs font-semibold uppercase tracking-[0.22em]">Rodapé Master</p>
-                            <p className="sig-dark-preview-copy mt-2 text-sm">Pré-visualização do rodapé institucional.</p>
+                            <p id="profile-master-footer-title" className="text-xs font-semibold uppercase tracking-[0.22em]">Rodapé Master</p>
+                            <p id="profile-master-footer-copy" className="mt-2 text-sm">Pré-visualização do rodapé institucional.</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <InstitutionalLogo branding={previewMasterFooterBranding} fallbackLabel="SIGAPRO" variant="footer" />
