@@ -170,7 +170,7 @@
             pathname.indexOf("/cliente/") !== 0;
           if (!internal) return;
 
-          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v1");
+          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v2");
           if (!raw) return;
           var snapshot = JSON.parse(raw);
           var locationKey = window.location.pathname + window.location.search + window.location.hash;
@@ -180,6 +180,7 @@
             snapshot.path === locationKey &&
             typeof snapshot.html === "string" &&
             snapshot.html.length > 500 &&
+            snapshot.pageZoom === (document.documentElement.style.zoom || "1") &&
             typeof snapshot.savedAt === "number" &&
             Date.now() - snapshot.savedAt < 120000;
           if (!valid) return;
