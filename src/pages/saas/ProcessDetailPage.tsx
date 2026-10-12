@@ -1,6 +1,6 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,29 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function toProcessRouteKey(protocol: string) {
+  return protocol
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\\/\s]+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function resolveProcessFromRoute(processes: ReturnType<typeof getProcessById>[] extends never[] ? never[] : any[], routeValue?: string) {
+  if (!routeValue) return undefined;
+  const decoded = decodeURIComponent(routeValue).trim();
+  const byId = getProcessById(decoded, processes);
+  if (byId) return byId;
+  const normalized = decoded.toLowerCase();
+  return processes.find((item) => {
+    const protocol = String(item.protocol || "");
+    return protocol.toLowerCase() === normalized || toProcessRouteKey(protocol).toLowerCase() === normalized;
+  });
 }
 
 function inferMimeType(fileName: string) {
@@ -162,6 +185,8 @@ function buildProtocolGuideHtml(input: {
 
 export function ProcessDetailPage() {
   const { processId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
@@ -232,7 +257,14 @@ export function ProcessDetailPage() {
   }, [activeTab, planEntitlements, searchParams, setSearchParams]);
 
 
-  const process = processId ? getProcessById(processId, processes) : undefined;
+  const process = resolveProcessFromRoute(processes, processId);
+
+  useEffect(() => {
+    if (!process || !processId) return;
+    const canonicalKey = toProcessRouteKey(process.protocol);
+    if (!canonicalKey || processId === canonicalKey) return;
+    navigate(`/processos/${encodeURIComponent(canonicalKey)}${location.search}`, { replace: true });
+  }, [location.search, navigate, process, processId]);
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
