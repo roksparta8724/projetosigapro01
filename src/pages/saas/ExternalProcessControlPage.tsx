@@ -21,7 +21,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { readProtocolDraft } from "@/lib/protocolDraft";
+import { listProtocolDrafts } from "@/lib/protocolDraft";
 import {
   formatCurrency,
   formatOfficialProcessNumber,
@@ -101,7 +101,7 @@ export function ExternalProcessControlPage() {
 
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
-  const savedDraft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
+  const savedDrafts = listProtocolDrafts(session.id, effectiveScopeId, session.tenantId);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const filteredProcesses = useMemo(() => {
@@ -228,9 +228,9 @@ export function ExternalProcessControlPage() {
             <Link to="/externo/controle/rascunhos">
               <FilePenLine className="mr-2 h-4 w-4" />
               Rascunhos
-              {savedDraft ? (
+              {savedDrafts.length > 0 ? (
                 <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
-                  1
+                  {savedDrafts.length}
                 </span>
               ) : null}
             </Link>
