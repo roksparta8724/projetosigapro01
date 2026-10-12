@@ -30,7 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { MetricCard } from "@/components/platform/MetricCard";
-import { InternalSectionNav } from "@/components/platform/PageLayout";
+import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -1171,9 +1171,11 @@ export function MasterPlansPage() {
           }
         />
 
-        <InternalSectionNav
+        <InternalTabs
           value={view}
           onChange={(value) => setView(value as PlansView)}
+          urlParam="secao"
+          persistInUrl
           items={[
             { value: "visao-geral", label: "Visão geral", helper: "Resumo comercial" },
             { value: "planos", label: "Planos", helper: "Cards e edição" },
