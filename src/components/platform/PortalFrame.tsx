@@ -34,6 +34,7 @@
   X,
 } from "@/components/platform/PremiumIcons";
 import { useEffect, useMemo, useState } from "react";
+import { Network } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,7 +105,7 @@ const navItems = [
   { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
-  { key: "organization", to: "/prefeitura/organograma", label: "Organograma", icon: Building2, permission: "manage_own_profile" as Permission, internalOnly: true, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "organization", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, internalOnly: true, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
     to: "/prefeitura/protocolos",
