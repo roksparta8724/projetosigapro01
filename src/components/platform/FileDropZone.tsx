@@ -10,6 +10,8 @@ export interface UploadedFileItem {
   sizeLabel: string;
   previewUrl?: string;
   file?: File;
+  storagePath?: string;
+  fileSizeBytes?: number;
 }
 
 interface FileDropZoneProps {
@@ -160,6 +162,11 @@ export function FileDropZone({
                     <p className="break-words text-sm text-slate-500 dark:text-slate-300">
                       {file.mimeType} - {file.sizeLabel}
                     </p>
+                    {file.storagePath ? (
+                      <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        Salvo no rascunho
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
