@@ -311,7 +311,7 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
-              <div className="hidden rounded-[18px] border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 shadow-sm dark:border-slate-700/80 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 dark:text-slate-300 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
+              <div data-process-list-header="true" className="hidden rounded-[18px] border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] shadow-sm 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
                 <span>Processo</span>
                 <span>Status</span>
                 <span>Etapa atual</span>
@@ -330,7 +330,8 @@ export function ExternalProcessControlPage() {
                 return (
                   <article
                     key={process.id}
-                    className="group overflow-hidden rounded-[22px] border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/70 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)] dark:border-slate-700/80 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 dark:text-slate-100 dark:shadow-[0_12px_34px_rgba(0,0,0,0.32)] dark:hover:border-slate-600 dark:hover:shadow-[0_20px_46px_rgba(0,0,0,0.42)]"
+                    data-process-premium-card="true"
+                    className="group overflow-hidden rounded-[22px] border shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5"
                   >
                     <div className="grid gap-0 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:items-stretch">
                       <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80 dark:2xl:border-slate-700/80">
