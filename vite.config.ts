@@ -212,7 +212,9 @@ function createR2DevApiPlugin(): Plugin {
                 Key: objectKey,
                 Body: buffer,
                 ContentType: contentType || "application/octet-stream",
-                Metadata: fileName ? { filename: fileName } : undefined,
+                // Do not send original filenames as signed R2 metadata headers.
+                // Accented/localized names can be encoded differently by the HTTP layer
+                // and invalidate SigV4. The original filename is persisted in SIGAPRO data.
               }),
             );
 
