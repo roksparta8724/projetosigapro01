@@ -5857,3 +5857,48 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+
+/* ===== LANDING LIGHT CARDS: DARK FOREGROUND ONLY ===== */
+[data-layout-mode="default"] [data-landing-light-card="true"],
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] {
+  color: #0f172a !important;
+}
+
+[data-layout-mode="default"] [data-landing-light-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+),
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-layout-mode="default"] [data-landing-light-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+),
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+
+[data-layout-mode="default"] [data-landing-light-card="true"] svg,
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] svg {
+  color: #1e3a8a !important;
+  stroke: currentColor !important;
+}
+
+[data-layout-mode="default"] [data-landing-light-card="true"] .bg-slate-950,
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] .bg-slate-950 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-layout-mode="default"] [data-landing-light-card="true"] .bg-slate-950 *,
+[data-layout-mode="inverse-main"] [data-landing-light-card="true"] .bg-slate-950 * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
