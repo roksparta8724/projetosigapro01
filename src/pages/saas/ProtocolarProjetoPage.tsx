@@ -200,14 +200,14 @@ export function ProtocolarProjetoPage() {
       setForm({
         ...defaultProtocolDraftForm,
         ...draft.form,
-        profissional: draft.form.profissional || profile?.fullName || session.name,
-        registro: draft.form.registro || profile?.registrationNumber || "",
-        telefone: draft.form.telefone || profile?.phone || "",
-        email: draft.form.email || profile?.email || session.email,
+        profissional: draft.form.profissional || profileFullName || session.name,
+        registro: draft.form.registro || profileRegistrationNumber,
+        telefone: draft.form.telefone || profilePhone,
+        email: draft.form.email || profileEmail || session.email,
       });
 
       void restoreUploadedFiles(draft.files).then((restored) => {
-        if (!cancelled) setFiles(restored);
+        if (!cancelled) replaceFiles(restored);
       });
       return () => {
         cancelled = true;
@@ -217,13 +217,13 @@ export function ProtocolarProjetoPage() {
     // /externo/protocolar é sempre uma nova abertura. Rascunhos só são
     // carregados quando o profissional escolhe "Continuar rascunho".
     setDraftNumber(createDraftNumber());
-    setFiles({});
+    replaceFiles({});
     setForm({
       ...defaultProtocolDraftForm,
-      profissional: profile?.fullName ?? session.name,
-      registro: profile?.registrationNumber ?? "",
-      telefone: profile?.phone ?? "",
-      email: profile?.email ?? session.email,
+      profissional: profileFullName || session.name,
+      registro: profileRegistrationNumber,
+      telefone: profilePhone,
+      email: profileEmail || session.email,
     });
     setStatus(
       resumeDraftNumber
@@ -236,7 +236,10 @@ export function ProtocolarProjetoPage() {
     };
   }, [
     effectiveScopeId,
-    profile,
+    profileEmail,
+    profileFullName,
+    profilePhone,
+    profileRegistrationNumber,
     resumeDraftNumber,
     session.email,
     session.id,
