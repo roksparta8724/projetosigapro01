@@ -5181,3 +5181,56 @@ html body .sig-fixed-dark-surface > * > * > * {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* ===== SIGAPRO SEMANTIC CARD CONTRAST SOURCE OF TRUTH 2026-10-12 =====
+   Explicit semantic contract: dark cards own light foreground; light cards own dark foreground. */
+html body .sig-main-shell .sig-fixed-dark-surface {
+  --sig-card-fg: #f8fafc;
+  --sig-card-muted: #cbd5e1;
+  background: #020617 !important;
+  background-color: #020617 !important;
+  color: var(--sig-card-fg) !important;
+  -webkit-text-fill-color: var(--sig-card-fg) !important;
+}
+
+html body .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-copy {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-fixed-dark-surface :is(
+  .sig-dark-card-title,
+  .sig-dark-card-copy
+) * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-title,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-copy,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface .sig-dark-card-copy {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+
+/* Light semantic cards always use dark copy. */
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-surface="adaptive-card"],
+  .sig-light-card
+):not(.sig-fixed-dark-surface) {
+  --sig-card-fg: #0f172a;
+  --sig-card-muted: #475569;
+}
