@@ -5951,3 +5951,37 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   stroke: currentColor !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+
+/* ===== PROCESS HISTORY ENTRY CONTRAST ===== */
+[data-layout-mode="default"] .sig-main-shell [data-process-history-entry="true"] {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-process-history-entry="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-history-entry="true"] {
+  background: #1d2b3f !important;
+  border: 1px solid rgba(148,163,184,0.14) !important;
+  color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-history-entry="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-history-entry="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
