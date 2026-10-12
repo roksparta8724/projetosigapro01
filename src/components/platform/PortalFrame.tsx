@@ -65,7 +65,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, desktopThemePresets, getProcessPaymentGuides, isInternalRole, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { can, canAccessMunicipalArea, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -390,6 +390,22 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const visibleNavItems = navItems
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
+
+      // Cadastro institucional e organograma completo são exclusivos da administração.
+      if (
+        session.role !== "master_admin" &&
+        session.role !== "master_ops" &&
+        session.role !== "prefeitura_admin" &&
+        (item.to === "/prefeitura" || item.to === "/prefeitura/organograma" || item.to === "/configuracoes")
+      ) {
+        return null;
+      }
+
+      // Funcionários comuns visualizam apenas a pasta operacional do próprio departamento.
+      if (item.to.startsWith("/prefeitura/protocolos") && !canAccessMunicipalArea(session, "protocolos")) return null;
+      if (item.to.startsWith("/prefeitura/analise") && !canAccessMunicipalArea(session, "analise")) return null;
+      if (item.to.startsWith("/prefeitura/financeiro") && !canAccessMunicipalArea(session, "financeiro")) return null;
+
       if (item.module && !planEntitlements.canUseModule(item.module)) return null;
       const visibleChildren = (item.children ?? []).filter(
         (child) => !child.permission || can(session, child.permission),
@@ -439,7 +455,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     { title: "Apoio", items: visibleSupportItems },
   ];
 
-  const visibleTenantProcesses = processes.filter((process) => matchesOperationalScope(activeInstitutionId, process));
+  const visibleTenantProcesses = getVisibleProcessesByScope(session, activeInstitutionId, processes);
   const currentProcessRouteMatch = location.pathname.match(/^\/processos\/([^/?#]+)/);
   const currentProcessId = currentProcessRouteMatch?.[1] ? decodeURIComponent(currentProcessRouteMatch[1]) : "";
   const currentProcess = currentProcessId
