@@ -298,7 +298,7 @@ export function LandingPage() {
     value: { label: "Participacao", color: "#60a5fa" },
   };
   return (
-    <div data-public-landing="true" className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
+    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
       <LandingHeader navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
       <LandingDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
@@ -315,18 +315,18 @@ export function LandingPage() {
 
           <div className="relative mx-auto max-w-[1660px] px-4 pb-10 sm:px-6 lg:px-7 lg:pb-14 xl:px-8 2xl:px-10">
             <div className="grid gap-7 xl:grid-cols-[minmax(0,0.96fr)_minmax(620px,1.04fr)] xl:items-start xl:gap-8 2xl:gap-10">
-              <LandingReveal className="min-w-0 max-w-[780px] pt-2 sm:pt-3 xl:h-full"><div data-public-hero-copy="true">
+              <LandingReveal className="min-w-0 max-w-[780px] pt-2 sm:pt-3 xl:h-full">
                 <div className="flex h-full flex-col">
                   <div>
-                    <Badge className="rounded-full border border-blue-200 bg-white/92 px-4.5 py-2 text-[10.5px] font-semibold tracking-[0.22em] text-blue-900 shadow-sm hover:bg-white/92">
+                    <Badge data-landing-hero-badge="true" className="rounded-full border border-blue-200 bg-white/92 px-4.5 py-2 text-[10.5px] font-semibold tracking-[0.22em] text-blue-900 shadow-sm hover:bg-white/92">
                       SaaS municipal para aprovação digital de projetos
                     </Badge>
 
-                    <h1 className="sig-public-display mt-6 max-w-[21ch] text-[clamp(2.15rem,4vw,3.55rem)] text-slate-950">
+                    <h1 data-landing-hero-title="true" className="sig-public-display mt-6 max-w-[21ch] text-[clamp(2.15rem,4vw,3.55rem)] text-slate-950">
                       A prefeitura aprova projetos com mais controle. O profissional acompanha tudo online.
                     </h1>
 
-                    <p className="mt-6 max-w-[64ch] text-[1.07rem] leading-8 text-slate-600 sm:text-[1.14rem]">
+                    <p data-landing-hero-description="true" className="mt-6 max-w-[64ch] text-[1.07rem] leading-8 text-slate-600 sm:text-[1.14rem]">
                       O SIGAPRO conecta protocolo, documentos, análise técnica, exigências, pagamentos e aprovação em uma única operação digital — com visão gerencial para a Prefeitura e acompanhamento transparente para o profissional.
                     </p>
 
@@ -401,12 +401,12 @@ export function LandingPage() {
                     </div>
                   </div>
                 </div>
-              </div></LandingReveal>
+              </LandingReveal>
 
               <LandingReveal delay={0.06} className="min-w-0">
                 <div className="mx-auto w-full max-w-[900px] rounded-[38px] border border-slate-200/90 bg-white p-3 shadow-[0_34px_90px_rgba(15,23,42,0.14)] sm:p-4 lg:p-5">
                   <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[#f6f9fc]">
-                    <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-[#123f62] px-4 py-3.5 text-white sm:px-5">
+                    <div data-landing-product-header="true" className="flex items-center justify-between gap-4 border-b border-slate-200 bg-[#123f62] px-4 py-3.5 text-white sm:px-5">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-white shadow-sm">
                           <img
