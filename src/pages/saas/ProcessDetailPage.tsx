@@ -616,6 +616,10 @@ export function ProcessDetailPage() {
 
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault();
+    if (!isInternalRole(session.role)) {
+      setProcessActionStatus("O profissional externo só pode responder solicitações abertas pela Prefeitura.");
+      return;
+    }
     if (!message.trim()) return;
     const ok = await runProcessAction(
       "message",
@@ -1603,46 +1607,44 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <form className="flex flex-col gap-3" onSubmit={handleSendMessage}>
-                <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-                  <Select value={messageRecipient} onValueChange={setMessageRecipient}>
-                    <SelectTrigger className="rounded-2xl">
-                      <SelectValue placeholder="Escolha o destinatário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os envolvidos permitidos</SelectItem>
-                      {isInternalRole(session.role) ? (
+              {isInternalRole(session.role) ? (
+                <form className="flex flex-col gap-3" onSubmit={handleSendMessage}>
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
+                    <Select value={messageRecipient} onValueChange={setMessageRecipient}>
+                      <SelectTrigger className="rounded-2xl">
+                        <SelectValue placeholder="Escolha o destinatário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os envolvidos permitidos</SelectItem>
                         <SelectItem value={externalRecipientName}>{externalRecipientName} - profissional externo</SelectItem>
-                      ) : null}
-                      {!isInternalRole(session.role)
-                        ? internalRecipients.map((user) => (
-                            <SelectItem key={user.id} value={user.name}>
-                              {user.name} - {user.title || user.role}
-                            </SelectItem>
-                          ))
-                        : internalRecipients.map((user) => (
-                            <SelectItem key={user.id} value={user.name}>
-                              {user.name} - {user.title || user.role}
-                            </SelectItem>
-                          ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={messageAudience} onValueChange={(value) => setMessageAudience(value as "interno" | "externo" | "misto")}>
-                    <SelectTrigger className="rounded-2xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="interno">Interno - Só a Prefeitura vê</SelectItem>
-                      <SelectItem value="externo">Externo - Só o profissional vê</SelectItem>
-                      <SelectItem value="misto">Misto - Ambos veem</SelectItem>
-                    </SelectContent>
-                  </Select>
+                        {internalRecipients.map((user) => (
+                          <SelectItem key={user.id} value={user.name}>
+                            {user.name} - {user.title || user.role}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={messageAudience} onValueChange={(value) => setMessageAudience(value as "interno" | "externo" | "misto")}>
+                      <SelectTrigger className="rounded-2xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="interno">Interno - Só a Prefeitura vê</SelectItem>
+                        <SelectItem value="externo">Externo - Só o profissional vê</SelectItem>
+                        <SelectItem value="misto">Misto - Ambos veem</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escreva uma mensagem para o outro lado do processo" />
+                  <Button type="submit" className="w-full rounded-full bg-slate-950 hover:bg-slate-900">
+                    Enviar mensagem
+                  </Button>
+                </form>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  O Comunique-se fica disponível para resposta quando a Prefeitura abrir uma solicitação formal para este processo.
                 </div>
-                <Input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escreva uma mensagem para o outro lado do processo" />
-                <Button type="submit" className="w-full rounded-full bg-slate-950 hover:bg-slate-900">
-                  Enviar mensagem
-                </Button>
-              </form>
+              )}
 
               <div className="space-y-3">
                 {visibleMessages.map((item) => (
