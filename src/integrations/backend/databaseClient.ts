@@ -8,14 +8,18 @@ const VALIDATED_NEON_AUTH_URL =
 const VALIDATED_NEON_DATA_API_URL =
   "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
+const isLocalNeonRuntime =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
+
 const NEON_AUTH_URL = String(
-  isNeonProduction
+  isNeonProduction || isLocalNeonRuntime
     ? VALIDATED_NEON_AUTH_URL
     : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
 ).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
-  isNeonProduction
+  isNeonProduction || isLocalNeonRuntime
     ? VALIDATED_NEON_DATA_API_URL
     : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
 ).replace(/\/+$/, "");
