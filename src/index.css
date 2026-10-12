@@ -4301,7 +4301,7 @@ html {
   .text-white,.text-slate-50,.text-slate-100,
   .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
   .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700
-) {
+):not([data-profile-dark-card="true"] *) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
@@ -4312,7 +4312,7 @@ html {
   .text-slate-600,.text-slate-500,.text-slate-400,
   .text-gray-600,.text-gray-500,.text-gray-400,
   .sig-subtitle,.sig-label,.sig-section-label,.sig-metric-helper
-) {
+):not([data-profile-dark-card="true"] *) {
   color: #526174 !important;
   -webkit-text-fill-color: #526174 !important;
 }
@@ -4459,7 +4459,7 @@ html {
 [data-layout-mode="default"] .sig-main-shell :is(
   [data-ui="card"], .sig-ui-card, .sig-section-card, .sig-stat-card, .sig-metric-card,
   .sig-dark-panel, .sig-inverse-panel
-) :is(h1,h2,h3,h4,h5,h6,p,label,.sig-label,.sig-subtitle,.sig-section-label,.sig-meta) {
+) :is(h1,h2,h3,h4,h5,h6,p,label,.sig-label,.sig-subtitle,.sig-section-label,.sig-meta):not([data-profile-dark-card="true"] *) {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
@@ -4915,7 +4915,7 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   .sig-page-title,.sig-section-title,.sig-card-title,.sig-stat-value,.sig-metric-value,
   .text-slate-950,.text-slate-900,.text-slate-800,
   .text-gray-950,.text-gray-900,.text-gray-800
-):not(.sig-fixed-dark-surface *) {
+):not(.sig-fixed-dark-surface *):not([data-profile-dark-card="true"] *) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
@@ -4925,7 +4925,7 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   .sig-subtitle,.sig-label,.sig-section-label,.sig-meta,.sig-metric-helper,
   .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
   .text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
-):not(.sig-fixed-dark-surface *) {
+):not(.sig-fixed-dark-surface *):not([data-profile-dark-card="true"] *) {
   color: #475569 !important;
   -webkit-text-fill-color: #475569 !important;
 }
@@ -5325,4 +5325,20 @@ html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-c
   color: #f8fafc !important;
   stroke: #f8fafc !important;
   opacity: 1 !important;
+}
+
+
+/* ===== PROFILE DARK CARD ROOT EXCLUSION 2026-10-12 =====
+   Explicit dark cards are isolated from every light-theme foreground normalizer. */
+html body [data-layout-mode="default"] .sig-main-shell [data-profile-dark-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-profile-dark-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-profile-dark-card="true"] .sig-dark-preview-copy {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
 }
