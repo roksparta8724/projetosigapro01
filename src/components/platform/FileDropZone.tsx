@@ -21,8 +21,8 @@ interface FileDropZoneProps {
   multiple?: boolean;
   allowPreview?: boolean;
   files: UploadedFileItem[];
-  onFilesSelected: (files: UploadedFileItem[]) => void;
-  onFilesRemoved?: (files: UploadedFileItem[]) => void;
+  onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
+  onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
 }
 
 function sizeLabel(size: number) {
@@ -62,22 +62,36 @@ export function FileDropZone({
   const [dragging, setDragging] = useState(false);
 
   const processFiles = async (selectedFiles: FileList | null) => {
-    if (!selectedFiles || selectedFiles.length === 0) {
+    const selected = selectedFiles ? Array.from(selectedFiles) : [];
+    if (selected.length === 0) {
       return;
     }
 
     const nextFiles = await Promise.all(
-      Array.from(selectedFiles).map(async (file) => ({
+      selected.map(async (file) => ({
         id: `upload-${crypto.randomUUID()}`,
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",
         sizeLabel: sizeLabel(file.size),
         previewUrl: allowPreview && canPreview(file.type || "") ? await toDataUrl(file) : undefined,
         file,
+        fileSizeBytes: file.size,
       })),
     );
 
-    onFilesSelected(multiple ? [...files, ...nextFiles] : nextFiles.slice(0, 1));
+    await onFilesSelected(multiple ? [...files, ...nextFiles] : nextFiles.slice(0, 1));
+
+    // Permite selecionar novamente o mesmo arquivo e garante que "Substituir"
+    // sempre dispare um novo change no navegador.
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const openFilePicker = () => {
+    if (!inputRef.current) return;
+    inputRef.current.value = "";
+    inputRef.current.click();
   };
 
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
@@ -89,10 +103,10 @@ export function FileDropZone({
   const removeFile = (fileId: string) => {
     const next = files.filter((file) => file.id !== fileId);
     if (onFilesRemoved) {
-      onFilesRemoved(next);
+      void onFilesRemoved(next);
       return;
     }
-    onFilesSelected(next);
+    void onFilesSelected(next);
   };
 
   return (
@@ -128,7 +142,7 @@ export function FileDropZone({
               type="button"
               variant="outline"
               className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
-              onClick={() => inputRef.current?.click()}
+              onClick={openFilePicker}
             >
               <UploadCloud className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
               <span className="whitespace-normal text-center sm:whitespace-nowrap">Selecionar arquivo</span>
@@ -142,7 +156,10 @@ export function FileDropZone({
           accept={accept}
           multiple={multiple}
           className="hidden"
-          onChange={(event) => void processFiles(event.target.files)}
+          onChange={(event) => {
+            const selectedFiles = event.currentTarget.files;
+            void processFiles(selectedFiles);
+          }}
         />
       </div>
 
@@ -185,7 +202,7 @@ export function FileDropZone({
                     type="button"
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-slate-700 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
-                    onClick={() => inputRef.current?.click()}
+                    onClick={openFilePicker}
                   >
                     <RefreshCcw className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Substituir</span>
