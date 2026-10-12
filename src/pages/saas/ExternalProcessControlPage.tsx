@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FilePenLine, FileText, Filter, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
+import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FilePenLine, FileText, Filter, FolderKanban, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
