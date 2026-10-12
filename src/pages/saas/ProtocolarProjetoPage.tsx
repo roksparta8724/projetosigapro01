@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -132,6 +132,10 @@ export function ProtocolarProjetoPage() {
   const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments, processes } = usePlatformData();
 
   const profile = getUserProfile(session.id);
+  const profileFullName = profile?.fullName ?? "";
+  const profileRegistrationNumber = profile?.registrationNumber ?? "";
+  const profilePhone = profile?.phone ?? "";
+  const profileEmail = profile?.email ?? "";
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const scopedProcesses = useMemo(
@@ -160,13 +164,21 @@ export function ProtocolarProjetoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
+  const filesRef = useRef<Record<string, UploadedFileItem[]>>({});
+  const uploadBusyRef = useRef(false);
+  const [uploadingLabels, setUploadingLabels] = useState<Record<string, boolean>>({});
+  const hasPendingDocumentUpload = Object.values(uploadingLabels).some(Boolean);
+  const replaceFiles = (next: Record<string, UploadedFileItem[]>) => {
+    filesRef.current = next;
+    setFiles(next);
+  };
   const [draftNumber, setDraftNumber] = useState(createDraftNumber());
   const [form, setForm] = useState<ProtocolDraftForm>({
     ...defaultProtocolDraftForm,
-    profissional: profile?.fullName ?? session.name,
-    registro: profile?.registrationNumber ?? "",
-    telefone: profile?.phone ?? "",
-    email: profile?.email ?? session.email,
+    profissional: profileFullName || session.name,
+    registro: profileRegistrationNumber,
+    telefone: profilePhone,
+    email: profileEmail || session.email,
   });
   const resumeDraftNumber = new URLSearchParams(location.search).get("rascunho");
   const isResumingDraft = Boolean(resumeDraftNumber);
