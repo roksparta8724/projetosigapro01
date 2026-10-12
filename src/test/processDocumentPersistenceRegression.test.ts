@@ -28,7 +28,7 @@ describe("process document persistence regressions", () => {
     expect(protocolPage).toContain("uploadBusyRef.current");
     expect(protocolPage).toContain("previewUrl: item.previewUrl || uploaded.publicUrl");
     expect(protocolPage).not.toContain("previewUrl: uploaded.publicUrl || item.previewUrl");
-    expect(protocolPage).toContain("disabled={hasPendingDocumentUpload");
+    expect(protocolPage).toContain("hasPendingDocumentUpload && !uploadingLabels");
     expect(fileDropZone).toContain('data-upload-zone');
     expect(fileDropZone).toContain('min-h-[18px]');
     expect(fileDropZone).toContain('h-56');
