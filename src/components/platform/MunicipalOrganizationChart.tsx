@@ -20,7 +20,15 @@ export function getDepartmentAcronym(input: Pick<MunicipalDepartmentRecord, "cod
   return input.name.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").toUpperCase().slice(0, 8) || "UN";
 }
 
-function UnitCard({ department, children }: { department: MunicipalDepartmentRecord; children: MunicipalDepartmentRecord[] }) {
+function UnitCard({
+  department,
+  children,
+  onEdit,
+}: {
+  department: MunicipalDepartmentRecord;
+  children: MunicipalDepartmentRecord[];
+  onEdit?: (department: MunicipalDepartmentRecord) => void;
+}) {
   const acronym = getDepartmentAcronym(department);
   return (
     <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -34,6 +42,16 @@ function UnitCard({ department, children }: { department: MunicipalDepartmentRec
         </div>
       </div>
 
+      {onEdit ? (
+        <button
+          type="button"
+          onClick={() => onEdit(department)}
+          className="mt-4 inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+        >
+          Editar unidade
+        </button>
+      ) : null}
+
       {children.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {children.map((child) => (
@@ -43,6 +61,15 @@ function UnitCard({ department, children }: { department: MunicipalDepartmentRec
               className="inline-flex min-h-10 items-center rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2"
             >
               <span className="text-sm font-semibold tracking-[0.04em] text-slate-900">{getDepartmentAcronym(child)}</span>
+              {onEdit ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit(child)}
+                  className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Editar
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
@@ -54,9 +81,11 @@ function UnitCard({ department, children }: { department: MunicipalDepartmentRec
 export function MunicipalOrganizationChart({
   departments,
   emptyMessage = "Nenhuma unidade cadastrada no organograma municipal.",
+  onEdit,
 }: {
   departments: MunicipalDepartmentRecord[];
   emptyMessage?: string;
+  onEdit?: (department: MunicipalDepartmentRecord) => void;
 }) {
   const active = departments
     .filter((item) => item.isActive)
@@ -83,6 +112,7 @@ export function MunicipalOrganizationChart({
             key={department.id}
             department={department}
             children={active.filter((item) => item.parentDepartmentId === department.id)}
+            onEdit={onEdit}
           />
         ))}
       </div>
