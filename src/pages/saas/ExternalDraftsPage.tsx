@@ -54,7 +54,7 @@ export function ExternalDraftsPage() {
               Processos protocolados
             </Link>
           </Button>
-          <Button asChild className="rounded-xl bg-slate-950 text-white hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950">
+          <Button asChild data-control-subnav-active="true" className="rounded-xl bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
             <Link to="/externo/controle/rascunhos">
               <FilePenLine className="mr-2 h-4 w-4" />
               Rascunhos
