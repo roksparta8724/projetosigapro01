@@ -534,6 +534,10 @@ export function ProtocolarProjetoPage() {
 
   const handleSaveDraft = async () => {
     if (savingDraft || submitting) return;
+    if (uploadBusyRef.current) {
+      setStatus("Aguarde o documento atual terminar de ser salvo antes de salvar o rascunho.");
+      return;
+    }
 
     setSavingDraft(true);
     setStatus("Salvando rascunho e preservando os documentos...");
@@ -555,7 +559,7 @@ export function ProtocolarProjetoPage() {
       saveProtocolDraft(session.id, effectiveScopeId, {
         draftNumber,
         form,
-        files: toStoredUploadedFiles(files),
+        files: toStoredUploadedFiles(filesRef.current),
         updatedAt: new Date().toISOString(),
       });
       setStatus(`O rascunho dos dados foi mantido, mas os documentos ainda não ficaram preservados: ${message}`);
@@ -567,6 +571,11 @@ export function ProtocolarProjetoPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
+    if (uploadBusyRef.current) {
+      setStatus("Aguarde o documento atual terminar de ser salvo antes de protocolar o projeto.");
+      return;
+    }
+
     if (
       planEntitlements.maxProcesses != null &&
       activeProcessCount >= planEntitlements.maxProcesses
@@ -577,7 +586,7 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    const pendingUploadBytes = Object.values(files)
+    const pendingUploadBytes = Object.values(filesRef.current)
       .flat()
       .reduce((total, item) => total + Number(item.file?.size || 0), 0);
     if (planEntitlements.maxStorageGb != null) {
@@ -1086,6 +1095,8 @@ export function ProtocolarProjetoPage() {
                             accept=".pdf,image/*"
                             multiple={false}
                             allowPreview
+                            busy={Boolean(uploadingLabels[item.label])}
+                            disabled={hasPendingDocumentUpload && !uploadingLabels[item.label]}
                             files={files[item.label] ?? []}
                             onFilesSelected={(selected) => handleDocumentFilesSelected(item.label, selected)}
                           />
@@ -1120,11 +1131,11 @@ export function ProtocolarProjetoPage() {
                 variant="outline"
                 className="rounded-full"
                 onClick={() => void handleSaveDraft()}
-                disabled={savingDraft || submitting}
+                disabled={savingDraft || submitting || hasPendingDocumentUpload}
               >
                 {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
               </Button>
-              <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting}>
+              <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting || hasPendingDocumentUpload}>
                 {submitting ? "Protocolando projeto..." : "Protocolar projeto"}
               </Button>
             </div>
