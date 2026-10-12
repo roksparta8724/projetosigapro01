@@ -119,16 +119,22 @@
         overflow: hidden;
         background: var(--sig-initial-bg, #ffffff);
         pointer-events: none;
+
+        /* O html interno trabalha em 85%. O overlay precisa neutralizar esse zoom
+           para ocupar 100% do viewport físico e não recolher pela direita. */
+        zoom: 1.1764705882352942;
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-page {
         position: absolute;
         left: 0;
-        right: 0;
         top: var(--sig-snapshot-top, 0px);
-        width: 100%;
-        min-width: 100%;
+        width: 117.64705882352942%;
+        min-width: 117.64705882352942%;
+        min-height: 117.64705882352942vh;
+        zoom: 0.85;
         transform: none !important;
+        transform-origin: top left !important;
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
