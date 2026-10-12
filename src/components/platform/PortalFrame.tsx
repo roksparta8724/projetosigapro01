@@ -64,7 +64,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, desktopThemePresets, getProcessPaymentGuides, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { can, desktopThemePresets, getProcessPaymentGuides, isInternalRole, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -104,6 +104,7 @@ const navItems = [
   { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "organization", to: "/prefeitura/organograma", label: "Organograma", icon: Building2, permission: "manage_own_profile" as Permission, internalOnly: true, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
     to: "/prefeitura/protocolos",
@@ -385,6 +386,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
   const visibleNavItems = navItems
     .map((item) => {
+      if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
       if (item.module && !planEntitlements.canUseModule(item.module)) return null;
       const visibleChildren = (item.children ?? []).filter(
         (child) => !child.permission || can(session, child.permission),
