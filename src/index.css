@@ -5985,3 +5985,18 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   color: #cbd5e1 !important;
   -webkit-text-fill-color: #cbd5e1 !important;
 }
+
+
+/* ===== PROCESS CONTROL ACTIVE SUBNAV CONTRAST ===== */
+[data-control-subnav-active="true"] {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-control-subnav-active="true"] *,
+[data-control-subnav-active="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
