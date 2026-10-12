@@ -63,6 +63,19 @@
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+
+        // O App usa 85% nas telas internas. Aplicar aqui, antes do primeiro paint,
+        // impede o frame em 100% que aparece no F5 e depois "encolhe" para 85%.
+        var isFullDocumentRoute =
+          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
+        var initialAppZoom =
+          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+        document.documentElement.style.zoom = initialAppZoom;
+        document.documentElement.setAttribute(
+          "data-page-zoom",
+          initialAppZoom === "1" ? "100" : "85"
+        );
+
         document.documentElement.setAttribute("data-sigapro-booting", "true");
         if (isInternalPath) {
           document.documentElement.setAttribute("data-sigapro-internal", "true");
