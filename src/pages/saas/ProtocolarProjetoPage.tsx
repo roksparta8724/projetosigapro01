@@ -26,7 +26,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
-import { createRemoteExternalProcessV2 } from "@/integrations/backend/platform";
+import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog } from "@/lib/platform";
@@ -565,6 +565,30 @@ export function ProtocolarProjetoPage() {
       const selected = findFilesForLabel(item.label);
       return selected.length > 0 && selected.some((file) => !file.file && !file.storagePath);
     });
+
+    if (session.role === "profissional_externo") {
+      try {
+        await registerRemoteExternalAccount({
+          tenantId: effectiveScopeId,
+          fullName: profile?.fullName || session.name,
+          email: profile?.email || session.email,
+          cpfCnpj: profile?.cpfCnpj || "",
+          phone: profile?.phone || "",
+          professionalType: profile?.professionalType || "",
+          registrationNumber: profile?.registrationNumber || form.registro || "",
+          companyName: profile?.companyName || "",
+          title: session.title || profile?.professionalType || "Profissional externo",
+          bio: profile?.bio || "",
+        });
+      } catch (accessError) {
+        const message =
+          accessError instanceof Error
+            ? accessError.message
+            : "Não foi possível validar o vínculo profissional com a Prefeitura.";
+        setStatus(`Não foi possível validar seu acesso para protocolar: ${message}`);
+        return;
+      }
+    }
 
     if (detachedUploads.length > 0) {
       setStatus(
