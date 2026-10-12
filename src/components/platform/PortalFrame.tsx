@@ -1679,28 +1679,76 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
             </div>
             <div className="sig-topbar-separator h-9 w-px shrink-0" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <div
+              className={cn(
+                "sig-topbar-account-cluster flex h-[50px] shrink-0 items-center gap-1 rounded-[18px] border px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                darkTopbar
+                  ? "border-white/12 bg-white/[0.07]"
+                  : "border-slate-200/90 bg-white/92",
+              )}
+            >
+              {can(session, "manage_tenant_branding") ? (
                 <button
                   type="button"
+                  onClick={() => navigate("/configuracoes")}
                   className={cn(
-                    "sig-topbar-profile-cluster flex h-[46px] items-center gap-2 rounded-[16px] px-2.5 pr-2.5 transition duration-200 hover:-translate-y-[1px]",
-                    topbarProfileButton,
+                    "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition duration-150",
+                    darkTopbar
+                      ? "text-slate-100 hover:bg-white/10"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
                   )}
-                  aria-label="Abrir conta do usuário"
-                  title={fullUserName}
+                  aria-label="Configurações"
+                  title="Configurações"
                 >
-                  <UserAvatar
-                    name={displayUserName}
-                    imageUrl={topbarAvatarImageUrl}
-                    crop={topbarAvatarCrop}
-                    size="md"
-                    className="sig-topbar-user-avatar"
-                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
-                  />
-                  <ChevronDown className="h-3.5 w-3.5 !text-slate-700/75" />
+                  <Settings2 className="h-[18px] w-[18px]" />
                 </button>
-              </DropdownMenuTrigger>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void handleSignOut("/acesso")}
+                className={cn(
+                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition duration-150",
+                  darkTopbar
+                    ? "text-rose-200 hover:bg-rose-300/10 hover:text-rose-100"
+                    : "text-rose-600 hover:bg-rose-50 hover:text-rose-700",
+                )}
+                aria-label="Sair"
+                title="Sair"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+              </button>
+
+              <span
+                className={cn(
+                  "mx-0.5 h-7 w-px",
+                  darkTopbar ? "bg-white/12" : "bg-slate-200",
+                )}
+                aria-hidden="true"
+              />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "sig-topbar-profile-cluster flex h-[40px] items-center gap-2 rounded-[13px] px-1.5 pr-2 transition duration-150",
+                      topbarProfileButton,
+                    )}
+                    aria-label="Abrir conta do usuário"
+                    title={fullUserName}
+                  >
+                    <UserAvatar
+                      name={displayUserName}
+                      imageUrl={topbarAvatarImageUrl}
+                      crop={topbarAvatarCrop}
+                      size="md"
+                      className="sig-topbar-user-avatar"
+                      fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                    />
+                    <ChevronDown className={cn("h-3.5 w-3.5", darkTopbar ? "text-white/75" : "text-slate-700/75")} />
+                  </button>
+                </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 sideOffset={10}
@@ -1807,30 +1855,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </span>
                   </DropdownMenuItem>
 
-                  {can(session, "manage_tenant_branding") ? (
-                    <DropdownMenuItem
-                      className={cn(
-                        "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
-                        darkTopbar
-                        ? "text-slate-100 hover:border-white/14 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(2,6,23,0.16)] focus:border-white/14 focus:bg-white/10"
-                        : "text-slate-700 hover:border-slate-200 hover:bg-slate-100 hover:shadow-sm focus:border-slate-200 focus:bg-slate-100",
-                      )}
-                      onClick={() => navigate("/configuracoes")}
-                    >
-                      <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-white/10 bg-white/8 text-sky-100 group-hover:border-white/14 group-hover:bg-white/12 group-hover:text-white" : "border-slate-200 bg-white text-slate-600 group-hover:border-slate-300 group-hover:bg-slate-100 group-hover:text-slate-900")}>
-                        <Settings2 className="h-[18px] w-[18px]" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-white" : "text-slate-900")}>
-                          Configurações
-                        </span>
-                        <span className={cn("sig-fit-copy mt-1 block text-[11px] leading-5", darkTopbar ? "text-slate-400" : "text-slate-500")}>
-                          Branding, parâmetros e preferências operacionais.
-                        </span>
-                      </span>
-                    </DropdownMenuItem>
-                  ) : null}
-
                   <DropdownMenuItem
                     className={cn(
                       "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
@@ -1899,31 +1923,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
                 <DropdownMenuSeparator className={cn("mx-2 my-3", darkTopbar ? "bg-white/10" : "bg-slate-200")} />
 
-                <DropdownMenuItem
-                  className={cn(
-                    "group cursor-pointer rounded-[18px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
-                    darkTopbar
-                      ? "text-rose-100 hover:border-rose-300/30 hover:bg-rose-300/12 hover:shadow-[0_8px_22px_rgba(127,29,29,0.18)] focus:border-rose-300/30 focus:bg-rose-300/12"
-                      : "text-rose-700 hover:border-rose-200 hover:bg-rose-50 hover:shadow-sm focus:border-rose-200 focus:bg-rose-50",
-                  )}
-                  onClick={async () => {
-                    await handleSignOut("/acesso");
-                  }}
-                >
-                  <span className={cn("mr-3 flex h-10 w-10 items-center justify-center rounded-[14px] border transition", darkTopbar ? "border-rose-300/16 bg-rose-400/10 text-rose-200 group-hover:bg-rose-400/14 group-hover:text-rose-100" : "border-rose-200 bg-rose-50 text-rose-500 group-hover:bg-rose-100 group-hover:text-rose-600")}>
-                    <LogOut className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={cn("sig-fit-title block text-[13px] font-semibold", darkTopbar ? "text-rose-100" : "text-rose-700")}>
-                      Sair
-                    </span>
-                    <span className={cn("mt-1 block text-[11px] leading-5", darkTopbar ? "text-rose-200/72" : "text-rose-500")}>
-                      Encerrar a sessão atual com segurança.
-                    </span>
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+           </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             </div>
           </div>
         </div>
