@@ -298,7 +298,7 @@ export function LandingPage() {
     value: { label: "Participacao", color: "#60a5fa" },
   };
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
+    <div data-public-landing="true" className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
       <LandingHeader navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
       <LandingDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
@@ -315,7 +315,7 @@ export function LandingPage() {
 
           <div className="relative mx-auto max-w-[1660px] px-4 pb-10 sm:px-6 lg:px-7 lg:pb-14 xl:px-8 2xl:px-10">
             <div className="grid gap-7 xl:grid-cols-[minmax(0,0.96fr)_minmax(620px,1.04fr)] xl:items-start xl:gap-8 2xl:gap-10">
-              <LandingReveal className="min-w-0 max-w-[780px] pt-2 sm:pt-3 xl:h-full">
+              <LandingReveal className="min-w-0 max-w-[780px] pt-2 sm:pt-3 xl:h-full"><div data-public-hero-copy="true">
                 <div className="flex h-full flex-col">
                   <div>
                     <Badge className="rounded-full border border-blue-200 bg-white/92 px-4.5 py-2 text-[10.5px] font-semibold tracking-[0.22em] text-blue-900 shadow-sm hover:bg-white/92">
@@ -401,7 +401,7 @@ export function LandingPage() {
                     </div>
                   </div>
                 </div>
-              </LandingReveal>
+              </div></LandingReveal>
 
               <LandingReveal delay={0.06} className="min-w-0">
                 <div className="mx-auto w-full max-w-[900px] rounded-[38px] border border-slate-200/90 bg-white p-3 shadow-[0_34px_90px_rgba(15,23,42,0.14)] sm:p-4 lg:p-5">
