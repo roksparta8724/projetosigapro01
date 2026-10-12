@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { usePlatformData } from "@/hooks/usePlatformData";
 import { useTenant } from "@/hooks/useTenant";
 import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
@@ -44,6 +45,7 @@ const institutionalHighlights = [
 export function AcessoPage() {
   const navigate = useNavigate();
   const { signIn } = useAuthGateway();
+  const { dataReadyForCurrentUser, dataError } = usePlatformData();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -56,12 +58,35 @@ export function AcessoPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingRedirect) return;
+
+    if (dataError && !dataReadyForCurrentUser) {
+      setError("A conta foi autenticada, mas os dados institucionais ainda não puderam ser sincronizados. Tente novamente.");
+      setSubmitting(false);
+      setPendingRedirect(null);
+      return;
+    }
+
+    if (tenant.loading || !dataReadyForCurrentUser) return;
+
+    navigate(pendingRedirect, { replace: true });
+  }, [
+    dataError,
+    dataReadyForCurrentUser,
+    navigate,
+    pendingRedirect,
+    tenant.loading,
+  ]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
+    let keepSubmitting = false;
     try {
       const result = await signIn(email, password);
       if (!result.ok) {
@@ -69,12 +94,13 @@ export function AcessoPage() {
         return;
       }
 
-      navigate(resolveRedirect(result.role ?? null), { replace: true });
+      keepSubmitting = true;
+      setPendingRedirect(resolveRedirect(result.role ?? null));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao autenticar.";
       setError(message);
     } finally {
-      setSubmitting(false);
+      if (!keepSubmitting) setSubmitting(false);
     }
   };
 
