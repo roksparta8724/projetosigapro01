@@ -521,68 +521,6 @@ export function DashboardHomePage() {
           ? "A estrutura modular organiza a leitura tecnica, os riscos e a produtividade em paineis mais claros."
           : "A nova experiencia organiza o dashboard por contexto, com home executiva e subareas analiticas mais profissionais.";
 
-  const executiveSignals = isMaster
-    ? [
-        {
-          label: "Rede ativa",
-          value: `${masterMetrics.activeTenants}/${masterMetrics.totalTenants}`,
-          helper: "Prefeituras em operacao ativa na base.",
-          icon: Building2,
-          tone: "blue" as const,
-        },
-        {
-          label: "Clientes em implantacao",
-          value: `${masterMetrics.onboardingTenants}`,
-          helper: "Contas em onboarding e homologacao.",
-          icon: Sparkles,
-          tone: "amber" as const,
-        },
-        {
-          label: "Usuarios monitorados",
-          value: `${masterMetrics.totalUsers}`,
-          helper: "Contas internas e externas com atividade.",
-          icon: Users2,
-          tone: "emerald" as const,
-        },
-        {
-          label: "Receita recorrente",
-          value: formatCurrency(masterMetrics.monthlyRevenue),
-          helper: "Estimativa mensal baseada em planos ativos.",
-          icon: Wallet,
-          tone: "rose" as const,
-        },
-      ]
-    : [
-        {
-          label: isExternal ? "Carteira em acompanhamento" : "Escopo monitorado",
-          value: `${displayProcesses.length}`,
-          helper: isExternal ? "Protocolos vinculados ao seu documento." : `Processos visiveis em ${institutionName}.`,
-          icon: FileText,
-          tone: "blue" as const,
-        },
-        {
-          label: "Concluidos",
-          value: `${completedCount}`,
-          helper: "Protocolos encerrados ou finalizados.",
-          icon: CheckCircle2,
-          tone: "emerald" as const,
-        },
-        {
-          label: "Risco de prazo",
-          value: `${breachedCount}`,
-          helper: "Processos com SLA vencido.",
-          icon: Timer,
-          tone: "amber" as const,
-        },
-        {
-          label: isFinance ? "Exposicao financeira" : "Pendencias ativas",
-          value: isFinance ? formatCurrency(paymentVolume) : `${openRequirements + pendingPayments}`,
-          helper: isFinance ? "Montante financeiro do recorte atual." : "Itens que exigem retorno, comprovacao ou ajuste.",
-          icon: isFinance ? Wallet : AlertTriangle,
-          tone: "rose" as const,
-        },
-      ];
-
   const heroActions = (
     <div className="flex flex-wrap gap-2">
       <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/dashboard/processos")}>
@@ -630,116 +568,102 @@ export function DashboardHomePage() {
             ];
 
   const renderOverview = () => (
-    <>
-      <SectionCard
-        title="Panorama estrategico"
-        description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}
-        icon={Sparkles}
-        contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-      >
-        {executiveSignals.map((item) => (
-          <ExecutiveSignal key={item.label} {...item} />
-        ))}
-      </SectionCard>
-
+    <div className="space-y-6">
       <PageStatsRow>
         {overviewMetrics.map((item) => (
           <MetricCard key={item.title} {...item} />
         ))}
       </PageStatsRow>
 
-      <PageMainGrid className="xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)] min-[1680px]:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.84fr)]">
+      <PageMainGrid className="xl:grid-cols-[minmax(0,1fr)_320px] min-[1680px]:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
         <PageMainContent>
           <TableCard
             title={isExternal ? "Ritmo recente da sua carteira" : "Ritmo operacional recente"}
-            description={isExternal ? "Movimentacoes registradas nos ultimos dias dentro dos seus protocolos." : "Evolucao recente das movimentacoes registradas no recorte atual."}
+            description={isExternal ? "Movimentações recentes dos seus protocolos." : "Movimentações recentes do escopo atual."}
             icon={LineChartIcon}
           >
             {activitySeries.every((item) => item.total === 0) ? (
-              <EmptyState title="Sem atividade recente" description="Quando houver novas movimentacoes, o painel temporal sera preenchido automaticamente." icon={Activity} />
+              <EmptyState
+                title="Sem atividade recente"
+                description="O painel será preenchido quando houver novas movimentações."
+                icon={Activity}
+              />
             ) : (
               <div className="min-w-0">
-                <ChartContainer config={chartConfig} className="w-full" ratio={2.2} minHeight={260} maxHeight={340}>
+                <ChartContainer config={chartConfig} className="w-full" ratio={2.45} minHeight={250} maxHeight={320}>
                   <AreaChart data={activitySeries} margin={{ left: 2, right: 8, top: 12, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sigapro-dashboard-area-overview" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.42} />
-                        <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.04} />
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.34} />
+                        <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.03} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
+                    <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.14)" strokeDasharray="4 8" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
-                    <Area type="monotone" dataKey="total" stroke="#60a5fa" strokeWidth={3} fill="url(#sigapro-dashboard-area-overview)" activeDot={{ r: 5, fill: "#93c5fd" }} />
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      stroke="#60a5fa"
+                      strokeWidth={3}
+                      fill="url(#sigapro-dashboard-area-overview)"
+                      activeDot={{ r: 5, fill: "#93c5fd" }}
+                    />
                   </AreaChart>
                 </ChartContainer>
               </div>
             )}
           </TableCard>
 
-          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          <div className="grid min-w-0 gap-6 2xl:grid-cols-2">
             <DistributionCard
-              title="Distribuicao por status"
-              description="Leitura sintetica do volume atual por etapa do fluxo."
+              title="Distribuição por status"
+              description="Etapas com maior volume no fluxo atual."
               icon={BarChart3}
               data={statusChart}
             />
             <DistributionCard
-              title={isMaster ? "Volume por prefeitura" : "Distribuicao por tipo"}
-              description={isMaster ? "Clientes com maior concentracao de processos." : "Tipos de processo mais representativos no recorte atual."}
+              title={isMaster ? "Volume por prefeitura" : "Distribuição por tipo"}
+              description={isMaster ? "Clientes com maior volume de processos." : "Tipos mais presentes no recorte atual."}
               icon={TrendingUp}
               data={isMaster ? tenantVolumeChart : typeChart}
             />
           </div>
         </PageMainContent>
 
-        <PageSideContent>
+        <PageSideContent className="gap-5">
           <SectionCard
-            title="Saude operacional"
-            description="Leitura rapida de risco, prazo e equilibrio da carteira atual."
-            icon={Activity}
-            contentClassName="space-y-4"
-          >
-            {healthSignals.map((signal) => (
-              <HealthBar key={signal.label} {...signal} />
-            ))}
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <ExecutiveSignal
-                label="Profundidade media"
-                value={`${averageTimelineDepth}`}
-                helper="Eventos registrados por processo no universo visivel."
-                icon={Clock3}
-                tone="blue"
-              />
-              <ExecutiveSignal
-                label="Interacoes totais"
-                value={`${totalMessages + totalDispatches + totalGuides}`}
-                helper="Mensagens, despachos e guias registrados no recorte."
-                icon={Activity}
-                tone="emerald"
-              />
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title={isExternal ? "Protocolos que exigem sua acao" : "Prioridades do dia"}
-            description={isExternal ? "Itens que pedem retorno, comprovacao ou acompanhamento imediato." : "Processos que concentram risco, prazo ou criticidade operacional."}
+            title={isExternal ? "Exigem sua ação" : "Prioridades"}
+            description="Somente itens que pedem atenção agora."
             icon={AlertTriangle}
           >
             {priorityProcesses.length === 0 ? (
-              <EmptyState title="Nenhuma prioridade critica" description="A carteira atual nao apresenta itens com risco imediato." icon={CheckCircle2} />
+              <EmptyState
+                title="Nenhuma prioridade crítica"
+                description="Não há itens com risco imediato."
+                icon={CheckCircle2}
+              />
             ) : (
               <div className="space-y-3">
-                {priorityProcesses.map((process) => (
-                  <div key={process.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]">
-                    <div className="flex items-start justify-between gap-3">
+                {priorityProcesses.slice(0, 4).map((process) => (
+                  <div
+                    key={process.id}
+                    className="min-w-0 rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 dark:border-white/12 dark:bg-white/[0.04]"
+                  >
+                    <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{formatOfficialProcessNumber(process.protocol)}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
+                        <p className="truncate text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          {formatOfficialProcessNumber(process.protocol)}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-slate-950 dark:text-white">
+                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                        </p>
+                        <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                          {buildPriorityReason(process)}
+                        </p>
                       </div>
-                      <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white dark:bg-sky-400/12 dark:text-sky-200">
+                      <span className="shrink-0 rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white dark:bg-sky-400/12 dark:text-sky-200">
                         {statusLabels[process.status] ?? process.status}
                       </span>
                     </div>
@@ -748,9 +672,20 @@ export function DashboardHomePage() {
               </div>
             )}
           </SectionCard>
+
+          <SectionCard
+            title="Saúde da carteira"
+            description="Risco e prazo em uma leitura curta."
+            icon={Activity}
+            contentClassName="space-y-3"
+          >
+            {healthSignals.slice(0, 3).map((signal) => (
+              <HealthBar key={signal.label} {...signal} />
+            ))}
+          </SectionCard>
         </PageSideContent>
       </PageMainGrid>
-    </>
+    </div>
   );
 
   const renderProcesses = () => (
