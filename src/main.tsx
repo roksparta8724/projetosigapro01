@@ -107,6 +107,23 @@ function persistVisualSnapshot() {
 function restoreFrozenSnapshot() {
   if (!isInternalPath(window.location.pathname)) return;
 
+  const earlyHost = document.getElementById("sigapro-refresh-snapshot");
+  if (earlyHost?.getAttribute("data-restored-early") === "true") {
+    try {
+      const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
+      if (raw) {
+        const snapshot = JSON.parse(raw) as { path?: string; scrollY?: number };
+        if (snapshot.path === currentLocationKey()) {
+          pendingRefreshScrollY = Math.max(0, Number(snapshot.scrollY) || 0);
+          pendingRefreshLocation = currentLocationKey();
+        }
+      }
+    } catch {
+      // O snapshot já está desenhado; falha de leitura não deve removê-lo.
+    }
+    return;
+  }
+
   try {
     const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
     if (!raw) return;
@@ -177,6 +194,7 @@ function releaseFrozenSnapshot() {
   const finish = () => {
     if (snapshot) {
       snapshot.removeAttribute("data-visible");
+      snapshot.removeAttribute("data-restored-early");
       snapshot.replaceChildren();
     }
     document.getElementById("sigapro-refresh-snapshot-css")?.remove();
