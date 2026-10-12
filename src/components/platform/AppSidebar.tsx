@@ -174,7 +174,6 @@ function SidebarInner({
                                     ? "font-medium text-slate-200"
                                     : "font-medium text-slate-800",
                               )}
-                              title={item.label}
                             >
                               {item.label}
                             </span>
@@ -240,7 +239,6 @@ function SidebarInner({
                                     ? "font-medium text-slate-200"
                                     : "font-medium text-slate-800",
                               )}
-                              title={item.label}
                             >
                               {item.label}
                             </span>
