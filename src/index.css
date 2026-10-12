@@ -4715,3 +4715,71 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   color: currentColor !important;
   stroke: currentColor !important;
 }
+
+
+/* ===== SIGAPRO HARD CONTRAST GUARD 2026-10-12 =====
+   Independent of selected theme: dark actions/surfaces never render dark text or icons. */
+.sig-main-shell .sig-force-dark-action,
+.sig-main-shell button[class~="bg-slate-950"],
+.sig-main-shell button[class~="bg-slate-900"],
+.sig-main-shell a[class~="bg-slate-950"],
+.sig-main-shell a[class~="bg-slate-900"],
+.sig-main-shell [role="button"][class~="bg-slate-950"],
+.sig-main-shell [role="button"][class~="bg-slate-900"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.sig-main-shell .sig-force-dark-action *,
+.sig-main-shell button[class~="bg-slate-950"] *,
+.sig-main-shell button[class~="bg-slate-900"] *,
+.sig-main-shell a[class~="bg-slate-950"] *,
+.sig-main-shell a[class~="bg-slate-900"] *,
+.sig-main-shell [role="button"][class~="bg-slate-950"] *,
+.sig-main-shell [role="button"][class~="bg-slate-900"] * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.sig-main-shell .sig-force-dark-action svg,
+.sig-main-shell button[class~="bg-slate-950"] svg,
+.sig-main-shell button[class~="bg-slate-900"] svg,
+.sig-main-shell a[class~="bg-slate-950"] svg,
+.sig-main-shell a[class~="bg-slate-900"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.sig-main-shell :is(div,section,article,li)[class~="bg-slate-950"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,
+  .text-black
+),
+.sig-main-shell :is(div,section,article,li)[class~="bg-slate-900"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,
+  .text-black
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell :is(div,section,article,li)[class~="bg-slate-950"] svg,
+.sig-main-shell :is(div,section,article,li)[class~="bg-slate-900"] svg {
+  color: #f8fafc !important;
+  stroke: currentColor !important;
+}
+
+/* Larger editing stage, matching the visual weight of the profile-image editor. */
+.sig-master-logo-editor {
+  padding: 18px !important;
+}
+.sig-master-logo-editor [data-image-frame-shape="rounded"] {
+  width: 100%;
+}
+.sig-master-logo-editor [data-image-frame-shape="rounded"] > div[style] {
+  max-width: 100%;
+}
