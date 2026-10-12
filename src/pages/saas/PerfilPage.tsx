@@ -15,7 +15,7 @@ import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { InternalSectionNav } from "@/components/platform/PageLayout";
+import { InternalTabs } from "@/components/platform/InternalTabs";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
@@ -1202,10 +1202,12 @@ export function PerfilPage() {
           icon={UserRound}
         />
 
-        <InternalSectionNav
+        <InternalTabs
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as ProfileSection)}
+          urlParam="secao"
+          persistInUrl
         />
 
         {section === "visao-geral" ? (
