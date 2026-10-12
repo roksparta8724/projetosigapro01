@@ -5296,3 +5296,33 @@ html body .sig-main-shell .sig-fixed-dark-surface .sig-dark-preview-copy {
   opacity: 1 !important;
   text-shadow: none !important;
 }
+
+
+/* ===== PERFIL DARK CARD SPECIFICITY FIX 2026-10-12 =====
+   This selector intentionally outranks the light adaptive-card descendant rule. */
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-profile-dark-card="true"] {
+  background: #020617 !important;
+  background-color: #020617 !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-profile-dark-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-profile-dark-card="true"] .sig-dark-preview-copy {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-profile-dark-card="true"] svg {
+  color: #f8fafc !important;
+  stroke: #f8fafc !important;
+  opacity: 1 !important;
+}
