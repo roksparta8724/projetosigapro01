@@ -23,8 +23,14 @@ export function usePlanEntitlements() {
   } = useMunicipality();
   const { session } = usePlatformSession();
 
+  const sessionMunicipalityId =
+    session.municipalityId ?? session.tenantId ?? "";
   const municipalityId =
-    municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
+    sessionMunicipalityId || municipality?.id || scopeId || "";
+  const municipalityMatchesSession =
+    !sessionMunicipalityId ||
+    !municipality?.id ||
+    municipality.id === sessionMunicipalityId;
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isResolving =
@@ -33,6 +39,7 @@ export function usePlanEntitlements() {
       municipalityLoading ||
       platformDataLoading ||
       !municipalityId ||
+      !municipalityMatchesSession ||
       !dataReadyForCurrentUser
     );
 
