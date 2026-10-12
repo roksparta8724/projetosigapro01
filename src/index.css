@@ -3078,7 +3078,8 @@
   z-index: 60;
   min-height: var(--sig-topbar-height-mobile, 72px);
   color: #f8fbff;
-  backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   transform: none;
   will-change: auto;
 }
@@ -5525,4 +5526,33 @@ html[data-sigapro-booting="true"] .sig-page-footer * {
   animation: none !important;
   transition: none !important;
   transform: none !important;
+}
+
+
+/* ===== IMMUTABLE APPLICATION SHELL 2026-10-12 =====
+   Topbar, desktop sidebar and footer are structural chrome.
+   They never animate, resize or fade during route/data refreshes. */
+.sig-premium-topbar,
+.sig-sidebar-shell,
+.sig-page-footer {
+  transform: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  will-change: auto !important;
+}
+
+.sig-premium-topbar *,
+.sig-sidebar-shell *,
+.sig-page-footer * {
+  transition-property: none !important;
+  transition-duration: 0s !important;
+  animation: none !important;
+}
+
+@media (min-width: 1024px) {
+  .sig-sidebar-shell {
+    width: var(--sig-sidebar-stripe-width, 304px) !important;
+    min-width: var(--sig-sidebar-stripe-width, 304px) !important;
+    max-width: var(--sig-sidebar-stripe-width, 304px) !important;
+  }
 }
