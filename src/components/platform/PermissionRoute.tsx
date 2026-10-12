@@ -8,7 +8,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, isInternalRole } from "@/lib/platform";
-import type { Permission } from "@/lib/platform";
+import type { Permission, SessionUser } from "@/lib/platform";
 
 export function PermissionRoute({
   permission,
@@ -204,26 +204,25 @@ export function PermissionRoute({
   );
 }
 
-function resolveAllowedArea(session: { role: string }) {
+function resolveAllowedArea(session: SessionUser) {
   switch (session.role) {
     case "master_admin":
     case "master_ops":
       return "/master";
     case "prefeitura_admin":
       return "/prefeitura";
-    case "prefeitura_supervisor":
-    case "analista":
-    case "fiscal":
-    case "setor_intersetorial":
-      return "/prefeitura/analise";
-    case "financeiro":
-      return "/prefeitura/financeiro";
     case "profissional_externo":
       return "/externo";
     case "proprietario_consulta":
     case "property_owner":
       return "/proprietario";
     default:
+      if (isInternalRole(session.role)) {
+        if (canAccessMunicipalArea(session, "protocolos")) return "/prefeitura/protocolos";
+        if (canAccessMunicipalArea(session, "analise")) return "/prefeitura/analise";
+        if (canAccessMunicipalArea(session, "financeiro")) return "/prefeitura/financeiro";
+        return "/dashboard";
+      }
       return "/perfil";
   }
 }
