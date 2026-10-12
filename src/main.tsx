@@ -256,6 +256,50 @@ function releaseFrozenSnapshot() {
     return images.every((img) => img.complete && (img.naturalWidth > 0 || !img.getAttribute("src")));
   };
 
+  const normalizeText = (value: string | null | undefined) =>
+    (value || "").replace(/\s+/g, " ").trim();
+
+  const shellSelector = [
+    ".sig-premium-topbar",
+    ".sig-sidebar-shell",
+    ".sig-page-footer",
+  ].join(",");
+
+  const readShellSignature = (host: ParentNode | null) => {
+    if (!host) return "missing";
+    const nodes = Array.from(host.querySelectorAll(shellSelector));
+    if (nodes.length < 2) return "missing";
+
+    return nodes.map((node) => {
+      const el = node as HTMLElement;
+      const r = el.getBoundingClientRect();
+      const images = Array.from(el.querySelectorAll("img")).map((img) => {
+        const rect = img.getBoundingClientRect();
+        return [
+          img.getAttribute("src") || "",
+          Math.round(rect.width * 10) / 10,
+          Math.round(rect.height * 10) / 10,
+        ].join(":");
+      }).join(",");
+      return [
+        el.className,
+        normalizeText(el.textContent),
+        Math.round(r.width * 10) / 10,
+        Math.round(r.height * 10) / 10,
+        images,
+      ].join("~");
+    }).join("||");
+  };
+
+  const frozenViewport = snapshot?.querySelector(".sigapro-snapshot-viewport") ?? null;
+  const frozenShellSignature = readShellSignature(frozenViewport);
+
+  const shellMatchesFrozenSnapshot = () => {
+    if (frozenShellSignature === "missing") return true;
+    const liveSignature = readShellSignature(document.getElementById("root"));
+    return liveSignature !== "missing" && liveSignature === frozenShellSignature;
+  };
+
   const readGeometry = () => {
     const root = document.getElementById("root");
     const rect = (el: Element | null) => {
@@ -307,13 +351,17 @@ function releaseFrozenSnapshot() {
       const imagesStable = criticalImagesReady();
       const geometry = readGeometry();
       const geometryStable = geometry === lastGeometry && geometry.indexOf("missing") === -1;
+      const shellStable = shellMatchesFrozenSnapshot();
 
-      stableFrames = scrollStable && imagesStable && geometryStable ? stableFrames + 1 : 0;
+      stableFrames =
+        scrollStable && imagesStable && geometryStable && shellStable
+          ? stableFrames + 1
+          : 0;
       lastGeometry = geometry;
 
       // Six identical animation frames means menu, topbar, cards, text, icons and
       // footer have stopped changing before the frozen frame is removed.
-      if (stableFrames >= 12 || attempts >= 300) {
+      if (stableFrames >= 16 || attempts >= 480) {
         finish();
         return;
       }
