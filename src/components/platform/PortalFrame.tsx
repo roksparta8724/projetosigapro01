@@ -65,7 +65,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, canAccessMunicipalArea, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, matchesOperationalScope, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { can, canAccessMunicipalArea, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
