@@ -311,7 +311,7 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
-              <div className="hidden rounded-[18px] border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 shadow-sm 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
+              <div className="hidden rounded-[18px] border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 shadow-sm dark:border-slate-700/80 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 dark:text-slate-300 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
                 <span>Processo</span>
                 <span>Status</span>
                 <span>Etapa atual</span>
@@ -330,23 +330,23 @@ export function ExternalProcessControlPage() {
                 return (
                   <article
                     key={process.id}
-                    className="group overflow-hidden rounded-[22px] border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/70 shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]"
+                    className="group overflow-hidden rounded-[22px] border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/70 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)] dark:border-slate-700/80 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 dark:text-slate-100 dark:shadow-[0_12px_34px_rgba(0,0,0,0.32)] dark:hover:border-slate-600 dark:hover:shadow-[0_20px_46px_rgba(0,0,0,0.42)]"
                   >
                     <div className="grid gap-0 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:items-stretch">
-                      <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80">
+                      <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80 dark:2xl:border-slate-700/80">
                         <div className="flex items-start gap-4">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm">
                             <FileText className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Processo nº</p>
-                            <p className="mt-1 truncate text-[19px] font-bold leading-6 tracking-[-0.02em] text-slate-950" title={officialNumber}>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400 dark:text-slate-400">Processo nº</p>
+                            <p className="mt-1 truncate text-[19px] font-bold leading-6 tracking-[-0.02em] text-slate-950 dark:text-white" title={officialNumber}>
                               {officialNumber}
                             </p>
-                            <p className="mt-2 truncate text-[14px] font-semibold leading-5 text-slate-800" title={officialTitle}>
+                            <p className="mt-2 truncate text-[14px] font-semibold leading-5 text-slate-800 dark:text-slate-100" title={officialTitle}>
                               {officialTitle}
                             </p>
-                            <p className="mt-0.5 truncate text-[12px] leading-5 text-slate-500" title={process.type}>
+                            <p className="mt-0.5 truncate text-[12px] leading-5 text-slate-500 dark:text-slate-400" title={process.type}>
                               {process.type}
                             </p>
                           </div>
@@ -359,7 +359,7 @@ export function ExternalProcessControlPage() {
                               return (
                                 <span
                                   key={`${process.id}-${tag}`}
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-sm"
+                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                 >
                                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
                                   {marker.label}
@@ -370,9 +370,9 @@ export function ExternalProcessControlPage() {
                         ) : null}
                       </div>
 
-                      <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-l-0 2xl:border-t-0 2xl:border-r">
+                      <div className="min-w-0 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-l-0 2xl:border-t-0 2xl:border-r">
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300">
                             <ListChecks className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
@@ -387,17 +387,17 @@ export function ExternalProcessControlPage() {
                         </div>
                       </div>
 
-                      <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
+                      <div className="min-w-0 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-t-0 2xl:border-r">
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
                             <Workflow className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Etapa atual</p>
-                            <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-5 text-slate-900" title={currentStage}>
+                            <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-5 text-slate-900 dark:text-slate-100" title={currentStage}>
                               {currentStage}
                             </p>
-                            <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500">
+                            <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
                               <Clock3 className="h-3.5 w-3.5" />
                               <span>{lastUpdateLabel === "—" ? "Sem movimentação registrada" : `Atualizado em ${lastUpdateLabel}`}</span>
                             </div>
@@ -407,27 +407,27 @@ export function ExternalProcessControlPage() {
 
                       <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
                         <div className="flex items-start gap-3">
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${pendingGuide ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}>
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${pendingGuide ? "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>
                             <CreditCard className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamento</p>
-                            <p className="mt-2 text-[15px] font-bold leading-5 text-slate-950">
+                            <p className="mt-2 text-[15px] font-bold leading-5 text-slate-950 dark:text-white">
                               {pendingGuide ? formatCurrency(pendingGuide.amount) : "Pago"}
                             </p>
-                            <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${pendingGuide ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"}`}>
+                            <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${pendingGuide ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800"}`}>
                               {pendingGuide ? "Aguardando pagamento" : "Compensado"}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex min-w-0 flex-col justify-center gap-2 border-t border-slate-200/80 p-5 2xl:border-t-0">
+                      <div className="flex min-w-0 flex-col justify-center gap-2 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-t-0">
                         <MarkerSelector
                           processId={process.id}
                           tags={process.tags}
                           actor={session.name}
-                          triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold shadow-sm hover:bg-slate-50"
+                          triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                         />
                         <Button asChild className="h-11 w-full rounded-xl bg-slate-950 text-[13px] font-semibold !text-white shadow-[0_8px_18px_rgba(15,23,42,0.22)] hover:bg-slate-900 [&_*]:!text-white">
                           <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2 !text-white">
@@ -435,7 +435,7 @@ export function ExternalProcessControlPage() {
                             <span className="!text-white">Ver detalhes</span>
                           </Link>
                         </Button>
-                        <Button asChild variant="outline" className="h-11 w-full rounded-xl border-slate-300 bg-white text-[13px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+                        <Button asChild variant="outline" className="h-11 w-full rounded-xl border-slate-300 bg-white text-[13px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
                           <Link to={`/processos/${process.id}?aba=fluxo`}>
                             <Workflow className="mr-2 h-4 w-4" />
                             Acompanhar fluxo
