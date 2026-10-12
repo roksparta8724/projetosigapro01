@@ -764,98 +764,46 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "visao-geral" ? (
-          <PageMainGrid className="xl:grid-cols-[minmax(0,1.72fr)_minmax(320px,0.88fr)]">
-            <PageMainContent>
-              <SectionCard
-                title="Centro operacional da Prefeitura"
-                description="Resumo executivo da operação municipal, com leitura da fila principal e prioridades da coordenação."
-                icon={ClipboardList}
-                className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
-                contentClassName="space-y-5"
-              >
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Em análise</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.inAnalysis}</p>
-                    <p className="mt-1 text-sm text-slate-500">Parecer técnico e reapresentação.</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Financeiro</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.pendingPayments}</p>
-                    <p className="mt-1 text-sm text-slate-500">Guias ainda sem compensação.</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Aprovados</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.approved}</p>
-                    <p className="mt-1 text-sm text-slate-500">Processos já concluídos.</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
+          <div className="space-y-6">
+            <PageMainGrid className="xl:grid-cols-[minmax(0,1fr)_320px] min-[1680px]:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+              <PageMainContent>
+                <SectionCard
+                  title="Processos que exigem atenção"
+                  description="Fila municipal priorizada por etapa, responsável e prazo."
+                  icon={ClipboardList}
+                  className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
+                  contentClassName="space-y-4"
+                >
                   {mainQueue.length === 0 ? (
                     <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                       Nenhum protocolo operacional encontrado para esta Prefeitura.
                     </div>
                   ) : (
-                    mainQueue.slice(0, 3).map((process) => renderQueueCard(process))
+                    mainQueue.slice(0, 4).map((process) => renderQueueCard(process))
                   )}
-                </div>
-              </SectionCard>
 
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.9fr)]">
-                <TableCard
-                  title="Atividade institucional recente"
-                  description="Leitura curta das últimas movimentações relevantes da operação municipal."
-                  icon={Clock3}
-                >
-                  <div className="space-y-3">
-                    {recentActivity.length === 0 ? (
-                      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-                        Nenhuma movimentação recente encontrada.
-                      </div>
-                    ) : (
-                      recentActivity.slice(0, 5).map((item, index) => (
-                        <div key={`${item.processId}-${index}`} className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{item.protocol}</p>
-                                <Badge variant="outline" className={statusTone(item.status)}>{statusLabel(item.status)}</Badge>
-                              </div>
-                              <p className="mt-1 text-sm font-medium text-slate-800">{item.title}</p>
-                              <p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p>
-                            </div>
-                            <div className="text-sm text-slate-500">
-                              <p>{item.actor}</p>
-                              <p>{item.at}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </TableCard>
+                  {mainQueue.length > 4 ? (
+                    <div className="flex justify-end border-t border-slate-200 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="sig-dark-action-btn h-10 rounded-full px-4 text-slate-50"
+                        onClick={() => setWorkspaceView("fila")}
+                      >
+                        Ver fila completa
+                      </Button>
+                    </div>
+                  ) : null}
+                </SectionCard>
+              </PageMainContent>
 
+              <PageSideContent className="gap-5">
                 <SectionCard
-                  title="Fluxo institucional"
-                  description="Leitura curta da circulação atual entre unidade, despacho e acesso externo."
-                  icon={FileText}
-                  className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
+                  title="Atenção imediata"
+                  description="Somente o que precisa de decisão agora."
+                  icon={AlertTriangle}
                   contentClassName="space-y-3"
                 >
-                  {unitSummary.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">{item.value}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.helper}</p>
-                    </div>
-                  ))}
-                </SectionCard>
-              </div>
-            </PageMainContent>
-
-            <PageSideContent>
-              <SectionCard title="Pendências críticas" description="Alertas e gargalos que exigem decisão imediata." icon={AlertTriangle}>
-                <div className="space-y-4">
                   <AlertCard
                     title="SLA crítico"
                     description={
@@ -865,63 +813,93 @@ export function TenantAdminPage() {
                     }
                     tone={criticalAlerts.length > 0 ? "danger" : "success"}
                   />
-                  {actionRequired.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                      Nenhuma prioridade crítica adicional encontrada.
-                    </div>
-                  ) : (
-                    actionRequired.slice(0, 3).map((process) => (
-                      <div key={process.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 line-clamp-2 text-sm text-slate-500">{process.title}</p>
-                          </div>
-                          <Badge variant="outline" className={getPriorityTone(process)}>
-                            {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Crítico" : "No prazo"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </SectionCard>
 
-              <SectionCard title="Ações rápidas" description="Atalhos para os próximos blocos operacionais." icon={CheckCircle2}>
-                <div className="space-y-3">
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("fila")}>
+                  {actionRequired.slice(0, 2).map((process) => (
+                    <div key={process.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-950" title={process.protocol}>
+                            {process.protocol}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500" title={process.title}>
+                            {process.title}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={`shrink-0 ${getPriorityTone(process)}`}>
+                          {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Crítico" : "No prazo"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+
+                  {actionRequired.length === 0 ? (
+                    <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                      Nenhuma prioridade adicional.
+                    </p>
+                  ) : null}
+                </SectionCard>
+
+                <SectionCard
+                  title="Ações rápidas"
+                  description="Atalhos operacionais."
+                  icon={CheckCircle2}
+                  contentClassName="space-y-2"
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                    onClick={() => setWorkspaceView("fila")}
+                  >
                     <ClipboardList className="mr-2 h-4 w-4 text-sky-200" />
                     Abrir fila operacional
                   </Button>
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("usuarios")}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                    onClick={() => setWorkspaceView("usuarios")}
+                  >
                     <Users2 className="mr-2 h-4 w-4 text-sky-200" />
                     Gerenciar usuários
                   </Button>
-                </div>
-              </SectionCard>
+                </SectionCard>
+              </PageSideContent>
+            </PageMainGrid>
 
-              <SectionCard title="Resumo institucional" description="Situação curta da unidade municipal." icon={ShieldCheck}>
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Recepção por setor</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {pendingSectorItems.map((item) => `${item.label}: ${item.value}`).join(" • ")}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Unidade atual</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUnit}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Distribuição atual</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {receivedForCurrentUnit.length} recebidos • {generatedByCurrentUnit.length} gerados • {assignedMunicipal.length} atribuídos
-                    </p>
-                  </div>
+            <TableCard
+              title="Atividade recente"
+              description="Últimas movimentações relevantes da Prefeitura."
+              icon={Clock3}
+            >
+              {recentActivity.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                  Nenhuma movimentação recente encontrada.
                 </div>
-              </SectionCard>
-            </PageSideContent>
-          </PageMainGrid>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {recentActivity.slice(0, 4).map((item, index) => (
+                    <div key={`${item.processId}-${index}`} className="grid min-w-0 gap-3 py-4 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-slate-950">{item.protocol}</p>
+                          <Badge variant="outline" className={statusTone(item.status)}>
+                            {statusLabel(item.status)}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 truncate text-sm font-medium text-slate-800">{item.title}</p>
+                        <p className="mt-1 line-clamp-1 text-sm text-slate-500">{item.detail}</p>
+                      </div>
+                      <div className="shrink-0 text-left text-xs leading-5 text-slate-500 md:text-right">
+                        <p>{item.actor}</p>
+                        <p>{item.at}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TableCard>
+          </div>
         ) : null}
 
         {workspaceView === "fila" ? <TableCard title="Fila operacional" description="Área dedicada à operação da Prefeitura, com prioridade, responsável, prazo e etapa atual." icon={ClipboardList}><div className="space-y-4"><div className="grid gap-3 xl:grid-cols-[1.2fr_0.7fr_0.7fr]"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Prefeitura operando com {mainQueue.length} item(ns) priorizados na fila principal.</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">SLA crítico: {criticalAlerts.length} item(ns).</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Pendências financeiras: {metrics.pendingPayments}.</div></div>{mainQueue.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum protocolo operacional encontrado para esta Prefeitura.</div> : mainQueue.map((process) => renderQueueCard(process))}</div></TableCard> : null}
