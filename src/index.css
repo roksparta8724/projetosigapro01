@@ -4783,3 +4783,114 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
 .sig-master-logo-editor [data-image-frame-shape="rounded"] > div[style] {
   max-width: 100%;
 }
+
+
+/* ===== SIGAPRO GLOBAL SURFACE CONTRAST AUDIT 2026-10-12 =====
+   Theme-independent neutral contrast contract for cards, panels, actions and icons.
+   Semantic red/amber/green/blue text remains untouched. */
+
+/* Dark utility surfaces: force neutral copy/icons to a readable light foreground. */
+.sig-main-shell :is(
+  div,section,article,li,aside,header,footer,button,a,[role="button"]
+):is(
+  .bg-slate-950,.bg-slate-900,.bg-slate-800,
+  .bg-gray-950,.bg-gray-900,.bg-gray-800,
+  .bg-zinc-950,.bg-zinc-900,.bg-neutral-950,.bg-neutral-900,
+  [class*="from-slate-950"],[class*="from-slate-900"],[class*="from-gray-950"],[class*="from-gray-900"],
+  [class*="to-slate-950"],[class*="to-slate-900"],[class*="to-gray-950"],[class*="to-gray-900"]
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell :is(
+  div,section,article,li,aside,header,footer,button,a,[role="button"]
+):is(
+  .bg-slate-950,.bg-slate-900,.bg-slate-800,
+  .bg-gray-950,.bg-gray-900,.bg-gray-800,
+  .bg-zinc-950,.bg-zinc-900,.bg-neutral-950,.bg-neutral-900,
+  [class*="from-slate-950"],[class*="from-slate-900"],[class*="from-gray-950"],[class*="from-gray-900"],
+  [class*="to-slate-950"],[class*="to-slate-900"],[class*="to-gray-950"],[class*="to-gray-900"]
+) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,
+  .text-black,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,
+  .text-zinc-950,.text-zinc-900,.text-zinc-800,.text-zinc-700,.text-neutral-950,.text-neutral-900
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell :is(
+  .bg-slate-950,.bg-slate-900,.bg-slate-800,
+  .bg-gray-950,.bg-gray-900,.bg-gray-800,
+  .bg-zinc-950,.bg-zinc-900,.bg-neutral-950,.bg-neutral-900,
+  [class*="from-slate-950"],[class*="from-slate-900"],[class*="from-gray-950"],[class*="from-gray-900"]
+) svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Light utility surfaces: force neutral copy/icons to a readable dark foreground. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  div,section,article,li,aside,button,a,[role="button"]
+):is(
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,.bg-zinc-50,.bg-zinc-100,
+  [class*="from-white"],[class*="from-slate-50"],[class*="from-slate-100"],
+  [class*="to-white"],[class*="to-slate-50"],[class*="to-slate-100"]
+):not(.sig-institution-logo-surface) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell :is(
+  div,section,article,li,aside,button,a,[role="button"]
+):is(
+  .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,.bg-zinc-50,.bg-zinc-100,
+  [class*="from-white"],[class*="from-slate-50"],[class*="from-slate-100"],
+  [class*="to-white"],[class*="to-slate-50"],[class*="to-slate-100"]
+):not(.sig-institution-logo-surface) :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,
+  .text-white,.text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,
+  .text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Buttons get their own final authority so inherited theme rules cannot hide labels. */
+.sig-main-shell [data-ui="button"][data-button-variant="default"],
+.sig-main-shell button.bg-slate-950,
+.sig-main-shell button.bg-slate-900,
+.sig-main-shell button.bg-slate-800,
+.sig-main-shell a.bg-slate-950,
+.sig-main-shell a.bg-slate-900,
+.sig-main-shell [role="button"].bg-slate-950,
+.sig-main-shell [role="button"].bg-slate-900 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.sig-main-shell [data-ui="button"][data-button-variant="default"] :is(span,svg),
+.sig-main-shell button.bg-slate-950 :is(span,svg),
+.sig-main-shell button.bg-slate-900 :is(span,svg),
+.sig-main-shell button.bg-slate-800 :is(span,svg),
+.sig-main-shell a.bg-slate-950 :is(span,svg),
+.sig-main-shell a.bg-slate-900 :is(span,svg) {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Disabled dark buttons remain visibly disabled but never unreadable. */
+.sig-main-shell :is(
+  [data-ui="button"][data-button-variant="default"],
+  button.bg-slate-950,button.bg-slate-900,button.bg-slate-800
+):disabled {
+  background: #475569 !important;
+  border-color: #64748b !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 0.72 !important;
+}
