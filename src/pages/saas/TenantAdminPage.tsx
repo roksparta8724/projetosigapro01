@@ -141,6 +141,7 @@ export function TenantAdminPage() {
   );
 
   const [statusMessage, setStatusMessage] = useState("");
+  const [editStatusMessage, setEditStatusMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [segment, setSegment] = useState<UserSegment>("todos");
@@ -214,7 +215,7 @@ export function TenantAdminPage() {
     { label: "Gerados", value: generatedByCurrentUnit.length, helper: "Despachos emitidos pela unidade" },
     { label: "Restritos", value: restrictedTransitCount, helper: "Fluxos ocultos ao acesso externo" },
   ], [generatedByCurrentUnit.length, receivedForCurrentUnit.length, restrictedTransitCount]);
-  const startEdit = (user: SessionUser) => { setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, title: user.title, accessLevel: String(user.accessLevel), department: user.department || user.title, userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
+  const startEdit = (user: SessionUser) => { setEditStatusMessage(""); setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, title: user.title, accessLevel: String(user.accessLevel), department: user.department || user.title, userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
   const handleCreateUser = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId) return;
@@ -279,49 +280,53 @@ export function TenantAdminPage() {
     const normalizedTitle = editForm.title.trim();
     const selectedDepartment = activeDepartments.find((item) => item.name === editForm.department) ?? null;
 
+    setEditStatusMessage("");
+
     if (!normalizedName) {
-      setStatusMessage("Informe o nome do funcionário antes de salvar.");
+      setEditStatusMessage("Informe o nome do funcionário antes de salvar.");
       return;
     }
     if (!normalizedTitle) {
-      setStatusMessage("Informe o cargo, função ou profissão do funcionário.");
+      setEditStatusMessage("Informe o cargo, função ou profissão do funcionário.");
       return;
     }
     if (editForm.role !== "profissional_externo" && !editForm.department.trim()) {
-      setStatusMessage("Selecione o departamento do funcionário. O acesso interno é limitado ao departamento escolhido.");
+      setEditStatusMessage("Selecione o departamento do funcionário. O acesso interno é limitado ao departamento escolhido.");
       return;
     }
+    if (savingUserId) return;
 
-    // Cargo/perfil são independentes do organograma. Salvar primeiro evita que
-    // uma falha de vínculo de departamento bloqueie a alteração de função.
-    const saved = await runUserCommand(userId, () => updateTenantUser(userId, {
-      name: normalizedName,
-      role: editForm.role,
-      title: normalizedTitle,
-      department: selectedDepartment?.name ?? editForm.department.trim(),
-      userType: editForm.role === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
-      accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3,
-    }), (updated) => `Dados de ${updated.name} atualizados com sucesso.`);
+    setSavingUserId(userId);
+    setEditStatusMessage("Salvando alterações...");
 
-    if (!saved) return;
+    try {
+      const updated = await updateTenantUser(userId, {
+        name: normalizedName,
+        role: editForm.role,
+        title: normalizedTitle,
+        department: selectedDepartment?.name ?? editForm.department.trim(),
+        userType: editForm.role === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
+        accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3,
+      });
 
-    if (effectiveScopeId) {
-      try {
+      if (!updated) {
+        throw new Error("Usuário não encontrado no banco.");
+      }
+
+      if (effectiveScopeId) {
         await assignRemoteProfileDepartment({
           municipalityId: effectiveScopeId,
           profileId: userId,
           departmentId: selectedDepartment?.id ?? null,
         });
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : "Não foi possível sincronizar o departamento.";
-        setStatusMessage(`Cargo e acesso foram salvos. O vínculo do organograma não foi atualizado: ${detail}`);
-        setEditingUserId(null);
-        return;
       }
-    }
 
-    setStatusMessage("Cargo, perfil, nível de acesso e departamento atualizados com sucesso.");
-    setEditingUserId(null);
+      setEditStatusMessage("Alterações salvas com sucesso.");
+    } catch (error) {
+      setEditStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar as alterações.");
+    } finally {
+      setSavingUserId(null);
+    }
   };
 
   const handleCreateDepartment = async (event: FormEvent) => {
@@ -526,9 +531,16 @@ export function TenantAdminPage() {
                   <SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-2 lg:col-span-2 2xl:col-span-3 sm:flex-row sm:flex-wrap">
-                <Button type="button" disabled={savingUserId === user.id} className="sig-force-dark-action h-11 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900 sm:w-auto" onClick={() => void handleSaveEdit(user.id)}>{savingUserId === user.id ? "Salvando..." : "Salvar alterações"}</Button>
-                <Button type="button" variant="outline" className="h-11 w-full rounded-2xl sm:w-auto" onClick={() => setEditingUserId(null)}>Cancelar</Button>
+              <div className="flex flex-col gap-2 lg:col-span-2 2xl:col-span-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Button type="button" disabled={savingUserId === user.id} className="sig-force-dark-action h-11 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900 sm:w-auto" onClick={() => void handleSaveEdit(user.id)}>{savingUserId === user.id ? "Salvando..." : "Salvar alterações"}</Button>
+                  <Button type="button" variant="outline" className="h-11 w-full rounded-2xl sm:w-auto" onClick={() => { setEditStatusMessage(""); setEditingUserId(null); }}>Cancelar</Button>
+                </div>
+                {editStatusMessage ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                    {editStatusMessage}
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
