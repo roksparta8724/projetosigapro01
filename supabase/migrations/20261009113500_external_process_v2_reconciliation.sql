@@ -214,7 +214,7 @@ begin
         _tenant_id, _process_id, _legacy_user_id, _profile_id,
         coalesce(_doc->>'label',_doc->>'fileName','Documento'),
         coalesce(_doc->>'filePath','pending/'||coalesce(_doc->>'fileName',gen_random_uuid()::text)),
-        encode(digest(coalesce(_doc->>'fileName',gen_random_uuid()::text),'sha256'),'hex'),
+        encode(extensions.digest(coalesce(_doc->>'fileName',gen_random_uuid()::text),'sha256'),'hex'),
         coalesce(nullif(_doc->>'version','')::integer,1),
         coalesce(nullif(_doc->>'source',''),'profissional'),
         coalesce(nullif(_doc->>'required','')::boolean,true),
