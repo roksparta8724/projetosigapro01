@@ -2135,24 +2135,41 @@ export function can(session: SessionUser, permission: Permission) {
     return true;
   }
 
-  const permissions = rolePermissions[session.role] ?? [];
-  if (!permissions.includes(permission)) {
+  // Administração da Prefeitura é o único perfil municipal com visão transversal.
+  if (session.role === "prefeitura_admin") {
+    const permissions = rolePermissions.prefeitura_admin;
+    if (!permissions.includes(permission)) return false;
+    if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") {
+      return session.accessLevel >= 3;
+    }
+    return true;
+  }
+
+  // Funcionários internos recebem apenas capacidades operacionais. A pasta/setor
+  // visível é limitada separadamente pelo departamento ao qual estão vinculados.
+  if (isInternalRole(session.role)) {
+    if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") return false;
+    if (
+      permission === "manage_own_profile" ||
+      permission === "view_own_processes" ||
+      permission === "manage_protocols" ||
+      permission === "review_processes" ||
+      permission === "manage_financial"
+    ) {
+      return true;
+    }
+    if (
+      permission === "dispatch_interdepartmental" ||
+      permission === "sign_documents" ||
+      permission === "manage_fiscal_financial"
+    ) {
+      return session.accessLevel >= 2;
+    }
     return false;
   }
 
-  if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") {
-    return session.accessLevel >= 3;
-  }
-
-  if (
-    permission === "manage_protocols" ||
-    permission === "dispatch_interdepartmental" ||
-    permission === "sign_documents"
-  ) {
-    return session.accessLevel >= 2;
-  }
-
-  return true;
+  const permissions = rolePermissions[session.role] ?? [];
+  return permissions.includes(permission);
 }
 
 export function canInstitution(
@@ -2195,9 +2212,37 @@ export function matchesInstitutionOperationalScope(scopeId: string | null | unde
 
 export const matchesInstitutionScope = matchesInstitutionOperationalScope;
 
+function normalizeDepartmentAccessLabel(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function resolveDepartmentAccessBucket(value: string | null | undefined) {
+  const normalized = normalizeDepartmentAccessLabel(value);
+  if (!normalized) return "";
+  if (/protocolo|protocol/.test(normalized)) return "protocolos";
+  if (/finance|financa|fazenda|tribut|arrecad/.test(normalized)) return "financeiro";
+  if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao/.test(normalized)) return "analise";
+  return normalized;
+}
+
+export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
+
+export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
+  if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
+    return true;
+  }
+  if (!isInternalRole(session.role)) return false;
+  const department = resolveDepartmentAccessBucket(session.department || session.title);
+  return department === area;
+}
+
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
-  // O Master possui visão transversal da plataforma. O banco continua sendo a
-  // autoridade final de acesso; esta verificação evita bloquear a UI após a rota.
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
   }
@@ -2212,14 +2257,60 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   }
 
   if (session.role === "property_owner" || session.role === "proprietario_consulta") {
-    // Em produção, a lista de processos já chega filtrada pelo RLS
-    // has_process_access(), que valida parte/vínculo do proprietário. Não
-    // repetir a autorização por comparação textual de nome evita esconder um
-    // processo legítimo por alteração de nome, acento ou abreviação.
     return true;
   }
 
-  return isInternalRole(session.role);
+  if (session.role === "prefeitura_admin") {
+    return true;
+  }
+
+  if (!isInternalRole(session.role)) {
+    return false;
+  }
+
+  // Todo funcionário municipal comum enxerga somente a fila do próprio departamento.
+  const userDepartmentRaw = session.department || "";
+  const userDepartment = resolveDepartmentAccessBucket(userDepartmentRaw);
+  if (!userDepartment) return false;
+
+  const currentFolderRaw = process.processControl?.currentFolder || "";
+  const currentFolder = resolveDepartmentAccessBucket(currentFolderRaw);
+  if (currentFolder) {
+    if (currentFolder === userDepartment) return true;
+    const currentNormalized = normalizeDepartmentAccessLabel(currentFolderRaw);
+    const userNormalized = normalizeDepartmentAccessLabel(userDepartmentRaw);
+    return Boolean(
+      currentNormalized &&
+      userNormalized &&
+      (currentNormalized.includes(userNormalized) || userNormalized.includes(currentNormalized))
+    );
+  }
+
+  const latestTargetRaw = process.dispatches[0]?.to || "";
+  const latestTarget = resolveDepartmentAccessBucket(latestTargetRaw);
+  if (latestTarget) {
+    if (latestTarget === userDepartment) return true;
+    const targetNormalized = normalizeDepartmentAccessLabel(latestTargetRaw);
+    const userNormalized = normalizeDepartmentAccessLabel(userDepartmentRaw);
+    if (
+      targetNormalized &&
+      userNormalized &&
+      (targetNormalized.includes(userNormalized) || userNormalized.includes(targetNormalized))
+    ) {
+      return true;
+    }
+  }
+
+  // Compatibilidade para processos antigos que ainda não possuem currentFolder.
+  if (userDepartment === "protocolos") {
+    return process.triage.status !== "concluido" ||
+      ["triagem", "pendencia_documental", "guia_emitida", "pagamento_pendente"].includes(process.status);
+  }
+  if (userDepartment === "analise") {
+    return ["distribuicao", "analise_tecnica", "exigencia", "reapresentacao", "despacho_intersetorial"].includes(process.status);
+  }
+
+  return false;
 }
 
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
