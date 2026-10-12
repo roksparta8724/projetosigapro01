@@ -14,6 +14,7 @@ import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
+import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -131,14 +132,6 @@ export function TenantAdminPage() {
   const activeDepartments = useMemo(
     () => departments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
     [departments],
-  );
-  const rootDepartments = useMemo(
-    () => activeDepartments.filter((item) => !item.parentDepartmentId),
-    [activeDepartments],
-  );
-  const usersWithoutDepartment = useMemo(
-    () => tenantUsers.filter((user) => !user.department || !activeDepartments.some((item) => item.name === user.department)),
-    [activeDepartments, tenantUsers],
   );
 
   const filteredUsers = useMemo(() => {
@@ -675,73 +668,19 @@ export function TenantAdminPage() {
             <PageMainContent>
               <TableCard
                 title="Organograma municipal"
-                description="A Prefeitura define livremente secretarias, diretorias, departamentos e setores, além da lotação de cada usuário."
+                description="Estrutura institucional da Prefeitura exibida por siglas, sem nomes de usuários, no padrão de navegação administrativa."
                 icon={Network}
               >
-                <div className="space-y-5">
-                  {activeDepartments.length === 0 ? (
-                    <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-                      Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado; depois o administrador poderá distribuir a equipe entre as unidades.
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-                      {rootDepartments.map((department) => {
-                        const children = activeDepartments.filter((item) => item.parentDepartmentId === department.id);
-                        const directUsers = tenantUsers.filter((user) => user.department === department.name);
-                        return (
-                          <div key={department.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-                            <div className="flex items-start gap-3">
-                              <div className="sig-section-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-sky-700">
-                                <Building2 className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{department.unitType}</p>
-                                <p className="mt-1 text-base font-semibold text-slate-950">{department.name}</p>
-                                {department.description ? <p className="mt-1 text-sm leading-6 text-slate-500">{department.description}</p> : null}
-                              </div>
-                            </div>
-                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Equipe direta</p>
-                              <p className="mt-1 text-sm font-medium text-slate-900">{directUsers.length} usuário(s)</p>
-                              {directUsers.slice(0, 4).map((user) => <p key={user.id} className="mt-1 text-xs text-slate-600">{user.name} • {user.title}</p>)}
-                            </div>
-                            {children.length > 0 ? (
-                              <div className="mt-3 space-y-2">
-                                {children.map((child) => {
-                                  const childUsers = tenantUsers.filter((user) => user.department === child.name);
-                                  return (
-                                    <div key={child.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                      <p className="text-sm font-semibold text-slate-900">{child.name}</p>
-                                      <p className="mt-1 text-xs text-slate-500">{child.unitType} • {childUsers.length} usuário(s)</p>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {usersWithoutDepartment.length > 0 ? (
-                    <div className="rounded-[24px] border border-amber-200 bg-amber-50/70 p-5">
-                      <p className="text-sm font-semibold text-amber-900">Usuários ainda sem lotação definida</p>
-                      <p className="mt-1 text-sm leading-6 text-amber-800">Edite o usuário na aba Usuários e escolha a unidade do organograma.</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {usersWithoutDepartment.map((user) => (
-                          <Badge key={user.id} variant="outline" className="border-amber-300 bg-white text-amber-900">{user.name}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
+                <MunicipalOrganizationChart
+                  departments={activeDepartments}
+                  emptyMessage="Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado para disponibilizar o organograma institucional."
+                />
               </TableCard>
             </PageMainContent>
             <PageSideContent>
               <SectionCard
                 title="Montar organograma"
-                description="Crie a estrutura conforme a realidade de cada Prefeitura. Nenhum setor é imposto pelo SIGAPRO."
+                description="Crie a estrutura conforme a realidade de cada Prefeitura. O quadro interno exibe somente as siglas das unidades."
                 icon={Plus}
                 contentClassName="space-y-4"
               >
@@ -785,7 +724,7 @@ export function TenantAdminPage() {
                     <Label>Telefone</Label>
                     <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Opcional" />
                   </div>
-                  <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                  <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
                     {orgBusy ? "Salvando..." : "Adicionar ao organograma"}
                   </Button>
                 </form>
