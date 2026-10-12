@@ -752,12 +752,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       }
 
       if (lastFetchedUserId.current === authenticatedUserId && source === "remote") {
+        setRemoteContextUserId(authenticatedUserId);
         setLoading(false);
         return;
       }
 
-      // Mantem a UI com o ultimo estado valido enquanto sincroniza o remoto.
+      // Mantém a UI com o último estado visual válido, mas nunca carrega
+      // um erro da conta anterior para a autenticação atual.
       setLoading(false);
+      if (lastFetchedUserId.current !== authenticatedUserId) {
+        setDataError(null);
+      }
       try {
         let remote = await loadRemotePlatformStore();
         let sanitized = buildSanitizedStore(remote, false);
