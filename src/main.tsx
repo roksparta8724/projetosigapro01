@@ -68,7 +68,6 @@ function restoreRefreshScroll() {
       : null;
 
   if (target === null) {
-    document.documentElement.removeAttribute("data-sigapro-booting");
     return;
   }
 
@@ -86,8 +85,7 @@ function restoreRefreshScroll() {
     if (Math.abs(window.scrollY - next) <= 2 || attempts >= 60) {
       pendingRefreshScrollY = null;
       pendingRefreshLocation = "";
-      document.documentElement.removeAttribute("data-sigapro-booting");
-      persistNavigationState();
+        persistNavigationState();
       return;
     }
     window.requestAnimationFrame(restore);
@@ -116,11 +114,6 @@ window.addEventListener("pagehide", persistNavigationState, { capture: true });
 window.addEventListener("sigapro-app-stable", restoreRefreshScroll);
 
 createRoot(document.getElementById("root")!).render(<App />);
-
-window.setTimeout(() => {
-  restoreRefreshScroll();
-  document.documentElement.removeAttribute("data-sigapro-booting");
-}, 350);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
