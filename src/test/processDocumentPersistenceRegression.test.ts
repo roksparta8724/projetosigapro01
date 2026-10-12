@@ -36,6 +36,8 @@ describe("process document persistence regressions", () => {
     expect(fileDropZone).toContain('sm:h-72');
     expect(fileDropZone).toContain('URL.createObjectURL(file)');
     expect(fileDropZone).toContain('transition-colors');
+    expect(fileDropZone).not.toContain('<iframe');
+    expect(fileDropZone).toContain('Abrir PDF em nova guia');
   });
 
   it("never embeds live PDF viewers inside process document cards", () => {
