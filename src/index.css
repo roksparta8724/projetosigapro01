@@ -5149,3 +5149,13 @@ html body .sig-main-shell [data-ui="badge"].sig-force-dark-action {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* ===== SIGAPRO DARK PREVIEW TEXT FINAL 2026-10-12 =====
+   Dark identity/master preview cards always render visible copy. */
+html body .sig-fixed-dark-surface > *,
+html body .sig-fixed-dark-surface > * > *,
+html body .sig-fixed-dark-surface > * > * > * {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
