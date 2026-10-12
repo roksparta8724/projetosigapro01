@@ -16,25 +16,81 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-function resolveR2Endpoint() {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+      candidates.push(`${url.protocol}//${url.host}`);
+    } catch {
+      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+    }
+  }
+
   const accountId = readEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
 
   if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
   }
 
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
 
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
+function resolveR2Endpoint() {
+  return getR2EndpointCandidates()[0] || "";
+}
+
+function isR2CredentialError(error: unknown) {
+  const name =
+    error && typeof error === "object" && "name" in error
+      ? String((error as { name?: unknown }).name || "")
+      : "";
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
+    /signature.*does not match|invalid access key|access denied/i.test(message);
+}
+
+async function putR2ObjectWithFallback(input: {
+  bucket: string;
+  objectKey: string;
+  body: Buffer;
+  contentType: string;
+}) {
+  const endpoints = getR2EndpointCandidates();
+  let lastError: unknown;
+
+  for (const endpoint of endpoints) {
+    const client = new S3Client({
+      region: "auto",
+      endpoint,
+      credentials: {
+        accessKeyId: readEnv("R2_ACCESS_KEY_ID"),
+        secretAccessKey: readEnv("R2_SECRET_ACCESS_KEY"),
+      },
+    });
+
+    try {
+      await client.send(new PutObjectCommand({
+        Bucket: input.bucket,
+        Key: input.objectKey,
+        Body: input.body,
+        ContentType: input.contentType,
+      }));
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isR2CredentialError(error)) throw error;
+    }
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha de autenticação no armazenamento R2.");
 }
 
 const VALIDATED_NEON_DATA_API_URL =
@@ -292,26 +348,15 @@ export default async function handler(req: Req, res: Res) {
       }
     }
 
-    const client = new S3Client({
-      region: "auto",
-      endpoint,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+    await putR2ObjectWithFallback({
+      bucket,
+      objectKey,
+      body: buffer,
+      contentType:
+        typeof contentType === "string" && contentType
+          ? contentType
+          : "application/octet-stream",
     });
-
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
-        Body: buffer,
-        ContentType: typeof contentType === "string" && contentType ? contentType : "application/octet-stream",
-        // Do not send original filenames as signed R2 metadata headers.
-        // Accented/localized names can be encoded differently by the HTTP layer
-        // and invalidate SigV4. The original filename is persisted in SIGAPRO data.
-      }),
-    );
 
     json(res, 200, {
       bucket,
@@ -320,7 +365,7 @@ export default async function handler(req: Req, res: Res) {
     });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
-    const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
+    const signatureMismatch = isR2CredentialError(error);
     const message = signatureMismatch
       ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
       : rawMessage;
