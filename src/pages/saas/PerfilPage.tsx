@@ -1440,7 +1440,7 @@ export function PerfilPage() {
                 </div>
               ) : null}
               {statusMessage}
-              <Button type="submit" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 text-white hover:bg-slate-900" disabled={saving}>
+              <Button type="submit" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar dados pessoais"}
               </Button>
             </form>
@@ -1539,7 +1539,7 @@ export function PerfilPage() {
 
               {statusMessage}
 
-              <Button type="button" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 text-white hover:bg-slate-900" onClick={(event) => void handleSubmit(event as unknown as FormEvent)} disabled={saving}>
+              <Button type="button" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" onClick={(event) => void handleSubmit(event as unknown as FormEvent)} disabled={saving}>
                 {saving ? "Salvando..." : "Salvar ajustes da foto"}
               </Button>
 
@@ -1608,7 +1608,7 @@ export function PerfilPage() {
                             </Button>
                             <Button
                               type="button"
-                              className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                              className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900"
                               onClick={() => handleConfirmMasterLogo("header")}
                               disabled={masterLogoSaving === "header"}
                             >
@@ -1677,7 +1677,7 @@ export function PerfilPage() {
                             </Button>
                             <Button
                               type="button"
-                              className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
+                              className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900"
                               onClick={() => handleConfirmMasterLogo("footer")}
                               disabled={masterLogoSaving === "footer"}
                             >
@@ -1733,7 +1733,7 @@ export function PerfilPage() {
                 <Textarea rows={5} value={form.bio} onChange={(event) => setField("bio", event.target.value)} />
               </div>
               {statusMessage}
-              <Button type="submit" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 text-white hover:bg-slate-900" disabled={saving}>
+              <Button type="submit" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar dados profissionais"}
               </Button>
             </form>
@@ -1814,7 +1814,7 @@ export function PerfilPage() {
                       <Input type="password" value={accountForm.confirmPassword} onChange={(event) => setAccountField("confirmPassword", event.target.value)} />
                     </div>
                     <p className="sig-field-help">Use no mínimo 8 caracteres para proteger o acesso institucional.</p>
-                    <Button type="button" className="sig-force-dark-action w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={handleUpdatePassword}>
+                    <Button type="button" className="sig-force-dark-action w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={handleUpdatePassword}>
                       Atualizar senha
                     </Button>
                   </div>
