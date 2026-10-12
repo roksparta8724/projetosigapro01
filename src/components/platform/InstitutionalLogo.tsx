@@ -43,6 +43,21 @@ function readSessionLogo(context: string) {
   }
 }
 
+function assetIdentity(url: string) {
+  const value = url.trim();
+  if (!value) return "";
+  try {
+    const parsed = new URL(value, window.location.origin);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value.split("?")[0].split("#")[0];
+  }
+}
+
+function sameAssetResource(a: string, b: string) {
+  return Boolean(a && b && assetIdentity(a) === assetIdentity(b));
+}
+
 function writeSessionLogo(context: string, url: string) {
   if (typeof window === "undefined" || !url) return;
   try {
@@ -98,7 +113,12 @@ export function InstitutionalLogo({
   // 3) nunca cobre uma imagem válida com skeleton/opacity-0;
   // 4) uma URL nova só substitui a anterior depois de carregar.
   const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
-  const pendingUrl = imageUrl && imageUrl !== displayUrl ? imageUrl : "";
+  const pendingUrl =
+    imageUrl &&
+    imageUrl !== displayUrl &&
+    !sameAssetResource(imageUrl, displayUrl)
+      ? imageUrl
+      : "";
 
   const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(5, branding.logoScale)) : 1;
   const frameSize = variant === "header" ? 128 : 144;
