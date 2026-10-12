@@ -18,6 +18,27 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
+function resolveR2Endpoint() {
+  const accountId = readEnv("R2_ACCOUNT_ID")
+    .replace(/^https?:\/\//i, "")
+    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
+    .replace(/[^a-zA-Z0-9]/g, "");
+
+  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
+    return `https://${accountId}.r2.cloudflarestorage.com`;
+  }
+
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (!rawEndpoint) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return rawEndpoint.replace(/\/+$/, "");
+  }
+}
+
 function getAllowedBuckets() {
   return new Set<string>([
     readEnv("R2_BUCKET_LOGOS") || "sigapro-logos",
@@ -69,7 +90,7 @@ export default async function handler(req: Req, res: Res) {
   }
 
   try {
-    const endpoint = readEnv("R2_ENDPOINT");
+    const endpoint = resolveR2Endpoint();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
