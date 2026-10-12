@@ -37,6 +37,15 @@ describe("process document persistence regressions", () => {
     expect(fileDropZone).toContain('transition-colors');
   });
 
+  it("never embeds live PDF viewers inside process document cards", () => {
+    expect(processDetail).toContain('data-process-document-card="true"');
+    expect(processDetail).toContain("Documento armazenado com segurança");
+    expect(processDetail).toContain("/visualizar");
+    expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
+    expect(processDetail).not.toContain('className="h-72 w-full"');
+  });
+
   it("requires a real R2 file path and idempotently links it in the official process", () => {
     expect(migration).toContain("create or replace function public.sync_process_documents");
     expect(migration).toContain("nao possui arquivo persistido no armazenamento oficial");
