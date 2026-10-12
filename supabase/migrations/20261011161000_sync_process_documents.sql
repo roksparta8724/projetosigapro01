@@ -83,7 +83,7 @@ begin
         _file_path,
         coalesce(
           nullif(_doc->>'fileHash',''),
-          encode(digest(_file_path || '|' || coalesce(_file_name,''),'sha256'),'hex')
+          encode(extensions.digest(_file_path || '|' || coalesce(_file_name,''),'sha256'),'hex')
         ),
         greatest(coalesce(nullif(_doc->>'version','')::integer,1),1),
         coalesce(nullif(_doc->>'source',''),'profissional'),
