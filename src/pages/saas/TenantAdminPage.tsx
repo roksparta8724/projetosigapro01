@@ -253,6 +253,7 @@ export function TenantAdminPage() {
     event.preventDefault();
     if (!effectiveScopeId || !orgForm.name.trim() || orgBusy) return;
     if (
+      !editingDepartmentId &&
       planEntitlements.maxDepartments != null &&
       activeDepartments.length >= planEntitlements.maxDepartments
     ) {
