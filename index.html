@@ -17,6 +17,7 @@
     <link rel="shortcut icon" href="%BASE_URL%favicon-sigapro-v7.svg?v=7" />
     <link rel="apple-touch-icon" sizes="256x256" href="%BASE_URL%favicon.png?v=3" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest?v=7" />
+    <link rel="stylesheet" href="/src/index.css" />
     <link rel="preload" as="image" href="%BASE_URL%sigapro-logo.png" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
@@ -119,20 +120,15 @@
         overflow: hidden;
         background: var(--sig-initial-bg, #ffffff);
         pointer-events: none;
-
-        /* O html interno trabalha em 85%. O overlay precisa neutralizar esse zoom
-           para ocupar 100% do viewport físico e não recolher pela direita. */
-        zoom: 1.1764705882352942;
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-page {
         position: absolute;
         left: 0;
         top: var(--sig-snapshot-top, 0px);
-        width: 117.64705882352942%;
-        min-width: 117.64705882352942%;
-        min-height: 117.64705882352942vh;
-        zoom: 0.85;
+        width: 100%;
+        min-width: 100%;
+        min-height: 100vh;
         transform: none !important;
         transform-origin: top left !important;
       }
@@ -162,7 +158,6 @@
 
   <body>
     <div id="sigapro-refresh-snapshot" aria-hidden="true"></div>
-    <div id="root"></div>
     <script>
       (function () {
         try {
@@ -175,11 +170,13 @@
             pathname.indexOf("/cliente/") !== 0;
           if (!internal) return;
 
-          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v3");
+          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v4");
           if (!raw) return;
+
           var snapshot = JSON.parse(raw);
           var locationKey =
             window.location.pathname + window.location.search + window.location.hash;
+
           var valid =
             snapshot &&
             snapshot.host === window.location.host &&
@@ -187,18 +184,13 @@
             typeof snapshot.html === "string" &&
             snapshot.html.length > 500 &&
             typeof snapshot.savedAt === "number" &&
-            Date.now() - snapshot.savedAt < 120000;
-          if (!valid) return;
+            Date.now() - snapshot.savedAt < 1000 * 60 * 30;
 
-          if (typeof snapshot.cssText === "string" && snapshot.cssText.length > 0) {
-            var style = document.createElement("style");
-            style.id = "sigapro-refresh-snapshot-css";
-            style.textContent = snapshot.cssText;
-            document.head.appendChild(style);
-          }
+          if (!valid) return;
 
           var host = document.getElementById("sigapro-refresh-snapshot");
           if (!host) return;
+
           var scrollY = Math.max(0, Number(snapshot.scrollY) || 0);
           host.innerHTML =
             '<div class="sigapro-snapshot-page">' + snapshot.html + "</div>";
@@ -207,11 +199,12 @@
           host.setAttribute("data-visible", "true");
         } catch (error) {
           try {
-            window.sessionStorage.removeItem("sigapro.visual.snapshot.v3");
+            window.sessionStorage.removeItem("sigapro.visual.snapshot.v4");
           } catch (_) {}
         }
       })();
     </script>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
