@@ -700,66 +700,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     : institutionDisplayName;
   const accountStatusLabel = "Conta ativa";
 
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
-
-    const routeKey = `sigapro-scroll-position:${window.location.pathname}${window.location.search}`;
-    let ticking = false;
-
-    const persistScroll = () => {
-      sessionStorage.setItem(routeKey, String(window.scrollY || 0));
-      ticking = false;
-    };
-
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(persistScroll);
-    };
-
-    const handlePageHide = () => persistScroll();
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("beforeunload", handlePageHide);
-
-    return () => {
-      persistScroll();
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("beforeunload", handlePageHide);
-    };
-  }, [location.pathname, location.search]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || loading || session.id === "unknown") return;
-
-    const navEntry = window.performance
-      ?.getEntriesByType("navigation")
-      ?.[0] as PerformanceNavigationTiming | undefined;
-    if (navEntry?.type !== "reload") return;
-
-    const routeKey = `sigapro-scroll-position:${window.location.pathname}${window.location.search}`;
-    const saved = Number(sessionStorage.getItem(routeKey) || "0");
-    if (!Number.isFinite(saved) || saved <= 0) return;
-
-    let frame1 = 0;
-    let frame2 = 0;
-    let frame3 = 0;
-    frame1 = window.requestAnimationFrame(() => {
-      frame2 = window.requestAnimationFrame(() => {
-        frame3 = window.requestAnimationFrame(() => {
-          window.scrollTo({ top: saved, left: 0, behavior: "auto" });
-        });
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame1);
-      window.cancelAnimationFrame(frame2);
-      window.cancelAnimationFrame(frame3);
-    };
-  }, [loading, session.id, location.pathname, location.search]);
 
 
   useEffect(() => {
