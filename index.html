@@ -63,6 +63,19 @@
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+
+        // Mantem o mesmo zoom do App antes do primeiro frame e do snapshot.
+        // Isso evita pintar em 100% e trocar para 85% depois durante o F5.
+        var isFullDocumentRoute =
+          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
+        var initialZoom =
+          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+        document.documentElement.style.zoom = initialZoom;
+        document.documentElement.setAttribute(
+          "data-page-zoom",
+          initialZoom === "1" ? "100" : "85"
+        );
+
         document.documentElement.setAttribute("data-sigapro-booting", "true");
         if (isInternalPath) {
           document.documentElement.setAttribute("data-sigapro-internal", "true");
