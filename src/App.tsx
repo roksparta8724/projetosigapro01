@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -78,8 +79,26 @@ export default App;
 
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
+  const location = useLocation();
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
-  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
+  const pathname = location.pathname;
+
+  useLayoutEffect(() => {
+    const isLandingRoute =
+      pathname === "/" ||
+      pathname === "/inicio" ||
+      pathname === "/apresentacao";
+
+    const zoom = isLandingRoute ? "1" : "0.85";
+    document.documentElement.style.zoom = zoom;
+    document.body.style.zoom = "1";
+    document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
+
+    return () => {
+      document.documentElement.style.zoom = "";
+      delete document.documentElement.dataset.pageZoom;
+    };
+  }, [pathname]);
   const isPublicEntryPath =
     pathname === "/" ||
     pathname === "/inicio" ||
