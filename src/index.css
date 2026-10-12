@@ -5543,3 +5543,41 @@ html body .sig-main-shell [data-institutional-header-preview="true"] svg {
   stroke: currentColor !important;
   opacity: 1 !important;
 }
+
+
+/* ===== CADASTRO HEADER PREVIEW FINAL WHITE-TEXT AUTHORITY ===== */
+html body div.sig-app-frame[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-institutional-header-preview="true"],
+html body div.sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] [data-institutional-header-preview="true"],
+html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body div.sig-app-frame[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] [data-institutional-header-preview="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+),
+html body div.sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] [data-institutional-header-preview="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+),
+html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .sig-dark-preview-title,.sig-institutional-dark-preview-muted
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
