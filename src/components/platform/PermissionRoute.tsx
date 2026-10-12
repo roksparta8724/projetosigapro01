@@ -1,5 +1,5 @@
 import { LockKeyhole } from "lucide-react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
@@ -17,7 +17,6 @@ export function PermissionRoute({
   permission: Permission;
   children: React.ReactNode;
 }) {
-  const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, signOut, authenticatedUserId } = useAuthGateway();
   const bootstrap = useAppBootstrap();
@@ -115,7 +114,6 @@ export function PermissionRoute({
                 type="button"
                 onClick={async () => {
                   await signOut();
-                  navigate("/acesso", { replace: true });
                 }}
               >
                 Entrar com outra conta
@@ -189,7 +187,6 @@ export function PermissionRoute({
               type="button"
               onClick={async () => {
                 await signOut();
-                navigate("/acesso", { replace: true });
               }}
             >
               Entrar com outra conta
