@@ -2757,7 +2757,7 @@ export function ConfiguracoesPage() {
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
-                      <p className="text-[10px] uppercase tracking-[0.12em] text-[#d4e7f7]">Visual institucional</p>
+                      <p className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]">Visual institucional</p>
                       <p className="mt-2 text-sm leading-6 text-white md:text-[15px]">Cabecalho institucional</p>
                     </div>
                     <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
@@ -2768,7 +2768,7 @@ export function ConfiguracoesPage() {
                         className="mx-auto shrink-0 lg:mx-0"
                       />
                       <div className="min-w-0 flex-1 text-white">
-                        <p className="text-balance break-words text-[15px] font-semibold leading-tight text-white md:text-[17px] xl:text-[18px]">
+                        <p className="sig-dark-preview-title text-balance break-words text-[15px] font-semibold leading-tight md:text-[17px] xl:text-[18px]">
                           {tenantForm.name || "Prefeitura"}
                         </p>
                         <p
@@ -3007,7 +3007,7 @@ export function ConfiguracoesPage() {
                         style={{ background: `linear-gradient(90deg, ${darken(masterPrimaryColor, 28)} 0%, ${darken(masterPrimaryColor, 18)} 46%, ${darken(masterPrimaryColor, 10)} 100%)` }}
                       >
                         <p className="text-[10px] uppercase tracking-[0.12em] text-[#d4e7f7]">Visual institucional</p>
-                        <p className="mt-2 text-sm leading-6 text-white md:text-[15px]">Cabeçalho Master</p>
+                        <p className="sig-dark-preview-title mt-2 text-sm leading-6 md:text-[15px]">Cabeçalho Master</p>
                       </div>
                       <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center xl:grid-cols-[240px_minmax(0,1fr)]">
                         <InstitutionalLogo
@@ -3024,7 +3024,7 @@ export function ConfiguracoesPage() {
                             Plataforma institucional
                           </p>
                           <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
-                            <span className="truncate">Ambiente Master</span>
+                            <span className="sig-dark-preview-copy truncate">Ambiente Master</span>
                           </div>
                         </div>
                       </div>
