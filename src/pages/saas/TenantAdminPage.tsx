@@ -104,7 +104,9 @@ export function TenantAdminPage() {
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "analista" as UserRole, title: "", accessLevel: "1", department: "", userType: "" });
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [orgBusy, setOrgBusy] = useState(false);
+  const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [orgForm, setOrgForm] = useState({
+    code: "",
     name: "",
     unitType: "departamento",
     parentDepartmentId: "",
@@ -264,6 +266,8 @@ export function TenantAdminPage() {
     try {
       await upsertRemoteMunicipalDepartment({
         municipalityId: effectiveScopeId,
+        departmentId: editingDepartmentId,
+        code: orgForm.code.trim().toUpperCase(),
         name: orgForm.name.trim(),
         unitType: orgForm.unitType,
         parentDepartmentId: orgForm.parentDepartmentId || null,
@@ -274,14 +278,67 @@ export function TenantAdminPage() {
       });
       const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
       setDepartments(rows);
-      setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
-      setStatusMessage("Unidade adicionada ao organograma da Prefeitura.");
+      setOrgForm({ code: "", name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+      setEditingDepartmentId(null);
+      setStatusMessage(editingDepartmentId ? "Unidade atualizada no organograma da Prefeitura." : "Unidade adicionada ao organograma da Prefeitura.");
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar a unidade.");
     } finally {
       setOrgBusy(false);
     }
   };
+  const handleEditDepartment = (department: MunicipalDepartmentRecord) => {
+    setEditingDepartmentId(department.id);
+    setOrgForm({
+      code: department.code || "",
+      name: department.name,
+      unitType: department.unitType || "departamento",
+      parentDepartmentId: department.parentDepartmentId || "",
+      description: department.description || "",
+      email: department.email || "",
+      phone: department.phone || "",
+    });
+    setStatusMessage(`Editando ${department.code || department.name}.`);
+  };
+
+  const handleCancelDepartmentEdit = () => {
+    setEditingDepartmentId(null);
+    setOrgForm({ code: "", name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+    setStatusMessage("");
+  };
+
+  const handleDeactivateDepartment = async () => {
+    if (!effectiveScopeId || !editingDepartmentId || orgBusy) return;
+    const current = activeDepartments.find((item) => item.id === editingDepartmentId);
+    if (!current) return;
+    if (!window.confirm(`Deseja desativar a unidade ${current.code || current.name}?`)) return;
+
+    setOrgBusy(true);
+    try {
+      await upsertRemoteMunicipalDepartment({
+        municipalityId: effectiveScopeId,
+        departmentId: current.id,
+        code: current.code,
+        name: current.name,
+        unitType: current.unitType,
+        parentDepartmentId: current.parentDepartmentId,
+        description: current.description,
+        email: current.email,
+        phone: current.phone,
+        sortOrder: current.sortOrder,
+        isActive: false,
+      });
+      const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
+      setDepartments(rows);
+      handleCancelDepartmentEdit();
+      setStatusMessage("Unidade desativada do organograma.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Não foi possível desativar a unidade.");
+    } finally {
+      setOrgBusy(false);
+    }
+  };
+
   const canManageAccount = (user: SessionUser) => user.id !== session.id && user.role !== "prefeitura_admin";
   const handleBlockToggle = (user: SessionUser) => {
     if (!canManageAccount(user)) { setStatusMessage("Somente o Master pode alterar outro administrador da Prefeitura."); return; }
@@ -674,17 +731,22 @@ export function TenantAdminPage() {
                 <MunicipalOrganizationChart
                   departments={activeDepartments}
                   emptyMessage="Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado para disponibilizar o organograma institucional."
+                  onEdit={handleEditDepartment}
                 />
               </TableCard>
             </PageMainContent>
             <PageSideContent>
               <SectionCard
-                title="Montar organograma"
-                description="Crie a estrutura conforme a realidade de cada Prefeitura. O quadro interno exibe somente as siglas das unidades."
+                title={editingDepartmentId ? "Ajustar unidade" : "Montar organograma"}
+                description={editingDepartmentId ? "Altere sigla, nome, nível, unidade superior e dados institucionais." : "Crie a estrutura conforme a realidade de cada Prefeitura. O quadro interno exibe somente as siglas das unidades."}
                 icon={Plus}
                 contentClassName="space-y-4"
               >
                 <form className="space-y-4" onSubmit={handleCreateDepartment}>
+                  <div className="space-y-2">
+                    <Label>Sigla</Label>
+                    <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder="Ex.: PROT, FIN, ANU" maxLength={8} />
+                  </div>
                   <div className="space-y-2">
                     <Label>Nome da unidade</Label>
                     <Input value={orgForm.name} onChange={(event) => setOrgForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Protocolo, Financeiro, Obras" />
@@ -725,8 +787,18 @@ export function TenantAdminPage() {
                     <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Opcional" />
                   </div>
                   <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
-                    {orgBusy ? "Salvando..." : "Adicionar ao organograma"}
+                    {orgBusy ? "Salvando..." : editingDepartmentId ? "Salvar alterações" : "Adicionar ao organograma"}
                   </Button>
+                  {editingDepartmentId ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" variant="outline" className="rounded-2xl" onClick={handleCancelDepartmentEdit}>
+                        Cancelar
+                      </Button>
+                      <Button type="button" variant="outline" className="rounded-2xl border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => void handleDeactivateDepartment()}>
+                        Desativar
+                      </Button>
+                    </div>
+                  ) : null}
                 </form>
               </SectionCard>
             </PageSideContent>
