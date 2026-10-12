@@ -1307,7 +1307,7 @@ export async function registerRemoteExternalAccount(input: RegisterExternalAccou
   });
 
   if (error) {
-    throw error;
+    throw new Error(formatDatabaseError(error));
   }
 
   return data;
@@ -1696,7 +1696,7 @@ export async function createRemoteExternalProcessV2(
   });
 
   if (error) {
-    throw error;
+    throw new Error(formatDatabaseError(error));
   }
 
   return data as {
