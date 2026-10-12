@@ -362,7 +362,7 @@ export function FinanceDeskPage() {
                 icon={ReceiptText}
                 actions={
                   <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Badge className="rounded-full bg-slate-950 text-white hover:bg-slate-950">Operação ativa</Badge>
+                    <Badge className="sig-force-dark-action rounded-full bg-slate-950 text-white hover:bg-slate-950">Operação ativa</Badge>
                     <Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">
                       {tenantSettings?.guiaPrefixo || "DAM"} / {tenantSettings?.protocoloPrefixo || "SIG"}
                     </Badge>
@@ -394,7 +394,7 @@ export function FinanceDeskPage() {
                         <p className="text-base font-semibold text-slate-950">Situação dos pagamentos</p>
                         <p className="mt-1 text-sm text-slate-500">Baixa, confirmação e pendências.</p>
                       </div>
-                      <Button asChild className="h-11 rounded-full bg-slate-950 hover:bg-slate-900">
+                      <Button asChild className="sig-force-dark-action h-11 rounded-full bg-slate-950 text-white hover:bg-slate-900">
                         <Link to="/prefeitura/financeiro/protocolos">
                           Abrir fila
                           <ArrowRight className="ml-2 h-4 w-4" />
@@ -421,7 +421,7 @@ export function FinanceDeskPage() {
                         <p className="text-base font-semibold text-slate-950">Conciliação e controle</p>
                         <p className="mt-1 text-sm text-slate-500">Retorno, divergências e controle do setor.</p>
                       </div>
-                      <Button asChild className="h-11 rounded-full bg-slate-950 hover:bg-slate-900">
+                      <Button asChild className="sig-force-dark-action h-11 rounded-full bg-slate-950 text-white hover:bg-slate-900">
                         <Link to="/prefeitura/financeiro/iptu">
                           Abrir módulo
                           <ArrowRight className="ml-2 h-4 w-4" />
