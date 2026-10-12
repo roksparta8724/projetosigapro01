@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 const NAVIGATION_STATE_KEY = "sigapro.navigation.state.v1";
-const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v3";
+const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v4";
 let pendingRefreshScrollY: number | null = null;
 let pendingRefreshLocation = "";
 let scrollPersistRaf = 0;
@@ -38,17 +38,6 @@ function persistNavigationState() {
   } catch {}
 }
 
-function collectLoadedCssText() {
-  const chunks: string[] = [];
-  for (const sheet of Array.from(document.styleSheets)) {
-    try {
-      const rules = Array.from(sheet.cssRules ?? []);
-      if (rules.length) chunks.push(rules.map((rule) => rule.cssText).join("\n"));
-    } catch {}
-  }
-  return chunks.join("\n");
-}
-
 function persistVisualSnapshot() {
   if (!appStable || !isInternalPath(window.location.pathname)) return;
   const root = document.getElementById("root");
@@ -61,7 +50,6 @@ function persistVisualSnapshot() {
         host: window.location.host,
         path: currentLocationKey(),
         html: root.innerHTML,
-        cssText: collectLoadedCssText(),
         scrollY: window.scrollY || 0,
         savedAt: Date.now(),
       }),
@@ -170,7 +158,6 @@ function releaseRefreshSnapshot() {
   const finish = () => {
     overlay.removeAttribute("data-visible");
     overlay.replaceChildren();
-    document.getElementById("sigapro-refresh-snapshot-css")?.remove();
     document.documentElement.removeAttribute("data-sigapro-booting");
     pendingRefreshScrollY = null;
     pendingRefreshLocation = "";
