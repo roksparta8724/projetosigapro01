@@ -4894,3 +4894,87 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   -webkit-text-fill-color: #f8fafc !important;
   opacity: 0.72 !important;
 }
+
+
+/* ===== SIGAPRO ATOMIC THEME SURFACES 2026-10-12 =====
+   Surface + foreground switch as one visual state. No white-card/white-text or
+   dark-card/dark-text frame is allowed while changing presets. */
+.sig-main-shell [data-surface="adaptive-card"] {
+  transition-property: transform, box-shadow, border-color !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(203, 213, 225, 0.78) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,
+  .sig-page-title,.sig-section-title,.sig-card-title,.sig-stat-value,.sig-metric-value,
+  .text-slate-950,.text-slate-900,.text-slate-800,
+  .text-gray-950,.text-gray-900,.text-gray-800
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  p,span,label,small,
+  .sig-subtitle,.sig-label,.sig-section-label,.sig-meta,.sig-metric-helper,
+  .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
+) {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sig-inverse-surface) 94%, #0f172a 6%) 0%,
+    color-mix(in srgb, var(--sig-inverse-surface-soft) 92%, #020617 8%) 100%
+  ) !important;
+  border-color: var(--sig-inverse-border) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,
+  .sig-page-title,.sig-section-title,.sig-card-title,.sig-stat-value,.sig-metric-value,
+  .text-slate-950,.text-slate-900,.text-slate-800,
+  .text-gray-950,.text-gray-900,.text-gray-800
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  p,span,label,small,
+  .sig-subtitle,.sig-label,.sig-section-label,.sig-meta,.sig-metric-helper,
+  .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Icons follow the current surface unless they intentionally carry a semantic tone. */
+.sig-main-shell [data-surface="adaptive-card"] svg:not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-amber"]):not([class*="text-yellow"]):not([class*="text-red"]):not([class*="text-rose"]):not([class*="text-sky"]):not([class*="text-blue"]) {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Theme changes are atomic for all common card/action surfaces. Background and
+   foreground never cross-fade independently. */
+.sig-main-shell :is(
+  [data-surface="adaptive-card"],
+  [data-ui="card"],
+  [data-ui="badge"],
+  [data-ui="button"],
+  .sig-ui-card,.sig-stat-card,.sig-metric-card,.sig-section-card,.sig-section-nav
+) {
+  transition-property: transform, box-shadow, border-color, opacity !important;
+}
