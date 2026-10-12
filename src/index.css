@@ -4978,3 +4978,82 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
 ) {
   transition-property: transform, box-shadow, border-color, opacity !important;
 }
+
+
+/* ===== SIGAPRO DARK SURFACE FINAL AUTHORITY 2026-10-12 =====
+   Explicitly dark surfaces stay readable even inside the light theme. */
+.sig-main-shell .sig-fixed-dark-surface,
+[data-layout-mode="default"] .sig-main-shell .sig-fixed-dark-surface,
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-fixed-dark-surface,
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-950"],
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-900"],
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-800"] {
+  background-color: #020617 !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell .sig-fixed-dark-surface :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+),
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-950"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+),
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-900"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+),
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-800"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell .sig-fixed-dark-surface :is(
+  .text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400,
+  .text-slate-500,.text-slate-600,.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950,
+  .text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,
+  .text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-gray-950,
+  .text-white,.text-black
+),
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-950"] :is(
+  .text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400,
+  .text-slate-500,.text-slate-600,.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950,
+  .text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,
+  .text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-gray-950,
+  .text-white,.text-black
+),
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-900"] :is(
+  .text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400,
+  .text-slate-500,.text-slate-600,.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950,
+  .text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,
+  .text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-gray-950,
+  .text-white,.text-black
+) {
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+}
+
+.sig-main-shell .sig-fixed-dark-surface svg,
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-950"] svg,
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-900"] svg,
+.sig-main-shell :is(div,section,article,aside,li)[class~="bg-slate-800"] svg {
+  color: #f8fafc !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Dark badges/buttons in the light theme must also keep a light label. */
+[data-layout-mode="default"] .sig-main-shell :is(
+  button,a,[role="button"],[data-ui="badge"]
+):is(.bg-slate-950,.bg-slate-900,.bg-slate-800) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+[data-layout-mode="default"] .sig-main-shell :is(
+  button,a,[role="button"],[data-ui="badge"]
+):is(.bg-slate-950,.bg-slate-900,.bg-slate-800) * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
