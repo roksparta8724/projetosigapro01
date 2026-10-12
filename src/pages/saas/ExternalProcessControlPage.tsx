@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,8 +94,7 @@ export function ExternalProcessControlPage() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [stageFilter, setStageFilter] = useState("todos");
   const [periodFilter, setPeriodFilter] = useState("todos");
-  const processListRef = useRef<HTMLDivElement | null>(null);
-  const processSummaryRef = useRef<HTMLDivElement | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -251,7 +250,7 @@ export function ExternalProcessControlPage() {
 
         <MainGrid className="xl:grid-cols-1 min-[1480px]:grid-cols-1 min-[1680px]:grid-cols-1">
           <MainContent>
-            <div ref={processListRef} className="scroll-mt-28">
+            <div>
             <SectionPanel
               title="Processos em acompanhamento"
               description="Filtre por protocolo, etapa e status para localizar rapidamente cada processo."
@@ -462,79 +461,148 @@ export function ExternalProcessControlPage() {
             </SectionPanel>
             </div>
 
-            <div className="sticky bottom-5 z-20 flex justify-end pointer-events-none">
+            <div className="sticky bottom-5 z-30 flex justify-end pointer-events-none">
               <Button
                 type="button"
-                className="pointer-events-auto h-11 rounded-full bg-slate-950 px-4 text-[12px] font-semibold !text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)] hover:bg-slate-900 [&_*]:!text-white"
-                onClick={() => processSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                aria-label="Abrir pendências e movimentações"
+                className="pointer-events-auto h-11 rounded-full bg-slate-950 px-4 text-[12px] font-semibold !text-white shadow-[0_14px_34px_rgba(15,23,42,0.28)] hover:bg-slate-900 [&_*]:!text-white"
+                onClick={() => setSummaryOpen(true)}
               >
-                <ArrowDown className="mr-2 h-4 w-4" />
+                <Activity className="mr-2 h-4 w-4" />
                 Pendências e movimentações
+                {requirementCount > 0 ? (
+                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold !text-slate-950">
+                    {requirementCount}
+                  </span>
+                ) : null}
               </Button>
             </div>
 
-            <div ref={processSummaryRef} className="grid scroll-mt-28 gap-5 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
-              <SectionPanel
-                title="Pendências do profissional"
-                description="Exigências que precisam de retorno, complementação ou novo envio de documento."
-                className="h-full min-w-0"
-                contentClassName="space-y-3"
+            {summaryOpen ? (
+              <div
+                className="fixed inset-0 z-[120] flex justify-end bg-slate-950/45 backdrop-blur-[2px]"
+                role="presentation"
+                onMouseDown={(event) => {
+                  if (event.currentTarget === event.target) setSummaryOpen(false);
+                }}
               >
-                {requirementCount === 0 ? (
-                  <div className="sig-dark-panel flex min-h-[164px] items-center rounded-[10px] border border-dashed border-slate-300 p-5 text-[14px] leading-6 text-slate-600">
-                    Nenhuma pendência aberta no momento.
-                  </div>
-                ) : (
-                  filteredProcesses
-                    .filter((process) => (process.requirements ?? []).length > 0)
-                    .slice(0, 4)
-                    .map((process) => (
-                      <div key={`req-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm text-slate-700">
-                        <p className="text-[14px] font-semibold leading-6 text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
-                        <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                        <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
-                          Exigência pendente
-                        </p>
+                <aside
+                  data-process-summary-drawer="true"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Pendências e movimentações"
+                  className="h-full w-full max-w-[760px] overflow-y-auto border-l p-5 shadow-[-24px_0_60px_rgba(2,6,23,0.28)] sm:p-6"
+                >
+                  <div className="mb-6 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Resumo operacional</p>
+                          <h2 className="mt-1 text-[22px] font-bold tracking-[-0.02em] text-slate-950">Pendências e movimentações</h2>
+                        </div>
                       </div>
-                    ))
-                )}
-              </SectionPanel>
-
-              <SectionPanel
-                title="Últimas movimentações"
-                description="Processos atualizados recentemente para acompanhamento rápido."
-                className="h-full min-w-0"
-                contentClassName="space-y-3"
-              >
-                {recentMovements.length === 0 ? (
-                  <div className="sig-dark-panel flex min-h-[164px] items-center rounded-[10px] border border-dashed border-slate-300 p-5 text-[14px] leading-6 text-slate-600">
-                    Nenhuma movimentação recente encontrada.
-                  </div>
-                ) : (
-                  recentMovements.map((process) => (
-                    <div key={`recent-${process.id}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-[14px] font-semibold leading-6 text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
-                      <p className="mt-1 line-clamp-3 text-[14px] leading-6 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                      <p className="mt-2 text-[12px] uppercase tracking-[0.08em] text-slate-500">
-                        Etapa: {process.sla?.currentStage || "Em andamento"}
+                      <p className="mt-3 max-w-[58ch] text-[13px] leading-6 text-slate-500">
+                        Consulte o que exige atenção e os processos atualizados recentemente sem sair da lista principal.
                       </p>
                     </div>
-                  ))
-                )}
-              </SectionPanel>
-            </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 w-10 shrink-0 rounded-full p-0"
+                      onClick={() => setSummaryOpen(false)}
+                      aria-label="Fechar painel"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full border-slate-300 bg-white px-4 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                onClick={() => processListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              >
-                <ArrowUp className="mr-2 h-4 w-4" />
-                Voltar para processos
-              </Button>
-            </div>
+                  <div className="grid gap-5">
+                    <section className="rounded-[20px] border p-5 shadow-sm">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300">
+                            <AlertTriangle className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-[16px] font-bold text-slate-950">Pendências do profissional</h3>
+                            <p className="mt-1 text-[12px] text-slate-500">Exigências que precisam de retorno ou complementação.</p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800">
+                          {requirementCount}
+                        </span>
+                      </div>
+
+                      {requirementCount === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-[13px] text-slate-600">
+                          Nenhuma pendência aberta no momento.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredProcesses
+                            .filter((process) => (process.requirements ?? []).length > 0)
+                            .slice(0, 8)
+                            .map((process) => (
+                              <div key={`drawer-req-${process.id}`} className="rounded-2xl border border-slate-200 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[13px] font-bold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                                    <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                                  </div>
+                                  <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
+                                    <Link to={`/processos/${process.id}`} onClick={() => setSummaryOpen(false)}>Abrir</Link>
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="rounded-[20px] border p-5 shadow-sm">
+                      <div className="mb-4 flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300">
+                          <Clock3 className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-[16px] font-bold text-slate-950">Últimas movimentações</h3>
+                          <p className="mt-1 text-[12px] text-slate-500">Processos atualizados recentemente.</p>
+                        </div>
+                      </div>
+
+                      {recentMovements.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-[13px] text-slate-600">
+                          Nenhuma movimentação recente encontrada.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {recentMovements.map((process) => (
+                            <div key={`drawer-recent-${process.id}`} className="rounded-2xl border border-slate-200 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                                  <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-500">
+                                    Etapa: {process.sla?.currentStage || "Em andamento"}
+                                  </p>
+                                </div>
+                                <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
+                                  <Link to={`/processos/${process.id}?aba=fluxo`} onClick={() => setSummaryOpen(false)}>Ver fluxo</Link>
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                </aside>
+              </div>
+            ) : null}
+
           </MainContent>
         </MainGrid>
       </PageContainer>
