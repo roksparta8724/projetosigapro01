@@ -307,7 +307,9 @@ export default async function handler(req: Req, res: Res) {
         Key: objectKey,
         Body: buffer,
         ContentType: typeof contentType === "string" && contentType ? contentType : "application/octet-stream",
-        Metadata: typeof fileName === "string" && fileName ? { filename: fileName } : undefined,
+        // Do not send original filenames as signed R2 metadata headers.
+        // Accented/localized names can be encoded differently by the HTTP layer
+        // and invalidate SigV4. The original filename is persisted in SIGAPRO data.
       }),
     );
 
