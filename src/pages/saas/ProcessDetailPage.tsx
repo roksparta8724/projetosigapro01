@@ -20,7 +20,6 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
-  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -335,70 +334,6 @@ export function ProcessDetailPage() {
     setDocumentAccessUrls({});
     setDocumentAccessErrors({});
   }, [process?.id]);
-
-  if (!process) {
-      setDocumentAccessUrls({});
-      setDocumentAccessErrors({});
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const documentBucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
-
-    const storedDocuments = process.documents.filter(
-      (document) => document.uploaded && Boolean(document.filePath),
-    );
-
-    if (storedDocuments.length === 0) {
-      setDocumentAccessUrls({});
-      setDocumentAccessErrors({});
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void Promise.all(
-      storedDocuments.map(async (document) => {
-        try {
-          const signedUrl = await getSignedUrlForObjectStrict({
-            bucket: documentBucket,
-            objectKey: document.filePath!,
-            expiresIn: 21600,
-          });
-
-          if (!cancelled && signedUrl) {
-            setDocumentAccessUrls((current) => ({
-              ...current,
-              [document.id]: signedUrl,
-            }));
-            setDocumentAccessErrors((current) => {
-              if (!current[document.id]) return current;
-              const next = { ...current };
-              delete next[document.id];
-              return next;
-            });
-          }
-        } catch (error) {
-          if (!cancelled) {
-            setDocumentAccessErrors((current) => ({
-              ...current,
-              [document.id]:
-                error instanceof Error
-                  ? error.message
-                  : "Não foi possível abrir o documento armazenado.",
-            }));
-          }
-        }
-      }),
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [process]);
 
   if (!process) {
     return (
