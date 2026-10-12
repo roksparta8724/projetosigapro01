@@ -26,16 +26,6 @@ function readBearer(req: Req) {
   return match?.[1]?.trim() || "";
 }
 
-function sanitizeAccessKeyId(value: string) {
-  const normalized = value.replace(/\s+/g, "");
-  const hexOnly = normalized.replace(/[^a-fA-F0-9]/g, "");
-  return hexOnly.length >= 32 ? hexOnly.slice(0, 32) : normalized;
-}
-
-function sanitizeSecret(value: string) {
-  return value.replace(/\s+/g, "");
-}
-
 function setCors(res: Res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -158,8 +148,8 @@ export default async function handler(req: Req, res: Res) {
 
   try {
     const endpoint = readEnv("R2_ENDPOINT");
-    const accessKeyId = sanitizeAccessKeyId(readEnv("R2_ACCESS_KEY_ID"));
-    const secretAccessKey = sanitizeSecret(readEnv("R2_SECRET_ACCESS_KEY"));
+    const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
+    const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const bucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
 
     if (!endpoint || !accessKeyId || !secretAccessKey) {
