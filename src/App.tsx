@@ -37,6 +37,7 @@ import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
 import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
 import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
 import { DocumentAnalysisPage } from "@/pages/saas/DocumentAnalysisPage";
+import { DocumentViewerPage } from "@/pages/saas/DocumentViewerPage";
 import { PerfilPage } from "@/pages/saas/PerfilPage";
 import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
 import { NotificationsPage } from "@/pages/saas/NotificationsPage";
@@ -89,8 +90,10 @@ const AppRoutes = () => {
       pathname === "/" ||
       pathname === "/inicio" ||
       pathname === "/apresentacao";
+    const isFullDocumentRoute =
+      /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
 
-    const zoom = isLandingRoute ? "1" : "0.85";
+    const zoom = isLandingRoute || isFullDocumentRoute ? "1" : "0.85";
     document.documentElement.style.zoom = zoom;
     document.body.style.zoom = "1";
     document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
@@ -420,6 +423,14 @@ const AppRoutes = () => {
               <PlanModuleRoute module="Configurações">
                 <ConfiguracoesPage />
               </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/processos/:processId/documentos/:documentId/visualizar"
+          element={
+            <PermissionRoute permission="view_own_processes">
+              <DocumentViewerPage />
             </PermissionRoute>
           }
         />
