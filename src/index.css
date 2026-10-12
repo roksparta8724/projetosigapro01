@@ -5462,3 +5462,31 @@ html body .sig-institution-logo-surface[data-logo-context="municipality"] img {
   filter: none !important;
   mix-blend-mode: normal !important;
 }
+
+
+/* ===== SELECTED STATE CONTRAST 2026-10-12 =====
+   Any selected/active control with a strong colored surface must use a light foreground. */
+html body .sig-main-shell [role="tab"][data-state="active"],
+html body .sig-main-shell [aria-selected="true"],
+html body .sig-main-shell [data-nav-active="true"],
+html body .sig-main-shell [data-sidebar-active="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [role="tab"][data-state="active"] *,
+html body .sig-main-shell [aria-selected="true"] *,
+html body .sig-main-shell [data-nav-active="true"] *,
+html body .sig-main-shell [data-sidebar-active="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [role="tab"][data-state="active"] svg,
+html body .sig-main-shell [aria-selected="true"] svg,
+html body .sig-main-shell [data-nav-active="true"] svg,
+html body .sig-main-shell [data-sidebar-active="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
