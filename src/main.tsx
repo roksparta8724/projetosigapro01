@@ -7,6 +7,7 @@ const NAVIGATION_STATE_KEY = "sigapro.navigation.state.v1";
 let pendingRefreshScrollY: number | null = null;
 let pendingRefreshLocation = "";
 let scrollPersistRaf = 0;
+let snapshotReleaseInProgress = false;
 
 function currentLocationKey() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -184,12 +185,20 @@ function restoreFrozenSnapshot() {
 
 function releaseFrozenSnapshot() {
   const snapshot = document.getElementById("sigapro-refresh-snapshot");
+  const hasFrozenFrame = snapshot?.getAttribute("data-visible") === "true";
+  if (!hasFrozenFrame) {
+    document.documentElement.removeAttribute("data-sigapro-booting");
+    return;
+  }
+  if (snapshotReleaseInProgress) return;
+  snapshotReleaseInProgress = true;
+
   const currentLocation = currentLocationKey();
   const restoreScroll =
     pendingRefreshScrollY !== null &&
     pendingRefreshLocation === currentLocation
       ? pendingRefreshScrollY
-      : null;
+      : 0;
 
   const finish = () => {
     if (snapshot) {
@@ -201,42 +210,80 @@ function releaseFrozenSnapshot() {
     document.documentElement.removeAttribute("data-sigapro-booting");
     pendingRefreshScrollY = null;
     pendingRefreshLocation = "";
+    snapshotReleaseInProgress = false;
     persistNavigationState();
   };
 
-  if (restoreScroll === null || restoreScroll <= 0) {
-    window.requestAnimationFrame(() => window.requestAnimationFrame(finish));
-    return;
-  }
+  const waitForFonts = async () => {
+    try {
+      if ("fonts" in document && document.fonts?.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+        ]);
+      }
+    } catch {
+      // Fontes não podem bloquear a liberação.
+    }
+  };
 
-  let attempts = 0;
-  const restoreWhenLayoutIsReady = () => {
-    attempts += 1;
-    const documentHeight = Math.max(
-      document.documentElement.scrollHeight,
-      document.body?.scrollHeight || 0,
-    );
-    const maxScroll = Math.max(0, documentHeight - window.innerHeight);
-    const canReachTarget = maxScroll + 2 >= restoreScroll;
+  const criticalImagesReady = () => {
+    const root = document.getElementById("root");
+    if (!root) return false;
+    const images = Array.from(root.querySelectorAll("img"));
+    return images.every((img) => img.complete && (img.naturalWidth > 0 || !img.getAttribute("src")));
+  };
 
-    if (canReachTarget) {
-      window.scrollTo({ top: restoreScroll, left: 0, behavior: "auto" });
-      if (Math.abs(window.scrollY - restoreScroll) <= 3 || attempts >= 180) {
+  const readGeometry = () => {
+    const root = document.getElementById("root");
+    const topbar = root?.querySelector(".sig-premium-topbar") as HTMLElement | null;
+    const sidebar = root?.querySelector(".sig-sidebar-shell") as HTMLElement | null;
+    const main = root?.querySelector(".sig-main-shell") as HTMLElement | null;
+    const footer = root?.querySelector(".sig-page-footer") as HTMLElement | null;
+    const rect = (el: HTMLElement | null) => {
+      if (!el) return "missing";
+      const r = el.getBoundingClientRect();
+      return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10).join(",");
+    };
+    return [rect(topbar), rect(sidebar), rect(main), rect(footer), document.documentElement.scrollHeight].join("|");
+  };
+
+  void waitForFonts().then(() => {
+    let attempts = 0;
+    let stableFrames = 0;
+    let lastGeometry = "";
+
+    const waitUntilPixelStable = () => {
+      attempts += 1;
+
+      const documentHeight = Math.max(
+        document.documentElement.scrollHeight,
+        document.body?.scrollHeight || 0,
+      );
+      const maxScroll = Math.max(0, documentHeight - window.innerHeight);
+      const targetScroll = Math.min(Math.max(0, restoreScroll || 0), maxScroll);
+      window.scrollTo({ top: targetScroll, left: 0, behavior: "auto" });
+
+      const scrollStable = Math.abs(window.scrollY - targetScroll) <= 2;
+      const imagesStable = criticalImagesReady();
+      const geometry = readGeometry();
+      const geometryStable = geometry === lastGeometry && geometry.indexOf("missing") === -1;
+
+      stableFrames = scrollStable && imagesStable && geometryStable ? stableFrames + 1 : 0;
+      lastGeometry = geometry;
+
+      // Six identical animation frames means menu, topbar, cards, text, icons and
+      // footer have stopped changing before the frozen frame is removed.
+      if (stableFrames >= 6 || attempts >= 240) {
         finish();
         return;
       }
-    } else if (attempts >= 180) {
-      window.scrollTo({ top: Math.min(restoreScroll, maxScroll), left: 0, behavior: "auto" });
-      finish();
-      return;
-    }
 
-    window.requestAnimationFrame(restoreWhenLayoutIsReady);
-  };
+      window.requestAnimationFrame(waitUntilPixelStable);
+    };
 
-  // Não remover o frame congelado enquanto a página real ainda não possui
-  // altura suficiente para voltar exatamente ao ponto em que o F5 ocorreu.
-  window.requestAnimationFrame(restoreWhenLayoutIsReady);
+    window.requestAnimationFrame(waitUntilPixelStable);
+  });
 }
 
 window.history.scrollRestoration = "manual";
