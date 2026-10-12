@@ -426,10 +426,10 @@ export function ExternalProcessControlPage() {
                           actor={session.name}
                           triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold shadow-sm hover:bg-slate-50"
                         />
-                        <Button asChild className="h-11 w-full rounded-xl bg-blue-600 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)] hover:bg-blue-700">
-                          <Link to={`/processos/${process.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver detalhes
+                        <Button asChild className="h-11 w-full rounded-xl bg-slate-950 text-[13px] font-semibold !text-white shadow-[0_8px_18px_rgba(15,23,42,0.22)] hover:bg-slate-900 [&_*]:!text-white">
+                          <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2 !text-white">
+                            <Eye className="h-4 w-4 shrink-0 !text-white" />
+                            <span className="!text-white">Ver detalhes</span>
                           </Link>
                         </Button>
                         <Button asChild variant="outline" className="h-11 w-full rounded-xl border-slate-300 bg-white text-[13px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
