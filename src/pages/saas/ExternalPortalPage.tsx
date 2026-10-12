@@ -26,7 +26,6 @@ import {
   statusLabel,
 } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { readProtocolDraft } from "@/lib/protocolDraft";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -42,10 +41,6 @@ export function ExternalPortalPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const profile = getUserProfile(session.id, session.email);
   const activeTab = getExternalTabByPath(location.pathname);
-  const savedDraft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
-  const savedDraftFileCount = savedDraft
-    ? Object.values(savedDraft.files).reduce((total, items) => total + items.length, 0)
-    : 0;
 
   const pendingRequirements = processes.reduce(
     (count, process) => count + (process.requirements ?? []).filter((item) => item.status === "aberta" || item.status === "respondida").length,
@@ -82,14 +77,10 @@ export function ExternalPortalPage() {
           icon={LineChart}
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button
-                asChild
-                className="rounded-full bg-slate-950 hover:bg-slate-900"
-                title={savedDraft ? `${savedDraft.draftNumber} · ${savedDraftFileCount} documento(s)` : "Abrir novo protocolo"}
-              >
+              <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
                 <Link to="/externo/protocolar">
                   <FilePlus2 className="mr-2 h-4 w-4" />
-                  {savedDraft ? "Continuar rascunho" : "Novo protocolo"}
+                  Novo protocolo
                 </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full">
@@ -110,22 +101,6 @@ export function ExternalPortalPage() {
             if (target) navigate(target.route);
           }}
         />
-
-        {savedDraft ? (
-          <div className="flex flex-col gap-3 rounded-[18px] border border-sky-200 bg-sky-50/80 px-4 py-3 shadow-sm dark:border-sky-400/20 dark:bg-sky-400/10 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                Rascunho em andamento · {savedDraft.draftNumber}
-              </p>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                {savedDraftFileCount} documento(s) vinculados · atualizado em {new Date(savedDraft.updatedAt).toLocaleString("pt-BR")}
-              </p>
-            </div>
-            <Button asChild variant="outline" className="shrink-0 rounded-full">
-              <Link to="/externo/protocolar">Continuar rascunho</Link>
-            </Button>
-          </div>
-        ) : null}
 
         <StatsCards>
           <MetricCard title="Em andamento" value={String(activeProcesses)} helper="Protocolos ativos" icon={Waypoints} tone="blue" />
