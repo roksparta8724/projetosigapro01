@@ -63,19 +63,6 @@
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
-
-        // Mantem o mesmo zoom do App antes do primeiro frame e do snapshot.
-        // Isso evita pintar em 100% e trocar para 85% depois durante o F5.
-        var isFullDocumentRoute =
-          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
-        var initialZoom =
-          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
-        document.documentElement.style.zoom = initialZoom;
-        document.documentElement.setAttribute(
-          "data-page-zoom",
-          initialZoom === "1" ? "100" : "85"
-        );
-
         document.documentElement.setAttribute("data-sigapro-booting", "true");
         if (isInternalPath) {
           document.documentElement.setAttribute("data-sigapro-internal", "true");
@@ -170,7 +157,7 @@
             pathname.indexOf("/cliente/") !== 0;
           if (!internal) return;
 
-          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v2");
+          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v1");
           if (!raw) return;
           var snapshot = JSON.parse(raw);
           var locationKey = window.location.pathname + window.location.search + window.location.hash;
@@ -180,7 +167,6 @@
             snapshot.path === locationKey &&
             typeof snapshot.html === "string" &&
             snapshot.html.length > 500 &&
-            snapshot.pageZoom === (document.documentElement.style.zoom || "1") &&
             typeof snapshot.savedAt === "number" &&
             Date.now() - snapshot.savedAt < 120000;
           if (!valid) return;
