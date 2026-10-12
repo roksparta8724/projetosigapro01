@@ -9,14 +9,32 @@ import {
 } from "@/lib/planEntitlements";
 
 export function usePlanEntitlements() {
-  const { plans, planAssignments } = usePlatformData();
-  const { municipality, scopeId } = useMunicipality();
+  const {
+    plans,
+    planAssignments,
+    loading: platformDataLoading,
+    dataError,
+    dataReadyForCurrentUser,
+  } = usePlatformData();
+  const {
+    municipality,
+    scopeId,
+    loading: municipalityLoading,
+  } = useMunicipality();
   const { session } = usePlatformSession();
 
   const municipalityId =
     municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
+  const isResolving =
+    !isMaster &&
+    (
+      municipalityLoading ||
+      platformDataLoading ||
+      !municipalityId ||
+      !dataReadyForCurrentUser
+    );
 
   const state = useMemo(
     () =>
@@ -32,9 +50,12 @@ export function usePlanEntitlements() {
     () => ({
       ...state,
       isMaster,
+      isResolving,
+      dataError,
       isConfigured: Boolean(state.assignment && state.plan),
-      canUseModule: (module: PlanModuleName) => isMaster || planHasModule(state, module),
+      canUseModule: (module: PlanModuleName) =>
+        isMaster || (!isResolving && planHasModule(state, module)),
     }),
-    [isMaster, state],
+    [dataError, isMaster, isResolving, state],
   );
 }
