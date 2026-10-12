@@ -28,6 +28,27 @@ function assertEnv() {
   }
 }
 
+function resolveR2Endpoint() {
+  const accountId = readEnvValue("R2_ACCOUNT_ID")
+    .replace(/^https?:\/\//i, "")
+    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
+    .replace(/[^a-zA-Z0-9]/g, "");
+
+  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
+    return `https://${accountId}.r2.cloudflarestorage.com`;
+  }
+
+  const rawEndpoint = readEnvValue("R2_ENDPOINT");
+  if (!rawEndpoint) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return rawEndpoint.replace(/\/+$/, "");
+  }
+}
+
 function buildPublicUrl(_bucket: string, objectKey: string) {
   const base = readEnvValue("R2_PUBLIC_BASE_URL");
   if (base) {
@@ -80,7 +101,7 @@ function createR2DevApiPlugin(): Plugin {
           const body = await readJsonBody(req);
           const client = new S3Client({
             region: "auto",
-            endpoint: readEnvValue("R2_ENDPOINT"),
+            endpoint: resolveR2Endpoint(),
             credentials: {
               accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
               secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
@@ -124,6 +145,9 @@ function createR2DevApiPlugin(): Plugin {
               bytes: buffer.length,
               contentType,
               accessKeyLength: readEnvValue("R2_ACCESS_KEY_ID").length,
+              endpointHost: (() => {
+                try { return new URL(resolveR2Endpoint()).host; } catch { return "invalid-endpoint"; }
+              })(),
             });
 
             await client.send(
