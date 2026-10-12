@@ -8,6 +8,7 @@ let pendingRefreshScrollY: number | null = null;
 let pendingRefreshLocation = "";
 let scrollPersistRaf = 0;
 let snapshotReleaseInProgress = false;
+let appHasSignaledStable = false;
 
 function currentLocationKey() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -82,7 +83,7 @@ function collectLoadedCssText() {
 }
 
 function persistVisualSnapshot() {
-  if (!isInternalPath(window.location.pathname)) return;
+  if (!isInternalPath(window.location.pathname) || !appHasSignaledStable) return;
   const root = document.getElementById("root");
   if (!root || root.innerHTML.length < 500) return;
 
@@ -102,6 +103,27 @@ function persistVisualSnapshot() {
     );
   } catch {
     // Falha de storage nunca pode afetar a navegação.
+  }
+}
+
+function persistVisualSnapshotScrollOnly() {
+  if (!isInternalPath(window.location.pathname)) return;
+  try {
+    const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
+    if (!raw) return;
+    const snapshot = JSON.parse(raw) as {
+      host?: string;
+      path?: string;
+      scrollY?: number;
+      savedAt?: number;
+      [key: string]: unknown;
+    };
+    if (snapshot.host !== window.location.host || snapshot.path !== currentLocationKey()) return;
+    snapshot.scrollY = window.scrollY || 0;
+    snapshot.savedAt = Date.now();
+    window.sessionStorage.setItem(VISUAL_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    // noop
   }
 }
 
@@ -236,16 +258,33 @@ function releaseFrozenSnapshot() {
 
   const readGeometry = () => {
     const root = document.getElementById("root");
-    const topbar = root?.querySelector(".sig-premium-topbar") as HTMLElement | null;
-    const sidebar = root?.querySelector(".sig-sidebar-shell") as HTMLElement | null;
-    const main = root?.querySelector(".sig-main-shell") as HTMLElement | null;
-    const footer = root?.querySelector(".sig-page-footer") as HTMLElement | null;
-    const rect = (el: HTMLElement | null) => {
-      if (!el) return "missing";
+    const rect = (el: Element | null) => {
+      if (!(el instanceof HTMLElement)) return "missing";
       const r = el.getBoundingClientRect();
       return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10).join(",");
     };
-    return [rect(topbar), rect(sidebar), rect(main), rect(footer), document.documentElement.scrollHeight].join("|");
+
+    const anchors = [
+      root?.querySelector(".sig-premium-topbar") ?? null,
+      root?.querySelector(".sig-sidebar-shell") ?? null,
+      root?.querySelector(".sig-main-shell") ?? null,
+      root?.querySelector(".sig-page-footer") ?? null,
+    ];
+
+    const dynamicBlocks = root
+      ? Array.from(
+          root.querySelectorAll(
+            ".sig-section-card,.sig-stat-card,.sig-metric-card,[data-ui=card],[role=tablist],header,main,footer",
+          ),
+        ).slice(0, 40)
+      : [];
+
+    return [
+      ...anchors.map(rect),
+      ...dynamicBlocks.map(rect),
+      document.documentElement.scrollHeight,
+      document.documentElement.scrollWidth,
+    ].join("|");
   };
 
   void waitForFonts().then(() => {
@@ -274,7 +313,7 @@ function releaseFrozenSnapshot() {
 
       // Six identical animation frames means menu, topbar, cards, text, icons and
       // footer have stopped changing before the frozen frame is removed.
-      if (stableFrames >= 6 || attempts >= 240) {
+      if (stableFrames >= 12 || attempts >= 300) {
         finish();
         return;
       }
@@ -296,19 +335,24 @@ window.addEventListener(
     scrollPersistRaf = window.requestAnimationFrame(() => {
       scrollPersistRaf = 0;
       persistNavigationState();
+      persistVisualSnapshotScrollOnly();
     });
   },
   { passive: true },
 );
 window.addEventListener("beforeunload", () => {
   persistNavigationState();
-  persistVisualSnapshot();
+  persistVisualSnapshotScrollOnly();
 }, { capture: true });
 window.addEventListener("pagehide", () => {
   persistNavigationState();
-  persistVisualSnapshot();
+  persistVisualSnapshotScrollOnly();
 }, { capture: true });
-window.addEventListener("sigapro-app-stable", releaseFrozenSnapshot, { once: true });
+window.addEventListener("sigapro-app-stable", () => {
+  appHasSignaledStable = true;
+  persistVisualSnapshot();
+  releaseFrozenSnapshot();
+});
 
 // O snapshot só é revelado depois que o CSS real do bundle já foi carregado.
 // Isso evita qualquer frame sem estilo ou mudança de largura no F5.
