@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const protocolPage = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolarProjetoPage.tsx"), "utf8");
 const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+const fileDropZone = readFileSync(resolve(process.cwd(), "src/components/platform/FileDropZone.tsx"), "utf8");
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const r2Client = readFileSync(resolve(process.cwd(), "src/integrations/r2/client.ts"), "utf8");
 const recoveryApi = readFileSync(resolve(process.cwd(), "api/r2-list-user-files.ts"), "utf8");
@@ -15,10 +16,25 @@ const migration = readFileSync(
 describe("process document persistence regressions", () => {
   it("never completes a protocol with metadata-only browser files after F5", () => {
     expect(protocolPage).toContain("detachedUploads");
-    expect(protocolPage).toContain("Reabra os arquivos antes de protocolar");
+    expect(protocolPage).toContain("Alguns anexos pertencem a um rascunho antigo");
+    expect(protocolPage).toContain("Selecione esses arquivos uma única vez");
     expect(protocolPage).toContain("documentsWithoutStorage");
     expect(protocolPage).toContain("syncResult.synced");
     expect(protocolPage).toContain("appendProcessDocuments");
+  });
+
+  it("keeps upload cards visually stable while files persist", () => {
+    expect(protocolPage).toContain("filesRef.current");
+    expect(protocolPage).toContain("uploadBusyRef.current");
+    expect(protocolPage).toContain("previewUrl: item.previewUrl || uploaded.publicUrl");
+    expect(protocolPage).not.toContain("previewUrl: uploaded.publicUrl || item.previewUrl");
+    expect(protocolPage).toContain("disabled={hasPendingDocumentUpload");
+    expect(fileDropZone).toContain('data-upload-zone');
+    expect(fileDropZone).toContain('min-h-[18px]');
+    expect(fileDropZone).toContain('h-56');
+    expect(fileDropZone).toContain('sm:h-72');
+    expect(fileDropZone).toContain('URL.createObjectURL(file)');
+    expect(fileDropZone).toContain('transition-colors');
   });
 
   it("requires a real R2 file path and idempotently links it in the official process", () => {
