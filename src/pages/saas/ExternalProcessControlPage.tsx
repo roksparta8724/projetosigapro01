@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,8 @@ export function ExternalProcessControlPage() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [stageFilter, setStageFilter] = useState("todos");
   const [periodFilter, setPeriodFilter] = useState("todos");
+  const processListRef = useRef<HTMLDivElement | null>(null);
+  const processSummaryRef = useRef<HTMLDivElement | null>(null);
 
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -249,6 +251,7 @@ export function ExternalProcessControlPage() {
 
         <MainGrid className="xl:grid-cols-1 min-[1480px]:grid-cols-1 min-[1680px]:grid-cols-1">
           <MainContent>
+            <div ref={processListRef} className="scroll-mt-28">
             <SectionPanel
               title="Processos em acompanhamento"
               description="Filtre por protocolo, etapa e status para localizar rapidamente cada processo."
@@ -456,8 +459,20 @@ export function ExternalProcessControlPage() {
                 </div>
               ) : null}
             </SectionPanel>
+            </div>
 
-            <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
+            <div className="sticky bottom-5 z-20 flex justify-end pointer-events-none">
+              <Button
+                type="button"
+                className="pointer-events-auto h-11 rounded-full bg-slate-950 px-4 text-[12px] font-semibold !text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)] hover:bg-slate-900 [&_*]:!text-white"
+                onClick={() => processSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <ArrowDown className="mr-2 h-4 w-4" />
+                Pendências e movimentações
+              </Button>
+            </div>
+
+            <div ref={processSummaryRef} className="grid scroll-mt-28 gap-5 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
               <SectionPanel
                 title="Pendências do profissional"
                 description="Exigências que precisam de retorno, complementação ou novo envio de documento."
@@ -506,6 +521,18 @@ export function ExternalProcessControlPage() {
                   ))
                 )}
               </SectionPanel>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full border-slate-300 bg-white px-4 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                onClick={() => processListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <ArrowUp className="mr-2 h-4 w-4" />
+                Voltar para processos
+              </Button>
             </div>
           </MainContent>
         </MainGrid>
