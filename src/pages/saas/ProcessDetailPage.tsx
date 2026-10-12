@@ -328,10 +328,15 @@ export function ProcessDetailPage() {
     };
   }, [activeTab, canRecoverStoredDocuments, process]);
 
+  // A listagem do processo não carrega PDFs/imagens reais em segundo plano.
+  // O acesso assinado é gerado somente na rota dedicada de visualização/análise.
+  // Isso elimina reloads de iframe quando o processo recebe atualizações.
   useEffect(() => {
-    let cancelled = false;
+    setDocumentAccessUrls({});
+    setDocumentAccessErrors({});
+  }, [process?.id]);
 
-    if (!process) {
+  if (!process) {
       setDocumentAccessUrls({});
       setDocumentAccessErrors({});
       return () => {
@@ -1247,7 +1252,11 @@ export function ProcessDetailPage() {
               ) : null}
 
               {visibleDocumentRows.map((document) => (
-                <div key={document.id} className="rounded-2xl border border-slate-200 p-4">
+                <div
+                  key={document.id}
+                  data-process-document-card="true"
+                  className="rounded-2xl border border-slate-200 p-4 [contain:layout_style]"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       {document.uploaded ? (
@@ -1312,25 +1321,14 @@ export function ProcessDetailPage() {
                       ) : (document.previewUrl || document.uploaded) ? (
                         <button
                           type="button"
-                          disabled={Boolean(document.filePath && !documentAccessUrls[document.id])}
                           onClick={() => openViewer(document.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
                         >
                           <Maximize2 className="h-3.5 w-3.5" />
                           Abrir documento
                         </button>
                       ) : null}
 
-                      {(document.previewUrl || document.uploaded) && getDocumentFallbackUrl(document) ? (
-                        <a
-                          href={getDocumentFallbackUrl(document)}
-                          download={document.fileName || `${document.label}.pdf`}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Download
-                        </a>
-                      ) : null}
                     </div>
                   </div>
 
@@ -1414,31 +1412,24 @@ export function ProcessDetailPage() {
                   ) : null}
 
                   {!canReviewDocuments && document.uploaded ? (
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      {document.filePath && !documentAccessUrls[document.id] ? (
-                        documentAccessErrors[document.id] ? (
-                          <div className="p-4 text-sm text-red-600">
-                            Não foi possível carregar o arquivo armazenado. Tente novamente em instantes.
-                          </div>
-                        ) : (
-                          <div className="p-4 text-sm text-slate-500">
-                            Gerando acesso seguro ao documento...
-                          </div>
-                        )
-                      ) : document.mimeType === "application/pdf" ? (
-                        <iframe
-                          src={getDocumentFallbackUrl(document)}
-                          title={document.fileName || document.label}
-                          className="h-72 w-full"
-                        />
-                      ) : (
-                        <img
-                          src={getDocumentFallbackUrl(document)}
-                          alt={document.fileName || document.label}
-                          className="max-h-80 w-full object-contain"
-                        />
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openViewer(document.id)}
+                      className="mt-4 flex min-h-[72px] w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors duration-150 hover:border-sky-200 hover:bg-sky-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">
+                          Documento armazenado com segurança
+                        </p>
+                        <p className="mt-1 truncate text-xs text-slate-500">
+                          {document.fileName || document.label}
+                        </p>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        Abrir em nova guia
+                      </span>
+                    </button>
                   ) : null}
 
                   {canReviewDocuments && document.uploaded ? (
