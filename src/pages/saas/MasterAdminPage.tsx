@@ -137,6 +137,8 @@ export function MasterAdminPage() {
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
   const [statusMessage, setStatusMessage] = useState("");
+  const [tenantActionMessage, setTenantActionMessage] = useState<Record<string, string>>({});
+  const [tenantActionBusyId, setTenantActionBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
@@ -350,7 +352,12 @@ export function MasterAdminPage() {
     setSelectedTenantId(tenantId);
     setWorkspaceView("cadastro");
     setStatusMessage("");
-    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    const params = new URLSearchParams(window.location.search);
+    params.set("secao", "cadastro");
+    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    });
   };
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
@@ -364,19 +371,41 @@ export function MasterAdminPage() {
     updateAdminRow(draftId, "accessLevel", known.accessLevel >= 3 ? 3 : 2);
   };
   const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-  const handleCopyLink = async (subdomain: string, customDomain?: string) => {
+  const handleCopyLink = async (subdomain: string, customDomain?: string, tenantId?: string) => {
     const link = buildTenantLink(subdomain, customDomain);
+    const feedbackKey = tenantId || selectedTenantId || subdomain || "global";
     if (!link) {
-      setStatusMessage("Defina um subdomínio para copiar o portal do cliente.");
+      const message = "Defina um subdomínio para copiar o portal do cliente.";
+      setStatusMessage(message);
+      setTenantActionMessage((current) => ({ ...current, [feedbackKey]: message }));
       return;
     }
-    console.log("[CopyPortalLink] Copiando link do portal", { subdomain, customDomain, link });
+
+    let copied = false;
     try {
-      await navigator.clipboard.writeText(link);
-      setStatusMessage("Link do cliente copiado com sucesso.");
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        copied = true;
+      }
     } catch {
-      setStatusMessage(`Link do cliente: ${link}`);
+      copied = false;
     }
+
+    if (!copied) {
+      const textarea = document.createElement("textarea");
+      textarea.value = link;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      copied = document.execCommand("copy");
+      textarea.remove();
+    }
+
+    const message = copied ? "Link copiado para a área de transferência." : `Portal: ${link}`;
+    setStatusMessage(message);
+    setTenantActionMessage((current) => ({ ...current, [feedbackKey]: message }));
   };
   const runUserCommand = async (userId: string, command: () => Promise<SessionUser | null>, success: (user: SessionUser) => string) => {
     if (savingUserId) return;
@@ -645,7 +674,7 @@ export function MasterAdminPage() {
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleSelectTenant(tenant.id)}>
               Gerenciar
             </Button>
-            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site)}>
+            <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site, tenant.id)}>
               <Copy className="mr-2 h-4 w-4 text-sky-200" />
               Copiar link
             </Button>
@@ -653,28 +682,38 @@ export function MasterAdminPage() {
               type="button"
               variant="outline"
               className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto"
+              disabled={tenantActionBusyId === tenant.id}
               onClick={() => {
                 void (async () => {
                   const nextStatus = tenant.status === "suspenso" ? "ativo" : "suspenso";
-                  setStatusMessage("Atualizando status no banco oficial...");
+                  const loadingMessage = nextStatus === "ativo" ? "Reativando Prefeitura..." : "Suspendendo Prefeitura...";
+                  setTenantActionBusyId(tenant.id);
+                  setStatusMessage(loadingMessage);
+                  setTenantActionMessage((current) => ({ ...current, [tenant.id]: loadingMessage }));
                   try {
                     await setInstitutionStatus(tenant.id, nextStatus);
-                    setStatusMessage(
+                    const successMessage =
                       nextStatus === "ativo"
-                        ? `${tenant.name} reativada no banco oficial com sucesso.`
-                        : `${tenant.name} suspensa no banco oficial com sucesso.`,
-                    );
+                        ? `${tenant.name} reativada com sucesso.`
+                        : `${tenant.name} suspensa com sucesso.`;
+                    setStatusMessage(successMessage);
+                    setTenantActionMessage((current) => ({ ...current, [tenant.id]: successMessage }));
                   } catch (error) {
-                    setStatusMessage(
+                    const message =
                       error instanceof Error
                         ? error.message
-                        : "Não foi possível alterar o status da Prefeitura no banco oficial.",
-                    );
+                        : "Não foi possível alterar o status da Prefeitura.";
+                    setStatusMessage(message);
+                    setTenantActionMessage((current) => ({ ...current, [tenant.id]: message }));
+                  } finally {
+                    setTenantActionBusyId(null);
                   }
                 })();
               }}
             >
-              {tenant.status === "suspenso" ? (
+              {tenantActionBusyId === tenant.id ? (
+                "Salvando..."
+              ) : tenant.status === "suspenso" ? (
                 <>
                   <Undo2 className="mr-2 h-4 w-4 text-sky-200" />
                   Ativar
@@ -689,6 +728,12 @@ export function MasterAdminPage() {
 
           </div>
         </div>
+
+        {tenantActionMessage[tenant.id] ? (
+          <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+            {tenantActionMessage[tenant.id]}
+          </div>
+        ) : null}
 
           <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_1fr_1.2fr]">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
