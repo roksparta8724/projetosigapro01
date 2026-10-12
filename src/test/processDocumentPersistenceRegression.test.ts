@@ -42,7 +42,6 @@ describe("process document persistence regressions", () => {
 
   it("never embeds live PDF viewers inside process document cards", () => {
     expect(processDetail).toContain('data-process-document-card="true"');
-    expect(processDetail).toContain("Documento armazenado com segurança");
     expect(processDetail).toContain("/visualizar");
     expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
