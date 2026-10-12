@@ -248,7 +248,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
+  );
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerColor, setMarkerColor] = useState("#2563eb");
   const [markerSavePulse, setMarkerSavePulse] = useState(false);
@@ -696,7 +698,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const accountContextDescription = isMasterUser
     ? "Governança central da plataforma"
     : institutionDisplayName;
-  const accountStatusLabel = loading ? "Sincronizando" : "Conta ativa";
+  const accountStatusLabel = "Conta ativa";
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
