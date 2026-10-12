@@ -5695,3 +5695,46 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
 [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] .border-slate-300 {
   border-color: rgba(148,163,184,0.22) !important;
 }
+
+
+/* ===== PROCESS SUMMARY DRAWER THEME ===== */
+[data-layout-mode="default"] .sig-main-shell [data-process-summary-drawer="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(203,213,225,0.9) !important;
+  color: #0f172a !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-process-summary-drawer="true"] section {
+  background: #ffffff !important;
+  border-color: rgba(203,213,225,0.9) !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] {
+  background: linear-gradient(180deg, #111f31 0%, #0e1b2b 100%) !important;
+  border-color: rgba(148,163,184,0.18) !important;
+  color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] section {
+  background: linear-gradient(180deg, rgba(15,31,51,0.96) 0%, rgba(12,26,43,0.96) 100%) !important;
+  border-color: rgba(148,163,184,0.16) !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] :is(
+  h1,h2,h3,h4,p,span,a,button,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] .border-slate-200,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-summary-drawer="true"] .border-slate-300 {
+  border-color: rgba(148,163,184,0.2) !important;
+}
