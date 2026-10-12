@@ -5465,28 +5465,52 @@ html body .sig-institution-logo-surface[data-logo-context="municipality"] img {
 
 
 /* ===== SELECTED STATE CONTRAST 2026-10-12 =====
-   Any selected/active control with a strong colored surface must use a light foreground. */
-html body .sig-main-shell [role="tab"][data-state="active"],
-html body .sig-main-shell [aria-selected="true"],
-html body .sig-main-shell [data-nav-active="true"],
-html body .sig-main-shell [data-sidebar-active="true"] {
+   Selected controls always use the opposite foreground from their active surface. */
+html body [data-layout-mode="default"] .sig-main-shell [role="tab"][data-state="active"],
+html body [data-layout-mode="default"] .sig-main-shell [aria-selected="true"] {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
-html body .sig-main-shell [role="tab"][data-state="active"] *,
-html body .sig-main-shell [aria-selected="true"] *,
+html body [data-layout-mode="default"] .sig-main-shell [role="tab"][data-state="active"] *,
+html body [data-layout-mode="default"] .sig-main-shell [aria-selected="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [aria-selected="true"] {
+  background: linear-gradient(135deg, #dcecff 0%, #9cc6ff 100%) !important;
+  border-color: rgba(156, 198, 255, 0.48) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"] *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [aria-selected="true"] * {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [role="tab"][data-state="active"] svg,
+html body [data-layout-mode="default"] .sig-main-shell [aria-selected="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [role="tab"][data-state="active"] svg,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [aria-selected="true"] svg {
+  color: #0f172a !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Sidebar/navigation remain strong surfaces in both themes and keep a light foreground. */
+html body .sig-main-shell [data-nav-active="true"],
+html body .sig-main-shell [data-sidebar-active="true"],
 html body .sig-main-shell [data-nav-active="true"] *,
 html body .sig-main-shell [data-sidebar-active="true"] * {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
-}
-
-html body .sig-main-shell [role="tab"][data-state="active"] svg,
-html body .sig-main-shell [aria-selected="true"] svg,
-html body .sig-main-shell [data-nav-active="true"] svg,
-html body .sig-main-shell [data-sidebar-active="true"] svg {
-  color: #ffffff !important;
-  stroke: currentColor !important;
-  opacity: 1 !important;
 }
