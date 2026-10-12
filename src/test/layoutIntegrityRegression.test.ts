@@ -104,6 +104,16 @@ describe("layout integrity regression", () => {
     expect(settings).toContain('onChange={updateMasterLogoFrame("footer")}');
     expect(settings).toContain("Clique e arraste o logo para posicionar");
     expect(settings).toContain("Resetar posição");
+    expect(settings).toContain('viewportClassName="h-[300px] w-full max-w-[560px]"');
+    expect(settings).toContain('wrapperClassName="sig-master-logo-editor"');
+  });
+
+  it("keeps hard contrast on dark buttons and cards regardless of theme inheritance", () => {
+    const css = read("src/index.css");
+    expect(css).toContain("SIGAPRO HARD CONTRAST GUARD 2026-10-12");
+    expect(css).toContain(".sig-main-shell .sig-force-dark-action");
+    expect(css).toContain('button[class~="bg-slate-950"]');
+    expect(css).toContain("color: #ffffff !important");
   });
 
   it("keeps finance subpages free from forced narrow PIX and early fixed widths", () => {
