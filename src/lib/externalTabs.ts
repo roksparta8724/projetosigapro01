@@ -8,5 +8,10 @@ export const externalTabs = [
 ];
 
 export function getExternalTabByPath(pathname: string) {
-  return externalTabs.find((tab) => tab.route === pathname) ?? externalTabs[0];
+  return (
+    [...externalTabs]
+      .sort((a, b) => b.route.length - a.route.length)
+      .find((tab) => pathname === tab.route || pathname.startsWith(`${tab.route}/`)) ??
+    externalTabs[0]
+  );
 }
