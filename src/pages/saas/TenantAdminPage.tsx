@@ -84,6 +84,11 @@ export function TenantAdminPage() {
         new Set(
           [
             currentUnit,
+            "Secretário",
+            "Diretor",
+            "Chefe de Divisão",
+            "Assistente Administrativo",
+            "Auxiliar Administrativo",
             ...tenantUsers.flatMap((user) => [user.title, user.department]),
             ...tenantRoles.map((role) => roleSuggestedTitles[role]),
           ].filter((value): value is string => Boolean(value?.trim())),
