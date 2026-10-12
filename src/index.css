@@ -4915,7 +4915,7 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   .sig-page-title,.sig-section-title,.sig-card-title,.sig-stat-value,.sig-metric-value,
   .text-slate-950,.text-slate-900,.text-slate-800,
   .text-gray-950,.text-gray-900,.text-gray-800
-) {
+):not(.sig-fixed-dark-surface *) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
@@ -4925,7 +4925,7 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   .sig-subtitle,.sig-label,.sig-section-label,.sig-meta,.sig-metric-helper,
   .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
   .text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400
-) {
+):not(.sig-fixed-dark-surface *) {
   color: #475569 !important;
   -webkit-text-fill-color: #475569 !important;
 }
@@ -5158,4 +5158,26 @@ html body .sig-fixed-dark-surface > * > *,
 html body .sig-fixed-dark-surface > * > * > * {
   color: #f8fafc !important;
   -webkit-text-fill-color: #f8fafc !important;
+}
+
+
+/* ===== SIGAPRO NESTED DARK SURFACE ROOT FIX 2026-10-12 =====
+   A dark preview can live inside a light adaptive card. The inner surface owns
+   its own foreground and must never inherit the light-card foreground. */
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] .sig-fixed-dark-surface,
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] .sig-fixed-dark-surface * {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] .sig-fixed-dark-surface svg {
+  color: #f8fafc !important;
+  stroke: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] .sig-force-dark-action,
+[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] .sig-force-dark-action * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
