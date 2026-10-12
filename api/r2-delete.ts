@@ -204,8 +204,15 @@ export default async function handler(req: Req, res: Res) {
 
     json(res, 200, { ok: true, bucket, objectKey });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao remover o arquivo.";
-    console.error("[SIGAPRO][R2] Falha no delete", { error: message });
-    json(res, 500, { error: message });
+    const rawMessage = error instanceof Error ? error.message : "Erro ao remover o arquivo.";
+    const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
+    const message = signatureMismatch
+      ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
+      : rawMessage;
+    console.error("[SIGAPRO][R2] Falha no delete", { error: rawMessage });
+    json(res, 500, {
+      error: message,
+      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",
+    });
   }
 }
