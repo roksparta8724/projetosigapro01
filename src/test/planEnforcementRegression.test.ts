@@ -17,6 +17,22 @@ describe("commercial plan enforcement", () => {
     expect(portal).toContain("planEntitlements.canUseModule(item.module)");
   });
 
+  it("never treats stale account data as a missing commercial plan during account switching", () => {
+    const route = read("src/components/platform/PlanModuleRoute.tsx");
+    const hook = read("src/hooks/usePlanEntitlements.ts");
+    const data = read("src/hooks/usePlatformData.tsx");
+
+    expect(data).toContain("dataReadyForCurrentUser");
+    expect(data).toContain("remoteContextUserId === authenticatedUserId");
+    expect(hook).toContain("isResolving");
+    expect(hook).toContain("!dataReadyForCurrentUser");
+    expect(route).toContain("if (entitlements.isResolving)");
+    expect(route.indexOf("if (entitlements.isResolving)")).toBeLessThan(
+      route.indexOf('const planName = entitlements.plan?.name ?? "não configurado"'),
+    );
+    expect(route).toContain("Validando acesso da Prefeitura");
+  });
+
   it("enforces quotas in the database, not only in the interface", () => {
     const migration = read("supabase/migrations/20261011223000_plan_entitlements_enforcement.sql");
 
