@@ -90,7 +90,12 @@ export function DocumentViewerPage() {
     return () => {
       cancelled = true;
     };
-  }, [allowed, document]);
+  }, [
+    allowed,
+    document?.id,
+    document?.filePath,
+    document?.previewUrl,
+  ]);
 
   if (!process || !document) {
     return (
