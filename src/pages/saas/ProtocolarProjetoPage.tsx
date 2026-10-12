@@ -1131,7 +1131,12 @@ export function ProtocolarProjetoPage() {
                             multiple={false}
                             allowPreview
                             busy={Boolean(uploadingLabels[item.label])}
-                            disabled={hasPendingDocumentUpload && !uploadingLabels[item.label]}
+                            disabled={
+                              !effectiveScopeId ||
+                              savingDraft ||
+                              submitting ||
+                              (hasPendingDocumentUpload && !uploadingLabels[item.label])
+                            }
                             files={files[item.label] ?? []}
                             onFilesSelected={(selected) => handleDocumentFilesSelected(item.label, selected)}
                           />
@@ -1156,7 +1161,13 @@ export function ProtocolarProjetoPage() {
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
           >
-            <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => navigate(-1)}
+              disabled={savingDraft || submitting || hasPendingDocumentUpload}
+            >
               Voltar
             </Button>
 
