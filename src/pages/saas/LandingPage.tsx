@@ -298,7 +298,7 @@ export function LandingPage() {
     value: { label: "Participacao", color: "#60a5fa" },
   };
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
+    <div data-landing-root="true" className="min-h-screen overflow-x-hidden bg-white text-slate-900 [font-family:Inter,sans-serif]">
       <LandingSEO faqItems={faqItems} />
       <LandingHeader navItems={navItems} onOpenDemo={() => setDemoModalOpen(true)} />
       <LandingDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
@@ -1118,6 +1118,7 @@ export function LandingPage() {
                   <Button
                     type="button"
                     size="lg"
+                    data-landing-cta-white="true"
                     className="h-12 w-full rounded-full bg-white px-6 text-sm font-semibold text-slate-950 hover:bg-slate-100"
                     onClick={() => setDemoModalOpen(true)}
                   >
