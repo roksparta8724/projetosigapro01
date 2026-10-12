@@ -2817,7 +2817,7 @@ export function ConfiguracoesPage() {
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
                         Remover logo
                       </Button>
-                      <Button type="button" className="rounded-2xl bg-slate-950 hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
+                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                       <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
@@ -2899,7 +2899,7 @@ export function ConfiguracoesPage() {
                       >
                         Remover logo
                       </Button>
-                      <Button type="button" className="rounded-2xl bg-slate-950 hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
+                      <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
                         {logoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                     </div>
@@ -2997,7 +2997,7 @@ export function ConfiguracoesPage() {
                   <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-slate-500">
                     Configure o logo exibido no cabeçalho e no rodapé do ambiente Master, sem misturar com a Prefeitura.
                   </p>
-                  <div className="mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(520px,1.15fr)_minmax(340px,0.85fr)]">
+                  <div className="mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(460px,0.9fr)_minmax(560px,1.1fr)]">
                     <div
                       className="min-w-0 overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
                       style={{ background: `linear-gradient(135deg, ${masterPrimaryColor} 0%, ${darken(masterPrimaryColor, -6)} 58%, ${darken(masterPrimaryColor, -10)} 100%)` }}
@@ -3042,8 +3042,9 @@ export function ConfiguracoesPage() {
                         minScale={0.35}
                         maxScale={5}
                         zoomStep={0.1}
-                        frameClassName="justify-start"
-                        viewportClassName="h-[190px] w-[240px]"
+                        frameClassName="justify-center"
+                        wrapperClassName="sig-master-logo-editor"
+                        viewportClassName="h-[300px] w-full max-w-[560px]"
                         darkLogoPreview
                       />
                       <div className="flex flex-wrap gap-3">
@@ -3057,7 +3058,7 @@ export function ConfiguracoesPage() {
                         </Button>
                         <Button
                           type="button"
-                          className="rounded-2xl bg-slate-950 hover:bg-slate-900"
+                          className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
                           onClick={() => handleConfirmMasterLogo("header")}
                           disabled={masterLogoSaving === "header"}
                         >
@@ -3099,8 +3100,9 @@ export function ConfiguracoesPage() {
                         minScale={0.35}
                         maxScale={5}
                         zoomStep={0.1}
-                        frameClassName="justify-start"
-                        viewportClassName="h-[190px] w-[240px]"
+                        frameClassName="justify-center"
+                        wrapperClassName="sig-master-logo-editor"
+                        viewportClassName="h-[300px] w-full max-w-[560px]"
                         darkLogoPreview
                       />
                       <div className="flex flex-wrap gap-3">
@@ -3114,7 +3116,7 @@ export function ConfiguracoesPage() {
                         </Button>
                         <Button
                           type="button"
-                          className="rounded-2xl bg-slate-950 hover:bg-slate-900"
+                          className="sig-force-dark-action rounded-2xl bg-slate-950 text-white hover:bg-slate-900"
                           onClick={() => handleConfirmMasterLogo("footer")}
                           disabled={masterLogoSaving === "footer"}
                         >
