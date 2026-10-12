@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v1";
+const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v2";
 const NAVIGATION_STATE_KEY = "sigapro.navigation.state.v1";
 let pendingRefreshScrollY: number | null = null;
 let pendingRefreshLocation = "";
@@ -98,6 +98,7 @@ function persistVisualSnapshot() {
         scrollY: window.scrollY || 0,
         viewportWidth: document.documentElement.clientWidth || window.innerWidth,
         viewportHeight: window.innerHeight,
+        pageZoom: document.documentElement.style.zoom || "1",
         savedAt: Date.now(),
       }),
     );
@@ -159,6 +160,7 @@ function restoreFrozenSnapshot() {
       scrollY?: number;
       viewportWidth?: number;
       viewportHeight?: number;
+      pageZoom?: string;
       savedAt?: number;
     };
 
@@ -168,6 +170,7 @@ function restoreFrozenSnapshot() {
       snapshot.path === currentLocation &&
       typeof snapshot.html === "string" &&
       snapshot.html.length > 500 &&
+      snapshot.pageZoom === (document.documentElement.style.zoom || "1") &&
       typeof snapshot.savedAt === "number" &&
       Date.now() - snapshot.savedAt < 120000;
 
