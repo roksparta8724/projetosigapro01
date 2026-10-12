@@ -203,7 +203,6 @@ export function InternalSectionNav({
 }) {
   return (
     <section
-      data-surface="adaptive-card"
       className={cn(
         "sig-section-nav rounded-[20px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-white/70 sm:rounded-[24px] sm:p-2.5",
         className,
