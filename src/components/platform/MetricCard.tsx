@@ -20,8 +20,10 @@ export function MetricCard({
 }) {
   return (
     <section
+      data-ui="card"
+      data-surface="adaptive-card"
       className={cn(
-        "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition duration-200",
+        "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition-[transform,box-shadow,border-color] duration-200",
       )}
     >
       <div className="flex h-full min-w-0 items-start justify-between gap-4">
