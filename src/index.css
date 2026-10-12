@@ -710,24 +710,7 @@
     transition: none;
   }
 
-  html[data-sigapro-booting="true"] *,
-  html[data-sigapro-booting="true"] *::before,
-  html[data-sigapro-booting="true"] *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    transition-duration: 0s !important;
-    transition-delay: 0s !important;
-    scroll-behavior: auto !important;
-  }
 
-  html[data-sigapro-booting="true"] .sig-app-frame,
-  html[data-sigapro-booting="true"] .sig-content-frame,
-  html[data-sigapro-booting="true"] .sig-premium-topbar,
-  html[data-sigapro-booting="true"] .sig-sidebar-shell,
-  html[data-sigapro-booting="true"] .sig-main-shell {
-    opacity: 1 !important;
-    transform: none !important;
-  }
 
   [data-layout-mode="default"] .sig-main-shell .text-slate-400,
   [data-layout-mode="default"] .sig-main-shell .text-slate-500 {
@@ -5516,19 +5499,6 @@ html body .sig-main-shell [data-sidebar-active="true"] * {
 }
 
 
-/* ===== STABLE SHELL ON HARD REFRESH 2026-10-12 ===== */
-html[data-sigapro-booting="true"] .sig-premium-topbar,
-html[data-sigapro-booting="true"] .sig-sidebar-shell,
-html[data-sigapro-booting="true"] .sig-page-footer,
-html[data-sigapro-booting="true"] .sig-premium-topbar *,
-html[data-sigapro-booting="true"] .sig-sidebar-shell *,
-html[data-sigapro-booting="true"] .sig-page-footer * {
-  animation: none !important;
-  transition: none !important;
-  transform: none !important;
-}
-
-
 /* ===== IMMUTABLE APPLICATION SHELL 2026-10-12 =====
    Topbar, desktop sidebar and footer are structural chrome.
    They never animate, resize or fade during route/data refreshes. */
@@ -5558,25 +5528,3 @@ html[data-sigapro-booting="true"] .sig-page-footer * {
 }
 
 
-/* ===== NO WHITE CONTENT SHELL ON F5 2026-10-12 =====
-   During the short bootstrap window, keep the app chrome fixed and paint the
-   content region with the real theme background instead of the white card shell. */
-html[data-sigapro-booting="true"] .sig-content-frame {
-  background: var(--sig-page-background, var(--sig-initial-bg, #f3faf7)) !important;
-}
-
-html[data-sigapro-booting="true"] .sig-main-shell {
-  background: transparent !important;
-  background-image: none !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-}
-
-/* The chrome must remain fully visible and unchanged while only the page body hydrates. */
-html[data-sigapro-booting="true"] .sig-premium-topbar,
-html[data-sigapro-booting="true"] .sig-sidebar-shell,
-html[data-sigapro-booting="true"] .sig-page-footer {
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: none !important;
-}
