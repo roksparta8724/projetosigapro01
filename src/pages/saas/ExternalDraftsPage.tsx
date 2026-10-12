@@ -29,7 +29,7 @@ export function ExternalDraftsPage() {
           description="Projetos ainda não protocolados ficam separados dos processos oficiais. Retome somente quando quiser continuar a abertura."
           icon={FilePenLine}
           actions={
-            <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
+            <Button asChild data-draft-dark-action="true" className="rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
               <Link to="/externo/protocolar">
                 <FilePlus2 className="mr-2 h-4 w-4" />
                 Novo protocolo
@@ -78,7 +78,7 @@ export function ExternalDraftsPage() {
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                 Inicie um novo protocolo e use “Salvar rascunho” quando quiser continuar em outro momento.
               </p>
-              <Button asChild className="mt-5 rounded-full bg-slate-950 hover:bg-slate-900">
+              <Button asChild data-draft-dark-action="true" className="mt-5 rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
                 <Link to="/externo/protocolar">Criar novo protocolo</Link>
               </Button>
             </div>
@@ -142,7 +142,7 @@ export function ExternalDraftsPage() {
                     </div>
 
                     <div className="flex items-center border-t border-slate-200 p-5 dark:border-slate-700 lg:border-t-0">
-                      <Button asChild className="w-full rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
+                      <Button asChild data-draft-dark-action="true" className="w-full rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900 [&_*]:!text-white">
                         <Link to={`/externo/protocolar?rascunho=${encodeURIComponent(draft.draftNumber)}`}>
                           Continuar rascunho
                         </Link>
