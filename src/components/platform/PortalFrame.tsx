@@ -1755,7 +1755,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 collisionPadding={8}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(100vw-16px,360px)] rounded-[28px] border p-2.5 shadow-[0_28px_64px_rgba(15,42,68,0.26)] backdrop-blur-xl",
+                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
