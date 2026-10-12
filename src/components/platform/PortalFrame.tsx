@@ -1999,7 +1999,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </div>
                     <div className="min-w-0">
                     <p className="text-[11px] font-normal uppercase tracking-[0.1em] text-[#D8E9F5]">{eyebrow}</p>
-                    <h1 className="mt-1 sig-fit-title max-w-[56ch] text-lg font-medium leading-tight text-[#FFFFFF] md:text-[1.0625rem] lg:text-[1.125rem]" title={title}>{title}</h1>
+                    <h1 className="mt-1 sig-fit-title max-w-[56ch] text-lg font-medium leading-tight text-[#FFFFFF] md:text-[1.0625rem] lg:text-[1.125rem]">{title}</h1>
                   </div>
                 </div>
                 </div>
@@ -2016,7 +2016,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base" title={institutionDisplayName}>
+                      <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base">
                         {institutionDisplayName}
                       </p>
                       <p className="mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm">
