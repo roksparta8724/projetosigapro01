@@ -5581,3 +5581,23 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   stroke: currentColor !important;
   opacity: 1 !important;
 }
+
+
+/* ===== CADASTRO PREVIEW EXACT TEXT IDS ===== */
+#cadastro-preview-visual,
+#cadastro-preview-cabecalho,
+#cadastro-preview-prefeitura,
+#cadastro-preview-secretaria,
+#cadastro-preview-usuario {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+#cadastro-preview-usuario,
+#cadastro-preview-usuario * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
