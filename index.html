@@ -116,7 +116,7 @@
         min-width: var(--sig-snapshot-viewport-width, 100vw);
         min-height: var(--sig-snapshot-viewport-height, 100vh);
         transform: none !important;
-        contain: layout paint style;
+        contain: none !important;
       }
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
@@ -130,6 +130,32 @@
 
       html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] ~ #root {
         visibility: hidden !important;
+      }
+
+      /* Refresh shell invariant:
+         fixed shell elements must remain viewport-fixed while page content is offset
+         to the saved scroll position. Never let a transformed/contained ancestor
+         turn the fixed topbar into a scrolling element. */
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sigapro-snapshot-viewport,
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-app-frame,
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-content-frame,
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-topbar-portal-host {
+        transform: none !important;
+        filter: none !important;
+        perspective: none !important;
+        contain: none !important;
+      }
+
+      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-premium-topbar {
+        position: fixed !important;
+        inset: 0 0 auto 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        transform: none !important;
+        z-index: 2147483647 !important;
+        visibility: visible !important;
+        opacity: 1 !important;
       }
     </style>
   </head>
