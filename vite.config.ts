@@ -2,7 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const REQUIRED_ENV = [
@@ -28,25 +28,81 @@ function assertEnv() {
   }
 }
 
-function resolveR2Endpoint() {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  const rawEndpoint = readEnvValue("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+      candidates.push(`${url.protocol}//${url.host}`);
+    } catch {
+      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+    }
+  }
+
   const accountId = readEnvValue("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
 
   if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
   }
 
-  const rawEndpoint = readEnvValue("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
 
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
+function resolveR2Endpoint() {
+  return getR2EndpointCandidates()[0] || "";
+}
+
+function isR2CredentialError(error: unknown) {
+  const name =
+    error && typeof error === "object" && "name" in error
+      ? String((error as { name?: unknown }).name || "")
+      : "";
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
+    /signature.*does not match|invalid access key|access denied/i.test(message);
+}
+
+async function sendR2WithFallback<T>(command: any): Promise<T> {
+  const endpoints = getR2EndpointCandidates();
+  if (endpoints.length === 0) {
+    throw new Error("Endpoint R2 não configurado.");
   }
+
+  let lastError: unknown;
+  for (const endpoint of endpoints) {
+    const client = new S3Client({
+      region: "auto",
+      endpoint,
+      credentials: {
+        accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
+        secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
+      },
+    });
+
+    try {
+      return await client.send(command) as T;
+    } catch (error) {
+      lastError = error;
+      if (!isR2CredentialError(error)) throw error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha de autenticação no armazenamento R2.");
+}
+
+function normalizeR2Error(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error || "");
+  if (isR2CredentialError(error)) {
+    return "Falha de autenticação no armazenamento R2. As credenciais configuradas não correspondem à conta do bucket.";
+  }
+  return raw || "Falha no armazenamento R2.";
 }
 
 function buildPublicUrl(_bucket: string, objectKey: string) {
@@ -99,14 +155,14 @@ function createR2DevApiPlugin(): Plugin {
         try {
           assertEnv();
           const body = await readJsonBody(req);
-          const client = new S3Client({
-            region: "auto",
-            endpoint: resolveR2Endpoint(),
-            credentials: {
-              accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
-              secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
-            },
-          });
+          if (req.url.startsWith("/api/r2-health")) {
+            const bucket = readEnvValue("R2_BUCKET_DOCUMENTOS");
+            await sendR2WithFallback(new HeadBucketCommand({ Bucket: bucket }));
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: true, bucket }));
+            return;
+          }
 
           if (req.url.startsWith("/api/r2-upload")) {
             console.log("[SIGAPRO][R2] rota local /api/r2-upload acionada");
@@ -150,7 +206,7 @@ function createR2DevApiPlugin(): Plugin {
               })(),
             });
 
-            await client.send(
+            await sendR2WithFallback(
               new PutObjectCommand({
                 Bucket: bucket,
                 Key: objectKey,
@@ -197,7 +253,7 @@ function createR2DevApiPlugin(): Plugin {
               return;
             }
 
-            await client.send(
+            await sendR2WithFallback(
               new DeleteObjectCommand({
                 Bucket: bucket,
                 Key: objectKey,
@@ -232,8 +288,16 @@ function createR2DevApiPlugin(): Plugin {
               return;
             }
 
+            const presignClient = new S3Client({
+              region: "auto",
+              endpoint: resolveR2Endpoint(),
+              credentials: {
+                accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
+                secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
+              },
+            });
             const uploadUrl = await getSignedUrl(
-              client,
+              presignClient,
               new PutObjectCommand({
                 Bucket: bucket,
                 Key: objectKey,
@@ -280,8 +344,16 @@ function createR2DevApiPlugin(): Plugin {
             const ttl =
               typeof expiresIn === "number" && expiresIn > 0 ? Math.min(expiresIn, 3600) : 900;
 
+            const signClient = new S3Client({
+              region: "auto",
+              endpoint: resolveR2Endpoint(),
+              credentials: {
+                accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
+                secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
+              },
+            });
             const signedUrl = await getSignedUrl(
-              client,
+              signClient,
               new GetObjectCommand({
                 Bucket: bucket,
                 Key: objectKey,
@@ -310,7 +382,7 @@ function createR2DevApiPlugin(): Plugin {
               res.end("Logo inválido.");
               return;
             }
-            const object = await client.send(new GetObjectCommand({
+            const object = await sendR2WithFallback<any>(new GetObjectCommand({
               Bucket: readEnvValue("R2_BUCKET_LOGOS"),
               Key: objectKey,
             }));
@@ -334,11 +406,14 @@ function createR2DevApiPlugin(): Plugin {
 
           next();
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Erro no upload.";
-          console.error("[SIGAPRO][R2] erro rota local:", message);
+          const message = normalizeR2Error(error);
+          console.error("[SIGAPRO][R2] erro rota local:", error);
           res.statusCode = 500;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ error: message }));
+          res.end(JSON.stringify({
+            error: message,
+            code: isR2CredentialError(error) ? "R2_CREDENTIAL_MISMATCH" : "R2_ERROR",
+          }));
         }
       });
     },
