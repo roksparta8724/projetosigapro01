@@ -123,22 +123,48 @@ function releaseRefreshSnapshot() {
       : Number(overlay.getAttribute("data-scroll-y") || "0");
 
   let stableFrames = 0;
-  let attempts = 0;
-  let previous = "";
+  let previousGeometry = "";
 
-  const geometry = () => {
+  const rectSignature = (el: Element | null) => {
+    if (!(el instanceof HTMLElement)) return "missing";
+    const r = el.getBoundingClientRect();
+    return [r.left, r.top, r.width, r.height]
+      .map((value) => Math.round(value * 10) / 10)
+      .join(",");
+  };
+
+  const readGeometry = () => {
     const root = document.getElementById("root");
-    if (!root) return "";
-    const frame = root.querySelector(".sig-app-frame") as HTMLElement | null;
-    const main = root.querySelector(".sig-main-shell") as HTMLElement | null;
-    const topbar = root.querySelector(".sig-premium-topbar") as HTMLElement | null;
-    const sidebar = root.querySelector(".sig-sidebar-shell") as HTMLElement | null;
-    const rect = (el: HTMLElement | null) => {
-      if (!el) return "missing";
-      const r = el.getBoundingClientRect();
-      return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10).join(",");
-    };
-    return [rect(frame), rect(main), rect(topbar), rect(sidebar), document.documentElement.scrollWidth].join("|");
+    if (!root) return "missing";
+
+    const anchors = [
+      root.querySelector(".sig-app-frame"),
+      root.querySelector(".sig-premium-topbar"),
+      root.querySelector(".sig-sidebar-shell"),
+      root.querySelector(".sig-main-shell"),
+      root.querySelector(".sig-page-shell"),
+    ];
+
+    const visibleBlocks = Array.from(
+      root.querySelectorAll(
+        ".sig-section-card,.sig-stat-card,.sig-metric-card,[data-ui=card],main,header,footer",
+      ),
+    ).slice(0, 80);
+
+    return [
+      ...anchors.map(rectSignature),
+      ...visibleBlocks.map(rectSignature),
+      document.documentElement.scrollWidth,
+      document.documentElement.scrollHeight,
+    ].join("|");
+  };
+
+  const imagesReady = () => {
+    const root = document.getElementById("root");
+    if (!root) return false;
+    return Array.from(root.querySelectorAll("img")).every(
+      (img) => img.complete && (img.naturalWidth > 0 || !img.getAttribute("src")),
+    );
   };
 
   const finish = () => {
@@ -152,8 +178,7 @@ function releaseRefreshSnapshot() {
     persistVisualSnapshot();
   };
 
-  const wait = () => {
-    attempts += 1;
+  const waitForStableFrame = () => {
     const maxScroll = Math.max(
       0,
       Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0) -
@@ -162,24 +187,35 @@ function releaseRefreshSnapshot() {
     const next = Math.min(Math.max(0, target), maxScroll);
     window.scrollTo({ top: next, left: 0, behavior: "auto" });
 
-    const current = geometry();
-    const isStable =
-      current &&
-      current === previous &&
-      !current.includes("missing") &&
-      Math.abs(window.scrollY - next) <= 2;
+    const geometry = readGeometry();
+    const scrollReady = Math.abs(window.scrollY - next) <= 2;
+    const geometryReady =
+      geometry !== "missing" &&
+      !geometry.includes("missing") &&
+      geometry === previousGeometry;
+    const ready = scrollReady && geometryReady && imagesReady();
 
-    stableFrames = isStable ? stableFrames + 1 : 0;
-    previous = current;
+    stableFrames = ready ? stableFrames + 1 : 0;
+    previousGeometry = geometry;
 
-    if (stableFrames >= 4 || attempts >= 120) {
+    if (stableFrames >= 8) {
       finish();
       return;
     }
-    window.requestAnimationFrame(wait);
+
+    window.requestAnimationFrame(waitForStableFrame);
   };
 
-  window.requestAnimationFrame(wait);
+  const start = async () => {
+    try {
+      if ("fonts" in document && document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+    } catch {}
+    window.requestAnimationFrame(waitForStableFrame);
+  };
+
+  void start();
 }
 
 window.history.scrollRestoration = "manual";
@@ -202,6 +238,7 @@ window.addEventListener(
   "beforeunload",
   () => {
     persistNavigationState();
+    persistVisualSnapshot();
     persistSnapshotScroll();
   },
   { capture: true },
@@ -211,6 +248,7 @@ window.addEventListener(
   "pagehide",
   () => {
     persistNavigationState();
+    persistVisualSnapshot();
     persistSnapshotScroll();
   },
   { capture: true },
@@ -223,14 +261,6 @@ window.addEventListener("sigapro-app-stable", () => {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
-
-window.setTimeout(() => {
-  if (!appStable) {
-    appStable = true;
-    persistVisualSnapshot();
-  }
-  releaseRefreshSnapshot();
-}, 5000);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
