@@ -256,56 +256,75 @@ export function ExternalProcessControlPage() {
               description="Filtre por protocolo, etapa e status para localizar rapidamente cada processo."
               className="min-w-0"
               actions={
-                <div className="mt-2 grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_210px_220px_200px]">
-                  <div className="relative min-w-0">
-                    <Search className="sig-search-icon pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <Input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Buscar protocolo, projeto ou endereço"
-                      className="h-11 rounded-2xl pl-9 text-[14px]"
-                    />
+                <div className="mt-2 w-full space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      aria-label="Abrir pendências e movimentações"
+                      className="h-10 rounded-full bg-slate-950 px-4 text-[12px] font-semibold !text-white shadow-[0_10px_24px_rgba(15,23,42,0.2)] hover:bg-slate-900 [&_*]:!text-white"
+                      onClick={() => setSummaryOpen(true)}
+                    >
+                      <Activity className="mr-2 h-4 w-4" />
+                      Pendências e movimentações
+                      {requirementCount > 0 ? (
+                        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold !text-slate-950">
+                          {requirementCount}
+                        </span>
+                      ) : null}
+                    </Button>
                   </div>
 
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
-                      <SelectValue placeholder="Todos os status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid w-full gap-3 xl:grid-cols-[minmax(0,1fr)_210px_220px_200px]">
+                    <div className="relative min-w-0">
+                      <Search className="sig-search-icon pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                      <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Buscar protocolo, projeto ou endereço"
+                        className="h-11 rounded-2xl pl-9 text-[14px]"
+                      />
+                    </div>
 
-                  <Select value={stageFilter} onValueChange={setStageFilter}>
-                    <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
-                      <SelectValue placeholder="Todas as etapas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas as etapas</SelectItem>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage} value={stage}>
-                          {stage}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
+                        <SelectValue placeholder="Todos os status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                    <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
-                      <SelectValue placeholder="Todo o período" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {periodOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Select value={stageFilter} onValueChange={setStageFilter}>
+                      <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
+                        <SelectValue placeholder="Todas as etapas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas as etapas</SelectItem>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                      <SelectTrigger className="h-11 w-full rounded-2xl sig-dark-panel text-[14px]">
+                        <SelectValue placeholder="Todo o período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {periodOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               }
               contentClassName="space-y-4"
@@ -459,23 +478,6 @@ export function ExternalProcessControlPage() {
                 </div>
               ) : null}
             </SectionPanel>
-            </div>
-
-            <div className="sticky bottom-5 z-30 flex justify-end pointer-events-none">
-              <Button
-                type="button"
-                aria-label="Abrir pendências e movimentações"
-                className="pointer-events-auto h-11 rounded-full bg-slate-950 px-4 text-[12px] font-semibold !text-white shadow-[0_14px_34px_rgba(15,23,42,0.28)] hover:bg-slate-900 [&_*]:!text-white"
-                onClick={() => setSummaryOpen(true)}
-              >
-                <Activity className="mr-2 h-4 w-4" />
-                Pendências e movimentações
-                {requirementCount > 0 ? (
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold !text-slate-950">
-                    {requirementCount}
-                  </span>
-                ) : null}
-              </Button>
             </div>
 
             {summaryOpen ? (
