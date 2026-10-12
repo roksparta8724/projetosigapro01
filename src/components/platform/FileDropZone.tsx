@@ -20,6 +20,7 @@ interface FileDropZoneProps {
   accept?: string;
   multiple?: boolean;
   allowPreview?: boolean;
+  busy?: boolean;
   files: UploadedFileItem[];
   onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
   onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
@@ -54,6 +55,7 @@ export function FileDropZone({
   accept,
   multiple = true,
   allowPreview = false,
+  busy = false,
   files,
   onFilesSelected,
   onFilesRemoved,
@@ -62,6 +64,8 @@ export function FileDropZone({
   const [dragging, setDragging] = useState(false);
 
   const processFiles = async (selectedFiles: FileList | null) => {
+    if (busy) return;
+
     const selected = selectedFiles ? Array.from(selectedFiles) : [];
     if (selected.length === 0) {
       return;
@@ -89,7 +93,7 @@ export function FileDropZone({
   };
 
   const openFilePicker = () => {
-    if (!inputRef.current) return;
+    if (busy || !inputRef.current) return;
     inputRef.current.value = "";
     inputRef.current.click();
   };
@@ -110,21 +114,22 @@ export function FileDropZone({
   };
 
   return (
-    <div className="space-y-4 min-w-0">
+    <div className="min-w-0 space-y-4" data-upload-zone data-upload-busy={busy ? "true" : "false"}>
       <div
+        aria-busy={busy}
         className={cn(
-          "min-w-0 overflow-hidden rounded-[24px] border border-dashed p-4 transition sm:p-5 lg:p-6",
+          "min-w-0 overflow-hidden rounded-[24px] border border-dashed p-4 transition-colors duration-150 sm:p-5 lg:p-6",
           dragging
             ? "border-sky-500 bg-sky-50/80 dark:border-sky-300 dark:bg-sky-400/10"
             : "border-slate-300 bg-white dark:border-white/12 dark:bg-white/[0.03]",
         )}
         onDragEnter={(event) => {
           event.preventDefault();
-          setDragging(true);
+          if (!busy) setDragging(true);
         }}
         onDragOver={(event) => {
           event.preventDefault();
-          setDragging(true);
+          if (!busy) setDragging(true);
         }}
         onDragLeave={(event) => {
           event.preventDefault();
@@ -143,6 +148,7 @@ export function FileDropZone({
               variant="outline"
               className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
               onClick={openFilePicker}
+              disabled={busy}
             >
               <UploadCloud className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
               <span className="whitespace-normal text-center sm:whitespace-nowrap">Selecionar arquivo</span>
@@ -179,11 +185,18 @@ export function FileDropZone({
                     <p className="break-words text-sm text-slate-500 dark:text-slate-300">
                       {file.mimeType} - {file.sizeLabel}
                     </p>
-                    {file.storagePath ? (
-                      <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                        Salvo no rascunho
-                      </p>
-                    ) : null}
+                    <p
+                      className={cn(
+                        "mt-1 min-h-[18px] text-xs font-medium leading-[18px]",
+                        busy
+                          ? "text-sky-700 dark:text-sky-200"
+                          : file.storagePath
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-slate-500 dark:text-slate-400",
+                      )}
+                    >
+                      {busy ? "Salvando arquivo..." : file.storagePath ? "Salvo no rascunho" : "Arquivo selecionado"}
+                    </p>
                   </div>
                 </div>
 
@@ -192,17 +205,28 @@ export function FileDropZone({
                     <a
                       href={file.previewUrl}
                       download={file.fileName}
-                      className="inline-flex min-h-[42px] w-full items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
+                      className="inline-flex min-h-[42px] w-full items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     >
                       <Download className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
                       <span className="whitespace-normal text-center sm:whitespace-nowrap">Download</span>
                     </a>
-                  ) : null}
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-[42px] w-full rounded-full text-slate-400 dark:border-white/12 dark:text-slate-500 sm:w-auto"
+                      disabled
+                    >
+                      <Download className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="whitespace-normal text-center sm:whitespace-nowrap">Download</span>
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-slate-700 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={openFilePicker}
+                    disabled={busy}
                   >
                     <RefreshCcw className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Substituir</span>
@@ -212,6 +236,7 @@ export function FileDropZone({
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-red-600 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={() => removeFile(file.id)}
+                    disabled={busy}
                   >
                     <Trash2 className="mr-2 h-4 w-4 shrink-0" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Excluir</span>
@@ -219,12 +244,23 @@ export function FileDropZone({
                 </div>
               </div>
 
-              {allowPreview && file.previewUrl ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/12 dark:bg-slate-900/50">
-                  {file.mimeType === "application/pdf" ? (
-                    <iframe src={file.previewUrl} title={file.fileName} className="h-72 w-full" />
+              {allowPreview ? (
+                <div className="mt-4 h-56 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:h-72 dark:border-white/12 dark:bg-slate-900/50">
+                  {file.previewUrl ? (
+                    file.mimeType === "application/pdf" ? (
+                      <iframe src={file.previewUrl} title={file.fileName} className="h-full w-full" />
+                    ) : (
+                      <img
+                        src={file.previewUrl}
+                        alt={file.fileName}
+                        className="h-full w-full object-contain"
+                        decoding="async"
+                      />
+                    )
                   ) : (
-                    <img src={file.previewUrl} alt={file.fileName} className="max-h-80 w-full object-contain" />
+                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                      Pré-visualização indisponível para este arquivo.
+                    </div>
                   )}
                 </div>
               ) : null}
