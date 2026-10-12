@@ -256,7 +256,7 @@ function HeroPanelCard({
   value: string;
 }) {
   return (
-    <div className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.045)] sm:px-5">
+    <div data-landing-light-card="true" className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.045)] sm:px-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-900 sm:text-[15px]">{value}</p>
     </div>
@@ -276,7 +276,7 @@ function LandingDemoChartCard({
   className?: string;
 }) {
   return (
-    <div className={cn("flex h-full min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]", className)}>
+    <div data-landing-light-card="true" className={cn("flex h-full min-w-0 flex-col rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]", className)}>
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-800">
           <Icon className="h-4.5 w-4.5" />
@@ -354,7 +354,7 @@ export function LandingPage() {
                       {heroPillars.map((item) => (
                         <div
                           key={item}
-                          className="rounded-[22px] border border-white/90 bg-white/92 px-4.5 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]"
+                          data-landing-light-card="true" className="rounded-[22px] border border-white/90 bg-white/92 px-4.5 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)]"
                         >
                           <div className="flex items-start gap-3">
                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
@@ -370,7 +370,7 @@ export function LandingPage() {
                   <div className="mt-6">
                     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(188px,1fr))]">
                       {heroExecutiveMetrics.map((item) => (
-                        <div key={item.label} className="flex min-h-[146px] min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white/94 px-4.5 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
+                        <div key={item.label} data-landing-light-card="true" className="flex min-h-[146px] min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white/94 px-4.5 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.045)] backdrop-blur">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
                           <p className="mt-3.5 text-[1.92rem] font-semibold leading-none text-slate-950">{item.value}</p>
                           <p className="mt-3 text-[13px] leading-6 text-slate-600">{item.helper}</p>
@@ -384,7 +384,7 @@ export function LandingPage() {
                         return (
                           <article
                             key={item.title}
-                            className="flex min-h-[136px] min-w-0 flex-col justify-start rounded-[22px] border border-slate-200 bg-white/90 px-4.5 py-4 shadow-[0_12px_26px_rgba(15,23,42,0.04)]"
+                            data-landing-light-card="true" className="flex min-h-[136px] min-w-0 flex-col justify-start rounded-[22px] border border-slate-200 bg-white/90 px-4.5 py-4 shadow-[0_12px_26px_rgba(15,23,42,0.04)]"
                           >
                             <div className="flex items-start gap-3">
                               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-800">
@@ -500,7 +500,7 @@ export function LandingPage() {
                             ["Conciliação", "Retorno e divergências", Network],
                             ["Arrecadação", "Visão consolidada", Landmark],
                           ].map(([title, subtitle, Icon]) => (
-                            <div key={String(title)} className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                            <div key={String(title)} data-landing-light-card="true" className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-[11px] font-semibold text-slate-950">{String(title)}</p>
@@ -515,7 +515,7 @@ export function LandingPage() {
                         </div>
 
                         <div className="mt-3 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-                          <div className="rounded-[18px] border border-slate-200 bg-white p-4">
+                          <div data-landing-light-card="true" className="rounded-[18px] border border-slate-200 bg-white p-4">
                             <div className="flex items-center justify-between gap-3">
                               <div>
                                 <p className="text-[11px] font-semibold text-slate-950">Visão financeira da Prefeitura</p>
@@ -533,7 +533,7 @@ export function LandingPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-[18px] border border-slate-200 bg-white p-4">
+                          <div data-landing-light-card="true" className="rounded-[18px] border border-slate-200 bg-white p-4">
                             <p className="text-[11px] font-semibold text-slate-950">Fluxo financeiro</p>
                             <div className="mt-3 space-y-2">
                               {["Guia emitida", "Pagamento identificado", "Baixa confirmada", "Histórico registrado"].map((item, index) => (
@@ -587,7 +587,7 @@ export function LandingPage() {
                         ["03", "Análise", "Pareceres, exigências e retorno"],
                         ["04", "Decisão", "Aprovação e histórico final"],
                       ].map(([step, title, detail]) => (
-                        <div key={step} className="flex items-center gap-3 rounded-[18px] border border-stone-300/80 bg-white/75 px-3.5 py-3">
+                        <div key={step} data-landing-light-card="true" className="flex items-center gap-3 rounded-[18px] border border-stone-300/80 bg-white/75 px-3.5 py-3">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-semibold text-white">{step}</span>
                           <div className="min-w-0">
                             <p className="text-[13px] font-semibold text-slate-950">{title}</p>
@@ -603,7 +603,7 @@ export function LandingPage() {
 
             <LandingReveal delay={0.08} className="mt-7 xl:mt-8">
               <div className="grid gap-4.5 xl:grid-cols-12">
-                <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] backdrop-blur xl:col-span-6">
+                <div data-landing-light-card="true" className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] backdrop-blur xl:col-span-6">
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Visao executiva</p>
@@ -665,7 +665,7 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] xl:col-span-3">
+                <div data-landing-light-card="true" className="min-w-0 rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] xl:col-span-3">
                   <div className="border-b border-slate-200 pb-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Saude operacional</p>
                     <p className="mt-2 text-[15px] font-semibold text-slate-950">Indicadores de estabilidade e ritmo do painel.</p>
@@ -733,7 +733,7 @@ export function LandingPage() {
                   </div>
                 </LandingDemoChartCard>
 
-                <div className="min-w-0 rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_30px_rgba(15,23,42,0.045)] xl:col-span-3">
+                <div data-landing-light-card="true" className="min-w-0 rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_30px_rgba(15,23,42,0.045)] xl:col-span-3">
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-800">
                       <CheckCircle2 className="h-4.5 w-4.5" />
@@ -773,7 +773,7 @@ export function LandingPage() {
                 const Icon = step.icon;
                 return (
                   <LandingReveal key={step.title} delay={index * 0.04}>
-                    <article className="flex h-full min-h-[214px] flex-col rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_18px_42px_rgba(15,23,42,0.045)] sm:px-6 sm:py-6">
+                    <article data-landing-light-card="true" className="flex h-full min-h-[214px] flex-col rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-[0_18px_42px_rgba(15,23,42,0.045)] sm:px-6 sm:py-6">
                       <div className="flex items-center justify-between">
                         <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-blue-50 text-blue-800">
                           <Icon className="h-5 w-5" />
@@ -942,7 +942,7 @@ export function LandingPage() {
 
                 <div className="mt-8 space-y-3">
                   {showcaseHighlights.map((item) => (
-                    <div key={item} className="flex items-start gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                    <div key={item} data-landing-light-card="true" className="flex items-start gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" />
                       <p className="text-sm leading-6 text-slate-700">{item}</p>
                     </div>
