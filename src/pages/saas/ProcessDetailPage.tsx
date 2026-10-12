@@ -1346,27 +1346,6 @@ export function ProcessDetailPage() {
                     </div>
                   ) : null}
 
-                  {!canReviewDocuments && document.uploaded ? (
-                    <button
-                      type="button"
-                      onClick={() => openViewer(document.id)}
-                      className="mt-4 flex min-h-[72px] w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors duration-150 hover:border-sky-200 hover:bg-sky-50"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">
-                          Documento armazenado com segurança
-                        </p>
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                          {document.fileName || document.label}
-                        </p>
-                      </div>
-                      <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
-                        <Maximize2 className="h-3.5 w-3.5" />
-                        Abrir em nova guia
-                      </span>
-                    </button>
-                  ) : null}
-
                   {canReviewDocuments && document.uploaded ? (
                     <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
                       <p className="mr-auto text-sm text-slate-500">
