@@ -6,6 +6,9 @@ const root = process.cwd();
 const tenantAdmin = readFileSync(resolve(root, "src/pages/saas/TenantAdminPage.tsx"), "utf8");
 const masterAdmin = readFileSync(resolve(root, "src/pages/saas/MasterAdminPage.tsx"), "utf8");
 const backend = readFileSync(resolve(root, "src/integrations/backend/platformImpl.ts"), "utf8");
+const orgChart = readFileSync(resolve(root, "src/components/platform/MunicipalOrganizationChart.tsx"), "utf8");
+const orgPage = readFileSync(resolve(root, "src/pages/saas/MunicipalOrganizationPage.tsx"), "utf8");
+const portalFrame = readFileSync(resolve(root, "src/components/platform/PortalFrame.tsx"), "utf8");
 const migration = readFileSync(
   resolve(root, "supabase/migrations/20261011195500_municipal_organization_chart.sql"),
   "utf8",
@@ -37,6 +40,24 @@ describe("municipal organization chart", () => {
     expect(masterAdmin).toContain("handleMasterCreateDepartment");
     expect(masterAdmin).toContain("handleMasterAssignDepartment");
     expect(masterAdmin).toContain("As alterações ficam somente na Prefeitura selecionada.");
+  });
+
+  it("shows the institutional organogram by department acronym without user names", () => {
+    expect(tenantAdmin).toContain("MunicipalOrganizationChart");
+    expect(orgChart).toContain("getDepartmentAcronym");
+    expect(orgChart).toContain("O organograma não exibe nomes de servidores ou usuários.");
+    expect(orgChart).not.toContain("user.name");
+  });
+
+  it("exposes a read-only organogram to every internal municipal user", () => {
+    expect(orgPage).toContain("isInternalRole");
+    expect(orgPage).toContain("listRemoteMunicipalDepartments");
+    expect(portalFrame).toContain('to: "/prefeitura/organograma"');
+    expect(portalFrame).toContain("internalOnly: true");
+  });
+
+  it("reads departments through a scoped RPC instead of direct table access", () => {
+    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
   });
 
   it("persists parent hierarchy and municipality scope in the database", () => {
