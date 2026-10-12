@@ -21,16 +21,6 @@ function readEnvValue(key: string) {
   return trimmed.replace(/^['"]|['"]$/g, "").trim();
 }
 
-function sanitizeAccessKeyId(value: string) {
-  const normalized = value.replace(/\s+/g, "");
-  // Se vier algo como 33 chars, mas hex, corta para 32
-  const hexOnly = normalized.replace(/[^a-fA-F0-9]/g, "");
-  if (hexOnly.length >= 32) {
-    return hexOnly.slice(0, 32);
-  }
-  return normalized;
-}
-
 function assertEnv() {
   const missing = REQUIRED_ENV.filter((key) => !readEnvValue(key));
   if (missing.length > 0) {
@@ -92,8 +82,8 @@ function createR2DevApiPlugin(): Plugin {
             region: "auto",
             endpoint: readEnvValue("R2_ENDPOINT"),
             credentials: {
-              accessKeyId: sanitizeAccessKeyId(readEnvValue("R2_ACCESS_KEY_ID")),
-              secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY").replace(/\s+/g, ""),
+              accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
+              secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
             },
           });
 
@@ -133,7 +123,7 @@ function createR2DevApiPlugin(): Plugin {
               objectKey,
               bytes: buffer.length,
               contentType,
-              accessKeyLength: sanitizeAccessKeyId(readEnvValue("R2_ACCESS_KEY_ID")).length,
+              accessKeyLength: readEnvValue("R2_ACCESS_KEY_ID").length,
             });
 
             await client.send(
