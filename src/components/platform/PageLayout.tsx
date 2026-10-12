@@ -40,6 +40,8 @@ export function PageHeader({
 }) {
   return (
     <section
+      data-ui="card"
+      data-surface="adaptive-card"
       className={cn(
         "sig-page-header relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.06)] md:p-5",
         className,
@@ -118,8 +120,9 @@ export function SectionCard({
   return (
     <section
       data-ui="card"
+      data-surface="adaptive-card"
       className={cn(
-        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition duration-200 md:p-5",
+        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
         className,
       )}
     >
@@ -200,6 +203,7 @@ export function InternalSectionNav({
 }) {
   return (
     <section
+      data-surface="adaptive-card"
       className={cn(
         "sig-section-nav rounded-[20px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-white/70 sm:rounded-[24px] sm:p-2.5",
         className,
