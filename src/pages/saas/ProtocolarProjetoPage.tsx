@@ -168,13 +168,23 @@ export function ProtocolarProjetoPage() {
     telefone: profile?.phone ?? "",
     email: profile?.email ?? session.email,
   });
+  const resumeDraftNumber = new URLSearchParams(location.search).get("rascunho");
+  const isResumingDraft = Boolean(resumeDraftNumber);
 
   useEffect(() => {
     let cancelled = false;
-    const draft = readProtocolDraft(session.id, effectiveScopeId, session.tenantId);
+    const draft = resumeDraftNumber
+      ? readProtocolDraft(
+          session.id,
+          effectiveScopeId,
+          session.tenantId,
+          resumeDraftNumber,
+        )
+      : null;
 
     if (draft) {
       setDraftNumber(draft.draftNumber);
+      setStatus("");
       setForm({
         ...defaultProtocolDraftForm,
         ...draft.form,
@@ -192,18 +202,35 @@ export function ProtocolarProjetoPage() {
       };
     }
 
-    setForm((current) => ({
-      ...current,
+    // /externo/protocolar é sempre uma nova abertura. Rascunhos só são
+    // carregados quando o profissional escolhe "Continuar rascunho".
+    setDraftNumber(createDraftNumber());
+    setFiles({});
+    setForm({
+      ...defaultProtocolDraftForm,
       profissional: profile?.fullName ?? session.name,
       registro: profile?.registrationNumber ?? "",
       telefone: profile?.phone ?? "",
       email: profile?.email ?? session.email,
-    }));
+    });
+    setStatus(
+      resumeDraftNumber
+        ? "O rascunho selecionado não foi encontrado. Uma nova abertura foi iniciada."
+        : "",
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [effectiveScopeId, profile, session.email, session.id, session.name, session.tenantId]);
+  }, [
+    effectiveScopeId,
+    profile,
+    resumeDraftNumber,
+    session.email,
+    session.id,
+    session.name,
+    session.tenantId,
+  ]);
 
   const checklistTemplate = useMemo(
     () => getChecklistTemplate(form.tipo, effectiveScopeId),
@@ -352,6 +379,14 @@ export function ProtocolarProjetoPage() {
     const optimisticFiles = { ...files, [label]: selected };
     const newlyUploadedPaths: string[] = [];
 
+    // Em uma abertura nova, selecionar/substituir arquivo altera somente a
+    // sessão atual. O rascunho só nasce quando o usuário clicar em Salvar.
+    if (!isResumingDraft) {
+      setFiles(optimisticFiles);
+      setStatus("");
+      return;
+    }
+
     // Atualiza o card imediatamente para nunca deixar o arquivo anterior "preso"
     // visualmente enquanto o novo anexo é persistido.
     setFiles(optimisticFiles);
@@ -465,9 +500,10 @@ export function ProtocolarProjetoPage() {
       );
       setStatus(
         persistedCount > 0
-          ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados e serão reutilizados após F5 ou ao voltar depois.`
-          : "Rascunho salvo com sucesso. Você pode sair e continuar depois.",
+          ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados.`
+          : "Rascunho salvo com sucesso.",
       );
+      navigate("/externo/controle/rascunhos");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Não foi possível salvar o rascunho completo.";
@@ -697,7 +733,9 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    clearProtocolDraft(session.id, effectiveScopeId, session.tenantId);
+    if (isResumingDraft) {
+      clearProtocolDraft(session.id, effectiveScopeId, session.tenantId, draftNumber);
+    }
 
     try {
       await refreshRemoteStore();
