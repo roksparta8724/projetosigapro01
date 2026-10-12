@@ -123,7 +123,7 @@ export function InstitutionalLogo({
         "sig-institution-logo-surface flex max-w-full shrink-0 items-center justify-center overflow-hidden",
         isMaster
           ? "bg-transparent"
-          : "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
+          : "rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
         isMaster ? masterVariantClasses[variant] : variantClasses[variant],
         className,
       )}
