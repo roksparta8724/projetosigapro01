@@ -220,7 +220,7 @@ export function ExternalProcessControlPage() {
         />
 
         <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-          <Button type="button" className="rounded-xl bg-slate-950 text-white hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950">
+          <Button type="button" data-control-subnav-active="true" className="rounded-xl bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
             <FolderKanban className="mr-2 h-4 w-4" />
             Processos protocolados
           </Button>
