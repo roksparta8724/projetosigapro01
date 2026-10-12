@@ -84,7 +84,7 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
             >
               Solicitar demonstracao
             </Button>
-            <Button asChild className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
+            <Button asChild data-landing-header-access="true" className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
             </Button>
           </div>
