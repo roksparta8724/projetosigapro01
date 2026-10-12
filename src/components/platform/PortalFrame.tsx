@@ -555,13 +555,19 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       });
     }
 
-    items.push({
-      id: "action-settings",
-      label: "Configurações institucionais",
-      description: "Branding e preferências",
-      group: "Ações rápidas",
-      onSelect: () => navigate("/configuracoes"),
-    });
+    if (
+      session.role === "master_admin" ||
+      session.role === "master_ops" ||
+      session.role === "prefeitura_admin"
+    ) {
+      items.push({
+        id: "action-settings",
+        label: "Configurações institucionais",
+        description: "Branding e preferências",
+        group: "Ações rápidas",
+        onSelect: () => navigate("/configuracoes"),
+      });
+    }
     items.push({
       id: "action-profile",
       label: "Meu perfil",
