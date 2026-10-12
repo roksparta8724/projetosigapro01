@@ -127,9 +127,24 @@ export function InstitutionalLogo({
         isMaster ? masterVariantClasses[variant] : variantClasses[variant],
         className,
       )}
+      style={isMaster ? undefined : {
+        background: "#ffffff",
+        backgroundColor: "#ffffff",
+        borderColor: "#d7dee8",
+        opacity: 1,
+        backdropFilter: "none",
+        WebkitBackdropFilter: "none",
+        mixBlendMode: "normal",
+      }}
     >
-      <div className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}>
-        <div className="relative flex h-full w-full items-center justify-center">
+      <div
+        className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}
+        style={isMaster ? undefined : { background: "#ffffff", backgroundColor: "#ffffff", opacity: 1 }}
+      >
+        <div
+          className="relative flex h-full w-full items-center justify-center"
+          style={isMaster ? undefined : { background: "#ffffff", backgroundColor: "#ffffff", opacity: 1 }}
+        >
           {!displayUrl && fallbackReady ? (
             <div
               className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-slate-400"
