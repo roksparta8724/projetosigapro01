@@ -21,6 +21,7 @@ interface FileDropZoneProps {
   multiple?: boolean;
   allowPreview?: boolean;
   busy?: boolean;
+  disabled?: boolean;
   files: UploadedFileItem[];
   onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
   onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
@@ -56,15 +57,17 @@ export function FileDropZone({
   multiple = true,
   allowPreview = false,
   busy = false,
+  disabled = false,
   files,
   onFilesSelected,
   onFilesRemoved,
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
+  const interactionLocked = busy || disabled;
 
   const processFiles = async (selectedFiles: FileList | null) => {
-    if (busy) return;
+    if (interactionLocked) return;
 
     const selected = selectedFiles ? Array.from(selectedFiles) : [];
     if (selected.length === 0) {
@@ -93,7 +96,7 @@ export function FileDropZone({
   };
 
   const openFilePicker = () => {
-    if (busy || !inputRef.current) return;
+    if (interactionLocked || !inputRef.current) return;
     inputRef.current.value = "";
     inputRef.current.click();
   };
@@ -125,11 +128,11 @@ export function FileDropZone({
         )}
         onDragEnter={(event) => {
           event.preventDefault();
-          if (!busy) setDragging(true);
+          if (!interactionLocked) setDragging(true);
         }}
         onDragOver={(event) => {
           event.preventDefault();
-          if (!busy) setDragging(true);
+          if (!interactionLocked) setDragging(true);
         }}
         onDragLeave={(event) => {
           event.preventDefault();
@@ -148,7 +151,7 @@ export function FileDropZone({
               variant="outline"
               className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
               onClick={openFilePicker}
-              disabled={busy}
+              disabled={interactionLocked}
             >
               <UploadCloud className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
               <span className="whitespace-normal text-center sm:whitespace-nowrap">Selecionar arquivo</span>
@@ -226,7 +229,7 @@ export function FileDropZone({
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-slate-700 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={openFilePicker}
-                    disabled={busy}
+                    disabled={interactionLocked}
                   >
                     <RefreshCcw className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Substituir</span>
@@ -236,7 +239,7 @@ export function FileDropZone({
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-red-600 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
                     onClick={() => removeFile(file.id)}
-                    disabled={busy}
+                    disabled={interactionLocked}
                   >
                     <Trash2 className="mr-2 h-4 w-4 shrink-0" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Excluir</span>
