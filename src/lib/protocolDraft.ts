@@ -1,4 +1,5 @@
 import type { UploadedFileItem } from "@/components/platform/FileDropZone";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 
 export interface ProtocolDraftForm {
   titulo: string;
@@ -26,6 +27,8 @@ export interface StoredUploadedFileItem {
   mimeType: string;
   sizeLabel: string;
   previewUrl?: string;
+  storagePath?: string;
+  fileSizeBytes?: number;
 }
 
 export interface ProtocolDraftPayload {
@@ -99,11 +102,12 @@ export function readProtocolDraft(sessionId: string, scopeId: string | null, leg
 }
 
 export function saveProtocolDraft(sessionId: string, scopeId: string | null, payload: ProtocolDraftPayload) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return false;
 
   const key = buildDraftStorageKey(sessionId, scopeId);
   try {
     window.localStorage.setItem(key, JSON.stringify(payload));
+    return true;
   } catch (error) {
     // Previews base64 podem exceder a cota do localStorage. Mantemos o rascunho
     // textual e os metadados dos arquivos, mas nunca deixamos o salvamento falhar
@@ -126,11 +130,13 @@ export function saveProtocolDraft(sessionId: string, scopeId: string | null, pay
 
     try {
       window.localStorage.setItem(key, JSON.stringify(compactPayload));
+      return true;
     } catch (compactError) {
       console.warn("[SIGAPRO][Rascunho] Não foi possível persistir o rascunho local.", {
         error,
         compactError,
       });
+      return false;
     }
   }
 }
@@ -156,6 +162,8 @@ export function toStoredUploadedFiles(files: Record<string, UploadedFileItem[]>)
           item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
             ? item.previewUrl
             : undefined,
+        storagePath: item.storagePath,
+        fileSizeBytes: item.fileSizeBytes ?? item.file?.size,
       })),
     ]),
   ) as Record<string, StoredUploadedFileItem[]>;
@@ -168,6 +176,22 @@ export async function restoreUploadedFiles(
     Object.entries(files).map(async ([label, items]) => {
       const restoredItems = await Promise.all(
         items.map(async (item) => {
+          if (item.storagePath) {
+            try {
+              const bucket =
+                (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+                "sigapro-documentos";
+              const previewUrl = await getSignedUrlForObjectStrict({
+                bucket,
+                objectKey: item.storagePath,
+                expiresIn: 3600,
+              });
+              return { ...item, previewUrl } as UploadedFileItem;
+            } catch {
+              return { ...item, previewUrl: undefined } as UploadedFileItem;
+            }
+          }
+
           if (!item.previewUrl?.startsWith("data:")) {
             return { ...item } as UploadedFileItem;
           }
@@ -176,7 +200,11 @@ export async function restoreUploadedFiles(
             const response = await fetch(item.previewUrl);
             const blob = await response.blob();
             const file = new File([blob], item.fileName, { type: item.mimeType });
-            return { ...item, file } as UploadedFileItem;
+            return {
+              ...item,
+              file,
+              fileSizeBytes: blob.size,
+            } as UploadedFileItem;
           } catch {
             return { ...item } as UploadedFileItem;
           }
