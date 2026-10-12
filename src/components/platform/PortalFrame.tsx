@@ -418,9 +418,21 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const visibleFinanceItems = visibleOperationalItems.filter((item) => financeNavItems.includes(item.to));
   const visibleSupportItems = visibleOperationalItems.filter((item) => supportNavItems.includes(item.to));
   const visiblePrimaryItems = visibleOperationalItems.filter((item) => !financeNavItems.includes(item.to) && !supportNavItems.includes(item.to));
+  const dashboardSidebarItem = isAdministrativeSidebar
+    ? visiblePrimaryItems.find((item) => item.to === "/dashboard") ?? null
+    : null;
+  const administrativeItems = isAdministrativeSidebar
+    ? [
+        ...(dashboardSidebarItem ? [dashboardSidebarItem] : []),
+        ...visibleManagementItems,
+      ]
+    : [];
+  const operationalItems = isAdministrativeSidebar
+    ? visiblePrimaryItems.filter((item) => item.to !== "/dashboard")
+    : visiblePrimaryItems;
   const sidebarGroups = [
-    ...(isAdministrativeSidebar ? [{ title: "Administração", items: visibleManagementItems }] : []),
-    { title: "Operação", items: visiblePrimaryItems },
+    ...(isAdministrativeSidebar ? [{ title: "Administração", items: administrativeItems }] : []),
+    { title: "Operação", items: operationalItems },
     { title: "Financeiro", items: visibleFinanceItems },
     { title: "Apoio", items: visibleSupportItems },
   ];
