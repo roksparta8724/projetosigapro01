@@ -5930,3 +5930,24 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+
+/* ===== LANDING CTA + 100 PERCENT SCALE ===== */
+[data-landing-root="true"] {
+  zoom: 1 !important;
+  transform: none !important;
+  transform-origin: top left !important;
+}
+
+[data-landing-cta-white="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+[data-landing-cta-white="true"] *,
+[data-landing-cta-white="true"] svg {
+  color: #0f172a !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
