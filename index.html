@@ -39,7 +39,7 @@
         var path = window.location.pathname || "/";
         var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-        var initialBackground = "#f3faf7";
+        var initialBackground = "#eef6f2";
 
         var isInternalPath =
           publicPaths.indexOf(path) < 0 &&
@@ -63,6 +63,7 @@
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+        document.documentElement.style.background = initialBackground;
         document.documentElement.setAttribute("data-sigapro-booting", "true");
         if (isInternalPath) {
           document.documentElement.setAttribute("data-sigapro-internal", "true");
@@ -76,7 +77,7 @@
         width: 100%;
         min-height: 100%;
         margin: 0;
-        background: var(--sig-initial-bg, #f3faf7);
+        background: var(--sig-initial-bg, #eef6f2);
       }
 
       body {
