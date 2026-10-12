@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calendar, FileBarChart2, FileCheck, Filter, Search, TrendingUp } from "lucide-react";
+import { Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FileText, Filter, ListChecks, Search, TrendingUp, Workflow } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -308,12 +308,10 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
-              <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_1fr] 2xl:gap-3">
-                <span>Protocolo</span>
-                <span>Projeto</span>
+              <div className="hidden rounded-[18px] border border-slate-200/80 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500 shadow-sm 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
+                <span>Processo</span>
                 <span>Status</span>
                 <span>Etapa atual</span>
-                <span>Última movimentação</span>
                 <span>Pagamento</span>
                 <span className="text-right">Ações</span>
               </div>
@@ -322,28 +320,43 @@ export function ExternalProcessControlPage() {
                 const guides = getProcessPaymentGuides(process, tenantSettings);
                 const pendingGuide = guides.find((guide) => guide.status !== "compensada");
                 const lastUpdateLabel = formatProcessDate(process);
+                const officialNumber = formatOfficialProcessNumber(process.protocol);
+                const officialTitle = formatOfficialProcessTitle({ title: process.title, type: process.type });
+                const currentStage = process.sla?.currentStage || "Em andamento";
 
                 return (
-                  <div
+                  <article
                     key={process.id}
-                    className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="group overflow-hidden rounded-[22px] border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/70 shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)]"
                   >
-                    <div className="grid gap-4 2xl:grid-cols-[1.2fr_1fr_0.95fr_0.95fr_0.9fr_0.8fr_1fr] 2xl:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
-                          {formatOfficialProcessNumber(process.protocol)}
-                        </p>
-                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>
-                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                        </p>
+                    <div className="grid gap-0 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:items-stretch">
+                      <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Processo nº</p>
+                            <p className="mt-1 truncate text-[19px] font-bold leading-6 tracking-[-0.02em] text-slate-950" title={officialNumber}>
+                              {officialNumber}
+                            </p>
+                            <p className="mt-2 truncate text-[14px] font-semibold leading-5 text-slate-800" title={officialTitle}>
+                              {officialTitle}
+                            </p>
+                            <p className="mt-0.5 truncate text-[12px] leading-5 text-slate-500" title={process.type}>
+                              {process.type}
+                            </p>
+                          </div>
+                        </div>
+
                         {process.tags?.length ? (
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-4 flex flex-wrap gap-2">
                             {process.tags.map((tag) => {
                               const marker = parseMarker(tag);
                               return (
                                 <span
                                   key={`${process.id}-${tag}`}
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700"
+                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-sm"
                                 >
                                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
                                   {marker.label}
@@ -354,61 +367,80 @@ export function ExternalProcessControlPage() {
                         ) : null}
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] font-semibold leading-6 text-slate-900" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>
-                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                        </p>
-                        <p className="mt-1 truncate text-[13px] leading-5 text-slate-500" title={process.type}>
-                          {process.type}
-                        </p>
+                      <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-l-0 2xl:border-t-0 2xl:border-r">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                            <ListChecks className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Status</p>
+                            <Badge
+                              variant="outline"
+                              className={`mt-2 rounded-full px-3 py-1 text-[12px] font-semibold capitalize ${statusTone(process.status)}`}
+                            >
+                              {statusLabel(process.status)}
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <Badge
-                          variant="outline"
-                          className={`rounded-full px-3 py-1 text-[12px] capitalize ${statusTone(process.status)}`}
-                        >
-                          {statusLabel(process.status)}
-                        </Badge>
+                      <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                            <Workflow className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Etapa atual</p>
+                            <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-5 text-slate-900" title={currentStage}>
+                              {currentStage}
+                            </p>
+                            <div className="mt-3 flex items-center gap-2 text-[12px] text-slate-500">
+                              <Clock3 className="h-3.5 w-3.5" />
+                              <span>{lastUpdateLabel === "—" ? "Sem movimentação registrada" : `Atualizado em ${lastUpdateLabel}`}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] font-medium leading-6 text-slate-900" title={process.sla?.currentStage || "Em andamento"}>
-                          {process.sla?.currentStage || "Em andamento"}
-                        </p>
-                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">Etapa atual</p>
+                      <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
+                        <div className="flex items-start gap-3">
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${pendingGuide ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}>
+                            <CreditCard className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamento</p>
+                            <p className="mt-2 text-[15px] font-bold leading-5 text-slate-950">
+                              {pendingGuide ? formatCurrency(pendingGuide.amount) : "Pago"}
+                            </p>
+                            <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${pendingGuide ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"}`}>
+                              {pendingGuide ? "Aguardando pagamento" : "Compensado"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-medium leading-6 text-slate-900">{lastUpdateLabel}</p>
-                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">Última movimentação</p>
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-semibold leading-6 text-slate-900">
-                          {pendingGuide ? formatCurrency(pendingGuide.amount) : "Pago"}
-                        </p>
-                        <p className="mt-1 text-[12px] uppercase tracking-[0.08em] text-slate-500">
-                          {pendingGuide ? "Aguardando" : "Compensado"}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap justify-start gap-2 2xl:justify-end">
+                      <div className="flex min-w-0 flex-col justify-center gap-2 border-t border-slate-200/80 p-5 2xl:border-t-0">
                         <MarkerSelector
                           processId={process.id}
                           tags={process.tags}
                           actor={session.name}
-                          triggerClassName="h-9 rounded-full text-[12px]"
+                          triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold shadow-sm hover:bg-slate-50"
                         />
-                        <Button asChild variant="outline" className="rounded-full text-[13px]">
-                          <Link to={`/processos/${process.id}`}>Ver detalhes</Link>
+                        <Button asChild className="h-11 w-full rounded-xl bg-blue-600 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)] hover:bg-blue-700">
+                          <Link to={`/processos/${process.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalhes
+                          </Link>
                         </Button>
-                        <Button asChild variant="outline" className="rounded-full text-[13px]">
-                          <Link to={`/processos/${process.id}?aba=fluxo`}>Acompanhar fluxo</Link>
+                        <Button asChild variant="outline" className="h-11 w-full rounded-xl border-slate-300 bg-white text-[13px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+                          <Link to={`/processos/${process.id}?aba=fluxo`}>
+                            <Workflow className="mr-2 h-4 w-4" />
+                            Acompanhar fluxo
+                          </Link>
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
 
