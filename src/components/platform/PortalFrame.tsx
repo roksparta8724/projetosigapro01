@@ -1274,7 +1274,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
               </div>
             </div>
 
-            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5">
+            <div className="sig-topbar-actions-wrap -mr-5 flex shrink-0 items-center gap-2.5 2xl:-mr-7">
               <button
                 type="button"
                 className={cn(
@@ -1751,10 +1751,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                sideOffset={10}
+                sideOffset={6}
+                collisionPadding={8}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "w-[min(100vw-24px,360px)] rounded-[28px] border p-2.5 shadow-[0_28px_64px_rgba(15,42,68,0.26)] backdrop-blur-xl",
+                  "w-[min(100vw-16px,360px)] rounded-[28px] border p-2.5 shadow-[0_28px_64px_rgba(15,42,68,0.26)] backdrop-blur-xl",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
