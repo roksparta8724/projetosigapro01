@@ -39,6 +39,7 @@ export interface ProtocolDraftPayload {
 }
 
 const STORAGE_PREFIX = "sigapro-protocol-draft";
+const COLLECTION_PREFIX = "sigapro-protocol-drafts-v3";
 const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_INLINE_PREVIEW_CHARS = 350_000;
 
@@ -70,69 +71,52 @@ function buildLegacyDraftStorageKey(sessionId: string, tenantId: string | null) 
   return `${STORAGE_PREFIX}:${tenantId || "sem-tenant"}:${sessionId}`;
 }
 
-export function createDraftNumber() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = `${now.getMonth() + 1}`.padStart(2, "0");
-  const d = `${now.getDate()}`.padStart(2, "0");
-  const h = `${now.getHours()}`.padStart(2, "0");
-  const min = `${now.getMinutes()}`.padStart(2, "0");
-  return `PRE-${y}${m}${d}-${h}${min}`;
+function buildDraftCollectionKey(sessionId: string, scopeId: string | null) {
+  return `${COLLECTION_PREFIX}:${scopeId || "sem-tenant"}:${sessionId}`;
 }
 
-export function readProtocolDraft(sessionId: string, scopeId: string | null, legacyTenantId?: string | null) {
-  if (typeof window === "undefined") return null;
-  const raw =
-    window.localStorage.getItem(buildDraftStorageKey(sessionId, scopeId)) ??
-    window.localStorage.getItem(buildLegacyDraftStorageKey(sessionId, legacyTenantId ?? scopeId));
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as ProtocolDraftPayload;
-    const updatedAt = Date.parse(parsed.updatedAt);
-    if (!Number.isFinite(updatedAt) || Date.now() - updatedAt > DRAFT_TTL_MS) {
-      clearProtocolDraft(sessionId, scopeId, legacyTenantId);
-      return null;
-    }
-    return parsed;
-  } catch {
-    clearProtocolDraft(sessionId, scopeId, legacyTenantId);
-    return null;
-  }
+function isValidDraft(payload: ProtocolDraftPayload) {
+  const updatedAt = Date.parse(payload.updatedAt);
+  return Number.isFinite(updatedAt) && Date.now() - updatedAt <= DRAFT_TTL_MS;
 }
 
-export function saveProtocolDraft(sessionId: string, scopeId: string | null, payload: ProtocolDraftPayload) {
-  if (typeof window === "undefined") return false;
+function compactDraft(payload: ProtocolDraftPayload): ProtocolDraftPayload {
+  return {
+    ...payload,
+    files: Object.fromEntries(
+      Object.entries(payload.files).map(([label, items]) => [
+        label,
+        items.map((item) => ({
+          ...item,
+          previewUrl:
+            item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
+              ? item.previewUrl
+              : undefined,
+        })),
+      ]),
+    ),
+  };
+}
 
-  const key = buildDraftStorageKey(sessionId, scopeId);
+function writeDraftCollection(
+  sessionId: string,
+  scopeId: string | null,
+  drafts: ProtocolDraftPayload[],
+) {
+  const key = buildDraftCollectionKey(sessionId, scopeId);
+  const normalized = drafts
+    .filter(isValidDraft)
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+
   try {
-    window.localStorage.setItem(key, JSON.stringify(payload));
+    window.localStorage.setItem(key, JSON.stringify(normalized));
     return true;
   } catch (error) {
-    // Previews base64 podem exceder a cota do localStorage. Mantemos o rascunho
-    // textual e os metadados dos arquivos, mas nunca deixamos o salvamento falhar
-    // silenciosamente por causa de um preview grande.
-    const compactPayload: ProtocolDraftPayload = {
-      ...payload,
-      files: Object.fromEntries(
-        Object.entries(payload.files).map(([label, items]) => [
-          label,
-          items.map((item) => ({
-            ...item,
-            previewUrl:
-              item.previewUrl && item.previewUrl.length <= MAX_INLINE_PREVIEW_CHARS
-                ? item.previewUrl
-                : undefined,
-          })),
-        ]),
-      ),
-    };
-
     try {
-      window.localStorage.setItem(key, JSON.stringify(compactPayload));
+      window.localStorage.setItem(key, JSON.stringify(normalized.map(compactDraft)));
       return true;
     } catch (compactError) {
-      console.warn("[SIGAPRO][Rascunho] Não foi possível persistir o rascunho local.", {
+      console.warn("[SIGAPRO][Rascunho] Não foi possível persistir a coleção de rascunhos.", {
         error,
         compactError,
       });
@@ -141,8 +125,122 @@ export function saveProtocolDraft(sessionId: string, scopeId: string | null, pay
   }
 }
 
-export function clearProtocolDraft(sessionId: string, scopeId: string | null, legacyTenantId?: string | null) {
+export function createDraftNumber() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = `${now.getMonth() + 1}`.padStart(2, "0");
+  const d = `${now.getDate()}`.padStart(2, "0");
+  const h = `${now.getHours()}`.padStart(2, "0");
+  const min = `${now.getMinutes()}`.padStart(2, "0");
+  const sec = `${now.getSeconds()}`.padStart(2, "0");
+  return `PRE-${y}${m}${d}-${h}${min}${sec}`;
+}
+
+export function listProtocolDrafts(
+  sessionId: string,
+  scopeId: string | null,
+  legacyTenantId?: string | null,
+) {
+  if (typeof window === "undefined") return [] as ProtocolDraftPayload[];
+
+  const collectionKey = buildDraftCollectionKey(sessionId, scopeId);
+  let drafts: ProtocolDraftPayload[] = [];
+
+  try {
+    const rawCollection = window.localStorage.getItem(collectionKey);
+    if (rawCollection) {
+      const parsed = JSON.parse(rawCollection);
+      if (Array.isArray(parsed)) {
+        drafts = parsed as ProtocolDraftPayload[];
+      }
+    }
+  } catch {
+    drafts = [];
+  }
+
+  // Migração transparente do formato antigo de rascunho único.
+  const legacyKeys = Array.from(
+    new Set([
+      buildDraftStorageKey(sessionId, scopeId),
+      buildLegacyDraftStorageKey(sessionId, legacyTenantId ?? scopeId),
+    ]),
+  );
+
+  for (const legacyKey of legacyKeys) {
+    const rawLegacy = window.localStorage.getItem(legacyKey);
+    if (!rawLegacy) continue;
+
+    try {
+      const legacyDraft = JSON.parse(rawLegacy) as ProtocolDraftPayload;
+      if (
+        legacyDraft?.draftNumber &&
+        isValidDraft(legacyDraft) &&
+        !drafts.some((item) => item.draftNumber === legacyDraft.draftNumber)
+      ) {
+        drafts.push(legacyDraft);
+      }
+    } catch {
+      // Ignora rascunho legado inválido.
+    }
+  }
+
+  const validDrafts = drafts
+    .filter((draft) => draft?.draftNumber && isValidDraft(draft))
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+
+  if (validDrafts.length !== drafts.length || legacyKeys.some((key) => window.localStorage.getItem(key))) {
+    if (writeDraftCollection(sessionId, scopeId, validDrafts)) {
+      legacyKeys.forEach((key) => window.localStorage.removeItem(key));
+    }
+  }
+
+  return validDrafts;
+}
+
+export function readProtocolDraft(
+  sessionId: string,
+  scopeId: string | null,
+  legacyTenantId?: string | null,
+  draftNumber?: string | null,
+) {
+  const drafts = listProtocolDrafts(sessionId, scopeId, legacyTenantId);
+  if (!draftNumber) return drafts[0] ?? null;
+  return drafts.find((draft) => draft.draftNumber === draftNumber) ?? null;
+}
+
+export function saveProtocolDraft(
+  sessionId: string,
+  scopeId: string | null,
+  payload: ProtocolDraftPayload,
+) {
+  if (typeof window === "undefined") return false;
+
+  const drafts = listProtocolDrafts(sessionId, scopeId);
+  const next = [
+    payload,
+    ...drafts.filter((draft) => draft.draftNumber !== payload.draftNumber),
+  ];
+
+  return writeDraftCollection(sessionId, scopeId, next);
+}
+
+export function clearProtocolDraft(
+  sessionId: string,
+  scopeId: string | null,
+  legacyTenantId?: string | null,
+  draftNumber?: string | null,
+) {
   if (typeof window === "undefined") return;
+
+  if (draftNumber) {
+    const drafts = listProtocolDrafts(sessionId, scopeId, legacyTenantId).filter(
+      (draft) => draft.draftNumber !== draftNumber,
+    );
+    writeDraftCollection(sessionId, scopeId, drafts);
+    return;
+  }
+
+  window.localStorage.removeItem(buildDraftCollectionKey(sessionId, scopeId));
   window.localStorage.removeItem(buildDraftStorageKey(sessionId, scopeId));
   if (legacyTenantId && legacyTenantId !== scopeId) {
     window.localStorage.removeItem(buildLegacyDraftStorageKey(sessionId, legacyTenantId));
