@@ -123,14 +123,15 @@ export function InstitutionalLogo({
         "sig-institution-logo-surface flex max-w-full shrink-0 items-center justify-center overflow-hidden",
         isMaster
           ? "bg-transparent"
-          : "rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.12)]",
+          : "rounded-[22px] bg-white",
         isMaster ? masterVariantClasses[variant] : variantClasses[variant],
         className,
       )}
       style={isMaster ? undefined : {
         background: "#ffffff",
         backgroundColor: "#ffffff",
-        borderColor: "#d7dee8",
+        border: "none",
+        boxShadow: "none",
         opacity: 1,
         backdropFilter: "none",
         WebkitBackdropFilter: "none",
