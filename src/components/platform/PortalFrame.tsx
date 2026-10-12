@@ -2144,7 +2144,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                 </div>
                 <div className="space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Endereço</p>
-                  <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
+                  <p
+                    className="whitespace-nowrap text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
+                    title={tenantSettings?.endereco || "Endereço não informado"}
+                  >
                     {tenantSettings?.endereco || "Endereço não informado"}
                   </p>
                   <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
