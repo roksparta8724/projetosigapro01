@@ -5362,3 +5362,22 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-plan-dark-badge
   -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
 }
+
+
+/* ===== TENANT USER DARK BADGE CONTRAST 2026-10-12 ===== */
+html body .sig-main-shell .sig-tenant-dark-badge,
+html body [data-layout-mode="default"] .sig-main-shell .sig-tenant-dark-badge,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-tenant-dark-badge {
+  background: #020617 !important;
+  background-color: #020617 !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-tenant-dark-badge *,
+html body [data-layout-mode="default"] .sig-main-shell .sig-tenant-dark-badge *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-tenant-dark-badge * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
