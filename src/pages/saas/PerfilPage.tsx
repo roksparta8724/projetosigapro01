@@ -1503,7 +1503,7 @@ export function PerfilPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-950 p-4 text-white">
+                      <div className="sig-fixed-dark-surface rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Topbar</p>
@@ -1551,7 +1551,7 @@ export function PerfilPage() {
                     icon={Building2}
                   >
                     <div className="space-y-6">
-                      <div className="rounded-[22px] border border-slate-200 bg-slate-950 p-5 text-white">
+                      <div className="sig-fixed-dark-surface rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Cabeçalho Master</p>
@@ -1623,7 +1623,7 @@ export function PerfilPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-[22px] border border-slate-200 bg-slate-950 p-5 text-white">
+                      <div className="sig-fixed-dark-surface rounded-[22px] border border-slate-700 bg-slate-950 p-5 text-white">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Rodapé Master</p>
