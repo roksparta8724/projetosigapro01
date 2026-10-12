@@ -735,10 +735,13 @@ export function ProcessDetailPage() {
     );
   };
   const openViewer = (documentId: string) => {
-    setViewerDocumentId(documentId);
-    setViewerZoom(1);
-    setAnnotationDraft("");
-    setAnnotationPoint(null);
+    const viewerUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/visualizar`;
+    window.open(viewerUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const openAnalysisViewer = (documentId: string) => {
+    const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/analisar`;
+    window.open(analysisUrl, "_blank", "noopener,noreferrer");
   };
   const handleViewerClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!canAnnotateViewer || !viewerAreaRef.current) return;
@@ -1247,12 +1250,29 @@ export function ProcessDetailPage() {
                 <div key={document.id} className="rounded-2xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-950">{document.label}</p>
-                      <p className="mt-1 truncate text-sm text-slate-500">
+                      {document.uploaded ? (
+                        <button
+                          type="button"
+                          onClick={() => openViewer(document.id)}
+                          className="block max-w-full text-left font-medium text-slate-950 hover:text-sky-700 hover:underline"
+                          title="Abrir documento em nova guia"
+                        >
+                          {document.label}
+                        </button>
+                      ) : (
+                        <p className="font-medium text-slate-950">{document.label}</p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!document.uploaded}
+                        onClick={() => document.uploaded && openViewer(document.id)}
+                        className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default"
+                        title={document.uploaded ? "Abrir documento em nova guia" : undefined}
+                      >
                         {document.fileName || "Arquivo ainda não enviado"}
                         {document.mimeType ? ` • ${document.mimeType}` : ""}
                         {document.sizeLabel ? ` • ${document.sizeLabel}` : ""}
-                      </p>
+                      </button>
                       {document.uploaded ? (
                         <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
                           Origem: {document.source === "profissional" ? "Profissional responsável" : document.source}
@@ -1283,10 +1303,7 @@ export function ProcessDetailPage() {
                       {canReviewDocuments && document.uploaded ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${document.id}/analisar`;
-                            window.open(analysisUrl, "_blank", "noopener,noreferrer");
-                          }}
+                          onClick={() => openAnalysisViewer(document.id)}
                           className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                         >
                           <Maximize2 className="h-3.5 w-3.5" />
@@ -1300,7 +1317,7 @@ export function ProcessDetailPage() {
                           className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Maximize2 className="h-3.5 w-3.5" />
-                          Preview
+                          Abrir documento
                         </button>
                       ) : null}
 
