@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -394,8 +394,15 @@ export function ProcessDetailPage() {
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
+  const isExternalProcessViewer =
+    session.role === "profissional_externo" ||
+    session.role === "property_owner" ||
+    session.role === "proprietario_consulta";
+  const visiblePaymentGuides = isExternalProcessViewer
+    ? paymentGuides.filter((guide) => guide.kind === "protocolo" || Boolean(guide.issuedAt && guide.code?.trim()))
+    : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
-  const protocolGuide = paymentGuides.find((guide) => guide.kind === "protocolo");
+  const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const protocolUnitIdentity = `${session.department || ""} ${session.title || ""}`.toLowerCase();
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
@@ -523,7 +530,7 @@ export function ProcessDetailPage() {
   const useSplitDetailLayout = activeTab === "historico";
   const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
-    const selectedGuide = paymentGuides.find((guide) => guide.kind === guideKind);
+    const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
@@ -1435,15 +1442,17 @@ export function ProcessDetailPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {process.timeline.map((entry) => (
-                <div key={entry.id} className="rounded-2xl bg-slate-50 p-4">
+                <div key={entry.id} data-process-history-entry="true" className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-semibold text-slate-950">{entry.title}</p>
                     <p className="text-sm text-slate-500">{entry.at}</p>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
-                  <div className="mt-2 flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
-                    <UserAvatar name={entry.actor} imageUrl={getProfileByName(entry.actor)?.avatarUrl} size="sm" />
-                    <span className="sig-fit-title" title={entry.actor}>{entry.actor}</span>
+                  <div className="mt-3 flex min-w-0 items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800 text-sky-300 shadow-sm">
+                      <UserRound className="h-4 w-4" />
+                    </span>
+                    <span className="sig-fit-title font-medium text-slate-300" title={entry.actor}>{entry.actor}</span>
                   </div>
                 </div>
               ))}
@@ -1679,6 +1688,7 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {!isExternalProcessViewer ? (
               <div className="grid items-stretch gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
                 <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
                   <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 1</p>
@@ -1696,6 +1706,7 @@ export function ProcessDetailPage() {
                   <p className="mt-2 text-sm text-slate-600">Só aparece no fechamento do processo, quando a taxa final de aprovação for solicitada.</p>
                 </div>
               </div>
+              ) : null}
               <div className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
                 <div className="min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                   <div className="flex flex-wrap items-start justify-between gap-3">
