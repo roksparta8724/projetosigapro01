@@ -120,7 +120,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 window.setTimeout(() => {
   restoreRefreshScroll();
   document.documentElement.removeAttribute("data-sigapro-booting");
-}, 1200);
+}, 350);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
