@@ -6018,3 +6018,35 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   stroke: currentColor !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+
+/* ===== STABLE DOCUMENT/UPLOAD CARDS - NO FLICKER ===== */
+[data-process-document-card="true"],
+[data-upload-zone] {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  contain: layout style;
+}
+
+[data-process-document-card="true"] *,
+[data-upload-zone] * {
+  animation-name: none !important;
+}
+
+[data-process-document-card="true"] {
+  transition-property: border-color, background-color, color !important;
+  transition-duration: 150ms !important;
+}
+
+[data-upload-zone] {
+  overflow-anchor: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-process-document-card="true"],
+  [data-upload-zone] {
+    scroll-behavior: auto !important;
+  }
+}
