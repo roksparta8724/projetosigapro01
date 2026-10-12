@@ -956,7 +956,15 @@ export async function loadRemotePlatformStore() {
       accessLevel: storedAccessLevel(membership.level_name, roleCode),
       tenantId: membership.tenant_id,
       municipalityId: profile?.municipality_id ?? membership.tenant_id,
-      title: membership.department || membership.queue_name || membership.level_name || role?.label || "",
+      title:
+        membership.title ||
+        membership.job_title ||
+        membership.position_title ||
+        membership.department ||
+        membership.queue_name ||
+        membership.level_name ||
+        role?.label ||
+        "",
       email: profile?.email ?? "",
       accountStatus,
       userType:
