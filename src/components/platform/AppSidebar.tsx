@@ -37,6 +37,18 @@ function isParentActive(pathname: string, routeGroup: string) {
   return pathname === routeGroup || pathname.startsWith(`${routeGroup}/`);
 }
 
+function getInitialExpandedItems(groups: AppSidebarGroup[], pathname: string) {
+  const next: Record<string, boolean> = {};
+  groups.forEach((group) => {
+    group.items.forEach((item) => {
+      if (item.children?.length && isParentActive(pathname, item.to)) {
+        next[item.to] = true;
+      }
+    });
+  });
+  return next;
+}
+
 function SidebarInner({
   pathname,
   groups,
@@ -102,7 +114,7 @@ function SidebarInner({
                   const shouldBindActiveRef = parentActive || isExactActive;
 
                   const itemClassName = cn(
-                    "sig-sidebar-item group flex items-center justify-start text-left text-sm leading-5 transition-all duration-300 ease-out",
+                    "sig-sidebar-item group flex items-center justify-start text-left text-sm leading-5 ",
                     expanded
                       ? "w-full min-h-[58px] gap-3 rounded-[18px] px-3.5 py-3"
                       : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
@@ -130,7 +142,7 @@ function SidebarInner({
                         >
                           <span
                             className={cn(
-                              "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
+                              "sig-sidebar-icon flex shrink-0 items-center justify-center border ",
                               expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
@@ -146,7 +158,7 @@ function SidebarInner({
 
                           <span
                             className={cn(
-                              "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
+                              "sig-sidebar-label overflow-hidden ",
                               expanded ? "min-w-0 flex-1 basis-0 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
                             )}
                             aria-hidden={!expanded}
@@ -196,7 +208,7 @@ function SidebarInner({
                         >
                           <span
                             className={cn(
-                              "sig-sidebar-icon flex shrink-0 items-center justify-center border transition-all duration-300",
+                              "sig-sidebar-icon flex shrink-0 items-center justify-center border ",
                               expanded ? "h-9 w-9 basis-9 rounded-[14px]" : "h-10 w-10 basis-10 rounded-[15px]",
                               parentActive
                                 ? darkSurface
@@ -212,7 +224,7 @@ function SidebarInner({
 
                           <span
                             className={cn(
-                              "sig-sidebar-label overflow-hidden transition-all duration-200 ease-out",
+                              "sig-sidebar-label overflow-hidden ",
                               expanded ? "min-w-0 flex-1 basis-0 opacity-100" : "w-0 max-w-0 opacity-0 pointer-events-none",
                             )}
                             aria-hidden={!expanded}
@@ -239,7 +251,7 @@ function SidebarInner({
                       {hasChildren && expanded ? (
                         <div
                           className={cn(
-                            "sig-sidebar-submenu ml-5 overflow-hidden border-l pl-4 transition-all duration-300 ease-out",
+                            "sig-sidebar-submenu ml-5 overflow-hidden border-l pl-4 ",
                             sectionOpen ? "mt-2 max-h-[480px] opacity-100" : "mt-0 max-h-0 opacity-0 pointer-events-none",
                             darkSurface ? "border-white/10" : "border-slate-200",
                           )}
@@ -268,7 +280,7 @@ function SidebarInner({
                                 >
                                   <span
                                     className={cn(
-                                      "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition-all duration-300",
+                                      "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full ",
                                       childActive
                                         ? darkSurface
                                           ? "bg-[var(--sig-primary-deep)]"
@@ -321,7 +333,9 @@ export function AppSidebar({
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() =>
+    getInitialExpandedItems(groups, pathname),
+  );
   const desktopScrollRef = useRef<HTMLDivElement | null>(null);
   const mobileScrollRef = useRef<HTMLDivElement | null>(null);
   const activeItemNodeRef = useRef<HTMLAnchorElement | HTMLButtonElement | null>(null);
@@ -366,7 +380,7 @@ export function AppSidebar({
     onMobileClose?.();
   }, [captureScroll, onMobileClose]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setExpandedItems((current) => {
       const next = { ...current };
       let changed = false;
@@ -400,7 +414,7 @@ export function AppSidebar({
     <>
       <aside
         className={cn(
-          "sig-sidebar-shell relative hidden h-[calc(100vh-68px)] min-h-[calc(100vh-68px)] shrink-0 self-start overflow-hidden transition-[width] duration-300 ease-out lg:sticky lg:top-[68px] lg:flex lg:flex-col",
+          "sig-sidebar-shell relative hidden h-[calc(100vh-68px)] min-h-[calc(100vh-68px)] shrink-0 self-start overflow-hidden  lg:sticky lg:top-[68px] lg:flex lg:flex-col",
           expanded
             ? "w-[304px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
             : "w-[96px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
