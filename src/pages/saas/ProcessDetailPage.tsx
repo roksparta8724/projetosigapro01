@@ -1214,7 +1214,7 @@ export function ProcessDetailPage() {
                   </div>
 
                   {canRecoverStoredDocuments && !document.uploaded ? (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                    <div data-pending-document-card="true" className="mt-4 rounded-2xl border p-4">
                       <p className="text-sm font-semibold text-amber-900">
                         {canUploadProcessDocuments ? "Documento pendente de envio" : "Upload do profissional aguardando vínculo"}
                       </p>
