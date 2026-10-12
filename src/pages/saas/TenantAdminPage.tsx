@@ -72,6 +72,24 @@ function applyMunicipalProfileSelection(
     title: roleSuggestedTitles[role] ?? current.title,
   };
 }
+
+function getMunicipalProfileLabel(user: SessionUser) {
+  const normalizedTitle = (user.title || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+  const preset = municipalProfilePresets.find((item) => {
+    const normalizedLabel = item.label
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR");
+    return normalizedTitle === normalizedLabel || normalizedTitle.includes(normalizedLabel);
+  });
+
+  return preset?.label ?? roleLabels[user.role];
+}
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
 
@@ -311,6 +329,13 @@ export function TenantAdminPage() {
 
       if (!updated) {
         throw new Error("Usuário não encontrado no banco.");
+      }
+
+      const persistedTitle = (updated.title || "").trim();
+      if (persistedTitle.localeCompare(normalizedTitle, "pt-BR", { sensitivity: "accent" }) !== 0) {
+        throw new Error(
+          `O banco não confirmou o cargo "${normalizedTitle}". Valor retornado: "${persistedTitle || "vazio"}".`,
+        );
       }
 
       if (effectiveScopeId) {
@@ -555,7 +580,7 @@ export function TenantAdminPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 xl:max-w-[42%] xl:justify-end">
-              <Badge className="sig-tenant-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{roleLabels[user.role]}</Badge>
+              <Badge className="sig-tenant-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{getMunicipalProfileLabel(user)}</Badge>
               <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge>
               <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-600">{user.userType || "Usuário"}</Badge>
             </div>
