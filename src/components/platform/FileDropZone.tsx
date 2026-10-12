@@ -256,7 +256,23 @@ export function FileDropZone({
                 <div className="mt-4 h-56 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:h-72 dark:border-white/12 dark:bg-slate-900/50">
                   {file.previewUrl ? (
                     file.mimeType === "application/pdf" ? (
-                      <iframe src={file.previewUrl} title={file.fileName} className="h-full w-full" />
+                      <div className="flex h-full w-full flex-col items-center justify-center px-6 text-center">
+                        <FileText className="h-10 w-10 text-sky-600 dark:text-sky-200" />
+                        <p className="mt-3 max-w-full truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          {file.fileName}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          PDF pronto para visualização sem carregar dentro do card.
+                        </p>
+                        <a
+                          href={file.previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-4 inline-flex min-h-[40px] items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors duration-150 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-white/12 dark:bg-white/[0.04] dark:text-slate-100 dark:hover:bg-white/[0.08]"
+                        >
+                          Abrir PDF em nova guia
+                        </a>
+                      </div>
                     ) : (
                       <img
                         src={file.previewUrl}
