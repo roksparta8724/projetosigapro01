@@ -19,6 +19,7 @@ import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
+import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
 import { AnalystDeskPage } from "@/pages/saas/AnalystDeskPage";
 import { FinanceDeskPage } from "@/pages/saas/FinanceDeskPage";
@@ -185,6 +186,14 @@ const AppRoutes = () => {
               <PlanModuleRoute module="Configurações">
                 <TenantAdminPage />
               </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/prefeitura/organograma"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <MunicipalOrganizationPage />
             </PermissionRoute>
           }
         />
