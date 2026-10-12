@@ -15,10 +15,10 @@ create policy departments_read_same_municipality
     or exists (
       select 1
         from public.profiles p
-       where p.user_id = auth.uid()
+       where p.id = public.current_profile_id()
          and p.municipality_id = departments.municipality_id
          and p.deleted_at is null
-         and coalesce(p.account_status, 'active') <> 'blocked'
+         and p.account_status = 'active'
     )
   );
 
