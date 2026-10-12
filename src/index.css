@@ -5057,3 +5057,41 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
+
+
+/* ===== SIGAPRO FIXED DARK SURFACE ABSOLUTE CONTRAST 2026-10-12 =====
+   Used by identity/profile/master previews and other intentionally dark cards. */
+.sig-main-shell .sig-fixed-dark-surface,
+.sig-main-shell .sig-fixed-dark-surface :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+.sig-main-shell .sig-fixed-dark-surface :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,
+  .text-gray-950,.text-gray-900,.text-gray-800,.text-gray-700,.text-gray-600,.text-gray-500,.text-gray-400,
+  .text-zinc-950,.text-zinc-900,.text-zinc-800,.text-zinc-700,.text-zinc-600,.text-zinc-500,.text-zinc-400,
+  .text-black,.text-white
+) {
+  color: #e5edf7 !important;
+  -webkit-text-fill-color: #e5edf7 !important;
+}
+
+.sig-main-shell .sig-fixed-dark-surface svg {
+  color: #f8fafc !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Explicit dark actions/chips always use white labels and icons in every theme. */
+.sig-main-shell .sig-force-dark-action,
+.sig-main-shell .sig-force-dark-action :is(span,strong,small,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-main-shell .sig-force-dark-action svg {
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
