@@ -2758,8 +2758,8 @@ export function ConfiguracoesPage() {
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
-                      <p className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>Visual institucional</p>
-                      <p className="mt-2 text-sm leading-6 text-white md:text-[15px]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>Cabecalho institucional</p>
+                      <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]">Visual institucional</p>
+                      <p id="cadastro-preview-cabecalho" className="mt-2 text-sm leading-6 md:text-[15px]">Cabecalho institucional</p>
                     </div>
                     <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
                       <InstitutionalLogo
@@ -2769,16 +2769,17 @@ export function ConfiguracoesPage() {
                         className="mx-auto shrink-0 lg:mx-0"
                       />
                       <div className="min-w-0 flex-1 text-white">
-                        <p className="sig-dark-preview-title text-balance break-words text-[15px] font-semibold leading-tight md:text-[17px] xl:text-[18px]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
+                        <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[15px] font-semibold leading-tight md:text-[17px] xl:text-[18px]">
                           {tenantForm.name || "Prefeitura"}
                         </p>
                         <p
-                          className="sig-institutional-dark-preview-muted mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
+                          id="cadastro-preview-secretaria"
+                          className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
                         >
                           {settingsForm.secretariaResponsavel || "Secretaria responsável"}
                         </p>
                         <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
-                          <span className="truncate">
+                          <span id="cadastro-preview-usuario" className="truncate">
                             {session.name} - {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
                           </span>
                         </div>
