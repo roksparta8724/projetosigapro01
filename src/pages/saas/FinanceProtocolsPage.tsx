@@ -47,7 +47,9 @@ export function FinanceProtocolsPage() {
   const [financialBusyKey, setFinancialBusyKey] = useState("");
 
   const paymentGuides = processes.flatMap((process) =>
-    getProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
+    getProcessPaymentGuides(process, tenantSettings)
+      .filter((guide) => guide.kind !== "protocolo")
+      .map((guide) => ({ process, guide })),
   );
 
   const pendingValue = paymentGuides
@@ -67,6 +69,11 @@ export function FinanceProtocolsPage() {
   };
 
   const handleConfirmPayment = async (processId: string, guideKind: PaymentGuideKind) => {
+    if (guideKind === "protocolo") {
+      setFinancialStatus("A baixa da guia inicial é responsabilidade do Setor de Protocolo.");
+      return;
+    }
+
     const busyKey = `${processId}:${guideKind}`;
     setFinancialBusyKey(busyKey);
     setFinancialStatus("");
@@ -153,12 +160,12 @@ export function FinanceProtocolsPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Financeiro municipal" title="Guias DAM e controle de arrecadação">
+    <PortalFrame eyebrow="Financeiro municipal" title="ISSQN, taxas finais e controle de arrecadação">
       <PageShell>
         <PageHero
           eyebrow="Arrecadação municipal"
-          title="Guias DAM, confirmação financeira e segunda via por processo"
-          description="A equipe financeira acompanha protocolo, ISSQN da obra e aprovação final em uma fila única de arrecadação."
+          title="ISSQN, taxa final e conciliação financeira"
+          description="O Financeiro acompanha somente as etapas financeiras posteriores à triagem: ISSQN da obra, taxa final e conciliação. A guia inicial pertence ao Protocolo."
           icon={Receipt}
           actions={
             <Button asChild variant="outline" className="rounded-full">
@@ -181,7 +188,7 @@ export function FinanceProtocolsPage() {
           <StatCard
             label="Guias de recolhimento"
             value={String(paymentGuides.length)}
-            description="Protocolo, ISSQN e aprovação final"
+            description="ISSQN e aprovação final"
             icon={Receipt}
             tone="blue"
           />
@@ -207,7 +214,7 @@ export function FinanceProtocolsPage() {
           <PageMainContent>
             <SectionCard
               title="Lista de processos e guias"
-              description="Consulte, imprima a DAM e confirme o recolhimento de protocolo, ISSQN da obra e aprovação final."
+              description="Consulte, imprima a DAM e confirme os recolhimentos de ISSQN da obra e aprovação final."
             >
               <Card className="rounded-[24px] border-slate-200 shadow-sm">
                 <CardHeader>
