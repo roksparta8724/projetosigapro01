@@ -1959,7 +1959,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
         await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
-        await refreshRemoteStore();
+        const serialized = serializeMarker(normalized, "#2563eb");
+
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map((process) => {
+            if (process.id !== processId) return process;
+            const nextTags = (process.tags ?? []).filter(
+              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
+            );
+            return { ...process, tags: [...nextTags, serialized] };
+          }),
+        }));
       },
       addProcessMarkerWithColor: async (processId, marker, color, actor) => {
         const normalized = marker.trim();
@@ -1967,15 +1978,41 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
 
         await upsertRemoteProcessMarker(processId, normalized, color);
-        await refreshRemoteStore();
+        const serialized = serializeMarker(normalized, color);
+
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map((process) => {
+            if (process.id !== processId) return process;
+            const nextTags = (process.tags ?? []).filter(
+              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
+            );
+            return { ...process, tags: [...nextTags, serialized] };
+          }),
+        }));
       },
       removeProcessMarker: async (processId, marker, actor) => {
         const parsedMarker = parseMarker(marker);
-        if (!parsedMarker.label.trim()) return;
+        const normalizedLabel = parsedMarker.label.trim();
+        if (!normalizedLabel) return;
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para remover marcador.");
 
-        await removeRemoteProcessMarkerByLabel(processId, parsedMarker.label);
-        await refreshRemoteStore();
+        await removeRemoteProcessMarkerByLabel(processId, normalizedLabel);
+
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map((process) =>
+            process.id !== processId
+              ? process
+              : {
+                  ...process,
+                  tags: (process.tags ?? []).filter(
+                    (tag) =>
+                      parseMarker(tag).label.trim().toLowerCase() !== normalizedLabel.toLowerCase(),
+                  ),
+                },
+          ),
+        }));
       },
       setInstitutionStatus,
       dispatchProcess: async ({ processId, actor, from, to, subject, dueDate, visibility, priority, assignedTo }) => {
