@@ -71,9 +71,9 @@ export function ExternalPortalPage() {
     <PortalFrame eyebrow="Acesso Externo" title="Painel do profissional">
       <PageContainer>
         <PageIntro
-          eyebrow="Visão geral"
-          title="Protocolos, pendências e pagamentos em um só lugar"
-          description="Acompanhe o andamento das etapas, organize respostas e avance com clareza."
+          eyebrow="Resumo"
+          title="O que precisa da sua atenção"
+          description="Um resumo curto dos seus processos. Os detalhes ficam nas áreas de controle, pagamentos e histórico."
           icon={LineChart}
           actions={
             <div className="flex flex-wrap gap-2">
@@ -112,78 +112,58 @@ export function ExternalPortalPage() {
         <MainGrid>
           <MainContent>
             <SectionPanel
-              title="Acompanhamento executivo"
-              description="Visão rápida do que exige atenção imediata."
-              contentClassName="space-y-4"
+              title="Prioridades agora"
+              description="Somente itens que merecem ação imediata."
+              contentClassName="space-y-3"
             >
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
-                  <p className="sig-label">Protocolos prioritários</p>
-                  {recentActivity.length === 0 ? (
-                    <p className="mt-2 text-sm text-slate-600">Nenhuma movimentação recente encontrada.</p>
-                  ) : (
-                    recentActivity.map((process) => (
-                      <div key={process.id} className="mt-3 rounded-[10px] border border-slate-200/80 bg-white/60 p-3">
-                        <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
-                        <p className="mt-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">
-                          {statusLabel(process.status)}
-                        </p>
-                      </div>
-                    ))
-                  )}
+              {recentActivity.length === 0 ? (
+                <div className="sig-dark-panel rounded-[12px] border border-dashed border-slate-300 p-5 text-sm text-slate-600">
+                  Nenhum processo em acompanhamento no momento.
                 </div>
-                <div className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
-                  <p className="sig-label">Guias pendentes</p>
-                  {pendingGuides.length === 0 ? (
-                    <p className="mt-2 text-sm text-slate-600">Nenhuma guia pendente no momento.</p>
-                  ) : (
-                    pendingGuides.slice(0, 3).map(({ process, guide }) => (
-                      <div key={`${process.id}-${guide.code}`} className="mt-3 rounded-[10px] border border-slate-200/80 bg-white/60 p-3">
-                        <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
-                        <p className="mt-1 text-sm text-slate-600">Guia {guide.code}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-rose-500">
-                          {formatCurrency(guide.amount)}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              ) : (
+                recentActivity.map((process) => (
+                  <div key={process.id} className="flex flex-col gap-3 rounded-[12px] border border-[#E5E7EB] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
+                      <p className="mt-1 line-clamp-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">{statusLabel(process.status)}</p>
+                    </div>
+                    <Button asChild variant="outline" className="shrink-0 rounded-full">
+                      <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                    </Button>
+                  </div>
+                ))
+              )}
             </SectionPanel>
           </MainContent>
 
           <SideContent>
             <SectionPanel
-              title="Pendências do profissional"
-              description="Exigências abertas e retornos aguardando resposta."
+              title="Pendências"
+              description="O que ainda depende de você."
               contentClassName="space-y-3"
             >
-              {pendingRequirements === 0 ? (
-                <div className="sig-dark-panel rounded-[10px] border border-dashed border-slate-300 p-4 text-sm text-slate-600">
-                  Nenhuma pendência aberta no momento.
-                </div>
-              ) : (
-                processes
-                  .filter((process) => (process.requirements ?? []).length > 0)
-                  .slice(0, 3)
-                  .map((process) => (
-                    <div key={process.id} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
-                      <p className="mt-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
-                        Exigência pendente
-                      </p>
-                    </div>
-                  ))
-              )}
+              <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Exigências abertas</p>
+                <p className="mt-2 text-xl font-semibold text-slate-950">{pendingRequirements}</p>
+              </div>
+              <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Guias pendentes</p>
+                <p className="mt-2 text-xl font-semibold text-slate-950">{pendingGuides.length}</p>
+              </div>
             </SectionPanel>
 
             <SectionPanel
               title="Ações rápidas"
-              description="Atalhos úteis para o dia a dia do profissional."
-              contentClassName="space-y-3"
+              description="Acesse diretamente o que precisa fazer."
+              contentClassName="space-y-2"
             >
+              <Button asChild className="sig-force-dark-action w-full justify-start rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
+                <Link to="/externo/protocolar">
+                  <FilePlus2 className="mr-2 h-4 w-4" />
+                  Novo protocolo
+                </Link>
+              </Button>
               <Button asChild variant="outline" className="w-full justify-start rounded-2xl">
                 <Link to="/externo/controle">
                   <FolderKanban className="mr-2 h-4 w-4" />
@@ -196,31 +176,6 @@ export function ExternalPortalPage() {
                   Pagamentos
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="w-full justify-start rounded-2xl">
-                <Link to="/externo/historico">
-                  <History className="mr-2 h-4 w-4" />
-                  Histórico
-                </Link>
-              </Button>
-            </SectionPanel>
-
-            <SectionPanel
-              title="Resumo do acesso"
-              description="Dados essenciais do seu perfil profissional."
-              contentClassName="space-y-2 text-sm text-slate-700"
-            >
-              <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Responsável técnico</p>
-                <p className="mt-1 font-semibold text-slate-900">{profile?.fullName || session.name}</p>
-              </div>
-              <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Registro profissional</p>
-                <p className="mt-1 font-semibold text-slate-900">{profile?.registrationNumber || "Atualize em Meu Perfil"}</p>
-              </div>
-              <div className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Secretaria responsável</p>
-                <p className="mt-1 font-semibold text-slate-900">{tenantSettings?.secretariaResponsavel || "Não configurada"}</p>
-              </div>
             </SectionPanel>
           </SideContent>
         </MainGrid>
