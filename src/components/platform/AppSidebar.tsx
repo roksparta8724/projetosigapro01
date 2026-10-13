@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
@@ -377,28 +377,6 @@ export function AppSidebar({
     pendingNearestRevealRef.current = true;
     onMobileClose?.();
   }, [captureScroll, onMobileClose]);
-
-  useLayoutEffect(() => {
-    setExpandedItems((current) => {
-      const next = { ...current };
-      let changed = false;
-      groups.forEach((group) => {
-        group.items.forEach((item) => {
-          if (!item.children?.length) return;
-          const shouldExpand = isParentActive(pathname, item.to);
-          if (shouldExpand && !next[item.to]) {
-            next[item.to] = true;
-            changed = true;
-          }
-        });
-      });
-      return changed ? next : current;
-    });
-  }, [groups, pathname]);
-
-  useEffect(() => {
-    pendingNearestRevealRef.current = true;
-  }, [pathname]);
 
   useLayoutEffect(() => {
     if (pendingScrollRestoreRef.current === null && !pendingNearestRevealRef.current) return;
