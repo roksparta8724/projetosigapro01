@@ -74,9 +74,10 @@ begin
     raise exception 'Sem acesso ao processo';
   end if;
 
-  if lower(unaccent(coalesce(_current_department,''))) not like '%analise%'
-     and lower(unaccent(coalesce(_current_department,''))) not like '%urban%'
-     and lower(unaccent(coalesce(_current_department,''))) not like '%obra%' then
+  if lower(coalesce(_current_department,'')) not like '%analise%'
+     and lower(coalesce(_current_department,'')) not like '%análise%'
+     and lower(coalesce(_current_department,'')) not like '%urban%'
+     and lower(coalesce(_current_department,'')) not like '%obra%' then
     raise exception 'O processo nao esta sob responsabilidade da Analise Urbanistica';
   end if;
 
