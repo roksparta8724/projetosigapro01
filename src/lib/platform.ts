@@ -646,6 +646,13 @@ export interface ProcessRecord {
   ownerProfileId?: string;
   technicalProfileId?: string;
   createdBy: string;
+  createdByProfileId?: string;
+  createdByUserId?: string;
+  createdByEmail?: string;
+  createdByRole?: string;
+  professionalProfileId?: string;
+  professionalUserId?: string;
+  professionalEmail?: string;
   tags: string[];
   address: string;
   notes?: string;
