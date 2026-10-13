@@ -197,7 +197,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -254,7 +254,6 @@ export function ProcessDetailPage() {
   const [requirementVisibility, setRequirementVisibility] = useState<"interno" | "externo" | "misto">("misto");
   const [requirementResponse, setRequirementResponse] = useState<Record<string, string>>({});
   const [reopenReason, setReopenReason] = useState("");
-  const [dispatchFrom, setDispatchFrom] = useState(session.department || session.title || "Unidade atual");
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState("");
@@ -561,10 +560,6 @@ export function ProcessDetailPage() {
       : rawCurrentFolder;
   const currentOrganizationPath = getOrganizationPath(currentFolder);
 
-  useEffect(() => {
-    if (!ownsCurrentProcessStage) return;
-    setDispatchFrom(currentFolder || session.department || session.title || "Unidade atual");
-  }, [currentFolder, ownsCurrentProcessStage, session.department, session.title]);
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
       ? "Luxo"
@@ -778,7 +773,7 @@ export function ProcessDetailPage() {
       setProcessActionStatus("O Protocolo está apenas acompanhando este processo e não pode despachá-lo nesta etapa.");
       return;
     }
-    if (!dispatchFrom.trim() || !dispatchTo.trim() || !dispatchSubject.trim() || !dispatchDueDate) return;
+    if (!currentFolder.trim() || !dispatchTo.trim() || !dispatchSubject.trim() || !dispatchDueDate) return;
 
     const selectedDestination = organizationDepartments.find(
       (department) => department.id === dispatchTo || department.name === dispatchTo,
@@ -794,7 +789,7 @@ export function ProcessDetailPage() {
         dispatchProcess({
           processId: process.id,
           actor: session.name,
-          from: dispatchFrom.trim(),
+          from: currentFolder.trim(),
           to: selectedDestination.name,
           subject: dispatchSubject.trim(),
           dueDate: dispatchDueDate,
