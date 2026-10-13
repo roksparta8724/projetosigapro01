@@ -409,7 +409,17 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       if (item.to.startsWith("/prefeitura/analise") && !canAccessMunicipalArea(session, "analise")) return null;
       if (item.to.startsWith("/prefeitura/financeiro") && !canAccessMunicipalArea(session, "financeiro")) return null;
 
-      if (item.module && !planEntitlements.canUseModule(item.module)) return null;
+      // Durante F5/login o contrato ainda pode estar sincronizando.
+      // Não remova itens do menu nesse intervalo: isso fazia toda a lateral
+      // encolher/reorganizar e depois voltar. A filtragem só ocorre quando
+      // o estado contratual atual estiver definitivamente resolvido.
+      if (
+        item.module &&
+        !planEntitlements.isResolving &&
+        !planEntitlements.canUseModule(item.module)
+      ) {
+        return null;
+      }
       const visibleChildren = (item.children ?? []).filter(
         (child) => !child.permission || can(session, child.permission),
       );
