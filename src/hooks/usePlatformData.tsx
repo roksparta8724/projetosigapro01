@@ -84,6 +84,7 @@ import {
   setRemoteProcessStatus,
   setRemoteProcessTriage,
   setRemoteProcessTransitVisibility,
+  updateRemoteProcessConstructionData,
   upsertRemoteInstitution,
   upsertRemotePlan,
   upsertRemoteProcessMarker,
@@ -182,6 +183,12 @@ interface PlatformDataState {
   startProcessAnalysis: (processId: string) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
+  updateConstructionGuideData: (input: {
+    processId: string;
+    areaM2: number;
+    usage: string;
+    constructionStandard?: string;
+  }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
   appendProcessDocuments: (
@@ -1944,6 +1951,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           });
         }
 
+        await refreshRemoteStore();
+      },
+      updateConstructionGuideData: async ({ processId, areaM2, usage, constructionStandard }) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para salvar os dados da obra.");
+        }
+
+        await updateRemoteProcessConstructionData({
+          processId,
+          areaM2,
+          usage,
+          constructionStandard,
+        });
         await refreshRemoteStore();
       },
       issuePaymentGuide: async (processId, actor, guideKind) => {
