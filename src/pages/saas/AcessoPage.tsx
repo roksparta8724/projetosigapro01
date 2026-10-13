@@ -18,6 +18,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useTenant } from "@/hooks/useTenant";
 import type { PlanModuleName } from "@/lib/planEntitlements";
+import { getRoleLandingPath } from "@/lib/platform";
 import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
@@ -356,19 +357,5 @@ function getRequiredModuleForRedirect(path: string): PlanModuleName | null {
 }
 
 function resolveRedirect(role: string | null) {
-  switch (role) {
-    case "prefeitura_admin":
-      return "/prefeitura";
-    case "analista":
-      return "/prefeitura/analise";
-    case "financeiro":
-      return "/prefeitura/financeiro";
-    case "profissional_externo":
-    case "proprietario_consulta":
-      return "/externo";
-    case "property_owner":
-      return "/proprietario";
-    default:
-      return "/master";
-  }
+  return getRoleLandingPath(role);
 }
