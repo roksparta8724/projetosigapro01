@@ -786,11 +786,11 @@ export function ProcessDetailPage() {
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
-          selectedGuide.kind === "aprovacao_final"
-            ? constructionGuideRequester || process.analysis?.assignedTo || session.name
+          selectedGuide.kind === "iss_obra"
+            ? process.analysis?.assignedTo || constructionGuideRequester || session.name
             : undefined,
         funcionarioEmissor:
-          selectedGuide.kind === "aprovacao_final"
+          selectedGuide.kind === "iss_obra"
             ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
             : selectedGuide.issuedBy,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
@@ -1894,7 +1894,7 @@ export function ProcessDetailPage() {
                     Conclusão da Análise Urbanística • ISSQN / Projeto
                   </CardTitle>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Depois da aprovação dos documentos, o analista informa os dados da obra. A emissão segue a regra definida pelo administrador da Prefeitura: Análise Urbanística, Financeiro ou ambos.
+                    Depois da aprovação dos documentos, o analista confere os dados informados no protocolo e confirma os dados usados no ISSQN / Projeto. A emissão segue a regra definida pelo administrador da Prefeitura: Análise Urbanística, Financeiro ou ambos.
                   </p>
                 </div>
                 <Badge
@@ -1956,7 +1956,7 @@ export function ProcessDetailPage() {
                       disabled={Boolean(constructionGuide)}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
-                        <SelectValue placeholder="Selecione o tipo da obra" />
+                        <SelectValue placeholder="Selecione o uso da edificação" />
                       </SelectTrigger>
                       <SelectContent>
                         {constructionUsageOptions.map((usage) => (
@@ -2207,7 +2207,7 @@ export function ProcessDetailPage() {
                         Solicitação de emissão recebida da Análise Urbanística
                       </p>
                       <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {constructionStandardLabel}
+                        {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {process.property.workType || workTypeInput || "Natureza não informada"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         Solicitante: {constructionGuideRequester || process.analysis?.assignedTo || "Analista responsável"}
@@ -2216,7 +2216,7 @@ export function ProcessDetailPage() {
                     </div>
                     <Button
                       type="button"
-                      className="shrink-0 rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"
+                      className="shrink-0 rounded-full bg-sky-700 px-6 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
                       disabled={
                         processActionBusy === "finance-issue-construction-guide" ||
                         !canFinanceOperate
