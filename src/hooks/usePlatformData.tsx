@@ -731,7 +731,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
-        if (!authenticatedUserId) setRemoteContextUserId(null);
+
+        if (!authenticatedUserId) {
+          setRemoteContextUserId(null);
+          lastFetchedUserId.current = null;
+        }
 
         if (hasBackendEnv && !localDev) {
           // Sessão ausente/expirada em produção: mantém apenas catálogo estático,
@@ -747,6 +751,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setStore(nextStore);
         setSource(nextStore === defaultStore ? "demo" : "local");
         setDataError(null);
+
+        // O contexto local também precisa pertencer explicitamente à conta atual.
+        // Isso impede que a rota seja liberada usando o plano da sessão anterior.
+        if (authenticatedUserId) {
+          lastFetchedUserId.current = authenticatedUserId;
+          setRemoteContextUserId(authenticatedUserId);
+        }
+
         setLoading(false);
         return;
       }
@@ -1407,13 +1419,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return message;
     };
 
-    const dataReadyForCurrentUser =
-      !expectsRemoteStore ||
-      Boolean(
-        authenticatedUserId &&
-        source === "remote" &&
-        remoteContextUserId === authenticatedUserId,
-      );
+    const dataReadyForCurrentUser = Boolean(
+      authenticatedUserId &&
+      remoteContextUserId === authenticatedUserId &&
+      !authLoading &&
+      !loading &&
+      (
+        !expectsRemoteStore ||
+        source === "remote"
+      ),
+    );
 
     return {
       source,
@@ -1967,6 +1982,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,
+    authLoading,
     dataError,
     expectsRemoteStore,
     loading,
