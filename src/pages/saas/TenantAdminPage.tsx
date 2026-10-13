@@ -74,7 +74,24 @@ function applyMunicipalProfileSelection(
 }
 
 function getMunicipalProfileLabel(user: SessionUser) {
-  return user.profileLabel?.trim() || roleLabels[user.role];
+  const isExternal =
+    user.role === "profissional_externo" ||
+    user.role === "property_owner" ||
+    user.role === "proprietario_consulta";
+
+  if (isExternal) {
+    return user.profileLabel?.trim() || user.title?.trim() || roleLabels[user.role];
+  }
+
+  const municipalPresetLabel = municipalProfilePresets.find(
+    (item) =>
+      item.role === user.role &&
+      item.label.localeCompare(user.profileLabel?.trim() || "", "pt-BR", {
+        sensitivity: "accent",
+      }) === 0,
+  )?.label;
+
+  return municipalPresetLabel || roleLabels[user.role];
 }
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
