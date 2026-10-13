@@ -62,6 +62,13 @@ export function DocumentAnalysisPage() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
   const [status, setStatus] = useState("");
+  const [localReviewStatus, setLocalReviewStatus] = useState<"pendente" | "aprovado" | "rejeitado">(
+    document?.reviewStatus === "aprovado"
+      ? "aprovado"
+      : document?.reviewStatus === "rejeitado"
+        ? "rejeitado"
+        : "pendente",
+  );
   const [comuniqueReason, setComuniqueReason] = useState("");
   const [comuniqueDueDate, setComuniqueDueDate] = useState("");
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -74,6 +81,16 @@ export function DocumentAnalysisPage() {
     canAccessProcess(session, process, effectiveScopeId) &&
     isProcessOwnedBySessionDepartment(session, process) &&
     canAccessMunicipalArea(session, "analise");
+
+  useEffect(() => {
+    setLocalReviewStatus(
+      document?.reviewStatus === "aprovado"
+        ? "aprovado"
+        : document?.reviewStatus === "rejeitado"
+          ? "rejeitado"
+          : "pendente",
+    );
+  }, [document?.id, document?.reviewStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -242,7 +259,8 @@ export function DocumentAnalysisPage() {
         "aprovado",
         session.name,
       );
-      setStatus("Documento aprovado.");
+      setLocalReviewStatus("aprovado");
+      setStatus("Documento aprovado e registrado no processo.");
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -285,6 +303,7 @@ export function DocumentAnalysisPage() {
         session.name,
       );
 
+      setLocalReviewStatus("rejeitado");
       setComuniqueReason("");
       setComuniqueDueDate("");
       setStatus(
@@ -336,8 +355,21 @@ export function DocumentAnalysisPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-white/15 bg-white/5 text-slate-100">
-              {document.reviewStatus || "pendente"}
+            <Badge
+              variant="outline"
+              className={`rounded-full font-semibold ${
+                localReviewStatus === "aprovado"
+                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
+                  : localReviewStatus === "rejeitado"
+                    ? "border-amber-300/40 bg-amber-400/15 text-amber-200"
+                    : "border-sky-300/30 bg-sky-400/10 text-sky-200"
+              }`}
+            >
+              {localReviewStatus === "aprovado"
+                ? "Aprovado"
+                : localReviewStatus === "rejeitado"
+                  ? "Comunique-se"
+                  : "Aguardando análise"}
             </Badge>
             {accessUrl ? (
               <a
@@ -640,51 +672,91 @@ export function DocumentAnalysisPage() {
 
           <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.045] p-4">
             <p className="text-sm font-semibold text-white">Resultado da análise</p>
-            <div className="mt-3 grid gap-2">
-              <Button
-                type="button"
-                className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
-                disabled={busy.startsWith("review-")}
-                onClick={() => void approveDocument()}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Aprovar documento
-              </Button>
-            </div>
 
-            <div className="mt-4 border-t border-white/10 pt-4">
-              <p className="text-sm font-semibold text-white">Comunique-se ao profissional</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Quando houver erro ou pendência, descreva o problema e informe o prazo. O profissional receberá a exigência para corrigir e reenviar.
-              </p>
-              <Textarea
-                value={comuniqueReason}
-                onChange={(event) => setComuniqueReason(event.target.value)}
-                placeholder="Descreva objetivamente o que precisa ser corrigido..."
-                className="mt-3 min-h-[110px] border-white/10 bg-black/20 text-white placeholder:text-slate-500"
-              />
-              <div className="mt-3">
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-slate-400">
-                  Prazo para correção
-                </label>
-                <Input
-                  type="date"
-                  value={comuniqueDueDate}
-                  onChange={(event) => setComuniqueDueDate(event.target.value)}
-                  className="border-white/10 bg-black/20 text-white"
-                />
+            {localReviewStatus === "aprovado" ? (
+              <div className="mt-3 rounded-[18px] border border-emerald-400/30 bg-emerald-500/10 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-950/30">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-emerald-200">Documento aprovado</p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-100/70">
+                      A decisão foi registrada no processo e este documento está concluído na conferência.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="mt-4 w-full cursor-default rounded-full bg-emerald-600 text-white hover:bg-emerald-600"
+                  disabled
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Aprovado
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3 w-full rounded-full border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20"
-                disabled={busy.startsWith("review-")}
-                onClick={() => void issueComuniqueSe()}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Emitir Comunique-se
-              </Button>
-            </div>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-2">
+                  <Button
+                    type="button"
+                    className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
+                    disabled={busy.startsWith("review-")}
+                    onClick={() => void approveDocument()}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {busy === "review-aprovado" ? "Aprovando..." : "Aprovar documento"}
+                  </Button>
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <p className="text-sm font-semibold text-white">
+                    {localReviewStatus === "rejeitado" ? "Comunique-se emitido" : "Comunique-se ao profissional"}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    {localReviewStatus === "rejeitado"
+                      ? "Este documento possui pendência formalizada. Uma nova correção poderá ser analisada após o reenvio do profissional."
+                      : "Quando houver erro ou pendência, descreva o problema e informe o prazo. O profissional receberá a exigência para corrigir e reenviar."}
+                  </p>
+                  {localReviewStatus !== "rejeitado" ? (
+                    <>
+                      <Textarea
+                        value={comuniqueReason}
+                        onChange={(event) => setComuniqueReason(event.target.value)}
+                        placeholder="Descreva objetivamente o que precisa ser corrigido..."
+                        className="mt-3 min-h-[110px] border-white/10 bg-black/20 text-white placeholder:text-slate-500"
+                      />
+                      <div className="mt-3">
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-slate-400">
+                          Prazo para correção
+                        </label>
+                        <Input
+                          type="date"
+                          value={comuniqueDueDate}
+                          onChange={(event) => setComuniqueDueDate(event.target.value)}
+                          className="border-white/10 bg-black/20 text-white"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3 w-full rounded-full border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20"
+                        disabled={busy.startsWith("review-")}
+                        onClick={() => void issueComuniqueSe()}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        {busy === "review-rejeitado" ? "Emitindo..." : "Emitir Comunique-se"}
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-3 py-3 text-sm font-medium text-amber-200">
+                      <XCircle className="h-4 w-4" />
+                      Aguardando correção e reenvio
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {status ? (
