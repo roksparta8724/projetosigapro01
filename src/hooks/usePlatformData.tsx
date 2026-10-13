@@ -80,6 +80,7 @@ import {
   setRemoteProcessCheckpoint,
   setRemoteProcessHold,
   setRemoteProcessStatus,
+  setRemoteProcessTriage,
   setRemoteProcessTransitVisibility,
   upsertRemoteInstitution,
   upsertRemotePlan,
@@ -169,6 +170,12 @@ interface PlatformDataState {
     actor: string;
     detail: string;
     title?: string;
+  }) => Promise<void>;
+  updateProcessTriage: (input: {
+    processId: string;
+    status: "recebido" | "em_triagem" | "concluido";
+    actor: string;
+    notes?: string;
   }) => Promise<void>;
   startProcessAnalysis: (processId: string) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
@@ -1851,6 +1858,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           status,
           detail,
           title,
+        });
+        await refreshRemoteStore();
+      },
+      updateProcessTriage: async ({ processId, status, actor, notes }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para atualizar a triagem.");
+
+        await setRemoteProcessTriage({
+          processId,
+          status,
+          notes,
         });
         await refreshRemoteStore();
       },
