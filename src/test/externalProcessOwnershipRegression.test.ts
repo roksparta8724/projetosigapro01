@@ -48,6 +48,37 @@ describe("external professional process ownership", () => {
     expect(canAccessProcess(session, process, "municipality-1")).toBe(true);
   });
 
+  it("keeps an external professional's protocol visible even if the page scope cache is stale", () => {
+    const session = {
+      id: "profile-1",
+      name: "Profissional Teste",
+      role: "profissional_externo",
+      accessLevel: 1,
+      tenantId: "municipality-1",
+      municipalityId: "municipality-1",
+      title: "Profissional Externo",
+      email: "pro@example.com",
+      accountStatus: "active",
+      department: "Profissional Externo",
+    } satisfies SessionUser;
+
+    const process = {
+      id: "process-1",
+      tenantId: "municipality-1",
+      municipalityId: "municipality-1",
+      createdBy: "profile-1",
+      createdByProfileId: "profile-1",
+      createdByUserId: "auth-user-1",
+      createdByEmail: "pro@example.com",
+      professionalProfileId: "profile-1",
+      professionalUserId: "auth-user-1",
+      professionalEmail: "pro@example.com",
+      processControl: { currentFolder: "Financeiro", externalTransitView: "completo", onHold: false },
+    } as unknown as ProcessRecord;
+
+    expect(canAccessProcess(session, process, "stale-ui-scope")).toBe(true);
+  });
+
   it("keeps the process visible when the session uses the profile id", () => {
     expect(
       processBelongsToExternalProfessional(
