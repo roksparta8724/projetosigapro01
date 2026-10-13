@@ -34,18 +34,23 @@ export function validateBrazilianTaxId(value: string | null | undefined): Regist
     ? "formato_valido" : "formato_invalido";
 }
 
+export function hasRealRegistryValue(value: unknown): boolean {
+  const normalized = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  return Boolean(normalized) && !["nao informado", "nao informada", "sem informacao", "indisponivel", "n/a", "-", "0"].includes(normalized);
+}
+
 export function getProcessRegistrationIssues(process: ProcessRecord, hasProfessionalRegistration: boolean): string[] {
   const issues: string[] = [];
-  if (!process.ownerName.trim()) issues.push("Nome do proprietário não informado.");
+  if (!hasRealRegistryValue(process.ownerName)) issues.push("Nome do proprietário não informado.");
   if (validateBrazilianTaxId(process.ownerDocument) !== "formato_valido") {
     issues.push("CPF/CNPJ do proprietário incompleto ou inválido no registro do processo.");
   }
-  if (!process.technicalLead.trim()) issues.push("Responsável técnico não informado.");
+  if (!hasRealRegistryValue(process.technicalLead)) issues.push("Responsável técnico não informado.");
   if (!hasProfessionalRegistration) issues.push("Registro do conselho profissional não vinculado ao cadastro consultado.");
-  if (!process.address.trim()) issues.push("Endereço do imóvel não informado.");
-  if (!process.property.iptu.trim()) issues.push("Inscrição imobiliária/IPTU não informada.");
-  if (!process.property.registration.trim()) issues.push("Matrícula imobiliária não informada.");
-  if (!process.property.usage.trim()) issues.push("Uso da edificação não informado.");
+  if (!hasRealRegistryValue(process.address)) issues.push("Endereço do imóvel não informado.");
+  if (!hasRealRegistryValue(process.property.iptu)) issues.push("Inscrição imobiliária/IPTU não informada.");
+  if (!hasRealRegistryValue(process.property.registration)) issues.push("Matrícula imobiliária não informada.");
+  if (!hasRealRegistryValue(process.property.usage)) issues.push("Uso da edificação não informado.");
   if (!(Number(process.property.area) > 0)) issues.push("Área do imóvel não informada ou inválida.");
   return issues;
 }
