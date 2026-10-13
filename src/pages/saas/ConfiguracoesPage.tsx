@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
+import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -620,6 +621,7 @@ export function ConfiguracoesPage() {
     | "team"
     | "account"
     | "advanced"
+    | "storage"
     | "platform"
   >("overview");
 
@@ -2582,11 +2584,34 @@ export function ConfiguracoesPage() {
           { value: "team", label: "Equipe responsável", helper: "Secretaria e diretoria" },
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
+          { value: "storage", label: "Dados e armazenamento", helper: "Nuvem ou servidor da Prefeitura" },
         ]}
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
+      {canManageTenantSettings && activeSettingsView === "storage" ? (
+        <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
+          <PageMainContent className="w-full">
+            {(selectedTenantId || scopeId || session.tenantId) ? (
+              <MunicipalStorageSettings
+                municipalityId={(selectedTenantId || scopeId || session.tenantId) as string}
+                municipalityName={activeInstitution?.name || municipality?.name || ""}
+              />
+            ) : (
+              <SectionCard
+                title="Dados e armazenamento"
+                description="Selecione uma Prefeitura antes de configurar o repositório oficial."
+                icon={ShieldPlus}
+              >
+                <p className="text-sm text-slate-600">
+                  O vínculo de armazenamento é sempre individual por Prefeitura.
+                </p>
+              </SectionCard>
+            )}
+          </PageMainContent>
+        </PageMainGrid>
+      ) : null}
       {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
         {activeSettingsView === "branding" ? <PageMainContent className="w-full">
         <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
