@@ -563,6 +563,8 @@ export interface AuditEntry {
   title: string;
   detail: string;
   actor: string;
+  /** Identificador auditável de quem executou a ação, sem comparação por nome. */
+  actorProfileId?: string;
   visibleToExternal: boolean;
   at: string;
 }
@@ -2345,6 +2347,38 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
     return ["pagamento_pendente", "pagamento_confirmado"].includes(process.status);
   }
   return false;
+}
+
+/**
+ * Após emitir o ISSQN, o analista pode acompanhar SOMENTE a guia que ele
+ * emitiu, mesmo quando a cobrança já está na pasta Financeiro.
+ *
+ * Não concede competência para movimentar/editar processos de outro setor.
+ * A identificação do emissor é a chave do perfil guardada na auditoria.
+ */
+export function canFollowUpIssuedIssGuide(session: SessionUser, process: ProcessRecord) {
+  if (
+    session.accountStatus === "blocked" ||
+    session.accountStatus === "inactive" ||
+    (session.role !== "analista" && session.role !== "prefeitura_supervisor") ||
+    !canAccessMunicipalArea(session, "analise") ||
+    !matchesOperationalScope(getOperationalScopeId(session), process)
+  ) return false;
+
+  const hasIssuedGuide = Boolean(
+    process.payment.guides?.some((guide) =>
+      guide.kind === "iss_obra" &&
+      Boolean(guide.code?.trim()) &&
+      Boolean(guide.issuedAt),
+    ),
+  );
+  if (!hasIssuedGuide) return false;
+
+  return process.auditTrail.some((audit) =>
+    audit.actorProfileId === session.id &&
+    audit.category === "financeiro" &&
+    /guia.*(issqn|iss).*emitid/i.test(audit.title),
+  );
 }
 
 export function canTrackProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
