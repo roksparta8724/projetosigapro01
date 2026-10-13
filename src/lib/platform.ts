@@ -2368,6 +2368,17 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
     return originatedInProtocol;
   }
 
+  if (userDepartment === "analise") {
+    // Depois que a Análise Urbanística encaminha o processo, ela perde a
+    // responsabilidade operacional, mas mantém acesso de acompanhamento aos
+    // processos que já passaram oficialmente pela mesa técnica.
+    return Boolean(
+      process.analysis?.startedAt ||
+      process.analysis?.assignedTo ||
+      process.analysis?.assignedProfileId,
+    );
+  }
+
   return false;
 }
 
