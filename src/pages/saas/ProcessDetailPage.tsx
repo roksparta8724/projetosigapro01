@@ -27,6 +27,8 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   canAccessMunicipalArea,
   canAccessProcess,
+  canTrackProcess,
+  isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessLabel,
   formatOfficialProcessNumber,
@@ -280,9 +282,14 @@ export function ProcessDetailPage() {
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
-    canProtocolOperate ||
-    session.role === "prefeitura_supervisor" ||
-    session.role === "analista";
+    (
+      ownsCurrentProcessStage &&
+      (
+        canProtocolOperate ||
+        session.role === "prefeitura_supervisor" ||
+        session.role === "analista"
+      )
+    );
   const canAttachToRequirement = (item: typeof process.requirements[number]) =>
     item.status === "aberta" &&
     (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
@@ -357,7 +364,7 @@ export function ProcessDetailPage() {
     );
   }
 
-  if (!canAccessProcess(session, process, effectiveScopeId)) {
+  if (!canTrackProcess(session, process, effectiveScopeId)) {
     return (
       <PortalFrame eyebrow="Controle de Acesso" title="Conteúdo Protegido">
         <Card className="rounded-[28px] border-rose-200 bg-rose-50">
@@ -388,19 +395,34 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
+  const ownsCurrentProcessStage = isProcessOwnedBySessionDepartment(session, process);
+  const isProtocolTrackingOnly =
+    canProtocolOperate &&
+    !ownsCurrentProcessStage &&
+    session.role !== "prefeitura_admin" &&
+    session.role !== "master_admin" &&
+    session.role !== "master_ops";
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
     canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments =
-    canProtocolOperate ||
-    session.role === "prefeitura_supervisor" ||
-    session.role === "analista";
+    ownsCurrentProcessStage &&
+    canAnalysisOperate &&
+    (
+      session.role === "prefeitura_admin" ||
+      session.role === "prefeitura_supervisor" ||
+      session.role === "analista" ||
+      session.role === "master_admin" ||
+      session.role === "master_ops"
+    );
   const visibleDocumentRows =
-    isInternalRole(session.role)
-      ? process.documents
-      : process.documents.filter((document) => document.uploaded);
+    isProtocolTrackingOnly
+      ? []
+      : isInternalRole(session.role)
+        ? process.documents
+        : process.documents.filter((document) => document.uploaded);
   const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
   const getDocumentAccessUrl = (document: typeof process.documents[number]) =>
@@ -423,7 +445,7 @@ export function ProcessDetailPage() {
   };
   const canAnnotateViewer =
     !!viewerDocument &&
-    (session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista") &&
+    canReviewDocuments &&
     /projeto arquitetonico|memorial/i.test(viewerDocument.label);
   const flowSteps = [
     { key: "dados", label: "Dados da obra", done: true },
@@ -435,7 +457,9 @@ export function ProcessDetailPage() {
   const externalRecipientName = process.technicalLead || process.ownerName;
   const internalRecipients = sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user) && isInternalRole(user.role));
   const processTransitVisibility = process.processControl?.externalTransitView ?? "completo";
-  const canViewCompleteTransit = isInternalRole(session.role) || processTransitVisibility === "completo";
+  const canViewCompleteTransit =
+    !isProtocolTrackingOnly &&
+    (isInternalRole(session.role) || processTransitVisibility === "completo");
   const sectorOptions = Array.from(
     new Set(
       [
@@ -476,6 +500,7 @@ export function ProcessDetailPage() {
     return matchedUser ? getUserProfile(matchedUser.id, matchedUser.email) : undefined;
   };
   const visibleMessages = process.messages.filter((item) => {
+    if (isProtocolTrackingOnly) return false;
     if (item.audience === "misto") return true;
     if (item.audience === "interno") return isInternalRole(session.role);
     return session.role === "profissional_externo" || session.role === "proprietario_consulta" || session.name === externalRecipientName;
@@ -487,27 +512,48 @@ export function ProcessDetailPage() {
     return session.role === "profissional_externo" || session.role === "proprietario_consulta";
   });
   const visibleRequirements = process.requirements.filter((item) => {
+    if (isProtocolTrackingOnly) return false;
     if (item.visibility === "misto") return true;
     if (item.visibility === "interno") return isInternalRole(session.role);
     return !isInternalRole(session.role);
   });
-  const visibleAuditTrail = process.auditTrail.filter((item) => item.visibleToExternal || canViewCompleteTransit);
+  const visibleAuditTrail = process.auditTrail.filter((item) =>
+    isProtocolTrackingOnly
+      ? item.category === "status" || item.category === "despacho" || item.visibleToExternal
+      : item.visibleToExternal || canViewCompleteTransit,
+  );
   const tabItems = [
-    { key: "imovel" as ProcessTab, label: "Imóvel", enabled: true },
-    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: true },
+    { key: "imovel" as ProcessTab, label: "Imóvel", enabled: !isProtocolTrackingOnly },
+    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: !isProtocolTrackingOnly },
     {
       key: "analise" as ProcessTab,
       label: "Análise Urbanística",
-      enabled: planEntitlements.canUseModule("Analise tecnica") && canAnalysisOperate,
+      enabled:
+        !isProtocolTrackingOnly &&
+        planEntitlements.canUseModule("Analise tecnica") &&
+        canAnalysisOperate,
     },
     {
       key: "financeiro" as ProcessTab,
       label: "Financeiro",
-      enabled: planEntitlements.canUseModule("Financeiro") && canFinanceOperate,
+      enabled:
+        !isProtocolTrackingOnly &&
+        planEntitlements.canUseModule("Financeiro") &&
+        canFinanceOperate,
     },
-    { key: "historico" as ProcessTab, label: "Histórico", enabled: true },
+    { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
+
+  useEffect(() => {
+    if (!isProtocolTrackingOnly) return;
+    if (activeTab === "historico" || activeTab === "resumo") return;
+    setActiveTab("historico");
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("aba", "historico");
+    setSearchParams(nextParams, { replace: true });
+  }, [activeTab, isProtocolTrackingOnly, searchParams, setSearchParams]);
+
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
   const useSplitDetailLayout = activeTab === "historico";
@@ -606,6 +652,10 @@ export function ProcessDetailPage() {
 
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault();
+    if (isProtocolTrackingOnly) {
+      setProcessActionStatus("Este processo está em acompanhamento. O Protocolo não pode alterar a etapa de outro departamento.");
+      return;
+    }
     if (!isInternalRole(session.role)) {
       setProcessActionStatus("O profissional externo só pode responder solicitações abertas pela Prefeitura.");
       return;
@@ -628,6 +678,10 @@ export function ProcessDetailPage() {
   };
   const handleCreateRequirement = async (event: FormEvent) => {
     event.preventDefault();
+    if (isProtocolTrackingOnly) {
+      setProcessActionStatus("Somente o departamento responsável pela etapa atual pode emitir exigências.");
+      return;
+    }
     if (!requirementTitle.trim() || !requirementDescription.trim() || !requirementDueDate) return;
     const ok = await runProcessAction(
       "requirement",
@@ -651,6 +705,10 @@ export function ProcessDetailPage() {
   };
   const handleDispatchSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (isProtocolTrackingOnly) {
+      setProcessActionStatus("O Protocolo está apenas acompanhando este processo e não pode despachá-lo nesta etapa.");
+      return;
+    }
     if (!dispatchFrom.trim() || !dispatchTo.trim() || !dispatchSubject.trim() || !dispatchDueDate) return;
     const ok = await runProcessAction(
       "dispatch",
@@ -920,6 +978,14 @@ export function ProcessDetailPage() {
           ) : undefined
         }
       />
+      {isProtocolTrackingOnly ? (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">Modo acompanhamento do Protocolo</p>
+          <p className="mt-1 leading-6">
+            Este processo está sob responsabilidade de outro departamento. O Protocolo pode acompanhar apenas a tramitação e o status geral, sem acessar documentos técnicos, análise interna, financeiro ou executar ações da etapa atual.
+          </p>
+        </div>
+      ) : null}
       {processActionStatus ? (
         <div
           className={`rounded-2xl border px-4 py-3 text-sm ${
@@ -1406,23 +1472,36 @@ export function ProcessDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <Workflow className="h-5 w-5" />
-                Histórico do processo
+                {isProtocolTrackingOnly ? "Acompanhamento da tramitação" : "Histórico do processo"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {process.timeline.map((entry) => (
+              {(isProtocolTrackingOnly
+                ? visibleAuditTrail.map((entry) => ({
+                    id: entry.id,
+                    title: entry.title,
+                    detail: entry.category === "despacho" || entry.category === "status"
+                      ? entry.detail
+                      : "Atualização registrada no andamento do processo.",
+                    actor: entry.actor,
+                    at: entry.at,
+                  }))
+                : process.timeline
+              ).map((entry) => (
                 <div key={entry.id} data-process-history-entry="true" className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-semibold text-slate-950">{entry.title}</p>
                     <p className="text-sm text-slate-500">{entry.at}</p>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
-                  <div className="mt-3 flex min-w-0 items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800 text-sky-300 shadow-sm">
-                      <UserRound className="h-4 w-4" />
-                    </span>
-                    <span className="sig-fit-title font-medium text-slate-300" title={entry.actor}>{entry.actor}</span>
-                  </div>
+                  {!isProtocolTrackingOnly ? (
+                    <div className="mt-3 flex min-w-0 items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-slate-400">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800 text-sky-300 shadow-sm">
+                        <UserRound className="h-4 w-4" />
+                      </span>
+                      <span className="sig-fit-title font-medium text-slate-300" title={entry.actor}>{entry.actor}</span>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </CardContent>
