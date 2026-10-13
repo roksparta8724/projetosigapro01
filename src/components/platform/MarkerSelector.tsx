@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
 import { Check, Flag, PencilLine, Trash2, X } from "@/components/platform/PremiumIcons";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -29,6 +27,9 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
   const [color, setColor] = useState("#2563eb");
   const [flagPulse, setFlagPulse] = useState(false);
   const [savePulse, setSavePulse] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [markerBusy, setMarkerBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const markers = useMemo(() => tags.map((tag) => ({ tag, ...parseMarker(tag) })), [tags]);
   const activePresets = useMemo(() => presets.filter((preset) => preset.active), [presets]);
@@ -44,13 +45,35 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
     window.setTimeout(() => setSavePulse(false), 520);
   };
 
-  const handleApplyMarker = (markerLabel: string, markerColor: string) => {
-    addProcessMarkerWithColor(processId, markerLabel, markerColor, actor);
+  const handleApplyMarker = async (markerLabel: string, markerColor: string) => {
+    if (markerBusy) return;
+    setMarkerBusy(markerLabel);
+    setActionError(null);
+    try {
+      await addProcessMarkerWithColor(processId, markerLabel, markerColor, actor);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível salvar o marcador.");
+    } finally {
+      setMarkerBusy(null);
+    }
+  };
+
+  const handleRemoveMarker = async (markerTag: string) => {
+    if (markerBusy) return;
+    setMarkerBusy(markerTag);
+    setActionError(null);
+    try {
+      await removeProcessMarker(processId, markerTag, actor);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível remover o marcador.");
+    } finally {
+      setMarkerBusy(null);
+    }
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button
           type="button"
           className={cn(
@@ -64,20 +87,26 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               />
           <span>Marcadores</span>
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
+      </PopoverTrigger>
+      <PopoverContent
+        data-marker-panel="true"
+        side="bottom"
         align="end"
+        sideOffset={10}
+        avoidCollisions={false}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
         className={cn(
-          "sig-marker-panel w-[360px] rounded-[22px] border border-slate-200/60 bg-white/95 p-4 shadow-[0_28px_60px_rgba(15,23,42,0.22)]",
+          "sig-marker-panel z-[100] w-[360px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-96px)] overflow-y-auto overscroll-contain rounded-[22px] border border-slate-200/70 bg-white/98 p-4 shadow-[0_28px_60px_rgba(15,23,42,0.24)]",
           className,
         )}
       >
-        <DropdownMenuLabel className="px-1 py-1">
+        <div className="px-1 py-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Marcadores</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">Acesso rapido aos seus processos marcados</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">Acesso rápido aos seus processos marcados</p>
           <p className="mt-1 text-xs text-slate-500">Organize prioridades com etiquetas visuais.</p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="my-3" />
+        </div>
+        <div className="my-3 h-px bg-slate-200/80" />
         {markers.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-slate-200/80 bg-slate-50 px-3 py-3 text-[12px] text-slate-500">
             Nenhum marcador neste processo.
@@ -101,7 +130,8 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                 <button
                   type="button"
                   className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-slate-700"
-                  onClick={() => removeProcessMarker(processId, marker.tag, actor)}
+                  onClick={() => void handleRemoveMarker(marker.tag)}
+                  disabled={Boolean(markerBusy)}
                   aria-label="Remover marcador"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -121,10 +151,13 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => handleApplyMarker(composedLabel, preset.color)}
+                  onClick={() => void handleApplyMarker(composedLabel, preset.color)}
+                  disabled={Boolean(markerBusy)}
+                  aria-busy={markerBusy === composedLabel}
                   className={cn(
                     "flex items-center justify-between rounded-[14px] border border-slate-200/80 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50",
                     isApplied && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                    markerBusy && "cursor-wait opacity-70",
                   )}
                   title={preset.label}
                 >
@@ -165,6 +198,12 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
             })}
           </div>
         </div>
+
+        {actionError ? (
+          <div className="mt-3 rounded-[14px] border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-medium text-rose-700">
+            {actionError}
+          </div>
+        ) : null}
 
         <div className="mt-3 rounded-[16px] border border-slate-200/80 bg-white p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criar marcador</p>
@@ -232,7 +271,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
             </Button>
           </div>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }
