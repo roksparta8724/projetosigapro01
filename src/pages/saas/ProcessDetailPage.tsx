@@ -16,6 +16,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
+import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -1907,6 +1908,14 @@ export function ProcessDetailPage() {
               })}
             </CardContent>
           </Card>
+          )}
+
+          {activeTab === "analise" && canReviewDocuments && (
+            <AnalysisReadinessPanel
+              process={process}
+              ownerProfile={linkedOwnerProfile}
+              technicalProfile={linkedTechnicalProfile}
+            />
           )}
 
           {activeTab === "analise" && (
