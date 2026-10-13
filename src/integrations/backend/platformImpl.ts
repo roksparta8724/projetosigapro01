@@ -360,6 +360,7 @@ export async function loadRemotePlatformStore() {
     ownerMessagesResult,
     plansResult,
     planAssignmentsResult,
+    lastAccessResult,
   ] = await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
@@ -395,6 +396,9 @@ export async function loadRemotePlatformStore() {
     db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
     db.from("plans").select("*"),
     db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
+    isNeonBackend
+      ? db.rpc("list_visible_user_last_access")
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (profilesResult.error) {
@@ -434,6 +438,7 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
     tolerateLegacyMissing(plansResult.error, "public.plans"),
     tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
+    lastAccessResult.error,
   ].filter(Boolean);
 
   if (errors.length > 0) {
@@ -449,6 +454,11 @@ export async function loadRemotePlatformStore() {
   const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
   const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
   const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
+  const lastAccessByProfileId = new Map(
+    (lastAccessResult.data ?? [])
+      .filter((item) => item?.profile_id)
+      .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""]),
+  );
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
   const guidesByProcess = new Map<string, Record<string, unknown>[]>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
@@ -976,10 +986,14 @@ export async function loadRemotePlatformStore() {
           : "Interno"),
       department: membership.department || membership.queue_name || membership.level_name || "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
-      lastAccessAt:
-        membership.last_access_at || profile?.last_access_at
-          ? new Date(membership.last_access_at ?? profile?.last_access_at).toLocaleString("pt-BR")
-          : "",
+      lastAccessAt: (() => {
+        const rawLastAccess =
+          lastAccessByProfileId.get(String(profile?.id ?? membership.profile_id ?? "")) ||
+          membership.last_access_at ||
+          profile?.last_access_at ||
+          "";
+        return rawLastAccess ? new Date(rawLastAccess).toLocaleString("pt-BR") : "";
+      })(),
       blockedAt: profile?.blocked_at ?? membership.blocked_at ?? null,
       blockedBy: normalizeUuid(profile?.blocked_by ?? membership.blocked_by) ?? null,
       blockReason: profile?.block_reason ?? membership.block_reason ?? null,
@@ -1036,7 +1050,13 @@ export async function loadRemotePlatformStore() {
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
       department: "",
       createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
-      lastAccessAt: profile.last_access_at ? new Date(profile.last_access_at).toLocaleString("pt-BR") : "",
+      lastAccessAt: (() => {
+        const rawLastAccess =
+          lastAccessByProfileId.get(String(profile.id ?? "")) ||
+          profile.last_access_at ||
+          "";
+        return rawLastAccess ? new Date(rawLastAccess).toLocaleString("pt-BR") : "";
+      })(),
       blockedAt: profile.blocked_at ?? null,
       blockedBy: normalizeUuid(profile.blocked_by) ?? null,
       blockReason: profile.block_reason ?? null,
