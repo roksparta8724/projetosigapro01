@@ -979,9 +979,9 @@ function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   const reference = `${guia.referencia || ""} ${itens.map((item) => item.divida || "").join(" ")}`.toLowerCase();
   if (reference.includes("iss")) {
     return {
-      title: "GUIA DE RECOLHIMENTO DE ISSQN DA OBRA",
-      description: "Documento de arrecadação municipal para recolhimento do ISSQN incidente sobre a metragem da obra.",
-      shortLabel: "ISSQN da obra",
+      title: "GUIA DE ISSQN / PROJETO",
+      description: "Documento de arrecadação municipal de ISSQN / Projeto calculado conforme a metragem e o uso da edificação.",
+      shortLabel: "ISSQN / Projeto",
       documentClass: "Arrecadação tributária",
     };
   }
