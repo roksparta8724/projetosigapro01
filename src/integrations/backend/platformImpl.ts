@@ -1164,6 +1164,8 @@ export async function loadRemotePlatformStore() {
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? "Nao informado",
+      ownerProfileId: owner?.profile_id ?? undefined,
+      technicalProfileId: externalLead?.profile_id ?? undefined,
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
