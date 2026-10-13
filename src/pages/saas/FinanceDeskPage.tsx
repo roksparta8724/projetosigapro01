@@ -60,7 +60,7 @@ type FinanceSection =
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
@@ -69,6 +69,8 @@ export function FinanceDeskPage() {
   const [section, setSection] = useState<FinanceSection>("visao-geral");
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
+  const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
+  const [constructionGuideBusyId, setConstructionGuideBusyId] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
   const canConfigureWorkflow =
     session.role === "prefeitura_admin" ||
@@ -76,6 +78,8 @@ export function FinanceDeskPage() {
     session.role === "master_ops";
   const constructionGuideIssuerMode =
     tenantSettings?.constructionGuideIssuerMode ?? "analise";
+  const financeCanIssueConstructionGuide =
+    constructionGuideIssuerMode === "financeiro" || constructionGuideIssuerMode === "ambos";
 
   const guides = processes.flatMap((process) =>
     getProcessPaymentGuides(process, tenantSettings)
@@ -86,6 +90,29 @@ export function FinanceDeskPage() {
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
+  const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
+    ? processes.filter((process) => {
+        const hasGuide = getProcessPaymentGuides(process, tenantSettings).some(
+          (guide) => guide.kind === "aprovacao_final",
+        );
+        const hasFinanceRequest = process.dispatches.some(
+          (dispatch) =>
+            /guia de recolhimento da obra/i.test(dispatch.subject) &&
+            ["aguardando", "respondido"].includes(dispatch.status) &&
+            /financ/i.test(dispatch.to),
+        );
+        return hasFinanceRequest && !hasGuide;
+      })
+    : [];
+  const getPendingConstructionGuideRequest = (processId: string) =>
+    processes
+      .find((process) => process.id === processId)
+      ?.dispatches.find(
+        (dispatch) =>
+          /guia de recolhimento da obra/i.test(dispatch.subject) &&
+          ["aguardando", "respondido"].includes(dispatch.status) &&
+          /financ/i.test(dispatch.to),
+      );
   const handleWorkflowSetting = async (
     key: "issStageEnabled" | "finalApprovalFeeEnabled",
     enabled: boolean,
@@ -144,6 +171,28 @@ export function FinanceDeskPage() {
           ? `Não foi possível salvar a responsabilidade de emissão: ${error.message}`
           : "Não foi possível salvar a responsabilidade de emissão no banco oficial.",
       );
+    }
+  };
+
+  const handleIssueConstructionGuide = async (processId: string) => {
+    if (!financeCanIssueConstructionGuide) {
+      setConstructionGuideStatus("O administrador da Prefeitura não autorizou a emissão desta guia pelo Financeiro.");
+      return;
+    }
+
+    setConstructionGuideBusyId(processId);
+    setConstructionGuideStatus("");
+    try {
+      await issuePaymentGuide(processId, session.name, "aprovacao_final");
+      setConstructionGuideStatus("Guia de Recolhimento da Obra emitida pelo Financeiro e vinculada ao processo.");
+    } catch (error) {
+      setConstructionGuideStatus(
+        error instanceof Error
+          ? `Não foi possível emitir a guia: ${error.message}`
+          : "Não foi possível emitir a guia no banco oficial.",
+      );
+    } finally {
+      setConstructionGuideBusyId("");
     }
   };
 
@@ -419,6 +468,78 @@ export function FinanceDeskPage() {
               {tenantSettings?.finalApprovalFeeEnabled !== false && !finalFeeConfigured ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   A guia da obra depende da tabela municipal do workflow financeiro. Configure as regras oficiais para que a Análise Urbanística consiga gerar a cobrança automaticamente.
+                </div>
+              ) : null}
+
+              {constructionGuideStatus ? (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                  constructionGuideStatus.startsWith("Guia de Recolhimento")
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+                    : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/30 dark:text-rose-300"
+                }`}>
+                  {constructionGuideStatus}
+                </div>
+              ) : null}
+
+              {financeCanIssueConstructionGuide && pendingConstructionGuideProcesses.length > 0 ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-500/30 dark:bg-sky-950/20">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      Aguardando emissão pelo Financeiro
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Processos concluídos pela Análise Urbanística e encaminhados formalmente para emissão da guia.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {pendingConstructionGuideProcesses.map((process) => {
+                      const request = getPendingConstructionGuideRequest(process.id);
+                      return (
+                        <div
+                          key={`${process.id}:construction-guide-request`}
+                          className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"
+                        >
+                          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
+                                  Emissão solicitada
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                {process.ownerName} • {process.technicalLead}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {process.property.constructionStandard || "padrão não informado"}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Encaminhado por {request?.requestedBy || process.analysis?.assignedTo || "Analista responsável"}
+                                {request?.createdAt ? ` • ${request.createdAt}` : ""}
+                              </p>
+                            </div>
+
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <Button asChild variant="outline" className="rounded-full">
+                                <Link to={`/processos/${process.id}`}>Conferir processo</Link>
+                              </Button>
+                              <Button
+                                type="button"
+                                className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                                disabled={constructionGuideBusyId === process.id}
+                                onClick={() => void handleIssueConstructionGuide(process.id)}
+                              >
+                                {constructionGuideBusyId === process.id ? "Emitindo..." : "Emitir guia da obra"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
