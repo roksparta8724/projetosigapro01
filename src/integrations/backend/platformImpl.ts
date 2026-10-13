@@ -967,14 +967,13 @@ export async function loadRemotePlatformStore() {
       tenantId: membership.tenant_id,
       municipalityId: profile?.municipality_id ?? membership.tenant_id,
       title:
-        membership.title ||
-        membership.job_title ||
         membership.position_title ||
         membership.department ||
         membership.queue_name ||
         membership.level_name ||
         role?.label ||
         "",
+      profileLabel: membership.profile_label || "",
       email: profile?.email ?? "",
       accountStatus,
       userType:
@@ -1045,6 +1044,7 @@ export async function loadRemotePlatformStore() {
       tenantId: profile.municipality_id ?? null,
       municipalityId: profile.municipality_id ?? null,
       title: (rolesResult.data ?? []).find((item) => item.code === role)?.label ?? role,
+      profileLabel: "",
       email: profile.email ?? "",
       accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
@@ -2666,18 +2666,20 @@ export async function manageRemoteUserAccess(input: {
   role?: SessionUser["role"];
   name?: string;
   title?: string;
+  profileLabel?: string;
   accessLevel?: 1 | 2 | 3;
   accountStatus?: SessionUser["accountStatus"];
   reason?: string;
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
 
-  const { data, error } = await db.rpc("manage_municipal_user_access", {
+  const { data, error } = await db.rpc("manage_municipal_user_access_v2", {
     _user_id: input.userId,
     _municipality_id: input.municipalityId,
     _role_code: input.role ?? null,
     _full_name: input.name ?? null,
     _title: input.title ?? null,
+    _profile_label: input.profileLabel ?? null,
     _access_level: input.accessLevel ?? null,
     _account_status: input.accountStatus ?? null,
     _reason: input.reason ?? null,
@@ -2693,6 +2695,7 @@ export async function manageRemoteUserAccess(input: {
     name: String(saved.full_name),
     role: saved.role as SessionUser["role"],
     title: String(saved.title),
+    profileLabel: saved.profile_label ? String(saved.profile_label) : "",
     accessLevel: Number(saved.access_level) as 1 | 2 | 3,
     accountStatus: saved.account_status as SessionUser["accountStatus"],
     userType: String(saved.user_type),
