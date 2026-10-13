@@ -24,8 +24,25 @@ export function InternalTabs({
     if (!persistInUrl) return;
     const params = new URLSearchParams(location.search);
     const requested = params.get(urlParam);
+
     if (requested && requested !== value && items.some((item) => item.value === requested)) {
       onChange(requested);
+      return;
+    }
+
+    if (!requested) {
+      const currentItem = items.find((item) => item.value === value);
+      const currentIsSummary =
+        currentItem && /^(resumo|vis[aã]o geral)$/i.test(currentItem.label.trim());
+
+      if (currentIsSummary) {
+        const firstOperationalItem = items.find(
+          (item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim()),
+        );
+        if (firstOperationalItem && firstOperationalItem.value !== value) {
+          onChange(firstOperationalItem.value);
+        }
+      }
     }
   }, [items, location.search, onChange, persistInUrl, urlParam, value]);
 
