@@ -1924,6 +1924,41 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
                 <DropdownMenuSeparator className={cn("mx-2 my-3", darkTopbar ? "bg-white/10" : "bg-slate-200")} />
 
+                <DropdownMenuItem
+                  className={cn(
+                    "group cursor-pointer rounded-[16px] border border-transparent px-3 py-3 text-left text-[13px] transition-all duration-150",
+                    darkTopbar
+                      ? "text-rose-100 hover:border-rose-300/30 hover:bg-rose-300/12 focus:border-rose-300/30 focus:bg-rose-300/12"
+                      : "text-rose-700 hover:border-rose-200 hover:bg-rose-50 focus:border-rose-200 focus:bg-rose-50",
+                  )}
+                  onClick={async () => {
+                    await handleSignOut("/acesso");
+                  }}
+                >
+                  <span className={cn(
+                    "mr-3 flex h-9 w-9 items-center justify-center rounded-[12px] border transition",
+                    darkTopbar
+                      ? "border-rose-300/16 bg-rose-400/10 text-rose-200"
+                      : "border-rose-200 bg-rose-50 text-rose-600",
+                  )}>
+                    <LogOut className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn(
+                      "block text-[13px] font-semibold",
+                      darkTopbar ? "text-rose-100" : "text-rose-700",
+                    )}>
+                      Sair
+                    </span>
+                    <span className={cn(
+                      "mt-0.5 block text-[11px]",
+                      darkTopbar ? "text-rose-200/70" : "text-rose-500",
+                    )}>
+                      Encerrar sessão
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+
            </DropdownMenuContent>
               </DropdownMenu>
             </div>
