@@ -39,6 +39,7 @@ import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
   canTrackProcess,
+  isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessNumber,
@@ -96,27 +97,13 @@ export function ProtocolDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  const externalProfessionalCreatorIds = useMemo(
-    () =>
-      new Set(
-        sessionUsers
-          .filter(
-            (user) =>
-              user.role === "profissional_externo" ||
-              user.userType === "Externo",
-          )
-          .map((user) => user.id),
-      ),
-    [sessionUsers],
-  );
-
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
     [sessionUsers],
   );
 
   const isExternalProfessionalSubmission = (process: ProcessRecord) =>
-    Boolean(process.createdBy && externalProfessionalCreatorIds.has(process.createdBy));
+    isExternalProfessionalProcess(process);
 
   // O Protocolo acompanha todas as entradas da Prefeitura. Solicitações abertas
   // pelo profissional externo precisam aparecer aqui desde o primeiro registro,
@@ -127,10 +114,10 @@ export function ProtocolDeskPage() {
         if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, item)) return false;
         return (
           canTrackProcess(session, item, effectiveScopeId) ||
-          Boolean(item.createdBy && externalProfessionalCreatorIds.has(item.createdBy))
+          isExternalProfessionalProcess(item)
         );
       }),
-    [allProcesses, effectiveScopeId, externalProfessionalCreatorIds, session],
+    [allProcesses, effectiveScopeId, session],
   );
 
   const protocolQueueProcesses = useMemo(
@@ -500,7 +487,9 @@ export function ProtocolDeskPage() {
               const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
               const isDeskFlow = deskProtocolIds.has(process.id);
               const externalSubmission = isExternalProfessionalSubmission(process);
-              const creator = process.createdBy ? userById.get(process.createdBy) : undefined;
+              const creator =
+                (process.createdByProfileId ? userById.get(process.createdByProfileId) : undefined) ??
+                (process.createdBy ? userById.get(process.createdBy) : undefined);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
               const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
