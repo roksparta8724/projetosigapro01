@@ -69,6 +69,7 @@ export interface SessionUser {
   tenantId?: string | null;
   municipalityId?: string | null;
   title: string;
+  profileLabel?: string;
   email: string;
   accountStatus: AccountStatus;
   userType?: string;
