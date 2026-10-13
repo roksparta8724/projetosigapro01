@@ -760,7 +760,7 @@ export function getGuideLabel(kind: PaymentGuideKind) {
     case "protocolo":
       return "Guia de Recolhimento de Protocolo";
     case "iss_obra":
-      return "Guia de Recolhimento de ISSQN da Obra";
+      return "Guia de ISSQN / Projeto";
     case "aprovacao_final":
       return "Guia de Recolhimento da Obra";
   }
@@ -771,7 +771,7 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "protocolo":
       return "Taxa de protocolo administrativo";
     case "iss_obra":
-      return "ISSQN incidente sobre a metragem da construção";
+      return "ISSQN / Projeto calculado pela metragem e pelo uso da edificação";
     case "aprovacao_final":
       return "Guia de Recolhimento da Obra gerada após aprovação técnica";
   }
@@ -782,7 +782,7 @@ export function getGuideObservation(kind: PaymentGuideKind) {
     case "protocolo":
       return "Documento de arrecadação municipal vinculado à abertura do protocolo administrativo.";
     case "iss_obra":
-      return "Documento de arrecadação municipal destinado ao recolhimento do ISSQN calculado pela metragem da construção.";
+      return "Documento de arrecadação municipal de ISSQN / Projeto, calculado pela metragem e pelo uso da edificação conforme a tabela oficial da Prefeitura.";
     case "aprovacao_final":
       return "Documento de arrecadação municipal gerado após a aprovação técnica, conforme o workflow definido pela Prefeitura e as regras financeiras oficiais.";
   }
