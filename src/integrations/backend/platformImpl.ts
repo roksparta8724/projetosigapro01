@@ -2673,13 +2673,17 @@ export async function manageRemoteUserAccess(input: {
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
 
-  const { data, error } = await db.rpc("manage_municipal_user_access_v2", {
+  const encodedTitlePayload = JSON.stringify({
+    positionTitle: input.title ?? null,
+    profileLabel: input.profileLabel ?? null,
+  });
+
+  const { data, error } = await db.rpc("manage_municipal_user_access", {
     _user_id: input.userId,
     _municipality_id: input.municipalityId,
     _role_code: input.role ?? null,
     _full_name: input.name ?? null,
-    _title: input.title ?? null,
-    _profile_label: input.profileLabel ?? null,
+    _title: encodedTitlePayload,
     _access_level: input.accessLevel ?? null,
     _account_status: input.accountStatus ?? null,
     _reason: input.reason ?? null,
