@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -22,6 +23,16 @@ export function usePlanEntitlements() {
     loading: municipalityLoading,
   } = useMunicipality();
   const { session } = usePlatformSession();
+  const {
+    authenticatedUserId,
+    authenticatedProfileId,
+    authenticatedMunicipalityId,
+    authResolved,
+    loading: authLoading,
+  } = useAuthGateway();
+
+  const authenticatedBusinessUserId =
+    authenticatedProfileId || authenticatedUserId || "";
 
   const sessionMunicipalityId =
     session.municipalityId ?? session.tenantId ?? "";
@@ -40,9 +51,22 @@ export function usePlanEntitlements() {
     !sessionMunicipalityId ||
     municipality.id === sessionMunicipalityId;
 
+  const identityMatchesAuth =
+    Boolean(authenticatedBusinessUserId) &&
+    session.id === authenticatedBusinessUserId;
+
+  const municipalityMatchesAuth =
+    isMaster ||
+    !authenticatedMunicipalityId ||
+    sessionMunicipalityId === authenticatedMunicipalityId;
+
   const isResolving =
     !isMaster &&
     (
+      authLoading ||
+      !authResolved ||
+      !identityMatchesAuth ||
+      !municipalityMatchesAuth ||
       session.id === "unknown" ||
       municipalityLoading ||
       platformDataLoading ||
