@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
+import { usePlatformData } from "@/hooks/usePlatformData";
 import { isNeonBackend } from "@/integrations/backend/config";
 
 interface PlatformSessionContextValue {
@@ -72,62 +73,106 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
+  const { sessionUsers } = usePlatformData();
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
   const [sessionVersion, setSessionVersion] = useState(0);
   const businessUserId = authenticatedProfileId || authenticatedUserId;
+  const canonicalSessionUser = useMemo(
+    () =>
+      sessionUsers.find((item) => item.id === businessUserId) ??
+      sessionUsers.find(
+        (item) =>
+          Boolean(authenticatedEmail) &&
+          item.email?.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase(),
+      ) ??
+      null,
+    [authenticatedEmail, businessUserId, sessionUsers],
+  );
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
     const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
-    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
-      const safeRole = normalizeRole(businessUserId ? authenticatedRole : cachedSession.role);
+    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId || canonicalSessionUser?.id === businessUserId)) {
+      const safeRole = normalizeRole(
+        canonicalSessionUser?.role ??
+        (businessUserId ? authenticatedRole : cachedSession.role),
+      );
       return {
         ...cachedSession,
-        id: businessUserId || cachedSession.id,
+        ...(canonicalSessionUser ?? {}),
+        id: canonicalSessionUser?.id || businessUserId || cachedSession.id,
         role: safeRole,
         accessLevel:
           safeRole === "master_admin" || safeRole === "prefeitura_admin"
             ? 3
-            : authResolved && businessUserId
-              ? authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1)
-              : cachedSession.accessLevel ?? 1,
-        tenantId: businessUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
-        municipalityId: businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
-        title: cachedSession.title || roleLabels[safeRole] || "Usuário",
-        email: authenticatedEmail || cachedSession.email || "",
+            : canonicalSessionUser?.accessLevel ??
+              (authResolved && businessUserId
+                ? authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1)
+                : cachedSession.accessLevel ?? 1),
+        tenantId:
+          canonicalSessionUser?.tenantId ??
+          canonicalSessionUser?.municipalityId ??
+          (businessUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null),
+        municipalityId:
+          canonicalSessionUser?.municipalityId ??
+          canonicalSessionUser?.tenantId ??
+          (businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null),
+        title:
+          canonicalSessionUser?.title ||
+          cachedSession.title ||
+          roleLabels[safeRole] ||
+          "Usuário",
+        department:
+          canonicalSessionUser?.department ||
+          cachedSession.department ||
+          "",
+        email: authenticatedEmail || canonicalSessionUser?.email || cachedSession.email || "",
       };
     }
 
-    const safeRole = normalizeRole(authenticatedRole);
-    const email = authenticatedEmail || "";
+    const safeRole = normalizeRole(canonicalSessionUser?.role ?? authenticatedRole);
+    const email = authenticatedEmail || canonicalSessionUser?.email || "";
     return {
-      id: businessUserId || "unknown",
+      ...(canonicalSessionUser ?? {}),
+      id: canonicalSessionUser?.id || businessUserId || "unknown",
       name:
+        canonicalSessionUser?.name ||
         email
           .split("@")[0]
           ?.replace(/[._-]/g, " ")
-          .replace(/\b\w/g, (char) => char.toUpperCase()) || "Usuário autenticado",
+          .replace(/\b\w/g, (char) => char.toUpperCase()) ||
+        "Usuário autenticado",
       role: safeRole,
       accessLevel:
         safeRole === "master_admin" || safeRole === "prefeitura_admin"
           ? 3
-          : authenticatedAccessLevel ?? (safeRole === "prefeitura_supervisor" ? 2 : 1),
-      tenantId: authenticatedMunicipalityId ?? null,
-      municipalityId: authenticatedMunicipalityId ?? null,
-      title: roleLabels[safeRole] || "Usuário",
+          : canonicalSessionUser?.accessLevel ??
+            authenticatedAccessLevel ??
+            (safeRole === "prefeitura_supervisor" ? 2 : 1),
+      tenantId:
+        canonicalSessionUser?.tenantId ??
+        canonicalSessionUser?.municipalityId ??
+        authenticatedMunicipalityId ??
+        null,
+      municipalityId:
+        canonicalSessionUser?.municipalityId ??
+        canonicalSessionUser?.tenantId ??
+        authenticatedMunicipalityId ??
+        null,
+      title: canonicalSessionUser?.title || roleLabels[safeRole] || "Usuário",
       email,
-      accountStatus: "active",
-      userType: "Usuário",
-      department: "",
-      createdAt: "",
-      lastAccessAt: "",
-      blockedAt: null,
-      blockedBy: null,
-      blockReason: null,
-      deletedAt: null,
+      accountStatus: canonicalSessionUser?.accountStatus ?? "active",
+      userType: canonicalSessionUser?.userType || "Usuário",
+      department: canonicalSessionUser?.department || "",
+      createdAt: canonicalSessionUser?.createdAt || "",
+      lastAccessAt: canonicalSessionUser?.lastAccessAt || "",
+      blockedAt: canonicalSessionUser?.blockedAt ?? null,
+      blockedBy: canonicalSessionUser?.blockedBy ?? null,
+      blockReason: canonicalSessionUser?.blockReason ?? null,
+      deletedAt: canonicalSessionUser?.deletedAt ?? null,
     };
-  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, canonicalSessionUser, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {
