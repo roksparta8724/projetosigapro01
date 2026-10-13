@@ -65,15 +65,16 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   });
 
   it("preserva a geometria exata do viewport no snapshot do F5", () => {
-    expect(main).toContain("viewportWidth: document.documentElement.clientWidth || window.innerWidth");
-    expect(main).toContain("viewportHeight: window.innerHeight");
-    expect(main).toContain("cssText: collectLoadedCssText()");
-    expect(main).toContain("function restoreFrozenSnapshot()");
-    expect(main).toContain("restoreFrozenSnapshot();");
-    expect(main).toContain("sigapro-refresh-snapshot-css");
+    expect(main).toContain("pendingRefreshScrollY");
+    expect(main).toContain("waitForStableFrame");
+    expect(main).toContain("readGeometry");
+    expect(main).toContain("imagesReady()");
+    expect(main).toContain("maxRestoreMs");
+    expect(main).toContain("releaseRefreshSnapshot();");
+    expect(html).toContain("snapshot.userId === currentUserId");
     expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
-    expect(html).toContain("--sig-snapshot-viewport-width");
-    expect(html).toContain("--sig-snapshot-viewport-height");
+    expect(html).toContain("--sig-snapshot-top");
+    expect(html).toContain(".sigapro-snapshot-page");
     expect(html).toContain("transform: none");
     expect(html).not.toContain("contain: layout paint style");
   });
@@ -102,7 +103,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   });
 
   it("permite que a unidade de Protocolo confirme recebimento da guia inicial", () => {
-    expect(processDetail).toContain('protocolUnitIdentity.includes("protocolo")');
+    expect(processDetail).toContain('canAccessMunicipalArea(session, "protocolos")');
     expect(processDetail).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(processDetail).toContain("Confirmar pagamento recebido");
     expect(processDetail).toContain('process.status === "pagamento_pendente"');
