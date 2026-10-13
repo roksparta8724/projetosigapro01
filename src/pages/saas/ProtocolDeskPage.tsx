@@ -3,6 +3,8 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   CircleDollarSign,
   ClipboardList,
   Clock3,
@@ -11,7 +13,9 @@ import {
   Globe2,
   Layers3,
   Search,
+  Send,
   Store,
+  Archive,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +134,18 @@ export function ProtocolDeskPage() {
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [section, setSection] = useState<ProtocolSection>("visao-geral");
+  const [processListQuery, setProcessListQuery] = useState("");
+  const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
+  const [selectedProcessIds, setSelectedProcessIds] = useState<Set<string>>(() => new Set());
+  const [finishedProcessIds, setFinishedProcessIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(`sigapro.finished-processes.${session.id}`);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
   const currentUnit = session.department || session.title || "Setor de protocolo";
 
   const queueItems = useMemo(
@@ -263,183 +279,332 @@ export function ProtocolDeskPage() {
     { value: "historico", label: "Histórico", helper: "Últimos registros e rastreabilidade" },
   ] as const;
 
+  const persistFinishedProcesses = (ids: Set<string>) => {
+    setFinishedProcessIds(new Set(ids));
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        `sigapro.finished-processes.${session.id}`,
+        JSON.stringify(Array.from(ids)),
+      );
+    }
+  };
+
+  const toggleProcessSelection = (processId: string) => {
+    setSelectedProcessIds((current) => {
+      const next = new Set(current);
+      if (next.has(processId)) next.delete(processId);
+      else next.add(processId);
+      return next;
+    });
+  };
+
+  const toggleProcessExpanded = (processId: string) => {
+    setExpandedProcessIds((current) => {
+      const next = new Set(current);
+      if (next.has(processId)) next.delete(processId);
+      else next.add(processId);
+      return next;
+    });
+  };
+
+  const finishSelectedInMyList = () => {
+    if (selectedProcessIds.size === 0) return;
+    const nextFinished = new Set(finishedProcessIds);
+    selectedProcessIds.forEach((id) => nextFinished.add(id));
+    persistFinishedProcesses(nextFinished);
+    setSelectedProcessIds(new Set());
+    setProtocolActionStatus(
+      "Os processos selecionados foram finalizados somente na sua lista. Nenhum processo, documento ou histórico foi excluído.",
+    );
+  };
+
+  const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
+    const selected = sourceItems.filter(
+      (process) => selectedProcessIds.has(process.id) && process.status === "pagamento_confirmado",
+    );
+
+    if (selected.length === 0) {
+      setProtocolActionStatus("Nenhum dos processos selecionados está liberado para despacho ao Urbanismo.");
+      return;
+    }
+
+    setProtocolActionBusy("bulk-dispatch");
+    setProtocolActionStatus("");
+
+    try {
+      for (const process of selected) {
+        await dispatchProcess({
+          processId: process.id,
+          actor: session.name,
+          from: "Setor de Protocolo",
+          to: URBAN_ANALYSIS_DEPARTMENT,
+          subject: "Encaminhamento para análise urbanística",
+          dueDate: "",
+          visibility: "misto",
+          priority: "media",
+        });
+      }
+      setSelectedProcessIds(new Set());
+      setProtocolActionStatus(
+        `${selected.length} processo(s) despachado(s) para ${URBAN_ANALYSIS_DEPARTMENT}.`,
+      );
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível concluir o despacho em lote: ${error.message}`
+          : "Não foi possível concluir o despacho em lote.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
   const renderQueueList = (
     items: ProcessRecord[],
     emptyMessage = "Nenhum protocolo disponível nesta seção.",
-  ) => (
-    <div className="space-y-4">
-      {items.length === 0 ? (
-        <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-          {emptyMessage}
-        </div>
-      ) : (
-        items.map((process) => {
-          const guides = getProcessPaymentGuides(process, tenantSettings);
-          const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
-          const missingRequired = getMissingRequiredDocuments(process);
-          const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
-          const isDeskFlow = deskProtocolIds.has(process.id);
+  ) => {
+    const normalizedQuery = processListQuery.trim().toLocaleLowerCase("pt-BR");
+    const visibleItems = items.filter((process) => {
+      if (finishedProcessIds.has(process.id)) return false;
+      if (!normalizedQuery) return true;
 
-          return (
-            <div key={process.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-[min(100%,240px)] flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
-                      {formatOfficialProcessNumber(process.protocol)}
-                    </p>
-                    <Badge variant="outline" className={statusTone(process.status)}>
-                      {statusLabel(process.status)}
-                    </Badge>
-                    <Badge variant="outline" className="sig-theme-chip rounded-full border-slate-200 bg-white text-slate-700">
-                      {isDeskFlow ? "Balcão" : "Online"}
-                    </Badge>
-                    {process.tags?.length ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {process.tags.map((tag) => {
-                          const marker = parseMarker(tag);
-                          return (
-                            <span
-                              key={`${process.id}-${tag}`}
-                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700"
-                            >
-                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
-                              {marker.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {isUrgent ? (
-                      <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
-                        ⏱ SLA crítico
-                      </Badge>
-                    ) : null}
-                    {missingRequired > 0 ? (
-                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
-                        ⚠ {missingRequired} documento(s)
-                      </Badge>
-                    ) : null}
-                  </div>
+      const haystack = [
+        process.protocol,
+        process.externalProtocol,
+        process.title,
+        formatOfficialProcessTitle({ title: process.title, type: process.type }),
+        process.ownerName,
+        process.technicalLead,
+        process.address,
+        process.type,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("pt-BR");
 
-                  <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-900" title={formatOfficialProcessTitle({ title: process.title, type: process.type })}>{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+      return haystack.includes(normalizedQuery);
+    });
 
-                  <div className="mt-3 flex min-w-0 items-center gap-2">
-                    <UserAvatar
-                      name={process.ownerName}
-                      imageUrl={getUserProfile(process.createdBy)?.avatarUrl}
-                      size="sm"
-                    />
-                    <p className="sig-fit-copy text-sm leading-6 text-slate-600" title={`${process.ownerName} - ${process.address}`}>
-                      {process.ownerName} - {process.address}
-                    </p>
-                  </div>
-                </div>
+    const allVisibleSelected =
+      visibleItems.length > 0 && visibleItems.every((process) => selectedProcessIds.has(process.id));
 
-                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                  <MarkerSelector
-                    processId={process.id}
-                    tags={process.tags}
-                    actor={session.name}
-                    triggerClassName="h-9 rounded-full text-[12px]"
-                  />
-                  {process.triage.status === "recebido" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full rounded-full sm:w-auto"
-                      disabled={protocolActionBusy === `triage-em_triagem-${process.id}`}
-                      onClick={() => void handleTriageStatus(process, "em_triagem")}
-                    >
-                      {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
-                    </Button>
-                  ) : null}
-                  {process.triage.status === "em_triagem" ? (
-                    <>
-                      <Button asChild variant="outline" className="h-11 w-full rounded-full sm:w-auto">
-                        <Link to={`/processos/${process.id}?aba=documentos`}>Conferir documentos</Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        className="h-11 w-full rounded-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto"
-                        disabled={protocolActionBusy === `triage-concluido-${process.id}`}
-                        onClick={() => void handleTriageStatus(process, "concluido")}
-                      >
-                        {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem"}
-                      </Button>
-                    </>
-                  ) : null}
-                  {protocolGuide?.status === "pendente" && process.triage.status === "concluido" ? (
-                    <Button
-                      type="button"
-                      className="h-11 w-full rounded-full bg-emerald-700 text-white hover:bg-emerald-800 sm:w-auto"
-                      disabled={protocolActionBusy === `payment-${process.id}`}
-                      onClick={() => void handleConfirmProtocolPayment(process)}
-                    >
-                      {protocolActionBusy === `payment-${process.id}` ? "Confirmando..." : "Confirmar pagamento"}
-                    </Button>
-                  ) : null}
-                  {process.status === "pagamento_confirmado" ? (
-                    <Button
-                      type="button"
-                      className="h-11 w-full rounded-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto"
-                      disabled={protocolActionBusy === `dispatch-${process.id}`}
-                      onClick={() => void handleDispatchToUrbanism(process)}
-                    >
-                      {protocolActionBusy === `dispatch-${process.id}`
-                        ? "Despachando..."
-                        : "Despachar para Urbanismo"}
-                    </Button>
-                  ) : null}
-                  <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto">
-                    <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="sig-responsive-data-grid mt-4">
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
-                  <p className="sig-label">Abertura</p>
-                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={getOpeningDate(process)}>{getOpeningDate(process)}</p>
-                  <p className="mt-1 text-xs text-slate-500">Entrada no protocolo</p>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
-                  <p className="sig-label">Guia principal</p>
-                  <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-slate-950" title={protocolGuide?.code || "Não emitida"}>
-                    {protocolGuide?.code || "Não emitida"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
-                  <p className="sig-label">Pagamento</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">
-                    {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">Vencimento {protocolGuide?.dueDate || "-"}</p>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
-                  <p className="sig-label">Responsável</p>
-                  <div className="mt-2 flex min-w-0 items-center gap-2">
-                    <UserAvatar name={process.technicalLead} size="sm" />
-                    <span className="sig-fit-title text-sm font-semibold leading-6 text-slate-950" title={process.technicalLead}>
-                      {process.technicalLead}
-                    </span>
-                  </div>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 px-4 py-3">
-                  <p className="sig-label">Fluxo atual</p>
-                  <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.dispatches[0]?.to || "Fluxo interno"}>
-                    {process.dispatches[0]?.to || "Fluxo interno"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">{process.sla.hoursRemaining}h para o SLA</p>
-                </div>
-              </div>
+    return (
+      <div className="space-y-3">
+        <div className="sticky top-[72px] z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={processListQuery}
+                onChange={(event) => setProcessListQuery(event.target.value)}
+                placeholder="Pesquisar por nome do processo, protocolo, proprietário, responsável ou endereço"
+                className="h-11 rounded-xl border-slate-200 pl-11"
+              />
             </div>
-          );
-        })
-      )}
-    </div>
-  );
+
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={() => {
+                    setSelectedProcessIds((current) => {
+                      const next = new Set(current);
+                      if (allVisibleSelected) visibleItems.forEach((process) => next.delete(process.id));
+                      else visibleItems.forEach((process) => next.add(process.id));
+                      return next;
+                    });
+                  }}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Selecionar visíveis
+              </label>
+
+              {selectedProcessIds.size > 0 ? (
+                <>
+                  <span className="inline-flex h-10 items-center rounded-xl bg-slate-100 px-3 text-sm font-medium text-slate-700">
+                    {selectedProcessIds.size} selecionado(s)
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-xl"
+                    disabled={protocolActionBusy === "bulk-dispatch"}
+                    onClick={() => void dispatchSelectedToUrbanism(visibleItems)}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {protocolActionBusy === "bulk-dispatch" ? "Despachando..." : "Despachar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-xl"
+                    onClick={finishSelectedInMyList}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Finalizar na minha lista
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <p className="mt-2 text-xs text-slate-500">
+            “Finalizar na minha lista” não apaga o processo nem documentos; apenas encerra a exibição operacional para este usuário.
+          </p>
+        </div>
+
+        {protocolActionStatus ? (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            {protocolActionStatus}
+          </div>
+        ) : null}
+
+        {visibleItems.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+            {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            {visibleItems.map((process, index) => {
+              const guides = getProcessPaymentGuides(process, tenantSettings);
+              const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
+              const missingRequired = getMissingRequiredDocuments(process);
+              const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
+              const isDeskFlow = deskProtocolIds.has(process.id);
+              const expanded = expandedProcessIds.has(process.id);
+              const selected = selectedProcessIds.has(process.id);
+
+              return (
+                <div
+                  key={process.id}
+                  className={`${index > 0 ? "border-t border-slate-200" : ""} ${selected ? "bg-sky-50/50" : "bg-white"}`}
+                >
+                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleProcessSelection(process.id)}
+                      onClick={(event) => event.stopPropagation()}
+                      className="h-4 w-4 shrink-0 rounded border-slate-300"
+                      aria-label={`Selecionar ${formatOfficialProcessNumber(process.protocol)}`}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => toggleProcessExpanded(process.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+                        {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-slate-950">
+                            {formatOfficialProcessNumber(process.protocol)}
+                          </span>
+                          <Badge variant="outline" className={statusTone(process.status)}>
+                            {statusLabel(process.status)}
+                          </Badge>
+                          {isUrgent ? (
+                            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                              SLA crítico
+                            </Badge>
+                          ) : null}
+                          {missingRequired > 0 ? (
+                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                              {missingRequired} doc.
+                            </Badge>
+                          ) : null}
+                        </span>
+                        <span className="mt-1 block truncate text-sm font-medium text-slate-700">
+                          {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-slate-500">
+                          {process.ownerName} • {process.address} • {isDeskFlow ? "Balcão" : "Online"}
+                        </span>
+                      </span>
+                    </button>
+
+                    <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl">
+                      <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                    </Button>
+                  </div>
+
+                  {expanded ? (
+                    <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <UserAvatar
+                            name={process.ownerName}
+                            imageUrl={getUserProfile(process.createdBy)?.avatarUrl}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">{process.ownerName}</p>
+                            <p className="truncate text-sm text-slate-500">{process.address}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <MarkerSelector
+                            processId={process.id}
+                            tags={process.tags}
+                            actor={session.name}
+                            triggerClassName="h-9 rounded-xl text-[12px]"
+                          />
+                          {process.status === "pagamento_confirmado" ? (
+                            <Button
+                              type="button"
+                              className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
+                              disabled={protocolActionBusy === `dispatch-${process.id}`}
+                              onClick={() => void handleDispatchToUrbanism(process)}
+                            >
+                              {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">{getOpeningDate(process)}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia principal</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">{protocolGuide?.code || "Não emitida"}</p>
+                          <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">{process.technicalLead || "Não informado"}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fluxo atual</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                            {process.processControl?.currentFolder || process.dispatches[0]?.to || "Fluxo interno"}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">{process.sla.hoursRemaining}h para o SLA</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleTriageStatus = async (
     process: ProcessRecord,
