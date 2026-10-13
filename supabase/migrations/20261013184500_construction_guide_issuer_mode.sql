@@ -145,8 +145,11 @@ begin
   end if;
 
   if _guide_kind='aprovacao_final' then
-    if _status <> 'analise_tecnica'::public.process_status then
-      raise exception 'A taxa final so pode ser emitida ao final da analise tecnica';
+    if _status not in (
+      'analise_tecnica'::public.process_status,
+      'despacho_intersetorial'::public.process_status
+    ) then
+      raise exception 'A Guia de Recolhimento da Obra so pode ser emitida apos a conclusao da analise tecnica';
     end if;
 
     if _is_on_hold then
