@@ -11,10 +11,6 @@ export function PlanModuleRoute({
   children: ReactNode;
 }) {
   const entitlements = usePlanEntitlements();
-  if (entitlements.isMaster || entitlements.canUseModule(module)) {
-    return <>{children}</>;
-  }
-
   if (entitlements.isResolving) {
     // Falha fechada: durante troca de contas nunca montar um módulo cujo
     // plano e Prefeitura ainda não foram confirmados para o usuário atual.
@@ -27,6 +23,10 @@ export function PlanModuleRoute({
         </div>
       </main>
     );
+  }
+
+  if (entitlements.isMaster || entitlements.canUseModule(module)) {
+    return <>{children}</>;
   }
 
   const planName = entitlements.plan?.name ?? "não configurado";
