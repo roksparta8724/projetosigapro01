@@ -2209,7 +2209,10 @@ export function can(session: SessionUser, permission: Permission) {
     return false;
   }
 
-  const permissions = rolePermissions[session.role] ?? [];
+  const permissionRole = isExternalProfessionalRole(session.role)
+    ? "profissional_externo"
+    : session.role;
+  const permissions = rolePermissions[permissionRole as UserRole] ?? [];
   return permissions.includes(permission);
 }
 
@@ -2224,8 +2227,20 @@ export function canInstitution(
   return can(session, resolvedPermission);
 }
 
-export function isInternalRole(role: UserRole) {
-  return role !== "master_admin" && role !== "master_ops" && role !== "profissional_externo" && role !== "property_owner" && role !== "proprietario_consulta";
+export function isExternalProfessionalRole(role: UserRole | string | null | undefined) {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return ["profissional_externo", "professional_external", "professional", "profissional"].includes(normalized);
+}
+
+export function isInternalRole(role: UserRole | string | null | undefined) {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return (
+    normalized !== "master_admin" &&
+    normalized !== "master_ops" &&
+    !isExternalProfessionalRole(normalized) &&
+    normalized !== "property_owner" &&
+    normalized !== "proprietario_consulta"
+  );
 }
 
 export function getOperationalScopeId(input: { municipalityId?: string | null; tenantId?: string | null }) {
@@ -2443,7 +2458,7 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   const activeScopeId = scopeId || getOperationalScopeId(session);
   if (!matchesOperationalScope(activeScopeId, process)) return false;
 
-  if (session.role === "profissional_externo") {
+  if (isExternalProfessionalRole(session.role)) {
     return processBelongsToExternalProfessional(session, process);
   }
   if (session.role === "property_owner" || session.role === "proprietario_consulta") return true;
@@ -2485,7 +2500,7 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
     return false;
   }
 
-  if (session.role === "profissional_externo") {
+  if (isExternalProfessionalRole(session.role)) {
     return processBelongsToExternalProfessional(session, process);
   }
 
