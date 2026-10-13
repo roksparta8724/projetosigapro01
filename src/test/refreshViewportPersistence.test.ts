@@ -13,17 +13,19 @@ describe("refresh viewport persistence", () => {
     expect(main).toContain("window.location.hash");
     expect(main).toContain("pendingRefreshScrollY");
     expect(main).toContain("pendingRefreshLocation");
-    expect(main).toContain('window.scrollTo({ top: restoreScroll, left: 0, behavior: "auto" })');
+    expect(main).toContain('window.scrollTo({ top: next, left: 0, behavior: "auto" })');
     expect(main).toContain('window.history.scrollRestoration = "manual"');
     expect(main).toContain("NAVIGATION_STATE_KEY");
-    expect(main).toContain("restoreWhenLayoutIsReady");
+    expect(main).toContain("waitForStableFrame");
+    expect(main).toContain("maxRestoreMs");
     expect(main).toContain("window.requestAnimationFrame");
   });
 
   it("keeps the frozen snapshot visible until the real page reaches the stored viewport", () => {
-    expect(main).toContain("Não remover o frame congelado enquanto a página real ainda não possui");
-    expect(main).toContain("snapshot.removeAttribute");
-    expect(main).toContain("snapshot.replaceChildren");
+    expect(main).toContain("stableFrames >= 5 || performance.now() - restoreStartedAt > maxRestoreMs");
+    expect(main).toContain("snapshot.userId !== currentSnapshotIdentity()");
+    expect(main).toContain('overlay.removeAttribute("data-visible")');
+    expect(main).toContain("overlay.replaceChildren()");
   });
 
   it("persists subpage and process tabs in the URL so F5 rebuilds the same view", () => {
