@@ -88,29 +88,39 @@ export function FinanceDeskPage() {
     const protocolPaid = processGuides.some(
       (guide) => guide.kind === "protocolo" && guide.status === "compensada",
     );
-    const previouslyIssuedGuidesPaid = processGuides
-      .filter((guide) => guide.kind !== "aprovacao_final")
-      .every((guide) => guide.status === "compensada");
     const hasOpenRequirements = process.requirements.some(
       (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
     );
-
-    const currentFolder = process.processControl?.currentFolder?.toLowerCase() ?? "";
-    const latestDispatchTarget = process.dispatches[0]?.to?.toLowerCase() ?? "";
-    const routedToFinance =
-      currentFolder.includes("finance") ||
-      latestDispatchTarget.includes("finance");
+    const allDocumentsApproved =
+      process.documents.filter((document) => document.required || document.uploaded).length > 0 &&
+      process.documents
+        .filter((document) => document.required || document.uploaded)
+        .every((document) => document.uploaded && document.reviewStatus === "aprovado");
+    const pendingConstructionGuideRequest = process.dispatches.some(
+      (dispatch) =>
+        /guia de recolhimento da obra/i.test(dispatch.subject) &&
+        ["aguardando", "respondido"].includes(dispatch.status) &&
+        dispatch.to.toLowerCase().includes("finance"),
+    );
 
     return (
-      process.status === "analise_tecnica" &&
-      routedToFinance &&
+      pendingConstructionGuideRequest &&
       !process.processControl?.onHold &&
       !hasOpenRequirements &&
       !hasFinalGuide &&
       protocolPaid &&
-      previouslyIssuedGuidesPaid
+      allDocumentsApproved
     );
   });
+
+  const getConstructionGuideRequest = (processId: string) =>
+    processes
+      .find((process) => process.id === processId)
+      ?.dispatches.find(
+        (dispatch) =>
+          /guia de recolhimento da obra/i.test(dispatch.subject) &&
+          ["aguardando", "respondido"].includes(dispatch.status),
+      );
 
   const handleWorkflowSetting = async (
     key: "issStageEnabled" | "finalApprovalFeeEnabled",
@@ -155,12 +165,12 @@ export function FinanceDeskPage() {
 
     try {
       await issuePaymentGuide(processId, session.name, "aprovacao_final");
-      setFinalGuideStatus("Guia final de aprovação emitida no banco oficial com sucesso.");
+      setFinalGuideStatus("Guia de Recolhimento da Obra emitida pelo Financeiro e registrada no processo.");
     } catch (error) {
       setFinalGuideStatus(
         error instanceof Error
-          ? `Não foi possível emitir a guia final: ${error.message}`
-          : "Não foi possível emitir a guia final no banco oficial.",
+          ? `Não foi possível emitir a Guia de Recolhimento da Obra: ${error.message}`
+          : "Não foi possível emitir a Guia de Recolhimento da Obra no banco oficial.",
       );
     } finally {
       setFinalGuideBusyId("");
@@ -461,33 +471,66 @@ export function FinanceDeskPage() {
                     </p>
                   </div>
                   <div className="space-y-3">
-                    {finalGuideCandidates.map((process) => (
-                      <div
-                        key={`${process.id}:final-guide-candidate`}
-                        className="flex flex-col gap-3 rounded-2xl border border-indigo-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
-                          <p className="mt-1 line-clamp-1 text-sm text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Área: {process.property.area.toFixed(2)} m² • Padrão: {process.property.constructionStandard || "não informado"}
-                          </p>
+                    {finalGuideCandidates.map((process) => {
+                      const request = getConstructionGuideRequest(process.id);
+                      return (
+                        <div
+                          key={`${process.id}:final-guide-candidate`}
+                          className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-500/30 dark:bg-slate-950/35"
+                        >
+                          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
+                                  Aguardando emissão
+                                </Badge>
+                              </div>
+                              <p className="mt-1 line-clamp-1 text-sm text-slate-600 dark:text-slate-300">
+                                {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                              </p>
+
+                              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Proprietário</p>
+                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.ownerName}</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Profissional</p>
+                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.technicalLead}</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Analista solicitante</p>
+                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{request?.requestedBy || "Analista responsável"}</p>
+                                  {request?.createdAt ? <p className="mt-1 text-xs text-slate-500">{request.createdAt}</p> : null}
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Obra</p>
+                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.property.area.toFixed(2)} m²</p>
+                                  <p className="mt-1 text-xs text-slate-500">{process.property.usage || "Uso não informado"} • {process.property.constructionStandard || "padrão não informado"}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <Button asChild variant="outline" className="rounded-full">
+                                <Link to={`/processos/${process.id}`}>Conferir processo</Link>
+                              </Button>
+                              <Button
+                                type="button"
+                                className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                                disabled={finalGuideBusyId === process.id}
+                                onClick={() => void handleIssueFinalGuide(process.id)}
+                              >
+                                {finalGuideBusyId === process.id ? "Emitindo..." : "Emitir guia da obra"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild variant="outline" className="rounded-full">
-                            <Link to={`/processos/${process.id}`}>Conferir processo</Link>
-                          </Button>
-                          <Button
-                            type="button"
-                            className="rounded-full"
-                            disabled={finalGuideBusyId === process.id}
-                            onClick={() => void handleIssueFinalGuide(process.id)}
-                          >
-                            {finalGuideBusyId === process.id ? "Emitindo..." : "Emitir taxa final"}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
