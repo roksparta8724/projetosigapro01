@@ -505,6 +505,7 @@ export interface PaymentGuideEntry {
   areaM2?: number;
   usage?: string;
   constructionStandard?: string;
+  revision?: number;
 }
 
 export interface ProcessDocument {
