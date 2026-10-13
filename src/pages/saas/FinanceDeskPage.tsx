@@ -28,6 +28,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   defaultApprovalRateProfiles,
   defaultIssRateProfiles,
@@ -69,6 +70,12 @@ export function FinanceDeskPage() {
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
+  const canConfigureWorkflow =
+    session.role === "prefeitura_admin" ||
+    session.role === "master_admin" ||
+    session.role === "master_ops";
+  const constructionGuideIssuerMode =
+    tenantSettings?.constructionGuideIssuerMode ?? "analise";
 
   const guides = processes.flatMap((process) =>
     getProcessPaymentGuides(process, tenantSettings)
@@ -108,6 +115,34 @@ export function FinanceDeskPage() {
         error instanceof Error
           ? `Não foi possível salvar o workflow financeiro: ${error.message}`
           : "Não foi possível salvar o workflow financeiro no banco oficial.",
+      );
+    }
+  };
+
+  const handleConstructionGuideIssuerMode = async (
+    mode: "analise" | "financeiro" | "ambos",
+  ) => {
+    if (!tenantSettings) {
+      setWorkflowStatus("Nenhuma Prefeitura ativa foi localizada para alterar o workflow.");
+      return;
+    }
+    if (!canConfigureWorkflow) {
+      setWorkflowStatus("Somente o administrador da Prefeitura pode definir quem emite a Guia de Recolhimento da Obra.");
+      return;
+    }
+
+    setWorkflowStatus("");
+    try {
+      await saveInstitutionSettings({
+        ...tenantSettings,
+        constructionGuideIssuerMode: mode,
+      });
+      setWorkflowStatus("Workflow financeiro salvo no banco oficial.");
+    } catch (error) {
+      setWorkflowStatus(
+        error instanceof Error
+          ? `Não foi possível salvar a responsabilidade de emissão: ${error.message}`
+          : "Não foi possível salvar a responsabilidade de emissão no banco oficial.",
       );
     }
   };
@@ -200,7 +235,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida ISSQN da obra e taxa final de aprovação sob responsabilidade do Financeiro.",
+      "Consolida ISSQN da obra e Guia de Recolhimento da Obra conforme o workflow definido pela Prefeitura.",
     currency: "BRL",
     active: true,
   };
@@ -671,8 +706,59 @@ export function FinanceDeskPage() {
                 </label>
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      Quem pode emitir a Guia de Recolhimento da Obra
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                      Cada Prefeitura pode definir sua própria responsabilidade operacional sem alterar a tabela de valores nem a rastreabilidade do processo.
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      {constructionGuideIssuerMode === "financeiro"
+                        ? "A Análise Urbanística informa e confirma os dados da obra; depois encaminha ao Financeiro, que gera a guia."
+                        : constructionGuideIssuerMode === "ambos"
+                          ? "A Análise Urbanística pode gerar a guia diretamente ou encaminhar ao Financeiro para emissão. A primeira emissão registrada encerra a possibilidade de duplicidade."
+                          : "A Análise Urbanística gera a guia após concluir a análise. O Financeiro recebe automaticamente para controle, pagamento e baixa."}
+                    </p>
+                  </div>
+
+                  {canConfigureWorkflow ? (
+                    <Select
+                      value={constructionGuideIssuerMode}
+                      onValueChange={(value) =>
+                        void handleConstructionGuideIssuerMode(
+                          value as "analise" | "financeiro" | "ambos",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-11 bg-white dark:bg-slate-950">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="analise">Análise Urbanística</SelectItem>
+                        <SelectItem value="financeiro">Setor Financeiro</SelectItem>
+                        <SelectItem value="ambos">Análise ou Financeiro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                      {constructionGuideIssuerMode === "financeiro"
+                        ? "Setor Financeiro"
+                        : constructionGuideIssuerMode === "ambos"
+                          ? "Análise ou Financeiro"
+                          : "Análise Urbanística"}
+                      <p className="mt-1 text-xs font-normal text-slate-500">
+                        Definido pelo administrador da Prefeitura.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-900">
-                O fluxo operacional usa estas configurações como regra. Desativar uma etapa impede novas emissões daquela cobrança, sem alterar guias históricas já emitidas.
+                O fluxo operacional usa estas configurações como regra. Desativar uma etapa ou alterar o responsável pela emissão não modifica guias históricas já geradas.
               </div>
             </div>
           </SectionCard>
