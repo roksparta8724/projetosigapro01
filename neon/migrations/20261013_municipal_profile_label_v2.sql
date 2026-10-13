@@ -81,3 +81,8 @@ grant execute on function public.manage_municipal_user_access_v2(
 ) to authenticated;
 
 commit;
+
+-- Neon Data API / PostgREST must refresh its schema cache after adding the
+-- profile_label column and the RPC used by the municipal user editor.
+notify pgrst, 'reload schema';
+notify pgrst, 'reload config';
