@@ -38,7 +38,6 @@ import {
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getProcessPaymentGuides,
-  getVisibleProcessesByScope,
   parseMarker,
   statusLabel,
   statusTone,
@@ -51,6 +50,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 
 type ProtocolSection =
   | "visao-geral"
+  | "todos"
   | "fila"
   | "entradas"
   | "documentos"
@@ -82,11 +82,47 @@ export function ProtocolDeskPage() {
     getInstitutionSettings,
     markGuideAsPaid,
     updateProcessTriage,
+    dispatchProcess,
     getUserProfile,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+
+  // O Protocolo funciona como cartório/recepção do Município: mantém consulta ao
+  // registro completo, mesmo depois que o processo foi despachado para outro setor.
+  const processes = useMemo(
+    () =>
+      allProcesses.filter((item) => {
+        const processScope = item.municipalityId || item.tenantId || null;
+        return Boolean(effectiveScopeId) && processScope === effectiveScopeId;
+      }),
+    [allProcesses, effectiveScopeId],
+  );
+
+  const protocolQueueProcesses = useMemo(
+    () =>
+      processes.filter((item) => {
+        const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
+        const isInProtocolFolder =
+          currentFolder.includes("protocolo") ||
+          currentFolder.includes("triagem") ||
+          currentFolder.includes("recepção") ||
+          currentFolder.includes("recepcao");
+
+        if (isInProtocolFolder) return true;
+
+        return [
+          "protocolo",
+          "triagem",
+          "pendencia_documental",
+          "guia_emitida",
+          "pagamento_pendente",
+          "pagamento_confirmado",
+        ].includes(item.status);
+      }),
+    [processes],
+  );
+
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
@@ -98,22 +134,22 @@ export function ProtocolDeskPage() {
 
   const queueItems = useMemo(
     () =>
-      [...processes].sort((a, b) => {
+      [...protocolQueueProcesses].sort((a, b) => {
         if (a.sla.breached !== b.sla.breached) return a.sla.breached ? -1 : 1;
         return a.sla.hoursRemaining - b.sla.hoursRemaining;
       }),
-    [processes],
+    [protocolQueueProcesses],
   );
 
-  const newProtocols = processes.filter(
+  const newProtocols = protocolQueueProcesses.filter(
     (item) => item.triage.status === "recebido" || item.triage.status === "em_triagem",
   );
-  const pendingDocuments = processes.filter((item) => getMissingRequiredDocuments(item) > 0);
-  const incompleteProtocols = processes.filter(
+  const pendingDocuments = protocolQueueProcesses.filter((item) => getMissingRequiredDocuments(item) > 0);
+  const incompleteProtocols = protocolQueueProcesses.filter(
     (item) => item.status === "pendencia_documental" || getMissingRequiredDocuments(item) > 0,
   );
-  const triagedProtocols = processes.filter((item) => item.triage.status === "concluido");
-  const pendingProtocolPayments = processes.filter((item) =>
+  const triagedProtocols = protocolQueueProcesses.filter((item) => item.triage.status === "concluido");
+  const pendingProtocolPayments = protocolQueueProcesses.filter((item) =>
     getProcessPaymentGuides(item, tenantSettings).some(
       (guide) => guide.kind === "protocolo" && guide.status === "pendente",
     ),
@@ -137,7 +173,7 @@ export function ProtocolDeskPage() {
 
   const latestActivity = useMemo(
     () =>
-      queueItems
+      processes
         .flatMap((process) =>
           process.timeline.slice(0, 2).map((entry) => ({
             id: `${process.id}-${entry.id}`,
@@ -148,7 +184,7 @@ export function ProtocolDeskPage() {
           })),
         )
         .slice(0, 10),
-    [queueItems],
+    [processes],
   );
 
   const matchedProcess = useMemo(() => {
@@ -217,6 +253,7 @@ export function ProtocolDeskPage() {
 
   const navItems = [
     { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
+    { value: "todos", label: "Todos os protocolos", helper: "Registro completo do Município" },
     { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
     { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
     { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
@@ -342,6 +379,18 @@ export function ProtocolDeskPage() {
                       {protocolActionBusy === `payment-${process.id}` ? "Confirmando..." : "Confirmar pagamento"}
                     </Button>
                   ) : null}
+                  {process.status === "pagamento_confirmado" ? (
+                    <Button
+                      type="button"
+                      className="h-11 w-full rounded-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto"
+                      disabled={protocolActionBusy === `dispatch-${process.id}`}
+                      onClick={() => void handleDispatchToUrbanism(process)}
+                    >
+                      {protocolActionBusy === `dispatch-${process.id}`
+                        ? "Despachando..."
+                        : "Despachar para Urbanismo"}
+                    </Button>
+                  ) : null}
                   <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto">
                     <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                   </Button>
@@ -455,13 +504,48 @@ export function ProtocolDeskPage() {
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        `Pagamento confirmado. O processo foi encaminhado automaticamente para ${URBAN_ANALYSIS_DEPARTMENT}.`,
+        "Pagamento confirmado. O processo continua no Protocolo e está pronto para despacho ao Urbanismo.",
       );
     } catch (error) {
       setProtocolActionStatus(
         error instanceof Error
           ? `Não foi possível confirmar o pagamento: ${error.message}`
           : "Não foi possível confirmar o pagamento no banco oficial.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
+  const handleDispatchToUrbanism = async (process: ProcessRecord) => {
+    if (process.status !== "pagamento_confirmado") {
+      setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
+      return;
+    }
+
+    const busyKey = `dispatch-${process.id}`;
+    setProtocolActionBusy(busyKey);
+    setProtocolActionStatus("");
+
+    try {
+      await dispatchProcess({
+        processId: process.id,
+        actor: session.name,
+        from: "Setor de Protocolo",
+        to: URBAN_ANALYSIS_DEPARTMENT,
+        subject: "Encaminhamento para análise urbanística",
+        dueDate: "",
+        visibility: "misto",
+        priority: "media",
+      });
+      setProtocolActionStatus(
+        `${formatOfficialProcessNumber(process.protocol)} despachado para ${URBAN_ANALYSIS_DEPARTMENT}.`,
+      );
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível despachar o processo: ${error.message}`
+          : "Não foi possível despachar o processo para o Urbanismo.",
       );
     } finally {
       setProtocolActionBusy("");
@@ -621,10 +705,10 @@ export function ProtocolDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow className="xl:grid-cols-4">
-              <StatCard label="Novos protocolos" value={String(newProtocols.length)} description="Aguardando conferência inicial" icon={ClipboardList} tone="blue" />
-              <StatCard label="Pendências documentais" value={String(pendingDocuments.length)} description="Exigem regularização" icon={FileWarning} tone="amber" />
+              <StatCard label="Protocolos registrados" value={String(processes.length)} description="Registro completo da Prefeitura" icon={ClipboardList} tone="blue" />
+              <StatCard label="Na fila do Protocolo" value={String(protocolQueueProcesses.length)} description="Aguardando atuação do setor" icon={Layers3} tone="amber" />
               <StatCard label="SLA crítico" value={String(urgentProtocols.length)} description="Prazo curto ou vencido" icon={Clock3} tone="rose" />
-              <StatCard label="Triados" value={String(triagedProtocols.length)} description="Liberados para próxima etapa" icon={CheckCircle2} tone="emerald" />
+              <StatCard label="Triados" value={String(triagedProtocols.length)} description="Conferência documental concluída" icon={CheckCircle2} tone="emerald" />
             </PageStatsRow>
 
             <PageMainGrid>
@@ -727,6 +811,19 @@ export function ProtocolDeskPage() {
               </PageSideContent>
             </PageMainGrid>
           </>
+        ) : null}
+
+        {section === "todos" ? (
+          <TableCard
+            title="Todos os protocolos do Município"
+            description="Registro completo das entradas protocoladas. Processos já despachados continuam disponíveis para consulta e rastreabilidade."
+            icon={ClipboardList}
+          >
+            {renderQueueList(
+              [...processes].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
+              "Nenhum protocolo registrado para esta Prefeitura.",
+            )}
+          </TableCard>
         ) : null}
 
         {section === "fila" ? (
