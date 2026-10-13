@@ -6,6 +6,7 @@
  */
 
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { resolveMunicipalDocumentTarget } from "../server/municipal-storage";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -14,6 +15,11 @@ function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
+}
+
+function extractMunicipalityId(objectKey: string) {
+  const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
+  return match?.[1] || "";
 }
 
 function resolveR2Endpoint() {
@@ -186,6 +192,27 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
+    const municipalityId = extractMunicipalityId(objectKey);
+    const municipalTarget = municipalityId
+      ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
+      : null;
+
+    if (municipalTarget) {
+      await municipalTarget.client.send(
+        new DeleteObjectCommand({
+          Bucket: municipalTarget.bucket,
+          Key: municipalTarget.objectKey,
+        }),
+      );
+      json(res, 200, {
+        ok: true,
+        bucket,
+        objectKey,
+        storageProvider: "municipal_s3",
+      });
+      return;
+    }
+
     const client = new S3Client({
       region: "auto",
       endpoint,
@@ -202,7 +229,7 @@ export default async function handler(req: Req, res: Res) {
       }),
     );
 
-    json(res, 200, { ok: true, bucket, objectKey });
+    json(res, 200, { ok: true, bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Erro ao remover o arquivo.";
     const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
