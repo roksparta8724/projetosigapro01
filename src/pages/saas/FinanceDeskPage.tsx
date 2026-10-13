@@ -320,7 +320,7 @@ export function FinanceDeskPage() {
   };
 
   const navItems = [
-    { value: "visao-geral", label: "Visão geral", helper: "Resumo e prioridades" },
+    { value: "visao-geral", label: "Resumo", helper: "Situação financeira e prioridades" },
     { value: "guias", label: "Guias emitidas", helper: "Emissão e consulta" },
     { value: "pagamentos", label: "Pagamentos", helper: "Baixa e confirmação" },
     { value: "conciliacao", label: "Conciliação", helper: "Retorno, divergências e controle" },
@@ -348,191 +348,83 @@ export function FinanceDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow>
-              <StatCard label="Guias emitidas" value={String(guides.length)} description="Emissão total vinculada aos processos" icon={ReceiptText} tone="blue" />
-              <StatCard label="Pagamentos pendentes" value={String(pendingGuides.length)} description="Guias ainda aguardando baixa" icon={FileSpreadsheet} tone="amber" />
-              <StatCard label="Confirmados" value={String(settledGuides.length)} description="Baixas já compensadas no fluxo" icon={Building2} tone="emerald" />
-              <StatCard label="Arrecadação" value={formatCurrency(settledValue)} description="Valor total confirmado no período" icon={Landmark} tone="default" />
+              <StatCard label="Guias emitidas" value={String(guides.length)} description="Total vinculado aos processos" icon={ReceiptText} tone="blue" />
+              <StatCard label="Pendentes" value={String(pendingGuides.length)} description="Aguardando baixa" icon={FileSpreadsheet} tone="amber" />
+              <StatCard label="Confirmadas" value={String(settledGuides.length)} description="Baixas compensadas" icon={Building2} tone="emerald" />
+              <StatCard label="Arrecadação" value={formatCurrency(settledValue)} description="Valor confirmado" icon={Landmark} tone="default" />
             </PageStatsRow>
 
             <PageMainGrid>
               <PageMainContent>
-              <TableCard
-                title="Visão financeira da Prefeitura"
-                description="Resumo executivo da emissão, dos pagamentos e da arrecadação."
-                icon={ReceiptText}
-                actions={
-                  <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Badge className="sig-force-dark-action rounded-full bg-slate-950 !text-white hover:bg-slate-950">Operação ativa</Badge>
-                    <Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">
-                      {tenantSettings?.guiaPrefixo || "DAM"} / {tenantSettings?.protocoloPrefixo || "SIG"}
-                    </Badge>
-                  </div>
-                }
-              >
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
-                    <p className="sig-label">Guias de protocolo</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{protocolGuides.length}</p>
-                    <p className="mt-2 text-sm text-slate-500">Emissão inicial e arrecadação de entrada.</p>
-                  </div>
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
-                    <p className="sig-label">ISSQN da obra</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{issGuides.length}</p>
-                    <p className="mt-2 text-sm text-slate-500">Cálculo complementar por metragem da obra.</p>
-                  </div>
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
-                    <p className="sig-label">Aprovação final</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{approvalGuides.length}</p>
-                    <p className="mt-2 text-sm text-slate-500">Encerramento financeiro e habite-se.</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-950">Situação dos pagamentos</p>
-                        <p className="mt-1 text-sm text-slate-500">Baixa, confirmação e pendências.</p>
+                <TableCard
+                  title="Prioridades financeiras"
+                  description="Pendências que exigem atuação. Emissão, baixa e conciliação completas permanecem nas abas operacionais."
+                  icon={ReceiptText}
+                  actions={
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => setSection("pagamentos")}>
+                      Ver pagamentos
+                    </Button>
+                  }
+                >
+                  <div className="space-y-3">
+                    {criticalPending.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                        Nenhuma guia pendente no momento.
                       </div>
-                      <Button asChild className="sig-force-dark-action h-11 rounded-full bg-slate-950 !text-white hover:bg-slate-900">
-                        <Link to="/prefeitura/financeiro/protocolos">
-                          Abrir fila
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">Pendentes</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{pendingGuides.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Guias aguardando baixa.</p>
-                      </div>
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">Confirmados</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{settledGuides.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Baixas confirmadas.</p>
-                      </div>
-                    </div>
+                    ) : (
+                      criticalPending.slice(0, 4).map(({ process, guide }) => (
+                        <div key={`${process.id}-${guide.kind}`} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                              <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
+                                Pendente
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {guide.code} • {guide.label} • {formatCurrency(guide.amount)}
+                            </p>
+                          </div>
+                          <Button asChild variant="outline" className="shrink-0 rounded-full">
+                            <Link to={`/processos/${process.id}?aba=financeiro`}>Abrir processo</Link>
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
-
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-950">Conciliação e controle</p>
-                        <p className="mt-1 text-sm text-slate-500">Retorno, divergências e controle do setor.</p>
-                      </div>
-                      <Button asChild className="sig-force-dark-action h-11 rounded-full bg-slate-950 !text-white hover:bg-slate-900">
-                        <Link to="/prefeitura/financeiro/iptu">
-                          Abrir módulo
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">Valor sob gestão</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{formatCurrency(totalValue)}</p>
-                        <p className="mt-1 text-sm text-slate-500">Volume sob gestão.</p>
-                      </div>
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="sig-label">Divergências</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{inconsistencyCount}</p>
-                        <p className="mt-1 text-sm text-slate-500">Ocorrências sob revisão.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TableCard>
+                </TableCard>
               </PageMainContent>
 
               <PageSideContent>
-                <SectionCard title="Alertas financeiros" description="Divergências, baixas críticas e atenção imediata do setor.">
+                <SectionCard title="Atenção imediata" description="Somente alertas que pedem decisão.">
                   <div className="space-y-3">
                     <AlertCard
                       title="Divergências"
-                      description={
-                        inconsistencyCount > 0
-                          ? `${inconsistencyCount} guia(s) pendente(s) em processos já encerrados ou deferidos.`
-                          : "Nenhuma divergência financeira relevante encontrada."
-                      }
+                      description={inconsistencyCount > 0 ? `${inconsistencyCount} ocorrência(s) precisam de conferência.` : "Nenhuma divergência relevante."}
                       tone={inconsistencyCount > 0 ? "danger" : "success"}
                     />
                     <AlertCard
-                      title="Pendências críticas"
-                      description={
-                        criticalPending.length > 0
-                          ? `${criticalPending.length} guia(s) exigem acompanhamento de baixa.`
-                          : "Não há fila crítica de baixa financeira."
-                      }
-                      tone={criticalPending.length > 0 ? "warning" : "success"}
+                      title="Baixas pendentes"
+                      description={pendingGuides.length > 0 ? `${pendingGuides.length} guia(s) aguardam compensação.` : "Nenhuma baixa pendente."}
+                      tone={pendingGuides.length > 0 ? "warning" : "success"}
                     />
-                    {criticalDispatches.length === 0 ? (
-                      <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Nenhum despacho crítico para o financeiro.
-                      </div>
-                    ) : (
-                      criticalDispatches.slice(0, 2).map((item) => (
-                        <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="sig-fit-title text-sm font-semibold leading-6 text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
-                            <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                              {item.priority}
-                            </Badge>
-                          </div>
-                          <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{item.subject}</p>
-                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                          <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
-                        </div>
-                      ))
-                    )}
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Conciliação e convênio" description="Perfil bancário e resumo do fluxo operacional do setor.">
-                  <div className="space-y-4">
-                    <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Convênio</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-950">{bankProfile.bankName}</p>
-                      <p className="mt-1 text-sm text-slate-600">{bankProfile.agreementCode}</p>
-                      <p className="mt-1 text-sm text-slate-500">{bankProfile.settlementMode}</p>
-                    </div>
-
-                    <div className="grid gap-3">
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Recebidos</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{receivedAtFinance.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Caixa atual do financeiro.</p>
-                      </div>
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Gerados</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{generatedByFinance.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Despachos e retornos emitidos.</p>
-                      </div>
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Fluxo restrito</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{restrictedTransitCount}</p>
-                        <p className="mt-1 text-sm text-slate-500">Processos com tramitação interna protegida.</p>
-                      </div>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Eventos recentes" description="Últimos registros de arrecadação e conferência do setor.">
-                  <div className="space-y-3">
-                    {recentFinancialEvents.length === 0 ? (
-                      <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Nenhum evento financeiro recente encontrado.
-                      </div>
-                    ) : (
-                      recentFinancialEvents.slice(0, 3).map((event) => (
-                        <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(event.protocol)}</p>
-                          <p className="mt-1 text-sm text-slate-800">{event.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
-                          <p className="mt-2 text-xs text-slate-500">{event.actor} • {event.at}</p>
-                        </div>
-                      ))
-                    )}
+                <SectionCard title="Ações rápidas" description="Acesso direto às rotinas financeiras.">
+                  <div className="grid gap-2">
+                    <Button type="button" className="sig-force-dark-action h-11 justify-start rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => setSection("pagamentos")}>
+                      <Banknote className="mr-2 h-4 w-4" />
+                      Pagamentos e baixas
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("guias")}>
+                      <ReceiptText className="mr-2 h-4 w-4" />
+                      Guias emitidas
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("conciliacao")}>
+                      <Scale className="mr-2 h-4 w-4" />
+                      Conciliação
+                    </Button>
                   </div>
                 </SectionCard>
               </PageSideContent>
