@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useTenant } from "@/hooks/useTenant";
+import type { PlanModuleName } from "@/lib/planEntitlements";
 import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
@@ -46,6 +48,7 @@ export function AcessoPage() {
   const navigate = useNavigate();
   const { signIn } = useAuthGateway();
   const { dataReadyForCurrentUser, dataError } = usePlatformData();
+  const entitlements = usePlanEntitlements();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -70,12 +73,34 @@ export function AcessoPage() {
       return;
     }
 
-    if (tenant.loading || !dataReadyForCurrentUser) return;
+    if (
+      tenant.loading ||
+      !dataReadyForCurrentUser ||
+      entitlements.isResolving
+    ) {
+      return;
+    }
+
+    const requiredModule = getRequiredModuleForRedirect(pendingRedirect);
+    if (
+      requiredModule &&
+      !entitlements.isMaster &&
+      !entitlements.canUseModule(requiredModule)
+    ) {
+      setError(
+        entitlements.contractReason ||
+          "A conta foi autenticada, mas o módulo ainda não está liberado para esta Prefeitura.",
+      );
+      setSubmitting(false);
+      setPendingRedirect(null);
+      return;
+    }
 
     navigate(pendingRedirect, { replace: true });
   }, [
     dataError,
     dataReadyForCurrentUser,
+    entitlements,
     navigate,
     pendingRedirect,
     tenant.loading,
@@ -319,6 +344,15 @@ export function AcessoPage() {
       </div>
     </div>
   );
+}
+
+function getRequiredModuleForRedirect(path: string): PlanModuleName | null {
+  if (path === "/prefeitura") return "Configurações";
+  if (path.startsWith("/prefeitura/analise")) return "Analise tecnica";
+  if (path.startsWith("/prefeitura/financeiro")) return "Financeiro";
+  if (path.startsWith("/prefeitura/protocolos")) return "Protocolo digital";
+  if (path.startsWith("/externo") || path.startsWith("/proprietario")) return "Acesso externo";
+  return null;
 }
 
 function resolveRedirect(role: string | null) {
