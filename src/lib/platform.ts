@@ -2234,6 +2234,32 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
 
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 
+export function getRoleLandingPath(role: UserRole | string | null | undefined) {
+  switch (role) {
+    case "master_admin":
+    case "master_ops":
+    case "admin_master":
+      return "/master";
+    case "prefeitura_admin":
+      return "/prefeitura";
+    case "analista":
+      return "/prefeitura/analise";
+    case "financeiro":
+      return "/prefeitura/financeiro";
+    case "fiscal":
+      return "/prefeitura/financeiro/iptu";
+    case "profissional_externo":
+    case "professional":
+    case "profissional":
+      return "/externo";
+    case "property_owner":
+    case "proprietario_consulta":
+      return "/proprietario";
+    default:
+      return "/dashboard";
+  }
+}
+
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
   if (
     session.role === "master_admin" ||
