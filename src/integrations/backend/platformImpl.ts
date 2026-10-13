@@ -1380,6 +1380,7 @@ export async function loadRemotePlatformStore() {
             constructionStandard: guide.construction_standard_snapshot
               ? String(guide.construction_standard_snapshot)
               : undefined,
+            revision: Number(guide.reissue_count ?? 0),
           };
         }),
       },
@@ -2123,6 +2124,38 @@ export async function updateRemoteProcessIssProjectData(input: {
     _usage: input.usage.trim(),
     _work_type: input.workType.trim(),
   });
+}
+
+export async function reviseRemoteIssProjectGuide(input: {
+  processId: string;
+  areaM2: number;
+  usage: string;
+  workType: string;
+  dueDate?: string | null;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("revise_iss_project_guide_v1", {
+    _process_id: input.processId,
+    _area_m2: input.areaM2,
+    _usage: input.usage.trim(),
+    _work_type: input.workType.trim(),
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown>; revision: number };
+}
+
+export async function shareRemoteIssProjectGuide(processId: string) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("share_iss_project_guide_v1", {
+    _process_id: processId,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide_number: string; already_shared?: boolean };
 }
 
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
