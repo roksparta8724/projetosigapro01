@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -198,7 +198,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -278,6 +278,7 @@ export function ProcessDetailPage() {
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
+  const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
@@ -292,7 +293,8 @@ export function ProcessDetailPage() {
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
-  }, [process?.id]);
+    setIsEditingIssuedIssGuide(false);
+  }, [process?.id, process?.property.area, process?.property.usage, process?.property.workType]);
 
   const ownsCurrentProcessStage =
     !!process && isProcessOwnedBySessionDepartment(session, process);
@@ -433,8 +435,19 @@ export function ProcessDetailPage() {
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
     session.role === "proprietario_consulta";
+  const isGuideSharedExternally = (guideCode: string | undefined) =>
+    Boolean(
+      guideCode &&
+      process.messages.some(
+        (item) =>
+          (item.audience === "externo" || item.audience === "misto") &&
+          item.message.includes(guideCode),
+      ),
+    );
   const visiblePaymentGuides = isExternalProcessViewer
-    ? paymentGuides.filter((guide) => guide.kind === "protocolo" || Boolean(guide.issuedAt && guide.code?.trim()))
+    ? paymentGuides.filter(
+        (guide) => guide.kind === "protocolo" || isGuideSharedExternally(guide.code),
+      )
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
@@ -487,6 +500,18 @@ export function ProcessDetailPage() {
   const constructionGuide = visiblePaymentGuides.find(
     (guide) => guide.kind === "iss_obra",
   );
+  const constructionGuideSentExternally = constructionGuide
+    ? isGuideSharedExternally(constructionGuide.code)
+    : false;
+  const canManageIssuedIssGuide =
+    Boolean(constructionGuide) &&
+    constructionGuide?.status !== "compensada" &&
+    (
+      isMasterOrMunicipalAdmin ||
+      session.role === "prefeitura_supervisor" ||
+      (session.role === "analista" &&
+        (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
+    );
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
       /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
@@ -695,6 +720,15 @@ export function ProcessDetailPage() {
     "";
   const transitSteps = [...process.dispatches].reverse();
   const hasTransitHistory = transitSteps.length > 0;
+  const hasAnalysisDispatch = transitSteps.some((dispatch) =>
+    /analise|análise|urban|obra|engenharia/i.test(dispatch.to),
+  );
+  const showAnalysisMilestone =
+    Boolean(process.analysis?.startedAt || process.analysis?.assignedTo) &&
+    !hasAnalysisDispatch;
+  const analysisStartedAt = process.analysis?.startedAt
+    ? new Date(process.analysis.startedAt).toLocaleString("pt-BR")
+    : "";
 
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
@@ -931,21 +965,27 @@ export function ProcessDetailPage() {
     );
   };
 
+  const handleReviseConstructionGuide = async () => {
+    if (!constructionGuide || !canManageIssuedIssGuide) return;
+    const input = getConstructionGuideInput();
+    if (!input) return;
+
+    const ok = await runProcessAction(
+      "revise-construction-guide",
+      () => reviseIssProjectGuide(input),
+      "Nova versão da Guia de ISSQN / Projeto gerada. Somente esta versão permanece vigente e ela precisa ser revisada antes de novo envio ao profissional.",
+    );
+    if (ok) {
+      setIsEditingIssuedIssGuide(false);
+    }
+  };
+
   const handleSendConstructionGuideToProfessional = () => {
-    if (!constructionGuide) return;
+    if (!constructionGuide || constructionGuideSentExternally || isEditingIssuedIssGuide) return;
     void runProcessAction(
       "send-construction-guide",
-      () =>
-        sendProcessMessage({
-          processId: process.id,
-          senderName: session.name,
-          senderRole: session.role,
-          audience: "externo",
-          recipientName: process.technicalLead,
-          message:
-            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia.`,
-        }),
-      "Guia encaminhada ao profissional responsável e registrada no histórico do processo.",
+      () => shareIssProjectGuide(process.id),
+      "Guia liberada manualmente pelo analista e enviada ao profissional responsável.",
     );
   };
 
@@ -2275,7 +2315,9 @@ export function ProcessDetailPage() {
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {statusLabel(process.status)}
-                      {process.analysis?.assignedTo ? ` • Responsável: ${process.analysis.assignedTo}` : ""}
+                      {/analise|urban|obra|engenharia/.test(normalizedCurrentFolder) && process.analysis?.assignedTo
+                        ? ` • Responsável: ${process.analysis.assignedTo}`
+                        : ""}
                     </p>
                   </div>
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white text-sky-700">
@@ -2311,6 +2353,36 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                {showAnalysisMilestone ? (
+                  <div className="relative flex gap-4 pb-5">
+                    <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-sm">
+                      <FileCheck2 className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                            Análise Urbanística
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-950">
+                            {getOrganizationPath(URBAN_ANALYSIS_DEPARTMENT)}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            Processo recebido pela mesa técnica
+                            {process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
+                          </p>
+                        </div>
+                        {analysisStartedAt ? (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {analysisStartedAt}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
 
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
@@ -2378,7 +2450,9 @@ export function ProcessDetailPage() {
                         {currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        Ainda não há outra tramitação registrada.
+                        {showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
+                          ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
+                          : "A unidade atual é a última etapa registrada para este processo."}
                       </p>
                     </div>
                   </div>
