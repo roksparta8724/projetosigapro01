@@ -2102,35 +2102,12 @@ export async function updateRemoteProcessConstructionData(input: {
     throw new Error("Informe o tipo da obra.");
   }
 
-  const { data: processRow, error: processError } = await db
-    .from("processes")
-    .select("id,property_id")
-    .eq("id", input.processId)
-    .maybeSingle();
-
-  if (processError) throw processError;
-  if (!processRow?.property_id) {
-    throw new Error("Imóvel vinculado ao processo não foi encontrado.");
-  }
-
-  const { error } = await db
-    .from("properties")
-    .update({
-      area_m2: input.areaM2,
-      usage_type: input.usage.trim(),
-      construction_standard: input.constructionStandard?.trim() || "medio",
-    })
-    .eq("id", processRow.property_id);
-
-  if (error) throw error;
-
-  return {
-    process_id: input.processId,
-    property_id: processRow.property_id,
-    area_m2: input.areaM2,
-    usage_type: input.usage.trim(),
-    construction_standard: input.constructionStandard?.trim() || "medio",
-  };
+  return callProcessRpc("update_process_construction_data_v1", {
+    _process_id: input.processId,
+    _area_m2: input.areaM2,
+    _usage: input.usage.trim(),
+    _construction_standard: input.constructionStandard?.trim() || "medio",
+  });
 }
 
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
