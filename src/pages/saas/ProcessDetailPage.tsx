@@ -34,6 +34,7 @@ import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canTrackProcess,
+  canFollowUpIssuedIssGuide,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessLabel,
@@ -433,7 +434,11 @@ export function ProcessDetailPage() {
     );
   }
 
-  if (!canTrackProcess(session, process, effectiveScopeId)) {
+  const hasStandardProcessAccess = canTrackProcess(session, process, effectiveScopeId);
+  const issuerGuideFollowUpOnly =
+    !hasStandardProcessAccess && canFollowUpIssuedIssGuide(session, process);
+
+  if (!hasStandardProcessAccess && !issuerGuideFollowUpOnly) {
     return (
       <PortalFrame eyebrow="Controle de Acesso" title="Conteúdo Protegido">
         <Card className="rounded-[28px] border-rose-200 bg-rose-50">
@@ -512,6 +517,14 @@ export function ProcessDetailPage() {
   );
   const constructionGuide = visiblePaymentGuides.find(
     (guide) => guide.kind === "iss_obra",
+  );
+  const guideAlreadySentToProfessional = Boolean(
+    constructionGuide?.code &&
+    process.messages.some((entry) =>
+      entry.audience === "externo" &&
+      entry.recipientName?.trim() === process.technicalLead.trim() &&
+      entry.message.includes(`Guia de ISSQN / Projeto disponível: ${constructionGuide.code}`),
+    ),
   );
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
@@ -796,9 +809,8 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
-    const barcode = `${process.protocol.replace(/\D/g, "")}${selectedGuide.code.replace(/\D/g, "")}${Math.round(selectedGuide.amount * 100)}`
-      .padEnd(44, "7")
-      .slice(0, 44);
+    // Não construir códigos de barras ou linhas digitáveis artificiais.
+    // Uma DAM só pode mostrar código bancário validado pela integração arrecadadora.
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
@@ -836,8 +848,8 @@ export function ProcessDetailPage() {
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
           ? process.property.workType || workTypeInput || undefined
           : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: barcode,
-        linhaDigitavel: barcode,
+        codigoBarras: "",
+        linhaDigitavel: "",
         qrCodePixUrl: "",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
@@ -970,7 +982,22 @@ export function ProcessDetailPage() {
   };
 
   const handleSendConstructionGuideToProfessional = () => {
-    if (!constructionGuide) return;
+    if (!constructionGuide?.code || !constructionGuide.issuedAt) {
+      setProcessActionStatus("A guia precisa estar emitida no banco antes do envio ao profissional.");
+      return;
+    }
+    if (!issuerGuideFollowUpOnly && !canReviewDocuments && !canFinanceOperate) {
+      setProcessActionStatus("Esta etapa só pode ser comunicada pelo emissor autorizado ou pelo setor responsável.");
+      return;
+    }
+    if (guideAlreadySentToProfessional) {
+      setProcessActionStatus("O encaminhamento desta guia já está registrado no histórico.");
+      return;
+    }
+    if (!process.technicalLead.trim() || process.technicalLead === "Nao informado") {
+      setProcessActionStatus("O responsável técnico precisa estar identificado para receber a guia.");
+      return;
+    }
     void runProcessAction(
       "send-construction-guide",
       () =>
@@ -981,7 +1008,7 @@ export function ProcessDetailPage() {
           audience: "externo",
           recipientName: process.technicalLead,
           message:
-            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia.`,
+            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia registrada. Consulte os canais oficiais da Prefeitura para obter o meio de pagamento validado.`,
         }),
       "Guia encaminhada ao profissional responsável e registrada no histórico do processo.",
     );
@@ -1297,6 +1324,94 @@ export function ProcessDetailPage() {
       setAnnotationPoint(null);
     }
   };
+
+  // A emissão transfere a pasta ao Financeiro. O emissor permanece com
+  // acesso EXCLUSIVAMENTE à guia que ele acabou de emitir, sem documentos,
+  // dados do proprietário ou ações técnicas/financeiras de outra unidade.
+  if (issuerGuideFollowUpOnly) {
+    return (
+      <PortalFrame eyebrow="Acompanhamento de guia emitida" title={formatOfficialProcessNumber(process.protocol)} focusMode>
+        <PageShell className="!max-w-[1140px]">
+          <PageHero
+            eyebrow="ISSQN / Projeto · Emissão concluída"
+            title="Guia emitida — encaminhe ao profissional"
+            description="A cobrança já está na pasta Financeiro. O emissor mantém esta visualização limitada para disponibilizar a guia ao responsável técnico."
+            icon={FileKey2}
+          />
+          {processActionStatus ? (
+            <div role="status" className={`rounded-2xl border px-5 py-4 text-sm font-medium ${/não|erro|falha|sem acesso/i.test(processActionStatus)
+              ? "border-rose-200 bg-rose-50 text-rose-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+              {processActionStatus}
+            </div>
+          ) : null}
+          <Card className="overflow-hidden rounded-[22px] border-[#314d6d] bg-[#101f36] text-white shadow-lg">
+            <CardHeader className="border-b border-[#35516e]">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-xl !text-white">
+                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                Guia de ISSQN / Projeto registrada
+              </CardTitle>
+              <p className="text-sm leading-6 !text-slate-200">
+                O processo está sob responsabilidade do Financeiro para acompanhamento da arrecadação.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-5 p-6">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { label: "Número da guia", value: constructionGuide?.code || "Não disponível" },
+                  { label: "Valor emitido", value: constructionGuide ? formatCurrency(constructionGuide.amount) : "Não disponível" },
+                  { label: "Vencimento", value: constructionGuide?.dueDate || "Não informado" },
+                  { label: "Situação", value: constructionGuide?.status === "compensada" ? "Pagamento confirmado" : "Aguardando pagamento" },
+                ].map((item) => (
+                  <div key={item.label} className="min-w-0 rounded-2xl border border-[#35516e] bg-[#1c3250] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide !text-sky-200">{item.label}</p>
+                    <p className="mt-2 break-words text-base font-semibold !text-white">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm !text-slate-200">
+                Destinatário: <strong className="!text-white">{process.technicalLead}</strong>.
+                O encaminhamento é registrado na comunicação externa do processo; não constitui envio por e-mail.
+              </p>
+              <p className="rounded-2xl border border-amber-500/40 bg-amber-900/25 px-4 py-3 text-sm leading-6 !text-amber-100">
+                A guia está emitida no processo, mas este cadastro ainda não apresenta PIX ou código bancário homologado.
+                Para efetuar o pagamento, o profissional deverá consultar o canal oficial de arrecadação da Prefeitura.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full bg-white px-5 !text-slate-950 hover:bg-slate-100"
+                  disabled={!constructionGuide?.code}
+                  onClick={() => printGuide("iss_obra", false)}
+                >
+                  <Eye className="mr-2 h-4 w-4" /> Visualizar guia
+                </Button>
+                {guideAlreadySentToProfessional ? (
+                  <span role="status" className="inline-flex items-center gap-2 rounded-full border border-emerald-500/50 bg-emerald-950/35 px-5 py-2 text-sm font-semibold !text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" /> Encaminhamento já registrado
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    className="rounded-full bg-sky-600 px-6 !text-white hover:bg-sky-500"
+                    disabled={!constructionGuide?.issuedAt || Boolean(processActionBusy)}
+                    onClick={handleSendConstructionGuideToProfessional}
+                  >
+                    <MessageSquareMore className="mr-2 h-4 w-4" />
+                    {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar guia ao profissional"}
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" className="rounded-full !text-white hover:!bg-[#2b4663]" onClick={() => navigate("/prefeitura/analise")}>
+                  Voltar à Análise Urbanística
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
 
   return (
     <PortalFrame
