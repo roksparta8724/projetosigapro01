@@ -6275,3 +6275,67 @@ html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action sv
 [data-marker-panel="true"][data-state="closed"] {
   animation: none !important;
 }
+
+
+/* Premium marker popover: fully opaque institutional surface. */
+[data-marker-panel="true"].sig-marker-panel {
+  background: #ffffff !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: #dbe3ee !important;
+  color: #0f172a !important;
+  box-shadow:
+    0 34px 90px rgba(15, 23, 42, 0.24),
+    0 10px 28px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 #ffffff !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+[data-marker-panel="true"] .sig-marker-panel-head {
+  background: #ffffff !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-marker-panel="true"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-marker-panel="true"]::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 999px;
+}
+
+[data-marker-panel="true"]::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 2px solid #f8fafc;
+}
+
+[data-marker-panel="true"]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+[data-marker-panel="true"] .sig-marker-swatch {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-marker-panel="true"] .sig-marker-swatch:hover {
+  background: #f8fafc !important;
+  border-color: #bae6fd !important;
+  color: #0f172a !important;
+}
+
+[data-marker-panel="true"] .sig-marker-swatch-active {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1e3a8a !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08) !important;
+}
