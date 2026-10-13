@@ -272,6 +272,24 @@ export function ProcessDetailPage() {
 
 
   const process = resolveProcessFromRoute(processes, processId);
+  const ownsCurrentProcessStage =
+    !!process && isProcessOwnedBySessionDepartment(session, process);
+  const isProtocolTrackingOnly =
+    !!process &&
+    canProtocolOperate &&
+    !ownsCurrentProcessStage &&
+    session.role !== "prefeitura_admin" &&
+    session.role !== "master_admin" &&
+    session.role !== "master_ops";
+
+  useEffect(() => {
+    if (!isProtocolTrackingOnly) return;
+    if (activeTab === "historico" || activeTab === "resumo") return;
+    setActiveTab("historico");
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("aba", "historico");
+    setSearchParams(nextParams, { replace: true });
+  }, [activeTab, isProtocolTrackingOnly, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!process || !processId) return;
@@ -395,13 +413,6 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const ownsCurrentProcessStage = isProcessOwnedBySessionDepartment(session, process);
-  const isProtocolTrackingOnly =
-    canProtocolOperate &&
-    !ownsCurrentProcessStage &&
-    session.role !== "prefeitura_admin" &&
-    session.role !== "master_admin" &&
-    session.role !== "master_ops";
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
@@ -544,15 +555,6 @@ export function ProcessDetailPage() {
     { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
-
-  useEffect(() => {
-    if (!isProtocolTrackingOnly) return;
-    if (activeTab === "historico" || activeTab === "resumo") return;
-    setActiveTab("historico");
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("aba", "historico");
-    setSearchParams(nextParams, { replace: true });
-  }, [activeTab, isProtocolTrackingOnly, searchParams, setSearchParams]);
 
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
