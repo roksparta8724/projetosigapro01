@@ -61,7 +61,9 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    /* Browser F5/restoration must snap to the saved position. Global smooth
+       scrolling was visibly moving the entire SaaS while the page rehydrated. */
+    scroll-behavior: auto;
     min-height: 100%;
     height: 100%;
     background-color: var(--sig-bg);
@@ -6245,4 +6247,15 @@ html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action sv
   -webkit-text-fill-color: #ffffff !important;
   stroke: currentColor !important;
   opacity: 1 !important;
+}
+
+
+/* F5 visual integrity: structural shells never animate geometry.
+   Interactive controls keep their own hover transitions. */
+.sig-app-frame,
+.sig-content-frame,
+.sig-sidebar-shell,
+.sig-sidebar-panel,
+.sig-main-shell {
+  transition-property: none !important;
 }
