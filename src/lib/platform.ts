@@ -758,7 +758,7 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "iss_obra":
       return "ISSQN incidente sobre a metragem da construção";
     case "aprovacao_final":
-      return "Recolhimento vinculado à obra após aprovação técnica dos documentos e do projeto";
+      return "Guia de Recolhimento da Obra gerada após aprovação técnica";
   }
 }
 
@@ -769,7 +769,7 @@ export function getGuideObservation(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Documento de arrecadação municipal destinado ao recolhimento do ISSQN calculado pela metragem da construção.";
     case "aprovacao_final":
-      return "Documento de arrecadação municipal solicitado pela Análise Urbanística após a aprovação técnica e emitido pelo Setor Financeiro.";
+      return "Documento de arrecadação municipal gerado pela Análise Urbanística após a aprovação técnica, com cálculo automático pelas regras do workflow financeiro.";
   }
 }
 
