@@ -2274,11 +2274,20 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
 
   if (!isInternalRole(session.role)) return false;
 
+  // A pasta operacional pertence ao setor/departamento, não ao rótulo genérico do cargo.
+  // Isso evita bloquear Assistente/Auxiliar Administrativo quando a sessão ainda traz
+  // temporariamente um papel antigo em cache.
+  const department = resolveDepartmentAccessBucket(session.department || session.title);
+  if (department === "protocolos" || department === "analise" || department === "financeiro") {
+    return department === area;
+  }
+
+  // Fallback apenas para cadastros antigos sem departamento operacional definido.
+  if (session.role === "setor_intersetorial") return area === "protocolos";
   if (session.role === "analista") return area === "analise";
   if (session.role === "financeiro" || session.role === "fiscal") return area === "financeiro";
 
-  const department = resolveDepartmentAccessBucket(session.department || session.title);
-  return department === area;
+  return false;
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
