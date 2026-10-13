@@ -1172,7 +1172,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
   return (
     <div
-      className="sig-app-frame min-h-screen text-foreground"
+      className={cn(
+        "sig-app-frame min-h-screen text-foreground",
+        focusMode && "sig-focus-workspace h-auto overflow-visible",
+      )}
+      data-focus-mode={focusMode ? "true" : "false"}
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
       data-theme-family={inverseMainTheme ? "dark" : "light"}
       data-viewport={isMobileViewport ? "mobile" : "desktop"}
@@ -2074,7 +2078,12 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         </CommandList>
       </CommandDialog>
 
-      <div className="sig-content-frame flex min-h-screen">
+      <div
+        className={cn(
+          "sig-content-frame flex min-h-screen",
+          focusMode && "h-auto min-h-0 overflow-visible",
+        )}
+      >
         {(!focusMode || focusSidebarOpen) ? (
           <AppSidebar
             pathname={location.pathname}
@@ -2093,14 +2102,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         <main
           className={cn(
             "min-w-0 flex-1",
-            focusMode ? "px-0 py-0" : "px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6",
+            focusMode ? "h-auto max-h-none overflow-visible px-0 py-0" : "px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6",
           )}
         >
           <div
             className={cn(
               "sig-main-shell",
               focusMode
-                ? "min-h-full w-full rounded-none border-0 bg-white p-0 shadow-none"
+                ? "h-auto min-h-0 max-h-none w-full overflow-visible rounded-none border-0 bg-white p-0 shadow-none"
                 : "rounded-[20px] border p-2.5 shadow-sm sm:rounded-[22px] sm:p-3.5 md:p-4 lg:p-5",
               !focusMode && (
                 inverseMainTheme
