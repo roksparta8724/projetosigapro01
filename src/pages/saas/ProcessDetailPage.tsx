@@ -1851,7 +1851,7 @@ export function ProcessDetailPage() {
                     Conclusão da Análise Urbanística
                   </CardTitle>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    A guia da obra só pode ser solicitada depois que todos os documentos e projetos estiverem aprovados.
+                    Depois da aprovação dos documentos, o analista informa os dados da obra e o SIGAPRO calcula e gera a guia automaticamente pelas regras do workflow financeiro.
                   </p>
                 </div>
                 <Badge
@@ -1870,98 +1870,165 @@ export function ProcessDetailPage() {
             </CardHeader>
 
             <CardContent className="space-y-5 pt-5">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    Proprietário
-                  </p>
-                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.ownerName}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{process.ownerDocument}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    Profissional responsável
-                  </p>
-                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.technicalLead}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Responsável técnico do processo</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    Dados da obra
-                  </p>
-                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
-                    {process.property.area.toFixed(2)} m²
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {process.property.usage || "Uso não informado"} • {constructionStandardLabel}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    Analista solicitante
-                  </p>
-                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
-                    {constructionGuideRequest?.requestedBy || session.name}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {constructionGuideRequest?.createdAt
-                      ? `Solicitado em ${constructionGuideRequest.createdAt}`
-                      : "Será registrado ao solicitar a emissão"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/30">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
-                      Guia de Recolhimento da Obra
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">Dados para cálculo da guia da obra</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Documentos aprovados: {approvedDocumentCount}/{requiredAnalysisDocuments.length}. Preencha a metragem e o tipo da obra.
                     </p>
-                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                      A Análise Urbanística solicita a emissão. O funcionário do Financeiro confere os dados da obra, emite a guia e fica identificado como emissor no documento oficial.
+                  </div>
+                  {constructionGuide ? (
+                    <Badge variant="outline" className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Guia já gerada
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Área da obra (m²)</label>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={constructionAreaInput}
+                      onChange={(event) => setConstructionAreaInput(event.target.value)}
+                      disabled={Boolean(constructionGuide)}
+                      className="mt-2 h-11 bg-white dark:bg-slate-950"
+                      placeholder="Ex.: 250,00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Tipo da obra</label>
+                    <Select
+                      value={constructionUsageInput}
+                      onValueChange={setConstructionUsageInput}
+                      disabled={Boolean(constructionGuide)}
+                    >
+                      <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
+                        <SelectValue placeholder="Selecione o tipo da obra" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {constructionUsageOptions.map((usage) => (
+                          <SelectItem key={usage} value={usage}>{usage}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Padrão construtivo</label>
+                    <Select
+                      value={constructionStandardInput}
+                      onValueChange={setConstructionStandardInput}
+                      disabled={Boolean(constructionGuide)}
+                    >
+                      <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
+                        <SelectValue placeholder="Selecione o padrão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {constructionStandardOptions.map((standard) => (
+                          <SelectItem key={standard} value={standard}>
+                            {standard === "economico" ? "Econômico" : standard === "medio" ? "Médio" : standard === "primeira" ? "Primeira" : standard === "luxo" ? "Luxo" : standard}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-sky-200 bg-white p-4 dark:border-sky-500/30 dark:bg-slate-950/35 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Valor calculado pelo workflow financeiro</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-slate-100">
+                      {constructionUsageInput && constructionAreaValue > 0
+                        ? formatCurrency(constructionGuidePreviewAmount)
+                        : "Aguardando dados"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      O valor final é confirmado pelo banco usando a tabela oficial cadastrada pela Prefeitura.
                     </p>
                   </div>
 
-                  {constructionGuide ? (
-                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Guia emitida pelo Financeiro
-                    </div>
-                  ) : constructionGuideRequest ? (
-                    <div className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
-                      <Clock3 className="h-4 w-4" />
-                      Aguardando emissão pelo Financeiro
-                    </div>
-                  ) : (
+                  {!constructionGuide ? (
                     <Button
                       type="button"
-                      className="shrink-0 rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                      className="shrink-0 rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"
                       disabled={
-                        processActionBusy === "request-construction-guide" ||
+                        processActionBusy === "generate-construction-guide" ||
                         !canReviewDocuments ||
                         !allAnalysisDocumentsApproved ||
-                        hasOpenAnalysisRequirements
+                        hasOpenAnalysisRequirements ||
+                        !(constructionAreaValue > 0) ||
+                        !constructionUsageInput
                       }
-                      onClick={handleRequestConstructionGuide}
+                      onClick={handleGenerateConstructionGuide}
                     >
                       <FileKey2 className="mr-2 h-4 w-4" />
-                      {processActionBusy === "request-construction-guide"
-                        ? "Solicitando..."
-                        : "Solicitar guia da obra"}
+                      {processActionBusy === "generate-construction-guide"
+                        ? "Gerando guia..."
+                        : "Gerar guia automaticamente"}
                     </Button>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => printGuide("aprovacao_final", false)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Visualizar guia
+                      </Button>
+                      <Button
+                        type="button"
+                        className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                        disabled={processActionBusy === "send-construction-guide"}
+                        onClick={handleSendConstructionGuideToProfessional}
+                      >
+                        <MessageSquareMore className="mr-2 h-4 w-4" />
+                        {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar ao profissional"}
+                      </Button>
+                    </div>
                   )}
                 </div>
 
                 {!allAnalysisDocumentsApproved ? (
                   <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
-                    Ainda existem documentos ou projetos pendentes de aprovação.
+                    A guia só pode ser gerada quando todos os documentos e projetos estiverem aprovados.
                   </p>
                 ) : hasOpenAnalysisRequirements ? (
                   <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
-                    Existe Comunique-se ou exigência aberta. Conclua a pendência antes de solicitar a guia.
+                    Existe Comunique-se ou exigência aberta. Conclua a pendência antes de gerar a guia.
                   </p>
                 ) : null}
               </div>
+
+              {constructionGuide ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia</p>
+                    <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuide.code}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatCurrency(constructionGuide.amount)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Proprietário</p>
+                    <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.ownerName}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Profissional responsável</p>
+                    <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.technicalLead}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Gerada por</p>
+                    <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuideIssuer || session.name}</p>
+                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">Disponível no Financeiro para controle</p>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           )}
