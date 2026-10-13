@@ -781,7 +781,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         }
 
         if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-          await markCurrentProfileAccess();
+          void markCurrentProfileAccess();
         }
 
         const nextScopeType: "platform" | "municipality" | "external" =
