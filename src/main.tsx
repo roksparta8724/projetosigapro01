@@ -4,6 +4,19 @@ import "./index.css";
 
 const NAVIGATION_STATE_KEY = "sigapro.navigation.state.v1";
 const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v4";
+const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+
+function currentSnapshotIdentity(): string {
+  try {
+    const raw = window.localStorage.getItem(PLATFORM_SESSION_CACHE_KEY);
+    const session = raw ? JSON.parse(raw) as { id?: string; accountStatus?: string } : null;
+    return session?.id && session.accountStatus !== "blocked" && session.accountStatus !== "inactive"
+      ? String(session.id)
+      : "";
+  } catch {
+    return "";
+  }
+}
 let pendingRefreshScrollY: number | null = null;
 let pendingRefreshLocation = "";
 let scrollPersistRaf = 0;
@@ -40,6 +53,8 @@ function persistNavigationState() {
 
 function persistVisualSnapshot() {
   if (!appStable || !isInternalPath(window.location.pathname)) return;
+  const userId = currentSnapshotIdentity();
+  if (!userId) return;
   const root = document.getElementById("root");
   if (!root || root.innerHTML.length < 500) return;
 
@@ -49,6 +64,7 @@ function persistVisualSnapshot() {
       JSON.stringify({
         host: window.location.host,
         path: currentLocationKey(),
+        userId,
         html: root.innerHTML,
         scrollY: window.scrollY || 0,
         savedAt: Date.now(),
@@ -112,6 +128,8 @@ function releaseRefreshSnapshot() {
 
   let stableFrames = 0;
   let previousGeometry = "";
+  const restoreStartedAt = performance.now();
+  const maxRestoreMs = 10000;
 
   const rectSignature = (el: Element | null) => {
     if (!(el instanceof HTMLElement)) return "missing";
@@ -185,7 +203,9 @@ function releaseRefreshSnapshot() {
     stableFrames = ready ? stableFrames + 1 : 0;
     previousGeometry = geometry;
 
-    if (stableFrames >= 8) {
+    // Não prender o usuário em uma sobreposição congelada quando uma fonte,
+    // imagem ou integração nunca estabiliza. A interface real sempre assume o controle.
+    if (stableFrames >= 5 || performance.now() - restoreStartedAt > maxRestoreMs) {
       finish();
       return;
     }
@@ -240,6 +260,23 @@ window.addEventListener(
   },
   { capture: true },
 );
+
+window.addEventListener("sigapro-platform-session-updated", () => {
+  try {
+    const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
+    const snapshot = raw ? JSON.parse(raw) : null;
+    if (snapshot && snapshot.userId !== currentSnapshotIdentity()) {
+      window.sessionStorage.removeItem(VISUAL_SNAPSHOT_KEY);
+      window.sessionStorage.removeItem(NAVIGATION_STATE_KEY);
+      const overlay = document.getElementById("sigapro-refresh-snapshot");
+      overlay?.removeAttribute("data-visible");
+      overlay?.replaceChildren();
+      document.documentElement.removeAttribute("data-sigapro-booting");
+    }
+  } catch {
+    window.sessionStorage.removeItem(VISUAL_SNAPSHOT_KEY);
+  }
+});
 
 window.addEventListener("sigapro-app-stable", () => {
   appStable = true;
