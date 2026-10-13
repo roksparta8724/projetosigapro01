@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
+import { type ReactNode } from "react";
+import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 
@@ -11,54 +11,12 @@ export function PlanModuleRoute({
   children: ReactNode;
 }) {
   const entitlements = usePlanEntitlements();
-  const [showResolvingState, setShowResolvingState] = useState(false);
-
-  useEffect(() => {
-    if (!entitlements.isResolving) {
-      setShowResolvingState(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setShowResolvingState(true), 450);
-    return () => window.clearTimeout(timeout);
-  }, [entitlements.isResolving]);
-
   if (entitlements.isMaster || entitlements.canUseModule(module)) {
     return <>{children}</>;
   }
 
   if (entitlements.isResolving) {
-    if (!showResolvingState) {
-      return (
-        <main
-          aria-busy="true"
-          className="min-h-screen bg-slate-50"
-          data-plan-entitlement-resolving="true"
-        />
-      );
-    }
-
-    return (
-      <main
-        aria-busy="true"
-        className="min-h-screen bg-slate-50 px-5 py-10 text-slate-950"
-        data-plan-entitlement-resolving="true"
-      >
-        <div className="mx-auto flex max-w-[560px] items-center gap-4 rounded-[22px] border border-slate-200 bg-white px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.08)]">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-950">
-              Validando acesso da Prefeitura
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Sincronizando o plano e as permissões da conta atual.
-            </p>
-          </div>
-        </div>
-      </main>
-    );
+    return null;
   }
 
   const planName = entitlements.plan?.name ?? "não configurado";
