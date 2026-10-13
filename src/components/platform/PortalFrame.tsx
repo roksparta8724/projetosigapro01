@@ -252,6 +252,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem("sigapro.sidebar.expanded") !== "0";
   });
+  const [focusSidebarOpen, setFocusSidebarOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
@@ -1341,11 +1342,17 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
                   topbarGhostButton,
                 )}
-                onClick={() => setSidebarExpanded((current) => {
-                  const next = !current;
-                  window.localStorage.setItem("sigapro.sidebar.expanded", next ? "1" : "0");
-                  return next;
-                })}
+                onClick={() => {
+                  if (focusMode) {
+                    setFocusSidebarOpen((current) => !current);
+                    return;
+                  }
+                  setSidebarExpanded((current) => {
+                    const next = !current;
+                    window.localStorage.setItem("sigapro.sidebar.expanded", next ? "1" : "0");
+                    return next;
+                  });
+                }}
                 aria-label="Alternar menu lateral"
                 title="Menu"
               >
@@ -2068,13 +2075,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       </CommandDialog>
 
       <div className="sig-content-frame flex min-h-screen">
-        {!focusMode ? (
+        {(!focusMode || focusSidebarOpen) ? (
           <AppSidebar
             pathname={location.pathname}
             groups={sidebarGroups}
-            expanded={sidebarExpanded}
+            expanded={focusMode ? true : sidebarExpanded}
             mobileOpen={mobileSidebarOpen}
-            onMobileClose={() => setMobileSidebarOpen(false)}
+            onMobileClose={() => {
+              setMobileSidebarOpen(false);
+              if (focusMode) setFocusSidebarOpen(false);
+            }}
             inverseMain={inverseMainTheme}
             darkSurface={darkSidebar}
           />
