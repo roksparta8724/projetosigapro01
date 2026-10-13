@@ -1938,7 +1938,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             processId,
             from: process.processControl?.currentFolder || "Análise Urbanística",
             to: "Financeiro",
-            subject: "Solicitacao de emissao - Guia de Recolhimento da Obra",
+            subject: "Solicitação de emissão — Guia de Recolhimento da Obra",
             visibility: "interno",
             priority: "media",
           });
