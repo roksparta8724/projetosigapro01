@@ -994,7 +994,7 @@ function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   ) {
     return {
       title: "GUIA DE RECOLHIMENTO DA OBRA",
-      description: "Documento de arrecadação municipal gerado pela Análise Urbanística após a aprovação técnica, com cálculo pelas regras oficiais do workflow financeiro.",
+      description: "Documento de arrecadação municipal gerado após a aprovação técnica, conforme o workflow definido pela Prefeitura e as regras financeiras oficiais.",
       shortLabel: "Recolhimento da obra",
       documentClass: "Arrecadação da obra",
     };
