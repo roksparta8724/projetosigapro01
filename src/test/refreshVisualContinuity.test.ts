@@ -14,9 +14,11 @@ describe("F5 visual continuity", () => {
 
   it.each(["default", "inverse-main"])("uses the same frozen real DOM regardless of %s theme", () => {
     expect(html).toContain("sigapro-refresh-snapshot");
-    expect(main).toContain("snapshot.html");
+    expect(html).toContain("snapshot.html");
+    expect(html).toContain("snapshot.userId === currentUserId");
     expect(main).toContain("window.location.pathname");
-    expect(main).toContain("restoreFrozenSnapshot();");
+    expect(main).toContain("releaseRefreshSnapshot();");
+    expect(main).toContain("maxRestoreMs");
     expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
   });
 });
