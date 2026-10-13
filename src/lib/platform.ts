@@ -948,7 +948,7 @@ export const roleLabels: Record<UserRole, string> = {
   prefeitura_supervisor: "Diretor",
   analista: "Analista",
   financeiro: "Financeiro",
-  setor_intersetorial: "Secretário",
+  setor_intersetorial: "Administrativo / Protocolo",
   fiscal: "Fiscalização e Postura",
   profissional_externo: "Profissional Externo",
   property_owner: "Proprietário do Imóvel",
@@ -974,7 +974,7 @@ export const roleSuggestedTitles: Record<UserRole, string> = {
   prefeitura_supervisor: "Diretor",
   analista: "Analista Técnico",
   financeiro: "Financeiro Municipal",
-  setor_intersetorial: "Secretário",
+  setor_intersetorial: "Funcionário Administrativo",
   fiscal: "Fiscalização e Postura",
   profissional_externo: "Profissional Externo",
   property_owner: "Proprietário do Imóvel",
@@ -999,7 +999,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
   analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
   financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
+  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
   fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
   property_owner: ["view_own_processes", "manage_own_profile"],
@@ -2226,7 +2226,7 @@ function normalizeDepartmentAccessLabel(value: string | null | undefined) {
 function resolveDepartmentAccessBucket(value: string | null | undefined) {
   const normalized = normalizeDepartmentAccessLabel(value);
   if (!normalized) return "";
-  if (/protocolo|protocol/.test(normalized)) return "protocolos";
+  if (/protocolo|protocol|triagem|recepcao|administracao|administrativo|expediente|atendimento/.test(normalized)) return "protocolos";
   if (/finance|financa|fazenda|tribut|arrecad/.test(normalized)) return "financeiro";
   if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao/.test(normalized)) return "analise";
   return normalized;
@@ -2246,6 +2246,8 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
       return "/prefeitura/analise";
     case "financeiro":
       return "/prefeitura/financeiro";
+    case "setor_intersetorial":
+      return "/prefeitura/protocolos";
     case "fiscal":
       return "/prefeitura/financeiro/iptu";
     case "profissional_externo":
