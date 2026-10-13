@@ -201,6 +201,11 @@ export function InternalSectionNav({
   onChange: (value: string) => void;
   className?: string;
 }) {
+  const orderedItems = [
+    ...items.filter((item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
+    ...items.filter((item) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
+  ];
+
   return (
     <section
       className={cn(
@@ -209,7 +214,7 @@ export function InternalSectionNav({
       )}
   >
       <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] md:overflow-visible md:px-0 md:pb-0">
-        {items.map((item) => {
+        {orderedItems.map((item) => {
           const active = item.value === value;
           return (
             <button
