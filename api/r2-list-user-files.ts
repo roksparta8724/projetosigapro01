@@ -7,6 +7,10 @@
  */
 
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import {
+  applyMunicipalBasePath,
+  resolveMunicipalDocumentTarget,
+} from "../server/municipal-storage";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -259,22 +263,37 @@ export default async function handler(req: Req, res: Res) {
         ),
       );
     }
-    const client = new S3Client({
-      region: "auto",
-      endpoint,
-      credentials: { accessKeyId, secretAccessKey },
-    });
+    const logicalRoot = `municipalities/${auth.municipalityId}/protocols/`;
+    const municipalTarget = await resolveMunicipalDocumentTarget(
+      req,
+      auth.municipalityId,
+      bucket,
+      logicalRoot,
+    );
+
+    const client = municipalTarget
+      ? municipalTarget.client
+      : new S3Client({
+          region: "auto",
+          endpoint,
+          credentials: { accessKeyId, secretAccessKey },
+        });
+    const storageBucket = municipalTarget ? municipalTarget.bucket : bucket;
 
     const results = await Promise.all(
-      principalIds.map((principalId) =>
-        client.send(
+      principalIds.map((principalId) => {
+        const logicalPrefix = `municipalities/${auth.municipalityId}/protocols/${principalId}/`;
+        const physicalPrefix = municipalTarget
+          ? applyMunicipalBasePath(municipalTarget.config.base_path, logicalPrefix)
+          : logicalPrefix;
+        return client.send(
           new ListObjectsV2Command({
-            Bucket: bucket,
-            Prefix: `municipalities/${auth.municipalityId}/protocols/${principalId}/`,
+            Bucket: storageBucket,
+            Prefix: physicalPrefix,
             MaxKeys: 250,
           }),
-        ),
-      ),
+        );
+      }),
     );
 
     const files = results
@@ -285,14 +304,27 @@ export default async function handler(req: Req, res: Res) {
         (item, index, all) =>
           all.findIndex((candidate) => candidate.Key === item.Key) === index,
       )
-      .map((item) => ({
-        objectKey: item.Key!,
-        fileName: parseOriginalName(item.Key!),
-        size: Number(item.Size || 0),
-        lastModified: item.LastModified?.toISOString() || null,
-      }));
+      .map((item) => {
+        const physicalKey = item.Key!;
+        const prefix = municipalTarget
+          ? String(municipalTarget.config.base_path || "").replace(/^\/+|\/+$/g, "")
+          : "";
+        const objectKey =
+          prefix && physicalKey.startsWith(`${prefix}/`)
+            ? physicalKey.slice(prefix.length + 1)
+            : physicalKey;
+        return {
+          objectKey,
+          fileName: parseOriginalName(objectKey),
+          size: Number(item.Size || 0),
+          lastModified: item.LastModified?.toISOString() || null,
+        };
+      });
 
-    json(res, 200, { files });
+    json(res, 200, {
+      files,
+      storageProvider: municipalTarget ? "municipal_s3" : "sigapro_r2",
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao localizar uploads anteriores.";
     console.error("[SIGAPRO][R2] Falha ao listar uploads recuperáveis", { error: message });
