@@ -60,7 +60,6 @@ import {
   createRemoteProcessRequirement,
   createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
-  issueRemoteConstructionPaymentGuide,
   issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
@@ -1991,37 +1990,23 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
         }
 
+        await issueRemoteProcessPaymentGuide({
+          processId,
+          guideKind,
+        });
+
         if (guideKind === "aprovacao_final") {
-          try {
-            await issueRemoteConstructionPaymentGuide({ processId });
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error || "");
-            if (!/issue_construction_payment_guide_v1|schema cache|could not find|does not exist/i.test(message)) {
-              throw error;
-            }
-
-            await issueRemoteProcessPaymentGuide({
-              processId,
-              guideKind,
+          const pendingRequest = process.dispatches.find(
+            (dispatch) =>
+              /guia de recolhimento da obra/i.test(dispatch.subject) &&
+              ["aguardando", "respondido"].includes(dispatch.status),
+          );
+          if (pendingRequest) {
+            await completeRemoteProcessDispatch({
+              dispatchId: pendingRequest.id,
+              unit: "Análise Urbanística",
             });
-
-            const pendingRequest = process.dispatches.find(
-              (dispatch) =>
-                /guia de recolhimento da obra/i.test(dispatch.subject) &&
-                ["aguardando", "respondido"].includes(dispatch.status),
-            );
-            if (pendingRequest) {
-              await completeRemoteProcessDispatch({
-                dispatchId: pendingRequest.id,
-                unit: "Financeiro",
-              });
-            }
           }
-        } else {
-          await issueRemoteProcessPaymentGuide({
-            processId,
-            guideKind,
-          });
         }
 
         await refreshRemoteStore();
