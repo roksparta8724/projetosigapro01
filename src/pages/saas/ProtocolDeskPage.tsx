@@ -67,12 +67,21 @@ function getMissingRequiredDocuments(process: ProcessRecord) {
   return process.documents.filter((document) => document.required && !document.uploaded).length;
 }
 
+function getPendingTriageDocuments(process: ProcessRecord) {
+  return process.documents.filter(
+    (document) =>
+      document.required &&
+      (!document.uploaded || document.reviewStatus !== "aprovado"),
+  ).length;
+}
+
 export function ProtocolDeskPage() {
   const { session } = usePlatformSession();
   const {
     processes: allProcesses,
     getInstitutionSettings,
     markGuideAsPaid,
+    updateProcessTriage,
     getUserProfile,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -297,12 +306,33 @@ export function ProtocolDeskPage() {
                     actor={session.name}
                     triggerClassName="h-9 rounded-full text-[12px]"
                   />
-                  {process.triage.status !== "concluido" ? (
-                    <Button asChild variant="outline" className="h-11 w-full rounded-full sm:w-auto">
-                      <Link to={`/processos/${process.id}?aba=documentos`}>Fazer triagem</Link>
+                  {process.triage.status === "recebido" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full rounded-full sm:w-auto"
+                      disabled={protocolActionBusy === `triage-em_triagem-${process.id}`}
+                      onClick={() => void handleTriageStatus(process, "em_triagem")}
+                    >
+                      {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
                     </Button>
                   ) : null}
-                  {protocolGuide?.status === "pendente" ? (
+                  {process.triage.status === "em_triagem" ? (
+                    <>
+                      <Button asChild variant="outline" className="h-11 w-full rounded-full sm:w-auto">
+                        <Link to={`/processos/${process.id}?aba=documentos`}>Conferir documentos</Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-11 w-full rounded-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto"
+                        disabled={protocolActionBusy === `triage-concluido-${process.id}`}
+                        onClick={() => void handleTriageStatus(process, "concluido")}
+                      >
+                        {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem"}
+                      </Button>
+                    </>
+                  ) : null}
+                  {protocolGuide?.status === "pendente" && process.triage.status === "concluido" ? (
                     <Button
                       type="button"
                       className="h-11 w-full rounded-full bg-emerald-700 text-white hover:bg-emerald-800 sm:w-auto"
@@ -362,6 +392,48 @@ export function ProtocolDeskPage() {
     </div>
   );
 
+  const handleTriageStatus = async (
+    process: ProcessRecord,
+    status: "em_triagem" | "concluido",
+  ) => {
+    const pendingReview = getPendingTriageDocuments(process);
+    if (status === "concluido" && pendingReview > 0) {
+      setProtocolActionStatus(
+        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados ou aprovados.`,
+      );
+      return;
+    }
+
+    const busyKey = `triage-${status}-${process.id}`;
+    setProtocolActionBusy(busyKey);
+    setProtocolActionStatus("");
+
+    try {
+      await updateProcessTriage({
+        processId: process.id,
+        status,
+        actor: session.name,
+        notes:
+          status === "em_triagem"
+            ? "Conferência documental iniciada pelo atendimento administrativo."
+            : "Documentação obrigatória conferida e triagem concluída.",
+      });
+      setProtocolActionStatus(
+        status === "em_triagem"
+          ? `Triagem iniciada para ${formatOfficialProcessNumber(process.protocol)}.`
+          : `Triagem concluída. O protocolo agora aguarda a confirmação da guia inicial.`,
+      );
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível atualizar a triagem: ${error.message}`
+          : "Não foi possível atualizar a triagem no banco oficial.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
   const handleConfirmProtocolPayment = async (process: ProcessRecord) => {
     const protocolGuide = getProcessPaymentGuides(process, tenantSettings).find(
       (guide) => guide.kind === "protocolo",
@@ -369,6 +441,11 @@ export function ProtocolDeskPage() {
 
     if (!protocolGuide || protocolGuide.status !== "pendente") {
       setProtocolActionStatus("A guia de protocolo já está confirmada ou não está disponível para baixa.");
+      return;
+    }
+
+    if (process.triage.status !== "concluido") {
+      setProtocolActionStatus("Conclua a triagem documental antes de confirmar o pagamento do protocolo.");
       return;
     }
 
@@ -840,16 +917,22 @@ export function ProtocolDeskPage() {
                               <Button asChild variant="outline" className="rounded-full">
                                 <Link to={`/processos/${process.id}?aba=documentos`}>Revisar triagem</Link>
                               </Button>
-                              <Button
-                                type="button"
-                                className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
-                                disabled={protocolActionBusy === `payment-${process.id}`}
-                                onClick={() => void handleConfirmProtocolPayment(process)}
-                              >
-                                {protocolActionBusy === `payment-${process.id}`
-                                  ? "Confirmando..."
-                                  : "Confirmar pagamento"}
-                              </Button>
+                              {process.triage.status === "concluido" ? (
+                                <Button
+                                  type="button"
+                                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                                  disabled={protocolActionBusy === `payment-${process.id}`}
+                                  onClick={() => void handleConfirmProtocolPayment(process)}
+                                >
+                                  {protocolActionBusy === `payment-${process.id}`
+                                    ? "Confirmando..."
+                                    : "Confirmar pagamento"}
+                                </Button>
+                              ) : (
+                                <Button asChild variant="outline" className="rounded-full">
+                                  <Link to={`/processos/${process.id}?aba=documentos`}>Concluir triagem primeiro</Link>
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
