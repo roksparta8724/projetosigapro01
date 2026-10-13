@@ -83,7 +83,7 @@ import {
   setRemoteProcessStatus,
   setRemoteProcessTriage,
   setRemoteProcessTransitVisibility,
-  updateRemoteProcessConstructionData,
+  updateRemoteProcessIssProjectData,
   upsertRemoteInstitution,
   upsertRemotePlan,
   upsertRemoteProcessMarker,
@@ -182,11 +182,11 @@ interface PlatformDataState {
   startProcessAnalysis: (processId: string) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
-  updateConstructionGuideData: (input: {
+  updateIssProjectGuideData: (input: {
     processId: string;
     areaM2: number;
     usage: string;
-    constructionStandard?: string;
+    workType: string;
   }) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
@@ -1952,16 +1952,16 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         await refreshRemoteStore();
       },
-      updateConstructionGuideData: async ({ processId, areaM2, usage, constructionStandard }) => {
+      updateIssProjectGuideData: async ({ processId, areaM2, usage, workType }) => {
         if (!hasBackendEnv) {
-          throw new Error("O banco oficial está indisponível para salvar os dados da obra.");
+          throw new Error("O banco oficial está indisponível para salvar os dados do ISSQN / Projeto.");
         }
 
-        await updateRemoteProcessConstructionData({
+        await updateRemoteProcessIssProjectData({
           processId,
           areaM2,
           usage,
-          constructionStandard,
+          workType,
         });
         await refreshRemoteStore();
       },
