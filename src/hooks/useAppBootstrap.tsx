@@ -252,19 +252,33 @@ function readWarmBootstrapSnapshot(
 ): BootstrapSnapshot | null {
   const storedUser = readStoredSupabaseUser();
   const storedSession = readPlatformSessionSnapshot();
-  const userId = storedUser?.id ?? null;
+
+  // Neon não expõe a sessão pelo storage legado do Supabase. O cache visual
+  // da sessão de plataforma é a fonte de warm-render para o F5; ele é apagado
+  // no logout explícito, portanto não atravessa troca de conta.
+  const userId = isNeonBackend
+    ? storedSession?.id ?? null
+    : storedUser?.id ?? null;
+
   if (!userId) return null;
   const matchingStoredSession = storedSession?.id === userId ? storedSession : null;
 
   const role =
-    mapDbRoleCodeToAppRole(storedUser?.app_metadata?.role) ??
+    mapDbRoleCodeToAppRole(
+      isNeonBackend ? matchingStoredSession?.role : storedUser?.app_metadata?.role,
+    ) ??
     mapDbRoleCodeToAppRole(matchingStoredSession?.role) ??
     null;
-  const email = normalizeEmail(storedUser?.email ?? matchingStoredSession?.email ?? null);
-  const municipalityId = matchingStoredSession?.municipalityId ?? null;
+  const email = normalizeEmail(
+    isNeonBackend
+      ? matchingStoredSession?.email ?? null
+      : storedUser?.email ?? matchingStoredSession?.email ?? null,
+  );
+  const municipalityId = matchingStoredSession?.municipalityId ?? matchingStoredSession?.tenantId ?? null;
   const fullName =
-    storedUser?.user_metadata?.full_name ||
-    storedUser?.user_metadata?.name ||
+    (isNeonBackend
+      ? matchingStoredSession?.name
+      : storedUser?.user_metadata?.full_name || storedUser?.user_metadata?.name) ||
     matchingStoredSession?.name ||
     null;
 
