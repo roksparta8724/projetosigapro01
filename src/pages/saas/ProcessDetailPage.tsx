@@ -558,6 +558,19 @@ export function ProcessDetailPage() {
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
   const currentOrganizationPath = getOrganizationPath(currentFolder);
+
+  const protocolDepartment = organizationDepartments.find((department) =>
+    /protocolo|triagem|recep[cç][aã]o/i.test(department.name),
+  );
+  const administrationDepartment = organizationDepartments.find((department) =>
+    /administra[cç][aã]o|administrativo|secretaria de administra[cç][aã]o/i.test(department.name),
+  );
+  const protocolOrganizationPath = protocolDepartment
+    ? getOrganizationPath(protocolDepartment.name)
+    : administrationDepartment
+      ? `${getOrganizationPath(administrationDepartment.name)} › Protocolo`
+      : "Administração › Protocolo";
+
   const protocolStartedAt =
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
     process.timeline[process.timeline.length - 1]?.at ||
@@ -1573,9 +1586,12 @@ export function ProcessDetailPage() {
                   <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-slate-950">Protocolo</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Entrada do processo
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-950">{protocolOrganizationPath}</p>
                         <p className="mt-1 text-sm text-slate-600">
-                          Processo recebido e registrado oficialmente.
+                          Processo recebido e registrado oficialmente pela unidade de Protocolo.
                         </p>
                       </div>
                       {protocolStartedAt ? (
