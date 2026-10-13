@@ -19,6 +19,7 @@ vi.mock("@/hooks/useAuthGateway", () => ({
 
 vi.mock("@/integrations/backend/config", () => ({
   isNeonBackend: true,
+  isSupabaseBackend: false,
 }));
 
 function Probe() {
