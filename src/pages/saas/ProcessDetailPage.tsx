@@ -665,7 +665,7 @@ export function ProcessDetailPage() {
   let currentFlowIndex = 0;
   if (isFinalProcessStatus) {
     currentFlowIndex = 4;
-  } else if (/financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)) {
+  } else if (constructionGuide || /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)) {
     currentFlowIndex = 3;
   } else if (
     /analise|urban|obra|engenharia|fiscal/.test(normalizedCurrentFolder) ||
