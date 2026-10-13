@@ -734,7 +734,17 @@ export function ProcessDetailPage() {
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
-        funcionarioResponsavel: session.name,
+        funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+        proprietario: selectedGuide.ownerName || process.ownerName,
+        profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
+        analistaSolicitante:
+          selectedGuide.requestedBy ||
+          constructionGuideRequest?.requestedBy ||
+          (selectedGuide.kind === "aprovacao_final" ? process.analysis?.assignedTo : undefined),
+        funcionarioEmissor: selectedGuide.issuedBy,
+        areaObra: selectedGuide.areaM2 ?? process.property.area,
+        usoObra: selectedGuide.usage || process.property.usage,
+        padraoConstrutivo: selectedGuide.constructionStandard || constructionStandardLabel,
         codigoBarras: barcode,
         linhaDigitavel: barcode,
         qrCodePixUrl: "",
