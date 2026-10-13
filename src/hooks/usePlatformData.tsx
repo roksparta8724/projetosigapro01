@@ -815,6 +815,19 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const expectsRemoteStore = Boolean(hasBackendEnv && (!localDev || allowRemoteInLocal));
 
   useEffect(() => {
+    if (!authenticatedUserId) return;
+
+    const hasVisibleData =
+      store.sessionUsers.length > 0 ||
+      store.tenants.length > 0 ||
+      store.processes.length > 0;
+
+    if (hasVisibleData) {
+      syncWarmPlatformStore(store, authenticatedUserId);
+    }
+  }, [authenticatedUserId, store]);
+
+  useEffect(() => {
     let active = true;
 
     const bootstrap = async () => {
@@ -1094,6 +1107,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       );
       if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
       setStore(sanitized);
+      syncWarmPlatformStore(sanitized, authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
       setDataError(null);
