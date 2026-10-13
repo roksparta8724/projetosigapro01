@@ -62,9 +62,14 @@ describe("commercial plan enforcement", () => {
     expect(uploadApi).toContain('capability =');
     expect(uploadApi).toContain('"storage_bytes"');
     expect(uploadApi).toContain('assert_municipality_entitlement_v1');
-    expect(uploadApi.indexOf('assert_municipality_entitlement_v1')).toBeLessThan(
-      uploadApi.indexOf('new S3Client'),
-    );
+    // Criar um cliente S3 não escreve no bucket. O bloqueio deve preceder
+    // toda operação de gravação, tanto R2 quanto S3 municipal.
+    const guard = uploadApi.indexOf('assert_municipality_entitlement_v1');
+    const municipalWrite = uploadApi.indexOf('await municipalTarget.client.send(new PutObjectCommand');
+    const r2Write = uploadApi.indexOf('await putR2ObjectWithFallback({');
+    expect(guard).toBeGreaterThan(0);
+    expect(guard).toBeLessThan(municipalWrite);
+    expect(guard).toBeLessThan(r2Write);
   });
 
   it("tracks real file bytes for storage quota", () => {
