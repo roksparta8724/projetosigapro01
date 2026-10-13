@@ -329,10 +329,21 @@ function resolveDepartmentBackedRole(
     .trim()
     .toLowerCase();
 
+  // Perfis externos nunca podem ser convertidos em funcionário municipal
+  // apenas porque o vínculo técnico possui um rótulo de departamento como
+  // "Profissional Externo" ou "Portal externo". A identidade externa é estável.
+  if (
+    storedRole === "profissional_externo" ||
+    storedRole === "property_owner" ||
+    storedRole === "proprietario_consulta"
+  ) {
+    return storedRole;
+  }
+
   if (!normalizedDepartment) return storedRole;
 
-  // Um vínculo com qualquer departamento municipal torna a conta interna.
-  // O departamento define a área operacional; o cargo/função permanece apenas descritivo.
+  // Para contas realmente internas, o departamento define a área operacional;
+  // o cargo/função permanece apenas descritivo.
   if (
     storedRole === "master_admin" ||
     storedRole === "master_ops" ||
