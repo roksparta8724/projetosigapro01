@@ -994,7 +994,7 @@ function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   ) {
     return {
       title: "GUIA DE RECOLHIMENTO DA OBRA",
-      description: "Documento de arrecadação municipal emitido pelo Financeiro após a aprovação técnica dos documentos e do projeto.",
+      description: "Documento de arrecadação municipal gerado pela Análise Urbanística após a aprovação técnica, com cálculo pelas regras oficiais do workflow financeiro.",
       shortLabel: "Recolhimento da obra",
       documentClass: "Arrecadação da obra",
     };
@@ -1152,8 +1152,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   {[
                     ["Proprietário", guia.proprietario || contribuinte.nome],
                     ["Profissional responsável", guia.profissionalResponsavel || ""],
-                    ["Analista solicitante", guia.analistaSolicitante || ""],
-                    ["Financeiro / emissor", guia.funcionarioEmissor || guia.funcionarioResponsavel || ""],
+                    ["Analista responsável", guia.analistaSolicitante || guia.funcionarioResponsavel || ""],
+                    ["Controle financeiro", "Setor Financeiro"],
                   ].map(([label, value]) => (
                     <div key={String(label)} className="dam-responsibility-cell">
                       <div className="dam-responsibility-label">{label}</div>
@@ -1268,10 +1268,10 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-responsible-row">
               <div className="dam-responsible-label">
-                Funcionário Responsável Emissão
+                Analista Responsável pela Geração
               </div>
               <div className="dam-responsible-value">
-                {guia.funcionarioEmissor || guia.funcionarioResponsavel || ""}
+                {guia.analistaSolicitante || guia.funcionarioResponsavel || guia.funcionarioEmissor || ""}
               </div>
             </div>
 
