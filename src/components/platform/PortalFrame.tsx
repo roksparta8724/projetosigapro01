@@ -129,7 +129,7 @@ const navItems = [
     module: "Financeiro" as PlanModuleName,
     children: [
       { to: "/prefeitura/financeiro", label: "Visão geral", icon: LayoutDashboard, permission: "manage_financial" as Permission },
-      { to: "/prefeitura/financeiro/protocolos", label: "Protocolos e recolhimento", icon: FileBarChart2, permission: "manage_financial" as Permission },
+      { to: "/prefeitura/financeiro/protocolos", label: "Guias e recolhimentos", icon: FileBarChart2, permission: "manage_financial" as Permission },
       { to: "/prefeitura/financeiro/iptu", label: "IPTU e ISSQN", icon: Layers, permission: "manage_fiscal_financial" as Permission },
     ],
   },
