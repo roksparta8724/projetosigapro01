@@ -60,12 +60,14 @@ import {
   createRemoteProcessRequirement,
   createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
+  issueRemoteConstructionPaymentGuide,
   issueRemoteProcessPaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
   reissueRemoteProcessPaymentGuide,
   removeRemoteProcessMarkerByLabel,
+  requestRemoteConstructionPaymentGuide,
   reopenRemoteProcess,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
@@ -179,6 +181,7 @@ interface PlatformDataState {
   }) => Promise<void>;
   startProcessAnalysis: (processId: string) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
+  requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
   appendProcessDocuments: (
@@ -1885,6 +1888,64 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await reopenRemoteProcess(processId, normalized);
         await refreshRemoteStore();
       },
+      requestConstructionPaymentGuide: async (processId, actor) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para solicitar a guia da obra.");
+        }
+
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
+
+        const uploadedDocuments = process.documents.filter((document) => document.uploaded);
+        const allDocumentsApproved =
+          uploadedDocuments.length > 0 &&
+          process.documents
+            .filter((document) => document.required || document.uploaded)
+            .every((document) => document.uploaded && document.reviewStatus === "aprovado");
+
+        if (!allDocumentsApproved) {
+          throw new Error(
+            "Todos os documentos e projetos obrigatórios precisam estar enviados e aprovados antes da solicitação.",
+          );
+        }
+
+        if (
+          process.requirements.some(
+            (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
+          )
+        ) {
+          throw new Error("Conclua os Comunique-se e exigências pendentes antes de solicitar a guia.");
+        }
+
+        const alreadyRequested = process.dispatches.some(
+          (dispatch) =>
+            /guia de recolhimento da obra/i.test(dispatch.subject) &&
+            ["aguardando", "respondido"].includes(dispatch.status),
+        );
+        if (alreadyRequested) {
+          throw new Error("A emissão da Guia de Recolhimento da Obra já foi solicitada ao Financeiro.");
+        }
+
+        try {
+          await requestRemoteConstructionPaymentGuide(processId);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error || "");
+          if (!/request_construction_payment_guide_v1|schema cache|could not find|does not exist/i.test(message)) {
+            throw error;
+          }
+
+          await createRemoteProcessDispatch({
+            processId,
+            from: process.processControl?.currentFolder || "Análise Urbanística",
+            to: "Financeiro",
+            subject: "Solicitacao de emissao - Guia de Recolhimento da Obra",
+            visibility: "interno",
+            priority: "media",
+          });
+        }
+
+        await refreshRemoteStore();
+      },
       issuePaymentGuide: async (processId, actor, guideKind) => {
         if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para emitir a guia.");
@@ -1910,10 +1971,26 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
         }
 
-        await issueRemoteProcessPaymentGuide({
-          processId,
-          guideKind,
-        });
+        if (guideKind === "aprovacao_final") {
+          try {
+            await issueRemoteConstructionPaymentGuide({ processId });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error || "");
+            if (!/issue_construction_payment_guide_v1|schema cache|could not find|does not exist/i.test(message)) {
+              throw error;
+            }
+
+            await issueRemoteProcessPaymentGuide({
+              processId,
+              guideKind,
+            });
+          }
+        } else {
+          await issueRemoteProcessPaymentGuide({
+            processId,
+            guideKind,
+          });
+        }
 
         await refreshRemoteStore();
       },
