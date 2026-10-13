@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  CircleDollarSign,
   ClipboardList,
   Clock3,
   FilePlus2,
@@ -53,6 +54,7 @@ type ProtocolSection =
   | "fila"
   | "entradas"
   | "documentos"
+  | "pagamentos"
   | "balcao"
   | "online"
   | "historico";
@@ -102,6 +104,16 @@ export function ProtocolDeskPage() {
     (item) => item.status === "pendencia_documental" || getMissingRequiredDocuments(item) > 0,
   );
   const triagedProtocols = processes.filter((item) => item.triage.status === "concluido");
+  const pendingProtocolPayments = processes.filter((item) =>
+    getProcessPaymentGuides(item, tenantSettings).some(
+      (guide) => guide.kind === "protocolo" && guide.status === "pendente",
+    ),
+  );
+  const confirmedProtocolPayments = processes.filter((item) =>
+    getProcessPaymentGuides(item, tenantSettings).some(
+      (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+    ),
+  );
   const urgentProtocols = queueItems.filter(
     (item) => item.sla.breached || item.sla.hoursRemaining <= 8,
   );
@@ -199,6 +211,7 @@ export function ProtocolDeskPage() {
     { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
     { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
     { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
+    { value: "pagamentos", label: "Pagamento do protocolo", helper: "Conferência e baixa da guia inicial" },
     { value: "balcao", label: "Atendimento balcão", helper: "Recepção presencial e apoio assistido" },
     { value: "online", label: "Atendimento online", helper: "Entrada digital e despacho inicial" },
     { value: "historico", label: "Histórico", helper: "Últimos registros e rastreabilidade" },
@@ -284,6 +297,21 @@ export function ProtocolDeskPage() {
                     actor={session.name}
                     triggerClassName="h-9 rounded-full text-[12px]"
                   />
+                  {process.triage.status !== "concluido" ? (
+                    <Button asChild variant="outline" className="h-11 w-full rounded-full sm:w-auto">
+                      <Link to={`/processos/${process.id}?aba=documentos`}>Fazer triagem</Link>
+                    </Button>
+                  ) : null}
+                  {protocolGuide?.status === "pendente" ? (
+                    <Button
+                      type="button"
+                      className="h-11 w-full rounded-full bg-emerald-700 text-white hover:bg-emerald-800 sm:w-auto"
+                      disabled={protocolActionBusy === `payment-${process.id}`}
+                      onClick={() => void handleConfirmProtocolPayment(process)}
+                    >
+                      {protocolActionBusy === `payment-${process.id}` ? "Confirmando..." : "Confirmar pagamento"}
+                    </Button>
+                  ) : null}
                   <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto">
                     <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                   </Button>
@@ -495,7 +523,7 @@ export function ProtocolDeskPage() {
         <PageHeader
           eyebrow="Operação de protocolo"
           title="Recepção, conferência documental e despacho inicial"
-          description="Organize a entrada municipal com uma visão mais limpa, prioridades claras e canais separados por operação."
+          description="Receba pedidos, faça a triagem documental, protocole atendimentos e confirme a guia inicial antes do envio ao Urbanismo."
           icon={ClipboardList}
           actions={
             <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
@@ -612,6 +640,10 @@ export function ProtocolDeskPage() {
                     <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("documentos")}>
                       <FileWarning className="mr-2 h-4 w-4" />
                       Ver documentos pendentes
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("pagamentos")}>
+                      <CircleDollarSign className="mr-2 h-4 w-4" />
+                      Conferir pagamentos do protocolo
                     </Button>
                   </div>
                 </SectionCard>
@@ -759,6 +791,95 @@ export function ProtocolDeskPage() {
                     tone={incompleteProtocols.length > 0 ? "warning" : "success"}
                     icon={AlertTriangle}
                   />
+                </div>
+              </SectionCard>
+            </PageSideContent>
+          </PageMainGrid>
+        ) : null}
+
+        {section === "pagamentos" ? (
+          <PageMainGrid>
+            <PageMainContent>
+              <TableCard
+                title="Conferência de pagamento do protocolo"
+                description="A baixa da guia inicial é responsabilidade do Protocolo. Ao confirmar, o processo é encaminhado automaticamente para Análise Urbanística."
+                icon={CircleDollarSign}
+              >
+                <div className="space-y-4">
+                  {pendingProtocolPayments.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+                      Nenhum pagamento de protocolo aguardando conferência.
+                    </div>
+                  ) : (
+                    pendingProtocolPayments.map((process) => {
+                      const guide = getProcessPaymentGuides(process, tenantSettings).find(
+                        (item) => item.kind === "protocolo",
+                      );
+                      return (
+                        <div key={process.id} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-slate-950">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
+                                  Pagamento pendente
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                              </p>
+                              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+                                <span>Guia: <strong className="text-slate-900">{guide?.code || "Não emitida"}</strong></span>
+                                <span>Valor: <strong className="text-slate-900">{formatCurrency(guide?.amount || 0)}</strong></span>
+                                <span>Vencimento: <strong className="text-slate-900">{guide?.dueDate || "-"}</strong></span>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button asChild variant="outline" className="rounded-full">
+                                <Link to={`/processos/${process.id}?aba=documentos`}>Revisar triagem</Link>
+                              </Button>
+                              <Button
+                                type="button"
+                                className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                                disabled={protocolActionBusy === `payment-${process.id}`}
+                                onClick={() => void handleConfirmProtocolPayment(process)}
+                              >
+                                {protocolActionBusy === `payment-${process.id}`
+                                  ? "Confirmando..."
+                                  : "Confirmar pagamento"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TableCard>
+            </PageMainContent>
+            <PageSideContent>
+              <SectionCard
+                title="Responsabilidade do Protocolo"
+                description="A guia inicial não depende do Financeiro para avançar o processo."
+              >
+                <div className="space-y-3">
+                  <AlertCard
+                    title="Aguardando baixa"
+                    description={`${pendingProtocolPayments.length} guia(s) de protocolo aguardam conferência.`}
+                    tone={pendingProtocolPayments.length > 0 ? "warning" : "success"}
+                    icon={CircleDollarSign}
+                  />
+                  <AlertCard
+                    title="Já confirmados"
+                    description={`${confirmedProtocolPayments.length} pagamento(s) de protocolo já foram confirmados.`}
+                    tone="success"
+                    icon={CheckCircle2}
+                  />
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+                    Depois da baixa, o processo sai da fila do Protocolo e segue para {URBAN_ANALYSIS_DEPARTMENT}.
+                  </div>
                 </div>
               </SectionCard>
             </PageSideContent>
