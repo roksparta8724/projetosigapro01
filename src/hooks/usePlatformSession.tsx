@@ -94,7 +94,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
               : cachedSession.accessLevel ?? 1,
         tenantId: businessUserId ? authenticatedMunicipalityId : cachedSession.tenantId ?? null,
         municipalityId: businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null,
-        title: roleLabels[safeRole] || cachedSession.title || "Usuário",
+        title: cachedSession.title || roleLabels[safeRole] || "Usuário",
         email: authenticatedEmail || cachedSession.email || "",
       };
     }
