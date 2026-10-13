@@ -2099,11 +2099,11 @@ export async function upsertRemoteProcessMarker(
   });
 }
 
-export async function updateRemoteProcessConstructionData(input: {
+export async function updateRemoteProcessIssProjectData(input: {
   processId: string;
   areaM2: number;
   usage: string;
-  constructionStandard?: string | null;
+  workType: string;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
 
@@ -2111,14 +2111,17 @@ export async function updateRemoteProcessConstructionData(input: {
     throw new Error("Informe uma metragem válida para a obra.");
   }
   if (!input.usage.trim()) {
-    throw new Error("Informe o tipo da obra.");
+    throw new Error("Informe o uso da edificação.");
+  }
+  if (!input.workType.trim()) {
+    throw new Error("Informe a natureza da obra.");
   }
 
-  return callProcessRpc("update_process_construction_data_v1", {
+  return callProcessRpc("update_process_iss_project_data_v1", {
     _process_id: input.processId,
     _area_m2: input.areaM2,
     _usage: input.usage.trim(),
-    _construction_standard: input.constructionStandard?.trim() || "medio",
+    _work_type: input.workType.trim(),
   });
 }
 
