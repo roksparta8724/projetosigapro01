@@ -66,6 +66,19 @@ function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
 }
 
+async function markCurrentProfileAccess() {
+  if (!backendClient) return;
+
+  try {
+    const { error } = await backendClient.rpc("mark_current_profile_access");
+    if (error) {
+      console.warn("[Bootstrap][Access] Não foi possível registrar o último acesso.", error);
+    }
+  } catch (accessError) {
+    console.warn("[Bootstrap][Access] Falha transitória ao registrar o último acesso.", accessError);
+  }
+}
+
 function mapDbRoleCodeToAppRole(code: string | null | undefined): UserRole | null {
   if (!code) return null;
   const c = code.trim();
@@ -767,6 +780,10 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           );
         }
 
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+          await markCurrentProfileAccess();
+        }
+
         const nextScopeType: "platform" | "municipality" | "external" =
           mappedRole === "master_admin" || mappedRole === "master_ops"
             ? "platform"
@@ -978,6 +995,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
               "Conta autenticada sem perfil ou papel ativo no banco oficial. Solicite a regularização do acesso.",
             );
           }
+
+          await markCurrentProfileAccess();
           const nextScopeType: "platform" | "municipality" | "external" =
             mappedRole === "master_admin" || mappedRole === "master_ops"
               ? "platform"
