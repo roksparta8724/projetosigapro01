@@ -6259,3 +6259,19 @@ html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action sv
 .sig-main-shell {
   transition-property: none !important;
 }
+
+
+/* Marker editor is an interactive tool, not a modal menu.
+   Keep it above the fixed topbar, anchored below its trigger and independently scrollable. */
+[data-marker-panel="true"] {
+  z-index: 100 !important;
+  animation: none !important;
+  will-change: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+[data-marker-panel="true"][data-state="open"],
+[data-marker-panel="true"][data-state="closed"] {
+  animation: none !important;
+}
