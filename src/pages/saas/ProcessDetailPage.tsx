@@ -196,7 +196,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -701,7 +701,7 @@ export function ProcessDetailPage() {
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
 
-  const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "historico"].includes(activeTab);
+  const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
@@ -812,6 +812,14 @@ export function ProcessDetailPage() {
       "request-construction-guide",
       () => requestConstructionPaymentGuide(process.id, session.name),
       "Análise concluída. A solicitação da Guia de Recolhimento da Obra foi encaminhada ao Financeiro.",
+    );
+  };
+
+  const handleIssueConstructionGuide = () => {
+    void runProcessAction(
+      "issue-construction-guide",
+      () => issuePaymentGuide(process.id, session.name, "aprovacao_final"),
+      "Guia de Recolhimento da Obra emitida pelo Financeiro e vinculada ao processo.",
     );
   };
 
@@ -1864,6 +1872,131 @@ export function ProcessDetailPage() {
                     Existe Comunique-se ou exigência aberta. Conclua a pendência antes de solicitar a guia.
                   </p>
                 ) : null}
+              </div>
+            </CardContent>
+          </Card>
+          )}
+
+          {activeTab === "financeiro" && (
+          <Card className={cardShell}>
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <FileKey2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    Guia de Recolhimento da Obra
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Emissão financeira vinculada à aprovação técnica da obra e ao pedido formal do analista.
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`rounded-full font-semibold ${
+                    constructionGuide
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : constructionGuideRequest
+                        ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300"
+                        : "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                  }`}
+                >
+                  {constructionGuide
+                    ? "Guia emitida"
+                    : constructionGuideRequest
+                      ? "Solicitação recebida"
+                      : "Sem solicitação"}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pt-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Proprietário</p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {constructionGuide?.ownerName || process.ownerName}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {constructionGuide?.ownerDocument || process.ownerDocument}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Profissional responsável</p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {constructionGuide?.professionalName || process.technicalLead}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Analista solicitante</p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {constructionGuide?.requestedBy || constructionGuideRequest?.requestedBy || "Não informado"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {constructionGuide?.requestedAt
+                      ? new Date(constructionGuide.requestedAt).toLocaleString("pt-BR")
+                      : constructionGuideRequest?.createdAt || ""}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Funcionário emissor</p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {constructionGuide?.issuedBy || (constructionGuide ? session.name : "Será registrado na emissão")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/30">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {constructionStandardLabel}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      O valor é calculado conforme a tabela municipal configurada para a obra/projeto. O Financeiro é o responsável pela emissão oficial.
+                    </p>
+                    {constructionGuide ? (
+                      <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                        {constructionGuide.code} • {formatCurrency(constructionGuide.amount)} • vencimento {constructionGuide.dueDate}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {constructionGuide ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => printGuide("aprovacao_final", false)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Visualizar guia
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-full bg-slate-950 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+                          onClick={() => printGuide("aprovacao_final", true)}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimir guia
+                        </Button>
+                      </>
+                    ) : constructionGuideRequest && canFinanceOperate && ownsCurrentProcessStage ? (
+                      <Button
+                        type="button"
+                        className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                        disabled={processActionBusy === "issue-construction-guide"}
+                        onClick={handleIssueConstructionGuide}
+                      >
+                        <FileKey2 className="mr-2 h-4 w-4" />
+                        {processActionBusy === "issue-construction-guide"
+                          ? "Emitindo..."
+                          : "Emitir guia da obra"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
