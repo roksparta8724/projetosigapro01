@@ -144,6 +144,18 @@ export function formatOfficialProcessLabel(input: { protocol: string; type?: str
 export const URBAN_ANALYSIS_DEPARTMENT = "Análise Urbanística";
 export const PROTOCOL_DEPARTMENT = "Protocolo";
 
+export const workTypeCatalog = [
+  "Construção nova",
+  "Reforma sem ampliação",
+  "Ampliação",
+  "Reforma e ampliação",
+  "Regularização",
+  "Demolição",
+  "Mudança de uso",
+  "Substituição / alteração de projeto",
+] as const;
+
+
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
 
@@ -638,6 +650,7 @@ export interface ProcessRecord {
     block: string;
     area: number;
     usage: string;
+    workType?: string;
     constructionStandard?: string;
   };
   triage: {
@@ -720,6 +733,7 @@ export interface CreateProcessInput {
     block: string;
     area: number;
     usage: string;
+    workType?: string;
     constructionStandard?: string;
   };
   documents: ProcessDocument[];
