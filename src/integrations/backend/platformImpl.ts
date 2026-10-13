@@ -976,7 +976,10 @@ export async function loadRemotePlatformStore() {
           : "Interno"),
       department: membership.department || membership.queue_name || membership.level_name || "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
-      lastAccessAt: membership.last_access_at ? new Date(membership.last_access_at).toLocaleString("pt-BR") : "",
+      lastAccessAt:
+        membership.last_access_at || profile?.last_access_at
+          ? new Date(membership.last_access_at ?? profile?.last_access_at).toLocaleString("pt-BR")
+          : "",
       blockedAt: profile?.blocked_at ?? membership.blocked_at ?? null,
       blockedBy: normalizeUuid(profile?.blocked_by ?? membership.blocked_by) ?? null,
       blockReason: profile?.block_reason ?? membership.block_reason ?? null,
@@ -1033,7 +1036,7 @@ export async function loadRemotePlatformStore() {
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
       department: "",
       createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
-      lastAccessAt: "",
+      lastAccessAt: profile.last_access_at ? new Date(profile.last_access_at).toLocaleString("pt-BR") : "",
       blockedAt: profile.blocked_at ?? null,
       blockedBy: normalizeUuid(profile.blocked_by) ?? null,
       blockReason: profile.block_reason ?? null,
