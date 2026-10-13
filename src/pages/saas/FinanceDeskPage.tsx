@@ -73,9 +73,10 @@ export function FinanceDeskPage() {
   const currentUnit = session.department || session.title || "Financeiro";
 
   const guides = processes.flatMap((process) =>
-    getProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
+    getProcessPaymentGuides(process, tenantSettings)
+      .filter((guide) => guide.kind !== "protocolo")
+      .map((guide) => ({ process, guide })),
   );
-  const protocolGuides = guides.filter(({ guide }) => guide.kind === "protocolo");
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
@@ -175,7 +176,7 @@ export function FinanceDeskPage() {
   }).length;
 
   const unmatchedPayments = pendingGuides.filter(({ process }) => process.status === "deferido");
-  const manualConfirmationTasks = pendingGuides.filter(({ process }) => process.status === "pagamento_pendente");
+  const manualConfirmationTasks = pendingGuides.filter(({ process }) => process.status !== "pagamento_pendente");
   const criticalPending = pendingGuides.slice(0, 8);
 
   const recentFinancialEvents = processes
@@ -254,7 +255,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida protocolo, ISSQN da obra e taxa final de aprovação da Prefeitura contratante.",
+      "Consolida ISSQN da obra e taxa final de aprovação sob responsabilidade do Financeiro.",
     currency: "BRL",
     active: true,
   };
