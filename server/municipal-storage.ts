@@ -240,7 +240,18 @@ export async function resolveMunicipalDocumentTarget(
   if (!municipalityId) return null;
   const sigaproDocumentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
   if (requestedBucket !== sigaproDocumentBucket) return null;
-  const config = await resolveMunicipalStorageSecret(req, municipalityId);
+  let config: MunicipalStorageConnection;
+  try {
+    config = await resolveMunicipalStorageSecret(req, municipalityId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    // Compatibilidade durante o rollout: antes da migration BYOS existir,
+    // o comportamento histórico permanece no R2 do SIGAPRO.
+    if (/resolve_municipal_storage_secret_v1|schema cache|does not exist|not found/i.test(message)) {
+      return null;
+    }
+    throw error;
+  }
   if (config.provider !== "s3_compatible" || config.status !== "active") return null;
   if (!config.credentials_ciphertext || !config.bucket_documents || !config.endpoint_url) {
     throw new Error("O armazenamento próprio da Prefeitura está ativo, mas incompleto.");
