@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Check, Flag, PencilLine, Trash2, X } from "@/components/platform/PremiumIcons";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Flag, Trash2, X } from "@/components/platform/PremiumIcons";
 import {
   Popover,
   PopoverContent,
@@ -30,6 +30,15 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
   const [open, setOpen] = useState(false);
   const [markerBusy, setMarkerBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => {
+      panelRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   const markers = useMemo(() => tags.map((tag) => ({ tag, ...parseMarker(tag) })), [tags]);
   const activePresets = useMemo(() => presets.filter((preset) => preset.active), [presets]);
@@ -89,24 +98,57 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
         </button>
       </PopoverTrigger>
       <PopoverContent
+        ref={panelRef}
         data-marker-panel="true"
         side="bottom"
         align="end"
         sideOffset={10}
-        avoidCollisions={false}
+        collisionPadding={{ top: 84, right: 16, bottom: 16, left: 16 }}
+        sticky="always"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
+        style={{ maxHeight: "min(680px, var(--radix-popover-content-available-height))" }}
         className={cn(
-          "sig-marker-panel z-[100] w-[360px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-96px)] overflow-y-auto overscroll-contain rounded-[22px] border border-slate-200/70 bg-white/98 p-4 shadow-[0_28px_60px_rgba(15,23,42,0.24)]",
+          "sig-marker-panel z-[100] w-[400px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-[24px] border border-slate-200 bg-white p-0 text-slate-950 shadow-[0_30px_80px_rgba(15,23,42,0.24)]",
           className,
         )}
       >
-        <div className="px-1 py-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Marcadores</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">Acesso rápido aos seus processos marcados</p>
-          <p className="mt-1 text-xs text-slate-500">Organize prioridades com etiquetas visuais.</p>
+        <div className="sig-marker-panel-head sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-sky-100 bg-sky-50 text-sky-600 shadow-sm">
+                <Flag className="h-5 w-5 sig-flag-filled" style={{ fill: "currentColor" }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Organização do processo</p>
+                <p className="mt-1 text-[15px] font-bold leading-5 text-slate-950">Marcadores</p>
+                <p className="mt-1 text-[12px] leading-5 text-slate-500">
+                  Destaque prioridades sem sair da tela atual.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+              aria-label="Fechar marcadores"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <div className="my-3 h-px bg-slate-200/80" />
+
+        <div className="space-y-4 p-4">
+          <section className="rounded-[18px] border border-slate-200 bg-slate-50 p-3.5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Neste processo</p>
+                <p className="mt-1 text-[12px] font-medium text-slate-600">Marcadores já aplicados</p>
+              </div>
+              <span className="inline-flex min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700">
+                {markers.length}
+              </span>
+            </div>
         {markers.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-slate-200/80 bg-slate-50 px-3 py-3 text-[12px] text-slate-500">
             Nenhum marcador neste processo.
@@ -140,9 +182,13 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
             ))}
           </div>
         )}
+          </section>
 
-        <div className="mt-3 rounded-[16px] border border-slate-200/80 bg-slate-50/80 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Marcadores ativos</p>
+        <section className="rounded-[18px] border border-slate-200 bg-white p-3.5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Marcadores disponíveis</p>
+            <p className="mt-1 text-[12px] text-slate-500">Clique para aplicar ou atualizar um marcador.</p>
+          </div>
           <div className="mt-2 grid gap-2">
             {activePresets.map((preset) => {
               const composedLabel = formatMarkerLabel(preset);
@@ -155,8 +201,8 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                   disabled={Boolean(markerBusy)}
                   aria-busy={markerBusy === composedLabel}
                   className={cn(
-                    "flex items-center justify-between rounded-[14px] border border-slate-200/80 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50",
-                    isApplied && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                    "flex min-h-[48px] items-center justify-between rounded-[14px] border border-slate-200 bg-white px-3 py-2.5 text-[13px] font-semibold text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.05)] transition hover:-translate-y-px hover:border-sky-200 hover:bg-sky-50/60 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)]",
+                    isApplied && "border-emerald-200 bg-emerald-50 text-emerald-800",
                     markerBusy && "cursor-wait opacity-70",
                   )}
                   title={preset.label}
@@ -171,8 +217,16 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
                     <span className="font-medium">{preset.label}</span>
                   </span>
                   <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: preset.color }} />
-                    {isApplied ? <Check className="h-4 w-4" /> : <PencilLine className="h-4 w-4 text-slate-400" />}
+                    {isApplied ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700">
+                        <Check className="h-3 w-3" />
+                        Aplicado
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                        Aplicar
+                      </span>
+                    )}
                     <span
                       role="button"
                       tabIndex={0}
@@ -197,7 +251,7 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               );
             })}
           </div>
-        </div>
+        </section>
 
         {actionError ? (
           <div className="mt-3 rounded-[14px] border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-medium text-rose-700">
@@ -205,8 +259,11 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
           </div>
         ) : null}
 
-        <div className="mt-3 rounded-[16px] border border-slate-200/80 bg-white p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criar marcador</p>
+        <section className="rounded-[18px] border border-slate-200 bg-slate-50 p-3.5">
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Criar marcador</p>
+            <p className="mt-1 text-[12px] text-slate-500">Crie uma etiqueta personalizada para sua rotina.</p>
+          </div>
           <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)] gap-2">
             <button
               type="button"
@@ -226,11 +283,11 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder="Nome do marcador"
-              className="h-11 rounded-xl"
+              className="sig-marker-input h-11 rounded-xl border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
             />
           </div>
           <div className="mt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">12 cores premium</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Paleta de cores</p>
             <div className="mt-2 grid grid-cols-4 gap-2">
               {MARKER_COLOR_OPTIONS.map((option) => {
                 const isActive = option.value === color;
@@ -260,16 +317,20 @@ export function MarkerSelector({ processId, tags = [], actor, className, trigger
               })}
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-start">
+          <div className="mt-3">
             <Button
               type="button"
-              variant="outline"
-              className={cn("h-9 rounded-full text-[12px]", savePulse && "sig-flag-pulse")}
+              className={cn(
+                "sig-force-dark-action h-10 w-full rounded-xl bg-slate-950 !text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] hover:bg-slate-900",
+                savePulse && "sig-flag-pulse",
+              )}
               onClick={handleAddPreset}
+              disabled={!label.trim()}
             >
-              Salvar marcador
+              Salvar novo marcador
             </Button>
           </div>
+        </section>
         </div>
       </PopoverContent>
     </Popover>
