@@ -6064,23 +6064,28 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
   .sig-topbar-account-cluster .sig-topbar-account-dropdown {
     position: fixed !important;
 
-    /* Colado exatamente abaixo da linha inferior da topbar. */
+    /* painel lateral profissional: começa exatamente abaixo do topbar */
     top: 68px !important;
-
-    /* Colado no canto direito do viewport, sem margem e sem deslocamento. */
     right: 0 !important;
     left: auto !important;
     bottom: 0 !important;
 
-    width: min(400px, 34vw) !important;
-    max-width: 400px !important;
+    /* 320px no layout interno fica na faixa visual marcada pelo usuário
+       mesmo com o zoom global de 85% */
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
     height: calc(100vh - 68px) !important;
     max-height: calc(100vh - 68px) !important;
 
     margin: 0 !important;
-    border-radius: 0 0 0 24px !important;
+    padding: 14px !important;
+
+    border-radius: 0 !important;
     border-top: 0 !important;
     border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left-width: 1px !important;
 
     transform: none !important;
     transform-origin: top right !important;
@@ -6089,8 +6094,8 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
 
     z-index: 70 !important;
     box-shadow:
-      -18px 18px 44px rgba(15, 23, 42, 0.18),
-      inset 1px 0 0 rgba(255,255,255,0.06) !important;
+      -14px 0 34px rgba(15, 23, 42, 0.16),
+      inset 1px 0 0 rgba(255,255,255,0.05) !important;
   }
 
   .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="open"] {
