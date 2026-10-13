@@ -2140,7 +2140,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
         </main>
       </div>
 
-      <footer className="mt-auto pt-8">
+      <footer className="mt-0 pt-0">
         <div
           className={cn(
             "sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]",
