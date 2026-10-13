@@ -36,6 +36,16 @@ const municipalProfilePresets = [
   { key: "auxiliar_administrativo", label: "Auxiliar Administrativo", role: "setor_intersetorial" as UserRole, accessLevel: "1" },
 ] as const;
 
+const urbanismPositionOptions = [
+  "Técnico em Edificações",
+  "Fiscal de Obras",
+  "Cadista",
+  "Topógrafo",
+  "Arquiteto",
+  "Engenheiro Civil",
+  "Engenheiro",
+] as const;
+
 function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
   const normalizedLabel = (profileLabel || "")
     .normalize("NFD")
@@ -92,6 +102,21 @@ function getMunicipalProfileLabel(user: SessionUser) {
   )?.label;
 
   return municipalPresetLabel || roleLabels[user.role];
+}
+
+function getUserDepartmentLabel(user: SessionUser) {
+  const department = user.department?.trim();
+  if (department) return department;
+
+  if (
+    user.role === "profissional_externo" ||
+    user.role === "property_owner" ||
+    user.role === "proprietario_consulta"
+  ) {
+    return "Acesso Externo";
+  }
+
+  return "Não informado";
 }
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
@@ -153,6 +178,7 @@ export function TenantAdminPage() {
             "Chefe de Divisão",
             "Assistente Administrativo",
             "Auxiliar Administrativo",
+            ...urbanismPositionOptions,
             ...tenantUsers.flatMap((user) => [user.title, user.department]),
             ...tenantRoles.map((role) => roleSuggestedTitles[role]),
           ].filter((value): value is string => Boolean(value?.trim())),
@@ -675,7 +701,7 @@ export function TenantAdminPage() {
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Departamento</span>
-              <span className="mt-2 block font-medium text-slate-800">{user.department || user.title || "Não informado"}</span>
+              <span className="mt-2 block font-medium text-slate-800">{getUserDepartmentLabel(user)}</span>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criado em</span>
