@@ -1259,6 +1259,7 @@ export async function loadRemotePlatformStore() {
         category: entry.category,
         title: entry.title,
         detail: entry.detail,
+        actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
           (entry.actor_profile_id
             ? profileById.get(entry.actor_profile_id)?.full_name ??
