@@ -809,9 +809,8 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
-    const barcode = `${process.protocol.replace(/\D/g, "")}${selectedGuide.code.replace(/\D/g, "")}${Math.round(selectedGuide.amount * 100)}`
-      .padEnd(44, "7")
-      .slice(0, 44);
+    // Não construir códigos de barras ou linhas digitáveis artificiais.
+    // Uma DAM só pode mostrar código bancário validado pela integração arrecadadora.
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
@@ -849,8 +848,8 @@ export function ProcessDetailPage() {
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
           ? process.property.workType || workTypeInput || undefined
           : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: barcode,
-        linhaDigitavel: barcode,
+        codigoBarras: "",
+        linhaDigitavel: "",
         qrCodePixUrl: "",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
@@ -1009,7 +1008,7 @@ export function ProcessDetailPage() {
           audience: "externo",
           recipientName: process.technicalLead,
           message:
-            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia.`,
+            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia registrada. Consulte os canais oficiais da Prefeitura para obter o meio de pagamento validado.`,
         }),
       "Guia encaminhada ao profissional responsável e registrada no histórico do processo.",
     );
@@ -1373,6 +1372,10 @@ export function ProcessDetailPage() {
               <p className="text-sm !text-slate-200">
                 Destinatário: <strong className="!text-white">{process.technicalLead}</strong>.
                 O encaminhamento é registrado na comunicação externa do processo; não constitui envio por e-mail.
+              </p>
+              <p className="rounded-2xl border border-amber-500/40 bg-amber-900/25 px-4 py-3 text-sm leading-6 !text-amber-100">
+                A guia está emitida no processo, mas este cadastro ainda não apresenta PIX ou código bancário homologado.
+                Para efetuar o pagamento, o profissional deverá consultar o canal oficial de arrecadação da Prefeitura.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button
