@@ -1282,6 +1282,16 @@ export async function loadRemotePlatformStore() {
             ? dispatch.priority
             : "media",
         assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
+        requestedByProfileId: dispatch.created_by_profile_id
+          ? String(dispatch.created_by_profile_id)
+          : undefined,
+        requestedBy: dispatch.created_by_profile_id
+          ? String(
+              profileById.get(dispatch.created_by_profile_id)?.full_name ??
+              profileById.get(dispatch.created_by_profile_id)?.email ??
+              "",
+            ) || undefined
+          : undefined,
       })),
       messages: processMessages.map((message) => ({
         id: String(message.id),
@@ -1336,6 +1346,17 @@ export async function loadRemotePlatformStore() {
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
             issuedAt: guide.created_at ?? undefined,
             expiresAt: undefined,
+            requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
+            requestedAt: guide.requested_at ? String(guide.requested_at) : undefined,
+            issuedBy: guide.issued_by_name ? String(guide.issued_by_name) : undefined,
+            ownerName: guide.owner_name_snapshot ? String(guide.owner_name_snapshot) : undefined,
+            ownerDocument: guide.owner_document_snapshot ? String(guide.owner_document_snapshot) : undefined,
+            professionalName: guide.professional_name_snapshot ? String(guide.professional_name_snapshot) : undefined,
+            areaM2: guide.area_m2_snapshot == null ? undefined : Number(guide.area_m2_snapshot),
+            usage: guide.usage_snapshot ? String(guide.usage_snapshot) : undefined,
+            constructionStandard: guide.construction_standard_snapshot
+              ? String(guide.construction_standard_snapshot)
+              : undefined,
           };
         }),
       },
@@ -2051,6 +2072,22 @@ export async function upsertRemoteProcessMarker(
     _process_id: processId,
     _label: label,
     _color: color,
+  });
+}
+
+export async function requestRemoteConstructionPaymentGuide(processId: string) {
+  return callProcessRpc("request_construction_payment_guide_v1", {
+    _process_id: processId,
+  });
+}
+
+export async function issueRemoteConstructionPaymentGuide(input: {
+  processId: string;
+  dueDate?: string | null;
+}) {
+  return callProcessRpc("issue_construction_payment_guide_v1", {
+    _process_id: input.processId,
+    _due_date: input.dueDate || null,
   });
 }
 
