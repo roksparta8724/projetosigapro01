@@ -2123,7 +2123,11 @@ export function ProcessDetailPage() {
                     Controle da Guia de Recolhimento da Obra
                   </CardTitle>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    A guia é gerada pela Análise Urbanística. O Financeiro recebe automaticamente para controle, acompanhamento do pagamento e demais providências.
+                    {constructionGuideIssuerMode === "financeiro"
+                      ? "Nesta Prefeitura, a Análise Urbanística confirma os dados da obra e o Financeiro faz a emissão da guia."
+                      : constructionGuideIssuerMode === "ambos"
+                        ? "Nesta Prefeitura, a guia pode ser emitida pela Análise Urbanística ou pelo Financeiro, conforme o encaminhamento do processo."
+                        : "Nesta Prefeitura, a guia é gerada pela Análise Urbanística e o Financeiro recebe automaticamente para controle, pagamento e baixa."}
                   </p>
                 </div>
                 <Badge
@@ -2140,7 +2144,11 @@ export function ProcessDetailPage() {
                     ? constructionGuide.status === "compensada"
                       ? "Pagamento confirmado"
                       : "Aguardando pagamento"
-                    : "Aguardando geração pela Análise"}
+                    : constructionGuideRequest && financeCanIssueConstructionGuide
+                      ? "Aguardando emissão pelo Financeiro"
+                      : constructionGuideIssuerMode === "analise"
+                        ? "Aguardando geração pela Análise"
+                        : "Aguardando encaminhamento da Análise"}
                 </Badge>
               </div>
             </CardHeader>
@@ -2164,8 +2172,8 @@ export function ProcessDetailPage() {
                       <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuide.professionalName || process.technicalLead}</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Gerada pela Análise</p>
-                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuideIssuer || process.analysis?.assignedTo || "Analista responsável"}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável pela emissão</p>
+                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuideIssuer || "Servidor responsável"}</p>
                       <p className="mt-1 text-xs text-slate-500">{constructionGuide.issuedAt ? new Date(constructionGuide.issuedAt).toLocaleString("pt-BR") : ""}</p>
                     </div>
                   </div>
@@ -2193,9 +2201,42 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                 </>
+              ) : constructionGuideRequest && financeCanIssueConstructionGuide ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 dark:border-sky-500/30 dark:bg-sky-950/25">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                        Solicitação de emissão recebida da Análise Urbanística
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {constructionStandardLabel}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Solicitante: {constructionGuideRequester || process.analysis?.assignedTo || "Analista responsável"}
+                        {constructionGuideRequest.createdAt ? ` • ${constructionGuideRequest.createdAt}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      className="shrink-0 rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"
+                      disabled={
+                        processActionBusy === "finance-issue-construction-guide" ||
+                        !canFinanceOperate
+                      }
+                      onClick={handleIssueConstructionGuideFromFinance}
+                    >
+                      <FileKey2 className="mr-2 h-4 w-4" />
+                      {processActionBusy === "finance-issue-construction-guide"
+                        ? "Emitindo..."
+                        : "Emitir guia da obra"}
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
-                  Nenhuma guia da obra foi gerada ainda. O Financeiro não emite esta guia: ele a recebe automaticamente após a geração pela Análise Urbanística.
+                  {constructionGuideIssuerMode === "analise"
+                    ? "Nenhuma guia da obra foi gerada ainda. A emissão é responsabilidade da Análise Urbanística; após gerar, ela aparece automaticamente aqui para controle."
+                    : "Nenhuma guia foi encaminhada ao Financeiro para emissão. A Análise Urbanística precisa concluir os documentos, confirmar os dados da obra e fazer o encaminhamento."}
                 </div>
               )}
             </CardContent>
