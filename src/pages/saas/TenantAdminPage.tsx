@@ -32,8 +32,8 @@ const tenantRoles: UserRole[] = ["prefeitura_supervisor", "analista", "financeir
 
 const municipalProfilePresets = [
   { key: "chefe_divisao", label: "Chefe de Divisão", role: "prefeitura_supervisor" as UserRole, accessLevel: "2" },
-  { key: "assistente_administrativo", label: "Assistente Administrativo", role: "analista" as UserRole, accessLevel: "1" },
-  { key: "auxiliar_administrativo", label: "Auxiliar Administrativo", role: "analista" as UserRole, accessLevel: "1" },
+  { key: "assistente_administrativo", label: "Assistente Administrativo", role: "setor_intersetorial" as UserRole, accessLevel: "1" },
+  { key: "auxiliar_administrativo", label: "Auxiliar Administrativo", role: "setor_intersetorial" as UserRole, accessLevel: "1" },
 ] as const;
 
 function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
