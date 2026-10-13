@@ -1,6 +1,6 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -193,7 +193,6 @@ export function ProcessDetailPage() {
   const { processId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
@@ -258,11 +257,8 @@ export function ProcessDetailPage() {
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
   type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico";
-  const validProcessTabs: ProcessTab[] = ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"];
-  const initialTab = searchParams.get("aba") as ProcessTab | null;
-  const [activeTab, setActiveTab] = useState<ProcessTab>(
-    initialTab && validProcessTabs.includes(initialTab) ? initialTab : "imovel",
-  );
+  const [activeTab, setActiveTab] = useState<ProcessTab>("imovel");
+  const openedProcessRef = useRef<string | null>(null);
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
@@ -282,31 +278,7 @@ export function ProcessDetailPage() {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
     if (tab === "financeiro" && (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)) return;
     setActiveTab(tab);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("aba", tab);
-    setSearchParams(nextParams, { replace: true });
   };
-
-  useEffect(() => {
-    const requested = searchParams.get("aba") as ProcessTab | null;
-    if (!requested || !validProcessTabs.includes(requested)) return;
-
-    const allowed =
-      (requested !== "analise" || (planEntitlements.canUseModule("Analise tecnica") && canAnalysisOperate)) &&
-      (requested !== "financeiro" || (planEntitlements.canUseModule("Financeiro") && canFinanceOperate));
-
-    if (!allowed) {
-      const fallbackTab: ProcessTab = "imovel";
-      if (activeTab !== fallbackTab) setActiveTab(fallbackTab);
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("aba", fallbackTab);
-      setSearchParams(nextParams, { replace: true });
-      return;
-    }
-
-    if (requested !== activeTab) setActiveTab(requested);
-  }, [activeTab, canAnalysisOperate, canFinanceOperate, planEntitlements, searchParams, setSearchParams]);
-
 
   const process = resolveProcessFromRoute(processes, processId);
   const ownsCurrentProcessStage =
@@ -320,13 +292,16 @@ export function ProcessDetailPage() {
     session.role !== "master_ops";
 
   useEffect(() => {
+    if (!processId || openedProcessRef.current === processId) return;
+    openedProcessRef.current = processId;
+    setActiveTab(isProtocolTrackingOnly ? "historico" : "imovel");
+  }, [isProtocolTrackingOnly, processId]);
+
+  useEffect(() => {
     if (!isProtocolTrackingOnly) return;
     if (activeTab === "historico" || activeTab === "resumo") return;
     setActiveTab("historico");
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("aba", "historico");
-    setSearchParams(nextParams, { replace: true });
-  }, [activeTab, isProtocolTrackingOnly, searchParams, setSearchParams]);
+  }, [activeTab, isProtocolTrackingOnly]);
 
   useEffect(() => {
     if (!process || !processId) return;
@@ -471,7 +446,53 @@ export function ProcessDetailPage() {
       : isInternalRole(session.role)
         ? process.documents
         : process.documents.filter((document) => document.uploaded);
+  const approvedDocumentCount = process.documents.filter(
+    (document) => document.uploaded && document.reviewStatus === "aprovado",
+  ).length;
+  const communicateDocumentCount = process.documents.filter(
+    (document) => document.uploaded && document.reviewStatus === "rejeitado",
+  ).length;
+  const awaitingReviewDocumentCount = process.documents.filter(
+    (document) =>
+      document.uploaded &&
+      document.reviewStatus !== "aprovado" &&
+      document.reviewStatus !== "rejeitado",
+  ).length;
+  const reviewedDocumentCount = approvedDocumentCount + communicateDocumentCount;
   const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
+
+  const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
+    if (!document.uploaded) {
+      return {
+        label: "Aguardando envio",
+        card: "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/35",
+        badge: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
+        button: "border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-200",
+      };
+    }
+    if (document.reviewStatus === "aprovado") {
+      return {
+        label: "Aprovado",
+        card: "border-emerald-300 bg-emerald-50/70 dark:border-emerald-500/40 dark:bg-emerald-950/25",
+        badge: "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-500/50 dark:bg-emerald-950/60 dark:text-emerald-300",
+        button: "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/70",
+      };
+    }
+    if (document.reviewStatus === "rejeitado") {
+      return {
+        label: "Comunique-se",
+        card: "border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-950/25",
+        badge: "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/50 dark:bg-amber-950/60 dark:text-amber-300",
+        button: "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/70",
+      };
+    }
+    return {
+      label: "Aguardando análise",
+      card: "border-sky-300 bg-sky-50/60 dark:border-sky-500/40 dark:bg-sky-950/25",
+      badge: "border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-300",
+      button: "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-500/50 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-950/70",
+    };
+  };
   const viewerDocument = viewerDocumentId ? process.documents.find((document) => document.id === viewerDocumentId) ?? null : null;
   const getDocumentAccessUrl = (document: typeof process.documents[number]) =>
     document.filePath
@@ -495,13 +516,6 @@ export function ProcessDetailPage() {
     !!viewerDocument &&
     canReviewDocuments &&
     /projeto arquitetonico|memorial/i.test(viewerDocument.label);
-  const flowSteps = [
-    { key: "dados", label: "Dados da obra", done: true },
-    { key: "responsaveis", label: "Responsaveis", done: true },
-    { key: "documentos", label: "Documentacao", done: uploadedCount > 0 },
-    { key: "analise", label: URBAN_ANALYSIS_DEPARTMENT, done: ["analise_tecnica", "deferido"].includes(process.status) },
-    { key: "confirmacao", label: "Confirmacao", done: protocolGuide?.status === "compensada" || process.status === "deferido" },
-  ];
   const externalRecipientName = process.technicalLead || process.ownerName;
   const internalRecipients = sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user) && isInternalRole(user.role));
   const processTransitVisibility = process.processControl?.externalTransitView ?? "completo";
@@ -570,6 +584,43 @@ export function ProcessDetailPage() {
     : administrationDepartment
       ? `${getOrganizationPath(administrationDepartment.name)} › Protocolo`
       : "Administração › Protocolo";
+
+  const normalizedCurrentFolder = currentFolder
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
+  const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
+  let currentFlowIndex = 0;
+  if (isFinalProcessStatus) {
+    currentFlowIndex = 4;
+  } else if (/financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)) {
+    currentFlowIndex = 3;
+  } else if (
+    /analise|urban|obra|engenharia|fiscal/.test(normalizedCurrentFolder) ||
+    ["pagamento_confirmado", "distribuicao", "analise_tecnica", "despacho_intersetorial", "exigencia", "reapresentacao"].includes(process.status)
+  ) {
+    currentFlowIndex = 2;
+  } else if (["guia_emitida", "pagamento_pendente"].includes(process.status)) {
+    currentFlowIndex = 1;
+  }
+
+  const flowLabels = [
+    "Protocolo",
+    "Pagamento inicial",
+    "Análise Urbanística",
+    "Financeiro",
+    "Conclusão",
+  ];
+  const flowSteps = flowLabels.map((label, index) => ({
+    key: `municipal-flow-${index}`,
+    label,
+    state: index < currentFlowIndex ? "done" : index === currentFlowIndex ? "current" : "pending",
+  }));
+  const currentFlowStatusLabel =
+    isFinalProcessStatus
+      ? statusLabel(process.status)
+      : flowLabels[currentFlowIndex] || statusLabel(process.status);
 
   const protocolStartedAt =
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
@@ -1085,7 +1136,7 @@ export function ProcessDetailPage() {
         </div>
       ) : null}
       <PageStatsRow>
-        <StatCard label="Status atual" value={statusLabel(process.status)} description="Etapa atual do fluxo municipal" icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
+        <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={currentOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
         <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
@@ -1095,21 +1146,53 @@ export function ProcessDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-lg font-medium text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
             <Badge variant="outline" className={statusTone(process.status)}>
-              {statusLabel(process.status)}
+              {currentFlowStatusLabel}
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-slate-500">Etapa atual: {statusLabel(process.status)} • Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Unidade responsável: <span className="font-medium text-slate-700 dark:text-slate-200">{currentOrganizationPath}</span>
+            {" • "}Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}
+          </p>
 
           <div className="mt-6 rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-5">
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))]">
               {flowSteps.map((step, index) => (
                 <div key={step.key} className="relative">
-                  {index < flowSteps.length - 1 ? <div className="absolute left-[52%] top-5 hidden h-px w-full bg-slate-300 md:block" /> : null}
+                  {index < flowSteps.length - 1 ? (
+                    <div
+                      className={`absolute left-[52%] top-5 hidden h-px w-full md:block ${
+                        step.state === "done" ? "bg-emerald-400 dark:bg-emerald-600" : "bg-slate-300 dark:bg-slate-700"
+                      }`}
+                    />
+                  ) : null}
                   <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium ${step.done ? "border-[#214c73] bg-[#214c73] text-white" : "border-slate-300 bg-white text-slate-500"}`}>
-                      {step.done ? "•" : index + 1}
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold shadow-sm ${
+                        step.state === "done"
+                          ? "border-emerald-500 bg-emerald-600 text-white"
+                          : step.state === "current"
+                            ? "border-sky-500 bg-sky-600 text-white ring-4 ring-sky-100 dark:ring-sky-950"
+                            : "border-slate-300 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                      }`}
+                    >
+                      {step.state === "done" ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
                     </div>
-                    <p className="mt-3 text-[11px] font-medium text-slate-500">{step.label}</p>
+                    <p
+                      className={`mt-3 text-[11px] font-semibold ${
+                        step.state === "current"
+                          ? "text-sky-700 dark:text-sky-300"
+                          : step.state === "done"
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+                    {step.state === "current" ? (
+                      <span className="mt-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-700 dark:bg-sky-950/70 dark:text-sky-300">
+                        Agora
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               ))}
