@@ -157,7 +157,7 @@ interface PlatformDataState {
   }) => Promise<OwnerProfessionalMessage | null>;
   saveUserProfile: (profile: UserProfile) => Promise<UserProfile>;
   createTenantUser: (input: TenantUserInput) => Promise<SessionUser>;
-  updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "department" | "userType">>) => Promise<SessionUser | null>;
+  updateTenantUser: (userId: string, input: Partial<Pick<SessionUser, "name" | "email" | "role" | "accessLevel" | "title" | "profileLabel" | "department" | "userType">>) => Promise<SessionUser | null>;
   setUserAccountStatus: (input: { userId: string; status: AccountStatus; actor: string; reason?: string }) => Promise<SessionUser | null>;
   deleteUserAccount: (input: { userId: string; actor: string; reason?: string }) => Promise<SessionUser | null>;
   createRequirement: (input: { processId: string; title: string; description: string; dueDate: string; actor: string; targetName: string; visibility: "interno" | "externo" | "misto" }) => Promise<void>;
@@ -1601,6 +1601,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           role: input.role ?? currentUser.role,
           name: input.name ?? currentUser.name,
           title: input.title ?? currentUser.title,
+          profileLabel: input.profileLabel ?? currentUser.profileLabel ?? "",
           accessLevel: input.accessLevel ?? currentUser.accessLevel,
         });
 
