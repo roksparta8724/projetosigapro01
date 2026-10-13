@@ -66,7 +66,6 @@ import {
   manageRemoteUserAccess,
   reissueRemoteProcessPaymentGuide,
   removeRemoteProcessMarkerByLabel,
-  requestRemoteConstructionPaymentGuide,
   reopenRemoteProcess,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
@@ -1896,7 +1895,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       },
       requestConstructionPaymentGuide: async (processId, actor) => {
         if (!hasBackendEnv) {
-          throw new Error("O banco oficial está indisponível para solicitar a guia da obra.");
+          throw new Error("O banco oficial está indisponível para encaminhar o ISSQN / Projeto ao Financeiro.");
         }
 
         const process = store.processes.find((item) => item.id === processId);
@@ -1911,7 +1910,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         if (!allDocumentsApproved) {
           throw new Error(
-            "Todos os documentos e projetos obrigatórios precisam estar enviados e aprovados antes da solicitação.",
+            "Todos os documentos e projetos obrigatórios precisam estar enviados e aprovados antes do encaminhamento.",
           );
         }
 
@@ -1920,35 +1919,26 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
           )
         ) {
-          throw new Error("Conclua os Comunique-se e exigências pendentes antes de solicitar a guia.");
+          throw new Error("Conclua os Comunique-se e exigências pendentes antes de encaminhar ao Financeiro.");
         }
 
         const alreadyRequested = process.dispatches.some(
           (dispatch) =>
-            /guia de recolhimento da obra/i.test(dispatch.subject) &&
+            /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
             ["aguardando", "respondido"].includes(dispatch.status),
         );
         if (alreadyRequested) {
-          throw new Error("A emissão da Guia de Recolhimento da Obra já foi solicitada ao Financeiro.");
+          throw new Error("A emissão da Guia de ISSQN / Projeto já foi encaminhada ao Financeiro.");
         }
 
-        try {
-          await requestRemoteConstructionPaymentGuide(processId);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error || "");
-          if (!/request_construction_payment_guide_v1|schema cache|could not find|does not exist/i.test(message)) {
-            throw error;
-          }
-
-          await createRemoteProcessDispatch({
-            processId,
-            from: process.processControl?.currentFolder || "Análise Urbanística",
-            to: "Financeiro",
-            subject: "Solicitação de emissão — Guia de Recolhimento da Obra",
-            visibility: "interno",
-            priority: "media",
-          });
-        }
+        await createRemoteProcessDispatch({
+          processId,
+          from: process.processControl?.currentFolder || "Análise Urbanística",
+          to: "Financeiro",
+          subject: "Solicitação de emissão — Guia de ISSQN / Projeto",
+          visibility: "interno",
+          priority: "media",
+        });
 
         await refreshRemoteStore();
       },
@@ -1995,10 +1985,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           guideKind,
         });
 
-        if (guideKind === "aprovacao_final") {
+        if (guideKind === "iss_obra") {
           const pendingRequest = process.dispatches.find(
             (dispatch) =>
-              /guia de recolhimento da obra/i.test(dispatch.subject) &&
+              /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
               ["aguardando", "respondido"].includes(dispatch.status),
           );
           if (pendingRequest) {
