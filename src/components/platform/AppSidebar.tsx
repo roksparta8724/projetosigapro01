@@ -392,8 +392,8 @@ export function AppSidebar({
         className={cn(
           "sig-sidebar-shell relative hidden min-h-full shrink-0 self-stretch overflow-visible lg:flex lg:flex-col",
           expanded
-            ? "w-[304px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/10"
-            : "w-[96px] after:absolute after:right-0 after:top-0 after:h-full after:w-px after:bg-white/8",
+            ? "w-[304px]"
+            : "w-[96px]",
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
