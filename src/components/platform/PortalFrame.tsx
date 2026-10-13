@@ -65,7 +65,8 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, canAccessMunicipalArea, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { can, canAccessMunicipalArea,
+  getRoleLandingPath, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -283,6 +284,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
     dataError,
     refreshRemoteStore,
     institutions,
+    sessionUsers,
     getInstitutionSettings,
     getUserProfile,
     processes,
@@ -316,6 +318,43 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
   const userProfile = getUserProfile(session.id, session.email);
+  const canonicalSignedInUser =
+    sessionUsers.find((item) => item.id === session.id) ??
+    sessionUsers.find(
+      (item) =>
+        item.email?.trim().toLowerCase() &&
+        item.email.trim().toLowerCase() === session.email?.trim().toLowerCase(),
+    ) ??
+    null;
+
+  useEffect(() => {
+    if (!canonicalSignedInUser || session.id === "unknown") return;
+    if (canonicalSignedInUser.role === session.role) return;
+
+    const nextSession = {
+      ...session,
+      ...canonicalSignedInUser,
+      id: session.id,
+      municipalityId:
+        canonicalSignedInUser.municipalityId ??
+        canonicalSignedInUser.tenantId ??
+        session.municipalityId ??
+        session.tenantId ??
+        null,
+      tenantId:
+        canonicalSignedInUser.tenantId ??
+        canonicalSignedInUser.municipalityId ??
+        session.tenantId ??
+        session.municipalityId ??
+        null,
+    };
+
+    window.dispatchEvent(
+      new CustomEvent("sigapro-platform-session-updated", { detail: nextSession }),
+    );
+
+    navigate(getRoleLandingPath(canonicalSignedInUser.role), { replace: true });
+  }, [canonicalSignedInUser, navigate, session]);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -393,6 +432,13 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const visibleNavItems = navItems
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
+
+      const isExternalRole =
+        session.role === "profissional_externo" ||
+        session.role === "property_owner" ||
+        session.role === "proprietario_consulta";
+
+      if (item.to.startsWith("/externo") && !isExternalRole) return null;
 
       // Cadastro institucional e organograma completo são exclusivos da administração.
       if (
