@@ -29,6 +29,7 @@ import {
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
 import {
+  calculateApprovalGuideAmount,
   canAccessMunicipalArea,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
@@ -196,7 +197,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, updateConstructionGuideData, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -273,6 +274,9 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [constructionAreaInput, setConstructionAreaInput] = useState("");
+  const [constructionUsageInput, setConstructionUsageInput] = useState("");
+  const [constructionStandardInput, setConstructionStandardInput] = useState("medio");
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
@@ -281,6 +285,14 @@ export function ProcessDetailPage() {
   };
 
   const process = resolveProcessFromRoute(processes, processId);
+
+  useEffect(() => {
+    if (!process) return;
+    setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
+    setConstructionUsageInput(process.property.usage || "");
+    setConstructionStandardInput(process.property.constructionStandard || "medio");
+  }, [process?.id]);
+
   const ownsCurrentProcessStage =
     !!process && isProcessOwnedBySessionDepartment(session, process);
   const isProtocolTrackingOnly =
@@ -493,6 +505,32 @@ export function ProcessDetailPage() {
     constructionGuide?.issuedBy ||
     constructionGuideIssueAudit?.actor ||
     "";
+  const constructionAreaValue = Number(String(constructionAreaInput).replace(",", "."));
+  const configuredApprovalProfiles = tenantSettings?.approvalRateProfiles ?? [];
+  const constructionUsageOptions = Array.from(
+    new Set(
+      configuredApprovalProfiles.length > 0
+        ? configuredApprovalProfiles.map((profile) => profile.usage).filter(Boolean)
+        : ["Residencial", "Apartamento", "Comercial", "Escritório", "Industrial"],
+    ),
+  );
+  const constructionStandardOptions = Array.from(
+    new Set(
+      configuredApprovalProfiles.length > 0
+        ? configuredApprovalProfiles
+            .filter((profile) => !constructionUsageInput || profile.usage === constructionUsageInput)
+            .map((profile) => profile.standard)
+            .filter(Boolean)
+        : ["economico", "medio", "primeira", "luxo"],
+    ),
+  );
+  const constructionGuidePreviewAmount = calculateApprovalGuideAmount(
+    Number.isFinite(constructionAreaValue) ? constructionAreaValue : 0,
+    constructionUsageInput,
+    constructionStandardInput,
+    tenantSettings,
+  );
+  const displayGuide = constructionGuide ?? protocolGuide;
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -752,11 +790,13 @@ export function ProcessDetailPage() {
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
-          selectedGuide.requestedBy ||
-          (selectedGuide.kind === "aprovacao_final" ? constructionGuideRequester : undefined),
+          selectedGuide.kind === "aprovacao_final"
+            ? constructionGuideIssuer || constructionGuideRequester || session.name
+            : undefined,
         funcionarioEmissor:
-          selectedGuide.issuedBy ||
-          (selectedGuide.kind === "aprovacao_final" ? constructionGuideIssuer : undefined),
+          selectedGuide.kind === "aprovacao_final"
+            ? constructionGuideIssuer || session.name
+            : selectedGuide.issuedBy,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
         padraoConstrutivo: selectedGuide.constructionStandard || constructionStandardLabel,
@@ -822,19 +862,47 @@ export function ProcessDetailPage() {
     );
   };
 
-  const handleRequestConstructionGuide = () => {
+  const handleGenerateConstructionGuide = () => {
+    const areaM2 = Number(String(constructionAreaInput).replace(",", "."));
+    if (!Number.isFinite(areaM2) || areaM2 <= 0) {
+      setProcessActionStatus("Informe a quantidade correta de metros quadrados da obra.");
+      return;
+    }
+    if (!constructionUsageInput.trim()) {
+      setProcessActionStatus("Selecione o tipo da obra para calcular a guia.");
+      return;
+    }
+
     void runProcessAction(
-      "request-construction-guide",
-      () => requestConstructionPaymentGuide(process.id, session.name),
-      "Análise concluída. A solicitação da Guia de Recolhimento da Obra foi encaminhada ao Financeiro.",
+      "generate-construction-guide",
+      async () => {
+        await updateConstructionGuideData({
+          processId: process.id,
+          areaM2,
+          usage: constructionUsageInput,
+          constructionStandard: constructionStandardInput || "medio",
+        });
+        await issuePaymentGuide(process.id, session.name, "aprovacao_final");
+      },
+      "Guia de Recolhimento da Obra gerada automaticamente. Ela já está no Financeiro para controle e pode ser enviada ao profissional.",
     );
   };
 
-  const handleIssueConstructionGuide = () => {
+  const handleSendConstructionGuideToProfessional = () => {
+    if (!constructionGuide) return;
     void runProcessAction(
-      "issue-construction-guide",
-      () => issuePaymentGuide(process.id, session.name, "aprovacao_final"),
-      "Guia de Recolhimento da Obra emitida pelo Financeiro e vinculada ao processo.",
+      "send-construction-guide",
+      () =>
+        sendProcessMessage({
+          processId: process.id,
+          senderName: session.name,
+          senderRole: session.role,
+          audience: "externo",
+          recipientName: process.technicalLead,
+          message:
+            `Guia de Recolhimento da Obra disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia.`,
+        }),
+      "Guia encaminhada ao profissional responsável e registrada no histórico do processo.",
     );
   };
 
@@ -1293,10 +1361,16 @@ export function ProcessDetailPage() {
         </Card>
         <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
-            <p className="sig-label">Guia</p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={protocolGuide?.code || "Sem guia"}>{protocolGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{formatCurrency(protocolGuide?.amount || 0)}</p>
+            <p className="sig-label">{constructionGuide ? "Guia da obra" : "Guia de protocolo"}</p>
+            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{formatCurrency(displayGuide?.amount || 0)}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            {constructionGuide ? (
+              <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("aprovacao_final", false)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Visualizar guia
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
         <Card className={`${cardShell} h-full`}>
