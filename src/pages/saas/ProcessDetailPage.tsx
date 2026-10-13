@@ -15,6 +15,7 @@ import { PixQrCode } from "@/components/platform/PixQrCode";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -52,6 +53,11 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
   workTypeCatalog,
 } from "@/lib/platform";
+
+function officialMunicipalityLabel(value: string | null | undefined) {
+  const label = String(value || "").trim().replace(/^Prefeitura(?:\s+Municipal)?\s+(?:de|do|da)?\s*/i, "");
+  return label ? "Prefeitura de " + label : "Prefeitura municipal";
+}
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "tamanho não informado";
@@ -198,7 +204,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, ownerLinks, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -703,7 +709,26 @@ export function ProcessDetailPage() {
         ? "Primeira"
         : process.property.constructionStandard === "economico"
           ? "Econômico"
-          : "Médio";
+          : process.property.constructionStandard === "medio"
+            ? "Médio"
+            : "Não informado";
+  const relatedOwnerLinks = ownerLinks.filter((link) => link.projectId === process.id);
+  const relatedOwner = relatedOwnerLinks.length === 1
+    ? sessionUsers.find((user) => user.id === relatedOwnerLinks[0].ownerUserId)
+    : undefined;
+  const linkedOwnerProfile = relatedOwner
+    ? getUserProfile(relatedOwner.id, relatedOwner.email)
+    : undefined;
+  const originatingProfessional = sessionUsers.find(
+    (user) => user.id === process.createdBy && user.role === "profissional_externo",
+  );
+  const linkedTechnicalProfile = originatingProfessional
+    ? getUserProfile(originatingProfessional.id, originatingProfessional.email)
+    : undefined;
+  const canViewCompleteCadastro = !isProtocolTrackingOnly &&
+    isInternalRole(session.role) &&
+    matchesOperationalScope(effectiveScopeId, process) &&
+    (canProtocolOperate || canAnalysisOperate || canFinanceOperate);
   const getProfileByName = (name: string) => {
     const matchedUser = sessionUsers.find((user) => user.name === name || user.email === name);
     return matchedUser ? getUserProfile(matchedUser.id, matchedUser.email) : undefined;
@@ -752,7 +777,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
+  const cardShell = "min-w-0 rounded-[18px] border border-[#CBD5E1] bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)]";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
@@ -1385,8 +1410,8 @@ export function ProcessDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
-        <Card className={`${cardShell} h-full`}>
+      <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]">
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -1397,16 +1422,16 @@ export function ProcessDetailPage() {
               </Badge>
             </div>
             <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - Prefeitura ${tenant?.name || ""}`}>
-              Protocolo oficial {process.externalProtocol} - Prefeitura {tenant?.name}
+            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
+              Protocolo oficial {process.externalProtocol} - {officialMunicipalityLabel(tenant?.name || municipalityName)}
             </p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{formatCurrency(displayGuide?.amount || 0)}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {constructionGuide ? (
               <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
@@ -1416,7 +1441,7 @@ export function ProcessDetailPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900">
@@ -1425,7 +1450,7 @@ export function ProcessDetailPage() {
             <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">SLA atual</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
@@ -1509,25 +1534,13 @@ export function ProcessDetailPage() {
         {showPrimaryDetailColumn ? (
         <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
           {activeTab === "imovel" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Landmark className="h-5 w-5" />
-                Dados do Imóvel e do Protocolo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Proprietário: ${process.ownerName}`}>Proprietário: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerName}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Documento mascarado: ${process.ownerDocument}`}>Documento mascarado: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerDocument}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Responsável Técnico: ${process.technicalLead}`}>Responsável Técnico: <span className="sig-fit-copy mt-1 block text-slate-800">{process.technicalLead}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">IPTU: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.iptu}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Matrícula: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.registration}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Lote/Quadra: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.lot} / {process.property.block}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Área: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.area} m²</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Uso: ${process.property.usage}`}>Uso: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.usage}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Padrão construtivo: ${constructionStandardLabel}`}>Padrão construtivo: <span className="sig-fit-copy mt-1 block text-slate-800">{constructionStandardLabel}</span></div>
-            </CardContent>
-          </Card>
+            <ProcessIdentityPanel
+              process={process}
+              ownerProfile={linkedOwnerProfile}
+              technicalProfile={linkedTechnicalProfile}
+              constructionStandardLabel={constructionStandardLabel}
+              canViewFullIdentity={canViewCompleteCadastro}
+            />
           )}
 
           {activeTab === "documentos" && (
