@@ -4,8 +4,8 @@ import {
   credentialFingerprint,
   encryptStorageCredentials,
   getMunicipalStorageConnection,
+  getMunicipalStorageSecretAdmin,
   normalizeStorageEndpoint,
-  resolveMunicipalStorageSecret,
   testMunicipalStorageConnection,
 } from "../server/municipal-storage";
 
@@ -127,7 +127,7 @@ export default async function handler(req: Req, res: Res) {
     }
 
     if (action === "test") {
-      const secretConfig = await resolveMunicipalStorageSecret(req, municipalityId);
+      const secretConfig = await getMunicipalStorageSecretAdmin(req, municipalityId);
       if (secretConfig.provider !== "s3_compatible") {
         throw new Error("Configure o armazenamento próprio antes de testar.");
       }
