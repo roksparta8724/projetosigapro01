@@ -412,6 +412,7 @@ export interface TenantSettings {
   issStageEnabled?: boolean;
   taxaAprovacaoFinal: number;
   finalApprovalFeeEnabled?: boolean;
+  constructionGuideIssuerMode?: "analise" | "financeiro" | "ambos";
   approvalRateProfiles?: MunicipalApprovalRateProfile[];
   registroProfissionalObrigatorio: boolean;
   contractNumber?: string;
