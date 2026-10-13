@@ -639,6 +639,9 @@ export interface ProcessRecord {
   ownerName: string;
   ownerDocument: string;
   technicalLead: string;
+  /** Referências explícitas da parte processual ao perfil cadastral. */
+  ownerProfileId?: string;
+  technicalProfileId?: string;
   createdBy: string;
   tags: string[];
   address: string;
