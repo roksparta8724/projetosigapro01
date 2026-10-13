@@ -43,6 +43,8 @@ export function ProcessIdentityPanel({
   const ownerDocument = linkedOwner?.cpfCnpj?.trim() || process.ownerDocument || "";
   const ownerDocumentStatus = validateBrazilianTaxId(ownerDocument);
   const hasFullDocument = ownerDocumentStatus === "formato_valido";
+  const professionalDocument = linkedProfessional?.cpfCnpj?.trim() || "";
+  const professionalDocumentStatus = validateBrazilianTaxId(professionalDocument);
   const professionalRegistration = linkedProfessional?.registrationNumber?.trim() || "";
   const issues = getProcessRegistrationIssues({ ...process, ownerDocument }, Boolean(professionalRegistration));
   const visibleDocument = !canViewFullIdentity
@@ -87,6 +89,7 @@ export function ProcessIdentityPanel({
         <div className="sig-pid-grid">
           <DetailField label="Nome completo" value={dataOrPending(process.technicalLead)} warning={!process.technicalLead.trim()} />
           <DetailField label="Profissão" value={dataOrPending(linkedProfessional?.professionalType)} />
+          <DetailField label="CPF / CNPJ do profissional" value={canViewFullIdentity ? dataOrPending(professionalDocument) : "Acesso restrito à equipe autorizada"} warning={canViewFullIdentity && professionalDocumentStatus !== "formato_valido"} />
           <DetailField label="CREA / CAU / CFT" value={dataOrPending(professionalRegistration)} warning={!professionalRegistration} />
           <DetailField label="Contato profissional" value={canViewFullIdentity ? dataOrPending(linkedProfessional?.email || linkedProfessional?.phone) : "Consulta interna"} />
         </div>
