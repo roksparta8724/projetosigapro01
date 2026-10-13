@@ -195,7 +195,7 @@ export function ProtocolDeskPage() {
   );
 
   const navItems = [
-    { value: "visao-geral", label: "Visão geral", helper: "Resumo, prioridades e movimentos" },
+    { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
     { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
     { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
     { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
@@ -516,158 +516,103 @@ export function ProtocolDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow className="xl:grid-cols-4">
-              <StatCard label="Novos protocolos" value={String(newProtocols.length)} description="Entradas prontas para conferência" icon={ClipboardList} tone="blue" />
-              <StatCard label="Documentos pendentes" value={String(pendingDocuments.length)} description="Cadastros com exigência documental" icon={FileWarning} tone="amber" />
-              <StatCard label="Incompletos" value={String(incompleteProtocols.length)} description="Processos travados na triagem" icon={AlertTriangle} tone="rose" />
-              <StatCard label="Triados" value={String(triagedProtocols.length)} description="Protocolos liberados para a próxima etapa" icon={CheckCircle2} tone="emerald" />
+              <StatCard label="Novos protocolos" value={String(newProtocols.length)} description="Aguardando conferência inicial" icon={ClipboardList} tone="blue" />
+              <StatCard label="Pendências documentais" value={String(pendingDocuments.length)} description="Exigem regularização" icon={FileWarning} tone="amber" />
+              <StatCard label="SLA crítico" value={String(urgentProtocols.length)} description="Prazo curto ou vencido" icon={Clock3} tone="rose" />
+              <StatCard label="Triados" value={String(triagedProtocols.length)} description="Liberados para próxima etapa" icon={CheckCircle2} tone="emerald" />
             </PageStatsRow>
 
             <PageMainGrid>
               <PageMainContent>
-              <TableCard
-                title="Fila prioritária"
-                description="Protocolos com maior urgência, leitura rápida por prioridade e ação imediata."
-                icon={Layers3}
-                actions={
-                  <Button asChild variant="outline" className="sig-dark-action-btn rounded-full text-slate-50">
-                    <Link to="/prefeitura/protocolos/novo">
-                      <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
-                      Novo protocolo
-                    </Link>
-                  </Button>
-                }
-              >
-                {renderQueueList(queueItems.slice(0, 5))}
-              </TableCard>
-
-              <SectionCard title="Movimentos recentes" description="Últimas alterações registradas na operação de protocolo.">
-                <div className="space-y-3">
-                  {latestActivity.slice(0, 5).map((entry) => (
-                    <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
-                          <p className="mt-1 text-sm text-slate-800">{entry.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>
-                        </div>
-                        <span className="shrink-0 text-xs text-slate-400">{entry.at}</span>
+                <TableCard
+                  title="Prioridades agora"
+                  description="Somente os protocolos que merecem atenção primeiro. A operação completa continua na Fila de triagem."
+                  icon={Layers3}
+                  actions={
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => setSection("fila")}>
+                      Ver fila completa
+                    </Button>
+                  }
+                >
+                  <div className="space-y-3">
+                    {queueItems.slice(0, 4).length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                        Nenhum protocolo aguardando atuação no momento.
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
+                    ) : (
+                      queueItems.slice(0, 4).map((process) => {
+                        const missing = getMissingRequiredDocuments(process);
+                        const urgent = process.sla.breached || process.sla.hoursRemaining <= 8;
+                        return (
+                          <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className={statusTone(process.status)}>
+                                  {statusLabel(process.status)}
+                                </Badge>
+                                {urgent ? (
+                                  <Badge variant="outline" className="rounded-full border-rose-200 bg-rose-50 text-rose-700">
+                                    SLA crítico
+                                  </Badge>
+                                ) : null}
+                                {missing > 0 ? (
+                                  <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
+                                    {missing} doc. pendente(s)
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 line-clamp-1 text-sm text-slate-600">
+                                {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                              </p>
+                            </div>
+                            <Button asChild variant="outline" className="shrink-0 rounded-full">
+                              <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                            </Button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </TableCard>
               </PageMainContent>
 
               <PageSideContent>
-                <SectionCard title="Prioridades do protocolo" description="SLA, exigências e despachos que pedem reação imediata.">
+                <SectionCard title="Atenção imediata" description="Leitura objetiva do que pode travar o setor.">
                   <div className="space-y-3">
                     <AlertCard
-                      title="⏱ SLA crítico"
-                      description={
-                        urgentProtocols.length > 0
-                          ? `${urgentProtocols.length} protocolo(s) com prazo curto ou vencido.`
-                          : "Nenhum protocolo em situação crítica no momento."
-                      }
+                      title="Prazo crítico"
+                      description={urgentProtocols.length > 0 ? `${urgentProtocols.length} protocolo(s) precisam de reação imediata.` : "Nenhum prazo crítico agora."}
                       tone={urgentProtocols.length > 0 ? "danger" : "success"}
                       icon={Clock3}
                     />
                     <AlertCard
-                      title="📄 Pendência documental"
-                      description={
-                        pendingDocuments.length > 0
-                          ? `${pendingDocuments.length} entrada(s) aguardam documento obrigatório.`
-                          : "Checklist documental em dia na fila atual."
-                      }
+                      title="Documentação"
+                      description={pendingDocuments.length > 0 ? `${pendingDocuments.length} entrada(s) aguardam documento obrigatório.` : "Documentação regular na fila atual."}
                       tone={pendingDocuments.length > 0 ? "warning" : "success"}
                       icon={FileWarning}
                     />
-                    {criticalDispatches.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Nenhum despacho crítico para o protocolo no momento.
-                      </div>
-                    ) : (
-                      criticalDispatches.slice(0, 2).map((item) => (
-                        <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
-                            <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                              {item.priority}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 sig-fit-copy text-sm text-slate-500">{item.subject}</p>
-                          <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                          <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
-                        </div>
-                      ))
-                    )}
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Canais e ações" description="Leitura curta do atendimento e atalhos da rotina municipal.">
-                  <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-900">🏛 Balcão</p>
-                          <span className="text-lg font-semibold text-slate-950">{deskProtocols.length}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">Atendimento presencial e protocolo assistido.</p>
-                      </div>
-                      <div className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-900">🌐 Online</p>
-                          <span className="text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">Entradas digitais visíveis na mesma operação.</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
-                        <Link to="/prefeitura/protocolos/novo">
-                          <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
-                          Novo protocolo assistido
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
-                        <Link to="/prefeitura">
-                          <Building2 className="mr-2 h-4 w-4 text-sky-200" />
-                          Voltar ao painel municipal
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Resumo da unidade" description="Caixa atual, despachos emitidos e visibilidade do fluxo.">
-                  <div className="space-y-3">
-                    <div className="grid gap-3">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Recebidos</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{receivedAtProtocol.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Caixa atual do protocolo.</p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Gerados</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{generatedByProtocol.length}</p>
-                        <p className="mt-1 text-sm text-slate-500">Despachos emitidos pelo setor.</p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="sig-label">Fluxo restrito</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-950">{restrictedTransitCount}</p>
-                        <p className="mt-1 text-sm text-slate-500">Processos com trâmites internos ocultos.</p>
-                      </div>
-                    </div>
-                    {assignedAtProtocol.length > 0 ? (
-                      <div className="space-y-3">
-                        {assignedAtProtocol.slice(0, 2).map((item) => (
-                          <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
-                            <p className="mt-1 text-sm text-slate-500">{item.assignedTo}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+                <SectionCard title="Ações rápidas" description="Atalhos para as tarefas mais usadas.">
+                  <div className="grid gap-2">
+                    <Button asChild className="sig-force-dark-action h-11 justify-start rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
+                      <Link to="/prefeitura/protocolos/novo">
+                        <FilePlus2 className="mr-2 h-4 w-4" />
+                        Novo protocolo
+                      </Link>
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("fila")}>
+                      <Layers3 className="mr-2 h-4 w-4" />
+                      Abrir fila de triagem
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("documentos")}>
+                      <FileWarning className="mr-2 h-4 w-4" />
+                      Ver documentos pendentes
+                    </Button>
                   </div>
                 </SectionCard>
               </PageSideContent>
