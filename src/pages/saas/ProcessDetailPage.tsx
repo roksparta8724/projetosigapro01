@@ -1966,8 +1966,15 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                   {constructionGuide ? (
-                    <Badge variant="outline" className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Guia já gerada
+                    <Badge
+                      variant="outline"
+                      className={`rounded-full ${
+                        constructionGuideSentExternally
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                      }`}
+                    >
+                      {constructionGuideSentExternally ? "Enviada ao profissional" : "Aguardando revisão e envio"}
                     </Badge>
                   ) : null}
                 </div>
@@ -1982,7 +1989,7 @@ export function ProcessDetailPage() {
                       inputMode="decimal"
                       value={constructionAreaInput}
                       onChange={(event) => setConstructionAreaInput(event.target.value)}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                       className="mt-2 h-11 bg-white dark:bg-slate-950"
                       placeholder="Ex.: 250,00"
                     />
@@ -1993,7 +2000,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={constructionUsageInput}
                       onValueChange={setConstructionUsageInput}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
                         <SelectValue placeholder="Selecione o uso da edificação" />
@@ -2011,7 +2018,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={workTypeInput}
                       onValueChange={setWorkTypeInput}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100">
                         <SelectValue placeholder="Selecione a natureza da obra" />
@@ -2039,7 +2046,7 @@ export function ProcessDetailPage() {
                   </div>
 
                   {constructionGuide ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -2049,15 +2056,70 @@ export function ProcessDetailPage() {
                         <Eye className="mr-2 h-4 w-4" />
                         Visualizar guia
                       </Button>
-                      <Button
-                        type="button"
-                        className="rounded-full bg-sky-700 px-5 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
-                        disabled={processActionBusy === "send-construction-guide"}
-                        onClick={handleSendConstructionGuideToProfessional}
-                      >
-                        <MessageSquareMore className="mr-2 h-4 w-4" />
-                        {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar ao profissional"}
-                      </Button>
+
+                      {canManageIssuedIssGuide ? (
+                        isEditingIssuedIssGuide ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full"
+                              disabled={Boolean(processActionBusy)}
+                              onClick={() => {
+                                setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
+                                setConstructionUsageInput(process.property.usage || "");
+                                setWorkTypeInput(process.property.workType || "");
+                                setIsEditingIssuedIssGuide(false);
+                              }}
+                            >
+                              Cancelar correção
+                            </Button>
+                            <Button
+                              type="button"
+                              className="rounded-full bg-amber-600 px-5 !text-white hover:bg-amber-700 dark:bg-amber-500 dark:!text-slate-950 dark:hover:bg-amber-400"
+                              disabled={
+                                processActionBusy === "revise-construction-guide" ||
+                                !(constructionAreaValue > 0) ||
+                                !constructionUsageInput ||
+                                !workTypeInput
+                              }
+                              onClick={() => void handleReviseConstructionGuide()}
+                            >
+                              <FileKey2 className="mr-2 h-4 w-4" />
+                              {processActionBusy === "revise-construction-guide"
+                                ? "Gerando nova versão..."
+                                : "Gerar nova versão"}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300"
+                            onClick={() => setIsEditingIssuedIssGuide(true)}
+                          >
+                            <PencilLine className="mr-2 h-4 w-4" />
+                            Corrigir guia
+                          </Button>
+                        )
+                      ) : null}
+
+                      {!constructionGuideSentExternally && !isEditingIssuedIssGuide ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-sky-700 px-5 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
+                          disabled={processActionBusy === "send-construction-guide" || !canManageIssuedIssGuide}
+                          onClick={handleSendConstructionGuideToProfessional}
+                        >
+                          <MessageSquareMore className="mr-2 h-4 w-4" />
+                          {processActionBusy === "send-construction-guide" ? "Enviando..." : "Revisado — enviar ao profissional"}
+                        </Button>
+                      ) : constructionGuideSentExternally ? (
+                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Versão vigente já enviada
+                        </div>
+                      ) : null}
                     </div>
                   ) : constructionGuideRequest ? (
                     <div className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
@@ -2116,6 +2178,18 @@ export function ProcessDetailPage() {
                   )}
                 </div>
 
+                {constructionGuide ? (
+                  <div className={`mt-4 rounded-xl border px-4 py-3 text-sm leading-6 ${
+                    constructionGuideSentExternally
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-300"
+                      : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-300"
+                  }`}>
+                    {constructionGuideSentExternally
+                      ? "A versão vigente foi liberada manualmente pelo analista e já está disponível ao profissional."
+                      : "A guia foi gerada, mas ainda não foi liberada ao profissional. O analista deve visualizar e conferir a guia; se houver erro, use Corrigir guia e gere uma nova versão. Somente a versão mais recente permanece vigente."}
+                  </div>
+                ) : null}
+
                 {!allAnalysisDocumentsApproved ? (
                   <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
                     A guia só pode ser gerada quando todos os documentos e projetos estiverem aprovados.
@@ -2133,6 +2207,9 @@ export function ProcessDetailPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia</p>
                     <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuide.code}</p>
                     <p className="mt-1 text-xs text-slate-500">{formatCurrency(constructionGuide.amount)}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                      Versão {Number(constructionGuide.revision ?? 0) + 1}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Proprietário</p>
