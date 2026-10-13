@@ -197,7 +197,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -253,7 +253,6 @@ export function ProcessDetailPage() {
   const [requirementDueDate, setRequirementDueDate] = useState("");
   const [requirementVisibility, setRequirementVisibility] = useState<"interno" | "externo" | "misto">("misto");
   const [requirementResponse, setRequirementResponse] = useState<Record<string, string>>({});
-  const [reopenReason, setReopenReason] = useState("");
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState("");
@@ -596,11 +595,6 @@ export function ProcessDetailPage() {
     if (item.visibility === "interno") return isInternalRole(session.role);
     return !isInternalRole(session.role);
   });
-  const visibleAuditTrail = process.auditTrail.filter((item) =>
-    isProtocolTrackingOnly
-      ? item.category === "status" || item.category === "despacho" || item.visibleToExternal
-      : item.visibleToExternal || canViewCompleteTransit,
-  );
   const tabItems = [
     { key: "imovel" as ProcessTab, label: "Imóvel", enabled: !isProtocolTrackingOnly },
     { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: !isProtocolTrackingOnly },
