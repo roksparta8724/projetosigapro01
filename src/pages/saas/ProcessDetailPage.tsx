@@ -194,6 +194,16 @@ export function ProcessDetailPage() {
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const isMasterOrMunicipalAdmin =
+    session.role === "master_admin" ||
+    session.role === "master_ops" ||
+    session.role === "prefeitura_admin";
+  const canProtocolOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "protocolos");
+  const canAnalysisOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "analise");
+  const canFinanceOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "financeiro");
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
   const [messageRecipient, setMessageRecipient] = useState("todos");
@@ -377,16 +387,6 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const isMasterOrMunicipalAdmin =
-    session.role === "master_admin" ||
-    session.role === "master_ops" ||
-    session.role === "prefeitura_admin";
-  const canProtocolOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "protocolos");
-  const canAnalysisOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "analise");
-  const canFinanceOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "financeiro");
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
