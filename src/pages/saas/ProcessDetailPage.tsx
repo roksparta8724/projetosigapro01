@@ -222,7 +222,7 @@ export function ProcessDetailPage() {
   const validProcessTabs: ProcessTab[] = ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"];
   const initialTab = searchParams.get("aba") as ProcessTab | null;
   const [activeTab, setActiveTab] = useState<ProcessTab>(
-    initialTab && validProcessTabs.includes(initialTab) ? initialTab : "resumo",
+    initialTab && validProcessTabs.includes(initialTab) ? initialTab : "imovel",
   );
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
@@ -257,9 +257,10 @@ export function ProcessDetailPage() {
       (requested !== "financeiro" || (planEntitlements.canUseModule("Financeiro") && canFinanceOperate));
 
     if (!allowed) {
-      if (activeTab !== "resumo") setActiveTab("resumo");
+      const fallbackTab: ProcessTab = "imovel";
+      if (activeTab !== fallbackTab) setActiveTab(fallbackTab);
       const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("aba", "resumo");
+      nextParams.set("aba", fallbackTab);
       setSearchParams(nextParams, { replace: true });
       return;
     }
