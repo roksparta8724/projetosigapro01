@@ -17,9 +17,11 @@ vi.mock("@/hooks/useAuthGateway", () => ({
   useAuthGateway: () => gatewayMock,
 }));
 
-vi.mock("@/integrations/backend/config", () => ({
+vi.mock("@/integrations/backend/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/integrations/backend/config")>()),
   isNeonBackend: true,
   isSupabaseBackend: false,
+  isNeonProduction: true,
 }));
 
 function Probe() {
