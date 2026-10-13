@@ -274,7 +274,7 @@ export function AnalystDeskPage() {
   };
 
   const navItems = [
-    { value: "visao-geral", label: "Visão geral", helper: "Resumo, prioridades e ação" },
+    { value: "visao-geral", label: "Resumo", helper: "Prioridades da mesa técnica" },
     { value: "fila", label: "Fila de análise", helper: "Operação técnica principal" },
     { value: "pendencias", label: "Pendências", helper: "Bloqueios e inconsistências" },
     { value: "correcoes", label: "Correções solicitadas", helper: "Retornos e reapresentação" },
@@ -583,144 +583,97 @@ export function AnalystDeskPage() {
         />
 
         {section === "visao-geral" && (
-          <PageStatsRow>
-            <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres técnicos em andamento" icon={Stamp} tone="blue" />
-            <StatCard label="Pendências formais" value={String(requirementsOpen)} description="Exigências abertas ou respondidas" icon={Clock3} tone="amber" />
-            <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazos curtos ou vencidos" icon={TimerReset} tone="rose" />
-            <StatCard label="Concluídos" value={String(completed.length)} description="Deferimentos finalizados" icon={CheckCircle2} tone="emerald" />
-          </PageStatsRow>
-        )}
+          <>
+            <PageStatsRow>
+              <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres em andamento" icon={Stamp} tone="blue" />
+              <StatCard label="Pendências" value={String(requirementsOpen)} description="Exigências abertas" icon={Clock3} tone="amber" />
+              <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazo curto ou vencido" icon={TimerReset} tone="rose" />
+              <StatCard label="Concluídos" value={String(completed.length)} description="Decisões finalizadas" icon={CheckCircle2} tone="emerald" />
+            </PageStatsRow>
 
-        {section === "visao-geral" && (
-          <PageMainGrid>
-            <PageMainContent>
-              <TableCard
-                title="Fila prioritária"
-                description="Itens com maior urgência, leitura rápida e ação imediata da mesa técnica."
-                icon={ListTodo}
-                actions={
-                  <div className="relative w-full max-w-xl">
-                    <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <Input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Buscar protocolo, IPTU, proprietário ou endereço"
-                      className="h-11 rounded-2xl border-slate-200 pl-11"
+            <PageMainGrid>
+              <PageMainContent>
+                <TableCard
+                  title="Prioridades da mesa técnica"
+                  description="Apenas os processos que precisam de leitura primeiro. A fila completa fica na aba Fila de análise."
+                  icon={ListTodo}
+                  actions={
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => setSection("fila")}>
+                      Ver fila completa
+                    </Button>
+                  }
+                >
+                  <div className="space-y-3">
+                    {urgentProtocols.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                        Nenhum processo prioritário no momento.
+                      </div>
+                    ) : (
+                      urgentProtocols.slice(0, 4).map((process) => (
+                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                                {formatOfficialProcessNumber(process.protocol)}
+                              </p>
+                              <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
+                                {getPriorityLabel(process)}
+                              </Badge>
+                              <Badge variant="outline" className={statusTone(process.status)}>
+                                {statusLabel(process.status)}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-sm text-slate-600">
+                              {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                            </p>
+                          </div>
+                          <Button asChild variant="outline" className="shrink-0 rounded-full">
+                            <Link to={`/processos/${process.id}?aba=analise`}>Abrir análise</Link>
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </TableCard>
+              </PageMainContent>
+
+              <PageSideContent>
+                <SectionCard title="Atenção imediata" description="Indicadores que realmente pedem atuação.">
+                  <div className="space-y-3">
+                    <AlertCard
+                      title="Prazo crítico"
+                      description={slaCritical.length > 0 ? `${slaCritical.length} processo(s) exigem ação imediata.` : "Nenhum prazo crítico agora."}
+                      tone={slaCritical.length > 0 ? "danger" : "success"}
+                      icon={Clock3}
+                    />
+                    <AlertCard
+                      title="Exigências abertas"
+                      description={requirementsOpen > 0 ? `${requirementsOpen} exigência(s) aguardam leitura ou retorno.` : "Nenhuma exigência técnica aberta."}
+                      tone={requirementsOpen > 0 ? "warning" : "success"}
+                      icon={FileText}
                     />
                   </div>
-                }
-              >
-                {renderQueue(queue.slice(0, 5))}
-              </TableCard>
-            </PageMainContent>
+                </SectionCard>
 
-            <PageSideContent>
-              <SectionCard title="Prioridades da análise" description="Prazos críticos, exigências abertas e processos sob atenção imediata.">
-                <div className="space-y-3">
-                  <AlertCard
-                    title="SLA crítico"
-                    description={
-                      slaCritical.length > 0
-                        ? `${slaCritical.length} protocolo(s) exigem ação imediata.`
-                        : "Nenhum prazo crítico no momento."
-                    }
-                    tone={slaCritical.length > 0 ? "danger" : "success"}
-                    icon={Clock3}
-                  />
-                  <AlertCard
-                    title="Pendências formais"
-                    description={
-                      requirementsOpen > 0
-                        ? `${requirementsOpen} exigência(s) abertas ou respondidas.`
-                        : "Nenhuma exigência técnica aberta agora."
-                    }
-                    tone={requirementsOpen > 0 ? "warning" : "success"}
-                    icon={FileText}
-                  />
-                  {urgentProtocols.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                      Nenhum protocolo prioritário agora.
-                    </div>
-                  ) : (
-                    urgentProtocols.slice(0, 2).map((process) => (
-                      <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
-                            <p className="mt-1 sig-fit-copy text-sm text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                          </div>
-                          <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
-                            {process.sla.breached ? "Crítico" : process.sla.hoursRemaining <= 12 ? "Urgente" : "Normal"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Ações e contexto" description="Atalhos da mesa técnica e leitura curta da carga atual.">
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
-                      <Link to="/prefeitura/financeiro">
-                        <Send className="mr-2 h-4 w-4 text-sky-200" />
-                        Ir para o financeiro
-                      </Link>
+                <SectionCard title="Ações rápidas" description="Atalhos para a rotina da análise.">
+                  <div className="grid gap-2">
+                    <Button type="button" className="sig-force-dark-action h-11 justify-start rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => setSection("fila")}>
+                      <ListTodo className="mr-2 h-4 w-4" />
+                      Abrir fila de análise
                     </Button>
-                    <Button asChild variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50">
-                      <Link to="/prefeitura">
-                        <ListTodo className="mr-2 h-4 w-4 text-sky-200" />
-                        Voltar ao painel municipal
-                      </Link>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("pendencias")}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Ver pendências
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 justify-start rounded-2xl" onClick={() => setSection("correcoes")}>
+                      <Send className="mr-2 h-4 w-4" />
+                      Correções solicitadas
                     </Button>
                   </div>
-
-                  <div className="grid gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="sig-label">Recebidos da unidade</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">{dispatchesForCurrentUnit.length}</p>
-                      <p className="mt-1 text-sm text-slate-500">Caixa atual da análise técnica.</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="sig-label">Atribuídos a mim</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">{assignedToMe.length}</p>
-                      <p className="mt-1 text-sm text-slate-500">Despachos com responsável definido.</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="sig-label">Fluxo restrito</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">{restrictedDispatches}</p>
-                      <p className="mt-1 text-sm text-slate-500">Trâmites internos ocultos ao acesso externo.</p>
-                    </div>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Despachos da mesa" description="Itens críticos e circulação atual entre as unidades.">
-                <div className="space-y-3">
-                  {criticalDispatches.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                      Nenhum despacho crítico na mesa técnica.
-                    </div>
-                  ) : (
-                    criticalDispatches.slice(0, 3).map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
-                          <Badge variant="outline" className="rounded-full border-slate-200 text-slate-700">
-                            {item.priority}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 sig-fit-copy text-sm text-slate-500">{item.subject}</p>
-                        <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">Pasta atual</p>
-                        <p className="mt-1 text-sm text-slate-900">{item.currentFolder}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </SectionCard>
-            </PageSideContent>
-          </PageMainGrid>
+                </SectionCard>
+              </PageSideContent>
+            </PageMainGrid>
+          </>
         )}
 
         {section === "fila" && (
