@@ -2455,12 +2455,14 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
     return true;
   }
 
+  if (isExternalProfessionalRole(session.role)) {
+    if (!processBelongsToExternalProfessional(session, process)) return false;
+    const professionalScopeId = getOperationalScopeId(session);
+    return !professionalScopeId || matchesOperationalScope(professionalScopeId, process);
+  }
+
   const activeScopeId = scopeId || getOperationalScopeId(session);
   if (!matchesOperationalScope(activeScopeId, process)) return false;
-
-  if (isExternalProfessionalRole(session.role)) {
-    return processBelongsToExternalProfessional(session, process);
-  }
   if (session.role === "property_owner" || session.role === "proprietario_consulta") return true;
   if (!isInternalRole(session.role)) return false;
 
@@ -2495,13 +2497,15 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
     return true;
   }
 
+  if (isExternalProfessionalRole(session.role)) {
+    if (!processBelongsToExternalProfessional(session, process)) return false;
+    const professionalScopeId = getOperationalScopeId(session);
+    return !professionalScopeId || matchesOperationalScope(professionalScopeId, process);
+  }
+
   const activeScopeId = scopeId || getOperationalScopeId(session);
   if (!matchesOperationalScope(activeScopeId, process)) {
     return false;
-  }
-
-  if (isExternalProfessionalRole(session.role)) {
-    return processBelongsToExternalProfessional(session, process);
   }
 
   if (session.role === "property_owner" || session.role === "proprietario_consulta") {
