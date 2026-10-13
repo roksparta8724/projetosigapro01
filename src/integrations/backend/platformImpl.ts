@@ -318,6 +318,43 @@ function normalizeStoredRole(role: string | null | undefined): SessionUser["role
     : "proprietario_consulta";
 }
 
+function resolveDepartmentBackedRole(
+  role: string | null | undefined,
+  department: string | null | undefined,
+): SessionUser["role"] {
+  const storedRole = normalizeStoredRole(role);
+  const normalizedDepartment = (department ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalizedDepartment) return storedRole;
+
+  // Um vínculo com qualquer departamento municipal torna a conta interna.
+  // O departamento define a área operacional; o cargo/função permanece apenas descritivo.
+  if (
+    storedRole === "master_admin" ||
+    storedRole === "master_ops" ||
+    storedRole === "prefeitura_admin" ||
+    storedRole === "prefeitura_supervisor"
+  ) {
+    return storedRole;
+  }
+
+  if (/(urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao)/.test(normalizedDepartment)) {
+    return "analista";
+  }
+  if (/(finance|financa|fazenda|tesour|arrecad|tribut)/.test(normalizedDepartment)) {
+    return "financeiro";
+  }
+  if (/(fiscaliz|postura)/.test(normalizedDepartment)) {
+    return "fiscal";
+  }
+
+  return "setor_intersetorial";
+}
+
 function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
   if (role === "master_admin" || role === "master_ops" || role === "prefeitura_admin") return 3;
   const level = Number(levelName?.match(/\b[123]\b/)?.[0]);
@@ -343,6 +380,7 @@ export async function loadRemotePlatformStore() {
     profilesResult,
     membershipsResult,
     rolesResult,
+    departmentsResult,
     processesResult,
     propertiesResult,
     guidesResult,
@@ -377,6 +415,7 @@ export async function loadRemotePlatformStore() {
     db.from("profiles").select("*"),
     db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
     db.from("roles").select("*"),
+    db.from("departments").select("*"),
     db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
     db.from("properties").select("*"),
     isNeonBackend
@@ -421,6 +460,7 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(municipalityBrandingResult.error, "public.municipality_branding"),
     tolerateLegacyMissing(municipalitySettingsResult.error, "public.municipality_settings"),
     rolesResult.error,
+    departmentsResult.error,
     processesResult.error,
     propertiesResult.error,
     guidesResult.error,
@@ -452,6 +492,7 @@ export async function loadRemotePlatformStore() {
   const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
   const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
   const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
+  const departmentById = new Map((departmentsResult.data ?? []).map((item) => [item.id, item]));
   const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
   const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
   const lastAccessByProfileId = new Map(
@@ -951,7 +992,11 @@ export async function loadRemotePlatformStore() {
       membership.profile_id ??
       profile?.id ??
       membership.user_id;
-    const roleCode = normalizeStoredRole(role?.code ?? profile?.role);
+    const departmentName =
+      membership.department ||
+      (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
+      "";
+    const roleCode = resolveDepartmentBackedRole(role?.code ?? profile?.role, departmentName);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
         ? "blocked"
@@ -989,7 +1034,7 @@ export async function loadRemotePlatformStore() {
         roleCode === "property_owner"
           ? "Externo"
           : "Interno"),
-      department: membership.department || "",
+      department: departmentName,
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
@@ -1041,7 +1086,10 @@ export async function loadRemotePlatformStore() {
   for (const profile of profilesResult.data ?? []) {
     const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
     if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
-    const role = normalizeStoredRole(profile.role);
+    const departmentName =
+      (profile.department_id ? departmentById.get(profile.department_id)?.name : "") ||
+      "";
+    const role = resolveDepartmentBackedRole(profile.role, departmentName);
     sessionUsers.push({
       id: canonicalUserId,
       name: profile.full_name ?? profile.email ?? "Usuário",
@@ -1054,7 +1102,7 @@ export async function loadRemotePlatformStore() {
       email: profile.email ?? "",
       accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
-      department: "",
+      department: departmentName,
       createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
