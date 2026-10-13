@@ -17,6 +17,7 @@ import {
 } from "@/integrations/backend/platform";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { clearPendingSignup, writePendingSignup } from "@/lib/pendingSignup";
 import {
   getInstitutionClientSlug,
   isInstitutionPubliclyAvailable,
@@ -308,6 +309,29 @@ export function CriarContaPage() {
       return;
     }
 
+    writePendingSignup({
+      tenantId: form.tenantId,
+      role: form.role === "property_owner" ? "property_owner" : "profissional_externo",
+      fullName: form.fullName,
+      email: normalizedEmail,
+      cpfCnpj: cpf,
+      phone: form.phone,
+      rg: form.rg,
+      birthDate: form.birthDate,
+      addressLine: form.addressLine,
+      addressNumber: form.addressNumber,
+      addressComplement: form.addressComplement,
+      neighborhood: form.neighborhood,
+      city: form.city,
+      state: form.state,
+      zipCode: form.zipCode,
+      professionalType: form.professionalType,
+      registrationNumber: form.registrationNumber,
+      companyName: form.companyName,
+      title: form.title || form.professionalType || roleLabels[form.role],
+      bio: form.bio,
+    });
+
     const emailRedirectTo =
       typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
     const { data, error: signUpError } = await backendClient.auth.signUp({
@@ -340,6 +364,7 @@ export function CriarContaPage() {
       });
 
       if (signUpError) {
+        clearPendingSignup(normalizedEmail);
         setSubmitting(false);
         setError(
           /cpf|database error saving new user/i.test(signUpError.message)
@@ -387,6 +412,7 @@ export function CriarContaPage() {
             ...draftProfile,
           });
 
+          clearPendingSignup(normalizedEmail);
           setStatus(
             form.role === "property_owner"
               ? "Conta criada com sucesso. Você já pode solicitar acompanhamento do seu projeto."
