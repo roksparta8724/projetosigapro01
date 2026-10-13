@@ -641,6 +641,13 @@ export interface ProcessRecord {
   ownerDocument: string;
   technicalLead: string;
   createdBy: string;
+  createdByProfileId?: string;
+  createdByUserId?: string;
+  createdByEmail?: string;
+  createdByRole?: string;
+  professionalProfileId?: string;
+  professionalUserId?: string;
+  professionalEmail?: string;
   tags: string[];
   address: string;
   notes?: string;
@@ -2345,6 +2352,55 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
   return false;
 }
 
+export function processBelongsToExternalProfessional(
+  session: Pick<SessionUser, "id" | "email">,
+  process: Pick<
+    ProcessRecord,
+    | "createdBy"
+    | "createdByProfileId"
+    | "createdByUserId"
+    | "createdByEmail"
+    | "professionalProfileId"
+    | "professionalUserId"
+    | "professionalEmail"
+  >,
+) {
+  const ids = [
+    process.createdBy,
+    process.createdByProfileId,
+    process.createdByUserId,
+    process.professionalProfileId,
+    process.professionalUserId,
+  ].filter(Boolean);
+
+  if (session.id && ids.includes(session.id)) return true;
+
+  const email = session.email?.trim().toLowerCase();
+  if (!email) return false;
+
+  return [process.createdByEmail, process.professionalEmail]
+    .filter(Boolean)
+    .some((value) => value?.trim().toLowerCase() === email);
+}
+
+export function isExternalProfessionalProcess(
+  process: Pick<
+    ProcessRecord,
+    | "createdByRole"
+    | "professionalProfileId"
+    | "professionalUserId"
+    | "professionalEmail"
+  >,
+) {
+  const creatorRole = (process.createdByRole ?? "").trim().toLowerCase();
+  return Boolean(
+    process.professionalProfileId ||
+    process.professionalUserId ||
+    process.professionalEmail ||
+    ["profissional_externo", "professional_external", "professional", "profissional"].includes(creatorRole),
+  );
+}
+
 export function canTrackProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
   if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
     return true;
@@ -2353,7 +2409,9 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   const activeScopeId = scopeId || getOperationalScopeId(session);
   if (!matchesOperationalScope(activeScopeId, process)) return false;
 
-  if (session.role === "profissional_externo") return process.createdBy === session.id;
+  if (session.role === "profissional_externo") {
+    return processBelongsToExternalProfessional(session, process);
+  }
   if (session.role === "property_owner" || session.role === "proprietario_consulta") return true;
   if (!isInternalRole(session.role)) return false;
 
@@ -2394,7 +2452,7 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   }
 
   if (session.role === "profissional_externo") {
-    return process.createdBy === session.id;
+    return processBelongsToExternalProfessional(session, process);
   }
 
   if (session.role === "property_owner" || session.role === "proprietario_consulta") {
