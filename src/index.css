@@ -6230,3 +6230,19 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
     padding-bottom: 24px !important;
   }
 }
+
+
+/* Dark actionable controls must always expose readable labels and icons. */
+html body .sig-main-shell button.sig-force-dark-action,
+html body .sig-main-shell a.sig-force-dark-action,
+html body .sig-main-shell [role="button"].sig-force-dark-action {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action *,
+html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action svg {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
