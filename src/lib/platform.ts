@@ -584,6 +584,7 @@ export interface DispatchItem {
   to: string;
   subject: string;
   dueDate: string;
+  createdAt?: string;
   status: "aguardando" | "respondido" | "concluido" | "devolvido" | "sobrestado";
   visibility?: "interno" | "externo" | "misto";
   priority?: "baixa" | "media" | "alta" | "critica";
