@@ -1424,6 +1424,69 @@ export function ProcessDetailPage() {
                 </div>
               </div>
 
+              {canReviewDocuments ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-4 dark:border-emerald-500/40 dark:bg-emerald-950/25">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
+                          Aprovados
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                          {approvedDocumentCount}
+                        </p>
+                      </div>
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-500/40 dark:bg-amber-950/25">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800 dark:text-amber-300">
+                          Comunique-se
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-amber-950 dark:text-amber-100">
+                          {communicateDocumentCount}
+                        </p>
+                      </div>
+                      <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-300 bg-sky-50/80 p-4 dark:border-sky-500/40 dark:bg-sky-950/25">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                          Aguardando análise
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-sky-950 dark:text-sky-100">
+                          {awaitingReviewDocumentCount}
+                        </p>
+                      </div>
+                      <Clock3 className="h-6 w-6 text-sky-600 dark:text-sky-400" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                      Progresso da conferência
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+                      {reviewedDocumentCount}/{uploadedCount}
+                    </p>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div
+                        className="h-full rounded-full bg-emerald-600 transition-[width]"
+                        style={{
+                          width: `${uploadedCount > 0 ? Math.min(100, Math.round((reviewedDocumentCount / uploadedCount) * 100)) : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {!canUploadProcessDocuments && visibleDocumentRows.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                   <FileStack className="mx-auto h-8 w-8 text-slate-400" />
@@ -1436,184 +1499,210 @@ export function ProcessDetailPage() {
                 </div>
               ) : null}
 
-              {visibleDocumentRows.map((document) => (
-                <div
-                  key={document.id}
-                  data-process-document-card="true"
-                  className="rounded-2xl border border-slate-200 p-4 [contain:layout_style]"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      {document.uploaded ? (
-                        <button
-                          type="button"
-                          onClick={() => openViewer(document.id)}
-                          className="block max-w-full text-left font-medium text-slate-950 hover:text-sky-700 hover:underline"
-                          title="Abrir documento em nova guia"
-                        >
-                          {document.label}
-                        </button>
-                      ) : (
-                        <p className="font-medium text-slate-950">{document.label}</p>
-                      )}
-                      <button
-                        type="button"
-                        disabled={!document.uploaded}
-                        onClick={() => document.uploaded && openViewer(document.id)}
-                        className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default"
-                        title={document.uploaded ? "Abrir documento em nova guia" : undefined}
-                      >
-                        {document.fileName || "Arquivo ainda não enviado"}
-                        {document.mimeType ? ` • ${document.mimeType}` : ""}
-                        {document.sizeLabel ? ` • ${document.sizeLabel}` : ""}
-                      </button>
-                      {document.uploaded ? (
-                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
-                          Origem: {document.source === "profissional" ? "Profissional responsável" : document.source}
-                        </p>
-                      ) : null}
-                    </div>
+              {visibleDocumentRows.map((document, index) => {
+                const reviewVisual = getDocumentReviewVisual(document);
+                const isApproved = document.reviewStatus === "aprovado";
+                const hasCommunique = document.reviewStatus === "rejeitado";
 
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="rounded-full">
-                        {document.required ? "Obrigatório" : "Opcional"}
-                      </Badge>
-                      <Badge variant="outline" className="rounded-full">
-                        {document.uploaded ? "Enviado" : "Pendente"}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full ${
-                          document.reviewStatus === "aprovado"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : document.reviewStatus === "rejeitado"
-                              ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
-                              : "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
-                        }`}
-                      >
-                        {document.reviewStatus || "pendente"}
-                      </Badge>
+                return (
+                  <div
+                    key={document.id}
+                    data-process-document-card="true"
+                    className={`relative overflow-hidden rounded-2xl border p-4 shadow-sm transition-colors [contain:layout_style] ${reviewVisual.card}`}
+                  >
+                    <div
+                      className={`absolute inset-y-0 left-0 w-1 ${
+                        isApproved
+                          ? "bg-emerald-500"
+                          : hasCommunique
+                            ? "bg-amber-500"
+                            : document.uploaded
+                              ? "bg-sky-500"
+                              : "bg-slate-300 dark:bg-slate-700"
+                      }`}
+                    />
 
-                      {canReviewDocuments && document.uploaded ? (
-                        <button
-                          type="button"
-                          onClick={() => openAnalysisViewer(document.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
-                        >
-                          <Maximize2 className="h-3.5 w-3.5" />
-                          Abrir para análise
-                        </button>
-                      ) : (document.previewUrl || document.uploaded) ? (
-                        <button
-                          type="button"
-                          onClick={() => openViewer(document.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
-                        >
-                          <Maximize2 className="h-3.5 w-3.5" />
-                          Abrir documento
-                        </button>
-                      ) : null}
-
-                    </div>
-                  </div>
-
-                  {canRecoverStoredDocuments && !document.uploaded ? (
-                    <div data-pending-document-card="true" className="mt-4 rounded-2xl border p-4">
-                      <p className="text-sm font-semibold text-amber-900">
-                        {canUploadProcessDocuments ? "Documento pendente de envio" : "Upload do profissional aguardando vínculo"}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-amber-800">
-                        {canUploadProcessDocuments
-                          ? "Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto."
-                          : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
-                      </p>
-                      {recoverableFiles.length > 0 ? (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                          <Select
-                            value={recoverableSelection[document.id] || ""}
-                            onValueChange={(value) =>
-                              setRecoverableSelection((current) => ({ ...current, [document.id]: value }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Escolher upload anterior" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {recoverableFiles.map((file) => (
-                                <SelectItem key={file.objectKey} value={file.objectKey}>
-                                  {file.fileName} • {formatBytes(file.size)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-full"
-                            disabled={
-                              processActionBusy === `recover-document-${document.id}` ||
-                              !recoverableSelection[document.id]
-                            }
-                            onClick={() => void handleRecoverStoredDocument(document)}
-                          >
-                            {processActionBusy === `recover-document-${document.id}`
-                              ? "Recuperando..."
-                              : "Recuperar arquivo"}
-                          </Button>
+                    <div className="flex flex-wrap items-start justify-between gap-4 pl-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+                            Documento {String(index + 1).padStart(2, "0")} de {String(visibleDocumentRows.length).padStart(2, "0")}
+                          </span>
+                          <Badge variant="outline" className={`rounded-full font-semibold ${reviewVisual.badge}`}>
+                            {isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
+                            {reviewVisual.label}
+                          </Badge>
                         </div>
-                      ) : null}
 
-                      {canUploadProcessDocuments ? (
-                        <>
-                          <div className="mt-3">
-                            <FileDropZone
-                              title={document.label}
-                              description="PDF ou imagem. O arquivo será salvo no armazenamento oficial e ficará disponível para análise da Prefeitura."
-                              accept=".pdf,image/*"
-                              multiple={false}
-                              allowPreview
-                              files={documentUploads[document.id] ?? []}
-                              onFilesSelected={(selected) =>
-                                setDocumentUploads((current) => ({ ...current, [document.id]: selected }))
-                              }
-                            />
-                          </div>
-                          <Button
+                        {document.uploaded ? (
+                          <button
                             type="button"
-                            className="mt-3 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                            disabled={
-                              processActionBusy === `upload-document-${document.id}` ||
-                              !(documentUploads[document.id]?.[0]?.file)
-                            }
-                            onClick={() => void handleUploadMissingDocument(document)}
+                            onClick={() => openViewer(document.id)}
+                            className="block max-w-full text-left font-semibold text-slate-950 hover:text-sky-700 hover:underline dark:text-slate-100 dark:hover:text-sky-300"
+                            title="Abrir documento em nova guia"
                           >
-                            {processActionBusy === `upload-document-${document.id}`
-                              ? "Enviando..."
-                              : "Enviar documento"}
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
+                            {document.label}
+                          </button>
+                        ) : (
+                          <p className="font-semibold text-slate-950 dark:text-slate-100">{document.label}</p>
+                        )}
 
-                  {canReviewDocuments && document.uploaded ? (
-                    <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                      <p className="mr-auto text-sm text-slate-500">
-                        A decisão documental é feita somente na tela de análise. Pendências devem ser formalizadas por Comunique-se ao profissional.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full border-sky-200 text-sky-700"
-                        onClick={() => openAnalysisViewer(document.id)}
-                      >
-                        <Maximize2 className="mr-2 h-4 w-4" />
-                        Abrir análise
-                      </Button>
+                        <button
+                          type="button"
+                          disabled={!document.uploaded}
+                          onClick={() => document.uploaded && openViewer(document.id)}
+                          className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-400 dark:enabled:hover:text-sky-300"
+                          title={document.uploaded ? "Abrir documento em nova guia" : undefined}
+                        >
+                          {document.fileName || "Arquivo ainda não enviado"}
+                          {document.mimeType ? ` • ${document.mimeType}` : ""}
+                          {document.sizeLabel ? ` • ${document.sizeLabel}` : ""}
+                        </button>
+
+                        {document.uploaded ? (
+                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                            Origem: {document.source === "profissional" ? "Profissional responsável" : document.source}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Badge variant="outline" className="rounded-full border-slate-200 bg-white/70 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+                          {document.required ? "Obrigatório" : "Opcional"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full ${
+                            document.uploaded
+                              ? "border-slate-200 bg-white/70 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300"
+                              : "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/50 dark:bg-amber-950/60 dark:text-amber-300"
+                          }`}
+                        >
+                          {document.uploaded ? "Enviado" : "Pendente de envio"}
+                        </Badge>
+
+                        {!canReviewDocuments && (document.previewUrl || document.uploaded) ? (
+                          <button
+                            type="button"
+                            onClick={() => openViewer(document.id)}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
+                          >
+                            <Maximize2 className="h-3.5 w-3.5" />
+                            Abrir documento
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                  ) : null}
-                </div>
-              ))}
+
+                    {canRecoverStoredDocuments && !document.uploaded ? (
+                      <div data-pending-document-card="true" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-500/40 dark:bg-amber-950/25">
+                        <p className="text-sm font-semibold text-amber-950 dark:text-amber-200">
+                          {canUploadProcessDocuments ? "Documento pendente de envio" : "Upload do profissional aguardando vínculo"}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-300">
+                          {canUploadProcessDocuments
+                            ? "Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto."
+                            : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
+                        </p>
+                        {recoverableFiles.length > 0 ? (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                            <Select
+                              value={recoverableSelection[document.id] || ""}
+                              onValueChange={(value) =>
+                                setRecoverableSelection((current) => ({ ...current, [document.id]: value }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Escolher upload anterior" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {recoverableFiles.map((file) => (
+                                  <SelectItem key={file.objectKey} value={file.objectKey}>
+                                    {file.fileName} • {formatBytes(file.size)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full"
+                              disabled={
+                                processActionBusy === `recover-document-${document.id}` ||
+                                !recoverableSelection[document.id]
+                              }
+                              onClick={() => void handleRecoverStoredDocument(document)}
+                            >
+                              {processActionBusy === `recover-document-${document.id}`
+                                ? "Recuperando..."
+                                : "Recuperar arquivo"}
+                            </Button>
+                          </div>
+                        ) : null}
+
+                        {canUploadProcessDocuments ? (
+                          <>
+                            <div className="mt-3">
+                              <FileDropZone
+                                title={document.label}
+                                description="PDF ou imagem. O arquivo será salvo no armazenamento oficial e ficará disponível para análise da Prefeitura."
+                                accept=".pdf,image/*"
+                                multiple={false}
+                                allowPreview
+                                files={documentUploads[document.id] ?? []}
+                                onFilesSelected={(selected) =>
+                                  setDocumentUploads((current) => ({ ...current, [document.id]: selected }))
+                                }
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              className="mt-3 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+                              disabled={
+                                processActionBusy === `upload-document-${document.id}` ||
+                                !(documentUploads[document.id]?.[0]?.file)
+                              }
+                              onClick={() => void handleUploadMissingDocument(document)}
+                            >
+                              {processActionBusy === `upload-document-${document.id}`
+                                ? "Enviando..."
+                                : "Enviar documento"}
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {canReviewDocuments && document.uploaded ? (
+                      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
+                        <div className="mr-auto min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            {isApproved
+                              ? "Documento conferido e aprovado."
+                              : hasCommunique
+                                ? "Há Comunique-se registrado para correção pelo profissional."
+                                : "Documento aguardando conferência técnica."}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            {hasCommunique
+                              ? "Abra a análise para consultar as marcações e a exigência enviada."
+                              : "A decisão e as anotações são feitas exclusivamente na tela de análise."}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={`rounded-full px-5 font-semibold ${reviewVisual.button}`}
+                          onClick={() => openAnalysisViewer(document.id)}
+                        >
+                          <Maximize2 className="mr-2 h-4 w-4" />
+                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir análise"}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
           )}
