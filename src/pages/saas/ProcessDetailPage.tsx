@@ -1705,7 +1705,7 @@ export function ProcessDetailPage() {
                       {canProtocolConfirmPayment ? (
                         <Button
                           type="button"
-                          className="shrink-0 rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                          className="sig-force-dark-action shrink-0 rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
                           disabled={processActionBusy === "confirm-protocol-payment"}
                           onClick={handleConfirmProtocolPayment}
                         >
