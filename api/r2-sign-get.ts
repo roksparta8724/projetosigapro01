@@ -7,6 +7,7 @@
  */
 
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { resolveMunicipalDocumentTarget } from "../server/municipal-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -37,6 +38,11 @@ function resolveR2Endpoint() {
   } catch {
     return rawEndpoint.replace(/\/+$/, "");
   }
+}
+
+function extractMunicipalityId(objectKey: string) {
+  const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
+  return match?.[1] || "";
 }
 
 function getAllowedBuckets() {
@@ -130,6 +136,29 @@ export default async function handler(req: Req, res: Res) {
         ? Math.max(60, Math.min(expiresIn, 86400))
         : 21600;
 
+    const municipalityId = extractMunicipalityId(objectKey);
+    const municipalTarget = municipalityId
+      ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
+      : null;
+
+    if (municipalTarget) {
+      const signedUrl = await getSignedUrl(
+        municipalTarget.client,
+        new GetObjectCommand({
+          Bucket: municipalTarget.bucket,
+          Key: municipalTarget.objectKey,
+        }),
+        { expiresIn: ttl },
+      );
+      json(res, 200, {
+        signedUrl,
+        bucket,
+        objectKey,
+        storageProvider: "municipal_s3",
+      });
+      return;
+    }
+
     const client = new S3Client({
       region: "auto",
       endpoint,
@@ -148,7 +177,7 @@ export default async function handler(req: Req, res: Res) {
       { expiresIn: ttl },
     );
 
-    json(res, 200, { signedUrl, bucket, objectKey });
+    json(res, 200, { signedUrl, bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Erro ao gerar link de leitura.";
     const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
