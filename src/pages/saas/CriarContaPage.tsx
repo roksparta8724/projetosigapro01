@@ -217,8 +217,16 @@ export function CriarContaPage() {
     setError("");
     setStatus("");
 
-    if (!form.tenantId || !availableInstitutions.some((item) => item.id === form.tenantId) ||
-        (tenant.mode === "tenant" && tenant.municipalityId !== form.tenantId)) {
+    const resolvedTenantId =
+      tenant.mode === "tenant"
+        ? tenant.municipalityId || ""
+        : tenantFromLink || form.tenantId;
+
+    if (
+      !resolvedTenantId ||
+      !availableInstitutions.some((item) => item.id === resolvedTenantId) ||
+      (tenant.mode === "tenant" && tenant.municipalityId !== resolvedTenantId)
+    ) {
       setError("Prefeitura não identificada no link de acesso.");
       return;
     }
@@ -310,7 +318,7 @@ export function CriarContaPage() {
     }
 
     writePendingSignup({
-      tenantId: form.tenantId,
+      tenantId: resolvedTenantId,
       role: form.role === "property_owner" ? "property_owner" : "profissional_externo",
       fullName: form.fullName,
       email: normalizedEmail,
@@ -341,7 +349,7 @@ export function CriarContaPage() {
         emailRedirectTo,
         data: {
           role: form.role,
-          tenant_id: form.tenantId,
+          tenant_id: resolvedTenantId,
           full_name: form.fullName,
           title: form.title || form.professionalType || roleLabels[form.role],
           phone: form.phone,
@@ -384,7 +392,7 @@ export function CriarContaPage() {
         try {
           if (form.role === "property_owner") {
             await registerRemoteOwnerAccount({
-              tenantId: form.tenantId,
+              tenantId: resolvedTenantId,
               fullName: form.fullName,
               email: normalizedEmail,
               cpfCnpj: cpf,
@@ -394,7 +402,7 @@ export function CriarContaPage() {
             });
           } else {
             await registerRemoteExternalAccount({
-              tenantId: form.tenantId,
+              tenantId: resolvedTenantId,
               fullName: form.fullName,
               email: normalizedEmail,
               cpfCnpj: cpf,
