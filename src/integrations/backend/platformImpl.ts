@@ -2087,6 +2087,52 @@ export async function upsertRemoteProcessMarker(
   });
 }
 
+export async function updateRemoteProcessConstructionData(input: {
+  processId: string;
+  areaM2: number;
+  usage: string;
+  constructionStandard?: string | null;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  if (!Number.isFinite(input.areaM2) || input.areaM2 <= 0) {
+    throw new Error("Informe uma metragem válida para a obra.");
+  }
+  if (!input.usage.trim()) {
+    throw new Error("Informe o tipo da obra.");
+  }
+
+  const { data: processRow, error: processError } = await db
+    .from("processes")
+    .select("id,property_id")
+    .eq("id", input.processId)
+    .maybeSingle();
+
+  if (processError) throw processError;
+  if (!processRow?.property_id) {
+    throw new Error("Imóvel vinculado ao processo não foi encontrado.");
+  }
+
+  const { error } = await db
+    .from("properties")
+    .update({
+      area_m2: input.areaM2,
+      usage_type: input.usage.trim(),
+      construction_standard: input.constructionStandard?.trim() || "medio",
+    })
+    .eq("id", processRow.property_id);
+
+  if (error) throw error;
+
+  return {
+    process_id: input.processId,
+    property_id: processRow.property_id,
+    area_m2: input.areaM2,
+    usage_type: input.usage.trim(),
+    construction_standard: input.constructionStandard?.trim() || "medio",
+  };
+}
+
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
   return callProcessRpc("request_construction_payment_guide_v1", {
     _process_id: processId,
