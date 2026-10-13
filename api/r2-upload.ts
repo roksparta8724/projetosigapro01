@@ -6,6 +6,7 @@
  */
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { resolveMunicipalDocumentTarget } from "../server/municipal-storage";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -306,6 +307,9 @@ export default async function handler(req: Req, res: Res) {
 
     const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    const municipalTarget = municipalityId
+      ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
+      : null;
 
     if (municipalityId) {
       const accessCheck = await callDataApiRpc(req, "has_tenant_access", {
@@ -327,41 +331,65 @@ export default async function handler(req: Req, res: Res) {
       }
 
       const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
-      const capability =
-        bucket === documentBucket ? "storage_bytes" : "module:Configurações";
-      const increment = bucket === documentBucket ? buffer.byteLength : 0;
-      const entitlement = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
-        _municipality_id: municipalityId,
-        _capability: capability,
-        _increment: increment,
-      });
-
-      if (!entitlement.ok) {
-        json(res, 409, {
-          error:
-            entitlement.error ||
-            (capability === "storage_bytes"
-              ? "O envio excede o limite de armazenamento contratado."
-              : "O plano desta Prefeitura não permite alterar arquivos institucionais."),
+      // Quando a Prefeitura usa armazenamento próprio, os bytes deixam de consumir
+      // a franquia física do R2 do SIGAPRO. As demais regras contratuais continuam.
+      if (!municipalTarget || bucket !== documentBucket) {
+        const capability =
+          bucket === documentBucket ? "storage_bytes" : "module:Configurações";
+        const increment = bucket === documentBucket ? buffer.byteLength : 0;
+        const entitlement = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
+          _municipality_id: municipalityId,
+          _capability: capability,
+          _increment: increment,
         });
-        return;
+
+        if (!entitlement.ok) {
+          json(res, 409, {
+            error:
+              entitlement.error ||
+              (capability === "storage_bytes"
+                ? "O envio excede o limite de armazenamento contratado."
+                : "O plano desta Prefeitura não permite alterar arquivos institucionais."),
+          });
+          return;
+        }
       }
+    }
+
+    const resolvedContentType =
+      typeof contentType === "string" && contentType
+        ? contentType
+        : "application/octet-stream";
+
+    if (municipalTarget) {
+      await municipalTarget.client.send(new PutObjectCommand({
+        Bucket: municipalTarget.bucket,
+        Key: municipalTarget.objectKey,
+        Body: buffer,
+        ContentType: resolvedContentType,
+      }));
+
+      json(res, 200, {
+        bucket,
+        objectKey,
+        publicUrl: "",
+        storageProvider: "municipal_s3",
+      });
+      return;
     }
 
     await putR2ObjectWithFallback({
       bucket,
       objectKey,
       body: buffer,
-      contentType:
-        typeof contentType === "string" && contentType
-          ? contentType
-          : "application/octet-stream",
+      contentType: resolvedContentType,
     });
 
     json(res, 200, {
       bucket,
       objectKey,
       publicUrl: buildPublicUrl(bucket, objectKey),
+      storageProvider: "sigapro_r2",
     });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
