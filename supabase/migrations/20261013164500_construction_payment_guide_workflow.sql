@@ -339,6 +339,37 @@ begin
     raise exception 'Falha ao emitir a Guia de Recolhimento da Obra';
   end if;
 
+  update public.processes
+     set current_department='Financeiro',
+         current_queue='Pagamento - Guia de Recolhimento da Obra',
+         sla_stage='Guia de Recolhimento da Obra aguardando pagamento',
+         updated_at=now()
+   where id=_process_id;
+
+  update public.process_movements
+     set description='Guia de Recolhimento da Obra emitida pelo Financeiro.'
+   where id=(
+     select pm.id
+     from public.process_movements pm
+     where pm.process_id=_process_id
+       and pm.movement_type='guia_emitida'
+     order by pm.created_at desc
+     limit 1
+   );
+
+  update public.process_audit_entries
+     set title='Guia de Recolhimento da Obra emitida',
+         detail='Guia de Recolhimento da Obra emitida pelo Setor Financeiro.'
+   where id=(
+     select pa.id
+     from public.process_audit_entries pa
+     where pa.process_id=_process_id
+       and pa.category='financeiro'
+       and pa.title ilike '%guia%emitida%'
+     order by pa.created_at desc
+     limit 1
+   );
+
   update public.payment_guides
      set requested_by_profile_id=_request.created_by_profile_id,
          requested_by_name=coalesce(_requester_name,'Analista'),
