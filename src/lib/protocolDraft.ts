@@ -13,6 +13,7 @@ export interface ProtocolDraftForm {
   quadra: string;
   area: string;
   uso: string;
+  tipoObra: string;
   padraoConstrutivo: string;
   observacoes: string;
   profissional: string;
@@ -55,6 +56,7 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   quadra: "",
   area: "",
   uso: "",
+  tipoObra: "",
   padraoConstrutivo: "medio",
   observacoes: "",
   profissional: "",
