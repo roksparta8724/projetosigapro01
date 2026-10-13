@@ -1446,6 +1446,17 @@ export function ProcessDetailPage() {
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            {canProtocolConfirmPayment ? (
+              <Button
+                type="button"
+                className="mt-3 rounded-full bg-emerald-600 px-4 font-semibold !text-white hover:bg-emerald-700"
+                disabled={processActionBusy === "confirm-protocol-payment"}
+                onClick={handleConfirmProtocolPayment}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
+              </Button>
+            ) : null}
             {constructionGuide ? (
               <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
                 <Eye className="mr-2 h-4 w-4" />
