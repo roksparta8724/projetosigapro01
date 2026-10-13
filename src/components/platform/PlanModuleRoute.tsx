@@ -16,10 +16,17 @@ export function PlanModuleRoute({
   }
 
   if (entitlements.isResolving) {
-    // Mantém a página já autorizada visualmente montada durante a revalidação.
-    // A autorização contratual definitiva continua sendo aplicada assim que
-    // o contexto do plano termina de sincronizar.
-    return <>{children}</>;
+    // Falha fechada: durante troca de contas nunca montar um módulo cujo
+    // plano e Prefeitura ainda não foram confirmados para o usuário atual.
+    // Evita a exibição transitória de dados ou ações da sessão anterior.
+    return (
+      <main className="flex min-h-[240px] w-full items-center justify-center bg-transparent px-4 py-8" role="status" aria-live="polite" aria-busy="true">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+          Validando acesso da Prefeitura
+        </div>
+      </main>
+    );
   }
 
   const planName = entitlements.plan?.name ?? "não configurado";
