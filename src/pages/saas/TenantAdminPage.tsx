@@ -118,6 +118,79 @@ function getUserDepartmentLabel(user: SessionUser) {
 
   return "Não informado";
 }
+
+function normalizeDepartmentIdentity(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function resolveMunicipalRoleFromDepartment(
+  departmentName: string,
+  currentRole: UserRole,
+): UserRole {
+  if (!departmentName.trim()) return currentRole;
+
+  if (
+    currentRole === "master_admin" ||
+    currentRole === "master_ops" ||
+    currentRole === "prefeitura_admin" ||
+    currentRole === "prefeitura_supervisor"
+  ) {
+    return currentRole;
+  }
+
+  const normalized = normalizeDepartmentIdentity(departmentName);
+
+  if (/urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao/.test(normalized)) {
+    return "analista";
+  }
+
+  if (/finance|financa|fazenda|tesour|arrecad|tribut/.test(normalized)) {
+    return "financeiro";
+  }
+
+  if (/fiscaliz|postura/.test(normalized)) {
+    return "fiscal";
+  }
+
+  if (/administracao|administrativo|protocolo|triagem|recepcao|expediente|atendimento/.test(normalized)) {
+    return "setor_intersetorial";
+  }
+
+  // Qualquer unidade cadastrada no organograma é vínculo funcional com a Prefeitura.
+  return "setor_intersetorial";
+}
+
+function applyMunicipalDepartmentSelection(
+  departmentName: string,
+  current: {
+    role: UserRole;
+    profileLabel: string;
+    accessLevel: string;
+    department: string;
+  },
+) {
+  if (!departmentName) {
+    return { ...current, department: "" };
+  }
+
+  const nextRole = resolveMunicipalRoleFromDepartment(departmentName, current.role);
+  return {
+    ...current,
+    department: departmentName,
+    role: nextRole,
+    profileLabel: "",
+    accessLevel:
+      nextRole === "prefeitura_admin"
+        ? "3"
+        : nextRole === "prefeitura_supervisor"
+          ? "2"
+          : current.accessLevel || "1",
+  };
+}
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
 
@@ -347,13 +420,17 @@ export function TenantAdminPage() {
     setEditStatusMessage("Salvando alterações...");
 
     try {
+      const resolvedRole = editForm.department.trim()
+        ? resolveMunicipalRoleFromDepartment(editForm.department, editForm.role)
+        : editForm.role;
+
       const updated = await updateTenantUser(userId, {
         name: normalizedName,
-        role: editForm.role,
-        profileLabel: editForm.profileLabel,
+        role: resolvedRole,
+        profileLabel: resolvedRole === "profissional_externo" ? editForm.profileLabel : "",
         title: normalizedTitle,
         department: selectedDepartment?.name ?? editForm.department.trim(),
-        userType: editForm.role === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
+        userType: resolvedRole === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
         accessLevel: Number(editForm.accessLevel) as 1 | 2 | 3,
       });
 
@@ -652,7 +729,17 @@ export function TenantAdminPage() {
               </div>
               <div className="space-y-2">
                 <Label>Departamento no organograma</Label>
-                <Select value={editForm.department || "__none"} onValueChange={(value) => setEditForm((current) => ({ ...current, department: value === "__none" ? "" : value }))}>
+                <Select
+                  value={editForm.department || "__none"}
+                  onValueChange={(value) =>
+                    setEditForm((current) =>
+                      applyMunicipalDepartmentSelection(
+                        value === "__none" ? "" : value,
+                        current,
+                      ),
+                    )
+                  }
+                >
                   <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">Sem departamento</SelectItem>
