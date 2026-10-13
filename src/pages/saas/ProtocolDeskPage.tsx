@@ -105,19 +105,15 @@ export function ProtocolDeskPage() {
   const isExternalProfessionalSubmission = (process: ProcessRecord) =>
     isExternalProfessionalProcess(process);
 
-  // O Protocolo acompanha todas as entradas da Prefeitura. Solicitações abertas
-  // pelo profissional externo precisam aparecer aqui desde o primeiro registro,
-  // mesmo depois de seguirem para Urbanismo, Financeiro ou outra unidade.
+  // "Todos os protocolos" é o livro de registro da Prefeitura:
+  // depois que um protocolo é criado, ele nunca desaparece só porque mudou de setor.
+  // Permissões operacionais continuam sendo aplicadas nas filas e ações abaixo.
   const processes = useMemo(
     () =>
-      allProcesses.filter((item) => {
-        if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, item)) return false;
-        return (
-          canTrackProcess(session, item, effectiveScopeId) ||
-          isExternalProfessionalProcess(item)
-        );
-      }),
-    [allProcesses, effectiveScopeId, session],
+      allProcesses.filter(
+        (item) => Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item),
+      ),
+    [allProcesses, effectiveScopeId],
   );
 
   const protocolQueueProcesses = useMemo(
@@ -1012,8 +1008,8 @@ export function ProtocolDeskPage() {
 
         {section === "todos" ? (
           <TableCard
-            title="Todos os protocolos recebidos"
-            description="Registro completo das entradas presenciais e digitais. Protocolos abertos pelo profissional externo permanecem visíveis aqui durante toda a tramitação."
+            title={`Todos os protocolos recebidos (${processes.length})`}
+            description="Livro de registro permanente da Prefeitura: entradas presenciais e digitais continuam visíveis mesmo após seguirem para Urbanismo, Financeiro ou outra unidade."
             icon={ClipboardList}
           >
             {renderQueueList(
