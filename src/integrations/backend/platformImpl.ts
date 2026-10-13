@@ -1332,7 +1332,7 @@ export async function loadRemotePlatformStore() {
               kind === "iss_obra"
                 ? "Guia de Recolhimento de ISSQN da Obra"
                 : kind === "aprovacao_final"
-                  ? "Guia Final de Aprovação / Habite-se"
+                  ? "Guia de Recolhimento da Obra"
                   : "Guia de Recolhimento de Protocolo",
             code: String(guide.guide_number ?? ""),
             amount: Number(guide.amount ?? 0),
