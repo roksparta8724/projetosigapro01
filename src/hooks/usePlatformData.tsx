@@ -45,6 +45,7 @@ import {
   userProfiles as seedUserProfiles,
 } from "@/lib/platform";
 import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
+import { isNeonBackend } from "@/integrations/backend/config";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
@@ -544,7 +545,7 @@ function syncStore(store: PlatformStore) {
 
   // Cache operacional é permitido somente no ambiente local de desenvolvimento.
   // Em produção, perfis/processos/documentos permanecem apenas em memória.
-  if (hasBackendEnv && !isLocalDevHost()) {
+  if (hasBackendEnv && (!isLocalDevHost() || isNeonBackend)) {
     if (window.localStorage.getItem(LEGACY_RECONCILIATION_PENDING_KEY) !== "1") {
       window.localStorage.removeItem(STORAGE_KEY);
     }
@@ -671,7 +672,7 @@ function getInitialPlatformStoreState() {
   // Em produção, dados operacionais nunca são RESTAURADOS na interface.
   // Entretanto, capturamos uma cópia do cache antigo apenas para uma migração
   // controlada de protocolos que ainda não chegaram ao Neon.
-  if (hasBackendEnv && !localDev) {
+  if (hasBackendEnv && (!localDev || isNeonBackend)) {
     const legacyStore = readPersistedStore();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -719,6 +720,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const [remoteContextUserId, setRemoteContextUserId] = useState<string | null>(null);
   const lastFetchedUserId = useRef<string | null>(null);
   const allowRemoteInLocal =
+    isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
   const localDev = isLocalDevHost();
   const expectsRemoteStore = Boolean(hasBackendEnv && (!localDev || allowRemoteInLocal));
