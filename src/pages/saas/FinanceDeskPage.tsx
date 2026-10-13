@@ -87,7 +87,7 @@ export function FinanceDeskPage() {
       .map((guide) => ({ process, guide })),
   );
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
-  const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
+  const approvalGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
@@ -514,7 +514,10 @@ export function FinanceDeskPage() {
                                 {process.ownerName} • {process.technicalLead}
                               </p>
                               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {process.property.constructionStandard || "padrão não informado"}
+                                {process.property.area.toFixed(2)} m² • {process.property.usage || "Uso não informado"} • {process.property.workType || "Natureza da obra não informada"}
+                              </p>
+                              <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                                Responsável pela análise: {process.analysis?.assignedTo || request?.requestedBy || "Não atribuído"}
                               </p>
                               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                 Encaminhado por {request?.requestedBy || process.analysis?.assignedTo || "Analista responsável"}
