@@ -163,6 +163,18 @@ export async function getMunicipalStorageConnection(req: ApiReq, municipalityId:
   return result.payload || {};
 }
 
+export async function getMunicipalStorageSecretAdmin(req: ApiReq, municipalityId: string) {
+  const result = await callDataApiRpc<MunicipalStorageConnection>(
+    req,
+    "get_municipal_storage_secret_admin_v1",
+    { _municipality_id: municipalityId },
+  );
+  if (!result.ok) {
+    throw new Error(result.error || "Não foi possível carregar a credencial municipal para teste.");
+  }
+  return result.payload || {};
+}
+
 export async function resolveMunicipalStorageSecret(req: ApiReq, municipalityId: string) {
   const result = await callDataApiRpc<MunicipalStorageConnection>(
     req,
