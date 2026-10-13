@@ -973,7 +973,13 @@ export async function loadRemotePlatformStore() {
         membership.level_name ||
         role?.label ||
         "",
-      profileLabel: membership.profile_label || "",
+      profileLabel:
+        membership.profile_label ||
+        (
+          !["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
+            ? profile?.professional_type || ""
+            : ""
+        ),
       email: profile?.email ?? "",
       accountStatus,
       userType:
