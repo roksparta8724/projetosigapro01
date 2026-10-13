@@ -2235,10 +2235,20 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
-  if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
+  if (
+    session.role === "master_admin" ||
+    session.role === "master_ops" ||
+    session.role === "prefeitura_admin" ||
+    session.role === "prefeitura_supervisor"
+  ) {
     return true;
   }
+
   if (!isInternalRole(session.role)) return false;
+
+  if (session.role === "analista") return area === "analise";
+  if (session.role === "financeiro" || session.role === "fiscal") return area === "financeiro";
+
   const department = resolveDepartmentAccessBucket(session.department || session.title);
   return department === area;
 }
