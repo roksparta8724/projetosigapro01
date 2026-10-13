@@ -1151,6 +1151,12 @@ export async function loadRemotePlatformStore() {
     const markers = markersByProcess.get(process.id) ?? [];
     const owner = parties.find((party) => party.party_type === "proprietario");
     const externalLead = parties.find((party) => party.party_type === "profissional_externo");
+    const creatorProfile =
+      (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
+      (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    const externalLeadProfile =
+      (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
+      (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined);
 
     return {
       id: process.id,
@@ -1163,8 +1169,15 @@ export async function loadRemotePlatformStore() {
       status: process.status,
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
-      technicalLead: externalLead?.display_name ?? "Nao informado",
+      technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
+      createdByProfileId: process.created_by_profile_id ?? undefined,
+      createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
+      createdByEmail: creatorProfile?.email ?? undefined,
+      createdByRole: creatorProfile?.role ?? undefined,
+      professionalProfileId: externalLead?.profile_id ?? process.created_by_profile_id ?? undefined,
+      professionalUserId: externalLead?.user_id ?? process.created_by ?? creatorProfile?.user_id ?? undefined,
+      professionalEmail: externalLeadProfile?.email ?? creatorProfile?.email ?? undefined,
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
