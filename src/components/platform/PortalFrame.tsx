@@ -2079,7 +2079,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           <AppSidebar
             pathname={location.pathname}
             groups={sidebarGroups}
-            expanded={focusMode ? false : sidebarExpanded}
+            expanded={focusMode ? true : sidebarExpanded}
             mobileOpen={mobileSidebarOpen}
             onMobileClose={() => {
               setMobileSidebarOpen(false);
