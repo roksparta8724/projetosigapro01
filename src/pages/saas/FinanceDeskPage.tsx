@@ -87,7 +87,7 @@ export function FinanceDeskPage() {
       .map((guide) => ({ process, guide })),
   );
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
-  const approvalGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
+  const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
