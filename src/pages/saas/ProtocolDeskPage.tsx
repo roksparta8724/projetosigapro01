@@ -38,7 +38,6 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
-  canTrackProcess,
   isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
