@@ -2497,7 +2497,16 @@ export const institutions = tenants;
 export const institutionSettings = tenantSettings;
 
 export function isInstitutionPubliclyAvailable(institution: Institution | Tenant) {
-  return institution.status === "ativo";
+  if (institution.status !== "ativo") return false;
+
+  const publicIdentity = `${institution.name ?? ""} ${institution.city ?? ""} ${institution.subdomain ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  // O tenant técnico da plataforma nunca é destino de autocadastro.
+  // Contas públicas pertencem sempre à Prefeitura escolhida/resolvida pelo subdomínio.
+  return !publicIdentity.includes("sigapro plataforma") && !publicIdentity.includes("sigapro-plataforma");
 }
 
 export function getChecklistTemplate(processType: string, tenantId?: string | null, institutionId?: string | null) {
