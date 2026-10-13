@@ -93,11 +93,11 @@ export function FinanceDeskPage() {
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
     ? processes.filter((process) => {
         const hasGuide = getProcessPaymentGuides(process, tenantSettings).some(
-          (guide) => guide.kind === "aprovacao_final",
+          (guide) => guide.kind === "iss_obra",
         );
         const hasFinanceRequest = process.dispatches.some(
           (dispatch) =>
-            /guia de recolhimento da obra/i.test(dispatch.subject) &&
+            /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
             ["aguardando", "respondido"].includes(dispatch.status) &&
             /financ/i.test(dispatch.to),
         );
@@ -109,7 +109,7 @@ export function FinanceDeskPage() {
       .find((process) => process.id === processId)
       ?.dispatches.find(
         (dispatch) =>
-          /guia de recolhimento da obra/i.test(dispatch.subject) &&
+          /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
           ["aguardando", "respondido"].includes(dispatch.status) &&
           /financ/i.test(dispatch.to),
       );
@@ -154,7 +154,7 @@ export function FinanceDeskPage() {
       return;
     }
     if (!canConfigureWorkflow) {
-      setWorkflowStatus("Somente o administrador da Prefeitura pode definir quem emite a Guia de Recolhimento da Obra.");
+      setWorkflowStatus("Somente o administrador da Prefeitura pode definir quem emite a Guia de ISSQN / Projeto.");
       return;
     }
 
@@ -183,8 +183,8 @@ export function FinanceDeskPage() {
     setConstructionGuideBusyId(processId);
     setConstructionGuideStatus("");
     try {
-      await issuePaymentGuide(processId, session.name, "aprovacao_final");
-      setConstructionGuideStatus("Guia de Recolhimento da Obra emitida pelo Financeiro e vinculada ao processo.");
+      await issuePaymentGuide(processId, session.name, "iss_obra");
+      setConstructionGuideStatus("Guia de ISSQN / Projeto emitida pelo Financeiro e vinculada ao processo.");
     } catch (error) {
       setConstructionGuideStatus(
         error instanceof Error
@@ -284,7 +284,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida ISSQN da obra e Guia de Recolhimento da Obra conforme o workflow definido pela Prefeitura.",
+      "Consolida ISSQN / Projeto e a etapa posterior de Habite-se conforme as regras financeiras da Prefeitura.",
     currency: "BRL",
     active: true,
   };
@@ -473,7 +473,7 @@ export function FinanceDeskPage() {
 
               {constructionGuideStatus ? (
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${
-                  constructionGuideStatus.startsWith("Guia de Recolhimento")
+                  constructionGuideStatus.startsWith("Guia de ISSQN")
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-300"
                     : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/30 dark:text-rose-300"
                 }`}>
@@ -485,10 +485,10 @@ export function FinanceDeskPage() {
                 <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-500/30 dark:bg-sky-950/20">
                   <div className="mb-4">
                     <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
-                      Aguardando emissão pelo Financeiro
+                      ISSQN / Projeto aguardando emissão pelo Financeiro
                     </p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                      Processos concluídos pela Análise Urbanística e encaminhados formalmente para emissão da guia.
+                      Processos com análise técnica concluída e dados do ISSQN / Projeto encaminhados formalmente ao Financeiro.
                     </p>
                   </div>
 
@@ -507,7 +507,7 @@ export function FinanceDeskPage() {
                                   {formatOfficialProcessNumber(process.protocol)}
                                 </p>
                                 <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
-                                  Emissão solicitada
+                                  ISSQN / Projeto
                                 </Badge>
                               </div>
                               <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
@@ -532,7 +532,7 @@ export function FinanceDeskPage() {
                                 disabled={constructionGuideBusyId === process.id}
                                 onClick={() => void handleIssueConstructionGuide(process.id)}
                               >
-                                {constructionGuideBusyId === process.id ? "Emitindo..." : "Emitir guia da obra"}
+                                {constructionGuideBusyId === process.id ? "Emitindo..." : "Emitir ISSQN / Projeto"}
                               </Button>
                             </div>
                           </div>
@@ -804,9 +804,9 @@ export function FinanceDeskPage() {
                     }
                   />
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">2. ISSQN da obra</p>
+                    <p className="text-sm font-semibold text-slate-950">2. ISSQN / Projeto</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Quando ativa, a Análise Técnica encaminha o processo ao IPTU/Fiscal e o setor emite a guia de ISSQN.
+                      Após a aprovação técnica, a guia é calculada pela metragem e pelo uso da edificação. A emissão pode ficar com a Análise Urbanística, com o Financeiro ou com ambos, conforme decisão da Prefeitura.
                     </p>
                   </div>
                 </label>
@@ -831,17 +831,17 @@ export function FinanceDeskPage() {
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
                   <div>
                     <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
-                      Quem pode emitir a Guia de Recolhimento da Obra
+                      Quem pode emitir a Guia de ISSQN / Projeto
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
                       Cada Prefeitura pode definir sua própria responsabilidade operacional sem alterar a tabela de valores nem a rastreabilidade do processo.
                     </p>
                     <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
                       {constructionGuideIssuerMode === "financeiro"
-                        ? "A Análise Urbanística informa e confirma os dados da obra; depois encaminha ao Financeiro, que gera a guia."
+                        ? "A Análise Urbanística confere metragem, uso e natureza da obra; depois encaminha ao Financeiro, que emite a Guia de ISSQN / Projeto."
                         : constructionGuideIssuerMode === "ambos"
-                          ? "A Análise Urbanística pode gerar a guia diretamente ou encaminhar ao Financeiro para emissão. A primeira emissão registrada encerra a possibilidade de duplicidade."
-                          : "A Análise Urbanística gera a guia após concluir a análise. O Financeiro recebe automaticamente para controle, pagamento e baixa."}
+                          ? "A Análise Urbanística pode emitir a Guia de ISSQN / Projeto diretamente ou encaminhar ao Financeiro. A primeira emissão registrada impede duplicidade."
+                          : "A Análise Urbanística emite a Guia de ISSQN / Projeto após concluir a análise. O Financeiro recebe automaticamente para controle, pagamento e baixa."}
                     </p>
                   </div>
 
