@@ -38,7 +38,8 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
-  canAccessProcess,
+  canTrackProcess,
+  isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -93,15 +94,13 @@ export function ProtocolDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  // Isolamento operacional por departamento:
-  // o Protocolo só visualiza processos cuja pasta/responsabilidade atual pertence
-  // ao próprio setor. Depois do despacho, o processo deixa a fila do Protocolo e
-  // passa a ser operado exclusivamente pelo departamento destinatário.
+  // O Protocolo mantém rastreabilidade dos processos que originou, mas só opera
+  // aqueles cuja responsabilidade atual ainda pertence ao próprio departamento.
   const processes = useMemo(
     () =>
       allProcesses.filter((item) =>
         Boolean(effectiveScopeId) &&
-        canAccessProcess(session, item, effectiveScopeId),
+        canTrackProcess(session, item, effectiveScopeId),
       ),
     [allProcesses, effectiveScopeId, session],
   );
@@ -109,6 +108,7 @@ export function ProtocolDeskPage() {
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
+        if (!isProcessOwnedBySessionDepartment(session, item)) return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
           return (
@@ -130,7 +130,7 @@ export function ProtocolDeskPage() {
           "pagamento_confirmado",
         ].includes(item.status);
       }),
-    [processes],
+    [processes, session],
   );
 
   const tenantSettings =
@@ -282,7 +282,7 @@ export function ProtocolDeskPage() {
 
   const navItems = [
     { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
-    { value: "todos", label: "Protocolos do setor", helper: "Processos sob responsabilidade do Protocolo" },
+    { value: "todos", label: "Todos os protocolos", helper: "Acompanhamento e rastreabilidade do Protocolo" },
     { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
     { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
     { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
@@ -333,7 +333,10 @@ export function ProtocolDeskPage() {
 
   const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
     const selected = sourceItems.filter(
-      (process) => selectedProcessIds.has(process.id) && process.status === "pagamento_confirmado",
+      (process) =>
+        selectedProcessIds.has(process.id) &&
+        process.status === "pagamento_confirmado" &&
+        isProcessOwnedBySessionDepartment(session, process),
     );
 
     if (selected.length === 0) {
@@ -467,6 +470,7 @@ export function ProtocolDeskPage() {
               const isDeskFlow = deskProtocolIds.has(process.id);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
+              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
 
               return (
                 <div
@@ -541,13 +545,19 @@ export function ProtocolDeskPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          <MarkerSelector
-                            processId={process.id}
-                            tags={process.tags}
-                            actor={session.name}
-                            triggerClassName="h-9 rounded-xl text-[12px]"
-                          />
-                          {process.status === "pagamento_confirmado" ? (
+                          {ownedByProtocol ? (
+                            <MarkerSelector
+                              processId={process.id}
+                              tags={process.tags}
+                              actor={session.name}
+                              triggerClassName="h-9 rounded-xl text-[12px]"
+                            />
+                          ) : (
+                            <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600">
+                              Somente acompanhamento
+                            </span>
+                          )}
+                          {ownedByProtocol && process.status === "pagamento_confirmado" ? (
                             <Button
                               type="button"
                               className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
@@ -863,7 +873,7 @@ export function ProtocolDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow className="xl:grid-cols-4">
-              <StatCard label="Processos do setor" value={String(processes.length)} description="Sob responsabilidade atual do Protocolo" icon={ClipboardList} tone="blue" />
+              <StatCard label="Protocolos acompanhados" value={String(processes.length)} description="Rastreabilidade dos processos originados no setor" icon={ClipboardList} tone="blue" />
               <StatCard label="Na fila do Protocolo" value={String(protocolQueueProcesses.length)} description="Aguardando atuação do setor" icon={Layers3} tone="amber" />
               <StatCard label="SLA crítico" value={String(urgentProtocols.length)} description="Prazo curto ou vencido" icon={Clock3} tone="rose" />
               <StatCard label="Triados" value={String(triagedProtocols.length)} description="Conferência documental concluída" icon={CheckCircle2} tone="emerald" />
@@ -973,13 +983,13 @@ export function ProtocolDeskPage() {
 
         {section === "todos" ? (
           <TableCard
-            title="Protocolos sob responsabilidade do setor"
-            description="Somente processos que pertencem atualmente ao Protocolo. Após o despacho, a responsabilidade e a operação passam ao setor destinatário."
+            title="Protocolos do Protocolo"
+            description="O Protocolo acompanha a tramitação dos processos que originou. A operação e os documentos internos permanecem restritos ao departamento responsável pela etapa atual."
             icon={ClipboardList}
           >
             {renderQueueList(
               [...processes].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
-              "Nenhum processo sob responsabilidade do Protocolo neste momento.",
+              "Nenhum protocolo disponível para acompanhamento neste momento.",
             )}
           </TableCard>
         ) : null}
