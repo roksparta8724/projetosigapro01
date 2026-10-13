@@ -196,7 +196,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -460,6 +460,25 @@ export function ProcessDetailPage() {
   ).length;
   const reviewedDocumentCount = approvedDocumentCount + communicateDocumentCount;
   const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
+  const requiredAnalysisDocuments = process.documents.filter(
+    (document) => document.required || document.uploaded,
+  );
+  const allAnalysisDocumentsApproved =
+    requiredAnalysisDocuments.length > 0 &&
+    requiredAnalysisDocuments.every(
+      (document) => document.uploaded && document.reviewStatus === "aprovado",
+    );
+  const hasOpenAnalysisRequirements = process.requirements.some(
+    (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
+  );
+  const constructionGuide = visiblePaymentGuides.find(
+    (guide) => guide.kind === "aprovacao_final",
+  );
+  const constructionGuideRequest = process.dispatches.find(
+    (dispatch) =>
+      /guia de recolhimento da obra/i.test(dispatch.subject) &&
+      ["aguardando", "respondido"].includes(dispatch.status),
+  );
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -682,7 +701,7 @@ export function ProcessDetailPage() {
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
 
-  const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
+  const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
@@ -775,6 +794,14 @@ export function ProcessDetailPage() {
       "confirm-protocol-payment",
       () => markGuideAsPaid(process.id, session.name, "protocolo"),
       "Pagamento da guia de protocolo confirmado. O processo foi liberado para a próxima etapa.",
+    );
+  };
+
+  const handleRequestConstructionGuide = () => {
+    void runProcessAction(
+      "request-construction-guide",
+      () => requestConstructionPaymentGuide(process.id, session.name),
+      "Análise concluída. A solicitação da Guia de Recolhimento da Obra foi encaminhada ao Financeiro.",
     );
   };
 
@@ -1703,6 +1730,131 @@ export function ProcessDetailPage() {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+          )}
+
+          {activeTab === "analise" && (
+          <Card className={cardShell}>
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <FileCheck2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    Conclusão da Análise Urbanística
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    A guia da obra só pode ser solicitada depois que todos os documentos e projetos estiverem aprovados.
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`rounded-full font-semibold ${
+                    allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                  }`}
+                >
+                  {allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements
+                    ? "Análise documental concluída"
+                    : "Análise ainda pendente"}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pt-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Proprietário
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.ownerName}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{process.ownerDocument}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Profissional responsável
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.technicalLead}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Responsável técnico do processo</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Dados da obra
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {process.property.area.toFixed(2)} m²
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {process.property.usage || "Uso não informado"} • {constructionStandardLabel}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Analista solicitante
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                    {constructionGuideRequest?.requestedBy || session.name}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {constructionGuideRequest?.createdAt
+                      ? `Solicitado em ${constructionGuideRequest.createdAt}`
+                      : "Será registrado ao solicitar a emissão"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/30">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      Guia de Recolhimento da Obra
+                    </p>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                      A Análise Urbanística solicita a emissão. O funcionário do Financeiro confere os dados da obra, emite a guia e fica identificado como emissor no documento oficial.
+                    </p>
+                  </div>
+
+                  {constructionGuide ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Guia emitida pelo Financeiro
+                    </div>
+                  ) : constructionGuideRequest ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
+                      <Clock3 className="h-4 w-4" />
+                      Aguardando emissão pelo Financeiro
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="shrink-0 rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                      disabled={
+                        processActionBusy === "request-construction-guide" ||
+                        !canReviewDocuments ||
+                        !allAnalysisDocumentsApproved ||
+                        hasOpenAnalysisRequirements
+                      }
+                      onClick={handleRequestConstructionGuide}
+                    >
+                      <FileKey2 className="mr-2 h-4 w-4" />
+                      {processActionBusy === "request-construction-guide"
+                        ? "Solicitando..."
+                        : "Solicitar guia da obra"}
+                    </Button>
+                  )}
+                </div>
+
+                {!allAnalysisDocumentsApproved ? (
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
+                    Ainda existem documentos ou projetos pendentes de aprovação.
+                  </p>
+                ) : hasOpenAnalysisRequirements ? (
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
+                    Existe Comunique-se ou exigência aberta. Conclua a pendência antes de solicitar a guia.
+                  </p>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
           )}
