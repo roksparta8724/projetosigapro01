@@ -197,7 +197,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, updateConstructionGuideData, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateConstructionGuideData, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -505,6 +505,12 @@ export function ProcessDetailPage() {
     constructionGuide?.issuedBy ||
     constructionGuideIssueAudit?.actor ||
     "";
+  const constructionGuideIssuerMode =
+    tenantSettings?.constructionGuideIssuerMode ?? "analise";
+  const analysisCanIssueConstructionGuide =
+    constructionGuideIssuerMode === "analise" || constructionGuideIssuerMode === "ambos";
+  const financeCanIssueConstructionGuide =
+    constructionGuideIssuerMode === "financeiro" || constructionGuideIssuerMode === "ambos";
   const constructionAreaValue = Number(String(constructionAreaInput).replace(",", "."));
   const configuredApprovalProfiles = tenantSettings?.approvalRateProfiles ?? [];
   const constructionUsageOptions = Array.from(
@@ -791,11 +797,11 @@ export function ProcessDetailPage() {
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
           selectedGuide.kind === "aprovacao_final"
-            ? constructionGuideIssuer || constructionGuideRequester || session.name
+            ? constructionGuideRequester || process.analysis?.assignedTo || session.name
             : undefined,
         funcionarioEmissor:
           selectedGuide.kind === "aprovacao_final"
-            ? constructionGuideIssuer || session.name
+            ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
             : selectedGuide.issuedBy,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
@@ -862,29 +868,70 @@ export function ProcessDetailPage() {
     );
   };
 
-  const handleGenerateConstructionGuide = () => {
+  const getConstructionGuideInput = () => {
     const areaM2 = Number(String(constructionAreaInput).replace(",", "."));
     if (!Number.isFinite(areaM2) || areaM2 <= 0) {
       setProcessActionStatus("Informe a quantidade correta de metros quadrados da obra.");
-      return;
+      return null;
     }
     if (!constructionUsageInput.trim()) {
       setProcessActionStatus("Selecione o tipo da obra para calcular a guia.");
+      return null;
+    }
+
+    return {
+      processId: process.id,
+      areaM2,
+      usage: constructionUsageInput,
+      constructionStandard: constructionStandardInput || "medio",
+    };
+  };
+
+  const handleGenerateConstructionGuide = () => {
+    if (!analysisCanIssueConstructionGuide) {
+      setProcessActionStatus("Nesta Prefeitura, a Guia de Recolhimento da Obra é emitida pelo Setor Financeiro.");
       return;
     }
+    const input = getConstructionGuideInput();
+    if (!input) return;
 
     void runProcessAction(
       "generate-construction-guide",
       async () => {
-        await updateConstructionGuideData({
-          processId: process.id,
-          areaM2,
-          usage: constructionUsageInput,
-          constructionStandard: constructionStandardInput || "medio",
-        });
+        await updateConstructionGuideData(input);
         await issuePaymentGuide(process.id, session.name, "aprovacao_final");
       },
-      "Guia de Recolhimento da Obra gerada automaticamente. Ela já está no Financeiro para controle e pode ser enviada ao profissional.",
+      "Guia de Recolhimento da Obra gerada. Ela já está disponível no Financeiro para controle e pode ser enviada ao profissional.",
+    );
+  };
+
+  const handleForwardConstructionGuideToFinance = () => {
+    if (!financeCanIssueConstructionGuide) {
+      setProcessActionStatus("O workflow desta Prefeitura está configurado para emissão pela Análise Urbanística.");
+      return;
+    }
+    const input = getConstructionGuideInput();
+    if (!input) return;
+
+    void runProcessAction(
+      "forward-construction-guide",
+      async () => {
+        await updateConstructionGuideData(input);
+        await requestConstructionPaymentGuide(process.id, session.name);
+      },
+      "Dados da obra confirmados e encaminhados ao Financeiro para emissão da Guia de Recolhimento da Obra.",
+    );
+  };
+
+  const handleIssueConstructionGuideFromFinance = () => {
+    if (!financeCanIssueConstructionGuide) {
+      setProcessActionStatus("O administrador desta Prefeitura definiu que a guia deve ser emitida pela Análise Urbanística.");
+      return;
+    }
+    void runProcessAction(
+      "finance-issue-construction-guide",
+      () => issuePaymentGuide(process.id, session.name, "aprovacao_final"),
+      "Guia de Recolhimento da Obra emitida pelo Financeiro e vinculada ao processo.",
     );
   };
 
