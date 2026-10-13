@@ -26,7 +26,6 @@ import {
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   canAccessMunicipalArea,
-  canAccessProcess,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
