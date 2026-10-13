@@ -1984,6 +1984,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               processId,
               guideKind,
             });
+
+            const pendingRequest = process.dispatches.find(
+              (dispatch) =>
+                /guia de recolhimento da obra/i.test(dispatch.subject) &&
+                ["aguardando", "respondido"].includes(dispatch.status),
+            );
+            if (pendingRequest) {
+              await completeRemoteProcessDispatch({
+                dispatchId: pendingRequest.id,
+                unit: "Financeiro",
+              });
+            }
           }
         } else {
           await issueRemoteProcessPaymentGuide({
