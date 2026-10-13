@@ -77,6 +77,7 @@ interface PortalFrameProps {
   title: string;
   eyebrow: string;
   children: React.ReactNode;
+  focusMode?: boolean;
 }
 
 type LayoutThemeOverride = {
@@ -244,7 +245,7 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
+export function PortalFrame({ title, eyebrow, children, focusMode = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -2067,26 +2068,38 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
       </CommandDialog>
 
       <div className="sig-content-frame flex min-h-screen">
-        <AppSidebar
-          pathname={location.pathname}
-          groups={sidebarGroups}
-          expanded={sidebarExpanded}
-          mobileOpen={mobileSidebarOpen}
-          onMobileClose={() => setMobileSidebarOpen(false)}
-          inverseMain={inverseMainTheme}
-          darkSurface={darkSidebar}
-        />
+        {!focusMode ? (
+          <AppSidebar
+            pathname={location.pathname}
+            groups={sidebarGroups}
+            expanded={sidebarExpanded}
+            mobileOpen={mobileSidebarOpen}
+            onMobileClose={() => setMobileSidebarOpen(false)}
+            inverseMain={inverseMainTheme}
+            darkSurface={darkSidebar}
+          />
+        ) : null}
 
-        <main className="min-w-0 flex-1 px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6">
+        <main
+          className={cn(
+            "min-w-0 flex-1",
+            focusMode ? "px-0 py-0" : "px-2 py-2.5 sm:px-3 sm:py-3 lg:px-4.5 lg:py-4 2xl:px-6",
+          )}
+        >
           <div
             className={cn(
-              "sig-main-shell rounded-[20px] border p-2.5 shadow-sm sm:rounded-[22px] sm:p-3.5 md:p-4 lg:p-5",
-              inverseMainTheme
-                ? "border-white/10 bg-transparent shadow-[0_18px_36px_rgba(2,6,23,0.32)]"
-                : "border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)]",
+              "sig-main-shell",
+              focusMode
+                ? "min-h-full w-full rounded-none border-0 bg-white p-0 shadow-none"
+                : "rounded-[20px] border p-2.5 shadow-sm sm:rounded-[22px] sm:p-3.5 md:p-4 lg:p-5",
+              !focusMode && (
+                inverseMainTheme
+                  ? "border-white/10 bg-transparent shadow-[0_18px_36px_rgba(2,6,23,0.32)]"
+                  : "border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)]"
+              ),
             )}
           >
-            <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
+            {!focusMode ? <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="sig-label sig-fit-title">{eyebrow}</p>
@@ -2102,9 +2115,9 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   Menu
                 </Button>
               </div>
-            </div>
+            </div> : null}
 
-            <header className="mb-6 border-b border-slate-200 pb-5">
+            {!focusMode ? <header className="mb-6 border-b border-slate-200 pb-5">
               <div
                 className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
                 style={{
@@ -2175,7 +2188,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   </div>
                 </div>
               ) : null}
-            </header>
+            </header> : null}
 
             {dataError && !loading ? (
               <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
