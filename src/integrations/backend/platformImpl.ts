@@ -976,8 +976,8 @@ export async function loadRemotePlatformStore() {
       profileLabel:
         membership.profile_label ||
         (
-          !["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
-            ? profile?.professional_type || ""
+          ["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
+            ? profile?.professional_type || membership.department || role?.label || ""
             : ""
         ),
       email: profile?.email ?? "",
