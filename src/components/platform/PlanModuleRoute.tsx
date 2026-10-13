@@ -16,7 +16,10 @@ export function PlanModuleRoute({
   }
 
   if (entitlements.isResolving) {
-    return null;
+    // Mantém a página já autorizada visualmente montada durante a revalidação.
+    // A autorização contratual definitiva continua sendo aplicada assim que
+    // o contexto do plano termina de sincronizar.
+    return <>{children}</>;
   }
 
   const planName = entitlements.plan?.name ?? "não configurado";
