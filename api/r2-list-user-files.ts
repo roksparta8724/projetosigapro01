@@ -177,10 +177,6 @@ export default async function handler(req: Req, res: Res) {
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const bucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
 
-    if (!endpoint || !accessKeyId || !secretAccessKey) {
-      throw new Error("Armazenamento de documentos indisponível.");
-    }
-
     const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown };
     let since =
       typeof body.since === "string" && !Number.isNaN(Date.parse(body.since))
@@ -270,6 +266,10 @@ export default async function handler(req: Req, res: Res) {
       bucket,
       logicalRoot,
     );
+
+    if (!municipalTarget && (!endpoint || !accessKeyId || !secretAccessKey)) {
+      throw new Error("Armazenamento de documentos indisponível.");
+    }
 
     const client = municipalTarget
       ? municipalTarget.client
