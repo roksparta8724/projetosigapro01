@@ -25,6 +25,10 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  listRemoteMunicipalDepartments,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
+import {
   canAccessMunicipalArea,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
@@ -195,6 +199,42 @@ export function ProcessDetailPage() {
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, reviewProcessDocument, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, reopenProcess, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [organizationStatus, setOrganizationStatus] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    if (!effectiveScopeId || !isInternalRole(session.role)) {
+      setOrganizationDepartments([]);
+      setOrganizationStatus("");
+      return () => {
+        active = false;
+      };
+    }
+
+    setOrganizationStatus("Carregando organograma...");
+    void listRemoteMunicipalDepartments(effectiveScopeId)
+      .then((rows) => {
+        if (!active) return;
+        setOrganizationDepartments(
+          rows
+            .filter((item) => item.isActive)
+            .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
+        );
+        setOrganizationStatus("");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setOrganizationDepartments([]);
+        setOrganizationStatus(
+          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [effectiveScopeId, session.role]);
   const isMasterOrMunicipalAdmin =
     session.role === "master_admin" ||
     session.role === "master_ops" ||
@@ -470,33 +510,61 @@ export function ProcessDetailPage() {
   const canViewCompleteTransit =
     !isProtocolTrackingOnly &&
     (isInternalRole(session.role) || processTransitVisibility === "completo");
-  const sectorOptions = Array.from(
-    new Set(
-      [
-        "Recepção de Protocolo",
-        "Triagem",
-        URBAN_ANALYSIS_DEPARTMENT,
-        "Setor Intersetorial",
-        "Setor de IPTU",
-        "Financeiro",
-        "Fiscalização",
-        "Habite-se",
-        "Arquivo",
-        session.department,
-        session.title,
-        process.processControl?.currentFolder,
-        ...internalRecipients.flatMap((user) => [user.department, user.title]),
-        ...process.dispatches.flatMap((dispatch) => [dispatch.from, dispatch.to]),
-      ]
-        .filter(Boolean)
-        .map((item) => item!.trim()),
-    ),
+  const organizationById = new Map(
+    organizationDepartments.map((department) => [department.id, department]),
   );
+
+  const getOrganizationPath = (departmentName: string) => {
+    const normalized = departmentName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+    const matched = organizationDepartments.find((department) => {
+      const name = department.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLocaleLowerCase("pt-BR");
+      const code = department.code.trim().toLocaleLowerCase("pt-BR");
+      return name === normalized || (code && code === normalized);
+    });
+
+    if (!matched) return departmentName;
+
+    const chain: MunicipalDepartmentRecord[] = [];
+    let current: MunicipalDepartmentRecord | undefined = matched;
+    const visited = new Set<string>();
+
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id);
+      chain.unshift(current);
+      current = current.parentDepartmentId
+        ? organizationById.get(current.parentDepartmentId)
+        : undefined;
+    }
+
+    return chain
+      .map((item) => item.code?.trim() ? `${item.code.trim()} — ${item.name}` : item.name)
+      .join(" › ");
+  };
+
+  const organizationDestinations = organizationDepartments.filter(
+    (department) => department.isActive,
+  );
+
   const rawCurrentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
   const currentFolder =
     process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
+  const currentOrganizationPath = getOrganizationPath(currentFolder);
+
+  useEffect(() => {
+    if (!ownsCurrentProcessStage) return;
+    setDispatchFrom(currentFolder || session.department || session.title || "Unidade atual");
+  }, [currentFolder, ownsCurrentProcessStage, session.department, session.title]);
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
       ? "Luxo"
@@ -711,6 +779,15 @@ export function ProcessDetailPage() {
       return;
     }
     if (!dispatchFrom.trim() || !dispatchTo.trim() || !dispatchSubject.trim() || !dispatchDueDate) return;
+
+    const selectedDestination = organizationDepartments.find(
+      (department) => department.id === dispatchTo || department.name === dispatchTo,
+    );
+    if (!selectedDestination) {
+      setProcessActionStatus("Selecione o destino diretamente no organograma municipal.");
+      return;
+    }
+
     const ok = await runProcessAction(
       "dispatch",
       () =>
@@ -718,7 +795,7 @@ export function ProcessDetailPage() {
           processId: process.id,
           actor: session.name,
           from: dispatchFrom.trim(),
-          to: dispatchTo.trim(),
+          to: selectedDestination.name,
           subject: dispatchSubject.trim(),
           dueDate: dispatchDueDate,
           visibility: dispatchVisibility,
@@ -726,6 +803,7 @@ export function ProcessDetailPage() {
       "Despacho registrado no processo.",
     );
     if (ok) {
+      setDispatchTo("");
       setDispatchSubject("");
       setDispatchDueDate("");
       setDispatchVisibility("interno");
@@ -1430,35 +1508,16 @@ export function ProcessDetailPage() {
                   {canReviewDocuments && document.uploaded ? (
                     <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
                       <p className="mr-auto text-sm text-slate-500">
-                        Abra o documento em uma nova guia para usar marca-texto, observações e análise detalhada.
+                        A decisão documental é feita somente na tela de análise. Pendências devem ser formalizadas por Comunique-se ao profissional.
                       </p>
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-full border-emerald-200 text-emerald-700"
-                        onClick={() =>
-                          void runProcessAction(
-                            `review-${document.id}`,
-                            () => reviewProcessDocument(process.id, document.id, "aprovado", session.name),
-                            "Documento aprovado.",
-                          )
-                        }
+                        className="rounded-full border-sky-200 text-sky-700"
+                        onClick={() => openAnalysisViewer(document.id)}
                       >
-                        Aprovar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
-                        onClick={() =>
-                          void runProcessAction(
-                            `review-${document.id}`,
-                            () => reviewProcessDocument(process.id, document.id, "rejeitado", session.name),
-                            "Documento rejeitado.",
-                          )
-                        }
-                      >
-                        Rejeitar
+                        <Maximize2 className="mr-2 h-4 w-4" />
+                        Abrir análise
                       </Button>
                     </div>
                   ) : null}
@@ -1473,408 +1532,73 @@ export function ProcessDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-950">
                 <Workflow className="h-5 w-5" />
-                {isProtocolTrackingOnly ? "Acompanhamento da tramitação" : "Histórico do processo"}
+                {isProtocolTrackingOnly ? "Acompanhamento pelo organograma" : "Histórico do processo"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {(isProtocolTrackingOnly
-                ? visibleAuditTrail.map((entry) => ({
-                    id: entry.id,
-                    title: entry.title,
-                    detail: entry.category === "despacho" || entry.category === "status"
-                      ? entry.detail
-                      : "Atualização registrada no andamento do processo.",
-                    actor: entry.actor,
-                    at: entry.at,
-                  }))
-                : process.timeline
-              ).map((entry) => (
-                <div key={entry.id} data-process-history-entry="true" className="rounded-2xl bg-slate-50 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="font-semibold text-slate-950">{entry.title}</p>
-                    <p className="text-sm text-slate-500">{entry.at}</p>
+              {isProtocolTrackingOnly ? (
+                <>
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                    <p className="sig-label">Unidade responsável agora</p>
+                    <p className="mt-2 text-sm font-semibold text-sky-950">{currentOrganizationPath}</p>
+                    <p className="mt-1 text-sm text-sky-800">
+                      O Protocolo acompanha somente o caminho institucional do processo. Conteúdo técnico, documentos internos e decisões do setor responsável permanecem restritos.
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
-                  {!isProtocolTrackingOnly ? (
+
+                  {process.dispatches.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                      Ainda não há encaminhamento entre unidades registrado para este processo.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {[...process.dispatches].reverse().map((dispatch, index) => (
+                        <div key={dispatch.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sm font-semibold text-sky-800">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-semibold text-slate-950">{dispatch.subject || "Encaminhamento interno"}</p>
+                                <Badge variant="outline" className="rounded-full capitalize">{dispatch.status}</Badge>
+                              </div>
+                              <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                  <p className="sig-label">Saiu de</p>
+                                  <p className="mt-1 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.from)}</p>
+                                </div>
+                                <ArrowRightLeft className="mx-auto h-4 w-4 text-slate-400" />
+                                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                                  <p className="sig-label">Foi para</p>
+                                  <p className="mt-1 text-sm font-medium text-sky-950">{getOrganizationPath(dispatch.to)}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+                                <span>Prazo: {dispatch.dueDate || "não informado"}</span>
+                                {dispatch.assignedTo ? <span>Responsável: {dispatch.assignedTo}</span> : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                process.timeline.map((entry) => (
+                  <div key={entry.id} data-process-history-entry="true" className="rounded-2xl bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="font-semibold text-slate-950">{entry.title}</p>
+                      <p className="text-sm text-slate-500">{entry.at}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
                     <div className="mt-3 flex min-w-0 items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-slate-400">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800 text-sky-300 shadow-sm">
                         <UserRound className="h-4 w-4" />
                       </span>
                       <span className="sig-fit-title font-medium text-slate-300" title={entry.actor}>{entry.actor}</span>
                     </div>
-                  ) : null}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          )}
-        </div>
-        ) : null}
-
-        {showSecondaryDetailColumn ? (
-        <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
-          {activeTab === "analise" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <FileCheck2 className="h-5 w-5" />
-                Exigências formais
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isInternalRole(session.role) ? (
-                <form className="space-y-3" onSubmit={handleCreateRequirement}>
-                  <Input value={requirementTitle} onChange={(event) => setRequirementTitle(event.target.value)} placeholder="Título da exigência" />
-                  <Input value={requirementDescription} onChange={(event) => setRequirementDescription(event.target.value)} placeholder="Descreva a exigência formal" />
-                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
-                    <Input type="date" value={requirementDueDate} onChange={(event) => setRequirementDueDate(event.target.value)} />
-                    <Select value={requirementVisibility} onValueChange={(value) => setRequirementVisibility(value as "interno" | "externo" | "misto")}>
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="interno">Interno</SelectItem>
-                        <SelectItem value="externo">Externo</SelectItem>
-                        <SelectItem value="misto">Misto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="submit" className="w-full rounded-full bg-slate-950 hover:bg-slate-900">
-                    Registrar exigência formal
-                  </Button>
-                </form>
-              ) : null}
-
-              <div className="space-y-3">
-                {visibleRequirements.length === 0 ? (
-                  <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Nenhuma exigência formal registrada.</div>
-                ) : (
-                  visibleRequirements.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold text-slate-950">{item.title}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="rounded-full capitalize">{item.status}</Badge>
-                          <Badge variant="outline" className="rounded-full capitalize">{item.visibility}</Badge>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-600">{item.description}</p>
-                      <div className="mt-2 flex min-w-0 items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                        <UserAvatar name={item.createdBy} imageUrl={getProfileByName(item.createdBy)?.avatarUrl} size="sm" />
-                        <span className="sig-fit-copy" title={`Prazo ${item.dueDate} - criado por ${item.createdBy}`}>Prazo {item.dueDate} - criado por {item.createdBy}</span>
-                      </div>
-                      {item.response ? <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{item.response}</div> : null}
-
-                      {canAttachToRequirement(item) ? (
-                        <div className="mt-3 rounded-2xl border border-slate-200 p-3">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                            Anexos do comunique-se
-                          </p>
-                          <FileDropZone
-                            title={isInternalRole(session.role) ? "Anexar documento da Prefeitura" : "Anexar documento solicitado"}
-                            description={isInternalRole(session.role)
-                              ? "Arquivo interno ou complementar vinculado a esta exigência."
-                              : "Envie somente o documento solicitado pelo analista nesta exigência."}
-                            accept=".pdf,image/*"
-                            multiple={false}
-                            allowPreview
-                            files={requirementUploads[item.id] ?? []}
-                            onFilesSelected={(selected) =>
-                              setRequirementUploads((current) => ({ ...current, [item.id]: selected }))
-                            }
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="mt-3 rounded-full"
-                            disabled={
-                              processActionBusy === `requirement-upload-${item.id}` ||
-                              !(requirementUploads[item.id]?.[0]?.file)
-                            }
-                            onClick={() => void handleRequirementAttachment(item)}
-                          >
-                            {processActionBusy === `requirement-upload-${item.id}` ? "Anexando..." : "Anexar ao comunique-se"}
-                          </Button>
-                        </div>
-                      ) : null}
-
-                      {!isInternalRole(session.role) && item.status === "aberta" ? (
-                        <div className="mt-3 flex flex-col gap-3">
-                          <Input
-                            value={requirementResponse[item.id] || ""}
-                            onChange={(event) => setRequirementResponse((current) => ({ ...current, [item.id]: event.target.value }))}
-                            placeholder="Responder exigência"
-                          />
-                          <Button
-                            type="button"
-                            className="rounded-full bg-slate-950 hover:bg-slate-900"
-                            onClick={() => {
-                              void (async () => {
-                                const ok = await runProcessAction(
-                                  `respond-${item.id}`,
-                                  () =>
-                                    respondRequirement({
-                                      processId: process.id,
-                                      requirementId: item.id,
-                                      response: requirementResponse[item.id] || "",
-                                      actor: session.name,
-                                    }),
-                                  "Resposta da exigência registrada.",
-                                );
-                                if (ok) {
-                                  setRequirementResponse((current) => ({ ...current, [item.id]: "" }));
-                                }
-                              })();
-                            }}
-                          >
-                            Enviar resposta
-                          </Button>
-                        </div>
-                      ) : null}
-
-                      {isInternalRole(session.role) && item.status === "respondida" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-3 rounded-full border-emerald-200 text-emerald-700"
-                          onClick={() =>
-                            void runProcessAction(
-                              `complete-${item.id}`,
-                              () => completeRequirement({ processId: process.id, requirementId: item.id, actor: session.name }),
-                              "Exigência validada.",
-                            )
-                          }
-                        >
-                          Validar atendimento
-                        </Button>
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          {activeTab === "analise" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <MessageSquareMore className="h-5 w-5" />
-                Comunique-se
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isInternalRole(session.role) ? (
-                <form className="flex flex-col gap-3" onSubmit={handleSendMessage}>
-                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-                    <Select value={messageRecipient} onValueChange={setMessageRecipient}>
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue placeholder="Escolha o destinatário" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos os envolvidos permitidos</SelectItem>
-                        <SelectItem value={externalRecipientName}>{externalRecipientName} - profissional externo</SelectItem>
-                        {internalRecipients.map((user) => (
-                          <SelectItem key={user.id} value={user.name}>
-                            {user.name} - {user.title || user.role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={messageAudience} onValueChange={(value) => setMessageAudience(value as "interno" | "externo" | "misto")}>
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="interno">Interno - Só a Prefeitura vê</SelectItem>
-                        <SelectItem value="externo">Externo - Só o profissional vê</SelectItem>
-                        <SelectItem value="misto">Misto - Ambos veem</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Escreva uma mensagem para o outro lado do processo" />
-                  <Button type="submit" className="w-full rounded-full bg-slate-950 hover:bg-slate-900">
-                    Enviar mensagem
-                  </Button>
-                </form>
-              ) : (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  O Comunique-se fica disponível para resposta quando a Prefeitura abrir uma solicitação formal para este processo.
-                </div>
-              )}
-
-              <div className="space-y-3">
-                {visibleMessages.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <UserAvatar name={item.senderName} imageUrl={getProfileByName(item.senderName)?.avatarUrl} size="sm" />
-                        <p className="sig-fit-copy font-semibold text-slate-950" title={`${item.senderName} - ${item.senderRole}`}>
-                          {item.senderName} - {item.senderRole}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="rounded-full capitalize">
-                        {item.audience}
-                      </Badge>
-                    </div>
-                    {item.recipientName ? <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">Destinatario: {item.recipientName}</p> : null}
-                    <p className="mt-2 text-sm text-slate-600">{item.message}</p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{item.at}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          {activeTab === "financeiro" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <FileKey2 className="h-5 w-5" />
-                Guias de Pagamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isExternalProcessViewer ? (
-              <div className="grid items-stretch gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
-                <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
-                  <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 1</p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">Protocolo e Recolhimento</p>
-                  <p className="mt-2 text-sm text-slate-600">A guia inicial nasce junto com o protocolo. Ela é a única guia exibida nesta etapa e libera a entrada na análise técnica.</p>
-                </div>
-                <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
-                  <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 2</p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">ISSQN da Obra</p>
-                  <p className="mt-2 text-sm text-slate-600">Aparece apenas quando a análise despachar para o Setor de IPTU calcular a guia por metro quadrado.</p>
-                </div>
-                <div className="rounded-2xl border border-[#d8e4f1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4">
-                  <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Etapa 3</p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">Habite-se e aprovação</p>
-                  <p className="mt-2 text-sm text-slate-600">Só aparece no fechamento do processo, quando a taxa final de aprovação for solicitada.</p>
-                </div>
-              </div>
-              ) : null}
-              <div className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
-                <div className="min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-normal uppercase tracking-[0.12em] text-slate-400">Guia de Recolhimento</p>
-                      <p className="mt-2 line-clamp-2 text-lg font-medium leading-tight text-slate-900" title={protocolGuide?.code || "Sem guia gerada"}>{protocolGuide?.code || "Sem guia gerada"}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        Preview
-                      </Button>
-                      <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Imprimir DAM
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
-                    <div className="rounded-2xl border border-[#d8e4f1] bg-white p-4">
-                      <p className="text-[10px] font-normal uppercase tracking-[0.1em] text-slate-400">Valor</p>
-                      <p className="mt-2 text-lg font-medium text-[#123860]">{formatCurrency(protocolGuide?.amount || 0)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-[#d8e4f1] bg-white p-4">
-                      <p className="text-[10px] font-normal uppercase tracking-[0.1em] text-slate-400">Vencimento</p>
-                      <p className="mt-2 text-lg font-bold text-[#123860]">{protocolGuide?.dueDate || "Não informado"}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-[#d8e4f1] bg-white p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className={`text-xs font-medium uppercase tracking-[0.1em] ${protocolGuide?.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
-                          {protocolGuide?.status === "compensada" ? "Pagamento Confirmado" : "Pagamento Pendente"}
-                        </p>
-                        <p className="mt-2 text-sm text-slate-500">
-                          {protocolGuide?.status === "compensada"
-                            ? "Baixa registrada no banco oficial e processo liberado para continuidade."
-                            : "A guia pode ser quitada eletronicamente ou recebida em dinheiro no atendimento do Protocolo."}
-                        </p>
-                      </div>
-                      {canProtocolConfirmPayment ? (
-                        <Button
-                          type="button"
-                          className="sig-force-dark-action shrink-0 rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
-                          disabled={processActionBusy === "confirm-protocol-payment"}
-                          onClick={handleConfirmProtocolPayment}
-                        >
-                          {processActionBusy === "confirm-protocol-payment"
-                            ? "Confirmando..."
-                            : "Confirmar pagamento recebido"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              <div className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-                <div className="flex min-w-0 justify-center rounded-2xl border border-slate-200 bg-white p-4">
-                  <PixQrCode value={pixPayload} />
-                </div>
-                <div className="min-w-0 rounded-2xl border border-slate-200 p-4 text-sm text-slate-600">
-                  <p className="font-medium text-slate-950">Pix Copia e Cola da Guia de Protocolo</p>
-                  <div className="mt-3 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                    <p
-                      className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5 text-slate-600"
-                      title={pixPayload}
-                    >
-                      {pixPayload}
-                    </p>
-                  </div>
-                  <div className="mt-4 grid gap-2">
-                    <div className="rounded-xl bg-slate-50 p-3">Taxa de protocolo: {formatCurrency(protocolGuide?.amount || 0)}</div>
-                    <div className="rounded-xl bg-slate-50 p-3">As guias de ISSQN e aprovação aparecem somente quando forem solicitadas nas próximas etapas.</div>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          {activeTab === "analise" && planEntitlements.canUseModule("Assinatura") && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Signature className="h-5 w-5" />
-                Blocos de assinatura
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {process.signatures.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Nenhum bloco de assinatura registrado.</div>
-              ) : (
-                process.signatures.map((block) => (
-                  <div key={block.id} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium text-slate-900">{block.title}</p>
-                      <Badge variant="outline" className="rounded-full capitalize">
-                        {block.status}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-600">
-                      {block.signers.map((signer) => (
-                        <div key={`${block.id}-${signer.name}`} className="rounded-xl bg-slate-50 p-3">
-                          {signer.name} - {signer.role}
-                          <span className="block text-xs uppercase tracking-[0.18em] text-slate-400">
-                            {signer.signedAt ? `assinado em ${signer.signedAt}` : "aguardando assinatura"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {block.evidence ? (
-                      <div className="mt-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                        <div>Hash: {block.evidence.hash}</div>
-                        <div>IP: {block.evidence.ip}</div>
-                        <div>Agente: {block.evidence.userAgent}</div>
-                        <div>Versão assinada: v{block.evidence.signedVersion}</div>
-                        <div>Carimbo: {block.evidence.timestampAuthority}</div>
-                      </div>
-                    ) : null}
                   </div>
                 ))
               )}
@@ -1891,49 +1615,63 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {isInternalRole(session.role) ? (
+              {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form onSubmit={handleDispatchSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="sig-label">Novo despacho</p>
-                      <p className="mt-1 text-sm text-slate-500">Encaminhe o processo entre unidades com prazo, assunto e visibilidade institucional.</p>
+                      <p className="sig-label">Encaminhar pelo organograma</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        O destino deve ser uma unidade ativa cadastrada no organograma municipal.
+                      </p>
                     </div>
-                    <Badge variant="outline" className="rounded-full capitalize">
-                      Unidade atual: {currentFolder}
+                    <Badge variant="outline" className="rounded-full">
+                      Origem: {currentOrganizationPath}
                     </Badge>
                   </div>
-                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-                    <Select value={dispatchFrom} onValueChange={setDispatchFrom}>
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue placeholder="Origem do despacho" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sectorOptions.map((sector) => (
-                          <SelectItem key={`from-${sector}`} value={sector}>
-                            {sector}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  {organizationStatus ? (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      {organizationStatus}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <p className="sig-label">Unidade de origem</p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">{currentOrganizationPath}</p>
+                    </div>
+
                     <Select value={dispatchTo} onValueChange={setDispatchTo}>
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue placeholder="Destino do despacho" />
+                      <SelectTrigger className="min-h-14 rounded-2xl">
+                        <SelectValue placeholder="Escolher destino no organograma" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sectorOptions
-                          .filter((sector) => sector !== dispatchFrom)
-                          .map((sector) => (
-                            <SelectItem key={`to-${sector}`} value={sector}>
-                              {sector}
+                        {organizationDestinations
+                          .filter((department) => department.name !== currentFolder)
+                          .map((department) => (
+                            <SelectItem key={department.id} value={department.id}>
+                              {getOrganizationPath(department.name)}
                             </SelectItem>
                           ))}
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
-                    <Input value={dispatchSubject} onChange={(event) => setDispatchSubject(event.target.value)} placeholder="Assunto do despacho ou encaminhamento" />
-                    <Input type="date" value={dispatchDueDate} onChange={(event) => setDispatchDueDate(event.target.value)} />
-                    <Select value={dispatchVisibility} onValueChange={(value) => setDispatchVisibility(value as "interno" | "externo" | "misto")}>
+                    <Input
+                      value={dispatchSubject}
+                      onChange={(event) => setDispatchSubject(event.target.value)}
+                      placeholder="Assunto do encaminhamento"
+                    />
+                    <Input
+                      type="date"
+                      value={dispatchDueDate}
+                      onChange={(event) => setDispatchDueDate(event.target.value)}
+                    />
+                    <Select
+                      value={dispatchVisibility}
+                      onValueChange={(value) => setDispatchVisibility(value as "interno" | "externo" | "misto")}
+                    >
                       <SelectTrigger className="rounded-2xl">
                         <SelectValue />
                       </SelectTrigger>
@@ -1944,13 +1682,23 @@ export function ProcessDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="mt-3 flex justify-end">
-                    <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900">
-                      Registrar despacho
+                    <Button
+                      type="submit"
+                      className="rounded-full bg-slate-950 hover:bg-slate-900"
+                      disabled={!dispatchTo || organizationDestinations.length === 0}
+                    >
+                      Encaminhar para unidade selecionada
                     </Button>
                   </div>
                 </form>
+              ) : isProtocolTrackingOnly ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  Este processo está sob responsabilidade de outra unidade. O Protocolo acompanha a tramitação, mas somente o setor responsável atual pode encaminhá-lo novamente pelo organograma.
+                </div>
               ) : null}
+
               {visibleDispatches.length === 0 ? (
                 <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Sem encaminhamentos abertos.</div>
               ) : (
@@ -1961,7 +1709,7 @@ export function ProcessDetailPage() {
                         <div className="min-w-0">
                           <p className="font-medium text-slate-900">{dispatch.subject}</p>
                           <p className="mt-2 text-sm text-slate-600">
-                            {dispatch.from} <span className="px-1 text-slate-400">→</span> {dispatch.to}
+                            {getOrganizationPath(dispatch.from)} <span className="px-1 text-slate-400">→</span> {getOrganizationPath(dispatch.to)}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -1976,11 +1724,11 @@ export function ProcessDetailPage() {
                       <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <p className="sig-label">Origem</p>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{dispatch.from}</p>
+                          <p className="mt-2 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.from)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <p className="sig-label">Destino</p>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{dispatch.to}</p>
+                          <p className="mt-2 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.to)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                           <p className="sig-label">Prazo</p>
@@ -2004,7 +1752,7 @@ export function ProcessDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {isInternalRole(session.role) ? (
+              {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <Input value={reopenReason} onChange={(event) => setReopenReason(event.target.value)} placeholder="Motivo para reabrir o processo" />
                   <Button
