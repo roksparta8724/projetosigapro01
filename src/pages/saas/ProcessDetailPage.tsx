@@ -1898,7 +1898,7 @@ export function ProcessDetailPage() {
                           onClick={() => openAnalysisViewer(document.id)}
                         >
                           <Maximize2 className="mr-2 h-4 w-4" />
-                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir análise"}
+                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir para análise"}
                         </Button>
                       </div>
                     ) : null}
