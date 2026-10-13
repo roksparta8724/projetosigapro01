@@ -2036,7 +2036,8 @@ export function ProcessDetailPage() {
                             !allAnalysisDocumentsApproved ||
                             hasOpenAnalysisRequirements ||
                             !(constructionAreaValue > 0) ||
-                            !constructionUsageInput
+                            !constructionUsageInput ||
+                            !workTypeInput
                           }
                           onClick={handleGenerateConstructionGuide}
                         >
@@ -2053,14 +2054,15 @@ export function ProcessDetailPage() {
                           variant={analysisCanIssueConstructionGuide ? "outline" : "default"}
                           className={analysisCanIssueConstructionGuide
                             ? "rounded-full border-sky-300 px-6 text-sky-800 dark:border-sky-500/40 dark:text-sky-300"
-                            : "rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"}
+                            : "rounded-full bg-sky-700 px-6 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"}
                           disabled={
                             processActionBusy === "forward-construction-guide" ||
                             !canReviewDocuments ||
                             !allAnalysisDocumentsApproved ||
                             hasOpenAnalysisRequirements ||
                             !(constructionAreaValue > 0) ||
-                            !constructionUsageInput
+                            !constructionUsageInput ||
+                            !workTypeInput
                           }
                           onClick={handleForwardConstructionGuideToFinance}
                         >
