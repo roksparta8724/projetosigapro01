@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -559,6 +559,12 @@ export function ProcessDetailPage() {
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
   const currentOrganizationPath = getOrganizationPath(currentFolder);
+  const protocolStartedAt =
+    process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
+    process.timeline[process.timeline.length - 1]?.at ||
+    "";
+  const transitSteps = [...process.dispatches].reverse();
+  const hasTransitHistory = transitSteps.length > 0;
 
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
@@ -619,8 +625,8 @@ export function ProcessDetailPage() {
   ].filter((item) => item.enabled);
 
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
-  const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
-  const useSplitDetailLayout = activeTab === "historico";
+  const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
+  const useSplitDetailLayout = false;
   const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
@@ -1524,99 +1530,150 @@ export function ProcessDetailPage() {
 
           {activeTab === "historico" && (
           <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Workflow className="h-5 w-5" />
-                {isProtocolTrackingOnly ? "Acompanhamento pelo organograma" : "Histórico do processo"}
-              </CardTitle>
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950">
+                    <Route className="h-5 w-5 text-sky-700" />
+                    Fluxo do processo
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Veja por onde o processo passou, quando foi encaminhado e onde está agora.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800">
+                  <span className="h-2 w-2 rounded-full bg-sky-600" />
+                  Em andamento
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {isProtocolTrackingOnly ? (
-                <>
-                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                    <p className="sig-label">Unidade responsável agora</p>
-                    <p className="mt-2 text-sm font-semibold text-sky-950">{currentOrganizationPath}</p>
-                    <p className="mt-1 text-sm text-sky-800">
-                      O Protocolo acompanha somente o caminho institucional do processo. Conteúdo técnico, documentos internos e decisões do setor responsável permanecem restritos.
+
+            <CardContent className="space-y-6 pt-5">
+              <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
+                      Onde está agora
+                    </p>
+                    <p className="mt-2 text-base font-bold text-slate-950">
+                      {currentOrganizationPath}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {statusLabel(process.status)}
+                      {process.analysis?.assignedTo ? ` • Responsável: ${process.analysis.assignedTo}` : ""}
                     </p>
                   </div>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white text-sky-700">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
 
-                  {process.dispatches.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                      Ainda não há encaminhamento entre unidades registrado para este processo.
+              <div className="relative">
+                <div className="absolute bottom-5 left-[19px] top-5 w-px bg-slate-200" />
+
+                <div className="relative flex gap-4 pb-5">
+                  <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-sm">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-950">Protocolo</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Processo recebido e registrado oficialmente.
+                        </p>
+                      </div>
+                      {protocolStartedAt ? (
+                        <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          {protocolStartedAt}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {[...process.dispatches].reverse().map((dispatch, index) => (
-                        <div key={dispatch.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sm font-semibold text-sky-800">
-                              {index + 1}
+                  </div>
+                </div>
+
+                {hasTransitHistory ? (
+                  transitSteps.map((dispatch, index) => {
+                    const isLast = index === transitSteps.length - 1;
+                    return (
+                      <div key={dispatch.id} className="relative flex gap-4 pb-5">
+                        <div className={`z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white shadow-sm ${
+                          isLast ? "bg-sky-700 text-white" : "bg-slate-200 text-slate-700"
+                        }`}>
+                          {isLast ? <Building2 className="h-4 w-4" /> : <ArrowRightLeft className="h-4 w-4" />}
+                        </div>
+
+                        <div className={`min-w-0 flex-1 rounded-2xl border p-4 ${
+                          isLast ? "border-sky-200 bg-sky-50/70" : "border-slate-200 bg-white"
+                        }`}>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                {isLast ? "Unidade atual" : "Encaminhado para"}
+                              </p>
+                              <p className="mt-1 font-semibold text-slate-950">
+                                {getOrganizationPath(dispatch.to)}
+                              </p>
+                              <p className="mt-2 text-sm text-slate-600">
+                                Origem: <span className="font-medium text-slate-800">{getOrganizationPath(dispatch.from)}</span>
+                              </p>
+                              {dispatch.subject ? (
+                                <p className="mt-1 text-sm text-slate-500">{dispatch.subject}</p>
+                              ) : null}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="font-semibold text-slate-950">{dispatch.subject || "Encaminhamento interno"}</p>
-                                <Badge variant="outline" className="rounded-full capitalize">{dispatch.status}</Badge>
-                              </div>
-                              <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                  <p className="sig-label">Saiu de</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.from)}</p>
+
+                            <div className="flex flex-col items-end gap-2">
+                              {dispatch.createdAt ? (
+                                <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                                  <Clock3 className="h-3.5 w-3.5" />
+                                  {dispatch.createdAt}
                                 </div>
-                                <ArrowRightLeft className="mx-auto h-4 w-4 text-slate-400" />
-                                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                                  <p className="sig-label">Foi para</p>
-                                  <p className="mt-1 text-sm font-medium text-sky-950">{getOrganizationPath(dispatch.to)}</p>
-                                </div>
-                              </div>
-                              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                                <span>Prazo: {dispatch.dueDate || "não informado"}</span>
-                                {dispatch.assignedTo ? <span>Responsável: {dispatch.assignedTo}</span> : null}
-                              </div>
+                              ) : null}
+                              <Badge
+                                variant="outline"
+                                className={`rounded-full ${
+                                  isLast
+                                    ? "border-sky-200 bg-white text-sky-800"
+                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                }`}
+                              >
+                                {isLast ? "Atual" : "Concluído"}
+                              </Badge>
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="relative flex gap-4 pb-5">
+                    <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-sky-700 text-white shadow-sm">
+                      <Building2 className="h-4 w-4" />
                     </div>
-                  )}
-                </>
-              ) : (
-                process.timeline.map((entry) => (
-                  <div key={entry.id} data-process-history-entry="true" className="rounded-2xl bg-slate-50 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-950">{entry.title}</p>
-                      <p className="text-sm text-slate-500">{entry.at}</p>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
-                    <div className="mt-3 flex min-w-0 items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-slate-400">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800 text-sky-300 shadow-sm">
-                        <UserRound className="h-4 w-4" />
-                      </span>
-                      <span className="sig-fit-title font-medium text-slate-300" title={entry.actor}>{entry.actor}</span>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
+                        Unidade atual
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-950">
+                        {currentOrganizationPath}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Ainda não há outra tramitação registrada.
+                      </p>
                     </div>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-          )}
+                )}
+              </div>
 
-          {activeTab === "historico" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <ArrowRightLeft className="h-5 w-5" />
-                Tramitação entre pastas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
               {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form onSubmit={handleDispatchSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="sig-label">Encaminhar pelo organograma</p>
+                      <p className="text-sm font-semibold text-slate-950">Encaminhar processo</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        O destino deve ser uma unidade ativa cadastrada no organograma municipal.
+                        Escolha a próxima unidade da Prefeitura.
                       </p>
                     </div>
                     <Badge variant="outline" className="rounded-full">
@@ -1630,15 +1687,10 @@ export function ProcessDetailPage() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                      <p className="sig-label">Unidade de origem</p>
-                      <p className="mt-2 text-sm font-medium text-slate-900">{currentOrganizationPath}</p>
-                    </div>
-
+                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
                     <Select value={dispatchTo} onValueChange={setDispatchTo}>
-                      <SelectTrigger className="min-h-14 rounded-2xl">
-                        <SelectValue placeholder="Escolher destino no organograma" />
+                      <SelectTrigger className="min-h-12 rounded-2xl bg-white">
+                        <SelectValue placeholder="Selecionar unidade de destino" />
                       </SelectTrigger>
                       <SelectContent>
                         {organizationDestinations
@@ -1650,148 +1702,32 @@ export function ProcessDetailPage() {
                           ))}
                       </SelectContent>
                     </Select>
-                  </div>
 
-                  <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
                     <Input
                       value={dispatchSubject}
                       onChange={(event) => setDispatchSubject(event.target.value)}
-                      placeholder="Assunto do encaminhamento"
+                      placeholder="Motivo ou assunto do encaminhamento"
+                      className="min-h-12 rounded-2xl bg-white"
                     />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <Input
                       type="date"
                       value={dispatchDueDate}
                       onChange={(event) => setDispatchDueDate(event.target.value)}
+                      className="w-full rounded-2xl bg-white sm:w-[220px]"
                     />
-                    <Select
-                      value={dispatchVisibility}
-                      onValueChange={(value) => setDispatchVisibility(value as "interno" | "externo" | "misto")}
-                    >
-                      <SelectTrigger className="rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="interno">Interno</SelectItem>
-                        <SelectItem value="misto">Misto</SelectItem>
-                        <SelectItem value="externo">Externo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="mt-3 flex justify-end">
                     <Button
                       type="submit"
-                      className="rounded-full bg-slate-950 hover:bg-slate-900"
-                      disabled={!dispatchTo || organizationDestinations.length === 0}
+                      className="rounded-full bg-slate-950 px-5 hover:bg-slate-900"
+                      disabled={!dispatchTo || !dispatchSubject.trim() || !dispatchDueDate || organizationDestinations.length === 0}
                     >
-                      Encaminhar para unidade selecionada
+                      Encaminhar processo
                     </Button>
                   </div>
                 </form>
-              ) : isProtocolTrackingOnly ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  Este processo está sob responsabilidade de outra unidade. O Protocolo acompanha a tramitação, mas somente o setor responsável atual pode encaminhá-lo novamente pelo organograma.
-                </div>
               ) : null}
-
-              {visibleDispatches.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Sem encaminhamentos abertos.</div>
-              ) : (
-                <div className="space-y-3">
-                  {visibleDispatches.map((dispatch) => (
-                    <div key={dispatch.id} className="rounded-2xl border border-slate-200 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-900">{dispatch.subject}</p>
-                          <p className="mt-2 text-sm text-slate-600">
-                            {getOrganizationPath(dispatch.from)} <span className="px-1 text-slate-400">→</span> {getOrganizationPath(dispatch.to)}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="rounded-full capitalize">
-                            {dispatch.status}
-                          </Badge>
-                          <Badge variant="outline" className="rounded-full capitalize">
-                            {dispatch.visibility || "interno"}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <p className="sig-label">Origem</p>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.from)}</p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <p className="sig-label">Destino</p>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{getOrganizationPath(dispatch.to)}</p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <p className="sig-label">Prazo</p>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{dispatch.dueDate}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          )}
-
-          {activeTab === "historico" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Workflow className="h-5 w-5" />
-                Auditoria e Reabertura
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <Input value={reopenReason} onChange={(event) => setReopenReason(event.target.value)} placeholder="Motivo para reabrir o processo" />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3 rounded-full"
-                    onClick={() => {
-                      void (async () => {
-                        const ok = await runProcessAction(
-                          "reopen",
-                          () => reopenProcess({ processId: process.id, actor: session.name, reason: reopenReason }),
-                          "Processo reaberto com sucesso.",
-                        );
-                        if (ok) setReopenReason("");
-                      })();
-                    }}
-                  >
-                    Reabrir processo
-                  </Button>
-                </div>
-              ) : null}
-
-              {process.reopenHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {process.reopenHistory.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
-                      <p className="font-medium">Reabertura registrada</p>
-                      <p className="mt-2">{entry.reason}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-600 dark:text-amber-400">{entry.actor} - {entry.at}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {visibleAuditTrail.map((entry) => (
-                <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium text-slate-900">{entry.title}</p>
-                    <Badge variant="outline" className="rounded-full capitalize">{entry.category}</Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">{entry.detail}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{entry.actor} - {entry.at}</p>
-                </div>
-              ))}
             </CardContent>
           </Card>
           )}
