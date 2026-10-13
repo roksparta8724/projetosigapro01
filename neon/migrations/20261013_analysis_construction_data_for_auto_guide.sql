@@ -78,6 +78,12 @@ begin
     raise exception 'Sem acesso ao processo';
   end if;
 
+  if lower(coalesce(_current_department,'')) not like '%anal%'
+     and lower(coalesce(_current_department,'')) not like '%urban%'
+     and lower(coalesce(_current_department,'')) not like '%obra%' then
+    raise exception 'Os dados da obra so podem ser confirmados enquanto o processo estiver na Analise Urbanistica';
+  end if;
+
   select
     count(*),
     count(*) filter (where coalesce(d.review_status,'pendente') <> 'aprovado')
