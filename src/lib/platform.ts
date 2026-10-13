@@ -2290,6 +2290,60 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
   return false;
 }
 
+export function isProcessOwnedBySessionDepartment(session: SessionUser, process: ProcessRecord) {
+  if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
+    return true;
+  }
+  if (!isInternalRole(session.role)) return false;
+
+  const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
+  if (!userDepartment) return false;
+
+  const currentFolder = resolveDepartmentAccessBucket(
+    process.processControl?.currentFolder || process.dispatches[0]?.to || "",
+  );
+  if (currentFolder) return currentFolder === userDepartment;
+
+  if (userDepartment === "protocolos") {
+    return process.triage.status !== "concluido" ||
+      ["triagem", "pendencia_documental", "guia_emitida", "pagamento_pendente", "pagamento_confirmado"].includes(process.status);
+  }
+  if (userDepartment === "analise") {
+    return ["distribuicao", "analise_tecnica", "exigencia", "reapresentacao", "despacho_intersetorial"].includes(process.status);
+  }
+  if (userDepartment === "financeiro") {
+    return ["pagamento_pendente", "pagamento_confirmado"].includes(process.status);
+  }
+  return false;
+}
+
+export function canTrackProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
+  if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
+    return true;
+  }
+
+  const activeScopeId = scopeId || getOperationalScopeId(session);
+  if (!matchesOperationalScope(activeScopeId, process)) return false;
+
+  if (session.role === "profissional_externo") return process.createdBy === session.id;
+  if (session.role === "property_owner" || session.role === "proprietario_consulta") return true;
+  if (!isInternalRole(session.role)) return false;
+
+  if (isProcessOwnedBySessionDepartment(session, process)) return true;
+
+  const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
+  if (userDepartment === "protocolos") {
+    const originatedInProtocol =
+      process.dispatches.some((dispatch) =>
+        /protocolo|triagem|recep[cç][aã]o|administr/i.test(dispatch.from),
+      ) ||
+      process.triage.status === "concluido";
+    return originatedInProtocol;
+  }
+
+  return false;
+}
+
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
