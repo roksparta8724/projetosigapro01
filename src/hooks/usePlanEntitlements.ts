@@ -25,22 +25,31 @@ export function usePlanEntitlements() {
 
   const sessionMunicipalityId =
     session.municipalityId ?? session.tenantId ?? "";
-  const municipalityId =
-    sessionMunicipalityId || municipality?.id || scopeId || "";
-  const municipalityMatchesSession =
-    !sessionMunicipalityId ||
-    !municipality?.id ||
-    municipality.id === sessionMunicipalityId;
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
+
+  // Em troca de login, municipality/scopeId ainda podem representar a conta anterior
+  // por alguns frames. Para usuários municipais, o escopo contratual só pode vir da
+  // sessão autenticada atual. Nunca usar fallback de Prefeitura antiga para decidir plano.
+  const municipalityId = isMaster
+    ? sessionMunicipalityId || municipality?.id || scopeId || ""
+    : sessionMunicipalityId;
+
+  const municipalityMatchesSession =
+    !municipality?.id ||
+    !sessionMunicipalityId ||
+    municipality.id === sessionMunicipalityId;
+
   const isResolving =
     !isMaster &&
     (
+      session.id === "unknown" ||
       municipalityLoading ||
       platformDataLoading ||
-      !municipalityId ||
+      !sessionMunicipalityId ||
       !municipalityMatchesSession ||
-      !dataReadyForCurrentUser
+      !dataReadyForCurrentUser ||
+      Boolean(dataError)
     );
 
   const state = useMemo(
