@@ -492,7 +492,6 @@ export function ProcessDetailPage() {
   });
   const visibleAuditTrail = process.auditTrail.filter((item) => item.visibleToExternal || canViewCompleteTransit);
   const tabItems = [
-    { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
     { key: "imovel" as ProcessTab, label: "Imóvel", enabled: true },
     { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: true },
     {
@@ -506,6 +505,7 @@ export function ProcessDetailPage() {
       enabled: planEntitlements.canUseModule("Financeiro") && canFinanceOperate,
     },
     { key: "historico" as ProcessTab, label: "Histórico", enabled: true },
+    { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
   const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);
@@ -893,8 +893,12 @@ export function ProcessDetailPage() {
   };
 
   return (
-    <PortalFrame eyebrow={formatProfessionalProcessType(process.type)} title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}>
-      <PageShell>
+    <PortalFrame
+      eyebrow={formatProfessionalProcessType(process.type)}
+      title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
+      focusMode
+    >
+      <PageShell className="!max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
       <PageHero
         eyebrow="Painel do processo"
         title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
