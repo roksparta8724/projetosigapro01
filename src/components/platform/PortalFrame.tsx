@@ -1750,7 +1750,6 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent
-                portal={false}
                 align="end"
                 sideOffset={0}
                 collisionPadding={0}
