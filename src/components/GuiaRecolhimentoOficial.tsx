@@ -1152,8 +1152,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   {[
                     ["Proprietário", guia.proprietario || contribuinte.nome],
                     ["Profissional responsável", guia.profissionalResponsavel || ""],
-                    ["Analista responsável", guia.analistaSolicitante || guia.funcionarioResponsavel || ""],
-                    ["Controle financeiro", "Setor Financeiro"],
+                    ["Analista responsável", guia.analistaSolicitante || ""],
+                    ["Responsável pela emissão", guia.funcionarioEmissor || guia.funcionarioResponsavel || ""],
                   ].map(([label, value]) => (
                     <div key={String(label)} className="dam-responsibility-cell">
                       <div className="dam-responsibility-label">{label}</div>
@@ -1268,10 +1268,10 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-responsible-row">
               <div className="dam-responsible-label">
-                Analista Responsável pela Geração
+                Responsável pela Emissão
               </div>
               <div className="dam-responsible-value">
-                {guia.analistaSolicitante || guia.funcionarioResponsavel || guia.funcionarioEmissor || ""}
+                {guia.funcionarioEmissor || guia.funcionarioResponsavel || guia.analistaSolicitante || ""}
               </div>
             </div>
 
