@@ -110,14 +110,15 @@
 
   @media (min-width: 1024px) {
     .sig-app-frame {
-      background-image: linear-gradient(
-        90deg,
-        var(--sig-sidebar-fill) 0px,
-        var(--sig-sidebar-fill) var(--sig-sidebar-stripe-width, 304px),
-        var(--sig-page-background, var(--sig-bg)) var(--sig-sidebar-stripe-width, 304px),
-        var(--sig-page-background, var(--sig-bg)) 100%
-      );
-      background-repeat: no-repeat;
+      /* A lateral já possui seu próprio fundo. Remover a faixa duplicada evita
+         a "parede" colorida continuando por trás do menu na parte inferior. */
+      background-image: none !important;
+      background-color: var(--sig-page-background, var(--sig-bg));
+    }
+
+    .sig-sidebar-shell,
+    .sig-sidebar-panel {
+      background: var(--sig-sidebar) !important;
     }
   }
 
