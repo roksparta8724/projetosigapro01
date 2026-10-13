@@ -25,6 +25,7 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  canAccessMunicipalArea,
   canAccessProcess,
   formatCurrency,
   formatOfficialProcessLabel,
@@ -229,8 +230,8 @@ export function ProcessDetailPage() {
   const [processActionBusy, setProcessActionBusy] = useState("");
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
-    if (tab === "analise" && !planEntitlements.canUseModule("Analise tecnica")) return;
-    if (tab === "financeiro" && !planEntitlements.canUseModule("Financeiro")) return;
+    if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
+    if (tab === "financeiro" && (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)) return;
     setActiveTab(tab);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("aba", tab);
@@ -242,8 +243,8 @@ export function ProcessDetailPage() {
     if (!requested || !validProcessTabs.includes(requested)) return;
 
     const allowed =
-      (requested !== "analise" || planEntitlements.canUseModule("Analise tecnica")) &&
-      (requested !== "financeiro" || planEntitlements.canUseModule("Financeiro"));
+      (requested !== "analise" || (planEntitlements.canUseModule("Analise tecnica") && canAnalysisOperate)) &&
+      (requested !== "financeiro" || (planEntitlements.canUseModule("Financeiro") && canFinanceOperate));
 
     if (!allowed) {
       if (activeTab !== "resumo") setActiveTab("resumo");
@@ -254,7 +255,7 @@ export function ProcessDetailPage() {
     }
 
     if (requested !== activeTab) setActiveTab(requested);
-  }, [activeTab, planEntitlements, searchParams, setSearchParams]);
+  }, [activeTab, canAnalysisOperate, canFinanceOperate, planEntitlements, searchParams, setSearchParams]);
 
 
   const process = resolveProcessFromRoute(processes, processId);
@@ -268,7 +269,7 @@ export function ProcessDetailPage() {
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
-    session.role === "prefeitura_admin" ||
+    canProtocolOperate ||
     session.role === "prefeitura_supervisor" ||
     session.role === "analista";
   const canAttachToRequirement = (item: typeof process.requirements[number]) =>
@@ -376,17 +377,25 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const protocolUnitIdentity = `${session.department || ""} ${session.title || ""}`.toLowerCase();
+  const isMasterOrMunicipalAdmin =
+    session.role === "master_admin" ||
+    session.role === "master_ops" ||
+    session.role === "prefeitura_admin";
+  const canProtocolOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "protocolos");
+  const canAnalysisOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "analise");
+  const canFinanceOperate =
+    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "financeiro");
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
-    (
-      session.role === "prefeitura_admin" ||
-      session.role === "prefeitura_supervisor" ||
-      (isInternalRole(session.role) && protocolUnitIdentity.includes("protocolo"))
-    );
+    canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
-  const canReviewDocuments = session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor" || session.role === "analista";
+  const canReviewDocuments =
+    canProtocolOperate ||
+    session.role === "prefeitura_supervisor" ||
+    session.role === "analista";
   const visibleDocumentRows =
     isInternalRole(session.role)
       ? process.documents
@@ -489,12 +498,12 @@ export function ProcessDetailPage() {
     {
       key: "analise" as ProcessTab,
       label: "Análise Urbanística",
-      enabled: planEntitlements.canUseModule("Analise tecnica"),
+      enabled: planEntitlements.canUseModule("Analise tecnica") && canAnalysisOperate,
     },
     {
       key: "financeiro" as ProcessTab,
       label: "Financeiro",
-      enabled: planEntitlements.canUseModule("Financeiro"),
+      enabled: planEntitlements.canUseModule("Financeiro") && canFinanceOperate,
     },
     { key: "historico" as ProcessTab, label: "Histórico", enabled: true },
   ].filter((item) => item.enabled);
