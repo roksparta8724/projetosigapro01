@@ -6198,3 +6198,35 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
     transform: translateX(0);
   }
 }
+
+
+/* Desktop sidebar: one continuous surface down to the footer.
+   Page scrolling owns the vertical flow; the navigation itself must never
+   clip or hide lower menu entries behind an internal viewport wall. */
+@media (min-width: 1024px) {
+  .sig-content-frame {
+    align-items: stretch;
+  }
+
+  .sig-sidebar-shell {
+    height: auto !important;
+    min-height: 100% !important;
+    align-self: stretch !important;
+    overflow: visible !important;
+    background: var(--sig-sidebar) !important;
+  }
+
+  .sig-sidebar-shell .sig-sidebar-panel {
+    height: 100% !important;
+    min-height: 100% !important;
+    background: var(--sig-sidebar) !important;
+  }
+
+  .sig-sidebar-shell .sig-sidebar-scroll {
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding-bottom: 24px !important;
+  }
+}
