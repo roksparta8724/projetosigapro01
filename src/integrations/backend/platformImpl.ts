@@ -1952,6 +1952,18 @@ export async function setRemoteProcessStatus(input: {
   });
 }
 
+export async function setRemoteProcessTriage(input: {
+  processId: string;
+  status: "recebido" | "em_triagem" | "concluido";
+  notes?: string | null;
+}) {
+  return callProcessRpc("set_process_triage", {
+    _process_id: input.processId,
+    _triage_status: input.status,
+    _notes: input.notes || null,
+  });
+}
+
 export async function setRemoteProcessCheckpoint(processId: string, checkpoint: string) {
   return callProcessRpc("set_process_checkpoint", {
     _process_id: processId,
