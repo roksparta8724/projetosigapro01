@@ -36,32 +36,32 @@ const municipalProfilePresets = [
   { key: "auxiliar_administrativo", label: "Auxiliar Administrativo", role: "analista" as UserRole, accessLevel: "1" },
 ] as const;
 
-function getMunicipalProfileSelectValue(role: UserRole, title: string) {
-  const normalizedTitle = title
+function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
+  const normalizedLabel = (profileLabel || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLocaleLowerCase("pt-BR");
   const preset = municipalProfilePresets.find((item) => {
-    const normalizedLabel = item.label
+    const candidate = item.label
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLocaleLowerCase("pt-BR");
-    return normalizedTitle.includes(normalizedLabel);
+    return normalizedLabel === candidate;
   });
   return preset?.key ?? role;
 }
 
 function applyMunicipalProfileSelection(
   value: string,
-  current: { role: UserRole; title: string; accessLevel: string },
+  current: { role: UserRole; profileLabel: string; accessLevel: string },
 ) {
   const preset = municipalProfilePresets.find((item) => item.key === value);
   if (preset) {
     return {
       ...current,
       role: preset.role,
-      title: preset.label,
+      profileLabel: preset.label,
       accessLevel: preset.accessLevel,
     };
   }
@@ -69,26 +69,12 @@ function applyMunicipalProfileSelection(
   return {
     ...current,
     role,
-    title: roleSuggestedTitles[role] ?? current.title,
+    profileLabel: "",
   };
 }
 
 function getMunicipalProfileLabel(user: SessionUser) {
-  const normalizedTitle = (user.title || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLocaleLowerCase("pt-BR");
-
-  const preset = municipalProfilePresets.find((item) => {
-    const normalizedLabel = item.label
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLocaleLowerCase("pt-BR");
-    return normalizedTitle === normalizedLabel || normalizedTitle.includes(normalizedLabel);
-  });
-
-  return preset?.label ?? roleLabels[user.role];
+  return user.profileLabel?.trim() || roleLabels[user.role];
 }
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
@@ -168,7 +154,7 @@ export function TenantAdminPage() {
   const [roleFilter, setRoleFilter] = useState<"todos" | UserRole>("todos");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [form, setForm] = useState({ fullName: "", email: "", role: "analista" as UserRole, title: roleSuggestedTitles.analista, accessLevel: "1" });
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "analista" as UserRole, title: "", accessLevel: "1", department: "", userType: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", role: "analista" as UserRole, profileLabel: "", title: "", accessLevel: "1", department: "", userType: "" });
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [orgBusy, setOrgBusy] = useState(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
@@ -233,7 +219,7 @@ export function TenantAdminPage() {
     { label: "Gerados", value: generatedByCurrentUnit.length, helper: "Despachos emitidos pela unidade" },
     { label: "Restritos", value: restrictedTransitCount, helper: "Fluxos ocultos ao acesso externo" },
   ], [generatedByCurrentUnit.length, receivedForCurrentUnit.length, restrictedTransitCount]);
-  const startEdit = (user: SessionUser) => { setEditStatusMessage(""); setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, title: user.title, accessLevel: String(user.accessLevel), department: user.department || user.title, userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
+  const startEdit = (user: SessionUser) => { setEditStatusMessage(""); setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, profileLabel: user.profileLabel || "", title: user.title, accessLevel: String(user.accessLevel), department: user.department || "", userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
   const handleCreateUser = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId) return;
@@ -321,6 +307,7 @@ export function TenantAdminPage() {
       const updated = await updateTenantUser(userId, {
         name: normalizedName,
         role: editForm.role,
+        profileLabel: editForm.profileLabel,
         title: normalizedTitle,
         department: selectedDepartment?.name ?? editForm.department.trim(),
         userType: editForm.role === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
@@ -623,7 +610,7 @@ export function TenantAdminPage() {
               <div className="space-y-2">
                 <Label>Perfil</Label>
                 <Select
-                  value={getMunicipalProfileSelectValue(editForm.role, editForm.title)}
+                  value={getMunicipalProfileSelectValue(editForm.role, editForm.profileLabel)}
                   onValueChange={(value) => setEditForm((current) => applyMunicipalProfileSelection(value, current))}
                 >
                   <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
