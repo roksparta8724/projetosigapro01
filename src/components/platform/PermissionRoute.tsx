@@ -7,7 +7,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { can, canAccessMunicipalArea, isInternalRole } from "@/lib/platform";
+import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
 import type { Permission, SessionUser } from "@/lib/platform";
 
 export function PermissionRoute({
@@ -62,6 +62,23 @@ export function PermissionRoute({
   const isActuallyBlocked = accountStatus === "blocked" || accountStatus === "inactive";
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
+  const isExternalRole =
+    session.role === "profissional_externo" ||
+    session.role === "property_owner" ||
+    session.role === "proprietario_consulta";
+  const isExternalPortalPath =
+    location.pathname.startsWith("/externo") ||
+    location.pathname.startsWith("/proprietario");
+  const isMunicipalPortalPath = location.pathname.startsWith("/prefeitura");
+
+  if (!isMaster && isExternalPortalPath && !isExternalRole) {
+    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+  }
+
+  if (!isMaster && isMunicipalPortalPath && isExternalRole) {
+    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+  }
+
   const isTenantMismatch =
     tenant.mode === "tenant" &&
     !tenant.loading &&
