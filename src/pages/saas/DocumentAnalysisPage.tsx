@@ -17,15 +17,18 @@ import { useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
+  canAccessMunicipalArea,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
   isInternalRole,
+  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -46,7 +49,7 @@ export function DocumentAnalysisPage() {
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes, addDocumentAnnotation, reviewProcessDocument } = usePlatformData();
+  const { processes, addDocumentAnnotation, reviewProcessDocument, createRequirement } = usePlatformData();
   const process = processId ? getProcessById(processId, processes) : undefined;
   const document = process?.documents.find((item) => item.id === documentId);
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -59,15 +62,18 @@ export function DocumentAnalysisPage() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
   const [status, setStatus] = useState("");
+  const [comuniqueReason, setComuniqueReason] = useState("");
+  const [comuniqueDueDate, setComuniqueDueDate] = useState("");
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   const canUseAnalysis =
     !!process &&
     !!document &&
-    ["prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role) &&
     isInternalRole(session.role) &&
-    canAccessProcess(session, process, effectiveScopeId);
+    canAccessProcess(session, process, effectiveScopeId) &&
+    isProcessOwnedBySessionDepartment(session, process) &&
+    canAccessMunicipalArea(session, "analise");
 
   useEffect(() => {
     let cancelled = false;
@@ -225,27 +231,70 @@ export function DocumentAnalysisPage() {
     }
   };
 
-  const review = async (reviewStatus: "aprovado" | "rejeitado") => {
+  const approveDocument = async () => {
     if (!process || !document) return;
-    setBusy(`review-${reviewStatus}`);
+    setBusy("review-aprovado");
     setStatus("");
     try {
       await reviewProcessDocument(
         process.id,
         document.id,
-        reviewStatus,
+        "aprovado",
         session.name,
       );
+      setStatus("Documento aprovado.");
+    } catch (error) {
       setStatus(
-        reviewStatus === "aprovado"
-          ? "Documento aprovado."
-          : "Documento marcado como rejeitado.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registrar a aprovação.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const issueComuniqueSe = async () => {
+    if (!process || !document) return;
+    if (!comuniqueReason.trim()) {
+      setStatus("Descreva o problema encontrado antes de emitir o Comunique-se.");
+      return;
+    }
+    if (!comuniqueDueDate) {
+      setStatus("Informe o prazo para o profissional corrigir e reenviar o documento.");
+      return;
+    }
+
+    setBusy("review-rejeitado");
+    setStatus("");
+    try {
+      await createRequirement({
+        processId: process.id,
+        title: `Comunique-se — ${document.label}`,
+        description: comuniqueReason.trim(),
+        dueDate: comuniqueDueDate,
+        actor: session.name,
+        targetName: process.technicalLead || process.ownerName,
+        visibility: "misto",
+      });
+
+      await reviewProcessDocument(
+        process.id,
+        document.id,
+        "rejeitado",
+        session.name,
+      );
+
+      setComuniqueReason("");
+      setComuniqueDueDate("");
+      setStatus(
+        "Comunique-se emitido ao profissional. O documento ficou pendente de correção e reenvio.",
       );
     } catch (error) {
       setStatus(
         error instanceof Error
           ? error.message
-          : "Não foi possível registrar a análise.",
+          : "Não foi possível emitir o Comunique-se.",
       );
     } finally {
       setBusy("");
@@ -596,20 +645,44 @@ export function DocumentAnalysisPage() {
                 type="button"
                 className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
                 disabled={busy.startsWith("review-")}
-                onClick={() => void review("aprovado")}
+                onClick={() => void approveDocument()}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Aprovar documento
               </Button>
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <p className="text-sm font-semibold text-white">Comunique-se ao profissional</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Quando houver erro ou pendência, descreva o problema e informe o prazo. O profissional receberá a exigência para corrigir e reenviar.
+              </p>
+              <Textarea
+                value={comuniqueReason}
+                onChange={(event) => setComuniqueReason(event.target.value)}
+                placeholder="Descreva objetivamente o que precisa ser corrigido..."
+                className="mt-3 min-h-[110px] border-white/10 bg-black/20 text-white placeholder:text-slate-500"
+              />
+              <div className="mt-3">
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-slate-400">
+                  Prazo para correção
+                </label>
+                <Input
+                  type="date"
+                  value={comuniqueDueDate}
+                  onChange={(event) => setComuniqueDueDate(event.target.value)}
+                  className="border-white/10 bg-black/20 text-white"
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                className="mt-3 w-full rounded-full border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20"
                 disabled={busy.startsWith("review-")}
-                onClick={() => void review("rejeitado")}
+                onClick={() => void issueComuniqueSe()}
               >
                 <XCircle className="mr-2 h-4 w-4" />
-                Rejeitar documento
+                Emitir Comunique-se
               </Button>
             </div>
           </div>
