@@ -1681,7 +1681,7 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
 
             <div
               className={cn(
-                "sig-topbar-account-cluster flex h-[50px] shrink-0 items-center gap-1 rounded-[18px] border px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                "sig-topbar-account-cluster relative flex h-[50px] shrink-0 items-center gap-1 rounded-[18px] border px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
                 darkTopbar
                   ? "border-white/12 bg-white/[0.07]"
                   : "border-slate-200/90 bg-white/92",
@@ -1750,9 +1750,10 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent
+                portal={false}
                 align="end"
-                sideOffset={6}
-                collisionPadding={8}
+                sideOffset={0}
+                collisionPadding={0}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
                   "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
