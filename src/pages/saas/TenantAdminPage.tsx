@@ -109,7 +109,7 @@ export function TenantAdminPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
-  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings } = usePlatformData();
+  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
@@ -325,6 +325,17 @@ export function TenantAdminPage() {
         );
       }
 
+      const persistedProfileLabel = (updated.profileLabel || "").trim();
+      const requestedProfileLabel = editForm.profileLabel.trim();
+      if (
+        requestedProfileLabel &&
+        persistedProfileLabel.localeCompare(requestedProfileLabel, "pt-BR", { sensitivity: "accent" }) !== 0
+      ) {
+        throw new Error(
+          `O banco não confirmou o perfil "${requestedProfileLabel}". Valor retornado: "${persistedProfileLabel || "vazio"}".`,
+        );
+      }
+
       if (effectiveScopeId) {
         await assignRemoteProfileDepartment({
           municipalityId: effectiveScopeId,
@@ -333,7 +344,8 @@ export function TenantAdminPage() {
         });
       }
 
-      setEditStatusMessage("Alterações salvas com sucesso.");
+      await refreshRemoteStore();
+      setEditStatusMessage("Alterações salvas no banco e confirmadas com sucesso.");
     } catch (error) {
       setEditStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar as alterações.");
     } finally {
