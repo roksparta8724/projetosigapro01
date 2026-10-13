@@ -6339,3 +6339,34 @@ html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action sv
   color: #1e3a8a !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08) !important;
 }
+
+
+/* Focused process workspace: the document owns vertical scrolling.
+   Never trap the process page inside a viewport-sized shell. */
+.sig-app-frame[data-focus-mode="true"] {
+  height: auto !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.sig-app-frame[data-focus-mode="true"] .sig-content-frame,
+.sig-app-frame[data-focus-mode="true"] main,
+.sig-app-frame[data-focus-mode="true"] .sig-main-shell {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+.sig-app-frame[data-focus-mode="true"] .sig-content-frame,
+.sig-app-frame[data-focus-mode="true"] .sig-main-shell {
+  overflow-x: clip !important;
+}
+
+@media (min-width: 1024px) {
+  .sig-app-frame[data-focus-mode="true"] .sig-content-frame {
+    min-height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
+  }
+}
