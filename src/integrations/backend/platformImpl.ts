@@ -760,6 +760,11 @@ export async function loadRemotePlatformStore() {
         typeof legacyExtra.final_approval_fee_enabled === "boolean"
           ? legacyExtra.final_approval_fee_enabled
           : true,
+      constructionGuideIssuerMode:
+        legacyExtra.construction_guide_issuer_mode === "financeiro" ||
+        legacyExtra.construction_guide_issuer_mode === "ambos"
+          ? (legacyExtra.construction_guide_issuer_mode as "financeiro" | "ambos")
+          : "analise",
       approvalRateProfiles:
         Array.isArray(legacyExtra.approval_rate_profiles) && legacyExtra.approval_rate_profiles.length > 0
           ? (legacyExtra.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
@@ -928,6 +933,11 @@ export async function loadRemotePlatformStore() {
         typeof general.final_approval_fee_enabled === "boolean"
           ? general.final_approval_fee_enabled
           : true,
+      constructionGuideIssuerMode:
+        general.construction_guide_issuer_mode === "financeiro" ||
+        general.construction_guide_issuer_mode === "ambos"
+          ? (general.construction_guide_issuer_mode as "financeiro" | "ambos")
+          : "analise",
       approvalRateProfiles:
         Array.isArray(general.approval_rate_profiles) && general.approval_rate_profiles.length > 0
           ? (general.approval_rate_profiles as TenantSettings["approvalRateProfiles"])
@@ -3161,6 +3171,7 @@ export async function saveRemoteInstitutionSettings(
       taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
       approval_rate_profiles: settings.approvalRateProfiles ?? null,
       final_approval_fee_enabled: settings.finalApprovalFeeEnabled ?? true,
+      construction_guide_issuer_mode: settings.constructionGuideIssuerMode ?? "analise",
       // escalas por variante no general_settings para leitura futura
       logo_scale: settings.logoScale ?? 1,
       logo_offset_x: settings.logoOffsetX ?? 0,
