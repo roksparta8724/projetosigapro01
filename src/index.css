@@ -6057,31 +6057,55 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
    appears floating toward the center. The trigger itself remains slightly
    inset inside the topbar. */
 @media (min-width: 1024px) {
+  .sig-topbar-account-cluster {
+    position: relative;
+  }
+
   .sig-topbar-account-cluster .sig-topbar-account-dropdown {
     position: absolute !important;
-    top: calc(100% + 6px) !important;
-    right: -2px !important;
+
+    /* O cluster tem 50px dentro de uma topbar de 68px:
+       9px abaixo dele coloca o painel exatamente na borda inferior da topbar. */
+    top: calc(100% + 9px) !important;
+
+    /* Compensa o padding direito do shell + o pequeno respiro do grupo,
+       deixando a borda do painel realmente colada no viewport. */
+    right: -24px !important;
     bottom: auto !important;
     left: auto !important;
+
     width: min(400px, 34vw) !important;
     max-width: 400px !important;
     height: auto !important;
-    max-height: calc(100vh - 82px) !important;
+    max-height: calc(100vh - 68px) !important;
+
     margin: 0 !important;
     border-radius: 0 0 0 24px !important;
-    border-top-right-radius: 0 !important;
+    border-top: 0 !important;
+    border-right: 0 !important;
+
     transform: none !important;
     transform-origin: top right !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
+
+    box-shadow:
+      -18px 18px 44px rgba(15, 23, 42, 0.18),
+      inset 1px 0 0 rgba(255,255,255,0.06) !important;
   }
 
   .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="open"] {
-    animation: sigAccountPanelIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+    animation: sigAccountPanelIn 150ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
   }
 
   .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="closed"] {
-    animation: sigAccountPanelOut 120ms ease-in both !important;
+    animation: sigAccountPanelOut 110ms ease-in both !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  .sig-topbar-account-cluster .sig-topbar-account-dropdown {
+    right: -36px !important;
   }
 }
 
