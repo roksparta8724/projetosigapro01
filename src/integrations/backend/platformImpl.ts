@@ -968,11 +968,11 @@ export async function loadRemotePlatformStore() {
       municipalityId: profile?.municipality_id ?? membership.tenant_id,
       title:
         membership.position_title ||
-        membership.department ||
-        membership.queue_name ||
-        membership.level_name ||
-        role?.label ||
-        "",
+        (
+          ["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
+            ? profile?.professional_type || role?.label || ""
+            : role?.label || membership.queue_name || ""
+        ),
       profileLabel:
         membership.profile_label ||
         (
@@ -989,7 +989,7 @@ export async function loadRemotePlatformStore() {
         roleCode === "property_owner"
           ? "Externo"
           : "Interno"),
-      department: membership.department || membership.queue_name || membership.level_name || "",
+      department: membership.department || "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
