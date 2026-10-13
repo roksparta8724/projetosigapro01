@@ -25,6 +25,7 @@ declare
   _property_area numeric;
   _property_usage text;
   _property_standard text;
+  _from_department text;
 begin
   if _profile_id is null then
     raise exception 'Usuario nao autenticado ou sem perfil';
@@ -38,8 +39,8 @@ begin
     raise exception 'Valor da guia invalido';
   end if;
 
-  select p.tenant_id,p.municipality_id,p.property_id,p.protocol_number
-    into _tenant_id,_municipality_id,_property_id,_protocol_number
+  select p.tenant_id,p.municipality_id,p.property_id,p.protocol_number,p.current_department
+    into _tenant_id,_municipality_id,_property_id,_protocol_number,_from_department
   from public.processes p
   where p.id=_process_id;
 
@@ -117,6 +118,30 @@ begin
   )
   returning * into _guide;
 
+  if _guide_kind='iss_obra'
+     and lower(coalesce(_from_department,'')) not like '%financ%'
+     and not exists (
+       select 1
+       from public.interdepartmental_dispatches d
+       where d.process_id=_process_id
+         and lower(coalesce(d.to_department,'')) like '%financ%'
+         and d.status not in ('concluido','devolvido')
+     ) then
+    insert into public.interdepartmental_dispatches(
+      tenant_id,municipality_id,process_id,from_department,to_department,
+      subject,due_at,status,visibility,priority,created_by,created_by_profile_id,created_at
+    )
+    values(
+      _tenant_id,coalesce(_municipality_id,_tenant_id),_process_id,
+      coalesce(nullif(btrim(_from_department),''),'Análise Urbanística'),
+      'Financeiro',
+      'Guia de ISSQN / Projeto emitida — controle financeiro',
+      _due::timestamptz,
+      'aguardando','interno','media',
+      _legacy_user_id,_profile_id,now()
+    );
+  end if;
+
   update public.processes
      set status='pagamento_pendente',
          current_department=case
@@ -145,7 +170,7 @@ begin
       when _guide_kind='iss_obra' then 'Guia de ISSQN / Projeto emitida e encaminhada ao Financeiro para controle.'
       else 'Guia final de aprovacao emitida.'
     end,
-    true,coalesce(_municipality_id,_tenant_id)
+    (_guide_kind <> 'iss_obra'),coalesce(_municipality_id,_tenant_id)
   );
 
   insert into public.process_audit_entries(
@@ -159,7 +184,7 @@ begin
       else 'Guia final de aprovacao emitida'
     end,
     'Guia '||_guide_number||' emitida no valor de R$ '||to_char(_official_amount,'FM999999990D00')||'.',
-    true,coalesce(_municipality_id,_tenant_id)
+    (_guide_kind <> 'iss_obra'),coalesce(_municipality_id,_tenant_id)
   );
 
   return jsonb_build_object(

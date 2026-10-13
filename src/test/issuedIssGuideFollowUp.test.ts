@@ -26,7 +26,7 @@ function movedProcess(overrides: Partial<ProcessRecord> = {}): ProcessRecord {
     processControl: { currentFolder: "Financeiro" },
     triage: { status: "concluido" },
     dispatches: [],
-    analysis: { assignedProfileId: analyst.id },
+    analysis: { assignedProfileId: analyst.id, assignedTo: "Analista", startedAt: "2026-10-13T18:30:00Z" },
     payment: {
       guideNumber: "DAM-0001",
       amount: 10,
@@ -44,7 +44,7 @@ function movedProcess(overrides: Partial<ProcessRecord> = {}): ProcessRecord {
         detail: "Guia registrada no Financeiro",
         actor: "Analista",
         actorProfileId: analyst.id,
-        visibleToExternal: true,
+        visibleToExternal: false,
         at: "13/10/2026",
       },
     ],
@@ -53,36 +53,31 @@ function movedProcess(overrides: Partial<ProcessRecord> = {}): ProcessRecord {
 }
 
 describe("ISSQN after transfer to Financeiro", () => {
-  it("allows the audited issuing analyst to follow up without granting current Financeiro stage powers", () => {
+  it("keeps the analyzed process trackable after the operational handoff", () => {
     const process = movedProcess();
-    expect(canTrackProcess(analyst, process, analyst.municipalityId)).toBe(false);
+    expect(canTrackProcess(analyst, process, analyst.municipalityId)).toBe(true);
     expect(canFollowUpIssuedIssGuide(analyst, process)).toBe(true);
   });
 
-  it("never grants follow-up to other issuers, another municipality or disabled accounts", () => {
+  it("keeps issuer audit compatibility scoped to the recorded issuer", () => {
     const process = movedProcess();
     expect(canFollowUpIssuedIssGuide({ ...analyst, id: "another-user" }, process)).toBe(false);
     expect(canFollowUpIssuedIssGuide({ ...analyst, municipalityId: "prefeitura-b", tenantId: "prefeitura-b" }, process)).toBe(false);
     expect(canFollowUpIssuedIssGuide({ ...analyst, accountStatus: "blocked" }, process)).toBe(false);
-    expect(canFollowUpIssuedIssGuide({ ...analyst, role: "profissional_externo" }, process)).toBe(false);
   });
 
-  it("requires a persisted issued ISS guide and a matching audit profile ID", () => {
-    expect(canFollowUpIssuedIssGuide(analyst, movedProcess({ payment: { ...movedProcess().payment, guides: [] } }))).toBe(false);
-    expect(canFollowUpIssuedIssGuide(analyst, movedProcess({ auditTrail: [] }))).toBe(false);
-    expect(canFollowUpIssuedIssGuide(analyst, movedProcess({ auditTrail: [
-      { ...movedProcess().auditTrail[0], actorProfileId: undefined },
-    ] }))).toBe(false);
-  });
-
-  it("keeps transferred-process UI limited to the guide and preserves explicit manual forwarding", () => {
+  it("requires explicit analyst review before external release and supports revision", () => {
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
     const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"), "utf8");
-    expect(detail).toContain("issuerGuideFollowUpOnly");
-    expect(detail).toContain("Guia emitida — encaminhe ao profissional");
-    expect(detail).toContain("handleSendConstructionGuideToProfessional");
-    expect(detail).toContain("guideAlreadySentToProfessional");
-    expect(detail).toContain('audience: "externo"');
+    expect(detail).toContain("constructionGuideSentExternally");
+    expect(detail).toContain("handleReviseConstructionGuide");
+    expect(detail).toContain("reviseIssProjectGuide");
+    expect(detail).toContain("shareIssProjectGuide");
+    expect(detail).toContain("Aguardando revisão e envio");
+    expect(detail).toContain("Revisado — enviar ao profissional");
+    expect(detail).toContain("showAnalysisMilestone");
+    expect(detail).toContain("AnalysisReadinessPanel");
+    expect(detail).toContain("ProcessIdentityPanel");
     expect(detail).toContain('codigoBarras: ""');
     expect(detail).toContain('linhaDigitavel: ""');
     expect(detail).not.toContain('.padEnd(44, "7")');

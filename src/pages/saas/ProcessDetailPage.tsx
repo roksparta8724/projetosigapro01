@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,6 @@ import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canTrackProcess,
-  canFollowUpIssuedIssGuide,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessLabel,
@@ -206,7 +205,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -291,6 +290,7 @@ export function ProcessDetailPage() {
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
+  const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
@@ -308,7 +308,8 @@ export function ProcessDetailPage() {
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
-  }, [process?.id]);
+    setIsEditingIssuedIssGuide(false);
+  }, [process?.id, process?.property.area, process?.property.usage, process?.property.workType]);
 
   const ownsCurrentProcessStage =
     !!process && isProcessOwnedBySessionDepartment(session, process);
@@ -434,11 +435,7 @@ export function ProcessDetailPage() {
     );
   }
 
-  const hasStandardProcessAccess = canTrackProcess(session, process, effectiveScopeId);
-  const issuerGuideFollowUpOnly =
-    !hasStandardProcessAccess && canFollowUpIssuedIssGuide(session, process);
-
-  if (!hasStandardProcessAccess && !issuerGuideFollowUpOnly) {
+  if (!canTrackProcess(session, process, effectiveScopeId)) {
     return (
       <PortalFrame eyebrow="Controle de Acesso" title="Conteúdo Protegido">
         <Card className="rounded-[28px] border-rose-200 bg-rose-50">
@@ -464,8 +461,19 @@ export function ProcessDetailPage() {
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
     session.role === "proprietario_consulta";
+  const isGuideSharedExternally = (guideCode: string | undefined) =>
+    Boolean(
+      guideCode &&
+      process.messages.some(
+        (item) =>
+          (item.audience === "externo" || item.audience === "misto") &&
+          item.message.includes(guideCode),
+      ),
+    );
   const visiblePaymentGuides = isExternalProcessViewer
-    ? paymentGuides.filter((guide) => guide.kind === "protocolo" || Boolean(guide.issuedAt && guide.code?.trim()))
+    ? paymentGuides.filter(
+        (guide) => guide.kind === "protocolo" || isGuideSharedExternally(guide.code),
+      )
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
@@ -518,14 +526,18 @@ export function ProcessDetailPage() {
   const constructionGuide = visiblePaymentGuides.find(
     (guide) => guide.kind === "iss_obra",
   );
-  const guideAlreadySentToProfessional = Boolean(
-    constructionGuide?.code &&
-    process.messages.some((entry) =>
-      entry.audience === "externo" &&
-      entry.recipientName?.trim() === process.technicalLead.trim() &&
-      entry.message.includes(`Guia de ISSQN / Projeto disponível: ${constructionGuide.code}`),
-    ),
-  );
+  const constructionGuideSentExternally = constructionGuide
+    ? isGuideSharedExternally(constructionGuide.code)
+    : false;
+  const canManageIssuedIssGuide =
+    Boolean(constructionGuide) &&
+    constructionGuide?.status !== "compensada" &&
+    (
+      isMasterOrMunicipalAdmin ||
+      session.role === "prefeitura_supervisor" ||
+      (session.role === "analista" &&
+        (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
+    );
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
       /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
@@ -734,6 +746,15 @@ export function ProcessDetailPage() {
     "";
   const transitSteps = [...process.dispatches].reverse();
   const hasTransitHistory = transitSteps.length > 0;
+  const hasAnalysisDispatch = transitSteps.some((dispatch) =>
+    /analise|análise|urban|obra|engenharia/i.test(dispatch.to),
+  );
+  const showAnalysisMilestone =
+    Boolean(process.analysis?.startedAt || process.analysis?.assignedTo) &&
+    !hasAnalysisDispatch;
+  const analysisStartedAt = process.analysis?.startedAt
+    ? new Date(process.analysis.startedAt).toLocaleString("pt-BR")
+    : "";
 
   const constructionStandardLabel =
     process.property.constructionStandard === "luxo"
@@ -981,36 +1002,27 @@ export function ProcessDetailPage() {
     );
   };
 
+  const handleReviseConstructionGuide = async () => {
+    if (!constructionGuide || !canManageIssuedIssGuide) return;
+    const input = getConstructionGuideInput();
+    if (!input) return;
+
+    const ok = await runProcessAction(
+      "revise-construction-guide",
+      () => reviseIssProjectGuide(input),
+      "Nova versão da Guia de ISSQN / Projeto gerada. Somente esta versão permanece vigente e ela precisa ser revisada antes de novo envio ao profissional.",
+    );
+    if (ok) {
+      setIsEditingIssuedIssGuide(false);
+    }
+  };
+
   const handleSendConstructionGuideToProfessional = () => {
-    if (!constructionGuide?.code || !constructionGuide.issuedAt) {
-      setProcessActionStatus("A guia precisa estar emitida no banco antes do envio ao profissional.");
-      return;
-    }
-    if (!issuerGuideFollowUpOnly && !canReviewDocuments && !canFinanceOperate) {
-      setProcessActionStatus("Esta etapa só pode ser comunicada pelo emissor autorizado ou pelo setor responsável.");
-      return;
-    }
-    if (guideAlreadySentToProfessional) {
-      setProcessActionStatus("O encaminhamento desta guia já está registrado no histórico.");
-      return;
-    }
-    if (!process.technicalLead.trim() || process.technicalLead === "Nao informado") {
-      setProcessActionStatus("O responsável técnico precisa estar identificado para receber a guia.");
-      return;
-    }
+    if (!constructionGuide || constructionGuideSentExternally || isEditingIssuedIssGuide) return;
     void runProcessAction(
       "send-construction-guide",
-      () =>
-        sendProcessMessage({
-          processId: process.id,
-          senderName: session.name,
-          senderRole: session.role,
-          audience: "externo",
-          recipientName: process.technicalLead,
-          message:
-            `Guia de ISSQN / Projeto disponível: ${constructionGuide.code}, valor ${formatCurrency(constructionGuide.amount)}, vencimento ${constructionGuide.dueDate}. Acesse o processo para visualizar a guia registrada. Consulte os canais oficiais da Prefeitura para obter o meio de pagamento validado.`,
-        }),
-      "Guia encaminhada ao profissional responsável e registrada no histórico do processo.",
+      () => shareIssProjectGuide(process.id),
+      "Guia liberada manualmente pelo analista e enviada ao profissional responsável.",
     );
   };
 
@@ -1325,94 +1337,6 @@ export function ProcessDetailPage() {
     }
   };
 
-  // A emissão transfere a pasta ao Financeiro. O emissor permanece com
-  // acesso EXCLUSIVAMENTE à guia que ele acabou de emitir, sem documentos,
-  // dados do proprietário ou ações técnicas/financeiras de outra unidade.
-  if (issuerGuideFollowUpOnly) {
-    return (
-      <PortalFrame eyebrow="Acompanhamento de guia emitida" title={formatOfficialProcessNumber(process.protocol)} focusMode>
-        <PageShell className="!max-w-[1140px]">
-          <PageHero
-            eyebrow="ISSQN / Projeto · Emissão concluída"
-            title="Guia emitida — encaminhe ao profissional"
-            description="A cobrança já está na pasta Financeiro. O emissor mantém esta visualização limitada para disponibilizar a guia ao responsável técnico."
-            icon={FileKey2}
-          />
-          {processActionStatus ? (
-            <div role="status" className={`rounded-2xl border px-5 py-4 text-sm font-medium ${/não|erro|falha|sem acesso/i.test(processActionStatus)
-              ? "border-rose-200 bg-rose-50 text-rose-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
-              {processActionStatus}
-            </div>
-          ) : null}
-          <Card className="overflow-hidden rounded-[22px] border-[#314d6d] bg-[#101f36] text-white shadow-lg">
-            <CardHeader className="border-b border-[#35516e]">
-              <CardTitle className="flex flex-wrap items-center gap-2 text-xl !text-white">
-                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                Guia de ISSQN / Projeto registrada
-              </CardTitle>
-              <p className="text-sm leading-6 !text-slate-200">
-                O processo está sob responsabilidade do Financeiro para acompanhamento da arrecadação.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5 p-6">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { label: "Número da guia", value: constructionGuide?.code || "Não disponível" },
-                  { label: "Valor emitido", value: constructionGuide ? formatCurrency(constructionGuide.amount) : "Não disponível" },
-                  { label: "Vencimento", value: constructionGuide?.dueDate || "Não informado" },
-                  { label: "Situação", value: constructionGuide?.status === "compensada" ? "Pagamento confirmado" : "Aguardando pagamento" },
-                ].map((item) => (
-                  <div key={item.label} className="min-w-0 rounded-2xl border border-[#35516e] bg-[#1c3250] p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide !text-sky-200">{item.label}</p>
-                    <p className="mt-2 break-words text-base font-semibold !text-white">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm !text-slate-200">
-                Destinatário: <strong className="!text-white">{process.technicalLead}</strong>.
-                O encaminhamento é registrado na comunicação externa do processo; não constitui envio por e-mail.
-              </p>
-              <p className="rounded-2xl border border-amber-500/40 bg-amber-900/25 px-4 py-3 text-sm leading-6 !text-amber-100">
-                A guia está emitida no processo, mas este cadastro ainda não apresenta PIX ou código bancário homologado.
-                Para efetuar o pagamento, o profissional deverá consultar o canal oficial de arrecadação da Prefeitura.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full bg-white px-5 !text-slate-950 hover:bg-slate-100"
-                  disabled={!constructionGuide?.code}
-                  onClick={() => printGuide("iss_obra", false)}
-                >
-                  <Eye className="mr-2 h-4 w-4" /> Visualizar guia
-                </Button>
-                {guideAlreadySentToProfessional ? (
-                  <span role="status" className="inline-flex items-center gap-2 rounded-full border border-emerald-500/50 bg-emerald-950/35 px-5 py-2 text-sm font-semibold !text-emerald-200">
-                    <CheckCircle2 className="h-4 w-4" /> Encaminhamento já registrado
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    className="rounded-full bg-sky-600 px-6 !text-white hover:bg-sky-500"
-                    disabled={!constructionGuide?.issuedAt || Boolean(processActionBusy)}
-                    onClick={handleSendConstructionGuideToProfessional}
-                  >
-                    <MessageSquareMore className="mr-2 h-4 w-4" />
-                    {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar guia ao profissional"}
-                  </Button>
-                )}
-                <Button type="button" variant="ghost" className="rounded-full !text-white hover:!bg-[#2b4663]" onClick={() => navigate("/prefeitura/analise")}>
-                  Voltar à Análise Urbanística
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </PageShell>
-      </PortalFrame>
-    );
-  }
-
   return (
     <PortalFrame
       eyebrow={formatProfessionalProcessType(process.type)}
@@ -1561,17 +1485,6 @@ export function ProcessDetailPage() {
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
-            {canProtocolConfirmPayment ? (
-              <Button
-                type="button"
-                className="mt-3 rounded-full bg-emerald-600 px-4 font-semibold !text-white hover:bg-emerald-700"
-                disabled={processActionBusy === "confirm-protocol-payment"}
-                onClick={handleConfirmProtocolPayment}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
-              </Button>
-            ) : null}
             {constructionGuide ? (
               <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -1601,7 +1514,7 @@ export function ProcessDetailPage() {
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
       <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
@@ -1628,7 +1541,7 @@ export function ProcessDetailPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Acesso externo ao fluxo</p>
             <p className="mt-2 text-base font-medium text-slate-900">
@@ -2086,8 +1999,15 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                   {constructionGuide ? (
-                    <Badge variant="outline" className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Guia já gerada
+                    <Badge
+                      variant="outline"
+                      className={`rounded-full ${
+                        constructionGuideSentExternally
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                      }`}
+                    >
+                      {constructionGuideSentExternally ? "Enviada ao profissional" : "Aguardando revisão e envio"}
                     </Badge>
                   ) : null}
                 </div>
@@ -2102,7 +2022,7 @@ export function ProcessDetailPage() {
                       inputMode="decimal"
                       value={constructionAreaInput}
                       onChange={(event) => setConstructionAreaInput(event.target.value)}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                       className="mt-2 h-11 bg-white dark:bg-slate-950"
                       placeholder="Ex.: 250,00"
                     />
@@ -2113,7 +2033,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={constructionUsageInput}
                       onValueChange={setConstructionUsageInput}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
                         <SelectValue placeholder="Selecione o uso da edificação" />
@@ -2131,7 +2051,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={workTypeInput}
                       onValueChange={setWorkTypeInput}
-                      disabled={Boolean(constructionGuide)}
+                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100">
                         <SelectValue placeholder="Selecione a natureza da obra" />
@@ -2159,7 +2079,7 @@ export function ProcessDetailPage() {
                   </div>
 
                   {constructionGuide ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -2169,15 +2089,70 @@ export function ProcessDetailPage() {
                         <Eye className="mr-2 h-4 w-4" />
                         Visualizar guia
                       </Button>
-                      <Button
-                        type="button"
-                        className="rounded-full bg-sky-700 px-5 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
-                        disabled={processActionBusy === "send-construction-guide"}
-                        onClick={handleSendConstructionGuideToProfessional}
-                      >
-                        <MessageSquareMore className="mr-2 h-4 w-4" />
-                        {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar ao profissional"}
-                      </Button>
+
+                      {canManageIssuedIssGuide ? (
+                        isEditingIssuedIssGuide ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full"
+                              disabled={Boolean(processActionBusy)}
+                              onClick={() => {
+                                setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
+                                setConstructionUsageInput(process.property.usage || "");
+                                setWorkTypeInput(process.property.workType || "");
+                                setIsEditingIssuedIssGuide(false);
+                              }}
+                            >
+                              Cancelar correção
+                            </Button>
+                            <Button
+                              type="button"
+                              className="rounded-full bg-amber-600 px-5 !text-white hover:bg-amber-700 dark:bg-amber-500 dark:!text-slate-950 dark:hover:bg-amber-400"
+                              disabled={
+                                processActionBusy === "revise-construction-guide" ||
+                                !(constructionAreaValue > 0) ||
+                                !constructionUsageInput ||
+                                !workTypeInput
+                              }
+                              onClick={() => void handleReviseConstructionGuide()}
+                            >
+                              <FileKey2 className="mr-2 h-4 w-4" />
+                              {processActionBusy === "revise-construction-guide"
+                                ? "Gerando nova versão..."
+                                : "Gerar nova versão"}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300"
+                            onClick={() => setIsEditingIssuedIssGuide(true)}
+                          >
+                            <PencilLine className="mr-2 h-4 w-4" />
+                            Corrigir guia
+                          </Button>
+                        )
+                      ) : null}
+
+                      {!constructionGuideSentExternally && !isEditingIssuedIssGuide ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-sky-700 px-5 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
+                          disabled={processActionBusy === "send-construction-guide" || !canManageIssuedIssGuide}
+                          onClick={handleSendConstructionGuideToProfessional}
+                        >
+                          <MessageSquareMore className="mr-2 h-4 w-4" />
+                          {processActionBusy === "send-construction-guide" ? "Enviando..." : "Revisado — enviar ao profissional"}
+                        </Button>
+                      ) : constructionGuideSentExternally ? (
+                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Versão vigente já enviada
+                        </div>
+                      ) : null}
                     </div>
                   ) : constructionGuideRequest ? (
                     <div className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
@@ -2236,6 +2211,18 @@ export function ProcessDetailPage() {
                   )}
                 </div>
 
+                {constructionGuide ? (
+                  <div className={`mt-4 rounded-xl border px-4 py-3 text-sm leading-6 ${
+                    constructionGuideSentExternally
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-300"
+                      : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-300"
+                  }`}>
+                    {constructionGuideSentExternally
+                      ? "A versão vigente foi liberada manualmente pelo analista e já está disponível ao profissional."
+                      : "A guia foi gerada, mas ainda não foi liberada ao profissional. O analista deve visualizar e conferir a guia; se houver erro, use Corrigir guia e gere uma nova versão. Somente a versão mais recente permanece vigente."}
+                  </div>
+                ) : null}
+
                 {!allAnalysisDocumentsApproved ? (
                   <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-300">
                     A guia só pode ser gerada quando todos os documentos e projetos estiverem aprovados.
@@ -2253,6 +2240,9 @@ export function ProcessDetailPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia</p>
                     <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuide.code}</p>
                     <p className="mt-1 text-xs text-slate-500">{formatCurrency(constructionGuide.amount)}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                      Versão {Number(constructionGuide.revision ?? 0) + 1}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Proprietário</p>
@@ -2435,7 +2425,9 @@ export function ProcessDetailPage() {
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {statusLabel(process.status)}
-                      {process.analysis?.assignedTo ? ` • Responsável: ${process.analysis.assignedTo}` : ""}
+                      {/analise|urban|obra|engenharia/.test(normalizedCurrentFolder) && process.analysis?.assignedTo
+                        ? ` • Responsável: ${process.analysis.assignedTo}`
+                        : ""}
                     </p>
                   </div>
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white text-sky-700">
@@ -2471,6 +2463,36 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                {showAnalysisMilestone ? (
+                  <div className="relative flex gap-4 pb-5">
+                    <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-sm">
+                      <FileCheck2 className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                            Análise Urbanística
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-950">
+                            {getOrganizationPath(URBAN_ANALYSIS_DEPARTMENT)}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            Processo recebido pela mesa técnica
+                            {process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
+                          </p>
+                        </div>
+                        {analysisStartedAt ? (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {analysisStartedAt}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
 
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
@@ -2538,7 +2560,9 @@ export function ProcessDetailPage() {
                         {currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        Ainda não há outra tramitação registrada.
+                        {showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
+                          ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
+                          : "A unidade atual é a última etapa registrada para este processo."}
                       </p>
                     </div>
                   </div>

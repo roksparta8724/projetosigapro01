@@ -1,4 +1,6 @@
 ﻿import {
+  Archive,
+  ArchiveRestore,
   CheckCircle2,
   Clock3,
   Download,
@@ -9,8 +11,9 @@
   Stamp,
   TimerReset,
   Users2,
+  Workflow,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -35,6 +38,7 @@ import {
   getChecklistTemplate,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  matchesOperationalScope,
   parseMarker,
   statusLabel,
   statusTone,
@@ -111,16 +115,55 @@ export function AnalystDeskPage() {
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
       : URBAN_ANALYSIS_DEPARTMENT;
 
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter((item) => {
-    const haystack = `${formatOfficialProcessNumber(item.protocol)} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu}`.toLowerCase();
-    return haystack.includes(search.toLowerCase());
+  const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+
+  // A fila operacional continua restrita ao setor atual, mas o registro da Análise
+  // mantém os processos que já passaram pela mesa técnica, mesmo depois do envio
+  // ao Financeiro ou a outra unidade.
+  const analysisRegistryBase = allProcesses.filter((item) => {
+    if (!matchesOperationalScope(effectiveScopeId, item)) return false;
+    const isCurrentlyVisible = departmentProcesses.some((current) => current.id === item.id);
+    const wasAnalyzed = Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId);
+    return isCurrentlyVisible || wasAnalyzed;
   });
 
-  const requirementsOpen = processes.reduce(
+  const filterBySearch = (item: ProcessRecord) => {
+    const haystack = `${formatOfficialProcessNumber(item.protocol)} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu} ${item.address} ${item.analysis?.assignedTo || ""} ${item.processControl?.currentFolder || ""}`.toLowerCase();
+    return haystack.includes(search.trim().toLowerCase());
+  };
+
+  const activeProcesses = departmentProcesses.filter(filterBySearch);
+  const processes = analysisRegistryBase.filter(filterBySearch);
+
+  const archiveStorageKey = `sigapro:analysis-archive:${session.id}:${effectiveScopeId || "default"}`;
+  const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(archiveStorageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      setArchivedProcessIds(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
+    } catch {
+      setArchivedProcessIds([]);
+    }
+  }, [archiveStorageKey]);
+
+  const setProcessArchived = (processId: string, archived: boolean) => {
+    setArchivedProcessIds((current) => {
+      const next = archived
+        ? Array.from(new Set([...current, processId]))
+        : current.filter((id) => id !== processId);
+      window.localStorage.setItem(archiveStorageKey, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const requirementsOpen = activeProcesses.reduce(
     (count, process) => count + getOpenRequirements(process).length,
     0,
   );
-  const slaCritical = processes.filter((item) => item.sla.breached || item.sla.hoursRemaining <= 12);
+  const slaCritical = activeProcesses.filter((item) => item.sla.breached || item.sla.hoursRemaining <= 12);
   const analysisActiveStatuses = [
     "distribuicao",
     "analise_tecnica",
@@ -129,20 +172,34 @@ export function AnalystDeskPage() {
     "reapresentacao",
     "despacho_intersetorial",
   ] as const;
-  const inReview = processes.filter((item) => item.status === "analise_tecnica");
+  const inReview = activeProcesses.filter((item) => item.status === "analise_tecnica");
   const completed = processes.filter((item) => item.status === "deferido");
-  const correctionQueue = processes.filter(
+  const correctionQueue = activeProcesses.filter(
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
-  const blockedItems = processes.filter(
+  const blockedItems = activeProcesses.filter(
     (item) => item.status === "pendencia_documental" || item.status === "exigencia",
   );
-  const analysisWorkItems = processes.filter((item) =>
+  const analysisWorkItems = activeProcesses.filter((item) =>
     analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]),
   );
   const analysisTrackedProcesses = processes.filter(
-    (item) => Boolean(item.analysis?.startedAt || item.analysis?.assignedTo),
+    (item) => Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
   );
+  const processRegistry = [...analysisTrackedProcesses]
+    .filter((item) =>
+      showArchived
+        ? archivedProcessIds.includes(item.id)
+        : !archivedProcessIds.includes(item.id),
+    )
+    .sort((a, b) => {
+      const aActive = analysisActiveStatuses.includes(a.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
+      const bActive = analysisActiveStatuses.includes(b.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      const aDate = Date.parse(a.analysis?.startedAt || a.timeline[0]?.at || "1970-01-01");
+      const bDate = Date.parse(b.analysis?.startedAt || b.timeline[0]?.at || "1970-01-01");
+      return bDate - aDate;
+    });
   const handedOffFromAnalysis = analysisTrackedProcesses.filter(
     (item) =>
       !analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]) &&
@@ -195,14 +252,14 @@ export function AnalystDeskPage() {
   }, [analysisTrackedProcesses]);
 
   const averageSlaHours =
-    processes.length > 0
-      ? Math.round(processes.reduce((total, item) => total + item.sla.hoursRemaining, 0) / processes.length)
+    activeProcesses.length > 0
+      ? Math.round(activeProcesses.reduce((total, item) => total + item.sla.hoursRemaining, 0) / activeProcesses.length)
       : 0;
 
   const dispatchTemplate = documentTemplates.find((item) => item.type === "despacho");
   const dispatchRows = useMemo(
     () =>
-      processes.flatMap((process) =>
+      activeProcesses.flatMap((process) =>
         process.dispatches.map((dispatch) => ({
           id: `${process.id}-${dispatch.id}`,
           processId: process.id,
@@ -218,7 +275,7 @@ export function AnalystDeskPage() {
           currentFolder: process.processControl?.currentFolder || dispatch.to || process.sla.currentStage,
         })),
       ),
-    [processes],
+    [activeProcesses],
   );
   const dispatchesForCurrentUnit = useMemo(
     () =>
@@ -288,7 +345,7 @@ export function AnalystDeskPage() {
 
   const navItems = [
     { value: "visao-geral", label: "Resumo", helper: "Prioridades da mesa técnica" },
-    { value: "fila", label: "Fila de análise", helper: "Operação técnica principal" },
+    { value: "fila", label: "Processos da análise", helper: "Ativos, encaminhados e concluídos" },
     { value: "pendencias", label: "Pendências", helper: "Bloqueios e inconsistências" },
     { value: "correcoes", label: "Correções solicitadas", helper: "Retornos e reapresentação" },
     { value: "historico", label: "Histórico técnico", helper: "Comentários, decisões e movimentos" },
@@ -545,6 +602,101 @@ export function AnalystDeskPage() {
     </div>
   );
 
+  const renderProcessRegistry = () => (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
+        Esta é a lista histórica da Análise Urbanística. Processos continuam aqui mesmo depois de seguirem para Financeiro ou outra unidade.
+        Arquivar organiza somente a sua lista e não apaga nem altera o processo oficial.
+      </div>
+
+      {processRegistry.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+          {showArchived ? "Nenhum processo arquivado nesta lista." : "Nenhum processo da Análise encontrado com os filtros atuais."}
+        </div>
+      ) : (
+        processRegistry.map((process) => {
+          const isActiveAnalysis = analysisActiveStatuses.includes(
+            process.status as (typeof analysisActiveStatuses)[number],
+          );
+          const currentFlow =
+            process.processControl?.currentFolder ||
+            process.dispatches[0]?.to ||
+            process.sla.currentStage ||
+            statusLabel(process.status);
+          const isArchived = archivedProcessIds.includes(process.id);
+
+          return (
+            <div
+              key={process.id}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
+            >
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      {formatOfficialProcessNumber(process.protocol)}
+                    </p>
+                    <Badge variant="outline" className={statusTone(process.status)}>
+                      {statusLabel(process.status)}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`rounded-full ${
+                        isActiveAnalysis
+                          ? "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300"
+                          : "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/40 dark:bg-violet-950/40 dark:text-violet-300"
+                      }`}
+                    >
+                      <Workflow className="mr-1 h-3.5 w-3.5" />
+                      {isActiveAnalysis ? "Na Análise" : `Fluxo atual: ${currentFlow}`}
+                    </Badge>
+                  </div>
+
+                  <p className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
+                    {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {process.ownerName} • {process.address}
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    Responsável pela análise: {process.analysis?.assignedTo || "Não atribuído"}
+                    {process.analysis?.startedAt ? ` • iniciada em ${new Date(process.analysis.startedAt).toLocaleString("pt-BR")}` : ""}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link to={`/processos/${process.id}`}>
+                      {isActiveAnalysis ? "Abrir processo" : "Consultar processo"}
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => setProcessArchived(process.id, !isArchived)}
+                  >
+                    {isArchived ? (
+                      <>
+                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                        Restaurar na lista
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-2 h-4 w-4" />
+                        Arquivar da minha lista
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões">
       <PageShell>
@@ -612,7 +764,7 @@ export function AnalystDeskPage() {
                   icon={ListTodo}
                   actions={
                     <Button type="button" variant="outline" className="rounded-full" onClick={() => setSection("fila")}>
-                      Ver fila completa
+                      Ver todos os processos
                     </Button>
                   }
                 >
@@ -725,22 +877,42 @@ export function AnalystDeskPage() {
 
         {section === "fila" && (
           <TableCard
-            title="Fila de análise"
-            description="Leitura completa da fila técnica, com prioridade, prazo, responsável e ação."
+            title="Processos da Análise"
+            description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
             icon={ListTodo}
             actions={
-              <div className="relative w-full max-w-xl">
-                <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar protocolo, IPTU, proprietário ou endereço"
-                  className="h-11 rounded-2xl border-slate-200 pl-11"
-                />
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <div className="relative w-full max-w-xl">
+                  <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
+                    className="h-11 rounded-2xl border-slate-200 pl-11"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 shrink-0 rounded-full"
+                  onClick={() => setShowArchived((current) => !current)}
+                >
+                  {showArchived ? (
+                    <>
+                      <ListTodo className="mr-2 h-4 w-4" />
+                      Ver lista ativa
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="mr-2 h-4 w-4" />
+                      Ver arquivados ({archivedProcessIds.length})
+                    </>
+                  )}
+                </Button>
               </div>
             }
           >
-            {renderQueue(queue)}
+            {renderProcessRegistry()}
           </TableCard>
         )}
 

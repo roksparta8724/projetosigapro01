@@ -505,6 +505,7 @@ export interface PaymentGuideEntry {
   areaM2?: number;
   usage?: string;
   constructionStandard?: string;
+  revision?: number;
 }
 
 export interface ProcessDocument {
@@ -2350,11 +2351,8 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
 }
 
 /**
- * Após emitir o ISSQN, o analista pode acompanhar SOMENTE a guia que ele
- * emitiu, mesmo quando a cobrança já está na pasta Financeiro.
- *
- * Não concede competência para movimentar/editar processos de outro setor.
- * A identificação do emissor é a chave do perfil guardada na auditoria.
+ * Compatibilidade de auditoria: identifica se o usuário foi o emissor da guia ISSQN.
+ * O acesso geral de acompanhamento da Análise é tratado por canTrackProcess.
  */
 export function canFollowUpIssuedIssGuide(session: SessionUser, process: ProcessRecord) {
   if (
@@ -2403,6 +2401,17 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
       ) ||
       process.triage.status === "concluido";
     return originatedInProtocol;
+  }
+
+  if (userDepartment === "analise") {
+    // Depois que a Análise Urbanística encaminha o processo, ela perde a
+    // responsabilidade operacional, mas mantém acesso de acompanhamento aos
+    // processos que já passaram oficialmente pela mesa técnica.
+    return Boolean(
+      process.analysis?.startedAt ||
+      process.analysis?.assignedTo ||
+      process.analysis?.assignedProfileId,
+    );
   }
 
   return false;

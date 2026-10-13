@@ -1370,7 +1370,7 @@ export async function loadRemotePlatformStore() {
                 ? "compensada"
                 : "pendente",
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
-            issuedAt: guide.created_at ?? undefined,
+            issuedAt: guide.last_reissued_at ?? guide.created_at ?? undefined,
             expiresAt: undefined,
             requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
             requestedAt: guide.requested_at ? String(guide.requested_at) : undefined,
@@ -1383,6 +1383,7 @@ export async function loadRemotePlatformStore() {
             constructionStandard: guide.construction_standard_snapshot
               ? String(guide.construction_standard_snapshot)
               : undefined,
+            revision: Number(guide.reissue_count ?? 0),
           };
         }),
       },
@@ -2128,6 +2129,38 @@ export async function updateRemoteProcessIssProjectData(input: {
   });
 }
 
+export async function reviseRemoteIssProjectGuide(input: {
+  processId: string;
+  areaM2: number;
+  usage: string;
+  workType: string;
+  dueDate?: string | null;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("revise_iss_project_guide_v1", {
+    _process_id: input.processId,
+    _area_m2: input.areaM2,
+    _usage: input.usage.trim(),
+    _work_type: input.workType.trim(),
+    _due_date: input.dueDate || null,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide: Record<string, unknown>; revision: number };
+}
+
+export async function shareRemoteIssProjectGuide(processId: string) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const { data, error } = await db.rpc("share_iss_project_guide_v1", {
+    _process_id: processId,
+  });
+
+  if (error) throw error;
+  return data as { process_id: string; guide_number: string; already_shared?: boolean };
+}
+
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
   return callProcessRpc("request_construction_payment_guide_v1", {
     _process_id: processId,
@@ -2757,7 +2790,6 @@ function mapMunicipalDepartment(row: Record<string, unknown>): MunicipalDepartme
 export async function listRemoteMunicipalDepartments(municipalityId: string) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
   // RPC institucional faz o isolamento por Prefeitura no banco.
-  // Nunca usar uma consulta direta como fallback se a autorização falhar.
   const { data, error } = await db.rpc("list_municipal_departments_v1", {
     _municipality_id: municipalityId,
   });

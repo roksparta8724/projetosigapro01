@@ -65,6 +65,7 @@ import {
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
   reissueRemoteProcessPaymentGuide,
+  reviseRemoteIssProjectGuide,
   removeRemoteProcessMarkerByLabel,
   reopenRemoteProcess,
   respondRemoteOwnerRequest,
@@ -75,6 +76,7 @@ import {
   saveRemoteInstitutionSettings,
   saveRemoteProfile,
   sendRemoteProcessMessage,
+  shareRemoteIssProjectGuide,
   setRemoteOwnerChatEnabled,
   startRemoteProcessAnalysis,
   setRemoteProcessCheckpoint,
@@ -187,6 +189,13 @@ interface PlatformDataState {
     usage: string;
     workType: string;
   }) => Promise<void>;
+  reviseIssProjectGuide: (input: {
+    processId: string;
+    areaM2: number;
+    usage: string;
+    workType: string;
+  }) => Promise<void>;
+  shareIssProjectGuide: (processId: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
   appendProcessDocuments: (
@@ -1953,6 +1962,27 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           usage,
           workType,
         });
+        await refreshRemoteStore();
+      },
+      reviseIssProjectGuide: async ({ processId, areaM2, usage, workType }) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para revisar a guia.");
+        }
+
+        await reviseRemoteIssProjectGuide({
+          processId,
+          areaM2,
+          usage,
+          workType,
+        });
+        await refreshRemoteStore();
+      },
+      shareIssProjectGuide: async (processId) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para liberar a guia ao profissional.");
+        }
+
+        await shareRemoteIssProjectGuide(processId);
         await refreshRemoteStore();
       },
       issuePaymentGuide: async (processId, actor, guideKind) => {
