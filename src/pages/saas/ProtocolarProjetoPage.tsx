@@ -21,6 +21,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -29,7 +30,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
-import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog } from "@/lib/platform";
+import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
@@ -347,11 +348,12 @@ export function ProtocolarProjetoPage() {
       { label: "Pré-protocolo", value: draftNumber },
       { label: "Projeto", value: form.titulo || "Não preenchido" },
       { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
+      { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
       { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
       { label: "Proprietário", value: form.proprietario || "Não preenchido" },
       { label: "Imóvel", value: form.endereco || "Não preenchido" },
     ],
-    [draftNumber, form.endereco, form.profissional, form.proprietario, form.titulo, form.tipo],
+    [draftNumber, form.endereco, form.profissional, form.proprietario, form.tipoObra, form.titulo, form.tipo],
   );
 
   const statusCards = useMemo(
@@ -640,8 +642,8 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    if (!form.titulo || !form.tipo || !form.endereco || !form.iptu || !form.matricula || !form.proprietario || !form.documento) {
-      setStatus("Preencha os dados obrigatórios do projeto, do imóvel e do proprietário.");
+    if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula || !form.proprietario || !form.documento) {
+      setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra, o imóvel e o proprietário.");
       return;
     }
 
@@ -774,6 +776,7 @@ export function ProtocolarProjetoPage() {
             block: form.quadra,
             area: Number(form.area || 0),
             usage: form.uso,
+            workType: form.tipoObra,
             constructionStandard: form.padraoConstrutivo,
           },
           documents,
@@ -942,6 +945,36 @@ export function ProtocolarProjetoPage() {
               </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Natureza da obra *</Label>
+                <Select value={form.tipoObra} onValueChange={(value) => setField("tipoObra", value)}>
+                  <SelectTrigger className="bg-white dark:bg-slate-950">
+                    <SelectValue placeholder="Selecione: construção nova, reforma, ampliação..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workTypeCatalog.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Esta informação acompanha o processo desde o protocolo e será conferida na Análise Urbanística.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Uso da edificação</Label>
+                <Input
+                  value={form.uso}
+                  onChange={(event) => setField("uso", event.target.value)}
+                  placeholder="Ex.: Residencial, Comercial, Industrial"
+                />
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Usado no cálculo da guia de ISSQN / Projeto conforme a tabela da Prefeitura.
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Endereço do imóvel</Label>
               <Input value={form.endereco} onChange={(event) => setField("endereco", event.target.value)} />
@@ -962,7 +995,7 @@ export function ProtocolarProjetoPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Lote</Label>
                 <Input value={form.lote} onChange={(event) => setField("lote", event.target.value)} />
@@ -970,10 +1003,6 @@ export function ProtocolarProjetoPage() {
               <div className="space-y-2">
                 <Label>Quadra</Label>
                 <Input value={form.quadra} onChange={(event) => setField("quadra", event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Uso do imóvel</Label>
-                <Input value={form.uso} onChange={(event) => setField("uso", event.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Padrão construtivo</Label>
