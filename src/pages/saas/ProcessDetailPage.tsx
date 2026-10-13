@@ -1898,7 +1898,7 @@ export function ProcessDetailPage() {
                     Conclusão da Análise Urbanística
                   </CardTitle>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Depois da aprovação dos documentos, o analista informa os dados da obra e o SIGAPRO calcula e gera a guia automaticamente pelas regras do workflow financeiro.
+                    Depois da aprovação dos documentos, o analista informa os dados da obra. A emissão segue a regra definida pelo administrador da Prefeitura: Análise Urbanística, Financeiro ou ambos.
                   </p>
                 </div>
                 <Badge
@@ -2000,26 +2000,7 @@ export function ProcessDetailPage() {
                     </p>
                   </div>
 
-                  {!constructionGuide ? (
-                    <Button
-                      type="button"
-                      className="shrink-0 rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"
-                      disabled={
-                        processActionBusy === "generate-construction-guide" ||
-                        !canReviewDocuments ||
-                        !allAnalysisDocumentsApproved ||
-                        hasOpenAnalysisRequirements ||
-                        !(constructionAreaValue > 0) ||
-                        !constructionUsageInput
-                      }
-                      onClick={handleGenerateConstructionGuide}
-                    >
-                      <FileKey2 className="mr-2 h-4 w-4" />
-                      {processActionBusy === "generate-construction-guide"
-                        ? "Gerando guia..."
-                        : "Gerar guia automaticamente"}
-                    </Button>
-                  ) : (
+                  {constructionGuide ? (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -2039,6 +2020,58 @@ export function ProcessDetailPage() {
                         <MessageSquareMore className="mr-2 h-4 w-4" />
                         {processActionBusy === "send-construction-guide" ? "Enviando..." : "Enviar ao profissional"}
                       </Button>
+                    </div>
+                  ) : constructionGuideRequest ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
+                      <Clock3 className="h-4 w-4" />
+                      Encaminhada ao Financeiro para emissão
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {analysisCanIssueConstructionGuide ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"
+                          disabled={
+                            processActionBusy === "generate-construction-guide" ||
+                            !canReviewDocuments ||
+                            !allAnalysisDocumentsApproved ||
+                            hasOpenAnalysisRequirements ||
+                            !(constructionAreaValue > 0) ||
+                            !constructionUsageInput
+                          }
+                          onClick={handleGenerateConstructionGuide}
+                        >
+                          <FileKey2 className="mr-2 h-4 w-4" />
+                          {processActionBusy === "generate-construction-guide"
+                            ? "Gerando guia..."
+                            : "Gerar guia agora"}
+                        </Button>
+                      ) : null}
+
+                      {financeCanIssueConstructionGuide ? (
+                        <Button
+                          type="button"
+                          variant={analysisCanIssueConstructionGuide ? "outline" : "default"}
+                          className={analysisCanIssueConstructionGuide
+                            ? "rounded-full border-sky-300 px-6 text-sky-800 dark:border-sky-500/40 dark:text-sky-300"
+                            : "rounded-full bg-sky-700 px-6 text-white hover:bg-sky-800"}
+                          disabled={
+                            processActionBusy === "forward-construction-guide" ||
+                            !canReviewDocuments ||
+                            !allAnalysisDocumentsApproved ||
+                            hasOpenAnalysisRequirements ||
+                            !(constructionAreaValue > 0) ||
+                            !constructionUsageInput
+                          }
+                          onClick={handleForwardConstructionGuideToFinance}
+                        >
+                          <ArrowRightLeft className="mr-2 h-4 w-4" />
+                          {processActionBusy === "forward-construction-guide"
+                            ? "Encaminhando..."
+                            : "Encaminhar ao Financeiro"}
+                        </Button>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -2070,7 +2103,7 @@ export function ProcessDetailPage() {
                     <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{process.technicalLead}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Gerada por</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável pela emissão</p>
                     <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuideIssuer || session.name}</p>
                     <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">Disponível no Financeiro para controle</p>
                   </div>
