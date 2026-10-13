@@ -59,7 +59,7 @@ type FinanceSection =
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
@@ -67,8 +67,6 @@ export function FinanceDeskPage() {
   const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
   const [section, setSection] = useState<FinanceSection>("visao-geral");
   const [feeStatus, setFeeStatus] = useState("");
-  const [finalGuideStatus, setFinalGuideStatus] = useState("");
-  const [finalGuideBusyId, setFinalGuideBusyId] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
 
@@ -81,47 +79,6 @@ export function FinanceDeskPage() {
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
-  const finalGuideCandidates = processes.filter((process) => {
-    if (tenantSettings?.finalApprovalFeeEnabled === false || !finalFeeConfigured) return false;
-    const processGuides = getProcessPaymentGuides(process, tenantSettings);
-    const hasFinalGuide = processGuides.some((guide) => guide.kind === "aprovacao_final");
-    const protocolPaid = processGuides.some(
-      (guide) => guide.kind === "protocolo" && guide.status === "compensada",
-    );
-    const hasOpenRequirements = process.requirements.some(
-      (requirement) => requirement.status === "aberta" || requirement.status === "respondida",
-    );
-    const allDocumentsApproved =
-      process.documents.filter((document) => document.required || document.uploaded).length > 0 &&
-      process.documents
-        .filter((document) => document.required || document.uploaded)
-        .every((document) => document.uploaded && document.reviewStatus === "aprovado");
-    const pendingConstructionGuideRequest = process.dispatches.some(
-      (dispatch) =>
-        /guia de recolhimento da obra/i.test(dispatch.subject) &&
-        ["aguardando", "respondido"].includes(dispatch.status) &&
-        dispatch.to.toLowerCase().includes("finance"),
-    );
-
-    return (
-      pendingConstructionGuideRequest &&
-      !process.processControl?.onHold &&
-      !hasOpenRequirements &&
-      !hasFinalGuide &&
-      protocolPaid &&
-      allDocumentsApproved
-    );
-  });
-
-  const getConstructionGuideRequest = (processId: string) =>
-    processes
-      .find((process) => process.id === processId)
-      ?.dispatches.find(
-        (dispatch) =>
-          /guia de recolhimento da obra/i.test(dispatch.subject) &&
-          ["aguardando", "respondido"].includes(dispatch.status),
-      );
-
   const handleWorkflowSetting = async (
     key: "issStageEnabled" | "finalApprovalFeeEnabled",
     enabled: boolean,
@@ -152,28 +109,6 @@ export function FinanceDeskPage() {
           ? `Não foi possível salvar o workflow financeiro: ${error.message}`
           : "Não foi possível salvar o workflow financeiro no banco oficial.",
       );
-    }
-  };
-
-  const handleIssueFinalGuide = async (processId: string) => {
-    if (!finalFeeConfigured) {
-      setFinalGuideStatus("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
-      return;
-    }
-    setFinalGuideBusyId(processId);
-    setFinalGuideStatus("");
-
-    try {
-      await issuePaymentGuide(processId, session.name, "aprovacao_final");
-      setFinalGuideStatus("Guia de Recolhimento da Obra emitida pelo Financeiro e registrada no processo.");
-    } catch (error) {
-      setFinalGuideStatus(
-        error instanceof Error
-          ? `Não foi possível emitir a Guia de Recolhimento da Obra: ${error.message}`
-          : "Não foi possível emitir a Guia de Recolhimento da Obra no banco oficial.",
-      );
-    } finally {
-      setFinalGuideBusyId("");
     }
   };
 
@@ -444,96 +379,14 @@ export function FinanceDeskPage() {
         ) : null}
 
         {section === "guias" ? (
-          <TableCard title="Guias emitidas" description="Emissões reais do fluxo financeiro municipal, vinculadas ao banco oficial." icon={ReceiptText}>
+          <TableCard title="Guias em controle financeiro" description="Guias geradas pelos setores responsáveis e recebidas automaticamente pelo Financeiro para acompanhamento e baixa." icon={ReceiptText}>
             <div className="space-y-3">
               {tenantSettings?.finalApprovalFeeEnabled !== false && !finalFeeConfigured ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  A taxa final está ativa, mas a tabela municipal ainda não foi configurada. Nenhuma nova guia final pode ser emitida até a Prefeitura salvar as regras oficiais.
+                  A guia da obra depende da tabela municipal do workflow financeiro. Configure as regras oficiais para que a Análise Urbanística consiga gerar a cobrança automaticamente.
                 </div>
               ) : null}
 
-              {finalGuideStatus ? (
-                <div className={`rounded-2xl border px-4 py-3 text-sm ${
-                  finalGuideStatus.startsWith("Guia final")
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-rose-200 bg-rose-50 text-rose-700"
-                }`}>
-                  {finalGuideStatus}
-                </div>
-              ) : null}
-
-              {finalGuideCandidates.length > 0 ? (
-                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold text-slate-950">Prontos para taxa final / Habite-se</p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Processos em análise técnica, sem pendências abertas e com cobranças anteriores compensadas.
-                    </p>
-                  </div>
-                  <div className="space-y-3">
-                    {finalGuideCandidates.map((process) => {
-                      const request = getConstructionGuideRequest(process.id);
-                      return (
-                        <div
-                          key={`${process.id}:final-guide-candidate`}
-                          className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-500/30 dark:bg-slate-950/35"
-                        >
-                          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
-                                  {formatOfficialProcessNumber(process.protocol)}
-                                </p>
-                                <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300">
-                                  Aguardando emissão
-                                </Badge>
-                              </div>
-                              <p className="mt-1 line-clamp-1 text-sm text-slate-600 dark:text-slate-300">
-                                {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                              </p>
-
-                              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Proprietário</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.ownerName}</p>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Profissional</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.technicalLead}</p>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Analista solicitante</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{request?.requestedBy || "Analista responsável"}</p>
-                                  {request?.createdAt ? <p className="mt-1 text-xs text-slate-500">{request.createdAt}</p> : null}
-                                </div>
-                                <div className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/70">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Obra</p>
-                                  <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{process.property.area.toFixed(2)} m²</p>
-                                  <p className="mt-1 text-xs text-slate-500">{process.property.usage || "Uso não informado"} • {process.property.constructionStandard || "padrão não informado"}</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex shrink-0 flex-wrap gap-2">
-                              <Button asChild variant="outline" className="rounded-full">
-                                <Link to={`/processos/${process.id}`}>Conferir processo</Link>
-                              </Button>
-                              <Button
-                                type="button"
-                                className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
-                                disabled={finalGuideBusyId === process.id}
-                                onClick={() => void handleIssueFinalGuide(process.id)}
-                              >
-                                {finalGuideBusyId === process.id ? "Emitindo..." : "Emitir guia da obra"}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
               {guidesByIssueDate.length === 0 ? (
                 <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                   Nenhuma guia emitida encontrada.
