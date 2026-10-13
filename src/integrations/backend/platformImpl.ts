@@ -1177,6 +1177,7 @@ export async function loadRemotePlatformStore() {
         block: property?.block ?? "",
         area: Number(property?.area_m2 ?? 0),
         usage: property?.usage_type ?? "",
+        workType: property?.work_type ?? "",
         constructionStandard: property?.construction_standard ?? "",
       },
       triage: {
@@ -1792,6 +1793,7 @@ export async function createRemoteExternalProcessV2(
     block: input.property.block || null,
     area: input.property.area || null,
     usage: input.property.usage || null,
+    workType: input.property.workType || null,
     constructionStandard: input.property.constructionStandard || null,
     ownerName: input.ownerName,
     ownerDocument: input.ownerDocument,
