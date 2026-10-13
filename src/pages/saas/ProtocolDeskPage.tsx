@@ -140,7 +140,14 @@ export function ProtocolDeskPage() {
   const [finishedProcessIds, setFinishedProcessIds] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
-      const raw = window.localStorage.getItem(`sigapro.finished-processes.${session.id}`);
+      const recoveryKey = `sigapro.finished-processes.selection-recovery.v1.${session.id}`;
+      const storageKey = `sigapro.finished-processes.${session.id}`;
+      if (window.localStorage.getItem(recoveryKey) !== "1") {
+        window.localStorage.removeItem(storageKey);
+        window.localStorage.setItem(recoveryKey, "1");
+        return new Set();
+      }
+      const raw = window.localStorage.getItem(storageKey);
       return new Set(raw ? (JSON.parse(raw) as string[]) : []);
     } catch {
       return new Set();
@@ -385,9 +392,6 @@ export function ProtocolDeskPage() {
       return haystack.includes(normalizedQuery);
     });
 
-    const allVisibleSelected =
-      visibleItems.length > 0 && visibleItems.every((process) => selectedProcessIds.has(process.id));
-
     return (
       <div className="space-y-3">
         <div className="sticky top-[72px] z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
@@ -403,23 +407,6 @@ export function ProtocolDeskPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={() => {
-                    setSelectedProcessIds((current) => {
-                      const next = new Set(current);
-                      if (allVisibleSelected) visibleItems.forEach((process) => next.delete(process.id));
-                      else visibleItems.forEach((process) => next.add(process.id));
-                      return next;
-                    });
-                  }}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                Selecionar visíveis
-              </label>
-
               {selectedProcessIds.size > 0 ? (
                 <>
                   <span className="inline-flex h-10 items-center rounded-xl bg-slate-100 px-3 text-sm font-medium text-slate-700">
