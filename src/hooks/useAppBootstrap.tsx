@@ -15,7 +15,7 @@ import {
 import { resolveTenantFromLocation } from "@/lib/tenant";
 import type { MunicipalityBundle } from "@/lib/municipality";
 import type { UserRole } from "@/lib/platform";
-import { readPendingSignup, type AuthUserLike } from "@/lib/pendingSignup";
+import { clearPendingSignup, readPendingSignup, type AuthUserLike } from "@/lib/pendingSignup";
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
 const BOOTSTRAP_SESSION_CACHE_KEY = "sigapro.bootstrap.session-snapshot.v1";
@@ -523,6 +523,8 @@ async function completePendingSignup(
   if (!linkedProfile?.municipalityId) {
     throw new Error("O cadastro foi confirmado, mas o vínculo com a Prefeitura não pôde ser verificado.");
   }
+
+  clearPendingSignup(authUser.email);
   return linkedProfile;
 }
 
