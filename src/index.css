@@ -6058,25 +6058,23 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
    inset inside the topbar. */
 @media (min-width: 1024px) {
   .sig-topbar-account-cluster {
-    position: relative;
+    position: static !important;
   }
 
   .sig-topbar-account-cluster .sig-topbar-account-dropdown {
-    position: absolute !important;
+    position: fixed !important;
 
-    /* O cluster tem 50px dentro de uma topbar de 68px:
-       9px abaixo dele coloca o painel exatamente na borda inferior da topbar. */
-    top: calc(100% + 9px) !important;
+    /* Colado exatamente abaixo da linha inferior da topbar. */
+    top: 68px !important;
 
-    /* Compensa o padding direito do shell + o pequeno respiro do grupo,
-       deixando a borda do painel realmente colada no viewport. */
-    right: -24px !important;
-    bottom: auto !important;
+    /* Colado no canto direito do viewport, sem margem e sem deslocamento. */
+    right: 0 !important;
     left: auto !important;
+    bottom: 0 !important;
 
     width: min(400px, 34vw) !important;
     max-width: 400px !important;
-    height: auto !important;
+    height: calc(100vh - 68px) !important;
     max-height: calc(100vh - 68px) !important;
 
     margin: 0 !important;
@@ -6089,6 +6087,7 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
     overflow-y: auto !important;
     overscroll-behavior: contain;
 
+    z-index: 70 !important;
     box-shadow:
       -18px 18px 44px rgba(15, 23, 42, 0.18),
       inset 1px 0 0 rgba(255,255,255,0.06) !important;
@@ -6100,12 +6099,6 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
 
   .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="closed"] {
     animation: sigAccountPanelOut 110ms ease-in both !important;
-  }
-}
-
-@media (min-width: 1536px) {
-  .sig-topbar-account-cluster .sig-topbar-account-dropdown {
-    right: -36px !important;
   }
 }
 
