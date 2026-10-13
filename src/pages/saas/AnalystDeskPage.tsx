@@ -121,6 +121,14 @@ export function AnalystDeskPage() {
     0,
   );
   const slaCritical = processes.filter((item) => item.sla.breached || item.sla.hoursRemaining <= 12);
+  const analysisActiveStatuses = [
+    "distribuicao",
+    "analise_tecnica",
+    "pendencia_documental",
+    "exigencia",
+    "reapresentacao",
+    "despacho_intersetorial",
+  ] as const;
   const inReview = processes.filter((item) => item.status === "analise_tecnica");
   const completed = processes.filter((item) => item.status === "deferido");
   const correctionQueue = processes.filter(
@@ -130,14 +138,15 @@ export function AnalystDeskPage() {
     (item) => item.status === "pendencia_documental" || item.status === "exigencia",
   );
   const analysisWorkItems = processes.filter((item) =>
-    [
-      "distribuicao",
-      "analise_tecnica",
-      "pendencia_documental",
-      "exigencia",
-      "reapresentacao",
-      "despacho_intersetorial",
-    ].includes(item.status),
+    analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]),
+  );
+  const analysisTrackedProcesses = processes.filter(
+    (item) => Boolean(item.analysis?.startedAt || item.analysis?.assignedTo),
+  );
+  const handedOffFromAnalysis = analysisTrackedProcesses.filter(
+    (item) =>
+      !analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]) &&
+      item.status !== "deferido",
   );
 
   const queue = useMemo(
@@ -153,11 +162,14 @@ export function AnalystDeskPage() {
 
   const urgentProtocols = queue.slice(0, 5);
   const recentDecisions = completed.slice(0, 5);
-  const latestAssigned = queue.filter((process) => process.technicalLead === session.name).slice(0, 5);
-  const recentActivity = queue
+  const latestAssigned = analysisTrackedProcesses
+    .filter((process) => process.analysis?.assignedTo === session.name)
+    .slice(0, 5);
+  const recentActivity = analysisTrackedProcesses
     .flatMap((process) =>
-      process.timeline.slice(0, 2).map((entry) => ({
+      process.timeline.map((entry) => ({
         id: `${process.id}-${entry.id}`,
+        processId: process.id,
         protocol: process.protocol,
         title: entry.title,
         detail: entry.detail,
@@ -166,12 +178,13 @@ export function AnalystDeskPage() {
         status: process.status,
       })),
     )
-    .slice(0, 10);
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, 16);
 
   const productivityByAnalyst = useMemo(() => {
     const map = new Map<string, { analyst: string; total: number; deferidos: number; exigencias: number }>();
-    processes.forEach((process) => {
-      const key = process.technicalLead || "Não atribuído";
+    analysisTrackedProcesses.forEach((process) => {
+      const key = process.analysis?.assignedTo || "Não atribuído";
       const current = map.get(key) ?? { analyst: key, total: 0, deferidos: 0, exigencias: 0 };
       current.total += 1;
       if (process.status === "deferido") current.deferidos += 1;
@@ -179,7 +192,7 @@ export function AnalystDeskPage() {
       map.set(key, current);
     });
     return [...map.values()].sort((a, b) => b.total - a.total);
-  }, [processes]);
+  }, [analysisTrackedProcesses]);
 
   const averageSlaHours =
     processes.length > 0
@@ -635,6 +648,40 @@ export function AnalystDeskPage() {
                     )}
                   </div>
                 </TableCard>
+
+                {handedOffFromAnalysis.length > 0 ? (
+                  <TableCard
+                    title="Encaminhados pela Análise"
+                    description="Processos já trabalhados pela Análise Urbanística que seguiram para outra etapa. Eles permanecem rastreáveis aqui e não somem da pasta técnica."
+                    icon={Send}
+                  >
+                    <div className="space-y-3">
+                      {handedOffFromAnalysis.slice(0, 5).map((process) => (
+                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                                {formatOfficialProcessNumber(process.protocol)}
+                              </p>
+                              <Badge variant="outline" className={statusTone(process.status)}>
+                                {statusLabel(process.status)}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-800">
+                                {process.processControl?.currentFolder || process.sla.currentStage}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Responsável pela análise: {process.analysis?.assignedTo || "Não atribuído"}
+                            </p>
+                          </div>
+                          <Button asChild variant="outline" className="shrink-0 rounded-full">
+                            <Link to={`/processos/${process.id}?aba=analise`}>Consultar análise</Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </TableCard>
+                ) : null}
               </PageMainContent>
 
               <PageSideContent>
@@ -792,8 +839,19 @@ export function AnalystDeskPage() {
             <PageMainContent>
               <TableCard
                 title="Histórico técnico"
-                description="Comentários, movimentos recentes, decisões e registros da atuação técnica."
+                description="Comentários, movimentos recentes, decisões e registros da atuação técnica, inclusive depois que o processo segue para Financeiro ou outro setor."
                 icon={Clock3}
+                actions={
+                  <div className="relative w-full max-w-xl">
+                    <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
+                    <Input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Buscar protocolo, IPTU, proprietário ou endereço"
+                      className="h-11 rounded-2xl border-slate-200 pl-11"
+                    />
+                  </div>
+                }
               >
                 <div className="space-y-3">
                   {recentActivity.length === 0 ? (
@@ -814,9 +872,14 @@ export function AnalystDeskPage() {
                             <p className="mt-1 text-sm font-medium text-slate-800">{item.title}</p>
                             <p className="mt-1 text-sm text-slate-500">{item.detail}</p>
                           </div>
-                          <div className="text-sm text-slate-500">
-                            <p>{item.actor}</p>
-                            <p>{item.at}</p>
+                          <div className="flex shrink-0 flex-col items-start gap-2 text-sm text-slate-500 md:items-end">
+                            <div>
+                              <p>{item.actor}</p>
+                              <p>{item.at}</p>
+                            </div>
+                            <Button asChild variant="outline" size="sm" className="rounded-full">
+                              <Link to={`/processos/${item.processId}?aba=analise`}>Abrir processo</Link>
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -827,8 +890,24 @@ export function AnalystDeskPage() {
             </PageMainContent>
 
             <PageSideContent>
-              <SectionCard title="Painel histórico" description="Decisões concluídas e itens atribuídos ao analista.">
+              <SectionCard title="Painel histórico" description="Processos analisados, encaminhados, concluídos e itens atribuídos ao analista.">
                 <div className="space-y-3">
+                  {handedOffFromAnalysis.slice(0, 5).map((process) => (
+                    <div key={`handoff-${process.id}`} className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                          <p className="mt-1 sig-fit-copy text-sm text-slate-600">
+                            Encaminhado para {process.processControl?.currentFolder || process.sla.currentStage}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={statusTone(process.status)}>
+                          {statusLabel(process.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {handedOffFromAnalysis.length > 0 ? <div className="border-t border-slate-100 pt-3" /> : null}
                   {recentDecisions.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                       Nenhuma decisão concluída ainda.
