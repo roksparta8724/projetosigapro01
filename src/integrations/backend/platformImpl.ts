@@ -1232,7 +1232,13 @@ export async function loadRemotePlatformStore() {
         id: movement.id,
         title: movement.movement_type,
         detail: movement.description,
-        actor: movement.actor_user_id ?? "Sistema",
+        actor:
+          (movement.actor_profile_id
+            ? profileById.get(movement.actor_profile_id)?.full_name ??
+              profileById.get(movement.actor_profile_id)?.email
+            : null) ??
+          movement.actor_user_id ??
+          "Sistema",
         at: new Date(movement.created_at).toLocaleString("pt-BR"),
       })),
       auditTrail: auditEntries.map((entry) => ({
@@ -1240,7 +1246,13 @@ export async function loadRemotePlatformStore() {
         category: entry.category,
         title: entry.title,
         detail: entry.detail,
-        actor: entry.actor_user_id ?? "Sistema",
+        actor:
+          (entry.actor_profile_id
+            ? profileById.get(entry.actor_profile_id)?.full_name ??
+              profileById.get(entry.actor_profile_id)?.email
+            : null) ??
+          entry.actor_user_id ??
+          "Sistema",
         visibleToExternal: Boolean(entry.visible_to_external),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
