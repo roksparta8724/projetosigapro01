@@ -88,7 +88,7 @@ import {
 
 type CmsSection = (typeof seedCmsSections)[number];
 type DocumentTemplate = (typeof seedDocumentTemplates)[number];
-type DataSource = "demo" | "local" | "remote";
+type DataSource = "demo" | "local" | "warm" | "remote";
 
 interface PlatformDataState {
   source: DataSource;
@@ -342,6 +342,8 @@ function findUserProfile(profiles: UserProfile[], userId: string | null | undefi
 const LEGACY_STORAGE_KEY = "sigapro-platform-store";
 const STORAGE_KEY = "sigapro-platform-store.v2";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+const PLATFORM_WARM_STORE_CACHE_PREFIX = "sigapro.platform.warm-store.v1:";
+const PLATFORM_WARM_STORE_MAX_AGE_MS = 1000 * 60 * 60 * 8;
 const PROFILE_VISUAL_CACHE_KEY = "sigapro.profile.visual.v1";
 const LEGACY_RECONCILIATION_PENDING_KEY = "sigapro:legacy-process-reconciliation-pending";
 const LEGACY_DEMO_TENANT_NAMES = new Set([
@@ -543,8 +545,14 @@ function readPersistedStore(): PlatformStore | null {
 function syncStore(store: PlatformStore) {
   if (typeof window === "undefined") return;
 
-  // Cache operacional é permitido somente no ambiente local de desenvolvimento.
-  // Em produção, perfis/processos/documentos permanecem apenas em memória.
+  const cachedSession = readCachedPlatformSession();
+  if (cachedSession?.id) {
+    syncWarmPlatformStore(store, cachedSession.id);
+  }
+
+  // O cache persistente continua proibido em produção. O warm cache acima vive
+  // somente na aba atual (sessionStorage), é vinculado à identidade e serve
+  // exclusivamente para impedir que a interface suma durante F5/revalidação.
   if (hasBackendEnv && (!isLocalDevHost() || isNeonBackend)) {
     if (window.localStorage.getItem(LEGACY_RECONCILIATION_PENDING_KEY) !== "1") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -569,6 +577,77 @@ function readCachedPlatformSession(): SessionUser | null {
     return normalizeSessionUserScope(parsed);
   } catch {
     return null;
+  }
+}
+
+function warmStoreCacheKey(userId: string) {
+  return `${PLATFORM_WARM_STORE_CACHE_PREFIX}${userId}`;
+}
+
+function readWarmPlatformStore(): { userId: string; store: PlatformStore } | null {
+  if (typeof window === "undefined") return null;
+
+  const session = readCachedPlatformSession();
+  if (!session?.id || session.id === "unknown") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(warmStoreCacheKey(session.id));
+    if (!raw) return null;
+
+    const cached = JSON.parse(raw) as {
+      userId?: string;
+      cachedAt?: number;
+      store?: Partial<PlatformStore>;
+    };
+
+    if (
+      cached.userId !== session.id ||
+      typeof cached.cachedAt !== "number" ||
+      Date.now() - cached.cachedAt > PLATFORM_WARM_STORE_MAX_AGE_MS ||
+      !cached.store
+    ) {
+      window.sessionStorage.removeItem(warmStoreCacheKey(session.id));
+      return null;
+    }
+
+    return {
+      userId: session.id,
+      store: buildSanitizedStore(cached.store, false),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function syncWarmPlatformStore(store: PlatformStore, userId: string | null | undefined) {
+  if (typeof window === "undefined" || !userId || userId === "unknown") return;
+
+  try {
+    window.sessionStorage.setItem(
+      warmStoreCacheKey(userId),
+      JSON.stringify({
+        userId,
+        cachedAt: Date.now(),
+        store,
+      }),
+    );
+  } catch {
+    // O cache é somente visual; falha de quota nunca pode afetar o banco oficial.
+  }
+}
+
+function clearWarmPlatformStores() {
+  if (typeof window === "undefined") return;
+
+  try {
+    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.sessionStorage.key(index);
+      if (key?.startsWith(PLATFORM_WARM_STORE_CACHE_PREFIX)) {
+        window.sessionStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // noop
   }
 }
 
@@ -677,6 +756,16 @@ function getInitialPlatformStoreState() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
+
+    const warmStore = readWarmPlatformStore();
+    if (warmStore) {
+      return {
+        store: warmStore.store,
+        source: "warm" as const,
+        legacyStore,
+      };
+    }
+
     const cachedVisualProfile = readProfileVisualCache();
     return {
       store: cachedVisualProfile
@@ -735,6 +824,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!active) return;
 
         if (!authenticatedUserId) {
+          const cachedSession = readCachedPlatformSession();
+
+          // Neon pode ficar alguns frames sem authUserId enquanto restaura/renova
+          // a sessão no F5. Se a sessão visual atual ainda existe, não desmonta a
+          // tela nem zera usuários/processos. A revalidação seguirá em segundo plano.
+          if (isNeonBackend && hasBackendEnv && cachedSession?.id) {
+            setLoading(false);
+            setDataError(null);
+            return;
+          }
+
+          clearWarmPlatformStores();
           setRemoteContextUserId(null);
           lastFetchedUserId.current = null;
         }
@@ -905,6 +1006,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         );
         if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
         setStore(sanitized);
+        syncWarmPlatformStore(sanitized, authenticatedUserId);
         syncStore(sanitized);
         setSource("remote");
         setDataError(null);
@@ -922,9 +1024,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               ? { ...staticCatalogStore, userProfiles: [cachedVisualProfile] }
               : staticCatalogStore
             : readPersistedStore() ?? buildSanitizedStore({}, false);
-        setStore(nextStore);
-        setSource("local");
-        setRemoteContextUserId(null);
+        setStore((current) => {
+          const hasVisibleData =
+            current.sessionUsers.length > 0 ||
+            current.tenants.length > 0 ||
+            current.processes.length > 0;
+          return hasVisibleData ? current : nextStore;
+        });
+        setSource((current) => (current === "remote" || current === "warm" ? current : "local"));
+        setRemoteContextUserId((current) => current);
         setDataError(
           error instanceof Error && error.message
             ? `Banco oficial indisponível: ${error.message}`
