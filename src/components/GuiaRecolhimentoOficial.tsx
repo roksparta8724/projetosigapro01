@@ -41,6 +41,13 @@ type GuiaData = {
   vencimento?: string;
   observacao?: string;
   funcionarioResponsavel?: string;
+  proprietario?: string;
+  profissionalResponsavel?: string;
+  analistaSolicitante?: string;
+  funcionarioEmissor?: string;
+  areaObra?: number;
+  usoObra?: string;
+  padraoConstrutivo?: string;
   codigoBarras?: string;
   linhaDigitavel?: string;
   qrCodePixUrl?: string;
@@ -372,6 +379,48 @@ function getStyles() {
     .span-6 { grid-column: span 6; }
     .span-8 { grid-column: span 8; }
     .span-12 { grid-column: span 12; }
+
+    .dam-responsibility-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid #000000;
+      background: #fcfcfc;
+    }
+
+    .dam-responsibility-cell {
+      min-width: 0;
+      padding: 3px 4px;
+      box-sizing: border-box;
+    }
+
+    .dam-responsibility-cell + .dam-responsibility-cell {
+      border-left: 1px solid #000000;
+    }
+
+    .dam-responsibility-label {
+      font-size: 5.8px;
+      line-height: 1;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #374151;
+    }
+
+    .dam-responsibility-value {
+      margin-top: 2px;
+      font-size: 7px;
+      line-height: 1.15;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .dam-work-meta {
+      border-top: 1px solid #000000;
+      padding: 2px 4px;
+      font-size: 6.5px;
+      line-height: 1.2;
+      background: #fafafa;
+    }
 
     .dam-reference {
       border-top: 1px solid #000000;
@@ -936,12 +985,18 @@ function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
       documentClass: "Arrecadação tributária",
     };
   }
-  if (reference.includes("aprov") || reference.includes("habite")) {
+  if (
+    reference.includes("aprov") ||
+    reference.includes("habite") ||
+    reference.includes("recolhimento vinculado à obra") ||
+    reference.includes("recolhimento vinculado a obra") ||
+    reference.includes("guia de recolhimento da obra")
+  ) {
     return {
-      title: "GUIA FINAL DE APROVAÇÃO / HABITE-SE",
-      description: "Documento de arrecadação municipal para etapa final de aprovação, vistoria e liberação de habite-se.",
-      shortLabel: "Aprovação final",
-      documentClass: "Arrecadação final",
+      title: "GUIA DE RECOLHIMENTO DA OBRA",
+      description: "Documento de arrecadação municipal emitido pelo Financeiro após a aprovação técnica dos documentos e do projeto.",
+      shortLabel: "Recolhimento da obra",
+      documentClass: "Arrecadação da obra",
     };
   }
   return {
@@ -1091,6 +1146,34 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               />
             </div>
 
+            {(guia.proprietario || guia.profissionalResponsavel || guia.analistaSolicitante || guia.funcionarioEmissor) ? (
+              <>
+                <div className="dam-responsibility-grid">
+                  {[
+                    ["Proprietário", guia.proprietario || contribuinte.nome],
+                    ["Profissional responsável", guia.profissionalResponsavel || ""],
+                    ["Analista solicitante", guia.analistaSolicitante || ""],
+                    ["Financeiro / emissor", guia.funcionarioEmissor || guia.funcionarioResponsavel || ""],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="dam-responsibility-cell">
+                      <div className="dam-responsibility-label">{label}</div>
+                      <div className="dam-responsibility-value">{value || "—"}</div>
+                    </div>
+                  ))}
+                </div>
+                {(guia.areaObra || guia.usoObra || guia.padraoConstrutivo) ? (
+                  <div className="dam-work-meta">
+                    <strong>Dados da obra:</strong>{" "}
+                    {[
+                      guia.areaObra ? `${Number(guia.areaObra).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} m²` : "",
+                      guia.usoObra || "",
+                      guia.padraoConstrutivo || "",
+                    ].filter(Boolean).join(" • ")}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
             <div className="dam-reference">
               {guia.referencia || guideMeta.shortLabel}
             </div>
@@ -1188,7 +1271,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 Funcionário Responsável Emissão
               </div>
               <div className="dam-responsible-value">
-                {guia.funcionarioResponsavel || ""}
+                {guia.funcionarioEmissor || guia.funcionarioResponsavel || ""}
               </div>
             </div>
 
