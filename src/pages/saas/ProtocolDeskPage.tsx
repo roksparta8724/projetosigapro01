@@ -38,6 +38,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
+  canAccessProcess,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -92,29 +93,34 @@ export function ProtocolDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  // O Protocolo funciona como cartório/recepção do Município: mantém consulta ao
-  // registro completo, mesmo depois que o processo foi despachado para outro setor.
+  // Isolamento operacional por departamento:
+  // o Protocolo só visualiza processos cuja pasta/responsabilidade atual pertence
+  // ao próprio setor. Depois do despacho, o processo deixa a fila do Protocolo e
+  // passa a ser operado exclusivamente pelo departamento destinatário.
   const processes = useMemo(
     () =>
-      allProcesses.filter((item) => {
-        const processScope = item.municipalityId || item.tenantId || null;
-        return Boolean(effectiveScopeId) && processScope === effectiveScopeId;
-      }),
-    [allProcesses, effectiveScopeId],
+      allProcesses.filter((item) =>
+        Boolean(effectiveScopeId) &&
+        canAccessProcess(session, item, effectiveScopeId),
+      ),
+    [allProcesses, effectiveScopeId, session],
   );
 
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
-        const isInProtocolFolder =
-          currentFolder.includes("protocolo") ||
-          currentFolder.includes("triagem") ||
-          currentFolder.includes("recepção") ||
-          currentFolder.includes("recepcao");
+        if (currentFolder) {
+          return (
+            currentFolder.includes("protocolo") ||
+            currentFolder.includes("triagem") ||
+            currentFolder.includes("recepção") ||
+            currentFolder.includes("recepcao") ||
+            currentFolder.includes("administr")
+          );
+        }
 
-        if (isInProtocolFolder) return true;
-
+        // Compatibilidade somente para registros antigos ainda sem currentFolder.
         return [
           "protocolo",
           "triagem",
@@ -276,7 +282,7 @@ export function ProtocolDeskPage() {
 
   const navItems = [
     { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
-    { value: "todos", label: "Todos os protocolos", helper: "Registro completo do Município" },
+    { value: "todos", label: "Protocolos do setor", helper: "Processos sob responsabilidade do Protocolo" },
     { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
     { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
     { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
@@ -401,7 +407,7 @@ export function ProtocolDeskPage() {
               <Input
                 value={processListQuery}
                 onChange={(event) => setProcessListQuery(event.target.value)}
-                placeholder="Pesquisar por nome do processo, protocolo, proprietário, responsável ou endereço"
+                placeholder="Pesquisar nos processos do Protocolo por nome, número, proprietário, responsável ou endereço"
                 className="h-11 rounded-xl border-slate-200 pl-11"
               />
             </div>
@@ -857,7 +863,7 @@ export function ProtocolDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow className="xl:grid-cols-4">
-              <StatCard label="Protocolos registrados" value={String(processes.length)} description="Registro completo da Prefeitura" icon={ClipboardList} tone="blue" />
+              <StatCard label="Processos do setor" value={String(processes.length)} description="Sob responsabilidade atual do Protocolo" icon={ClipboardList} tone="blue" />
               <StatCard label="Na fila do Protocolo" value={String(protocolQueueProcesses.length)} description="Aguardando atuação do setor" icon={Layers3} tone="amber" />
               <StatCard label="SLA crítico" value={String(urgentProtocols.length)} description="Prazo curto ou vencido" icon={Clock3} tone="rose" />
               <StatCard label="Triados" value={String(triagedProtocols.length)} description="Conferência documental concluída" icon={CheckCircle2} tone="emerald" />
@@ -967,13 +973,13 @@ export function ProtocolDeskPage() {
 
         {section === "todos" ? (
           <TableCard
-            title="Todos os protocolos do Município"
-            description="Registro completo das entradas protocoladas. Processos já despachados continuam disponíveis para consulta e rastreabilidade."
+            title="Protocolos sob responsabilidade do setor"
+            description="Somente processos que pertencem atualmente ao Protocolo. Após o despacho, a responsabilidade e a operação passam ao setor destinatário."
             icon={ClipboardList}
           >
             {renderQueueList(
               [...processes].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
-              "Nenhum protocolo registrado para esta Prefeitura.",
+              "Nenhum processo sob responsabilidade do Protocolo neste momento.",
             )}
           </TableCard>
         ) : null}
