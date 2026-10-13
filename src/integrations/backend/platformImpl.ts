@@ -1263,6 +1263,7 @@ export async function loadRemotePlatformStore() {
         to: String(dispatch.to_department ?? ""),
         subject: String(dispatch.subject ?? ""),
         dueDate: dispatch.due_at ? new Date(String(dispatch.due_at)).toLocaleDateString("pt-BR") : "",
+        createdAt: dispatch.created_at ? new Date(String(dispatch.created_at)).toLocaleString("pt-BR") : "",
         status:
           dispatch.status === "respondido" ||
           dispatch.status === "concluido" ||
