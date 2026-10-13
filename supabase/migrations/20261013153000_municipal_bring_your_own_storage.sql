@@ -99,6 +99,48 @@ begin
 end;
 $function$;
 
+create or replace function public.get_municipal_storage_secret_admin_v1(_municipality_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'pg_catalog','public'
+set row_security to 'off'
+as $function$
+declare
+  _row public.municipal_storage_connections%rowtype;
+begin
+  if not public.is_municipal_storage_admin(_municipality_id) then
+    raise exception 'Sem permissao para administrar o armazenamento desta Prefeitura';
+  end if;
+
+  select * into _row
+  from public.municipal_storage_connections
+  where municipality_id=_municipality_id;
+
+  if _row.municipality_id is null then
+    return jsonb_build_object(
+      'municipality_id',_municipality_id,
+      'provider','sigapro_r2',
+      'status','active'
+    );
+  end if;
+
+  return jsonb_build_object(
+    'municipality_id',_row.municipality_id,
+    'provider',_row.provider,
+    'status',_row.status,
+    'endpoint_url',coalesce(_row.endpoint_url,''),
+    'region',coalesce(_row.region,'us-east-1'),
+    'bucket_documents',coalesce(_row.bucket_documents,''),
+    'base_path',coalesce(_row.base_path,''),
+    'force_path_style',_row.force_path_style,
+    'credentials_ciphertext',_row.credentials_ciphertext,
+    'credential_fingerprint',coalesce(_row.credential_fingerprint,'')
+  );
+end;
+$function$;
+
 create or replace function public.resolve_municipal_storage_secret_v1(_municipality_id uuid)
 returns jsonb
 language plpgsql
@@ -295,6 +337,7 @@ end;
 $function$;
 
 grant execute on function public.get_municipal_storage_connection_v1(uuid) to authenticated;
+grant execute on function public.get_municipal_storage_secret_admin_v1(uuid) to authenticated;
 grant execute on function public.resolve_municipal_storage_secret_v1(uuid) to authenticated;
 grant execute on function public.save_municipal_storage_connection_v1(uuid,text,text,text,text,boolean,text,text) to authenticated;
 grant execute on function public.mark_municipal_storage_test_v1(uuid,boolean,text) to authenticated;
