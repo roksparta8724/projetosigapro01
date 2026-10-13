@@ -2004,7 +2004,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           if (pendingRequest) {
             await completeRemoteProcessDispatch({
               dispatchId: pendingRequest.id,
-              unit: "Análise Urbanística",
+              unit: "Financeiro",
             });
           }
         }
