@@ -204,7 +204,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, ownerLinks, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
@@ -712,18 +712,11 @@ export function ProcessDetailPage() {
           : process.property.constructionStandard === "medio"
             ? "Médio"
             : "Não informado";
-  const relatedOwnerLinks = ownerLinks.filter((link) => link.projectId === process.id);
-  const relatedOwner = relatedOwnerLinks.length === 1
-    ? sessionUsers.find((user) => user.id === relatedOwnerLinks[0].ownerUserId)
+  const linkedOwnerProfile = process.ownerProfileId
+    ? getUserProfile(process.ownerProfileId)
     : undefined;
-  const linkedOwnerProfile = relatedOwner
-    ? getUserProfile(relatedOwner.id, relatedOwner.email)
-    : undefined;
-  const originatingProfessional = sessionUsers.find(
-    (user) => user.id === process.createdBy && user.role === "profissional_externo",
-  );
-  const linkedTechnicalProfile = originatingProfessional
-    ? getUserProfile(originatingProfessional.id, originatingProfessional.email)
+  const linkedTechnicalProfile = process.technicalProfileId
+    ? getUserProfile(process.technicalProfileId)
     : undefined;
   const canViewCompleteCadastro = !isProtocolTrackingOnly &&
     isInternalRole(session.role) &&
