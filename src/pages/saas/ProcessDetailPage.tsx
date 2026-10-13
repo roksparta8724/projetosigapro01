@@ -479,6 +479,20 @@ export function ProcessDetailPage() {
       /guia de recolhimento da obra/i.test(dispatch.subject) &&
       ["aguardando", "respondido"].includes(dispatch.status),
   );
+  const constructionGuideIssueAudit = process.auditTrail.find(
+    (entry) =>
+      entry.category === "financeiro" &&
+      /guia.*(recolhimento da obra|final.*aprova).*emitida/i.test(`${entry.title} ${entry.detail}`),
+  );
+  const constructionGuideRequester =
+    constructionGuide?.requestedBy ||
+    constructionGuideRequest?.requestedBy ||
+    process.analysis?.assignedTo ||
+    "";
+  const constructionGuideIssuer =
+    constructionGuide?.issuedBy ||
+    constructionGuideIssueAudit?.actor ||
+    "";
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -739,9 +753,10 @@ export function ProcessDetailPage() {
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
           selectedGuide.requestedBy ||
-          constructionGuideRequest?.requestedBy ||
-          (selectedGuide.kind === "aprovacao_final" ? process.analysis?.assignedTo : undefined),
-        funcionarioEmissor: selectedGuide.issuedBy,
+          (selectedGuide.kind === "aprovacao_final" ? constructionGuideRequester : undefined),
+        funcionarioEmissor:
+          selectedGuide.issuedBy ||
+          (selectedGuide.kind === "aprovacao_final" ? constructionGuideIssuer : undefined),
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
         padraoConstrutivo: selectedGuide.constructionStandard || constructionStandardLabel,
@@ -1929,7 +1944,7 @@ export function ProcessDetailPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Analista solicitante</p>
                   <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
-                    {constructionGuide?.requestedBy || constructionGuideRequest?.requestedBy || "Não informado"}
+                    {constructionGuideRequester || "Não informado"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     {constructionGuide?.requestedAt
@@ -1940,7 +1955,7 @@ export function ProcessDetailPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Funcionário emissor</p>
                   <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
-                    {constructionGuide?.issuedBy || (constructionGuide ? session.name : "Será registrado na emissão")}
+                    {constructionGuideIssuer || (constructionGuide ? "Servidor financeiro registrado no histórico" : "Será registrado na emissão")}
                   </p>
                 </div>
               </div>
