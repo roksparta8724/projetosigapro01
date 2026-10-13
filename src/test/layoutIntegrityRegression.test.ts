@@ -48,7 +48,9 @@ describe("layout integrity regression", () => {
     expect(detail).toContain("showPrimaryDetailColumn");
     expect(detail).toContain("showSecondaryDetailColumn");
     expect(detail).toContain("useSplitDetailLayout");
-    expect(detail).toContain("[grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]");
+    expect(detail).toContain("<ProcessIdentityPanel");
+    const identityCss = read("src/components/platform/ProcessIdentityPanel.css");
+    expect(identityCss).toContain("grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr))");
   });
 
   it("keeps the shared app shell single-column until the sidebar leaves enough width", () => {
@@ -65,19 +67,14 @@ describe("layout integrity regression", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(detail).toContain(
-      "[grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]",
+      "[grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]",
     );
-    expect(detail).toContain(
-      "[grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]",
-    );
+    expect(detail).toContain("sig-premium-summary-card");
+    expect(detail).toContain("<ProcessIdentityPanel");
     expect(detail).toContain("content-start auto-rows-max");
     expect(detail).toContain('activeTab !== "resumo"');
-    expect(detail).toContain(
-      'const showPrimaryDetailColumn = ["imovel", "documentos", "historico"].includes(activeTab);',
-    );
-    expect(detail).toContain(
-      'const showSecondaryDetailColumn = ["analise", "financeiro", "historico"].includes(activeTab);',
-    );
+    expect(detail).toContain('const useSplitDetailLayout = false;');
+    expect(detail).toContain('["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab)');
     expect(detail).not.toContain(
       "min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]",
     );
