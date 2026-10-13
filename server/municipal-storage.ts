@@ -222,9 +222,12 @@ export async function testMunicipalStorageConnection(config: MunicipalStorageCon
 export async function resolveMunicipalDocumentTarget(
   req: ApiReq,
   municipalityId: string,
+  requestedBucket: string,
   logicalObjectKey: string,
 ) {
   if (!municipalityId) return null;
+  const sigaproDocumentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  if (requestedBucket !== sigaproDocumentBucket) return null;
   const config = await resolveMunicipalStorageSecret(req, municipalityId);
   if (config.provider !== "s3_compatible" || config.status !== "active") return null;
   if (!config.credentials_ciphertext || !config.bucket_documents || !config.endpoint_url) {
