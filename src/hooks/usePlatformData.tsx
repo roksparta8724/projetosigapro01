@@ -205,7 +205,7 @@ interface PlatformDataState {
   addProcessMarkerWithColor: (processId: string, marker: string, color: string, actor: string) => Promise<void>;
   removeProcessMarker: (processId: string, marker: string, actor: string) => Promise<void>;
   setInstitutionStatus: (institutionId: string, status: Tenant["status"]) => Promise<void>;
-  dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
+  dispatchProcess: (input: { processId: string; actor: string; from: string; to: string; subject: string; dueDate?: string; visibility?: "interno" | "externo" | "misto"; priority?: "baixa" | "media" | "alta" | "critica"; assignedTo?: string }) => Promise<void>;
   acknowledgeDispatchReceipt: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
   completeDispatches: (input: { processIds: string[]; actor: string; unit: string }) => Promise<void>;
   returnDispatches: (input: { processIds: string[]; actor: string; unit: string; reason?: string }) => Promise<void>;
