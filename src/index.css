@@ -6370,3 +6370,41 @@ html body .sig-main-shell :is(button,a,[role="button"]).sig-force-dark-action sv
     min-height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
   }
 }
+
+
+/* Process route scroll contract.
+   The global app keeps html/#root at 100% for dashboard stability, but a focused
+   process is a real document page and must be allowed to grow beyond the viewport. */
+html:has(.sig-app-frame[data-focus-mode="true"]),
+body:has(.sig-app-frame[data-focus-mode="true"]) {
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+}
+
+#root:has(.sig-app-frame[data-focus-mode="true"]) {
+  height: auto !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body:has(.sig-app-frame[data-focus-mode="true"]) {
+  position: static !important;
+  touch-action: auto !important;
+}
+
+.sig-app-frame[data-focus-mode="true"],
+.sig-app-frame[data-focus-mode="true"] .sig-content-frame,
+.sig-app-frame[data-focus-mode="true"] main,
+.sig-app-frame[data-focus-mode="true"] .sig-main-shell {
+  contain: none !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  overscroll-behavior-y: auto !important;
+}
