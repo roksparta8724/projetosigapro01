@@ -17,6 +17,13 @@ vi.mock("@/hooks/useAuthGateway", () => ({
   useAuthGateway: () => gatewayMock,
 }));
 
+// Testa o contrato da sessão isoladamente, sem montar stores de produção.
+// O provider recebe uma lista vazia, de modo que a identidade autenticada
+// e o cache de F5 sejam as fontes controladas por cada cenário do teste.
+vi.mock("@/hooks/usePlatformData", () => ({
+  usePlatformData: () => ({ sessionUsers: [] }),
+}));
+
 vi.mock("@/integrations/backend/config", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/integrations/backend/config")>()),
   isNeonBackend: true,
