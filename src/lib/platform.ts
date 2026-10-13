@@ -483,6 +483,15 @@ export interface PaymentGuideEntry {
   dueDate: string;
   issuedAt?: string;
   expiresAt?: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  issuedBy?: string;
+  ownerName?: string;
+  ownerDocument?: string;
+  professionalName?: string;
+  areaM2?: number;
+  usage?: string;
+  constructionStandard?: string;
 }
 
 export interface ProcessDocument {
@@ -589,6 +598,8 @@ export interface DispatchItem {
   visibility?: "interno" | "externo" | "misto";
   priority?: "baixa" | "media" | "alta" | "critica";
   assignedTo?: string;
+  requestedBy?: string;
+  requestedByProfileId?: string;
 }
 
 export type ProcessTransitVisibility = "completo" | "restrito";
@@ -736,7 +747,7 @@ export function getGuideLabel(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Guia de Recolhimento de ISSQN da Obra";
     case "aprovacao_final":
-      return "Guia Final de Aprovação / Habite-se";
+      return "Guia de Recolhimento da Obra";
   }
 }
 
@@ -747,7 +758,7 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "iss_obra":
       return "ISSQN incidente sobre a metragem da construção";
     case "aprovacao_final":
-      return "Taxa final de aprovação e emissão de habite-se";
+      return "Recolhimento vinculado à obra após aprovação técnica dos documentos e do projeto";
   }
 }
 
@@ -758,7 +769,7 @@ export function getGuideObservation(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Documento de arrecadação municipal destinado ao recolhimento do ISSQN calculado pela metragem da construção.";
     case "aprovacao_final":
-      return "Documento de arrecadação municipal vinculado à etapa final de aprovação e emissão do habite-se.";
+      return "Documento de arrecadação municipal solicitado pela Análise Urbanística após a aprovação técnica e emitido pelo Setor Financeiro.";
   }
 }
 
