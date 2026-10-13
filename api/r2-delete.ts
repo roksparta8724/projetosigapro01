@@ -174,10 +174,6 @@ export default async function handler(req: Req, res: Res) {
       accessKeyLength: accessKeyId.length,
     });
 
-    if (!envOk) {
-      throw new Error("Variáveis R2 ausentes no ambiente.");
-    }
-
     const body = (await readJsonBody(req)) as { bucket?: unknown; objectKey?: unknown };
     const { bucket, objectKey } = body ?? {};
     const allowedBuckets = getAllowedBuckets();
@@ -211,6 +207,10 @@ export default async function handler(req: Req, res: Res) {
         storageProvider: "municipal_s3",
       });
       return;
+    }
+
+    if (!envOk) {
+      throw new Error("Variáveis R2 ausentes no ambiente.");
     }
 
     const client = new S3Client({
