@@ -44,6 +44,7 @@ import {
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getProcessPaymentGuides,
+  matchesOperationalScope,
   parseMarker,
   statusLabel,
   statusTone,
@@ -85,6 +86,7 @@ export function ProtocolDeskPage() {
   const { session } = usePlatformSession();
   const {
     processes: allProcesses,
+    sessionUsers,
     getInstitutionSettings,
     markGuideAsPaid,
     updateProcessTriage,
@@ -94,15 +96,41 @@ export function ProtocolDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  // O Protocolo mantém rastreabilidade dos processos que originou, mas só opera
-  // aqueles cuja responsabilidade atual ainda pertence ao próprio departamento.
+  const externalProfessionalCreatorIds = useMemo(
+    () =>
+      new Set(
+        sessionUsers
+          .filter(
+            (user) =>
+              user.role === "profissional_externo" ||
+              user.userType === "Externo",
+          )
+          .map((user) => user.id),
+      ),
+    [sessionUsers],
+  );
+
+  const userById = useMemo(
+    () => new Map(sessionUsers.map((user) => [user.id, user])),
+    [sessionUsers],
+  );
+
+  const isExternalProfessionalSubmission = (process: ProcessRecord) =>
+    Boolean(process.createdBy && externalProfessionalCreatorIds.has(process.createdBy));
+
+  // O Protocolo acompanha todas as entradas da Prefeitura. Solicitações abertas
+  // pelo profissional externo precisam aparecer aqui desde o primeiro registro,
+  // mesmo depois de seguirem para Urbanismo, Financeiro ou outra unidade.
   const processes = useMemo(
     () =>
-      allProcesses.filter((item) =>
-        Boolean(effectiveScopeId) &&
-        canTrackProcess(session, item, effectiveScopeId),
-      ),
-    [allProcesses, effectiveScopeId, session],
+      allProcesses.filter((item) => {
+        if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, item)) return false;
+        return (
+          canTrackProcess(session, item, effectiveScopeId) ||
+          Boolean(item.createdBy && externalProfessionalCreatorIds.has(item.createdBy))
+        );
+      }),
+    [allProcesses, effectiveScopeId, externalProfessionalCreatorIds, session],
   );
 
   const protocolQueueProcesses = useMemo(
@@ -198,7 +226,9 @@ export function ProtocolDeskPage() {
     ),
   );
   const deskProtocolIds = new Set(deskProtocols.map((item) => item.id));
-  const onlineProtocolItems = processes.filter((item) => !deskProtocolIds.has(item.id));
+  const onlineProtocolItems = processes.filter(
+    (item) => isExternalProfessionalSubmission(item) || !deskProtocolIds.has(item.id),
+  );
 
   const latestActivity = useMemo(
     () =>
@@ -378,10 +408,11 @@ export function ProtocolDeskPage() {
   const renderQueueList = (
     items: ProcessRecord[],
     emptyMessage = "Nenhum protocolo disponível nesta seção.",
+    options?: { includeFinished?: boolean },
   ) => {
     const normalizedQuery = processListQuery.trim().toLocaleLowerCase("pt-BR");
     const visibleItems = items.filter((process) => {
-      if (finishedProcessIds.has(process.id)) return false;
+      if (!options?.includeFinished && finishedProcessIds.has(process.id)) return false;
       if (!normalizedQuery) return true;
 
       const haystack = [
@@ -446,7 +477,7 @@ export function ProtocolDeskPage() {
           </div>
 
           <p className="mt-2 text-xs text-slate-500">
-            “Finalizar na minha lista” não apaga o processo nem documentos; apenas encerra a exibição operacional para este usuário.
+            “Finalizar na minha lista” não apaga o processo nem documentos; apenas o remove das filas operacionais deste usuário. Em “Todos os protocolos”, ele continua disponível para rastreabilidade.
           </p>
         </div>
 
@@ -468,6 +499,8 @@ export function ProtocolDeskPage() {
               const missingRequired = getMissingRequiredDocuments(process);
               const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
               const isDeskFlow = deskProtocolIds.has(process.id);
+              const externalSubmission = isExternalProfessionalSubmission(process);
+              const creator = process.createdBy ? userById.get(process.createdBy) : undefined;
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
               const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
@@ -504,6 +537,12 @@ export function ProtocolDeskPage() {
                           <Badge variant="outline" className={statusTone(process.status)}>
                             {statusLabel(process.status)}
                           </Badge>
+                          {externalSubmission ? (
+                            <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
+                              <Globe2 className="mr-1 h-3.5 w-3.5" />
+                              Profissional externo
+                            </Badge>
+                          ) : null}
                           {isUrgent ? (
                             <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
                               SLA crítico
@@ -519,7 +558,8 @@ export function ProtocolDeskPage() {
                           {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </span>
                         <span className="mt-0.5 block truncate text-xs text-slate-500">
-                          {process.ownerName} • {process.address} • {isDeskFlow ? "Balcão" : "Online"}
+                          {process.ownerName} • {process.address} • {externalSubmission ? "Online — profissional externo" : isDeskFlow ? "Balcão" : "Online"}
+                          {externalSubmission && creator?.name ? ` • Enviado por ${creator.name}` : ""}
                         </span>
                       </span>
                     </button>
@@ -983,13 +1023,14 @@ export function ProtocolDeskPage() {
 
         {section === "todos" ? (
           <TableCard
-            title="Protocolos do Protocolo"
-            description="O Protocolo acompanha a tramitação dos processos que originou. A operação e os documentos internos permanecem restritos ao departamento responsável pela etapa atual."
+            title="Todos os protocolos recebidos"
+            description="Registro completo das entradas presenciais e digitais. Protocolos abertos pelo profissional externo permanecem visíveis aqui durante toda a tramitação."
             icon={ClipboardList}
           >
             {renderQueueList(
               [...processes].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
-              "Nenhum protocolo disponível para acompanhamento neste momento.",
+              "Nenhum protocolo recebido foi localizado para esta Prefeitura.",
+              { includeFinished: true },
             )}
           </TableCard>
         ) : null}
@@ -1072,7 +1113,7 @@ export function ProtocolDeskPage() {
                     </div>
                   </div>
                   <div className="mt-5">
-                    {renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital disponível.")}
+                    {renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital disponível.", { includeFinished: true })}
                   </div>
                 </div>
               </div>
@@ -1264,7 +1305,7 @@ export function ProtocolDeskPage() {
 
             <PageSideContent>
               <SectionCard title="Fila online" description="Entradas digitais sob responsabilidade do setor.">
-                {renderQueueList(onlineProtocolItems.slice(0, 4), "Nenhum protocolo digital em atendimento.")}
+                {renderQueueList(onlineProtocolItems.slice(0, 4), "Nenhum protocolo digital em atendimento.", { includeFinished: true })}
               </SectionCard>
             </PageSideContent>
           </PageMainGrid>
