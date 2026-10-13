@@ -123,7 +123,7 @@ begin
     into _dispatch
   from public.interdepartmental_dispatches d
   where d.process_id=_process_id
-    and d.subject='Solicitacao de emissao - Guia de Recolhimento da Obra'
+    and d.subject ilike '%Guia de Recolhimento da Obra%'
     and d.status in ('aguardando','respondido')
   order by d.created_at desc
   limit 1;
@@ -149,7 +149,7 @@ begin
   )
   values(
     _tenant_id,_process_id,_current_department,'Financeiro',
-    'Solicitacao de emissao - Guia de Recolhimento da Obra',
+    'Solicitação de emissão — Guia de Recolhimento da Obra',
     now()+interval '2 days',
     _legacy_user_id,now(),'interno',coalesce(_municipality_id,_tenant_id),_profile_id,
     'aguardando','media',null
@@ -261,7 +261,7 @@ begin
     into _request
   from public.interdepartmental_dispatches d
   where d.process_id=_process_id
-    and d.subject='Solicitacao de emissao - Guia de Recolhimento da Obra'
+    and d.subject ilike '%Guia de Recolhimento da Obra%'
     and d.status in ('aguardando','respondido')
   order by d.created_at desc
   limit 1
