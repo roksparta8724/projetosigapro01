@@ -81,7 +81,7 @@ describe("layout integrity regression", () => {
     expect(detail).not.toContain(
       "sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]",
     );
-    expect(detail).toContain("overflow-x-auto whitespace-nowrap");
+    expect(read("src/components/platform/ProcessIdentityPanel.css")).toContain("overflow-wrap: anywhere");
     expect(detail).not.toContain('className="mt-2 break-all text-xs text-slate-500"');
   });
 
