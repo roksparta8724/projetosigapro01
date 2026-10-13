@@ -246,7 +246,10 @@ function resolveBrandingLogoUrl(
 export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("sigapro.sidebar.expanded") !== "0";
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
@@ -1281,7 +1284,11 @@ export function PortalFrame({ title, eyebrow, children }: PortalFrameProps) {
                   "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
                   topbarGhostButton,
                 )}
-                onClick={() => setSidebarExpanded((current) => !current)}
+                onClick={() => setSidebarExpanded((current) => {
+                  const next = !current;
+                  window.localStorage.setItem("sigapro.sidebar.expanded", next ? "1" : "0");
+                  return next;
+                })}
                 aria-label="Alternar menu lateral"
                 title="Menu"
               >
