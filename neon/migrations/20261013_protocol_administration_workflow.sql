@@ -372,6 +372,41 @@ source_rows as (
       lower('Auxiliar Administrativo')
     )
   order by tm.profile_id,tm.updated_at desc nulls last
+),
+existing_target as (
+  select source.membership_id
+  from source_rows source
+  join public.tenant_memberships target
+    on target.profile_id=source.profile_id
+   and target.tenant_id=source.tenant_id
+   and target.id<>source.membership_id
+  join target_role tr on tr.id=target.role_id
+)
+update public.tenant_memberships tm
+set is_active=false,
+    deleted_at=coalesce(tm.deleted_at,now()),
+    updated_at=now()
+where tm.id in (select membership_id from existing_target);
+
+with target_role as (
+  select id from public.roles where code::text='setor_intersetorial' limit 1
+),
+source_rows as (
+  select distinct on (tm.profile_id)
+    tm.id as membership_id,
+    tm.profile_id,
+    tm.tenant_id
+  from public.tenant_memberships tm
+  join public.profiles p on p.id=tm.profile_id
+  where tm.is_active=true
+    and tm.deleted_at is null
+    and p.deleted_at is null
+    and p.account_status='active'
+    and lower(coalesce(tm.profile_label,'')) in (
+      lower('Assistente Administrativo'),
+      lower('Auxiliar Administrativo')
+    )
+  order by tm.profile_id,tm.updated_at desc nulls last
 )
 update public.tenant_memberships tm
 set role_id=(select id from target_role),
