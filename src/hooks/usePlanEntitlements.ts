@@ -31,6 +31,11 @@ export function usePlanEntitlements() {
     loading: authLoading,
   } = useAuthGateway();
 
+  const authenticatedIdentityIds = [
+    authenticatedProfileId,
+    authenticatedUserId,
+  ].filter((value): value is string => Boolean(value));
+
   const authenticatedBusinessUserId =
     authenticatedProfileId || authenticatedUserId || "";
 
@@ -52,8 +57,8 @@ export function usePlanEntitlements() {
     municipality.id === sessionMunicipalityId;
 
   const identityMatchesAuth =
-    Boolean(authenticatedBusinessUserId) &&
-    session.id === authenticatedBusinessUserId;
+    Boolean(authenticatedIdentityIds.length) &&
+    authenticatedIdentityIds.includes(session.id);
 
   const municipalityMatchesAuth =
     isMaster ||
@@ -70,7 +75,8 @@ export function usePlanEntitlements() {
 
   const planDataPending =
     !dataReadyForCurrentUser &&
-    !dataError;
+    !dataError &&
+    platformDataLoading;
 
   const isResolving =
     authContextUnresolved ||
