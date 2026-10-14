@@ -1158,15 +1158,16 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openViewer = (documentId: string) => {
-    const viewerUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/visualizar`;
-    window.open(viewerUrl, "_blank", "noopener,noreferrer");
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+    const shouldAnalyze = forceAnalysis || canReviewDocuments;
+    const route = shouldAnalyze ? "analisar" : "visualizar";
+    const workspaceUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}`;
+    const opened = window.open(workspaceUrl, "_blank", "noopener,noreferrer");
+    if (opened) opened.opener = null;
   };
 
-  const openAnalysisViewer = (documentId: string) => {
-    const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/analisar`;
-    window.open(analysisUrl, "_blank", "noopener,noreferrer");
-  };
+  const openViewer = (documentId: string) => openDocumentWorkspace(documentId, false);
+  const openAnalysisViewer = (documentId: string) => openDocumentWorkspace(documentId, true);
   const handleViewerClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!canAnnotateViewer || !viewerAreaRef.current) return;
     const rect = viewerAreaRef.current.getBoundingClientRect();
@@ -1691,7 +1692,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader data-premium-inverse-surface="true" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner">
@@ -1988,24 +1989,14 @@ export function ProcessDetailPage() {
                         </Badge>
 
                         {document.uploaded && canReviewDocuments ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openViewer(document.id)}
-                              className="inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
-                            >
-                              <Eye className="h-4 w-4" />
-                              Abrir documento
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openAnalysisViewer(document.id)}
-                              className="inline-flex h-9 items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-4 text-[11px] font-bold text-amber-900 shadow-sm transition hover:-translate-y-px hover:bg-amber-100 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-950/70"
-                            >
-                              <PencilLine className="h-4 w-4" />
-                              Analisar / marcar PDF
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => openAnalysisViewer(document.id)}
+                            className="inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
+                          >
+                            <PencilLine className="h-4 w-4" />
+                            Abrir documento e analisar
+                          </button>
                         ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
                             type="button"
