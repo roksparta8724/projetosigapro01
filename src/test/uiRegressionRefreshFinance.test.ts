@@ -121,7 +121,9 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(guide).toContain("logoUrl: embeddedLogo");
     expect(guide).toContain('window.open("", "_blank")');
     expect(guide).toContain("popup.location.replace(previewUrl)");
-    expect(guide).toContain(">Brasão</div>");
+    expect(guide).toContain("function GuideInstitutionLogo");
+    expect(guide).toContain("Brasão");
+    expect(guide).toContain("onError={() => setFailed(true)}");
   });
 
   it("não fabrica código bancário ou PIX e preserva a identidade real do emissor da ISSQN", () => {
