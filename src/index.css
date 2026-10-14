@@ -7100,3 +7100,47 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adapt
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
+
+
+/* Process list cards that are not built with the shared Card primitive follow
+   the exact same surface contract across Protocolo, Análise, Financeiro and portals. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  border-color: #d6e1ec !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
+):not([data-ui="badge"]) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg,#10263d 0%,#091827 100%) !important;
+  border-color: #294761 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.28) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
+):not([data-ui="badge"]) {
+  color: #cbd8e8 !important;
+  -webkit-text-fill-color: #cbd8e8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] svg:not([data-keep-color="true"]) {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
