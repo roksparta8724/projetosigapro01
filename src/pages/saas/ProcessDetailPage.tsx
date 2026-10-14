@@ -207,7 +207,10 @@ export function ProcessDetailPage() {
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
 
