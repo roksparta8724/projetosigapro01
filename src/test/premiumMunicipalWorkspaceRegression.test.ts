@@ -19,6 +19,7 @@ describe("premium municipal workspace regression", () => {
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const fileDropZone = read("src/components/platform/FileDropZone.tsx");
   const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
+  const backend = read("src/integrations/backend/platformImpl.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
@@ -51,6 +52,16 @@ describe("premium municipal workspace regression", () => {
     expect(shell).toContain("session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role]");
     expect(shell).toContain("const itemIsExternal");
     expect(shell).toContain("item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role]");
+  });
+
+  it("treats real municipal department assignment as an internal role", () => {
+    expect(backend).toContain("const isExternalStoredRole");
+    expect(backend).toContain("const isExternalDepartment");
+    expect(backend).toContain("isExternalStoredRole && isExternalDepartment");
+    expect(backend).toContain("/(urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao)/");
+    expect(backend).toContain("/(finance|financa|fazenda|tesour|arrecad|tribut)/");
+    expect(backend).toContain("/(fiscaliz|postura)/");
+    expect(backend).toContain('return "setor_intersetorial"');
   });
 
   it("places Protocol under Administration in the administrative sidebar", () => {
