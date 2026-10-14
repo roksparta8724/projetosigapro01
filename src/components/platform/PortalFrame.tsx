@@ -500,14 +500,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const dashboardSidebarItem = isAdministrativeSidebar
     ? visiblePrimaryItems.find((item) => item.to === "/dashboard") ?? null
     : null;
+  const protocolAdministrativeItem = isAdministrativeSidebar
+    ? visiblePrimaryItems.find((item) => item.to === "/prefeitura/protocolos") ?? null
+    : null;
   const administrativeItems = isAdministrativeSidebar
     ? [
         ...(dashboardSidebarItem ? [dashboardSidebarItem] : []),
         ...visibleManagementItems,
+        ...(protocolAdministrativeItem ? [protocolAdministrativeItem] : []),
       ]
     : [];
   const operationalItems = isAdministrativeSidebar
-    ? visiblePrimaryItems.filter((item) => item.to !== "/dashboard")
+    ? visiblePrimaryItems.filter(
+        (item) => item.to !== "/dashboard" && item.to !== "/prefeitura/protocolos",
+      )
     : visiblePrimaryItems;
   const sidebarGroups = [
     ...(isAdministrativeSidebar ? [{ title: "Administração", items: administrativeItems }] : []),
@@ -676,7 +682,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       editorSize: 320,
     };
   }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
-  const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
+  const externalSessionRole =
+    session.role === "profissional_externo" ||
+    session.role === "property_owner" ||
+    session.role === "proprietario_consulta";
+  const roleLabel = humanizeRoleLabel(
+    externalSessionRole
+      ? userProfile?.professionalType?.trim() || session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role]
+      : session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role],
+    "Usuário",
+  );
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
     maxLength: 30,
@@ -696,11 +711,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     departmentOwnershipKey === "financeiro"
       ? { secretaria: "Secretaria de Finanças", diretoria: "Diretoria Financeira" }
       : departmentOwnershipKey === "protocolo"
-        ? { secretaria: "Secretaria de Administração", diretoria: "Diretoria de Protocolo" }
+        ? { secretaria: "Secretaria de Administração", diretoria: "Departamento de Protocolo" }
         : departmentOwnershipKey === "analise"
           ? {
-              secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
-              diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo",
+              secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo e Obras",
+              diretoria: tenantSettings?.diretoriaResponsavel || "Departamento de Análise Urbanística",
             }
           : departmentOwnershipKey === "acesso_externo"
             ? {
@@ -732,9 +747,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       ? tenantSettings?.secretariaResponsavel?.trim() || "Identidade institucional ativa"
       : rawInstitutionDisplaySubtitle;
   const institutionFooterTitle =
+    activeDepartmentOwnership?.secretaria ||
     tenantSettings?.secretariaResponsavel ||
     officialHeaderText ||
     "Secretaria não informada";
+  const institutionFooterUnit =
+    activeDepartmentOwnership?.diretoria ||
+    tenantSettings?.diretoriaResponsavel ||
+    "Unidade municipal não informada";
   const institutionFooterCity =
     ("city" in (activeInstitution ?? {}) && activeInstitution?.city
       ? activeInstitution.city
@@ -899,7 +919,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       fallback: "Usuário",
       maxLength: 24,
     });
-    const profileRole = humanizeRoleLabel(profile?.professionalType?.trim() || roleLabels[item.role], "Usuário");
+    const itemIsExternal =
+      item.role === "profissional_externo" ||
+      item.role === "property_owner" ||
+      item.role === "proprietario_consulta";
+    const profileRole = humanizeRoleLabel(
+      itemIsExternal
+        ? profile?.professionalType?.trim() || item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role]
+        : item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role],
+      "Usuário",
+    );
     return `${profileName} - ${profileRole}`;
   };
   const applyMarkerToCurrentProcess = async (preset: MarkerPreset) => {
@@ -2266,7 +2295,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     {institutionFooterTitle}
                   </p>
                   <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo"}
+                    {institutionFooterUnit}
                   </p>
                 </div>
               </div>
