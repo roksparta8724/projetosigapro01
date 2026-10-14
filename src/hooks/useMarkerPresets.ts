@@ -205,11 +205,13 @@ export function useMarkerPresets() {
   const publishPresets = (next: MarkerPreset[]) => {
     if (typeof window === "undefined" || !preferenceOwnerId) return;
     window.localStorage.setItem(buildStorageKey(preferenceOwnerId), JSON.stringify(next));
-    window.dispatchEvent(
-      new CustomEvent(MARKER_PRESETS_EVENT, {
-        detail: { ownerId: preferenceOwnerId, presets: next },
-      }),
-    );
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent(MARKER_PRESETS_EVENT, {
+          detail: { ownerId: preferenceOwnerId, presets: next },
+        }),
+      );
+    }, 0);
   };
 
   const presetMap = useMemo(() => {
