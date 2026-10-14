@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { usePlatformData } from "@/hooks/usePlatformData";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 
 export function PlanModuleRoute({
@@ -11,6 +12,7 @@ export function PlanModuleRoute({
   children: ReactNode;
 }) {
   const entitlements = usePlanEntitlements();
+  const { refreshRemoteStore } = usePlatformData();
 
   if (entitlements.isResolving) {
     // Falha fechada: durante troca de contas nunca montar um módulo cujo
@@ -32,6 +34,39 @@ export function PlanModuleRoute({
 
   if (entitlements.isMaster || entitlements.canUseModule(module)) {
     return <>{children}</>;
+  }
+
+  if (entitlements.resolutionFailed && !entitlements.isConfigured) {
+    return (
+      <main className="flex min-h-[320px] w-full items-center justify-center bg-white px-5 py-10 text-slate-950">
+        <div className="w-full max-w-[680px] rounded-[26px] border border-amber-200 bg-amber-50/70 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.08)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200 bg-white text-amber-700 shadow-sm">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
+            Validação concluída com falha de conexão
+          </p>
+          <h1 className="mt-2 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+            Não foi possível confirmar o plano da Prefeitura
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-700">
+            A página não ficará mais presa em validação. Reconecte os dados oficiais para confirmar o módulo antes de continuar.
+          </p>
+          {entitlements.dataError ? (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-amber-900">
+              {entitlements.dataError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void refreshRemoteStore().catch(() => undefined)}
+            className="mt-5 inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </main>
+    );
   }
 
   const planName = entitlements.plan?.name ?? "não configurado";
