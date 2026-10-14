@@ -219,3 +219,21 @@ describe("process tab visibility", () => {
     expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="true"]');
   });
 });
+
+
+describe("authoritative process surface polarity file", () => {
+  it("loads the final polarity contract after index.css and scopes it to process detail", () => {
+    const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
+
+    expect(main.indexOf('import "./styles/surface-polarity.css"')).toBeGreaterThan(
+      main.indexOf('import "./index.css"'),
+    );
+    expect(polarity).toContain("PROCESS DETAIL AUTHORITATIVE POLARITY V6");
+    expect(polarity).toContain(".sig-process-detail-premium");
+    expect(polarity).toContain('[data-layout-mode="default"]');
+    expect(polarity).toContain('[data-layout-mode="inverse-main"]');
+    expect(polarity).toContain('color:#ffffff !important');
+    expect(polarity).toContain('color: #0f172a !important');
+  });
+});
