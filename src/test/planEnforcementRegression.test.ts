@@ -32,7 +32,10 @@ describe("commercial plan enforcement", () => {
     expect(route.indexOf("if (entitlements.isResolving)")).toBeLessThan(
       route.indexOf('const planName = entitlements.plan?.name ?? "não configurado"'),
     );
-    expect(route).toContain("Validando acesso da Prefeitura");
+    expect(route).not.toContain("Validando acesso da Prefeitura");
+    expect(route).toContain("hasValidRefreshContinuity");
+    expect(route).toContain("return <>{children}</>;");
+    expect(route).toContain("return null;");
   });
 
   it("enforces quotas in the database, not only in the interface", () => {
