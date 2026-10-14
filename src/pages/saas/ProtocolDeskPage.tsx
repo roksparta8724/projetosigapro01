@@ -38,7 +38,6 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
-  canTrackProcess,
   isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -600,7 +599,7 @@ export function ProtocolDeskPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                      <div className="sig-responsive-data-grid mt-4">
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
                           <p className="mt-1 text-sm font-semibold text-slate-900">{getOpeningDate(process)}</p>
