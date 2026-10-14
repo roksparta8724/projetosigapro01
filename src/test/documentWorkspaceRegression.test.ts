@@ -35,10 +35,10 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Mesa de análise documental");
     expect(analysis).toContain("Ferramenta ativa");
     expect(analysis).toContain("Painel técnico");
-    expect(analysis).toContain("Marca-texto");
-    expect(analysis).toContain("Comentário pontual");
-    expect(analysis).toContain("Arraste sobre o ponto incorreto");
-    expect(analysis).toContain("Clique no ponto do documento onde deseja fixar o comentário");
+    expect(analysis).toContain("Marcar área");
+    expect(analysis).toContain("Adicionar texto");
+    expect(analysis).toContain("Arraste sobre o ponto incorreto para destacar a área");
+    expect(analysis).toContain("Clique no ponto exato do documento para fixar um texto numerado");
     expect(analysis).toContain("Anotações · página");
     expect(analysis).toContain("Resultado da análise");
     expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_380px]");
@@ -52,5 +52,19 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("approveDocument");
     expect(analysis).toContain("issueComuniqueSe");
     expect(analysis).toContain("Voltar ao processo");
+  });
+});
+
+
+describe("viewer annotation entry", () => {
+  it("opens annotation tools directly from the viewer for authorized analysts", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+
+    expect(viewer).toContain('openAnalysisWorkspace("highlight")');
+    expect(viewer).toContain('openAnalysisWorkspace("text")');
+    expect(viewer).toContain("Marca-texto");
+    expect(viewer).toContain("Adicionar texto");
+    expect(analysis).toContain('searchParams.get("ferramenta")');
   });
 });
