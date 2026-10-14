@@ -44,7 +44,7 @@ describe("municipal organization chart", () => {
 
   it("shows the institutional hierarchy with department names and acronyms without staff names", () => {
     expect(tenantAdmin).toContain("MunicipalOrganizationChart");
-    expect(orgChart).toContain("getDepartmentAcronym");
+    expect(orgChart).toContain("getMunicipalDepartmentAcronym");
     expect(orgChart).toContain("{department.name}");
     expect(orgChart).toContain("unidade superior cadastrada no banco");
     expect(orgChart).toContain("nomes de servidores continuam fora desta visão");
