@@ -24,6 +24,7 @@ describe("local runtime parity regressions", () => {
   });
 
   it("does not keep plan access stuck on secondary loading states after auth is stable", () => {
+    expect(entitlements).toContain("loading: platformDataLoading");
     expect(entitlements).toContain("authenticatedEmail");
     expect(entitlements).toContain("normalizedAuthenticatedEmail");
     expect(entitlements).toContain("normalizedSessionEmail");
