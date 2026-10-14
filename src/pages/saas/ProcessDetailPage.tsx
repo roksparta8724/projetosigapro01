@@ -1750,7 +1750,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader id="sig-process-document-command-center" data-premium-inverse-surface="true" data-surface-tone="dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-premium-inverse-surface="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
@@ -1878,7 +1878,7 @@ export function ProcessDetailPage() {
 
               {canReviewDocuments ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-4 dark:border-emerald-500/40 dark:bg-emerald-950/25">
+                  <div data-surface="semantic-card" data-tone="emerald" className="sig-document-kpi rounded-2xl border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
@@ -1892,7 +1892,7 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-500/40 dark:bg-amber-950/25">
+                  <div data-surface="semantic-card" data-tone="amber" className="sig-document-kpi rounded-2xl border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800 dark:text-amber-300">
@@ -1906,7 +1906,7 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-sky-300 bg-sky-50/80 p-4 dark:border-sky-500/40 dark:bg-sky-950/25">
+                  <div data-surface="semantic-card" data-tone="sky" className="sig-document-kpi rounded-2xl border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
@@ -1920,7 +1920,7 @@ export function ProcessDetailPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                  <div data-surface="semantic-card" data-tone="neutral" className="sig-document-kpi rounded-2xl border p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                       Progresso da conferência
                     </p>
@@ -1961,6 +1961,7 @@ export function ProcessDetailPage() {
                   <div
                     key={document.id}
                     data-process-document-card="true"
+                    data-surface="adaptive-card"
                     className={`group relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)] dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.28)] [contain:layout_style] ${reviewVisual.card}`}
                   >
                     <div
@@ -2054,7 +2055,7 @@ export function ProcessDetailPage() {
                             data-primary-action="document" className="sig-primary-document-action inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                           >
                             <PencilLine className="h-4 w-4" />
-                            {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
+                            {openingDocumentId === document.id ? "Abrindo análise..." : "Abrir documento e analisar"}
                           </button>
                         ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
