@@ -564,6 +564,8 @@ export interface AuditEntry {
   title: string;
   detail: string;
   actor: string;
+  /** Perfil real que executou a ação, quando persistido no banco. */
+  actorProfileId?: string;
   visibleToExternal: boolean;
   at: string;
 }
@@ -2422,6 +2424,35 @@ export function isExternalProfessionalProcess(
     process.professionalUserId ||
     process.professionalEmail ||
     ["profissional_externo", "professional_external", "professional", "profissional"].includes(creatorRole),
+  );
+}
+
+/**
+ * Mantém o acompanhamento da guia ISSQN pelo servidor que efetivamente a emitiu,
+ * mesmo depois que o processo segue para outra pasta. Não concede poderes da etapa atual.
+ */
+export function canFollowUpIssuedIssGuide(session: SessionUser, process: ProcessRecord) {
+  if (
+    session.accountStatus === "blocked" ||
+    session.accountStatus === "inactive" ||
+    (session.role !== "analista" && session.role !== "prefeitura_supervisor") ||
+    !canAccessMunicipalArea(session, "analise") ||
+    !matchesOperationalScope(getOperationalScopeId(session), process)
+  ) return false;
+
+  const hasIssuedGuide = Boolean(
+    process.payment.guides?.some((guide) =>
+      guide.kind === "iss_obra" &&
+      Boolean(guide.code?.trim()) &&
+      Boolean(guide.issuedAt),
+    ),
+  );
+  if (!hasIssuedGuide) return false;
+
+  return process.auditTrail.some((audit) =>
+    audit.actorProfileId === session.id &&
+    audit.category === "financeiro" &&
+    /guia.*(issqn|iss).*emitid/i.test(audit.title),
   );
 }
 
