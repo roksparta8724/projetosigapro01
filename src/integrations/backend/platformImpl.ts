@@ -2879,6 +2879,24 @@ export async function listRemoteMunicipalDepartments(municipalityId: string) {
   return (data ?? []).map((row) => mapMunicipalDepartment(row as Record<string, unknown>));
 }
 
+export async function listRemotePublicMunicipalDepartments(municipalityId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_public_municipal_departments_v1", {
+    _municipality_id: municipalityId,
+  });
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar a estrutura institucional.");
+  }
+  return (data ?? []).map((row) =>
+    mapMunicipalDepartment({
+      ...(row as Record<string, unknown>),
+      description: "",
+      email: "",
+      phone: "",
+    }),
+  );
+}
+
 export async function upsertRemoteMunicipalDepartment(input: {
   municipalityId: string;
   departmentId?: string | null;
