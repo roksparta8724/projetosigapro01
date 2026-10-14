@@ -596,3 +596,53 @@ html body #root :is(
 }
 
 /* ===== END FINAL CONTRAST AUTHORITY ===== */
+
+
+/* ==========================================================================
+   THEME OPTION CARD POLARITY LOCK - 2026-10-14
+   Each theme preview card owns its own foreground. This does not recolor
+   the topbar; it only fixes the cards inside the theme picker.
+   ========================================================================== */
+html body .sig-theme-panel [data-theme-option-tone="dark"] {
+  background: linear-gradient(135deg, #10283f 0%, #081b2d 100%) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="dark"] :is(
+  p,span,strong,small,label,.sig-fit-title,.sig-fit-copy
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="dark"] .sig-fit-copy {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="dark"] :is(svg,svg *) {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body .sig-theme-panel [data-theme-option-tone="light"] {
+  background: #ffffff !important;
+  border-color: #dbe3ec !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="light"] :is(
+  p,span,strong,small,label,.sig-fit-title
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="light"] .sig-fit-copy {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+html body .sig-theme-panel [data-theme-option-tone="light"] :is(svg,svg *) {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
