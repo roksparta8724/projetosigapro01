@@ -93,3 +93,17 @@ describe("annotation draft and professional handoff", () => {
     expect(detail).toContain("openDocumentWorkspace");
   });
 });
+
+
+describe("analyst document permission continuity", () => {
+  it("keeps assigned analysts in the annotation workspace without granting prefeitura_admin review powers", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(analysis).toContain("isAssignedProcessAnalyst");
+    expect(analysis).toContain('session.role === "analista"');
+    expect(analysis).not.toContain('session.role === "prefeitura_admin"');
+    expect(detail).toContain("isAssignedProcessAnalyst");
+    expect(detail).toContain("ownsCurrentProcessStage || isAssignedProcessAnalyst");
+  });
+});
