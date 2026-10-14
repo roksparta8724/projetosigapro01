@@ -8,6 +8,7 @@ import {
 const CACHE_PREFIX = "sigapro:municipal-organogram:v2";
 const OVERRIDE_PREFIX = "sigapro:municipal-organogram:local-override:v1";
 const EVENT_NAME = "sigapro:municipal-organogram-updated";
+const LOCAL_VALIDATION = import.meta.env.DEV;
 
 type OrganogramOptions = {
   includeInactive?: boolean;
@@ -164,13 +165,14 @@ export function useMunicipalOrganogram(
   const includeInactive = options.includeInactive ?? false;
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>(() => {
     if (!municipalityId) return [];
-    const override = readOverride(municipalityId);
+    const override = LOCAL_VALIDATION ? readOverride(municipalityId) : [];
     if (override.length > 0) return resolveVisible(override, includeInactive);
     return readStored(cacheKey(municipalityId, includeInactive));
   });
   const [status, setStatus] = useState("");
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [hasLocalOverride, setHasLocalOverride] = useState(() =>
-    Boolean(municipalityId && readOverride(municipalityId).length > 0),
+    Boolean(LOCAL_VALIDATION && municipalityId && readOverride(municipalityId).length > 0),
   );
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export function useMunicipalOrganogram(
       };
     }
 
-    const localOverride = readOverride(municipalityId);
+    const localOverride = LOCAL_VALIDATION ? readOverride(municipalityId) : [];
     if (localOverride.length > 0) {
       setDepartments(resolveVisible(localOverride, includeInactive));
       setStatus("");
@@ -211,7 +213,7 @@ export function useMunicipalOrganogram(
         const next = resolveVisible(rows, includeInactive);
         writeStored(cacheKey(municipalityId, includeInactive), next);
 
-        const latestOverride = readOverride(municipalityId);
+        const latestOverride = LOCAL_VALIDATION ? readOverride(municipalityId) : [];
         if (latestOverride.length > 0) {
           setDepartments(resolveVisible(latestOverride, includeInactive));
           setHasLocalOverride(true);
@@ -223,7 +225,7 @@ export function useMunicipalOrganogram(
       })
       .catch((error) => {
         if (!active) return;
-        const latestOverride = readOverride(municipalityId);
+        const latestOverride = LOCAL_VALIDATION ? readOverride(municipalityId) : [];
         const cached = readStored(cacheKey(municipalityId, includeInactive));
 
         if (latestOverride.length > 0) {
@@ -249,13 +251,13 @@ export function useMunicipalOrganogram(
     return () => {
       active = false;
     };
-  }, [includeInactive, municipalityId]);
+  }, [includeInactive, municipalityId, reloadNonce]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !municipalityId) return;
 
     const sync = () => {
-      const localOverride = readOverride(municipalityId);
+      const localOverride = LOCAL_VALIDATION ? readOverride(municipalityId) : [];
       setHasLocalOverride(localOverride.length > 0);
       if (localOverride.length > 0) {
         setDepartments(resolveVisible(localOverride, includeInactive));
@@ -292,7 +294,7 @@ export function useMunicipalOrganogram(
 
   const saveLocalDepartments = useCallback(
     (nextDepartments: MunicipalDepartmentRecord[]) => {
-      if (!municipalityId || typeof window === "undefined") return;
+      if (!LOCAL_VALIDATION || !municipalityId || typeof window === "undefined") return;
       const normalized = sortDepartments(
         nextDepartments.map((item) => ({
           ...item,
@@ -313,7 +315,7 @@ export function useMunicipalOrganogram(
   );
 
   const clearLocalOverride = useCallback(() => {
-    if (!municipalityId || typeof window === "undefined") return;
+    if (!LOCAL_VALIDATION || !municipalityId || typeof window === "undefined") return;
     window.localStorage.removeItem(overrideKey(municipalityId));
     setHasLocalOverride(false);
     setDepartments(readStored(cacheKey(municipalityId, includeInactive)));
@@ -323,6 +325,10 @@ export function useMunicipalOrganogram(
       }),
     );
   }, [includeInactive, municipalityId]);
+
+  const refreshRemote = useCallback(() => {
+    setReloadNonce((current) => current + 1);
+  }, []);
 
   const getPath = useCallback(
     (hint: string | null | undefined) => formatOrganogramPath(departments, hint),
@@ -351,5 +357,7 @@ export function useMunicipalOrganogram(
     hasLocalOverride,
     saveLocalDepartments,
     clearLocalOverride,
+    refreshRemote,
+    localValidation: LOCAL_VALIDATION,
   };
 }
