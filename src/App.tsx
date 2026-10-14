@@ -53,27 +53,27 @@ import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
 
 const App = () => {
   return (
-    <AppBootstrapProvider>
-      <AuthGatewayProvider>
-        <PlatformDataProvider>
-          <PlatformSessionProvider>
-            <TenantProvider>
-              <MunicipalityProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <AppErrorBoundary>
+    <AppErrorBoundary>
+      <AppBootstrapProvider>
+        <AuthGatewayProvider>
+          <PlatformDataProvider>
+            <PlatformSessionProvider>
+              <TenantProvider>
+                <MunicipalityProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
                       <AppRoutes />
-                    </AppErrorBoundary>
-                  </BrowserRouter>
-                </TooltipProvider>
-              </MunicipalityProvider>
-            </TenantProvider>
-          </PlatformSessionProvider>
-        </PlatformDataProvider>
-      </AuthGatewayProvider>
-    </AppBootstrapProvider>
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </MunicipalityProvider>
+              </TenantProvider>
+            </PlatformSessionProvider>
+          </PlatformDataProvider>
+        </AuthGatewayProvider>
+      </AppBootstrapProvider>
+    </AppErrorBoundary>
   );
 };
 
