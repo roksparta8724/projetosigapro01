@@ -12,10 +12,11 @@ describe("local runtime parity regressions", () => {
   const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
   const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
-  it("reads existing localhost documents from the official read API without routing writes to production", () => {
-    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
-    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
+  it("reads localhost documents through same-origin with an official fallback only for local read infrastructure", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
     expect(r2Client).toContain("getSignedUrlForObjectStrict");
+    expect(r2Client).toContain("localInfrastructureFailure");
+    expect(r2Client).toContain("officialReadApiBase");
     expect(r2Client).toContain('buildApiUrl("/api/r2-upload")');
     expect(r2Client).toContain('buildApiUrl("/api/r2-delete")');
   });
