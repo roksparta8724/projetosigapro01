@@ -2229,13 +2229,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              {isInternalRole(session.role) && activeInstitutionId ? (
+              {activeInstitutionId ? (
                 <MunicipalOrganogramBar
                   municipalityId={activeInstitutionId}
                   departmentHint={departmentOrganogramHint}
                   title="Organograma do departamento"
                   description="Caminho oficial da unidade no organograma municipal. Este mesmo cadastro orienta os destinos de despacho dos processos."
                   className="mt-4"
+                  showLink={isInternalRole(session.role)}
                 />
               ) : null}
             </header> : null}
