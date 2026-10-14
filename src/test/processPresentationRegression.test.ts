@@ -94,3 +94,17 @@ describe("process navigation continuity", () => {
     expect(exitIndex).toBeGreaterThan(backIndex);
   });
 });
+
+
+describe("premium document center and direct PDF analysis", () => {
+  it("shows a premium document command center with progress and direct analysis actions", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    expect(detail).toContain("Central documental do processo");
+    expect(detail).toContain("documentDeliveryProgress");
+    expect(detail).toContain("documentReviewProgress");
+    expect(detail).toContain("Analisar / marcar PDF");
+    expect(detail).toContain("Visualizar");
+    expect(detail).toContain("Use “Analisar / marcar PDF” para marca-texto");
+  });
+});
