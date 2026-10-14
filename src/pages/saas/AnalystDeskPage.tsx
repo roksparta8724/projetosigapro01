@@ -638,6 +638,8 @@ export function AnalystDeskPage() {
           return (
             <div
               key={process.id}
+              data-process-premium-card="true"
+              data-surface="adaptive-card"
               className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1042,7 +1044,7 @@ export function AnalystDeskPage() {
                     </div>
                   ) : (
                     recentActivity.map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={item.id} data-surface="adaptive-card" className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
