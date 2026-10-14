@@ -1558,11 +1558,13 @@ async function embedGuideImage(source?: string, objectKey?: string) {
       const response = await fetch(signedUrl, {
         cache: "no-store",
       });
-      if (!response.ok) return "";
-      return await blobToDataUrl(await response.blob());
+      if (response.ok) {
+        return await blobToDataUrl(await response.blob());
+      }
     } catch {
-      // Nunca reaproveita URL assinada antiga quando existe objectKey permanente.
-      return "";
+      // No localhost o endpoint de assinatura do R2 pode não ter as variáveis
+      // server-side. Nesse caso, tente a logo já resolvida pelo branding antes
+      // de cair para o fallback visual.
     }
   }
 
