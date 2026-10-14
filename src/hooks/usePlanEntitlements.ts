@@ -51,11 +51,6 @@ export function usePlanEntitlements() {
     ? sessionMunicipalityId || municipality?.id || scopeId || ""
     : sessionMunicipalityId;
 
-  const municipalityMatchesSession =
-    !municipality?.id ||
-    !sessionMunicipalityId ||
-    municipality.id === sessionMunicipalityId;
-
   const normalizedAuthenticatedEmail = String(authenticatedEmail ?? "").trim().toLowerCase();
   const normalizedSessionEmail = String(session.email ?? "").trim().toLowerCase();
   const identityMatchesAuth =
@@ -103,7 +98,6 @@ export function usePlanEntitlements() {
       (!isMaster && (
         !municipalityMatchesAuth ||
         !sessionMunicipalityId ||
-        !municipalityMatchesSession ||
         planDataPending
       ))
     );
