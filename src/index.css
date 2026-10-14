@@ -6411,19 +6411,31 @@ body:has(.sig-app-frame[data-focus-mode="true"]) {
 
 
 /* SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14 */
-/*
-  A aplicação interna usa zoom de 85%. Radix/Floating UI mede poppers em
-  coordenadas de viewport; por isso Tema/Marcadores derivavam para a esquerda.
-  Estes dois menus são locais ao topbar: o wrapper fica relativo ao botão e a
-  camada calculada pelo Radix é reposicionada em CSS no MESMO espaço de zoom.
-*/
+ /*
+   Tema e Marcadores pertencem ao proprio botao da topbar. O SIGAPRO usa zoom
+   institucional de 85%, portanto a medicao de viewport do Floating UI nao deve
+   decidir a coordenada final destes dois paineis. O wrapper do Radix fica
+   neutro e o painel e posicionado no sistema local do botao.
+ */
 @media (min-width: 1024px) {
   .sig-topbar-local-popper {
     position: relative !important;
     overflow: visible !important;
+    isolation: isolate;
   }
 
-  .sig-topbar-local-popper > [data-radix-popper-content-wrapper] {
+  .sig-topbar-local-popper [data-radix-popper-content-wrapper] {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    transform: none !important;
+    translate: none !important;
+    margin: 0 !important;
+  }
+
+  .sig-topbar-local-popper .sig-marker-panel,
+  .sig-topbar-local-popper .sig-theme-panel {
     position: absolute !important;
     top: calc(100% + 12px) !important;
     left: 50% !important;
@@ -6433,33 +6445,16 @@ body:has(.sig-app-frame[data-focus-mode="true"]) {
     translate: none !important;
     margin: 0 !important;
     z-index: 90 !important;
-  }
-
-  .sig-topbar-local-popper > [data-radix-popper-content-wrapper] > .sig-marker-panel,
-  .sig-topbar-local-popper > [data-radix-popper-content-wrapper] > .sig-theme-panel {
-    position: static !important;
-    inset: auto !important;
-    margin: 0 !important;
-    transform: none !important;
-    translate: none !important;
     transform-origin: top center !important;
   }
 
-  .sig-marker-anchor > [data-radix-popper-content-wrapper] {
+  .sig-marker-anchor .sig-marker-panel {
     width: min(416px, calc(100vw - 32px)) !important;
-  }
-
-  .sig-marker-anchor > [data-radix-popper-content-wrapper] > .sig-marker-panel {
-    width: 100% !important;
     max-width: 416px !important;
   }
 
-  .sig-theme-anchor > [data-radix-popper-content-wrapper] {
+  .sig-theme-anchor .sig-theme-panel {
     width: min(304px, calc(100vw - 32px)) !important;
-  }
-
-  .sig-theme-anchor > [data-radix-popper-content-wrapper] > .sig-theme-panel {
-    width: 100% !important;
     max-width: 304px !important;
   }
 }
