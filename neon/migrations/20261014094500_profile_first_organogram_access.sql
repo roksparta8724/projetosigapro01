@@ -1,8 +1,7 @@
--- Organogram access must follow Neon profile-first authentication.
--- Internal staff receives the complete institutional record.
--- External accounts receive only public unit identity/hierarchy fields.
+-- Profile-first organogram access.
+-- v2 avoids mutating the legacy RPC contract during local validation.
 
-create or replace function public.list_municipal_departments_v1(_municipality_id uuid)
+create or replace function public.list_municipal_departments_v2(_municipality_id uuid)
 returns table(
   id uuid,
   municipality_id uuid,
@@ -92,5 +91,5 @@ begin
 end;
 $$;
 
-grant execute on function public.list_municipal_departments_v1(uuid) to authenticated;
+grant execute on function public.list_municipal_departments_v2(uuid) to authenticated;
 grant execute on function public.list_public_municipal_departments_v1(uuid) to authenticated;
