@@ -11,6 +11,9 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   const protocolDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
   const analystDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
   const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
+  const platform = readFileSync(resolve(process.cwd(), "src/lib/platform.ts"), "utf8");
+  const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"), "utf8");
+  const guide = readFileSync(resolve(process.cwd(), "src/components/GuiaRecolhimentoOficial.tsx"), "utf8");
 
   it("remove o atalho Ctrl K visível da busca", () => {
     expect(portal).not.toContain("Ctrl K");
@@ -64,18 +67,14 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("font-size: 0.69rem !important");
   });
 
-  it("preserva a geometria exata do viewport no snapshot do F5", () => {
-    expect(main).toContain("viewportWidth: document.documentElement.clientWidth || window.innerWidth");
-    expect(main).toContain("viewportHeight: window.innerHeight");
-    expect(main).toContain("cssText: collectLoadedCssText()");
-    expect(main).toContain("function restoreFrozenSnapshot()");
-    expect(main).toContain("restoreFrozenSnapshot();");
-    expect(main).toContain("sigapro-refresh-snapshot-css");
-    expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
-    expect(html).toContain("--sig-snapshot-viewport-width");
-    expect(html).toContain("--sig-snapshot-viewport-height");
-    expect(html).toContain("transform: none");
-    expect(html).not.toContain("contain: layout paint style");
+  it("mantém F5 nativo sem snapshot congelado nem trava de rolagem", () => {
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).not.toContain("window.scrollTo");
+    expect(main).not.toContain("persistVisualSnapshot");
+    expect(main).not.toContain("restoreFrozenSnapshot");
+    expect(html).not.toContain("sigapro-refresh-snapshot");
+    expect(processDetail).toContain('nextParams.set("aba", tab)');
+    expect(processDetail).toContain("preventScrollReset: true");
   });
 
 
@@ -102,13 +101,28 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   });
 
   it("permite que a unidade de Protocolo confirme recebimento da guia inicial", () => {
-    expect(processDetail).toContain('protocolUnitIdentity.includes("protocolo")');
+    expect(processDetail).toContain("const canProtocolConfirmPayment");
+    expect(processDetail).toContain("canProtocolOperate");
+    expect(processDetail).toContain('process.triage.status === "concluido"');
     expect(processDetail).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(processDetail).toContain("Confirmar pagamento recebido");
     expect(processDetail).toContain('process.status === "pagamento_pendente"');
     expect(protocolDesk).toContain("handleConfirmProtocolPayment");
     expect(protocolDesk).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
+  });
+
+  it("não fabrica código bancário ou PIX e preserva a identidade real do emissor da ISSQN", () => {
+    expect(processDetail).not.toContain('.padEnd(44, "7")');
+    expect(processDetail).not.toContain("const pixPayload");
+    expect(processDetail).toContain('codigoBarras: ""');
+    expect(processDetail).toContain('linhaDigitavel: ""');
+    expect(guide).toContain("Sem linha digitável oficial");
+    expect(guide).toContain("Não há linha digitável nem PIX oficial nesta via");
+    expect(platform).toContain("canFollowUpIssuedIssGuide");
+    expect(platform).toContain("audit.actorProfileId === session.id");
+    expect(backend).toContain("actorProfileId: entry.actor_profile_id ?? undefined");
+    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
   });
 
   it("não deixa referência quebrada na rota de protocolos financeiros", () => {
