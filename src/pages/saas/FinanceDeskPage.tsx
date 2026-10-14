@@ -501,7 +501,7 @@ export function FinanceDeskPage() {
                       return (
                         <div
                           key={`${process.id}:construction-guide-request`}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"
+                          className="rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-950/40"
                         >
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div className="min-w-0">
@@ -555,7 +555,7 @@ export function FinanceDeskPage() {
                 </div>
               ) : (
                 guidesByIssueDate.map(({ process, guide }) => (
-                  <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
+                  <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                     <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -599,7 +599,7 @@ export function FinanceDeskPage() {
                     </div>
                   ) : (
                     pendingGuides.map(({ process, guide }) => (
-                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                         <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -658,7 +658,7 @@ export function FinanceDeskPage() {
             <PageMainContent>
               <TableCard title="Conciliação bancária" description="Retorno bancário, divergências e tarefas manuais de confirmação do setor." icon={Scale}>
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Perfil bancário</p>
                     <p className="mt-2 text-base font-semibold text-slate-950">{bankProfile.bankName}</p>
                     <div className="mt-3 space-y-2 text-sm text-slate-600">
@@ -667,7 +667,7 @@ export function FinanceDeskPage() {
                       <p>Beneficiário: {bankProfile.beneficiary}</p>
                     </div>
                   </div>
-                  <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="sig-dark-panel rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Controle da conciliação</p>
                     <div className="mt-3 grid gap-2 text-sm text-slate-600">
                       <div className="sig-dark-panel rounded-xl bg-slate-50 p-3">Baixas pendentes: {pendingGuides.length}</div>
@@ -685,7 +685,7 @@ export function FinanceDeskPage() {
                     </div>
                   ) : (
                     criticalPending.map(({ process, guide }) => (
-                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={`${process.id}-${guide.kind}`} className="sig-dark-panel rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
@@ -792,7 +792,7 @@ export function FinanceDeskPage() {
               ) : null}
 
               <div className="grid gap-4 lg:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                   <p className="text-sm font-semibold text-slate-950">1. Guia de protocolo</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     Etapa inicial obrigatória para abertura do processo.
@@ -900,7 +900,7 @@ export function FinanceDeskPage() {
                 </div>
               ) : (
                 recentFinancialEvents.map((event) => (
-                  <div key={event.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4">
+                  <div key={event.id} className="sig-dark-panel rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                     <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(event.protocol)}</p>
                     <p className="mt-1 text-sm text-slate-800">{event.title}</p>
                     <p className="mt-1 text-sm text-slate-500">{event.detail}</p>
