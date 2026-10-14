@@ -24,7 +24,7 @@ function inferMimeType(fileName?: string, mimeType?: string) {
 export function DocumentViewerPage() {
   const navigate = useNavigate();
   const { processId, documentId } = useParams();
-  const { processes } = usePlatformData();
+  const { processes, loading: platformDataLoading, dataReadyForCurrentUser } = usePlatformData();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const effectiveScopeId =
@@ -52,6 +52,13 @@ export function DocumentViewerPage() {
       document.uploaded &&
       canViewProcessDocuments(session, process, effectiveScopeId),
   );
+
+  const mimeType = inferMimeType(document?.fileName, document?.mimeType);
+  const isImage = mimeType.startsWith("image/");
+  const documentContextResolving =
+    !dataReadyForCurrentUser ||
+    platformDataLoading ||
+    !sessionResolved;
 
   const organizationIdentity = resolveMunicipalUnitIdentity(
     organizationDepartments,
@@ -114,30 +121,31 @@ export function DocumentViewerPage() {
     document?.previewUrl,
   ]);
 
+  useEffect(() => {
+    if (!allowed || !accessUrl || isImage) return;
+    window.location.replace(accessUrl);
+  }, [accessUrl, allowed, isImage]);
+
+  if ((!process || !document) && documentContextResolving) {
+    return <main className="h-screen w-screen bg-slate-950" aria-busy="true" aria-label="Carregando documento" />;
+  }
+
   if (!process || !document) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
         <div className="max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-8 text-center shadow-2xl">
           <FileText className="mx-auto h-10 w-10 text-slate-300" />
-          <h1 className="mt-4 text-xl font-bold">Documento não encontrado</h1>
-          <Button type="button" variant="outline" className="mt-6 rounded-full" onClick={() => window.close()}>
-            Fechar guia
-          </Button>
+          <h1 className="mt-4 text-xl font-bold">Documento indisponível</h1>
+          <p className="mt-2 text-sm text-slate-300">
+            O arquivo não está vinculado ao processo atual ou não pôde ser localizado.
+          </p>
         </div>
       </main>
     );
   }
 
   if (!sessionResolved) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
-        <div className="max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-8 text-center shadow-2xl">
-          <FileText className="mx-auto h-10 w-10 text-slate-300" />
-          <h1 className="mt-4 text-xl font-bold">Validando acesso ao documento</h1>
-          <p className="mt-2 text-sm text-slate-300">Confirmando sua sessão e o vínculo com este processo.</p>
-        </div>
-      </main>
-    );
+    return <main className="h-screen w-screen bg-slate-950" aria-busy="true" aria-label="Validando acesso ao documento" />;
   }
 
   if (!allowed) {
@@ -154,9 +162,6 @@ export function DocumentViewerPage() {
       </main>
     );
   }
-
-  const mimeType = inferMimeType(document.fileName, document.mimeType);
-  const isImage = mimeType.startsWith("image/");
 
   return (
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950">
@@ -227,10 +232,8 @@ export function DocumentViewerPage() {
               <p className="mt-2 text-sm text-slate-300">{error}</p>
             </div>
           </div>
-        ) : !accessUrl ? (
-          <div className="flex h-full items-center justify-center text-sm font-medium text-slate-200">
-            Carregando documento com acesso seguro...
-          </div>
+        ) : !accessUrl || !isImage ? (
+          <div className="h-full w-full bg-slate-800" aria-busy="true" aria-label="Abrindo documento seguro" />
         ) : isImage ? (
           <div className="h-full w-full overflow-auto p-4">
             <img
