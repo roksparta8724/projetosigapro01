@@ -25,7 +25,9 @@ describe("local authenticated runtime resilience", () => {
   it("never leaves plan validation running forever", () => {
     expect(entitlements).toContain("const [resolutionTimedOut, setResolutionTimedOut] = useState(false)");
     expect(entitlements).toContain("setResolutionTimedOut(true)");
-    expect(entitlements).toContain("}, 6000)");
+    expect(entitlements).toContain("const PLAN_RESOLUTION_TIMEOUT_MS = 6000");
+    expect(entitlements).toContain("resolutionStartedAtByIdentity");
+    expect(entitlements).toContain("PLAN_RESOLUTION_TIMEOUT_MS - (now - startedAt)");
     expect(entitlements).toContain("const isResolving = rawResolving && !resolutionTimedOut");
     expect(entitlements).toContain("resolutionTimedOut");
     expect(planRoute).toContain("Validação concluída com falha de conexão");
@@ -43,6 +45,8 @@ describe("local authenticated runtime resilience", () => {
     expect(guide).toContain("deriveBrandingObjectKey");
     expect(guide).toContain("branding");
     expect(guide).toContain("embedGuideImage");
+    expect(guide).toContain("getSignedUrlForObjectStrict");
+    expect(guide).toContain("objectKey: key");
     expect(guide).toContain("logoUrl: embeddedLogo");
   });
 
