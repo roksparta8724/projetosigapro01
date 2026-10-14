@@ -50,3 +50,26 @@ describe("premium process presentation", () => {
     }
   });
 });
+
+describe("process guide placement and organogram regression", () => {
+  it("keeps guide actions inside the guide card instead of the page hero", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const heroStart = detail.indexOf("<PageHero");
+    const heroEnd = detail.indexOf("/>", heroStart);
+    const hero = detail.slice(heroStart, heroEnd + 2);
+
+    expect(hero).not.toContain('printGuide("protocolo"');
+    expect(detail).toContain('onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", false)}');
+    expect(detail).toContain('onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", true)}');
+  });
+
+  it("loads the municipal organogram for external process viewers and hides stale premature Finance handoff", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    expect(detail).not.toContain("!effectiveScopeId || !isInternalRole(session.role)");
+    expect(detail).toContain("const displayOrganizationPath = currentOrganizationPath");
+    expect(detail).toContain("isPrematureIssFinanceHandoff");
+    expect(detail).toContain('holdsIssuedIssInsideUrbanism ? "Análise Urbanística em andamento"');
+  });
+});
+
