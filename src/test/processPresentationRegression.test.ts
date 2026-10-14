@@ -103,7 +103,7 @@ describe("premium document center and direct PDF analysis", () => {
     expect(detail).toContain("Central documental do processo");
     expect(detail).toContain("documentDeliveryProgress");
     expect(detail).toContain("documentReviewProgress");
-    expect(detail).toContain("Analisar / marcar PDF");
+    expect(detail).toContain("Abrir documento e analisar");
     expect(detail).toContain("Abrir documento");
     expect(detail).toContain("Use “Analisar / marcar PDF” para marca-texto");
   });
@@ -123,5 +123,19 @@ describe("theme-safe premium process and document cards", () => {
     expect(protocol).toContain("dark:bg-slate-900");
     expect(analysis).toContain("dark:bg-slate-900");
     expect(external).toContain("dark:bg-slate-900");
+  });
+});
+
+
+describe("external process primary action hierarchy", () => {
+  it("places the main process action below secondary actions with explicit contrast", () => {
+    const external = readFileSync(resolve(process.cwd(), "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
+    const flowIndex = external.indexOf("Acompanhar fluxo");
+    const openIndex = external.indexOf("Abrir processo");
+
+    expect(flowIndex).toBeGreaterThanOrEqual(0);
+    expect(openIndex).toBeGreaterThan(flowIndex);
+    expect(external).toContain("h-14 w-full");
+    expect(external).toContain("!text-white");
   });
 });
