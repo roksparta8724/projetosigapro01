@@ -241,3 +241,216 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+/* ========================================================================== */
+/* SIGAPRO AUTHORITATIVE SURFACE POLARITY - 2026-10-14                       */
+/* Loaded last. Scope is ONLY the application content shell.                  */
+/* Topbar/sidebar branding is intentionally untouched.                        */
+/* Rule: dark surface -> light copy/icons; light surface -> dark copy/icons.  */
+/* ========================================================================== */
+
+/* 1) All semantic adaptive cards follow the selected visual family. */
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border-color: #d8e2ed !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
+):not([data-surface-tone="dark"] *):not([data-contrast-surface="dark"] *):not([data-premium-inverse-surface="true"] *) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600,.text-muted-foreground
+):not([data-surface-tone="dark"] *):not([data-contrast-surface="dark"] *):not([data-premium-inverse-surface="true"] *) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] svg:not(
+  [data-surface-tone="dark"] svg
+):not(
+  [data-contrast-surface="dark"] svg
+):not(
+  [data-premium-inverse-surface="true"] svg
+) {
+  color: #334155;
+  stroke: currentColor;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(180deg, #102238 0%, #0b1b2c 100%) !important;
+  border-color: #29465f !important;
+  color: #f8fafc !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
+):not([data-surface-tone="light"] *) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600,.text-muted-foreground
+):not([data-surface-tone="light"] *) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] svg:not(
+  [data-surface-tone="light"] svg
+) {
+  color: #dbeafe;
+  stroke: currentColor;
+}
+
+/* 2) Explicit dark surfaces always win over ancestor/card/theme rules. */
+html body [data-layout-mode] .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body [data-layout-mode] .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode] .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+) :is(svg,svg *) {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Preserve stronger semantic copy on dark command surfaces. */
+html body [data-layout-mode] .sig-main-shell .sig-premium-command-surface .sig-command-metric-emerald :is(p,span,strong) {
+  color: #d1fae5 !important;
+  -webkit-text-fill-color: #d1fae5 !important;
+}
+html body [data-layout-mode] .sig-main-shell .sig-premium-command-surface .sig-command-metric-amber :is(p,span,strong) {
+  color: #fef3c7 !important;
+  -webkit-text-fill-color: #fef3c7 !important;
+}
+html body [data-layout-mode] .sig-main-shell .sig-premium-command-surface .sig-command-metric-blue :is(p,span,strong) {
+  color: #e0f2fe !important;
+  -webkit-text-fill-color: #e0f2fe !important;
+}
+
+/* 3) Explicit light surfaces always use dark copy, even inside dark cards. */
+html body [data-layout-mode] .sig-main-shell [data-surface-tone="light"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode] .sig-main-shell [data-surface-tone="light"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode] .sig-main-shell [data-surface-tone="light"] :is(svg,svg *) {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+/* 4) Organogram chips are dark controls in both families. This deliberately
+      outranks the adaptive-card foreground contract above. */
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"],
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] *,
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"],
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] :is(svg,svg *),
+html body [data-layout-mode] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] :is(svg,svg *) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 5) Process/document cards are adaptive and cannot inherit an opposite
+      foreground from an ancestor. Semantic badges/buttons keep their own tone. */
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-process-premium-card="true"],
+  [data-process-document-card="true"]
+) {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border-color: #d8e2ed !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-process-premium-card="true"],
+  [data-process-document-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"] *):not([data-ui="button"] *) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-process-premium-card="true"],
+  [data-process-document-card="true"]
+) {
+  background: linear-gradient(180deg, #102238 0%, #0b1b2c 100%) !important;
+  border-color: #29465f !important;
+  color: #f8fafc !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-process-premium-card="true"],
+  [data-process-document-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"] *):not([data-ui="button"] *) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* 6) Primary dark/blue actions stay readable everywhere. */
+html body .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+),
+html body .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) :is(svg,svg *) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
