@@ -2974,6 +2974,7 @@ export async function linkExistingMunicipalStaff(input: {
   role: SessionUser["role"];
   name: string;
   title: string;
+  profileLabel?: string;
   accessLevel: 1 | 2 | 3;
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
@@ -3007,6 +3008,7 @@ export async function linkExistingMunicipalStaff(input: {
     role: input.role,
     name: input.name,
     title: input.title,
+    profileLabel: input.profileLabel ?? "",
     accessLevel: input.accessLevel,
     accountStatus: "active",
   });
