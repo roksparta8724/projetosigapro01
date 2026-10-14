@@ -22,13 +22,14 @@ describe("premium municipal workspace regression", () => {
   const backend = read("src/integrations/backend/platformImpl.ts");
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
+  const organizationResolver = read("src/lib/municipalOrganization.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
     expect(organization).toContain("!item.parentDepartmentId || !activeIds.has(item.parentDepartmentId)");
     expect(organization).toContain("unidade superior cadastrada no banco");
     expect(organization).toContain("{department.name}");
-    expect(organization).toContain("getDepartmentAcronym");
+    expect(organization).toContain("getMunicipalDepartmentAcronym");
     expect(organization).toContain("Vínculo circular detectado");
     expect(organization).not.toContain("Estrutura institucional por siglas.");
   });
@@ -91,6 +92,30 @@ describe("premium municipal workspace regression", () => {
     expect(shell).toContain('"Departamento de Análise Urbanística"');
     expect(shell).toContain("const institutionFooterUnit");
     expect(shell).toContain("{institutionFooterUnit}");
+  });
+
+  it("shows organogram codes and hierarchy on process dispatches", () => {
+    expect(organizationResolver).toContain("resolveMunicipalUnitIdentity");
+    expect(organizationResolver).toContain("codePath");
+    expect(organizationResolver).toContain("breadcrumb");
+    expect(processDetail).toContain("currentOrganizationIdentity.codePath");
+    expect(processDetail).toContain("protocolOrganizationIdentity.codePath");
+    expect(processDetail).toContain("analysisOrganizationIdentity.codePath");
+    expect(processDetail).toContain("destinationIdentity.codePath");
+    expect(processDetail).toContain("originIdentity.codePath");
+    expect(processDetail).toContain("Organograma municipal sincronizado");
+    expect(processDetail).toContain("Selecionar unidade de destino");
+  });
+
+  it("shows the organogram unit code on every internal staff profile and account identity", () => {
+    expect(platform).toContain("departmentId?: string | null");
+    expect(platform).toContain("departmentCode?: string");
+    expect(backend).toContain("departmentCode: departmentRecord?.code ??");
+    expect(tenantAdmin).toContain("const departmentCode");
+    expect(tenantAdmin).toContain('departmentCode || "SEM LOTAÇÃO"');
+    expect(tenantAdmin).toContain("{session.departmentCode}");
+    expect(shell).toContain("item.departmentCode?.trim()");
+    expect(shell).toContain("{session.departmentCode}");
   });
 
   it("keeps operational desks on premium card surfaces", () => {
