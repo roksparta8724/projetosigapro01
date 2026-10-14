@@ -134,3 +134,19 @@ describe("analyst PDF markup entry", () => {
     expect(analysis).toContain("Enviar apontamentos");
   });
 });
+
+
+describe("canonical analyst markup access", () => {
+  it("uses canonical analyst role instead of department-label drift", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(viewer).toContain('session.role !== "prefeitura_admin"');
+    expect(viewer).not.toContain('canAccessMunicipalArea(session, "analise")');
+    expect(analysis).toContain('session.role !== "prefeitura_admin"');
+    expect(analysis).not.toContain('canAccessMunicipalArea(session, "analise")');
+    expect(detail).toContain('session.role !== "prefeitura_admin"');
+    expect(detail).toContain('session.role === "analista"');
+  });
+});
