@@ -1017,7 +1017,13 @@ export async function loadRemotePlatformStore() {
       membership.department ||
       (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
       "";
-    const roleCode = resolveDepartmentBackedRole(role?.code ?? profile?.role, departmentName);
+    const profileRole = normalizeStoredRole(profile?.role);
+    const roleSource =
+      profile &&
+      ["profissional_externo", "property_owner", "proprietario_consulta"].includes(profileRole)
+        ? profileRole
+        : role?.code ?? profile?.role;
+    const roleCode = resolveDepartmentBackedRole(roleSource, departmentName);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
         ? "blocked"
