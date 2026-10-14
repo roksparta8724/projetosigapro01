@@ -6927,13 +6927,46 @@ html body [data-theme-family="dark"] .sig-main-shell :is(
   stroke: currentColor !important;
 }
 
-/* Exceção correta: pills/badges claros preservam texto escuro no tema escuro. */
+/* Exceção correta: pills/badges CLAROS continuam com texto escuro/colorido. */
 html body [data-theme-family="dark"] .sig-main-shell :is(
   .sig-process-detail-premium .sig-process-card,
   .sig-process-detail-premium [data-process-document-card="true"],
   [data-process-premium-card="true"]
-) :is(.bg-white,.bg-slate-50,.bg-sky-50,.bg-emerald-50,.bg-amber-50,.bg-rose-50).rounded-full {
-  -webkit-text-fill-color: currentColor !important;
+) :is(.bg-white,.bg-slate-50).rounded-full {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) .bg-sky-50.rounded-full {
+  color: #075985 !important;
+  -webkit-text-fill-color: #075985 !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) .bg-emerald-50.rounded-full {
+  color: #047857 !important;
+  -webkit-text-fill-color: #047857 !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) .bg-amber-50.rounded-full {
+  color: #92400e !important;
+  -webkit-text-fill-color: #92400e !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) .bg-rose-50.rounded-full {
+  color: #be123c !important;
+  -webkit-text-fill-color: #be123c !important;
 }
 
 /* Command center documental: é SEMPRE escuro, então texto/ícone é SEMPRE claro. */
