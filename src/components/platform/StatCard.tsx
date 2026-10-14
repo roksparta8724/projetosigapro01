@@ -23,6 +23,7 @@ export function StatCard({
     <section
       data-ui="card"
       data-surface="adaptive-card"
+      data-tone={tone}
       className={cn(
         "sig-stat-card group flex h-full min-h-[140px] min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:min-h-[152px] sm:rounded-[22px] sm:p-5",
       )}
