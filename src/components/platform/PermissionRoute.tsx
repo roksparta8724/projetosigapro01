@@ -2,6 +2,7 @@ import { LockKeyhole } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PortalFrame } from "@/components/platform/PortalFrame";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -46,10 +47,24 @@ export function PermissionRoute({
     (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
 
   if (isInitialAccessResolution) {
-    // Não desenhar skeleton/placeholder em rotas autenticadas.
-    // No F5, a sessão visual em cache mantém a página montada; em um cold start
-    // sem contexto conhecido, aguardamos a resolução sem introduzir uma tela falsa.
-    return null;
+    const isFullDocumentWorkspace =
+      /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(location.pathname);
+
+    if (isFullDocumentWorkspace) {
+      return (
+        <main
+          className="h-screen w-screen bg-slate-950"
+          aria-busy="true"
+          aria-label="Restaurando documento"
+        />
+      );
+    }
+
+    return (
+      <PortalFrame eyebrow="Acesso institucional" title="Restaurando sessão">
+        <div className="min-h-[280px] w-full" aria-busy="true" aria-label="Restaurando sessão autenticada" />
+      </PortalFrame>
+    );
   }
 
 
