@@ -1534,14 +1534,16 @@ export function ProcessDetailPage() {
             <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
-          <CardContent className="p-5">
-            <p className="sig-label">SLA atual</p>
-            <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
-            <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
-            {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
-          </CardContent>
-        </Card>
+        {!isExternalProcessViewer ? (
+          <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+            <CardContent className="p-5">
+              <p className="sig-label">SLA atual</p>
+              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
+              <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+              {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
@@ -2521,7 +2523,7 @@ export function ProcessDetailPage() {
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
                             Processo recebido pela mesa técnica
-                            {process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
+                            {!isExternalProcessViewer && process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
                           </p>
                         </div>
                         {analysisStartedAt ? (
