@@ -545,6 +545,10 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
+  const paidPaymentGuides = visiblePaymentGuides.filter((guide) => guide.status === "compensada");
+  const openPaymentGuides = visiblePaymentGuides.filter((guide) => guide.status !== "compensada");
+  const paidPaymentTotal = paidPaymentGuides.reduce((total, guide) => total + guide.amount, 0);
+  const openPaymentTotal = openPaymentGuides.reduce((total, guide) => total + guide.amount, 0);
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
@@ -654,8 +658,6 @@ export function ProcessDetailPage() {
     constructionUsageInput,
     tenantSettings,
   );
-  const displayGuide = constructionGuide ?? protocolGuide;
-
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
       return {
@@ -1547,7 +1549,14 @@ export function ProcessDetailPage() {
         <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={displayOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
-        <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
+        <StatCard
+          label="Guias financeiras"
+          value={String(visiblePaymentGuides.length)}
+          description={`${paidPaymentGuides.length} paga(s) • ${openPaymentGuides.length} em aberto`}
+          icon={FileKey2}
+          tone="default"
+          valueClassName="text-xl md:text-2xl"
+        />
       </PageStatsRow>
       <Card className={cardShell}>
         <CardContent className="p-6">
@@ -1642,27 +1651,25 @@ export function ProcessDetailPage() {
         </Card>
         <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
-            <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
-            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
-            {canProtocolConfirmPayment ? (
-              <Button
-                type="button"
-                className="mt-3 rounded-full bg-emerald-700 px-5 !text-white hover:bg-emerald-800"
-                disabled={processActionBusy === "confirm-protocol-payment"}
-                onClick={handleConfirmProtocolPayment}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
-              </Button>
-            ) : null}
-            {constructionGuide ? (
-              <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Visualizar guia
-              </Button>
-            ) : null}
+            <p className="sig-label">Situação financeira</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-50">
+                {paidPaymentGuides.length} paga(s)
+              </Badge>
+              <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900 hover:bg-amber-50">
+                {openPaymentGuides.length} em aberto
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Total pago</p>
+                <p className="mt-1 text-base font-semibold text-emerald-700">{formatCurrency(paidPaymentTotal)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Total em aberto</p>
+                <p className="mt-1 text-base font-semibold text-amber-800">{formatCurrency(openPaymentTotal)}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card className={`${cardShell} sig-premium-summary-card h-full`}>
@@ -1685,6 +1692,112 @@ export function ProcessDetailPage() {
           </Card>
         ) : null}
       </div>
+
+      {(activeTab === "resumo" || activeTab === "financeiro" || activeTab === "historico") && visiblePaymentGuides.length > 0 ? (
+        <Card className={`${cardShell} mt-5`}>
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-slate-950">
+                  <FileKey2 className="h-5 w-5 text-sky-700" />
+                  Guias de pagamento do processo
+                </CardTitle>
+                <p className="mt-1 text-sm text-slate-600">
+                  Situação real carregada do financeiro municipal: guias compensadas permanecem no histórico e cobranças pendentes continuam destacadas em aberto.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-50">
+                  {paidPaymentGuides.length} paga(s)
+                </Badge>
+                <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900 hover:bg-amber-50">
+                  {openPaymentGuides.length} em aberto
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="grid gap-4 lg:grid-cols-2">
+              {visiblePaymentGuides.map((guide) => {
+                const isPaid = guide.status === "compensada";
+                const guideTitle =
+                  guide.kind === "protocolo"
+                    ? "Guia de protocolo"
+                    : guide.kind === "iss_obra"
+                      ? "ISSQN da obra"
+                      : "Aprovação final";
+                return (
+                  <article
+                    key={`${guide.kind}-${guide.code}`}
+                    className={`rounded-[20px] border p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] ${
+                      isPaid
+                        ? "border-emerald-200 bg-emerald-50/55"
+                        : "border-amber-200 bg-amber-50/55"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{guideTitle}</p>
+                        <p className="mt-1 truncate text-base font-semibold text-slate-950" title={guide.code}>{guide.code}</p>
+                      </div>
+                      <Badge className={`rounded-full border px-3 py-1 ${
+                        isPaid
+                          ? "border-emerald-200 bg-white text-emerald-800 hover:bg-white"
+                          : "border-amber-200 bg-white text-amber-900 hover:bg-white"
+                      }`}>
+                        {isPaid ? "Paga / compensada" : "Em aberto"}
+                      </Badge>
+                    </div>
+
+                    <p className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
+                      {formatCurrency(guide.amount)}
+                    </p>
+
+                    <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/80 bg-white/75 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                        <p className="mt-1 font-medium text-slate-800">{guide.dueDate || "Não informado"}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/80 bg-white/75 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{isPaid ? "Pagamento" : "Situação"}</p>
+                        <p className="mt-1 font-medium text-slate-800">
+                          {isPaid
+                            ? guide.paidAt
+                              ? new Date(guide.paidAt).toLocaleString("pt-BR")
+                              : "Compensado"
+                            : "Aguardando pagamento"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" className="rounded-full bg-white" onClick={() => printGuide(guide.kind, false)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Visualizar
+                      </Button>
+                      <Button type="button" variant="outline" className="rounded-full bg-white" onClick={() => printGuide(guide.kind, true)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir
+                      </Button>
+                      {guide.kind === "protocolo" && canProtocolConfirmPayment ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-emerald-700 px-5 !text-white hover:bg-emerald-800"
+                          disabled={processActionBusy === "confirm-protocol-payment"}
+                          onClick={handleConfirmProtocolPayment}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
       <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
