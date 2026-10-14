@@ -101,3 +101,16 @@ describe("authoritative surface-polarity contract", () => {
     expect(surfacePolarity).toContain("color: #334155 !important");
   });
 });
+
+
+describe("final dark-surface contrast authority", () => {
+  it("does not depend on sig-main-shell ancestry for explicit dark surfaces", () => {
+    const surfacePolarity = readFileSync(resolve(root, "src/styles/surface-polarity.css"), "utf8");
+
+    expect(surfacePolarity).toContain("FINAL CONTRAST AUTHORITY - PROCESS WORKSPACE");
+    expect(surfacePolarity).toContain('html body #root #sig-process-document-command-center');
+    expect(surfacePolarity).toContain('[data-organogram-unit-chip="true"]');
+    expect(surfacePolarity).toContain('color: #ffffff !important');
+    expect(surfacePolarity).toContain('-webkit-text-fill-color: #ffffff !important');
+  });
+});
