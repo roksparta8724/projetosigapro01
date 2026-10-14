@@ -23,8 +23,8 @@ export function DocumentWorkspaceBoot({
           </div>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
-          <div className="h-9 w-24 rounded-full border border-white/10 bg-white/8" />
-          <div className="h-9 w-28 rounded-full border border-white/10 bg-white/8" />
+          <div className="h-9 w-24 rounded-full border border-white/10 bg-white/[0.08]" />
+          <div className="h-9 w-28 rounded-full border border-white/10 bg-white/[0.08]" />
         </div>
       </header>
 
