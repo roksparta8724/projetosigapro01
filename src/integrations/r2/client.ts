@@ -20,10 +20,14 @@ function buildApiUrl(path: string) {
 
 function buildReadApiUrl(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  if (apiBase) return `${apiBase}${normalized}`;
-  // No localhost, leitura de arquivos existentes usa o backend oficial.
-  // As credenciais secretas do R2 nunca precisam ser copiadas para o computador.
+
+  // Leitura em localhost SEMPRE usa a API oficial de leitura.
+  // Isso evita que uma VITE_R2_API_BASE antiga redirecione o visualizador
+  // para o middleware local e passe a exigir segredos R2 no computador.
+  // Upload/delete continuam separados para não gravar em produção por acidente.
   if (isLocalBrowser) return `${officialReadApiBase}${normalized}`;
+
+  if (apiBase) return `${apiBase}${normalized}`;
   return normalized;
 }
 
