@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHero } from "@/components/platform/PageHero";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
   PageMainContent,
   PageMainGrid,
@@ -255,16 +256,25 @@ export function FinanceProtocolsPage() {
                               </p>
                             </div>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className={
-                              guide.status === "compensada"
-                                ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
-                            }
-                          >
-                            {guide.status === "compensada" ? "Paga" : "Pendente"}
-                          </Badge>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <MarkerSelector
+                              processId={process.id}
+                              tags={process.tags}
+                              actor={session.name}
+                              subjectLabel="processo"
+                              triggerClassName="h-8"
+                            />
+                            <Badge
+                              variant="outline"
+                              className={
+                                guide.status === "compensada"
+                                  ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400"
+                              }
+                            >
+                              {guide.status === "compensada" ? "Paga" : "Pendente"}
+                            </Badge>
+                          </div>
                         </div>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
