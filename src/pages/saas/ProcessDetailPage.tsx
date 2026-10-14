@@ -1163,7 +1163,7 @@ export function ProcessDetailPage() {
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
     const workspaceUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
     const workspaceName = `sigapro-document-${process.id}-${documentId}`;
-    const opened = window.open(workspaceUrl, workspaceName, "noopener,noreferrer");
+    const opened = window.open(workspaceUrl, workspaceName);
     if (opened) {
       opened.opener = null;
       opened.focus();
@@ -1996,7 +1996,7 @@ export function ProcessDetailPage() {
                           <button
                             type="button"
                             onClick={() => openAnalysisViewer(document.id)}
-                            className="inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
+                            className="sig-primary-document-action inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                           >
                             <PencilLine className="h-4 w-4" />
                             Abrir documento
@@ -2005,7 +2005,7 @@ export function ProcessDetailPage() {
                           <button
                             type="button"
                             onClick={() => openViewer(document.id)}
-                            className="inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
+                            className="sig-primary-document-action inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
                           >
                             <Maximize2 className="h-4 w-4" />
                             Abrir documento
