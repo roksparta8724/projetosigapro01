@@ -9,7 +9,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
@@ -44,7 +44,16 @@ function formatFileSize(value?: number) {
 
 export function DocumentViewerPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { processId, documentId } = useParams();
+  const routeState = (location.state ?? {}) as {
+    documentAccessUrl?: string;
+    returnTo?: string;
+  };
+  const prefetchedDocumentAccessUrl =
+    typeof routeState.documentAccessUrl === "string"
+      ? routeState.documentAccessUrl
+      : "";
   const {
     processes,
     loading: platformDataLoading,
@@ -54,7 +63,7 @@ export function DocumentViewerPage() {
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const [accessUrl, setAccessUrl] = useState("");
+  const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
 
   const process = useMemo(
@@ -92,7 +101,17 @@ export function DocumentViewerPage() {
   const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
     if (!process || !document || !canAnalyzeDocument) return;
     const query = tool ? `?ferramenta=${tool}` : "";
-    navigate(`/processos/${process.id}/documentos/${document.id}/analisar${query}`);
+    navigate(
+      `/processos/${process.id}/documentos/${document.id}/analisar${query}`,
+      {
+        state: {
+          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
+          returnTo:
+            routeState.returnTo ||
+            `/processos/${process.id}?aba=documentos`,
+        },
+      },
+    );
   };
 
   const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
@@ -107,10 +126,16 @@ export function DocumentViewerPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setAccessUrl("");
     setError("");
 
     if (!allowed || !document) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (prefetchedDocumentAccessUrl) {
+      setAccessUrl(prefetchedDocumentAccessUrl);
       return () => {
         cancelled = true;
       };
@@ -159,6 +184,7 @@ export function DocumentViewerPage() {
     document?.id,
     document?.filePath,
     document?.previewUrl,
+    prefetchedDocumentAccessUrl,
   ]);
 
   if (replaceAnalystViewerWithAnalysis) {
@@ -268,8 +294,9 @@ export function DocumentViewerPage() {
             variant="outline"
             className="h-9 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm hover:bg-slate-50"
             onClick={() => {
-              if (window.history.length > 1) navigate(-1);
-              else window.close();
+              if (routeState.returnTo) navigate(routeState.returnTo);
+              else if (window.history.length > 1) navigate(-1);
+              else navigate("/dashboard/processos");
             }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
