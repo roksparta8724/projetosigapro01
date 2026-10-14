@@ -112,6 +112,10 @@ export function FinanceProtocolsPage() {
             tenantSettings?.logoUrl ||
             tenantSettings?.brasaoUrl ||
             "",
+          logoObjectKey:
+            municipalityBranding?.headerLogoObjectKey ||
+            municipalityBranding?.footerLogoObjectKey ||
+            "",
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
