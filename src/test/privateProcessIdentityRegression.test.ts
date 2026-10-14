@@ -13,7 +13,7 @@ describe("private process identity workflow", () => {
 
   it("creates new external processes through the transactional v3 RPC", () => {
     expect(backend).toContain('db.rpc("create_external_process_v3"');
-    expect(migration).toContain("create or replace function public.create_external_process_v3");
+    expect(migration.toLowerCase()).toContain("create or replace function public.create_external_process_v3");
     expect(migration).toContain("public.create_external_process_v2");
     expect(migration).toContain("public.save_process_private_identity_v1");
   });
