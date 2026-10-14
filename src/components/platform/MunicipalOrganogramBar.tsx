@@ -127,8 +127,11 @@ export function MunicipalOrganogramBar({
                   title={department.name}
                 >
                   {department.code?.trim() ? (
-                    <span data-organogram-code="true"
-                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
+                    <span
+                      data-organogram-code="true"
+                      data-contrast-surface="dark"
+                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                    >
                       {department.code.trim()}
                     </span>
                   ) : null}
@@ -150,8 +153,11 @@ export function MunicipalOrganogramBar({
                       : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
                   )}
                 >
-                  <span data-organogram-code="true"
-                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
+                  <span
+                      data-organogram-code="true"
+                      data-contrast-surface="dark"
+                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                    >
                     {department.code}
                   </span>
                   <span className="truncate">{department.name}</span>
@@ -176,8 +182,11 @@ export function MunicipalOrganogramBar({
                   className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
                 >
                   {department.code?.trim() ? (
-                    <span data-organogram-code="true"
-                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
+                    <span
+                      data-organogram-code="true"
+                      data-contrast-surface="dark"
+                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                    >
                       {department.code.trim()}
                     </span>
                   ) : null}
