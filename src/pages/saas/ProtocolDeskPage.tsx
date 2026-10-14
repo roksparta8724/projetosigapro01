@@ -54,6 +54,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useMarkerPresets } from "@/hooks/useMarkerPresets";
 
 type ProtocolSection =
   | "visao-geral"
@@ -154,10 +155,41 @@ export function ProtocolDeskPage() {
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
+  const { presets: markerPresets } = useMarkerPresets();
   const [protocolQuery, setProtocolQuery] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
+  const [markerFilter, setMarkerFilter] = useState("todos");
   const [section, setSection] = useState<ProtocolSection>("visao-geral");
+
+  const protocolMarkerLinks = useMemo(
+    () =>
+      markerPresets
+        .filter((preset) => preset.active)
+        .map((preset) => ({
+          id: preset.id,
+          label: preset.label,
+          color: preset.color || "#2563eb",
+          count: processes.filter((process) =>
+            (process.tags ?? []).some(
+              (tag) => parseMarker(tag).label.trim().toLowerCase() === preset.label.trim().toLowerCase(),
+            ),
+          ).length,
+        })),
+    [markerPresets, processes],
+  );
+
+  const markerFilteredProcesses = useMemo(() => {
+    if (markerFilter === "todos") return processes;
+    const selected = markerPresets.find((preset) => preset.id === markerFilter);
+    if (!selected) return processes;
+    const normalized = selected.label.trim().toLowerCase();
+    return processes.filter((process) =>
+      (process.tags ?? []).some(
+        (tag) => parseMarker(tag).label.trim().toLowerCase() === normalized,
+      ),
+    );
+  }, [markerFilter, markerPresets, processes]);
   const [processListQuery, setProcessListQuery] = useState("");
   const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
   const [selectedProcessIds, setSelectedProcessIds] = useState<Set<string>>(() => new Set());
@@ -1019,9 +1051,49 @@ export function ProtocolDeskPage() {
             description="Livro de registro permanente da Prefeitura: entradas presenciais e digitais continuam visíveis mesmo após seguirem para Urbanismo, Financeiro ou outra unidade."
             icon={ClipboardList}
           >
+            <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+              <button
+                type="button"
+                onClick={() => setMarkerFilter("todos")}
+                className={`inline-flex h-8 items-center rounded-full border px-3 text-[11px] font-semibold transition ${
+                  markerFilter === "todos"
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Todos
+                <span className="ml-2 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">
+                  {processes.length}
+                </span>
+              </button>
+
+              {protocolMarkerLinks.map((marker) => (
+                <button
+                  key={marker.id}
+                  type="button"
+                  onClick={() => setMarkerFilter(marker.id)}
+                  className="inline-flex h-8 max-w-[210px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold transition hover:-translate-y-px"
+                  style={{
+                    borderColor: markerFilter === marker.id ? marker.color : `${marker.color}55`,
+                    backgroundColor: markerFilter === marker.id ? `${marker.color}22` : `${marker.color}0f`,
+                    color: marker.color,
+                  }}
+                  title={marker.label}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: marker.color }} />
+                  <span className="truncate">{marker.label}</span>
+                  <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                    {marker.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             {renderQueueList(
-              [...processes].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
-              "Nenhum protocolo recebido foi localizado para esta Prefeitura.",
+              [...markerFilteredProcesses].sort((a, b) => getOpeningDate(b).localeCompare(getOpeningDate(a))),
+              markerFilter === "todos"
+                ? "Nenhum protocolo recebido foi localizado para esta Prefeitura."
+                : "Nenhum protocolo possui este marcador.",
               { includeFinished: true },
             )}
           </TableCard>
