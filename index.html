@@ -76,11 +76,6 @@
           "data-page-zoom",
           initialAppZoom === "1" ? "100" : "85"
         );
-
-        document.documentElement.setAttribute("data-sigapro-booting", "true");
-        if (isInternalPath) {
-          document.documentElement.setAttribute("data-sigapro-internal", "true");
-        }
       })();
     </script>
     <style>
@@ -108,102 +103,10 @@
         min-height: 100dvh;
       }
 
-      #sigapro-refresh-snapshot {
-        display: none;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 2147483646;
-        overflow: hidden;
-        background: var(--sig-initial-bg, #ffffff);
-        pointer-events: none;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-page {
-        position: absolute;
-        left: 0;
-        top: var(--sig-snapshot-top, 0px);
-        width: 100%;
-        min-width: 100%;
-        min-height: 100vh;
-        transform: none !important;
-        transform-origin: top left !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::before,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::after {
-        animation: none !important;
-        transition: none !important;
-        scroll-behavior: auto !important;
-        caret-color: transparent !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-premium-topbar,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-sidebar-shell {
-        transform: none !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] ~ #root {
-        visibility: hidden !important;
-      }
-
     </style>
   </head>
 
   <body>
-    <div id="sigapro-refresh-snapshot" aria-hidden="true"></div>
-    <script>
-      (function () {
-        try {
-          var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
-          var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-          var pathname = window.location.pathname;
-          var internal =
-            publicPaths.indexOf(pathname) === -1 &&
-            authPaths.indexOf(pathname) === -1 &&
-            pathname.indexOf("/cliente/") !== 0;
-          if (!internal) return;
-
-          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v4");
-          if (!raw) return;
-
-          var snapshot = JSON.parse(raw);
-          var locationKey =
-            window.location.pathname + window.location.search + window.location.hash;
-
-          var valid =
-            snapshot &&
-            snapshot.host === window.location.host &&
-            snapshot.path === locationKey &&
-            typeof snapshot.html === "string" &&
-            snapshot.html.length > 500 &&
-            typeof snapshot.savedAt === "number" &&
-            Date.now() - snapshot.savedAt < 1000 * 60 * 30;
-
-          if (!valid) return;
-
-          var host = document.getElementById("sigapro-refresh-snapshot");
-          if (!host) return;
-
-          var scrollY = Math.max(0, Number(snapshot.scrollY) || 0);
-          host.innerHTML =
-            '<div class="sigapro-snapshot-page">' + snapshot.html + "</div>";
-          host.style.setProperty("--sig-snapshot-top", String(-scrollY) + "px");
-          host.setAttribute("data-scroll-y", String(scrollY));
-          host.setAttribute("data-visible", "true");
-        } catch (error) {
-          try {
-            window.sessionStorage.removeItem("sigapro.visual.snapshot.v4");
-          } catch (_) {}
-        }
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
