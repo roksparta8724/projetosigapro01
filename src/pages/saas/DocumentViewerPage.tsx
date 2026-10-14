@@ -7,7 +7,7 @@ import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
-import { canAccessProcess, getProcessById, isInternalRole } from "@/lib/platform";
+import { canViewProcessDocuments, getProcessById, isInternalRole } from "@/lib/platform";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -44,11 +44,13 @@ export function DocumentViewerPage() {
     [documentId, process],
   );
 
+  const sessionResolved = session.id !== "unknown" && Boolean(session.role);
   const allowed = Boolean(
-    process &&
+    sessionResolved &&
+      process &&
       document &&
       document.uploaded &&
-      canAccessProcess(session, process, effectiveScopeId),
+      canViewProcessDocuments(session, process, effectiveScopeId),
   );
 
   const organizationIdentity = resolveMunicipalUnitIdentity(
@@ -121,6 +123,18 @@ export function DocumentViewerPage() {
           <Button type="button" variant="outline" className="mt-6 rounded-full" onClick={() => window.close()}>
             Fechar guia
           </Button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!sessionResolved) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+        <div className="max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-8 text-center shadow-2xl">
+          <FileText className="mx-auto h-10 w-10 text-slate-300" />
+          <h1 className="mt-4 text-xl font-bold">Validando acesso ao documento</h1>
+          <p className="mt-2 text-sm text-slate-300">Confirmando sua sessão e o vínculo com este processo.</p>
         </div>
       </main>
     );
