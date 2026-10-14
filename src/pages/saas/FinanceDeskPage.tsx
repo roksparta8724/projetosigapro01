@@ -14,6 +14,7 @@ import { AlertCard } from "@/components/platform/AlertCard";
 import { FeeTableManager } from "@/components/platform/FeeTableManager";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -604,6 +605,13 @@ export function FinanceDeskPage() {
                               <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400">
                                 {guide.label}
                               </Badge>
+                              <MarkerSelector
+                                processId={process.id}
+                                tags={process.tags}
+                                actor={session.name}
+                                subjectLabel="processo"
+                                triggerClassName="h-8"
+                              />
                             </div>
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-800" title={process.ownerName}>{process.ownerName}</p>
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={guide.code}>{guide.code}</p>
