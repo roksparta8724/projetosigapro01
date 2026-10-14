@@ -499,6 +499,8 @@ export function FinanceDeskPage() {
                       return (
                         <div
                           key={`${process.id}:construction-guide-request`}
+                          data-process-premium-card="true"
+                          data-surface="adaptive-card"
                           className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"
                         >
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
