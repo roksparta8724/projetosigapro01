@@ -9,6 +9,8 @@ import {
   MessageSquareText,
   MousePointer2,
   Maximize2,
+  Save,
+  Send,
   XCircle,
   ZoomIn,
   ZoomOut,
@@ -44,6 +46,13 @@ type DraftAnnotation = {
   y: number;
   width?: number;
   height?: number;
+};
+
+type ReviewDraftAnnotation = DraftAnnotation & {
+  id: string;
+  note: string;
+  author: string;
+  createdAt: string;
 };
 
 function clampPercent(value: number) {
@@ -92,7 +101,14 @@ export function DocumentAnalysisPage() {
   const [comuniqueReason, setComuniqueReason] = useState("");
   const [comuniqueDueDate, setComuniqueDueDate] = useState("");
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [draftAnnotations, setDraftAnnotations] = useState<ReviewDraftAnnotation[]>([]);
+  const [draftSavedAt, setDraftSavedAt] = useState("");
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+
+  const reviewDraftStorageKey =
+    process && document
+      ? `sigapro:document-review-draft:${session.id}:${process.id}:${document.id}`
+      : "";
 
   const canUseAnalysis =
     !!process &&
@@ -111,6 +127,32 @@ export function DocumentAnalysisPage() {
           : "pendente",
     );
   }, [document?.id, document?.reviewStatus]);
+
+  useEffect(() => {
+    if (!reviewDraftStorageKey || typeof window === "undefined") {
+      setDraftAnnotations([]);
+      setDraftSavedAt("");
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(reviewDraftStorageKey);
+      if (!raw) {
+        setDraftAnnotations([]);
+        setDraftSavedAt("");
+        return;
+      }
+      const parsed = JSON.parse(raw) as {
+        annotations?: ReviewDraftAnnotation[];
+        savedAt?: string;
+      };
+      setDraftAnnotations(Array.isArray(parsed.annotations) ? parsed.annotations : []);
+      setDraftSavedAt(typeof parsed.savedAt === "string" ? parsed.savedAt : "");
+    } catch {
+      setDraftAnnotations([]);
+      setDraftSavedAt("");
+    }
+  }, [reviewDraftStorageKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,12 +201,22 @@ export function DocumentAnalysisPage() {
     return `${accessUrl}${separator}page=${page}&zoom=${Math.round(zoom * 100)}&toolbar=0&navpanes=0`;
   }, [accessUrl, isPdf, page, zoom]);
 
-  const pageAnnotations = useMemo(
+  const persistedPageAnnotations = useMemo(
     () =>
       (document?.annotations ?? []).filter(
         (annotation) => Number(annotation.page ?? 1) === page,
       ),
     [document?.annotations, page],
+  );
+
+  const draftPageAnnotations = useMemo(
+    () => draftAnnotations.filter((annotation) => annotation.page === page),
+    [draftAnnotations, page],
+  );
+
+  const pageAnnotations = useMemo(
+    () => [...persistedPageAnnotations, ...draftPageAnnotations],
+    [persistedPageAnnotations, draftPageAnnotations],
   );
 
   const pointFromEvent = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -237,35 +289,48 @@ export function DocumentAnalysisPage() {
       return;
     }
 
-    setBusy("annotation");
-    setStatus("");
-    try {
-      await addDocumentAnnotation(process.id, document.id, {
-        kind: draft.kind,
-        page: draft.page,
-        x: draft.x,
-        y: draft.y,
-        width: draft.width,
-        height: draft.height,
-        note: note.trim(),
-        author: session.name,
-      });
-      setDraft(null);
-      setNote("");
-      setStatus(
-        draft.kind === "highlight"
-          ? "Marcar área salvo no processo."
-          : "Observação textual salva no processo.",
-      );
-    } catch (error) {
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar a anotação.",
-      );
-    } finally {
-      setBusy("");
-    }
+    const nextAnnotation: ReviewDraftAnnotation = {
+      id: `draft-${crypto.randomUUID()}`,
+      kind: draft.kind,
+      page: draft.page,
+      x: draft.x,
+      y: draft.y,
+      width: draft.width,
+      height: draft.height,
+      note: note.trim(),
+      author: session.name,
+      createdAt: new Date().toLocaleString("pt-BR"),
+    };
+
+    setDraftAnnotations((current) => [...current, nextAnnotation]);
+    setDraft(null);
+    setNote("");
+    setDragStart(null);
+    setStatus(
+      draft.kind === "highlight"
+        ? "Área marcada adicionada ao rascunho da análise."
+        : "Texto adicionado ao rascunho da análise.",
+    );
+  };
+
+  const saveReviewDraft = () => {
+    if (!reviewDraftStorageKey || typeof window === "undefined") return;
+    const savedAt = new Date().toISOString();
+    window.localStorage.setItem(
+      reviewDraftStorageKey,
+      JSON.stringify({ annotations: draftAnnotations, savedAt }),
+    );
+    setDraftSavedAt(savedAt);
+    setStatus(
+      draftAnnotations.length > 0
+        ? `Rascunho salvo com ${draftAnnotations.length} apontamento(s). Nada foi enviado ao profissional.`
+        : "Rascunho salvo sem apontamentos.",
+    );
+  };
+
+  const removeDraftAnnotation = (annotationId: string) => {
+    setDraftAnnotations((current) => current.filter((item) => item.id !== annotationId));
+    setStatus("Apontamento removido do rascunho.");
   };
 
   const approveDocument = async () => {
@@ -292,10 +357,10 @@ export function DocumentAnalysisPage() {
     }
   };
 
-  const issueComuniqueSe = async () => {
+  const sendDraftToProfessional = async () => {
     if (!process || !document) return;
-    if (!comuniqueReason.trim()) {
-      setStatus("Descreva o problema encontrado antes de emitir o Comunique-se.");
+    if (draftAnnotations.length === 0) {
+      setStatus("Adicione pelo menos um apontamento antes de enviar ao profissional.");
       return;
     }
     if (!comuniqueDueDate) {
@@ -303,14 +368,44 @@ export function DocumentAnalysisPage() {
       return;
     }
 
-    setBusy("review-rejeitado");
+    setBusy("send-draft");
     setStatus("");
     try {
+      for (const annotation of draftAnnotations) {
+        await addDocumentAnnotation(process.id, document.id, {
+          kind: annotation.kind,
+          page: annotation.page,
+          x: annotation.x,
+          y: annotation.y,
+          width: annotation.width,
+          height: annotation.height,
+          note: annotation.note,
+          author: session.name,
+        });
+      }
+
+      const annotationSummary = draftAnnotations
+        .map(
+          (annotation, index) =>
+            `${index + 1}. Página ${annotation.page} — ${
+              annotation.kind === "highlight" ? "área marcada" : "comentário"
+            }: ${annotation.note}`,
+        )
+        .join("\n");
+
+      const description = [
+        communiqueReason.trim(),
+        "Apontamentos técnicos registrados no documento:",
+        annotationSummary,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
       await createRequirement({
         processId: process.id,
-        title: `Comunique-se — ${document.label}`,
-        description: comuniqueReason.trim(),
-        dueDate: comuniqueDueDate,
+        title: `Correções solicitadas — ${document.label}`,
+        description,
+        dueDate: communiqueDueDate,
         actor: session.name,
         targetName: process.technicalLead || process.ownerName,
         visibility: "misto",
@@ -323,17 +418,22 @@ export function DocumentAnalysisPage() {
         session.name,
       );
 
+      if (reviewDraftStorageKey && typeof window !== "undefined") {
+        window.localStorage.removeItem(reviewDraftStorageKey);
+      }
+      setDraftAnnotations([]);
+      setDraftSavedAt("");
       setLocalReviewStatus("rejeitado");
       setComuniqueReason("");
       setComuniqueDueDate("");
       setStatus(
-        "Comunique-se emitido ao profissional. O documento ficou pendente de correção e reenvio.",
+        "Apontamentos enviados ao profissional. O documento ficou aguardando correção e reenvio.",
       );
     } catch (error) {
       setStatus(
         error instanceof Error
           ? error.message
-          : "Não foi possível emitir o Comunique-se.",
+          : "Não foi possível enviar os apontamentos ao profissional.",
       );
     } finally {
       setBusy("");
@@ -709,11 +809,16 @@ export function DocumentAnalysisPage() {
 
               {pageAnnotations.map((annotation, index) => {
                 const kind = annotation.kind || "text";
+                const isDraftAnnotation = annotation.id.startsWith("draft-");
                 if (kind === "highlight") {
                   return (
                     <div
                       key={annotation.id}
-                      className="pointer-events-none absolute z-20 rounded-[3px] border border-amber-500/60 bg-amber-300/40 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]"
+                      className={`pointer-events-none absolute z-20 rounded-[3px] border ${
+                        isDraftAnnotation
+                          ? "border-dashed border-violet-500 bg-violet-300/35 shadow-[0_0_0_2px_rgba(139,92,246,0.16)]"
+                          : "border-amber-500/60 bg-amber-300/40 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]"
+                      }`}
                       style={{
                         left: `${annotation.x}%`,
                         top: `${annotation.y}%`,
@@ -732,7 +837,11 @@ export function DocumentAnalysisPage() {
                     style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
                     title={`${annotation.note} · ${annotation.author}`}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-sky-600 text-[11px] font-bold text-white shadow-[0_8px_22px_rgba(2,132,199,0.40)] ring-2 ring-sky-300/40">
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow-[0_8px_22px_rgba(2,132,199,0.40)] ring-2 ${
+                      isDraftAnnotation
+                        ? "bg-violet-600 ring-violet-300/40"
+                        : "bg-sky-600 ring-sky-300/40"
+                    }`}>
                       {index + 1}
                     </span>
                   </div>
@@ -859,8 +968,15 @@ export function DocumentAnalysisPage() {
                   </div>
                 ) : (
                   pageAnnotations.map((annotation, index) => (
-                    <div key={annotation.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                      <div className="flex items-center gap-2">
+                    <div
+                      key={annotation.id}
+                      className={`rounded-xl border bg-white p-3 shadow-sm ${
+                        annotation.id.startsWith("draft-")
+                          ? "border-violet-200 ring-1 ring-violet-100"
+                          : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
                         <span
                           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
                             annotation.kind === "highlight"
@@ -875,10 +991,30 @@ export function DocumentAnalysisPage() {
                           )}
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
-                            Marcação {index + 1}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                              Marcação {index + 1}
+                            </p>
+                            {annotation.id.startsWith("draft-") ? (
+                              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-violet-700">
+                                Rascunho
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-emerald-700">
+                                Enviado
+                              </span>
+                            )}
+                          </div>
                           <p className="mt-1 text-sm leading-5 text-slate-700">{annotation.note}</p>
+                          {annotation.id.startsWith("draft-") ? (
+                            <button
+                              type="button"
+                              className="mt-2 text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                              onClick={() => removeDraftAnnotation(annotation.id)}
+                            >
+                              Remover do rascunho
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                       <p className="mt-2 text-[10px] text-slate-400">
@@ -888,6 +1024,81 @@ export function DocumentAnalysisPage() {
                   ))
                 )}
               </div>
+            </div>
+
+            <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    Rascunho técnico
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-950">
+                    {draftAnnotations.length} apontamento(s) ainda não enviado(s)
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Marque todos os pontos necessários, salve o rascunho e somente depois envie ao profissional.
+                  </p>
+                </div>
+                <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-violet-50 px-2 text-xs font-bold text-violet-700">
+                  {draftAnnotations.length}
+                </span>
+              </div>
+
+              {draftSavedAt ? (
+                <p className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-2 text-[11px] font-medium text-violet-700">
+                  Último rascunho salvo em {new Date(draftSavedAt).toLocaleString("pt-BR")}.
+                </p>
+              ) : null}
+
+              <div className="mt-4">
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                  Mensagem complementar ao profissional
+                </label>
+                <Textarea
+                  value={comuniqueReason}
+                  onChange={(event) => setComuniqueReason(event.target.value)}
+                  placeholder="Opcional: inclua uma orientação geral além dos apontamentos feitos no documento."
+                  className="min-h-[88px] rounded-xl border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                  Prazo para correção
+                </label>
+                <Input
+                  type="date"
+                  value={comuniqueDueDate}
+                  onChange={(event) => setComuniqueDueDate(event.target.value)}
+                  className="h-10 rounded-xl border-slate-200 bg-white text-slate-900"
+                />
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                  disabled={busy === "send-draft"}
+                  onClick={saveReviewDraft}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar rascunho
+                </Button>
+                <Button
+                  type="button"
+                  className="h-11 rounded-xl bg-[linear-gradient(135deg,#7c2d12_0%,#b45309_58%,#d97706_100%)] font-bold text-white shadow-[0_10px_24px_rgba(180,83,9,0.22)] hover:brightness-105"
+                  disabled={busy === "send-draft" || draftAnnotations.length === 0}
+                  onClick={() => void sendDraftToProfessional()}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {busy === "send-draft" ? "Enviando..." : "Enviar apontamentos"}
+                </Button>
+              </div>
+
+              <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                Salvar rascunho não comunica o profissional. “Enviar apontamentos” registra as marcações, cria a exigência e coloca o documento aguardando correção.
+              </p>
             </div>
 
             <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
@@ -910,68 +1121,23 @@ export function DocumentAnalysisPage() {
                   </div>
                 </div>
               ) : (
-                <>
-                  <Button
-                    type="button"
-                    className="mt-3 w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
-                    disabled={busy.startsWith("review-")}
-                    onClick={() => void approveDocument()}
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    {busy === "review-aprovado" ? "Aprovando..." : "Aprovar documento"}
-                  </Button>
-
-                  <div className="mt-4 border-t border-slate-200 pt-4">
-                    <p className="text-sm font-semibold text-slate-950">
-                      {localReviewStatus === "rejeitado"
-                        ? "Comunique-se emitido"
-                        : "Emitir Comunique-se"}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {localReviewStatus === "rejeitado"
-                        ? "A pendência já foi formalizada. Aguarde a correção e o reenvio."
-                        : "Formalize a pendência com uma descrição objetiva e um prazo para correção."}
-                    </p>
-
-                    {localReviewStatus !== "rejeitado" ? (
-                      <>
-                        <Textarea
-                          value={comuniqueReason}
-                          onChange={(event) => setComuniqueReason(event.target.value)}
-                          placeholder="Descreva objetivamente o que precisa ser corrigido..."
-                          className="mt-3 min-h-[108px] rounded-xl border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"
-                        />
-                        <div className="mt-3">
-                          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
-                            Prazo para correção
-                          </label>
-                          <Input
-                            type="date"
-                            value={comuniqueDueDate}
-                            onChange={(event) => setComuniqueDueDate(event.target.value)}
-                            className="h-10 rounded-xl border-slate-200 bg-white text-slate-900"
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-3 w-full rounded-full border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                          disabled={busy.startsWith("review-")}
-                          onClick={() => void issueComuniqueSe()}
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          {busy === "review-rejeitado" ? "Emitindo..." : "Emitir Comunique-se"}
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-800">
-                        <XCircle className="h-4 w-4" />
-                        Aguardando correção e reenvio
-                      </div>
-                    )}
-                  </div>
-                </>
+                <Button
+                  type="button"
+                  className="mt-3 w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
+                  disabled={busy.startsWith("review-") || busy === "send-draft"}
+                  onClick={() => void approveDocument()}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {busy === "review-aprovado" ? "Aprovando..." : "Aprovar documento"}
+                </Button>
               )}
+
+              {localReviewStatus === "rejeitado" ? (
+                <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-800">
+                  <XCircle className="h-4 w-4" />
+                  Apontamentos enviados — aguardando correção e reenvio
+                </div>
+              ) : null}
             </div>
 
             {status ? (
