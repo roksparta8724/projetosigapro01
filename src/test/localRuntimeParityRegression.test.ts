@@ -12,10 +12,10 @@ describe("local runtime parity regressions", () => {
   const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
   const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
-  it("always reads existing documents through the official read API on localhost", () => {
-    expect(r2Client).toContain("if (isLocalBrowser) return `${officialReadApiBase}${normalized}`");
-    expect(r2Client).toContain("https://sigapromunicipal.com.br");
+  it("reads existing documents through the same-origin localhost proxy", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
     expect(r2Client).toContain("getSignedUrlForObjectStrict");
+    expect(r2Client).toContain("Falha ao alcançar o proxy local de leitura do armazenamento");
     const readUrlBlock = r2Client.slice(
       r2Client.indexOf("function buildReadApiUrl"),
       r2Client.indexOf("async function getAuthorizationHeaders"),
@@ -31,6 +31,7 @@ describe("local runtime parity regressions", () => {
     expect(entitlements).not.toContain("platformDataLoading ||");
     expect(entitlements).not.toContain("municipalityLoading ||");
     expect(entitlements).toContain("planDataPending");
+    expect(entitlements).not.toContain("municipalityMatchesSession");
   });
 
   it("only shows the official-data outage banner when current user data is actually unavailable", () => {
