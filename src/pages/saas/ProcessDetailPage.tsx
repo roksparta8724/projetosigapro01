@@ -1697,7 +1697,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader data-premium-inverse-surface="true" data-surface-tone="dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-premium-inverse-surface="true" data-surface-tone="dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
@@ -1721,7 +1721,7 @@ export function ProcessDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
-                  <div className="rounded-2xl border border-sky-300/20 bg-[#163a56] px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric sig-command-metric-blue rounded-2xl border px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
                     <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
@@ -1733,7 +1733,7 @@ export function ProcessDetailPage() {
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
                     <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-sky-300/20 bg-[#163a56] px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric sig-command-metric-blue rounded-2xl border px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Conferência</p>
                     <p className="mt-1 text-xl font-bold !text-white">{documentReviewProgress}%</p>
                   </div>
