@@ -1492,8 +1492,31 @@ async function blobToDataUrl(blob: Blob) {
   });
 }
 
+function deriveBrandingObjectKey(source?: string) {
+  const value = String(source || "").trim();
+  if (!value || value.startsWith("data:")) return "";
+
+  try {
+    const url = new URL(value, window.location.origin);
+    const path = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+    const municipalityMatch = path.match(
+      /(municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g))$/i,
+    );
+    if (municipalityMatch?.[1]) return municipalityMatch[1];
+
+    const platformMatch = path.match(
+      /(platform\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g))$/i,
+    );
+    return platformMatch?.[1] || "";
+  } catch {
+    return "";
+  }
+}
+
 async function embedGuideImage(source?: string, objectKey?: string) {
-  const key = String(objectKey || "").trim();
+  const key =
+    String(objectKey || "").trim() ||
+    deriveBrandingObjectKey(source);
   if (key) {
     try {
       const response = await fetch("/api/r2-master-logo-source", {
