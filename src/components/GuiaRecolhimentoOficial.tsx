@@ -11,6 +11,7 @@ type PrefeituraData = {
   cep?: string;
   telefone?: string;
   logoUrl?: string;
+  logoObjectKey?: string;
   cadastroTitulo?: string;
 };
 
@@ -1481,7 +1482,35 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   );
 });
 
-async function embedGuideImage(source?: string) {
+async function blobToDataUrl(blob: Blob) {
+  if (!blob.type.startsWith("image/")) return "";
+  return await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function embedGuideImage(source?: string, objectKey?: string) {
+  const key = String(objectKey || "").trim();
+  if (key) {
+    try {
+      const response = await fetch("/api/r2-master-logo-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectKey: key }),
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const embedded = await blobToDataUrl(await response.blob());
+        if (embedded) return embedded;
+      }
+    } catch {
+      // Continue para a URL já resolvida ou para o fallback neutro.
+    }
+  }
+
   const url = String(source || "").trim();
   if (!url || url.startsWith("data:")) return url;
 
@@ -1491,16 +1520,7 @@ async function embedGuideImage(source?: string) {
       cache: "no-store",
     });
     if (!response.ok) return "";
-
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) return "";
-
-    return await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(blob);
-    });
+    return await blobToDataUrl(await response.blob());
   } catch {
     return "";
   }
@@ -1566,7 +1586,10 @@ export function openGuiaRecolhimentoOficialWindow(
   popup.focus();
 
   void (async () => {
-    const embeddedLogo = await embedGuideImage(props.prefeitura.logoUrl);
+    const embeddedLogo = await embedGuideImage(
+      props.prefeitura.logoUrl,
+      props.prefeitura.logoObjectKey,
+    );
     const resolvedProps: GuiaRecolhimentoOficialProps = {
       ...props,
       prefeitura: {
