@@ -116,6 +116,7 @@ describe("theme-safe premium process and document cards", () => {
     const protocol = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
     const analysis = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
     const external = readFileSync(resolve(process.cwd(), "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
     expect(detail).toContain("!text-white");
     expect(detail).toContain('data-premium-inverse-surface="true"');
@@ -126,6 +127,9 @@ describe("theme-safe premium process and document cards", () => {
     expect(protocol).toContain("dark:bg-slate-900");
     expect(analysis).toContain("dark:bg-slate-900");
     expect(external).toContain("dark:bg-slate-900");
+    expect(css).toContain("SIGAPRO SEMANTIC SURFACE CONTRACT 2026-10-14");
+    expect(css).toContain('[data-surface-tone="dark"]');
+    expect(css).toContain(".sig-primary-process-action");
   });
 });
 
