@@ -444,13 +444,18 @@ export function DocumentAnalysisPage() {
         </div>
       </header>
 
-      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-[0_4px_18px_rgba(15,23,42,0.05)] lg:px-5">
-        <div className="flex items-center gap-2 xl:hidden">
+      <div className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-2 shadow-[0_4px_18px_rgba(15,23,42,0.05)] lg:px-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+          <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 lg:inline">
+            Marcar erro
+          </span>
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
-              tool === "navigate" ? "border-sky-300 bg-sky-50 text-sky-800" : "bg-white"
+            className={`h-9 rounded-xl px-3 text-slate-700 ${
+              tool === "navigate"
+                ? "border-sky-300 bg-sky-50 text-sky-800 shadow-sm"
+                : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
             }`}
             onClick={() => {
               setTool("navigate");
@@ -464,8 +469,10 @@ export function DocumentAnalysisPage() {
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
-              tool === "highlight" ? "border-amber-300 bg-amber-50 text-amber-800" : "bg-white"
+            className={`h-9 rounded-xl px-3 text-slate-700 ${
+              tool === "highlight"
+                ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
+                : "border-transparent bg-white hover:border-amber-200 hover:bg-amber-50/70"
             }`}
             onClick={() => {
               setTool("highlight");
@@ -479,8 +486,10 @@ export function DocumentAnalysisPage() {
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
-              tool === "text" ? "border-sky-300 bg-sky-50 text-sky-800" : "bg-white"
+            className={`h-9 rounded-xl px-3 text-slate-700 ${
+              tool === "text"
+                ? "border-sky-300 bg-sky-50 text-sky-900 shadow-sm"
+                : "border-transparent bg-white hover:border-sky-200 hover:bg-sky-50/70"
             }`}
             onClick={() => {
               setTool("text");
@@ -635,6 +644,22 @@ export function DocumentAnalysisPage() {
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
+              {tool !== "navigate" ? (
+                <div className="pointer-events-none absolute left-4 top-4 z-50 flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.18)] backdrop-blur">
+                  {tool === "highlight" ? (
+                    <>
+                      <Highlighter className="h-4 w-4 text-amber-600" />
+                      Arraste sobre o ponto incorreto para criar um marca-texto
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquareText className="h-4 w-4 text-sky-700" />
+                      Clique no ponto do documento onde deseja fixar o comentário
+                    </>
+                  )}
+                </div>
+              ) : null}
+
               {!accessUrl ? (
                 <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#d8dee6] p-6">
                   {accessError ? (
@@ -699,12 +724,13 @@ export function DocumentAnalysisPage() {
                 return (
                   <div
                     key={annotation.id}
-                    className="pointer-events-none absolute z-30 max-w-[260px] -translate-y-1/2 rounded-xl border border-sky-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+                    className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2"
                     style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
                     title={`${annotation.note} · ${annotation.author}`}
                   >
-                    <span className="mr-1 font-bold text-sky-700">{index + 1}.</span>
-                    {annotation.note}
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-sky-600 text-[11px] font-bold text-white shadow-[0_8px_22px_rgba(2,132,199,0.40)] ring-2 ring-sky-300/40">
+                      {index + 1}
+                    </span>
                   </div>
                 );
               })}
@@ -723,10 +749,12 @@ export function DocumentAnalysisPage() {
 
               {draft?.page === page && draft.kind === "text" ? (
                 <div
-                  className="pointer-events-none absolute z-40 -translate-y-1/2 rounded-full border-2 border-white bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-xl"
+                  className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2"
                   style={{ left: `${draft.x}%`, top: `${draft.y}%` }}
                 >
-                  Nova observação
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-sky-600 text-xs font-bold text-white shadow-[0_10px_26px_rgba(2,132,199,0.45)] ring-4 ring-sky-300/30">
+                    +
+                  </span>
                 </div>
               ) : null}
             </div>
