@@ -7015,3 +7015,88 @@ html body .sig-main-shell :is(
   color: #ffffff !important;
   stroke: #ffffff !important;
 }
+
+
+/* Nested semantic cards inside adaptive surfaces must follow the custom
+   data-layout-mode theme. Tailwind dark: utilities alone are not authoritative
+   because SIGAPRO supports multiple institutional dark presets. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-white"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-slate-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-slate-100"]:not([data-ui="badge"]):not([data-keep-light="true"]) {
+  background: linear-gradient(180deg,#13283d 0%,#0d1f31 100%) !important;
+  border-color: #314a62 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-emerald-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-green-50"]:not([data-ui="badge"]):not([data-keep-light="true"]) {
+  background: linear-gradient(145deg,#0b3d33 0%,#075f4a 100%) !important;
+  border-color: rgba(52,211,153,0.34) !important;
+  color: #ecfdf5 !important;
+  -webkit-text-fill-color: #ecfdf5 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-amber-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-yellow-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-orange-50"]:not([data-ui="badge"]):not([data-keep-light="true"]) {
+  background: linear-gradient(145deg,#4a3308 0%,#7a5308 100%) !important;
+  border-color: rgba(251,191,36,0.34) !important;
+  color: #fff7d6 !important;
+  -webkit-text-fill-color: #fff7d6 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-sky-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-blue-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-cyan-50"]:not([data-ui="badge"]):not([data-keep-light="true"]) {
+  background: linear-gradient(145deg,#0b3552 0%,#0c537b 100%) !important;
+  border-color: rgba(56,189,248,0.34) !important;
+  color: #e0f2fe !important;
+  -webkit-text-fill-color: #e0f2fe !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-red-50"]:not([data-ui="badge"]):not([data-keep-light="true"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+)[class*="bg-rose-50"]:not([data-ui="badge"]):not([data-keep-light="true"]) {
+  background: linear-gradient(145deg,#4a1725 0%,#741b32 100%) !important;
+  border-color: rgba(251,113,133,0.34) !important;
+  color: #ffe4e6 !important;
+  -webkit-text-fill-color: #ffe4e6 !important;
+}
+
+/* Nested surface copy follows the nested surface, not a stale Tailwind text token. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  div,section,article,li
+):is(
+  [class*="bg-white"],[class*="bg-slate-50"],[class*="bg-slate-100"],
+  [class*="bg-emerald-50"],[class*="bg-green-50"],
+  [class*="bg-amber-50"],[class*="bg-yellow-50"],[class*="bg-orange-50"],
+  [class*="bg-sky-50"],[class*="bg-blue-50"],[class*="bg-cyan-50"],
+  [class*="bg-red-50"],[class*="bg-rose-50"]
+):not([data-ui="badge"]):not([data-keep-light="true"]) :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dd,dt
+):not([data-ui="badge"]) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
