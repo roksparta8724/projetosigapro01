@@ -3,6 +3,47 @@ import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 
+function hasValidRefreshContinuity() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const raw = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
+    const sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+    if (!raw || !sessionRaw) return false;
+
+    const snapshot = JSON.parse(raw) as {
+      host?: string;
+      location?: string;
+      userId?: string;
+      savedAt?: number;
+    };
+    const cachedSession = JSON.parse(sessionRaw) as {
+      id?: string;
+      accountStatus?: string;
+    };
+
+    const currentLocation =
+      window.location.pathname + window.location.search + window.location.hash;
+    const cachedUserId =
+      cachedSession.id &&
+      cachedSession.accountStatus !== "blocked" &&
+      cachedSession.accountStatus !== "inactive"
+        ? String(cachedSession.id)
+        : "";
+
+    return (
+      Boolean(cachedUserId) &&
+      snapshot.host === window.location.host &&
+      snapshot.location === currentLocation &&
+      snapshot.userId === cachedUserId &&
+      typeof snapshot.savedAt === "number" &&
+      Date.now() - snapshot.savedAt < 1000 * 60 * 5
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function PlanModuleRoute({
   module,
   children,
@@ -11,18 +52,18 @@ export function PlanModuleRoute({
   children: ReactNode;
 }) {
   const entitlements = usePlanEntitlements();
+
   if (entitlements.isResolving) {
-    // Falha fechada: durante troca de contas nunca montar um módulo cujo
-    // plano e Prefeitura ainda não foram confirmados para o usuário atual.
-    // Evita a exibição transitória de dados ou ações da sessão anterior.
-    return (
-      <main className="flex min-h-[240px] w-full items-center justify-center bg-transparent px-4 py-8" role="status" aria-live="polite" aria-busy="true">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" aria-hidden="true" />
-          Validando acesso da Prefeitura
-        </div>
-      </main>
-    );
+    // F5: se a mesma conta e a mesma rota possuem continuidade válida,
+    // manter a própria tela real montada. Nunca substituir o conteúdo por
+    // uma página intermediária de "validação".
+    if (hasValidRefreshContinuity()) {
+      return <>{children}</>;
+    }
+
+    // Cold start/troca de conta: falha fechada sem desenhar uma tela falsa.
+    // A PermissionRoute já segura a identidade até a sessão real ser resolvida.
+    return null;
   }
 
   if (entitlements.isMaster || entitlements.canUseModule(module)) {
