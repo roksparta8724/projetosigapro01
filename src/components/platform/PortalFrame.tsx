@@ -858,13 +858,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const handleSignOut = async (destination = "/acesso") => {
     console.log("[Logout] click");
 
-    // A rota muda primeiro. O documento nunca e descarregado e a tela de acesso
-    // aparece imediatamente, sem aguardar rede ou sessao remota.
+    // O signOut limpa a identidade LOCAL de forma síncrona antes do primeiro await.
+    // Disparamos essa limpeza no mesmo evento da navegação para que /acesso seja
+    // montada diretamente, sem passar por "Validando acesso da Prefeitura".
+    const signOutTask = signOut();
     navigate(destination, { replace: true });
 
     try {
       console.log("[Logout] signOut start");
-      await signOut();
+      await signOutTask;
       console.log("[Logout] signOut result");
     } catch (error) {
       console.warn("[SIGAPRO] Falha ao encerrar sessao remota apos a troca de rota.", error);
@@ -1425,6 +1427,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   </span>
                 </button>
 
+              <div className="sig-topbar-local-popper sig-marker-anchor relative flex shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -1706,7 +1709,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </DropdownMenuContent>
               </DropdownMenu>
+              </div>
 
+              <div className="sig-topbar-local-popper sig-theme-anchor relative flex shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -1772,6 +1777,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 ))}
               </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             </div>
             <div className="sig-topbar-separator h-9 w-px shrink-0" />
 

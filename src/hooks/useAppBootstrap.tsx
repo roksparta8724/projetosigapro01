@@ -644,7 +644,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     let active = true;
 
     const runBootstrap = async (event?: string | null, sessionUserOverride?: User | null) => {
-      if (manualSignInRef.current) return;
+      if (manualSignInRef.current || explicitSignOutRef.current) return;
       if (runningRef.current) {
         pendingBootstrapRef.current = { event, sessionUserOverride };
         return;
@@ -1186,6 +1186,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
       signOut: async () => {
         explicitSignOutRef.current = true;
         authEventRef.current = "SIGNED_OUT";
+        bootstrapEpochRef.current += 1;
+        pendingBootstrapRef.current = null;
+        setAuthChange(null);
         lastAuthUserIdRef.current = null;
         initializedRef.current = false;
         needsInitialRevalidationRef.current = false;
@@ -1196,10 +1199,23 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           profile: null,
           municipalityBundle: null,
         };
+
+        // Encerrar a identidade visual primeiro. Nenhuma chamada de rede pode
+        // colocar a tela autenticada em um estado intermediário de validação.
         writeBootstrapSnapshot(null);
         clearPlatformSessionSnapshot();
-        setLoading(true);
-        setStage("bootstrapping_auth");
+        setAuthUserId(null);
+        setAuthEmail(null);
+        setRole(null);
+        setProfile(null);
+        setScopeType("municipality");
+        setMunicipalityBundle(null);
+        setError(null);
+        setIsReady(true);
+        setAuthResolved(true);
+        setStage("ready");
+        setLoading(false);
+
         try {
           if (hasBackendEnv && backendClient) {
             await Promise.race([
@@ -1213,16 +1229,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             ]);
           }
         } finally {
-          setAuthUserId(null);
-          setAuthEmail(null);
-          setRole(null);
-          setProfile(null);
-          setScopeType("municipality");
-          setMunicipalityBundle(null);
-          setError(null);
-          setIsReady(true);
-          setStage("ready");
-          setLoading(false);
+          // O estado local já foi concluído antes da rede. Aqui apenas liberamos
+          // novos eventos normais de autenticação.
           explicitSignOutRef.current = false;
         }
       },

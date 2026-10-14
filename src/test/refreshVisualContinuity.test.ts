@@ -7,6 +7,8 @@ describe("F5, logout and topbar visual continuity", () => {
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
   const auth = readFileSync(resolve(process.cwd(), "src/hooks/useAuthGateway.tsx"), "utf8");
   const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
+  const bootstrap = readFileSync(resolve(process.cwd(), "src/hooks/useAppBootstrap.tsx"), "utf8");
+  const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
   it("reuses the real previous root during a full refresh without a separate shell overlay", () => {
     expect(html).toContain('var continuityKey = "sigapro.refresh.continuity.v1"');
@@ -26,28 +28,29 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
   });
 
-  it("logs out by routing first and never reloads the document", () => {
+  it("clears the local identity before navigation/network so account switching never shows the access validator", () => {
     const handleIndex = portal.indexOf('const handleSignOut = async');
-    const handleBlock = portal.slice(handleIndex, handleIndex + 900);
-    expect(handleBlock.indexOf("navigate(destination, { replace: true });")).toBeGreaterThanOrEqual(0);
-    expect(handleBlock.indexOf("await signOut();")).toBeGreaterThan(
-      handleBlock.indexOf("navigate(destination, { replace: true });"),
+    const handleBlock = portal.slice(handleIndex, handleIndex + 1000);
+    expect(handleBlock).toContain("const signOutTask = signOut();");
+    expect(handleBlock.indexOf("navigate(destination, { replace: true });")).toBeGreaterThan(
+      handleBlock.indexOf("const signOutTask = signOut();"),
     );
+    expect(handleBlock).toContain("await signOutTask;");
+    expect(bootstrap).toContain("setAuthUserId(null);");
+    expect(bootstrap).toContain("setAuthResolved(true);");
+    expect(bootstrap).toContain("setLoading(false);");
+    expect(bootstrap).toContain("manualSignInRef.current || explicitSignOutRef.current");
     expect(auth).not.toContain('window.location.replace("/acesso")');
     expect(portal).not.toContain("window.location.replace(destination)");
   });
 
-  it("keeps marker and theme poppers in the same zoom coordinate system as topbar triggers", () => {
-    const markerTrigger = portal.indexOf('aria-label="Marcadores"');
-    const markerPanel = portal.indexOf('className="sig-marker-panel', markerTrigger);
-    const markerBlock = portal.slice(markerTrigger, markerPanel + 500);
-    expect(markerBlock).toContain("portal={false}");
-    expect(markerBlock).toContain('align="center"');
-
-    const themeTrigger = portal.indexOf('aria-label="Selecionar tema"');
-    const themePanel = portal.indexOf('className="sig-theme-panel', themeTrigger);
-    const themeBlock = portal.slice(themeTrigger, themePanel + 500);
-    expect(themeBlock).toContain("portal={false}");
-    expect(themeBlock).toContain('align="center"');
+  it("hard-anchors marker and theme panels below their own topbar buttons at 85 percent zoom", () => {
+    expect(portal).toContain('sig-topbar-local-popper sig-marker-anchor relative');
+    expect(portal).toContain('sig-topbar-local-popper sig-theme-anchor relative');
+    expect(portal).toContain("portal={false}");
+    expect(css).toContain("SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14");
+    expect(css).toContain(".sig-topbar-local-popper > [data-radix-popper-content-wrapper]");
+    expect(css).toContain("left: 50% !important");
+    expect(css).toContain("transform: translateX(-50%) !important");
   });
 });
