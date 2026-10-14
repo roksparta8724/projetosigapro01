@@ -28,7 +28,7 @@ describe("profile and branding persistence regressions", () => {
     expect(logo).toContain('const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview")');
     expect(logo).toContain('Math.min(5, branding.logoScale)');
     expect(logo).toContain('transformOrigin: "center center"');
-    expect(logo).toContain('header: "h-[112px] w-[188px] p-2.5');
+    expect(logo).toContain('header: "h-[112px] w-[188px] p-0');
     expect(logo).toContain('"block h-full w-full max-w-full select-none object-contain object-center"');
     expect(logo).not.toContain("showMasterCrop");
   });
