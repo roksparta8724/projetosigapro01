@@ -26,6 +26,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
+  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -281,6 +282,7 @@ export function ProcessDetailPage() {
   const [recoverableSelection, setRecoverableSelection] = useState<Record<string, string>>({});
   const [recoverableStatus, setRecoverableStatus] = useState("");
   const [recoverableLoading, setRecoverableLoading] = useState(false);
+  const [openingDocumentId, setOpeningDocumentId] = useState("");
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
@@ -1158,21 +1160,57 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = async (documentId: string, forceAnalysis = false) => {
+    const selectedDocument = process.documents.find((item) => item.id === documentId);
+    if (!selectedDocument || openingDocumentId) return;
+
     const shouldAnalyze = forceAnalysis || canReviewDocuments;
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
-    const workspaceUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
-    const workspaceName = `sigapro-document-${process.id}-${documentId}`;
-    const opened = window.open(workspaceUrl, workspaceName);
-    if (opened) {
-      opened.opener = null;
-      opened.focus();
+    setOpeningDocumentId(documentId);
+    setProcessActionStatus("");
+
+    try {
+      let documentAccessUrl = selectedDocument.previewUrl || "";
+
+      if (selectedDocument.filePath) {
+        const bucket =
+          (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+          "sigapro-documentos";
+
+        documentAccessUrl = await getSignedUrlForObjectStrict({
+          bucket,
+          objectKey: selectedDocument.filePath,
+          expiresIn: 21600,
+        });
+      }
+
+      if (!documentAccessUrl) {
+        throw new Error("Não foi possível preparar o acesso seguro ao documento.");
+      }
+
+      navigate(
+        `/processos/${process.id}/documentos/${documentId}/${route}${query}`,
+        {
+          state: {
+            documentAccessUrl,
+            returnTo: `${location.pathname}${location.search}`,
+          },
+        },
+      );
+    } catch (error) {
+      setProcessActionStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o documento.",
+      );
+    } finally {
+      setOpeningDocumentId("");
     }
   };
 
-  const openViewer = (documentId: string) => openDocumentWorkspace(documentId, false);
-  const openAnalysisViewer = (documentId: string) => openDocumentWorkspace(documentId, true);
+  const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
+  const openAnalysisViewer = (documentId: string) => void openDocumentWorkspace(documentId, true);
   const handleViewerClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!canAnnotateViewer || !viewerAreaRef.current) return;
     const rect = viewerAreaRef.current.getBoundingClientRect();
@@ -2008,19 +2046,21 @@ export function ProcessDetailPage() {
                           <button
                             type="button"
                             onClick={() => openAnalysisViewer(document.id)}
+                            disabled={Boolean(openingDocumentId)}
                             data-primary-action="document" className="sig-primary-document-action inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                           >
                             <PencilLine className="h-4 w-4" />
-                            Abrir documento
+                            {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
                           </button>
                         ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
                             type="button"
                             onClick={() => openViewer(document.id)}
+                            disabled={Boolean(openingDocumentId)}
                             data-primary-action="document" className="sig-primary-document-action inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
                           >
                             <Maximize2 className="h-4 w-4" />
-                            Abrir documento
+                            {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
                           </button>
                         ) : null}
                       </div>
