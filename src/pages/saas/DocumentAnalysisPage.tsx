@@ -11,6 +11,7 @@ import {
   Maximize2,
   Save,
   Send,
+  Undo2,
   XCircle,
   ZoomIn,
   ZoomOut,
@@ -620,15 +621,15 @@ export function DocumentAnalysisPage() {
         </div>
       </header>
 
-      <div className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-2 shadow-[0_4px_18px_rgba(15,23,42,0.05)] lg:px-5">
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-          <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 lg:inline">
-            Marcar erro
+      <div data-analysis-toolbar="true" className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-300 bg-[linear-gradient(180deg,#ffffff_0%,#f3f7fb_100%)] px-4 py-2.5 shadow-[0_6px_22px_rgba(15,23,42,0.08)] lg:px-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-white p-1.5 shadow-[0_8px_20px_rgba(15,23,42,0.07)]">
+          <span className="hidden rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white lg:inline">
+            Ferramentas PDF
           </span>
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl px-3 text-slate-700 ${
+            className={`h-10 rounded-xl px-4 text-[12px] font-semibold text-slate-700 ${
               tool === "navigate"
                 ? "border-sky-300 bg-sky-50 text-sky-800 shadow-sm"
                 : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
@@ -678,7 +679,45 @@ export function DocumentAnalysisPage() {
           </Button>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-1.5 rounded-2xl border border-violet-200 bg-violet-50 p-1.5 shadow-sm">
+            <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-700 md:inline">
+              Rascunho {draftAnnotations.length}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-violet-200 bg-white px-3 text-[11px] font-semibold text-violet-800 hover:bg-violet-100"
+              disabled={draftAnnotations.length === 0 || busy === "send-draft"}
+              onClick={() => {
+                setDraftAnnotations((current) => current.slice(0, -1));
+                setStatus("Último apontamento removido do rascunho.");
+              }}
+            >
+              <Undo2 className="mr-1.5 h-3.5 w-3.5" />
+              Desfazer
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-violet-300 bg-violet-100 px-3 text-[11px] font-bold text-violet-900 hover:bg-violet-200"
+              disabled={busy === "send-draft"}
+              onClick={saveReviewDraft}
+            >
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              Salvar rascunho
+            </Button>
+            <Button
+              type="button"
+              className="h-9 rounded-xl bg-[linear-gradient(135deg,#9a3412_0%,#c65d0e_55%,#e07a12_100%)] px-3 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(180,83,9,0.22)] hover:brightness-105"
+              disabled={busy === "send-draft" || draftAnnotations.length === 0 || !comuniqueDueDate}
+              onClick={() => void sendDraftToProfessional()}
+            >
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              {busy === "send-draft" ? "Enviando..." : "Enviar apontamentos"}
+            </Button>
+          </div>
+
           {isPdf ? (
             <>
               <Button
@@ -1000,9 +1039,9 @@ export function DocumentAnalysisPage() {
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
                 {tool === "highlight"
-                  ? "Marca-texto"
+                  ? "Marcar área com apontamento"
                   : tool === "text"
-                    ? "Adicionar texto"
+                    ? "Adicionar texto numerado"
                     : "Navegação"}
               </p>
               <p className="mt-1 break-words text-xs leading-5 text-slate-500">
