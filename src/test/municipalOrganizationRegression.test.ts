@@ -59,7 +59,7 @@ describe("municipal organization chart", () => {
   });
 
   it("reads departments through a scoped RPC instead of direct table access", () => {
-    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
   });
 
   it("persists parent hierarchy and municipality scope in the database", () => {
