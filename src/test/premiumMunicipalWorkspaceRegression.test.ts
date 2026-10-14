@@ -13,6 +13,7 @@ describe("premium municipal workspace regression", () => {
   const protocol = read("src/pages/saas/ProtocolDeskPage.tsx");
   const analyst = read("src/pages/saas/AnalystDeskPage.tsx");
   const finance = read("src/pages/saas/FinanceDeskPage.tsx");
+  const financeProtocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
   const main = read("src/main.tsx");
   const internalTabs = read("src/components/platform/InternalTabs.tsx");
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
@@ -72,6 +73,17 @@ describe("premium municipal workspace regression", () => {
     expect(protocol).toContain("rounded-[22px]");
     expect(analyst).toContain("shadow-[0_10px_24px_rgba(15,23,42,0.055)]");
     expect(finance).toContain("shadow-[0_10px_24px_rgba(15,23,42,0.055)]");
+  });
+
+  it("never fabricates municipal PIX or barcode data in finance subpages", () => {
+    expect(financeProtocols).not.toContain("function buildBarcodeValue");
+    expect(financeProtocols).not.toContain(".padEnd(44");
+    expect(financeProtocols).not.toContain("const pixPayload");
+    expect(financeProtocols).not.toContain("PIX copia e cola");
+    expect(financeProtocols).toContain('linhaDigitavel: ""');
+    expect(financeProtocols).toContain('codigoBarras: ""');
+    expect(financeProtocols).toContain("Chave PIX institucional cadastrada");
+    expect(financeProtocols).toContain("Nenhum PIX oficial foi configurado");
   });
 
   it("keeps F5 native and preserves tabs in the URL without scroll traps", () => {
