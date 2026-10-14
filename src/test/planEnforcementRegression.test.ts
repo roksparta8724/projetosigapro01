@@ -26,6 +26,8 @@ describe("commercial plan enforcement", () => {
     expect(data).toContain("remoteContextUserId === authenticatedUserId");
     expect(hook).toContain("isResolving");
     expect(hook).toContain("!dataReadyForCurrentUser");
+    expect(hook).toContain("isBackgroundRefreshing");
+    expect(hook).toContain("(municipalityLoading || platformDataLoading)");
     expect(route).toContain("if (entitlements.isResolving)");
     expect(route.indexOf("if (entitlements.isResolving)")).toBeLessThan(
       route.indexOf('const planName = entitlements.plan?.name ?? "não configurado"'),
