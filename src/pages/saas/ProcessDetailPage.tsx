@@ -2348,6 +2348,76 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
+          {isExternalProcessViewer && session.role === "profissional_externo" && activeTab === "financeiro" && (
+          <Card className={cardShell}>
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <FileKey2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    Financeiro do processo
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Aqui aparecem somente as guias liberadas oficialmente para você neste processo, com valor, vencimento e situação atual.
+                  </p>
+                </div>
+                <Badge variant="outline" className="rounded-full border-slate-300 bg-slate-50 text-slate-700">
+                  {visiblePaymentGuides.filter((guide) => guide.status !== "compensada").length} aberta(s)
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              {visiblePaymentGuides.length > 0 ? (
+                <div className="grid gap-4">
+                  {visiblePaymentGuides.map((guide) => (
+                    <div
+                      key={`${guide.kind}-${guide.code}`}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950 dark:text-slate-100">{guide.label}</p>
+                            <Badge
+                              variant="outline"
+                              className={`rounded-full ${
+                                guide.status === "compensada"
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                              }`}
+                            >
+                              {guide.status === "compensada" ? "Pago / compensado" : "Em aberto"}
+                            </Badge>
+                          </div>
+                          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">{guide.code}</p>
+                          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-300">
+                            <span><strong>Valor:</strong> {formatCurrency(guide.amount)}</span>
+                            <span><strong>Vencimento:</strong> {guide.dueDate || "Não informado"}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, false)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Visualizar
+                          </Button>
+                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, true)}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Imprimir
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+                  Nenhuma cobrança foi liberada para você neste processo.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          )}
+
           {!isExternalProcessViewer && activeTab === "financeiro" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
