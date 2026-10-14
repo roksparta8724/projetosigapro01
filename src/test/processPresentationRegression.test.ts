@@ -205,3 +205,17 @@ describe("strict process surface contrast root", () => {
     expect((detail.match(/sig-command-metric/g) || []).length).toBeGreaterThanOrEqual(4);
   });
 });
+
+
+describe("process tab visibility", () => {
+  it("keeps the active process tab unmistakable in light and dark themes", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(detail).toContain('data-process-tabbar="true"');
+    expect(detail).toContain("aria-pressed={isActive}");
+    expect(detail).toContain("bg-[linear-gradient(135deg,#0b4f7a_0%,#0b6fa8_100%)]");
+    expect(detail).toContain("!text-white");
+    expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="true"]');
+  });
+});
