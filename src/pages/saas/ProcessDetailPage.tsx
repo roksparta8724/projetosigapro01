@@ -1318,12 +1318,12 @@ export function ProcessDetailPage() {
     );
   };
   const openViewer = (documentId: string) => {
-    const viewerUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/visualizar`;
+    const viewerUrl = `/processos/${process.id}/documentos/${documentId}/visualizar`;
     window.open(viewerUrl, "_blank", "noopener,noreferrer");
   };
 
   const openAnalysisViewer = (documentId: string) => {
-    const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/analisar`;
+    const analysisUrl = `/processos/${process.id}/documentos/${documentId}/analisar`;
     window.open(analysisUrl, "_blank", "noopener,noreferrer");
   };
   const handleViewerClick = (event: MouseEvent<HTMLDivElement>) => {
