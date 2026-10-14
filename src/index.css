@@ -6852,3 +6852,30 @@ html body .sig-main-shell :is(.sig-primary-process-action,.sig-primary-document-
 }
 
 /* ===== END PROCESS SURFACE CONTRAST ROOT V3 ===== */
+
+
+/* ===== ORGANOGRAM CODE CONTRAST + PROCESS TAB ACTIVE STATE ===== */
+[data-organogram-code="true"] {
+  background: #020617 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+[data-organogram-code="true"] *,
+[data-organogram-code="true"]::before,
+[data-organogram-code="true"]::after {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-process-tabbar="true"] button[aria-pressed="true"] {
+  background: linear-gradient(135deg, #0b4f7a 0%, #0b6fa8 100%) !important;
+  border-color: #0b5e93 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(11, 94, 147, 0.26) !important;
+}
+[data-process-tabbar="true"] button[aria-pressed="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
