@@ -25,6 +25,12 @@ describe("premium municipal workspace regression", () => {
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
+  const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
+  const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
+  const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
+  const viteConfig = read("vite.config.ts");
+  const hierarchyMigration = read("neon/migrations/20261014041000_municipal_organization_hierarchy.sql");
+  const publicOrganizationMigration = read("neon/migrations/20261014042000_public_municipal_organization.sql");
   const r2Client = read("src/integrations/r2/client.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
@@ -89,14 +95,16 @@ describe("premium municipal workspace regression", () => {
     expect(shell).toContain('item.to !== "/prefeitura/protocolos"');
   });
 
-  it("uses the real municipal organogram across the global shell", () => {
+  it("uses one shared municipal organogram across the global shell", () => {
     expect(shell).toContain('secretaria: "Administração", diretoria: "Protocolo"');
     expect(shell).toContain('secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística"');
     expect(shell).toContain('secretaria: "Financeiro", diretoria: "Financeiro"');
-    expect(shell).toContain("listRemoteMunicipalDepartments");
+    expect(shell).toContain("useMunicipalOrganization");
+    expect(shell).not.toContain("listRemoteMunicipalDepartments");
     expect(shell).toContain("resolveMunicipalUnitIdentity");
     expect(shell).toContain("Organograma municipal");
     expect(shell).toContain("Vínculo institucional confirmado no organograma");
+    expect(shell).toContain("Estrutura institucional da Prefeitura");
     expect(shell).toContain("portalOrganizationIdentity.codePath");
     expect(shell).toContain("const institutionFooterUnit");
     expect(shell).toContain("{institutionFooterUnit}");
@@ -170,12 +178,46 @@ describe("premium municipal workspace regression", () => {
     expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-delete")');
   });
 
-  it("keeps organogram identity visible in focused internal document workspaces", () => {
-    expect(documentViewer).toContain("listRemoteMunicipalDepartments");
+  it("never traps plan validation forever when the official store returns a terminal error", () => {
+    expect(planEntitlements).toContain("const planDataPending");
+    expect(planEntitlements).toContain("!dataReadyForCurrentUser &&");
+    expect(planEntitlements).toContain("!dataError");
+    expect(planEntitlements).toContain("const resolutionFailed");
+    expect(planModuleRoute).toContain("entitlements.resolutionFailed");
+    expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
+    expect(planModuleRoute).toContain("Tentar novamente");
+  });
+
+  it("keeps local R2 validation scoped to R2 routes only", () => {
+    expect(viteConfig).toContain("const isR2ApiRoute");
+    expect(viteConfig).toContain('"/api/r2-sign-get"');
+    expect(viteConfig).toContain("if (!isR2ApiRoute)");
+    expect(viteConfig).toContain("next();");
+    expect(viteConfig.indexOf("if (!isR2ApiRoute)")).toBeLessThan(viteConfig.indexOf("assertEnv();"));
+  });
+
+  it("uses full organogram internally and a minimal tenant-safe organogram externally", () => {
+    expect(organizationHook).toContain('type OrganizationAccessMode = "full" | "public"');
+    expect(organizationHook).toContain("listRemoteMunicipalDepartments");
+    expect(organizationHook).toContain("listRemotePublicMunicipalDepartments");
+    expect(organizationHook).toContain('mode === "full"');
+    expect(backend).toContain("listRemotePublicMunicipalDepartments");
+    expect(hierarchyMigration).toContain("public.current_profile_id()");
+    expect(hierarchyMigration).toContain("p.role::text not in");
+    expect(publicOrganizationMigration).toContain("list_public_municipal_departments_v1");
+    expect(publicOrganizationMigration).not.toContain("description text");
+    expect(publicOrganizationMigration).not.toContain("email text");
+    expect(publicOrganizationMigration).not.toContain("phone text");
+    expect(publicOrganizationMigration).toContain("public.has_process_access");
+  });
+
+  it("keeps organogram identity visible in focused document workspaces through the shared loader", () => {
+    expect(documentViewer).toContain("useMunicipalOrganization");
+    expect(documentViewer).not.toContain("listRemoteMunicipalDepartments");
     expect(documentViewer).toContain("resolveMunicipalUnitIdentity");
     expect(documentViewer).toContain("organizationIdentity.codePath");
-    expect(documentViewer).toContain("isInternalRole(session.role)");
-    expect(documentAnalysis).toContain("listRemoteMunicipalDepartments");
+    expect(documentAnalysis).toContain("useMunicipalOrganization");
+    expect(documentAnalysis).not.toContain("listRemoteMunicipalDepartments");
     expect(documentAnalysis).toContain("resolveMunicipalUnitIdentity");
     expect(documentAnalysis).toContain("organizationIdentity.codePath");
   });
