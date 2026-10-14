@@ -646,3 +646,53 @@ html body .sig-theme-panel [data-theme-option-tone="light"] :is(svg,svg *) {
   color: #334155 !important;
   stroke: currentColor !important;
 }
+
+
+/* ==========================================================================
+   ACTIVE THEME CARD ONLY - 2026-10-14
+   Keep the layout/theme picker exactly as designed. Only the selected card
+   receives an explicit foreground contract so the "ATIVO" state is readable.
+   ========================================================================== */
+html body .sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option-active="true"] {
+  background: linear-gradient(135deg, #123b5b 0%, #0b304c 100%) !important;
+  border-color: rgba(56, 189, 248, 0.50) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option-active="true"] :is(
+  .sig-fit-title,.sig-fit-copy
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option-active="true"] .sig-fit-copy {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option-active="true"] > span:last-child {
+  background: #a5f3fc !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body .sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option-active="true"] {
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option-active="true"] :is(
+  .sig-fit-title
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option-active="true"] .sig-fit-copy {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body .sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option-active="true"] > span:last-child {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
