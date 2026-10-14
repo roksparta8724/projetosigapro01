@@ -1522,17 +1522,28 @@ export function ProcessDetailPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 rounded-xl bg-slate-100 p-1 [grid-template-columns:repeat(auto-fit,minmax(min(100%,118px),1fr))]">
-            {tabItems.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setProcessTab(tab.key)}
-                className={`rounded-[10px] px-3 py-2 text-sm font-medium transition ${activeTab === tab.key ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div
+            data-process-tabbar="true"
+            className="mt-4 grid gap-2 rounded-[16px] border border-slate-200 bg-slate-100/90 p-1.5 shadow-inner dark:border-slate-700 dark:bg-slate-900/80 [grid-template-columns:repeat(auto-fit,minmax(min(100%,118px),1fr))]"
+          >
+            {tabItems.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setProcessTab(tab.key)}
+                  className={`relative min-h-11 rounded-[12px] border px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                    isActive
+                      ? "border-[#0b5e93] bg-[linear-gradient(135deg,#0b4f7a_0%,#0b6fa8_100%)] !text-white shadow-[0_8px_18px_rgba(11,94,147,0.26)] [color:#fff] [-webkit-text-fill-color:#fff]"
+                      : "border-transparent bg-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
