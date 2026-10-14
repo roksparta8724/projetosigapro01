@@ -17,6 +17,9 @@ export interface ProtocolDraftForm {
   padraoConstrutivo: string;
   observacoes: string;
   profissional: string;
+  profissionalDocumento: string;
+  tipoProfissional: string;
+  empresaProfissional: string;
   registro: string;
   telefone: string;
   email: string;
@@ -60,6 +63,9 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   padraoConstrutivo: "medio",
   observacoes: "",
   profissional: "",
+  profissionalDocumento: "",
+  tipoProfissional: "",
+  empresaProfissional: "",
   registro: "",
   telefone: "",
   email: "",
