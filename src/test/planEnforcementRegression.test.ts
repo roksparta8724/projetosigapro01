@@ -62,9 +62,12 @@ describe("commercial plan enforcement", () => {
     expect(uploadApi).toContain('capability =');
     expect(uploadApi).toContain('"storage_bytes"');
     expect(uploadApi).toContain('assert_municipality_entitlement_v1');
-    expect(uploadApi.indexOf('assert_municipality_entitlement_v1')).toBeLessThan(
-      uploadApi.indexOf('new S3Client'),
-    );
+    const accessIndex = uploadApi.indexOf('callDataApiRpc(req, "has_tenant_access"');
+    const entitlementIndex = uploadApi.indexOf("assert_municipality_entitlement_v1");
+    const r2WriteIndex = uploadApi.indexOf("await putR2ObjectWithFallback");
+    expect(accessIndex).toBeGreaterThanOrEqual(0);
+    expect(entitlementIndex).toBeGreaterThan(accessIndex);
+    expect(r2WriteIndex).toBeGreaterThan(entitlementIndex);
   });
 
   it("tracks real file bytes for storage quota", () => {
