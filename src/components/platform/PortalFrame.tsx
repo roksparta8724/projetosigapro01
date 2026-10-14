@@ -1752,49 +1752,103 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 align="center"
                 sideOffset={12}
                 collisionPadding={16}
-                className="sig-theme-panel max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]"
+                data-theme-panel-mode={inverseMainTheme ? "dark" : "light"}
+                className={cn(
+                  "sig-theme-panel max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border p-1.5 shadow-[0_22px_52px_rgba(2,18,35,0.28)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]",
+                  inverseMainTheme
+                    ? "border-slate-600/70 bg-[#081b2d] text-slate-100"
+                    : "border-slate-200 bg-white text-slate-950",
+                )}
               >
                 <DropdownMenuLabel className="px-3 py-2">
-                  <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Tema do layout</p>
-                  <p className="mt-1 text-[13px] font-normal leading-5 text-slate-500">
+                  <p
+                    className={cn(
+                      "text-xs font-bold uppercase tracking-[0.08em]",
+                      inverseMainTheme ? "!text-sky-100" : "!text-slate-700",
+                    )}
+                  >
+                    Tema do layout
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-[13px] font-normal leading-5",
+                      inverseMainTheme ? "!text-slate-300" : "!text-slate-500",
+                    )}
+                  >
                     {isMobileViewport ? "Escolha entre 4 temas premium do sistema." : "Escolha um tema premium do sistema."}
                   </p>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableThemePresets.map((preset) => (
-                  <DropdownMenuItem
-                    key={preset.id}
-                    className={cn(
-                      "rounded-[14px] px-3 py-2.5 text-[13px] text-slate-700",
-                      activeThemePresetId === preset.id && "bg-slate-100 text-slate-950",
-                    )}
-                    onClick={() =>
-                      applyLayoutTheme({
-                        primary: preset.primary,
-                        accent: preset.accent,
-                        background: preset.background,
-                        inverseMain: preset.inverseMain,
-                      })
-                    }
-                  >
-                    <span className="mr-3 flex h-9 w-11 shrink-0 overflow-hidden rounded-[11px] border border-slate-200">
-                      <span className="h-full w-[34%]" style={{ backgroundColor: darken(preset.primary, 10) }} />
-                      <span className="h-full w-[38%]" style={{ backgroundColor: preset.primary }} />
-                      <span className="h-full w-[28%]" style={{ backgroundColor: preset.background || "#ffffff" }} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="sig-fit-title block text-[13px] font-medium">{preset.label}</span>
-                      <span className={cn("sig-fit-copy mt-0.5 block text-[11px] leading-5 text-slate-500", isMobileViewport && "line-clamp-2")}>
-                        {preset.description}
+                <DropdownMenuSeparator className={inverseMainTheme ? "bg-white/10" : "bg-slate-200"} />
+                {availableThemePresets.map((preset) => {
+                  const activeThemeOption = activeThemePresetId === preset.id;
+                  return (
+                    <DropdownMenuItem
+                      key={preset.id}
+                      data-theme-option="true"
+                      data-theme-option-active={activeThemeOption ? "true" : "false"}
+                      className={cn(
+                        "my-1 rounded-[14px] border px-3 py-2.5 text-[13px] outline-none transition-colors",
+                        inverseMainTheme
+                          ? activeThemeOption
+                            ? "border-sky-400/40 bg-[linear-gradient(135deg,#123b5b_0%,#0b304c_100%)] !text-white"
+                            : "border-transparent bg-transparent !text-slate-100 hover:border-white/10 hover:bg-white/[0.07] focus:bg-white/[0.07]"
+                          : activeThemeOption
+                            ? "border-sky-200 bg-sky-50 !text-slate-950"
+                            : "border-transparent bg-transparent !text-slate-700 hover:border-slate-200 hover:bg-slate-50 focus:bg-slate-50",
+                      )}
+                      onClick={() =>
+                        applyLayoutTheme({
+                          primary: preset.primary,
+                          accent: preset.accent,
+                          background: preset.background,
+                          inverseMain: preset.inverseMain,
+                        })
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "mr-3 flex h-9 w-11 shrink-0 overflow-hidden rounded-[11px] border shadow-sm",
+                          inverseMainTheme ? "border-white/20" : "border-slate-200",
+                        )}
+                      >
+                        <span className="h-full w-[34%]" style={{ backgroundColor: darken(preset.primary, 10) }} />
+                        <span className="h-full w-[38%]" style={{ backgroundColor: preset.primary }} />
+                        <span className="h-full w-[28%]" style={{ backgroundColor: preset.background || "#ffffff" }} />
                       </span>
-                    </span>
-                    {activeThemePresetId === preset.id ? (
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-500">
-                        Ativo
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "sig-fit-title block text-[13px] font-semibold",
+                            inverseMainTheme ? "!text-white" : "!text-slate-900",
+                          )}
+                        >
+                          {preset.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "sig-fit-copy mt-0.5 block text-[11px] leading-5",
+                            inverseMainTheme ? "!text-slate-300" : "!text-slate-500",
+                            isMobileViewport && "line-clamp-2",
+                          )}
+                        >
+                          {preset.description}
+                        </span>
                       </span>
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
+                      {activeThemeOption ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]",
+                            inverseMainTheme
+                              ? "bg-cyan-200 !text-slate-950"
+                              : "bg-slate-950 !text-white",
+                          )}
+                        >
+                          Ativo
+                        </span>
+                      ) : null}
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
               </DropdownMenu>
               </div>
