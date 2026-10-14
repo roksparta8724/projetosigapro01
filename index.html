@@ -176,6 +176,38 @@
         }
       })();
     </script>
+    <script>
+      (function () {
+        var path = window.location.pathname || "/";
+        var isDocumentWorkspace =
+          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
+        if (!isDocumentWorkspace) return;
+
+        var root = document.getElementById("root");
+        if (!root || root.innerHTML.trim()) return;
+
+        root.innerHTML =
+          '<main data-sigapro-document-preboot="true" style="height:100vh;width:100vw;overflow:hidden;background:#dfe5ec;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">' +
+            '<div style="height:66px;background:linear-gradient(135deg,#071525 0%,#102a43 55%,#123a58 100%);border-bottom:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box">' +
+              '<div style="display:flex;align-items:center;gap:12px">' +
+                '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10)"></div>' +
+                '<div><div style="width:112px;height:9px;border-radius:999px;background:rgba(255,255,255,.18)"></div><div style="margin-top:8px;width:210px;height:13px;border-radius:999px;background:rgba(255,255,255,.32)"></div></div>' +
+              '</div>' +
+              '<div style="display:flex;gap:8px"><div style="width:92px;height:34px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)"></div><div style="width:112px;height:34px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)"></div></div>' +
+            '</div>' +
+            '<div style="height:54px;background:#fff;border-bottom:1px solid #dbe3ec;display:flex;align-items:center;justify-content:space-between;padding:0 16px;box-sizing:border-box">' +
+              '<div style="display:flex;gap:8px"><div style="width:116px;height:34px;border-radius:999px;background:#f1f5f9"></div><div style="width:38px;height:34px;border-radius:10px;background:#f8fafc"></div><div style="width:38px;height:34px;border-radius:10px;background:#f8fafc"></div></div>' +
+              '<div style="display:flex;gap:8px"><div style="width:70px;height:30px;border-radius:999px;background:#f1f5f9"></div><div style="width:38px;height:34px;border-radius:10px;background:#f1f5f9"></div></div>' +
+            '</div>' +
+            '<div style="height:calc(100vh - 120px);display:grid;grid-template-columns:minmax(0,1fr) 340px">' +
+              '<section style="display:flex;align-items:center;justify-content:center;background:#d8dee6;padding:20px;box-sizing:border-box">' +
+                '<div style="width:min(760px,86%);height:88%;border-radius:10px;border:1px solid #cbd5e1;background:#fff;box-shadow:0 24px 60px rgba(15,23,42,.16)"></div>' +
+              '</section>' +
+              '<aside style="border-left:1px solid #dbe3ec;background:#fff;padding:20px;box-sizing:border-box"><div style="width:110px;height:10px;border-radius:999px;background:#e2e8f0"></div><div style="margin-top:18px;height:90px;border-radius:18px;background:#f1f5f9"></div><div style="margin-top:12px;height:140px;border-radius:18px;background:#f1f5f9"></div></aside>' +
+            '</div>' +
+          '</main>';
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
