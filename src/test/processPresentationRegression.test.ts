@@ -127,8 +127,9 @@ describe("theme-safe premium process and document cards", () => {
     expect(protocol).toContain("dark:bg-slate-900");
     expect(analysis).toContain("dark:bg-slate-900");
     expect(external).toContain("dark:bg-slate-900");
-    expect(css).toContain("SIGAPRO SEMANTIC SURFACE CONTRACT 2026-10-14");
-    expect(css).toContain('[data-surface-tone="dark"]');
+    expect(css).toContain("SIGAPRO PROCESS PREMIUM VISUAL CONTRACT 2026-10-14");
+    expect(css).toContain(".sig-process-detail-premium .sig-process-card");
+    expect(css).toContain(".sig-premium-command-surface");
     expect(css).toContain(".sig-primary-process-action");
   });
 });
@@ -149,15 +150,36 @@ describe("external process primary action hierarchy", () => {
 });
 
 
-describe("topbar and card contrast isolation", () => {
-  it("restores topbar branding while isolating card contrast to process surfaces", () => {
+describe("topbar and process-card contrast isolation", () => {
+  it("keeps municipal topbar colors untouched while process styling stays scoped", () => {
     const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
-    expect(css).toContain("SIGAPRO TOPBAR RESTORE + CARD CONTRAST HARD GUARD");
-    expect(css).toContain("var(--sig-topbar-highlight)");
-    expect(css).toContain("var(--sig-topbar-depth)");
-    expect(css).toContain(".sig-main-shell .sig-premium-command-surface *");
-    expect(css).toContain('[data-process-document-card="true"]');
-    expect(css).toContain(".sig-primary-document-action");
+    expect(portal).toContain("const topbarFill = darken(primaryColor, -5)");
+    expect(portal).toContain("const topbarHighlight = darken(primaryColor, -11)");
+    expect(portal).toContain("const topbarDepth = darken(primaryColor, 2)");
+    expect(css).toContain("SIGAPRO PROCESS PREMIUM VISUAL CONTRACT 2026-10-14");
+    expect(css).toContain(".sig-process-detail-premium");
+    expect(css).not.toContain("SIGAPRO TOPBAR RESTORE + CARD CONTRAST HARD GUARD");
+    expect(detail).toContain("sig-process-detail-premium");
+    expect(detail).toContain('data-process-document-card="true"');
+    expect(detail).toContain("sig-primary-document-action");
+  });
+
+  it("uses vivid tone accents instead of washed-out process cards", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const stat = readFileSync(resolve(process.cwd(), "src/components/platform/StatCard.tsx"), "utf8");
+
+    expect(css).toContain("#0284c7");
+    expect(css).toContain("#059669");
+    expect(css).toContain("#d97706");
+    expect(css).toContain("#7c3aed");
+    expect(detail).toContain("sig-summary-blue");
+    expect(detail).toContain("sig-summary-emerald");
+    expect(detail).toContain("sig-summary-violet");
+    expect(detail).toContain("sig-summary-amber");
+    expect(stat).toContain("data-tone={tone}");
   });
 });
