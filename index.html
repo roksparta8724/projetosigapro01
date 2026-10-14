@@ -43,9 +43,13 @@
         var path = window.location.pathname || "/";
         var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-        var initialBackground = "#f5f7fb";
+        var isFullDocumentRoute =
+          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
+        var initialBackground = isFullDocumentRoute ? "#dfe5ec" : "#f5f7fb";
 
-        if (publicPaths.indexOf(path) >= 0 || path.indexOf("/cliente/") === 0) {
+        if (isFullDocumentRoute) {
+          initialBackground = "#dfe5ec";
+        } else if (publicPaths.indexOf(path) >= 0 || path.indexOf("/cliente/") === 0) {
           initialBackground = "#f5f7fb";
         } else if (authPaths.indexOf(path) >= 0) {
           initialBackground = "#06111d";
@@ -67,8 +71,6 @@
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
-        var isFullDocumentRoute =
-          /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
         var initialAppZoom =
           publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
 
