@@ -244,10 +244,11 @@ describe("premium municipal workspace regression", () => {
   });
 
   it("never traps plan validation forever when the official store returns a terminal error", () => {
-    expect(planEntitlements).toContain("const planDataPending");
-    expect(planEntitlements).toContain("!dataReadyForCurrentUser &&");
-    expect(planEntitlements).toContain("!dataError");
+    expect(planEntitlements).toContain("const terminalDataFailure");
+    expect(planEntitlements).toContain("Boolean(dataError)");
+    expect(planEntitlements).toContain("!terminalDataFailure &&");
     expect(planEntitlements).toContain("const resolutionFailed");
+    expect(planEntitlements).toContain("terminalDataFailure &&");
     expect(planModuleRoute).toContain("entitlements.resolutionFailed");
     expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
     expect(planModuleRoute).toContain("Tentar novamente");
