@@ -104,7 +104,10 @@ export function AnalystDeskPage() {
     documentTemplates,
     getInstitutionSettings,
   } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [search, setSearch] = useState("");
   const [section, setSection] = useState<AnalystSection>("visao-geral");
