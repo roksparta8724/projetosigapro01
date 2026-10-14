@@ -12,7 +12,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { formatCurrency, formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import { formatCurrency, formatOfficialProcessNumber, formatOfficialProcessTitle, getExternallyVisibleProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -48,8 +48,8 @@ export function ExternalPaymentsPage() {
   const guides = useMemo(
     () =>
       processes.flatMap((process) =>
-        getProcessPaymentGuides(process, tenantSettings)
-          .filter((guide) => guide.kind === "protocolo" || Boolean(guide.issuedAt && guide.code?.trim()))
+        getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
+          
           .map((guide) => ({
             process,
             guide,
