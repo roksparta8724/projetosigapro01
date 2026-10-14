@@ -154,7 +154,7 @@ export function MarkerSelector({
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-sky-100 bg-sky-50 text-sky-600">
-                  <Flag className="h-4.5 w-4.5 sig-flag-filled" style={{ fill: "currentColor" }} />
+                  <Flag className="h-4 w-4 sig-flag-filled" style={{ fill: "currentColor" }} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
