@@ -487,7 +487,8 @@ export function ProcessDetailPage() {
     canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments =
-    canAnalysisOperate &&
+    !isExternalProcessViewer &&
+    session.role !== "prefeitura_admin" &&
     (
       session.role === "master_admin" ||
       session.role === "master_ops" ||
@@ -849,7 +850,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "min-w-0 rounded-[18px] border border-[#CBD5E1] bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)]";
+  const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
@@ -1378,7 +1379,7 @@ export function ProcessDetailPage() {
       title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
       focusMode
     >
-      <PageShell className="!max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
+      <PageShell className="sig-process-detail-premium !max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
       <PageHero
         eyebrow="Painel do processo"
         title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
@@ -1456,13 +1457,13 @@ export function ProcessDetailPage() {
         showLink={isInternalRole(session.role)}
       />
 
-      <PageStatsRow>
+      <PageStatsRow className="sig-process-stats">
         <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={displayOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
         <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
       </PageStatsRow>
-      <Card className={cardShell}>
+      <Card className={`${cardShell} sig-process-flow-card`}>
         <CardContent className="p-6">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-lg font-medium text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
@@ -1537,7 +1538,7 @@ export function ProcessDetailPage() {
       </Card>
 
       <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]">
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card sig-summary-blue h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -1553,7 +1554,7 @@ export function ProcessDetailPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card sig-summary-emerald h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
@@ -1583,7 +1584,7 @@ export function ProcessDetailPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card sig-summary-violet h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900">
@@ -1593,7 +1594,7 @@ export function ProcessDetailPage() {
           </CardContent>
         </Card>
         {!isExternalProcessViewer ? (
-          <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+          <Card className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
               <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
