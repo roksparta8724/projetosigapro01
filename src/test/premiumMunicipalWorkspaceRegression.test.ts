@@ -25,6 +25,7 @@ describe("premium municipal workspace regression", () => {
   const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
+  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
   const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
   const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
@@ -108,6 +109,30 @@ describe("premium municipal workspace regression", () => {
     expect(shell).toContain("portalOrganizationIdentity.codePath");
     expect(shell).toContain("const institutionFooterUnit");
     expect(shell).toContain("{institutionFooterUnit}");
+  });
+
+  it("keeps the official platform loader free from missing department normalizers", () => {
+    expect(backend).toContain('import { normalizeMunicipalUnit } from "@/lib/municipalOrganization";');
+    expect(backend).toContain("normalizeMunicipalUnit(department.name)");
+    expect(backend).not.toContain("normalizeDepartmentIdentity(");
+  });
+
+  it("renders the municipal organogram context globally across internal pages", () => {
+    expect(shell).toContain("useMunicipalOrganization()");
+    expect(shell).toContain("showPortalOrganizationContext");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+    expect(shell).toContain("portalOrganizationIdentity.breadcrumb");
+  });
+
+  it("shows every real process guide with paid and open financial status", () => {
+    expect(processDetail).toContain("Guias de pagamento do processo");
+    expect(processDetail).toContain("paidPaymentGuides");
+    expect(processDetail).toContain("openPaymentGuides");
+    expect(processDetail).toContain("Paga / compensada");
+    expect(processDetail).toContain("Em aberto");
+    expect(processDetail).toContain("paidAt");
+    expect(backend).toContain("paidAt: guide.paid_at");
   });
 
   it("shows organogram codes and hierarchy on process dispatches", () => {
