@@ -6717,3 +6717,111 @@ html body .sig-main-shell .sig-premium-command-surface svg {
   color: #e0f2fe !important;
   stroke: currentColor !important;
 }
+
+
+/* ===== SIGAPRO TOPBAR RESTORE + CARD CONTRAST HARD GUARD 2026-10-14 ===== */
+/* The topbar keeps the municipal/theme branding it had before document-card work.
+   Card contrast rules are deliberately isolated to .sig-main-shell. */
+html body .sig-topbar-portal-host .sig-premium-topbar.fixed.inset-x-0.top-0 {
+  background:
+    linear-gradient(
+      180deg,
+      var(--sig-topbar-highlight) 0%,
+      var(--sig-topbar) 48%,
+      var(--sig-topbar-depth) 100%
+    ) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: initial !important;
+}
+html body .sig-topbar-portal-host .sig-premium-topbar .sig-topbar-brand-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-topbar-portal-host .sig-premium-topbar .sig-topbar-brand-subtitle {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+html body .sig-topbar-portal-host .sig-premium-topbar .sig-topbar-profile-trigger {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-topbar-portal-host .sig-premium-topbar .sig-topbar-profile-trigger > svg {
+  color: rgba(248,250,252,0.82) !important;
+  stroke: currentColor !important;
+}
+
+/* Dark command cards: absolutely no dark text/icon may leak into them. */
+html body .sig-main-shell .sig-premium-command-surface,
+html body .sig-main-shell [data-premium-inverse-surface="true"],
+html body .sig-main-shell [data-surface-tone="dark"] {
+  color: #f8fafc !important;
+}
+html body .sig-main-shell .sig-premium-command-surface *,
+html body .sig-main-shell [data-premium-inverse-surface="true"] *,
+html body .sig-main-shell [data-surface-tone="dark"] * {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-main-shell .sig-premium-command-surface svg,
+html body .sig-main-shell .sig-premium-command-surface svg *,
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg,
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg *,
+html body .sig-main-shell [data-surface-tone="dark"] svg,
+html body .sig-main-shell [data-surface-tone="dark"] svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Light process/document cards are the inverse contract: dark copy and icons. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] svg,
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] svg {
+  color: currentColor;
+  stroke: currentColor;
+}
+
+/* In inverse theme those same cards become dark and all copy/icons become light. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #eaf2fb !important;
+  -webkit-text-fill-color: #eaf2fb !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] svg,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] svg {
+  color: #eaf2fb !important;
+  stroke: currentColor !important;
+}
+
+/* Explicit primary process/document actions always remain readable. */
+html body .sig-main-shell .sig-primary-process-action,
+html body .sig-main-shell .sig-primary-process-action *,
+html body .sig-main-shell .sig-primary-document-action,
+html body .sig-main-shell .sig-primary-document-action * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-primary-process-action svg,
+html body .sig-main-shell .sig-primary-document-action svg {
+  stroke: #ffffff !important;
+}
