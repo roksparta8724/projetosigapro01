@@ -7153,3 +7153,34 @@ html body .sig-main-shell [data-municipal-organogram="true"] span[data-organogra
 }
 
 /* ===== END FINAL SURFACE POLARITY LOCK ===== */
+
+
+/* ===== ORGANOGRAM UNIT CHIP CONTRAST LOCK 2026-10-14 =====
+   Dark organogram unit cards always use white copy/icons in every theme. */
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] :is(
+  span,strong,small,label
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] :is(
+  span,strong,small,label
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] :is(
+  span,strong,small,label
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+/* ===== END ORGANOGRAM UNIT CHIP CONTRAST LOCK ===== */
