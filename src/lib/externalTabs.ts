@@ -1,10 +1,10 @@
 export const externalTabs = [
-  { value: "visao", label: "Resumo", helper: "Situação dos seus processos", route: "/externo" },
+  { value: "controle", label: "Processos", helper: "Seus processos protocolados", route: "/externo/controle" },
   { value: "protocolar", label: "Protocolar", helper: "Novo protocolo", route: "/externo/protocolar" },
-  { value: "controle", label: "Controle de processos", helper: "Acompanhamento", route: "/externo/controle" },
   { value: "pagamentos", label: "Pagamentos", helper: "Guias e pendências", route: "/externo/pagamentos" },
   { value: "historico", label: "Histórico", helper: "Movimentações", route: "/externo/historico" },
   { value: "mensagens", label: "Mensagens", helper: "Proprietários vinculados", route: "/externo/mensagens" },
+  { value: "visao", label: "Resumo", helper: "Visão geral da conta", route: "/externo" },
 ];
 
 export function getExternalTabByPath(pathname: string) {
