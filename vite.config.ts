@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -12,6 +13,53 @@ const REQUIRED_ENV = [
   "R2_BUCKET_LOGOS",
   "R2_BUCKET_DOCUMENTOS",
 ] as const;
+
+function resolvePrimaryWorktreeEnvDir() {
+  const explicit = String(process.env.SIGAPRO_DEV_ENV_SOURCE || "").trim();
+  if (explicit && existsSync(explicit)) return path.resolve(explicit);
+
+  const gitEntry = path.resolve(process.cwd(), ".git");
+  if (!existsSync(gitEntry)) return "";
+
+  try {
+    if (!statSync(gitEntry).isFile()) return "";
+    const raw = readFileSync(gitEntry, "utf8").trim();
+    const match = raw.match(/^gitdir:\s*(.+)$/i);
+    if (!match?.[1]) return "";
+
+    const linkedGitDir = path.resolve(process.cwd(), match[1].trim());
+    const worktreesDir = path.dirname(linkedGitDir);
+    const primaryGitDir = path.dirname(worktreesDir);
+    if (path.basename(primaryGitDir).toLowerCase() !== ".git") return "";
+
+    const primaryWorktree = path.dirname(primaryGitDir);
+    return existsSync(primaryWorktree) ? primaryWorktree : "";
+  } catch {
+    return "";
+  }
+}
+
+function loadDevelopmentEnvWithWorktreeFallback(mode: string) {
+  const current = loadEnv(mode, process.cwd(), "");
+  if (mode !== "development") return current;
+
+  const primaryWorktree = resolvePrimaryWorktreeEnvDir();
+  if (!primaryWorktree || path.resolve(primaryWorktree) === path.resolve(process.cwd())) {
+    return current;
+  }
+
+  const fallback = loadEnv(mode, primaryWorktree, "");
+  const merged = { ...fallback, ...current };
+
+  if (Object.keys(fallback).length > 0) {
+    console.log("[SIGAPRO][DevEnv] configuração local herdada da worktree principal", {
+      source: primaryWorktree,
+      current: process.cwd(),
+    });
+  }
+
+  return merged;
+}
 
 function readEnvValue(key: string) {
   const raw = process.env[key];
@@ -606,7 +654,7 @@ function createR2DevApiPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const env = loadDevelopmentEnvWithWorktreeFallback(mode);
   for (const [key, value] of Object.entries(env)) {
     if (value !== undefined) {
       process.env[key] = value;
