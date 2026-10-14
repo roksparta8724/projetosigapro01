@@ -87,13 +87,13 @@ function sumValues(items: TaxaItem[], field: keyof TaxaItem) {
 
 function formatDigitableLine(value?: string) {
   const raw = (value || "").replace(/\s+/g, "");
-  if (!raw) return "";
+  if (!raw) return "Sem linha digitável oficial — consulte a Prefeitura.";
   return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
 }
 
 function renderBarcodeVisual(code?: string) {
   const digits = (code || "").replace(/\D/g, "");
-  if (!digits) return "||||| |||| || ||||| |||| || |||||";
+  if (!digits) return "Código bancário não informado pela Prefeitura.";
   return digits
     .slice(0, 44)
     .split("")
@@ -1406,7 +1406,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   <div className="dam-qr-wrap">
                     <div className="dam-qrcode-label">Canal complementar</div>
                     <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">Pagamento em rede bancária conveniada</span>
+                      <span className="dam-qrcode-fallback">Consulte a Prefeitura para obter o meio de pagamento oficial.</span>
                     </div>
                   </div>
                 )}
@@ -1433,8 +1433,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-footer-left">
                 <div className="dam-bottom-label">Instruções de pagamento</div>
                 <div className="dam-footer-note">
-                  Efetue o pagamento até o vencimento em banco conveniado ou canal autorizado pela Prefeitura.
-                  Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa do processo.
+                  {guia.linhaDigitavel || guia.qrCodePixUrl
+                    ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
+                    : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento."}
                 </div>
               </div>
               <div className="dam-footer-right">
@@ -1449,8 +1450,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-final-left">
                 <div className="dam-bottom-label">Instruções de lançamento</div>
                 <div className="dam-final-text">
-                  Documento emitido para arrecadação municipal vinculada ao processo administrativo. O pagamento deve respeitar
-                  o vencimento e as normas da Prefeitura.
+                  Documento de cobrança registrado e vinculado ao processo administrativo. O pagamento depende de meio oficial de arrecadação, observando as normas e o vencimento da Prefeitura.
                 </div>
                 <div className="dam-final-box">
                   Uso interno da Prefeitura: conferência do recolhimento, registro da compensação, despacho da tesouraria
