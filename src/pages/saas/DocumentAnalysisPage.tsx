@@ -34,7 +34,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isInternalRole,
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
