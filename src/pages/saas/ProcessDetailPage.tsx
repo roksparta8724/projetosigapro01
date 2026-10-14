@@ -1691,20 +1691,20 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#0b1f35_0%,#123a58_58%,#1e577a_100%)] px-5 py-5 text-white md:px-6">
+            <CardHeader className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner">
                     <FileStack className="h-6 w-6 text-sky-200" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/75">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
                       Central documental do processo
                     </p>
-                    <CardTitle className="mt-1 text-xl font-bold text-white">
+                    <CardTitle className="mt-1 text-xl font-bold !text-white">
                       {canUploadProcessDocuments ? "Documentos do protocolo" : "Documentos enviados pelo profissional"}
                     </CardTitle>
-                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-300">
+                    <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
                       {canUploadProcessDocuments
                         ? "Envie e acompanhe os documentos obrigatórios deste protocolo."
                         : isExternalProcessViewer
@@ -1715,28 +1715,28 @@ export function ProcessDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
-                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100/70">Enviados</p>
-                    <p className="mt-1 text-xl font-bold text-white">{uploadedCount}/{process.documents.length}</p>
+                  <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3 shadow-sm backdrop-blur-sm">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
+                    <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-3">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-100/80">Aprovados</p>
-                    <p className="mt-1 text-xl font-bold text-emerald-100">{approvedDocumentCount}</p>
+                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.12] px-3 py-3 shadow-sm backdrop-blur-sm">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
+                    <p className="mt-1 text-xl font-bold !text-emerald-50">{approvedDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-3 py-3">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100/80">Pendências</p>
-                    <p className="mt-1 text-xl font-bold text-amber-100">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
+                  <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.12] px-3 py-3 shadow-sm backdrop-blur-sm">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
+                    <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100/70">Conferência</p>
-                    <p className="mt-1 text-xl font-bold text-white">{documentReviewProgress}%</p>
+                  <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3 shadow-sm backdrop-blur-sm">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Conferência</p>
+                    <p className="mt-1 text-xl font-bold !text-white">{documentReviewProgress}%</p>
                   </div>
                 </div>
               </div>
 
               <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
                 <div>
-                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] !text-slate-200">
                     <span>Entrega documental</span>
                     <span>{documentDeliveryProgress}%</span>
                   </div>
@@ -1748,7 +1748,7 @@ export function ProcessDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] !text-slate-200">
                     <span>Conferência técnica</span>
                     <span>{documentReviewProgress}%</span>
                   </div>
@@ -1801,7 +1801,7 @@ export function ProcessDetailPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-4 bg-[linear-gradient(180deg,#fbfdff_0%,#f7fafc_100%)] p-5 md:p-6">
+            <CardContent className="space-y-4 bg-[linear-gradient(180deg,#fbfdff_0%,#f7fafc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] md:p-6">
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
@@ -1902,7 +1902,7 @@ export function ProcessDetailPage() {
                   <div
                     key={document.id}
                     data-process-document-card="true"
-                    className={`group relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)] [contain:layout_style] ${reviewVisual.card}`}
+                    className={`group relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)] dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.28)] [contain:layout_style] ${reviewVisual.card}`}
                   >
                     <div
                       className={`absolute inset-y-0 left-0 w-1 ${
@@ -1992,17 +1992,17 @@ export function ProcessDetailPage() {
                             <button
                               type="button"
                               onClick={() => openViewer(document.id)}
-                              className="inline-flex h-8 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800"
+                              className="inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
                             >
-                              <Eye className="h-3.5 w-3.5" />
-                              Visualizar
+                              <Eye className="h-4 w-4" />
+                              Abrir documento
                             </button>
                             <button
                               type="button"
                               onClick={() => openAnalysisViewer(document.id)}
-                              className="inline-flex h-8 items-center gap-2 rounded-full bg-slate-950 px-3.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                              className="inline-flex h-9 items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-4 text-[11px] font-bold text-amber-900 shadow-sm transition hover:-translate-y-px hover:bg-amber-100 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-950/70"
                             >
-                              <PencilLine className="h-3.5 w-3.5" />
+                              <PencilLine className="h-4 w-4" />
                               Analisar / marcar PDF
                             </button>
                           </>
@@ -2010,9 +2010,9 @@ export function ProcessDetailPage() {
                           <button
                             type="button"
                             onClick={() => openViewer(document.id)}
-                            className="inline-flex h-8 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800"
+                            className="inline-flex h-9 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 text-[11px] font-bold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.24)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
                           >
-                            <Maximize2 className="h-3.5 w-3.5" />
+                            <Maximize2 className="h-4 w-4" />
                             Abrir documento
                           </button>
                         ) : null}
@@ -2099,7 +2099,7 @@ export function ProcessDetailPage() {
                     ) : null}
 
                     {canReviewDocuments && document.uploaded ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3">
+                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700/80 dark:bg-slate-950/55">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                           isApproved
                             ? "bg-emerald-50 text-emerald-700"
@@ -2116,14 +2116,14 @@ export function ProcessDetailPage() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-800">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                             {isApproved
                               ? "Documento conferido e aprovado."
                               : hasCommunique
                                 ? "Comunique-se registrado para correção."
                                 : "Aguardando conferência técnica."}
                           </p>
-                          <p className="mt-0.5 text-xs leading-5 text-slate-500">
+                          <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
                             {hasCommunique
                               ? "As marcações e observações permanecem vinculadas ao documento."
                               : "Use “Analisar / marcar PDF” para marca-texto, comentários pontuais e decisão técnica."}
