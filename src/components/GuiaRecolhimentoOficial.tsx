@@ -1593,14 +1593,10 @@ function renderGuideOpeningState(popup: Window, title: string) {
   <meta charset="UTF-8" />
   <title>${title}</title>
   <style>
-    html,body{margin:0;min-height:100%;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a}
-    .guide-opening{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;box-sizing:border-box}
-    .guide-opening-card{border:1px solid #cbd5e1;border-radius:16px;background:white;padding:18px 22px;box-shadow:0 10px 30px rgba(15,23,42,.08);font-size:13px}
+    html,body{margin:0;min-height:100%;background:#ffffff}
   </style>
 </head>
-<body>
-  <div class="guide-opening"><div class="guide-opening-card">Preparando a guia oficial...</div></div>
-</body>
+<body></body>
 </html>`);
   popup.document.close();
 }
@@ -1609,7 +1605,17 @@ export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...props} />);
+  const staticLogo = String(props.prefeitura.logoUrl || "").trim();
+  const safeProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    prefeitura: {
+      ...props.prefeitura,
+      // HTML estático não hidrata onError. Nunca deixe URL remota quebrada
+      // dentro da guia: a abertura oficial incorpora o brasão como data URL.
+      logoUrl: /^data:image\//i.test(staticLogo) ? staticLogo : "",
+    },
+  };
+  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...safeProps} />);
   const title = options?.title || props.guia.numeroGuia;
   const autoPrint = options?.autoPrint ?? true;
 
