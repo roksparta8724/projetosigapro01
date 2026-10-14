@@ -929,7 +929,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         : item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role],
       "Usuário",
     );
-    return `${profileName} - ${profileRole}`;
+    const unitCode =
+      item.userType === "Externo" ||
+      item.role === "profissional_externo" ||
+      item.role === "property_owner" ||
+      item.role === "proprietario_consulta"
+        ? ""
+        : item.departmentCode?.trim() || "";
+    return `${unitCode ? `[${unitCode}] ` : ""}${profileName} - ${profileRole}`;
   };
   const applyMarkerToCurrentProcess = async (preset: MarkerPreset) => {
     if (!currentProcess || !preset.active || markerActionBusy) return;
@@ -1327,7 +1334,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               >
                 <DropdownMenuLabel className="min-w-0 px-3 py-3">
                   <p className="truncate text-sm font-semibold" title={fullUserName}>{displayUserName}</p>
-                  <p className="mt-1 truncate text-xs text-white/75">{roleLabel}</p>
+                  <div className="mt-1 flex min-w-0 items-center gap-2">
+                    {session.departmentCode && !externalSessionRole ? (
+                      <span className="shrink-0 rounded-full border border-sky-300/20 bg-sky-300/12 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100">
+                        {session.departmentCode}
+                      </span>
+                    ) : null}
+                    <p className="truncate text-xs text-white/75">{roleLabel}</p>
+                  </div>
                   {session.email ? <p className="mt-1 truncate text-xs text-white/65" title={session.email}>{displaySessionEmail}</p> : null}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/10" />
@@ -1907,9 +1921,21 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                           </span>
                         </div>
 
-                        <p className={cn("mt-2 inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-medium", darkTopbar ? "bg-white/10 text-slate-100" : "bg-slate-900/[0.045] text-slate-700")}>
-                          {roleLabel}
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {session.departmentCode && !externalSessionRole ? (
+                            <span className={cn(
+                              "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]",
+                              darkTopbar
+                                ? "border-sky-300/20 bg-sky-300/12 text-sky-100"
+                                : "border-sky-200 bg-sky-50 text-sky-800",
+                            )}>
+                              {session.departmentCode}
+                            </span>
+                          ) : null}
+                          <p className={cn("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-medium", darkTopbar ? "bg-white/10 text-slate-100" : "bg-slate-900/[0.045] text-slate-700")}>
+                            {roleLabel}
+                          </p>
+                        </div>
 
                         {session.email ? (
                           <p className={cn("sig-fit-copy mt-2 text-[12px] leading-5", darkTopbar ? "text-slate-300" : "text-slate-500")} title={session.email}>
