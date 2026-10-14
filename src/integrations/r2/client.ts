@@ -30,11 +30,11 @@ function buildReadApiUrl(path: string) {
   return normalized;
 }
 
-async function getAuthorizationHeaders() {
+export async function resolveR2BearerToken(auth: any) {
   try {
     // Neon Auth exposes the JWT specifically for authenticated API calls.
     // Prefer it over inferring a bearer token from the session object shape.
-    const directJwt = await backendClient?.auth?.getJWTToken?.();
+    const directJwt = await auth?.getJWTToken?.();
     const normalizedDirectJwt =
       typeof directJwt === "string"
         ? directJwt
@@ -46,16 +46,15 @@ async function getAuthorizationHeaders() {
               ? directJwt.data.token
               : "";
 
-    if (normalizedDirectJwt) {
-      return { Authorization: `Bearer ${normalizedDirectJwt}` };
-    }
+    if (normalizedDirectJwt) return normalizedDirectJwt;
 
-    const sessionResult = await backendClient?.auth?.getSession?.();
+    const sessionResult = await auth?.getSession?.();
     const session =
       sessionResult?.data?.session ??
       sessionResult?.data ??
       null;
-    const token =
+
+    return (
       session?.access_token ||
       session?.accessToken ||
       session?.jwt ||
@@ -64,12 +63,16 @@ async function getAuthorizationHeaders() {
       session?.session?.accessToken ||
       session?.session?.jwt ||
       session?.session?.token ||
-      "";
-
-    return token ? { Authorization: `Bearer ${token}` } : {};
+      ""
+    );
   } catch {
-    return {};
+    return "";
   }
+}
+
+async function getAuthorizationHeaders() {
+  const token = await resolveR2BearerToken(backendClient?.auth);
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function getPublicUrl(objectKey: string, baseOverride?: string) {
