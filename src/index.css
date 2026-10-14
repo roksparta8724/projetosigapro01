@@ -7054,3 +7054,102 @@ html body .sig-main-shell #sig-process-document-command-center svg * {
 
 /* ===== END THEME + PROCESS CONTRAST FINAL CONTRACT ===== */
 
+
+
+/* ===== SIGAPRO FINAL SURFACE POLARITY LOCK 2026-10-14 =====
+   Last-authority scoped contract. It does NOT recolor the topbar/sidebar.
+   Explicitly dark process/document surfaces always own a light foreground;
+   light surfaces keep a dark foreground. */
+
+/* Dark chips/badges: exact fix for organogram acronyms and any equivalent dark chip. */
+html body .sig-main-shell [data-contrast-surface="dark"],
+html body .sig-main-shell [data-organogram-code="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] {
+  background: linear-gradient(180deg, #0b1727 0%, #020617 100%) !important;
+  background-color: #020617 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-main-shell [data-contrast-surface="dark"] *,
+html body .sig-main-shell [data-organogram-code="true"] *,
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] *,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-contrast-surface="dark"] svg,
+html body .sig-main-shell [data-organogram-code="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: none;
+  opacity: 1 !important;
+}
+
+/* Intentionally dark process/document panels. This selector is deliberately
+   after every adaptive-theme rule so a light-theme normalizer cannot repaint
+   their text dark. */
+html body .sig-main-shell [data-premium-inverse-surface="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-premium-inverse-surface="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-premium-inverse-surface="true"] {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body .sig-main-shell [data-premium-inverse-surface="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,a
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-premium-inverse-surface="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,a
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-premium-inverse-surface="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,a
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg,
+html body [data-layout-mode="default"] .sig-main-shell [data-premium-inverse-surface="true"] svg,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-premium-inverse-surface="true"] svg {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Preserve semantic metric colors inside dark headers while keeping them
+   readable and vivid. */
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-emerald-50,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-emerald-100 {
+  color: #d1fae5 !important;
+  -webkit-text-fill-color: #d1fae5 !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-amber-50,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-amber-100 {
+  color: #fef3c7 !important;
+  -webkit-text-fill-color: #fef3c7 !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-sky-100,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-sky-200 {
+  color: #e0f2fe !important;
+  -webkit-text-fill-color: #e0f2fe !important;
+}
+
+/* Exact organogram exception: the surrounding chip can be light, but its
+   dark acronym capsule must remain white-on-dark in every theme. */
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] span[data-organogram-code="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] span[data-organogram-code="true"],
+html body .sig-main-shell [data-municipal-organogram="true"] span[data-organogram-code="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ===== END FINAL SURFACE POLARITY LOCK ===== */
