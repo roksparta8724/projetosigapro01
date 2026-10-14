@@ -739,6 +739,8 @@ export interface TenantUserInput {
   role: UserRole;
   title: string;
   accessLevel: 1 | 2 | 3;
+  department?: string;
+  departmentId?: string | null;
 }
 
 export type InstitutionUserInput = TenantUserInput & {
