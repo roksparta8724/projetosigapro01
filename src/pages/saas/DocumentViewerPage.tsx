@@ -5,6 +5,7 @@ import {
   FileText,
   Info,
   Maximize2,
+  PenTool,
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -18,9 +19,12 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
+  canAccessMunicipalArea,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
+  isInternalRole,
+  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -73,6 +77,21 @@ export function DocumentViewerPage() {
       document.uploaded &&
       canAccessProcess(session, process, effectiveScopeId),
   );
+
+  const canAnalyzeDocument = Boolean(
+    process &&
+      document &&
+      document.uploaded &&
+      isInternalRole(session.role) &&
+      canAccessProcess(session, process, effectiveScopeId) &&
+      isProcessOwnedBySessionDepartment(session, process) &&
+      canAccessMunicipalArea(session, "analise"),
+  );
+
+  const openAnalysisWorkspace = () => {
+    if (!process || !document || !canAnalyzeDocument) return;
+    navigate(`/processos/${process.id}/documentos/${document.id}/analisar`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +231,16 @@ export function DocumentViewerPage() {
               documentMarkers.removeMarker(process.id, document.id, tag)
             }
           />
+          {canAnalyzeDocument ? (
+            <Button
+              type="button"
+              onClick={openAnalysisWorkspace}
+              className="h-9 rounded-full border border-amber-300/40 bg-amber-300/15 px-4 text-[12px] font-semibold text-amber-100 hover:bg-amber-300/25 hover:text-white"
+            >
+              <PenTool className="mr-2 h-4 w-4" />
+              Analisar / marcar PDF
+            </Button>
+          ) : null}
           {accessUrl ? (
             <a
               href={accessUrl}
@@ -353,8 +382,22 @@ export function DocumentViewerPage() {
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800">Visualização protegida</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                O arquivo é exibido por acesso temporário assinado. Para marcações técnicas, abra a tela de análise do documento.
+                O arquivo é exibido por acesso temporário assinado.
               </p>
+              {canAnalyzeDocument ? (
+                <Button
+                  type="button"
+                  onClick={openAnalysisWorkspace}
+                  className="mt-4 w-full rounded-full bg-slate-950 text-white hover:bg-slate-800"
+                >
+                  <PenTool className="mr-2 h-4 w-4" />
+                  Abrir mesa de análise
+                </Button>
+              ) : (
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  As marcações técnicas são exclusivas da equipe responsável pela análise.
+                </p>
+              )}
             </div>
           </div>
         </aside>
