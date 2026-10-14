@@ -147,3 +147,17 @@ describe("external process primary action hierarchy", () => {
     expect(external).toContain("!text-white");
   });
 });
+
+
+describe("topbar and card contrast isolation", () => {
+  it("restores topbar branding while isolating card contrast to process surfaces", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(css).toContain("SIGAPRO TOPBAR RESTORE + CARD CONTRAST HARD GUARD");
+    expect(css).toContain("var(--sig-topbar-highlight)");
+    expect(css).toContain("var(--sig-topbar-depth)");
+    expect(css).toContain(".sig-main-shell .sig-premium-command-surface *");
+    expect(css).toContain('[data-process-document-card="true"]');
+    expect(css).toContain(".sig-primary-document-action");
+  });
+});
