@@ -6848,3 +6848,138 @@ html body .sig-main-shell :is(
 }
 
 
+
+
+/* ===== PROCESS THEME CONTRAST GUARANTEE — ALL PRESETS 2026-10-14 ===== */
+/*
+  Escopo propositalmente limitado a cards/processos/documentos.
+  NUNCA altera .sig-premium-topbar, .sig-topbar-portal-host ou as cores salvas do tema.
+  Todos os presets escuros usam data-theme-family="dark"; todos os claros usam "light".
+*/
+
+/* CLARO: superfície clara => conteúdo escuro. */
+html body [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) {
+  background-color: #ffffff !important;
+  color: #0b1726 !important;
+}
+html body [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dd,dt) {
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+html body [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) svg {
+  color: currentColor;
+  stroke: currentColor;
+}
+
+/* ESCURO: superfície escura => conteúdo claro em TODOS os presets escuros. */
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) {
+  background: linear-gradient(180deg, #11263d 0%, #091827 100%) !important;
+  background-color: #0b1b2d !important;
+  border-color: #294761 !important;
+  color: #f8fafc !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dd,dt) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #cbd8e8 !important;
+  -webkit-text-fill-color: #cbd8e8 !important;
+}
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) svg {
+  color: #e6eef8 !important;
+  stroke: currentColor !important;
+}
+
+/* Exceção correta: pills/badges claros preservam texto escuro no tema escuro. */
+html body [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.bg-white,.bg-slate-50,.bg-sky-50,.bg-emerald-50,.bg-amber-50,.bg-rose-50).rounded-full {
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* Command center documental: é SEMPRE escuro, então texto/ícone é SEMPRE claro. */
+html body .sig-main-shell #sig-process-document-command-center,
+html body .sig-main-shell #sig-process-document-command-center * {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body .sig-main-shell #sig-process-document-command-center svg,
+html body .sig-main-shell #sig-process-document-command-center svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-blue {
+  background: linear-gradient(145deg, #075985 0%, #0369a1 100%) !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-emerald {
+  background: linear-gradient(145deg, #047857 0%, #059669 100%) !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-amber {
+  background: linear-gradient(145deg, #92400e 0%, #b45309 100%) !important;
+}
+
+/* Botões principais escuros/azuis: texto e ícone sempre claros. */
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+),
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+/* ===== END PROCESS THEME CONTRAST GUARANTEE ===== */
