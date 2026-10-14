@@ -22,6 +22,8 @@ describe("document workspace continuity", () => {
     expect(viewer).toContain("platformDataLoading || !dataReadyForCurrentUser");
     expect(viewer).toContain('<DocumentWorkspaceBoot mode="viewer" />');
     expect(viewer).toContain("Visualizador documental");
+    expect(viewer).toContain("Analisar / marcar PDF");
+    expect(viewer).toContain("canAnalyzeDocument");
     expect(viewer).not.toContain("Carregando documento com acesso seguro...");
   });
 });
@@ -35,6 +37,8 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Painel técnico");
     expect(analysis).toContain("Marca-texto");
     expect(analysis).toContain("Comentário pontual");
+    expect(analysis).toContain("Arraste sobre o ponto incorreto");
+    expect(analysis).toContain("Clique no ponto do documento onde deseja fixar o comentário");
     expect(analysis).toContain("Anotações · página");
     expect(analysis).toContain("Resultado da análise");
     expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_380px]");
