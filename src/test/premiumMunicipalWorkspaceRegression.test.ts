@@ -28,7 +28,6 @@ describe("premium municipal workspace regression", () => {
   const organizationResolver = read("src/lib/municipalOrganization.ts");
   const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
   const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
-  const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
   const viteConfig = read("vite.config.ts");
   const hierarchyMigration = read("neon/migrations/20261014041000_municipal_organization_hierarchy.sql");
   const publicOrganizationMigration = read("neon/migrations/20261014042000_public_municipal_organization.sql");
