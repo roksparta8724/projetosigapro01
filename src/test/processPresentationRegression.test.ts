@@ -119,6 +119,7 @@ describe("theme-safe premium process and document cards", () => {
 
     expect(detail).toContain("!text-white");
     expect(detail).toContain('data-premium-inverse-surface="true"');
+    expect(detail).toContain('data-surface-tone="dark"');
     expect(detail).toContain('data-process-document-card="true"');
     expect(detail).toContain("dark:bg-slate-900");
     expect(detail).toContain("Abrir documento");
@@ -138,6 +139,7 @@ describe("external process primary action hierarchy", () => {
     expect(flowIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThan(flowIndex);
     expect(external).toContain("h-16 w-full");
+    expect(external).toContain("sig-primary-process-action");
     expect(external).toContain("!text-white");
   });
 });
