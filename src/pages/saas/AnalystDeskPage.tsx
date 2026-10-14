@@ -785,10 +785,10 @@ export function AnalystDeskPage() {
                       </div>
                     ) : (
                       urgentProtocols.slice(0, 4).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                              <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">
                                 {formatOfficialProcessNumber(process.protocol)}
                               </p>
                               <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
@@ -798,11 +798,11 @@ export function AnalystDeskPage() {
                                 {statusLabel(process.status)}
                               </Badge>
                             </div>
-                            <p className="mt-1 line-clamp-1 text-sm text-slate-600">
+                            <p className="mt-1 line-clamp-1 text-sm text-slate-600 dark:text-slate-400">
                               {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                             </p>
                           </div>
-                          <Button asChild variant="outline" className="shrink-0 rounded-full">
+                          <Button asChild className="shrink-0 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-5 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
                             <Link to={`/processos/${process.id}?aba=analise`}>Abrir análise</Link>
                           </Button>
                         </div>
@@ -819,10 +819,10 @@ export function AnalystDeskPage() {
                   >
                     <div className="space-y-3">
                       {handedOffFromAnalysis.slice(0, 5).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                              <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">
                                 {formatOfficialProcessNumber(process.protocol)}
                               </p>
                               <Badge variant="outline" className={statusTone(process.status)}>
@@ -832,7 +832,7 @@ export function AnalystDeskPage() {
                                 {process.processControl?.currentFolder || process.sla.currentStage}
                               </Badge>
                             </div>
-                            <p className="mt-1 text-sm text-slate-600">
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                               Responsável pela análise: {process.analysis?.assignedTo || "Não atribuído"}
                             </p>
                           </div>
@@ -1078,7 +1078,7 @@ export function AnalystDeskPage() {
                     <div key={`handoff-${process.id}`} className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
                           <p className="mt-1 sig-fit-copy text-sm text-slate-600">
                             Encaminhado para {process.processControl?.currentFolder || process.sla.currentStage}
                           </p>
@@ -1113,7 +1113,7 @@ export function AnalystDeskPage() {
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
+                            <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
                             <p className="mt-1 sig-fit-copy text-sm text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                           </div>
                           <Badge variant="outline" className={statusTone(process.status)}>
