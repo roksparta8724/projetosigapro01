@@ -284,6 +284,8 @@ export function DocumentAnalysisPage() {
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (tool === "navigate") return;
+    event.preventDefault();
+    event.stopPropagation();
     const point = pointFromEvent(event);
     if (!point) return;
 
@@ -307,6 +309,8 @@ export function DocumentAnalysisPage() {
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (tool !== "highlight" || !dragStart) return;
+    event.preventDefault();
+    event.stopPropagation();
     const point = pointFromEvent(event);
     if (!point) return;
 
@@ -327,6 +331,8 @@ export function DocumentAnalysisPage() {
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (tool !== "highlight") return;
+    event.preventDefault();
+    event.stopPropagation();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -970,7 +976,7 @@ export function DocumentAnalysisPage() {
           </div>
         </section>
 
-        <aside className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border-l border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[-10px_0_28px_rgba(15,23,42,0.04)]">
+        <aside data-analysis-inspector="true" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border-l border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[-10px_0_28px_rgba(15,23,42,0.04)]">
           <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
             <div className="flex items-center justify-between gap-3">
               <div>
