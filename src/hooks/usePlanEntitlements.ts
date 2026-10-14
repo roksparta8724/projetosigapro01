@@ -13,6 +13,7 @@ export function usePlanEntitlements() {
   const {
     plans,
     planAssignments,
+    loading: platformDataLoading,
     dataError,
     dataReadyForCurrentUser,
   } = usePlatformData();
