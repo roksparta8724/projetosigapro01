@@ -1706,6 +1706,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           role: input.role,
           name: input.fullName,
           title: input.title,
+          profileLabel: input.profileLabel ?? "",
           accessLevel: input.accessLevel,
         });
         const assignedDepartment =
@@ -1724,6 +1725,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           email: saved.email,
           name: saved.name,
           role: saved.role,
+          profileLabel: saved.profileLabel ?? input.profileLabel ?? "",
           title: saved.title,
           department:
             assignedDepartment?.department_name ??
