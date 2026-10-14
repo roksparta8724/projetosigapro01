@@ -42,10 +42,12 @@ describe("municipal organization chart", () => {
     expect(masterAdmin).toContain("As alterações ficam somente na Prefeitura selecionada.");
   });
 
-  it("shows the institutional organogram by department acronym without user names", () => {
+  it("shows the institutional hierarchy with department names and acronyms without staff names", () => {
     expect(tenantAdmin).toContain("MunicipalOrganizationChart");
     expect(orgChart).toContain("getDepartmentAcronym");
-    expect(orgChart).toContain("O organograma não exibe nomes de servidores ou usuários.");
+    expect(orgChart).toContain("{department.name}");
+    expect(orgChart).toContain("unidade superior cadastrada no banco");
+    expect(orgChart).toContain("nomes de servidores continuam fora desta visão");
     expect(orgChart).not.toContain("user.name");
   });
 
