@@ -17,6 +17,8 @@ describe("premium municipal workspace regression", () => {
   const main = read("src/main.tsx");
   const internalTabs = read("src/components/platform/InternalTabs.tsx");
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const documentViewer = read("src/pages/saas/DocumentViewerPage.tsx");
+  const documentAnalysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
   const fileDropZone = read("src/components/platform/FileDropZone.tsx");
   const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
@@ -166,6 +168,16 @@ describe("premium municipal workspace regression", () => {
     expect(r2Client).toContain('buildReadApiUrl("/api/r2-list-user-files")');
     expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-upload")');
     expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-delete")');
+  });
+
+  it("keeps organogram identity visible in focused internal document workspaces", () => {
+    expect(documentViewer).toContain("listRemoteMunicipalDepartments");
+    expect(documentViewer).toContain("resolveMunicipalUnitIdentity");
+    expect(documentViewer).toContain("organizationIdentity.codePath");
+    expect(documentViewer).toContain("isInternalRole(session.role)");
+    expect(documentAnalysis).toContain("listRemoteMunicipalDepartments");
+    expect(documentAnalysis).toContain("resolveMunicipalUnitIdentity");
+    expect(documentAnalysis).toContain("organizationIdentity.codePath");
   });
 
   it("keeps institutional logos fully contained instead of stretching or cropping", () => {
