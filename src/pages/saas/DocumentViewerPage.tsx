@@ -120,9 +120,25 @@ export function DocumentViewerPage() {
     if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
     navigate(
       `/processos/${process.id}/documentos/${document.id}/analisar?ferramenta=highlight`,
-      { replace: true },
+      {
+        replace: true,
+        state: {
+          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
+          returnTo:
+            routeState.returnTo ||
+            `/processos/${process.id}?aba=documentos`,
+        },
+      },
     );
-  }, [document?.id, navigate, process?.id, replaceAnalystViewerWithAnalysis]);
+  }, [
+    accessUrl,
+    document?.id,
+    navigate,
+    prefetchedDocumentAccessUrl,
+    process?.id,
+    replaceAnalystViewerWithAnalysis,
+    routeState.returnTo,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
