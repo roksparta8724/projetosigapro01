@@ -73,3 +73,24 @@ describe("process guide placement and organogram regression", () => {
   });
 });
 
+
+
+describe("process navigation continuity", () => {
+  it("opens the process only once and keeps Voltar beside Sair do processo", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    expect(detail).not.toContain("const canonicalKey = toProcessRouteKey(process.protocol)");
+    expect(detail).not.toContain('navigate(`/processos/${encodeURIComponent(canonicalKey)}');
+    expect(detail).toContain("platformDataLoading || !dataReadyForCurrentUser");
+
+    const actionsStart = detail.indexOf('subjectLabel="processo"');
+    const actionsBlock = detail.slice(actionsStart, actionsStart + 2200);
+    const markerIndex = actionsBlock.indexOf('subjectLabel="processo"');
+    const backIndex = actionsBlock.indexOf("Voltar");
+    const exitIndex = actionsBlock.indexOf("Sair do processo");
+
+    expect(markerIndex).toBeGreaterThanOrEqual(0);
+    expect(backIndex).toBeGreaterThan(markerIndex);
+    expect(exitIndex).toBeGreaterThan(backIndex);
+  });
+});
