@@ -145,6 +145,23 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
+        const isR2ApiRoute = [
+          "/api/r2-health",
+          "/api/r2-upload",
+          "/api/r2-delete",
+          "/api/r2-presign",
+          "/api/r2-sign-get",
+          "/api/r2-master-logo-source",
+        ].some((route) => req.url?.startsWith(route));
+
+        // O middleware de desenvolvimento do R2 não deve sequestrar outras APIs
+        // locais (health, auth, integrações etc.). Sem isso, a ausência de R2
+        // fazia rotas não relacionadas falharem com "Variáveis R2 ausentes".
+        if (!isR2ApiRoute) {
+          next();
+          return;
+        }
+
         if (req.method !== "POST") {
           res.statusCode = 405;
           res.setHeader("Content-Type", "application/json");
