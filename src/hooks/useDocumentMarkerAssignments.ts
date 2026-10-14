@@ -119,8 +119,9 @@ export function useDocumentMarkerAssignments() {
           (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized,
         );
         if (nextTags.length === 0) {
-          const { [key]: _removed, ...rest } = current;
-          return rest;
+          const next = { ...current };
+          delete next[key];
+          return next;
         }
         return { ...current, [key]: nextTags };
       });
