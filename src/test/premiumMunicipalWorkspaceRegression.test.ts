@@ -15,6 +15,9 @@ describe("premium municipal workspace regression", () => {
   const finance = read("src/pages/saas/FinanceDeskPage.tsx");
   const main = read("src/main.tsx");
   const internalTabs = read("src/components/platform/InternalTabs.tsx");
+  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const fileDropZone = read("src/components/platform/FileDropZone.tsx");
+  const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
@@ -78,5 +81,18 @@ describe("premium municipal workspace regression", () => {
     expect(main).not.toContain("requestAnimationFrame(waitForStableFrame)");
     expect(internalTabs).toContain("preventScrollReset: true");
     expect(internalTabs).toContain('urlParam = "secao"');
+  });
+
+  it("keeps document uploads stable and opens documents in dedicated browser tabs", () => {
+    expect(fileDropZone).not.toContain("animate-pulse");
+    expect(fileDropZone).not.toContain("animate-bounce");
+    expect(fileDropZone).toContain("transition-colors duration-150");
+    expect(processDetail).toContain('window.open(viewerUrl, "_blank", "noopener,noreferrer")');
+    expect(processDetail).toContain('window.open(analysisUrl, "_blank", "noopener,noreferrer")');
+  });
+
+  it("keeps institutional logos fully contained instead of stretching or cropping", () => {
+    expect(institutionalLogo).toContain("object-contain object-center");
+    expect(institutionalLogo).not.toContain("object-cover");
   });
 });
