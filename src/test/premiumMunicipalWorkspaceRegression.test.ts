@@ -151,7 +151,7 @@ describe("premium municipal workspace regression", () => {
 
   it("uses the existing scoped department RPC for external organogram access", () => {
     expect(backend).toContain("export async function listRemotePublicMunicipalDepartments");
-    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
     expect(backend).not.toContain('db.rpc("list_public_municipal_departments_v1"');
     expect(backend).toContain('description: ""');
     expect(backend).toContain('email: ""');
