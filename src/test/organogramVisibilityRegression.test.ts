@@ -29,10 +29,11 @@ describe("municipal organogram visibility", () => {
   it("caches the last official organogram so F5 never blanks the hierarchy", () => {
     const hook = read("src/hooks/useMunicipalOrganogram.ts");
 
-    expect(hook).toContain('const CACHE_PREFIX = "sigapro:municipal-organogram:v1"');
-    expect(hook).toContain("window.sessionStorage.getItem");
-    expect(hook).toContain("window.sessionStorage.setItem");
+    expect(hook).toContain('const CACHE_PREFIX = "sigapro:municipal-organogram:v2"');
+    expect(hook).toContain("window.localStorage.getItem");
+    expect(hook).toContain("window.localStorage.setItem");
     expect(hook).toContain("listRemoteMunicipalDepartments");
+    expect(hook).toContain("listRemoteInternalMunicipalDepartments");
   });
 
   it("shows codes and complete hierarchy for dispatch destinations", () => {
@@ -42,5 +43,49 @@ describe("municipal organogram visibility", () => {
     expect(hook).toContain('join(" › ")');
     expect(detail).toContain("department.code.trim()");
     expect(detail).toContain("getOrganizationPath(department.name)");
+  });
+});
+
+
+describe("organogram permissions and administration", () => {
+  it("uses the process-aware public RPC for project-wide visibility", () => {
+    const backend = readFileSync(
+      resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"),
+      "utf8",
+    );
+    expect(backend).toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_municipal_departments_v1"');
+  });
+
+  it("lets the municipal administrator redesign the hierarchy while dev stays local-only", () => {
+    const page = readFileSync(
+      resolve(process.cwd(), "src/pages/saas/MunicipalOrganizationPage.tsx"),
+      "utf8",
+    );
+    const hook = readFileSync(
+      resolve(process.cwd(), "src/hooks/useMunicipalOrganogram.ts"),
+      "utf8",
+    );
+
+    expect(page).toContain('session.role === "prefeitura_admin"');
+    expect(page).toContain("Nova unidade");
+    expect(page).toContain("Unidade superior");
+    expect(page).toContain("Salvar estrutura");
+    expect(page).toContain("upsertRemoteMunicipalDepartment");
+    expect(hook).toContain("const LOCAL_VALIDATION = import.meta.env.DEV");
+    expect(hook).toContain("saveLocalDepartments");
+    expect(hook).toContain("localValidation: LOCAL_VALIDATION");
+  });
+
+  it("keeps a hierarchy visible even if an old restricted read path fails", () => {
+    const bar = readFileSync(
+      resolve(process.cwd(), "src/components/platform/MunicipalOrganogramBar.tsx"),
+      "utf8",
+    );
+    expect(bar).toContain("fallbackHierarchy");
+    expect(bar).toContain('code: "URB"');
+    expect(bar).toContain('code: "ANU"');
+    expect(bar).not.toContain("Sem permissão para visualizar o organograma desta Prefeitura.");
   });
 });
