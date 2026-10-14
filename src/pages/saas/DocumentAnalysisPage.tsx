@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,7 @@ function clampPercent(value: number) {
 
 export function DocumentAnalysisPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
@@ -71,7 +72,10 @@ export function DocumentAnalysisPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [accessError, setAccessError] = useState("");
-  const [tool, setTool] = useState<AnalysisTool>("navigate");
+  const [tool, setTool] = useState<AnalysisTool>(() => {
+    const requested = searchParams.get("ferramenta");
+    return requested === "highlight" || requested === "text" ? requested : "navigate";
+  });
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [draft, setDraft] = useState<DraftAnnotation | null>(null);
@@ -250,7 +254,7 @@ export function DocumentAnalysisPage() {
       setNote("");
       setStatus(
         draft.kind === "highlight"
-          ? "Marca-texto salvo no processo."
+          ? "Marcar área salvo no processo."
           : "Observação textual salva no processo.",
       );
     } catch (error) {
@@ -481,7 +485,7 @@ export function DocumentAnalysisPage() {
             }}
           >
             <Highlighter className="mr-2 h-4 w-4" />
-            Marca-texto
+            Marcar área
           </Button>
           <Button
             type="button"
@@ -649,12 +653,12 @@ export function DocumentAnalysisPage() {
                   {tool === "highlight" ? (
                     <>
                       <Highlighter className="h-4 w-4 text-amber-600" />
-                      Arraste sobre o ponto incorreto para criar um marca-texto
+                      Arraste sobre o ponto incorreto para destacar a área e registrar a observação
                     </>
                   ) : (
                     <>
                       <MessageSquareText className="h-4 w-4 text-sky-700" />
-                      Clique no ponto do documento onde deseja fixar o comentário
+                      Clique no ponto exato do documento para fixar um texto numerado
                     </>
                   )}
                 </div>
@@ -785,9 +789,9 @@ export function DocumentAnalysisPage() {
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
                 {tool === "highlight"
-                  ? "Marca-texto"
+                  ? "Marcar área"
                   : tool === "text"
-                    ? "Comentário pontual"
+                    ? "Adicionar texto"
                     : "Navegação"}
               </p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -803,8 +807,8 @@ export function DocumentAnalysisPage() {
               <div className="rounded-[20px] border border-sky-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
                 <p className="text-sm font-semibold text-slate-950">
                   {draft.kind === "highlight"
-                    ? "Comentário do marca-texto"
-                    : "Texto da observação"}
+                    ? "Observação da área marcada"
+                    : "Texto fixado no documento"}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">Página {draft.page}</p>
                 <Textarea
