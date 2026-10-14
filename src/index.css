@@ -6458,3 +6458,109 @@ body:has(.sig-app-frame[data-focus-mode="true"]) {
     max-width: 304px !important;
   }
 }
+
+
+/* ===== PREMIUM CONTRAST CONTRACT: PROCESS + DOCUMENT WORKSPACES ===== */
+/* Dark surface => light text/icons, regardless of inherited theme rules. */
+[data-premium-inverse-surface="true"] {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+}
+[data-premium-inverse-surface="true"] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+[data-premium-inverse-surface="true"] svg,
+[data-premium-inverse-surface="true"] svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
+[data-premium-inverse-surface="true"] .text-slate-200,
+[data-premium-inverse-surface="true"] .text-slate-300 {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+[data-premium-inverse-surface="true"] .text-emerald-50,
+[data-premium-inverse-surface="true"] .text-emerald-100 {
+  color: #d1fae5 !important;
+  -webkit-text-fill-color: #d1fae5 !important;
+}
+[data-premium-inverse-surface="true"] .text-amber-50,
+[data-premium-inverse-surface="true"] .text-amber-100 {
+  color: #fef3c7 !important;
+  -webkit-text-fill-color: #fef3c7 !important;
+}
+
+/* Process cards: explicit light and inverse contracts so text never inherits the wrong tone. */
+[data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  border-color: #dbe3ec !important;
+  color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+[data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg, #102033 0%, #0d1b2b 100%) !important;
+  border-color: rgba(148,163,184,0.20) !important;
+  color: #f8fafc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Document cards follow the same contrast contract. */
+[data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  color: #0f172a !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  background: linear-gradient(180deg, #122235 0%, #0f1e30 100%) !important;
+  border-color: rgba(148,163,184,0.20) !important;
+  color: #f8fafc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] svg {
+  stroke: currentColor !important;
+}
+
+/* Primary dark/blue actions must always stay readable in both themes. */
+.sig-main-shell :is(a,button)[class*="bg-[linear-gradient"][class*="!text-white"],
+.sig-main-shell :is(a,button).bg-slate-950 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-main-shell :is(a,button)[class*="bg-[linear-gradient"][class*="!text-white"] svg,
+.sig-main-shell :is(a,button).bg-slate-950 svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
