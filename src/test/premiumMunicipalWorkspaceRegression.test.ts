@@ -22,6 +22,7 @@ describe("premium municipal workspace regression", () => {
   const fileDropZone = read("src/components/platform/FileDropZone.tsx");
   const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
+  const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
@@ -132,6 +133,33 @@ describe("premium municipal workspace regression", () => {
     expect(tenantAdmin).toContain("{session.departmentCode}");
     expect(shell).toContain("item.departmentCode?.trim()");
     expect(shell).toContain("{session.departmentCode}");
+  });
+
+  it("shows the municipal organogram globally across internal and external portal pages", () => {
+    expect(shell).toContain("useMunicipalOrganization()");
+    expect(shell).toContain("const showPortalOrganizationContext");
+    expect(shell).toContain("Boolean(activeInstitutionId)");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("Estrutura pública sincronizada");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+  });
+
+  it("uses the existing scoped department RPC for external organogram access", () => {
+    expect(backend).toContain("export async function listRemotePublicMunicipalDepartments");
+    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).toContain('description: ""');
+    expect(backend).toContain('email: ""');
+    expect(backend).toContain('phone: ""');
+  });
+
+  it("never leaves localhost indefinitely on municipal access validation when backend env is missing", () => {
+    expect(planModuleRoute).toContain("hasBackendEnv");
+    expect(planModuleRoute).toContain("Ambiente local incompleto");
+    expect(planModuleRoute).toContain("Conexão oficial do SIGAPRO não configurada neste localhost");
+    expect(planModuleRoute.indexOf("if (!hasBackendEnv)")).toBeLessThan(
+      planModuleRoute.indexOf("if (entitlements.isResolving)"),
+    );
   });
 
   it("keeps operational desks on premium card surfaces", () => {
