@@ -107,3 +107,31 @@ describe("organogram visual contrast", () => {
     expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 });
+
+
+describe("organogram surface polarity", () => {
+  it("loads the last-authority contrast stylesheet after legacy styles", () => {
+    const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
+    const indexImport = main.indexOf('import "./index.css"');
+    const polarityImport = main.indexOf('import "./styles/surface-polarity.css"');
+
+    expect(indexImport).toBeGreaterThanOrEqual(0);
+    expect(polarityImport).toBeGreaterThan(indexImport);
+  });
+
+  it("treats every dark organogram unit pill as white-on-dark", () => {
+    const bar = readFileSync(
+      resolve(process.cwd(), "src/components/platform/MunicipalOrganogramBar.tsx"),
+      "utf8",
+    );
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/surface-polarity.css"),
+      "utf8",
+    );
+
+    expect(bar).toContain('data-organogram-unit-chip="true"');
+    expect(bar).toContain('data-contrast-surface="dark"');
+    expect(css).toContain('[data-organogram-unit-chip="true"] *');
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
+  });
+});
