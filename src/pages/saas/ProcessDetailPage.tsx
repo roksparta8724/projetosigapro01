@@ -717,24 +717,28 @@ export function ProcessDetailPage() {
       : flowLabels[currentFlowIndex] || statusLabel(process.status);
   const displayOrganizationPath = currentOrganizationPath;
 
+  // "Sair do processo" sempre volta para uma área que o usuário pode acessar.
+  // A unidade atual do PROCESSO nunca deve decidir a pasta do USUÁRIO:
+  // um analista pode estar apenas acompanhando um processo já no Financeiro,
+  // e o Protocolo pode acompanhar um processo já no Urbanismo.
   const processExitPath =
     session.role === "profissional_externo"
       ? "/externo/controle"
       : session.role === "property_owner" || session.role === "proprietario_consulta"
         ? "/proprietario"
-        : /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)
-          ? "/prefeitura/financeiro"
-          : /protocolo|triagem|recepcao|recepção/.test(normalizedCurrentFolder)
-            ? "/prefeitura/protocolos"
-            : /analise|análise|urban|obra|engenharia|fiscal/.test(normalizedCurrentFolder)
+        : session.role === "prefeitura_admin"
+          ? planEntitlements.canUseModule("Protocolo digital")
+            ? "/dashboard/processos"
+            : "/dashboard"
+          : session.role === "master_admin" || session.role === "master_ops"
+            ? "/dashboard/processos"
+            : canAccessMunicipalArea(session, "analise")
               ? "/prefeitura/analise"
-              : session.role === "financeiro"
+              : canAccessMunicipalArea(session, "financeiro")
                 ? "/prefeitura/financeiro"
-                : canAnalysisOperate
-                  ? "/prefeitura/analise"
-                  : canProtocolOperate
-                    ? "/prefeitura/protocolos"
-                    : "/dashboard";
+                : canAccessMunicipalArea(session, "protocolos")
+                  ? "/prefeitura/protocolos"
+                  : "/dashboard";
 
   const protocolStartedAt =
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
