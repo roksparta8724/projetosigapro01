@@ -82,7 +82,7 @@ export function MunicipalOrganogramBar({
     <section
       data-municipal-organogram="true"
       className={cn(
-        "overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)]",
+        "overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.24)]",
         className,
       )}
     >
@@ -111,7 +111,7 @@ export function MunicipalOrganogramBar({
         ) : null}
       </div>
 
-      <div className="border-t border-slate-100 bg-[linear-gradient(180deg,#fbfdff_0%,#f8fbfe_100%)] px-4 py-3 md:px-5">
+      <div className="border-t border-slate-100 bg-[linear-gradient(180deg,#fbfdff_0%,#f8fbfe_100%)] px-4 py-3 dark:border-slate-700 dark:bg-[linear-gradient(180deg,#111c2b_0%,#0f172a_100%)] md:px-5">
         {chain.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             {chain.map((department, index) => (
@@ -121,13 +121,14 @@ export function MunicipalOrganogramBar({
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold",
                     index === chain.length - 1
-                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
-                      : "border-slate-200 bg-white text-slate-700",
+                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/60 dark:text-sky-100"
+                      : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
                   )}
                   title={department.name}
                 >
                   {department.code?.trim() ? (
-                    <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                    <span data-organogram-code="true"
+                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
                       {department.code.trim()}
                     </span>
                   ) : null}
@@ -145,11 +146,12 @@ export function MunicipalOrganogramBar({
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold",
                     index === fallbackChain.length - 1
-                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
-                      : "border-slate-200 bg-white text-slate-700",
+                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/60 dark:text-sky-100"
+                      : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
                   )}
                 >
-                  <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                  <span data-organogram-code="true"
+                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
                     {department.code}
                   </span>
                   <span className="truncate">{department.name}</span>
@@ -174,7 +176,8 @@ export function MunicipalOrganogramBar({
                   className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
                 >
                   {department.code?.trim() ? (
-                    <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                    <span data-organogram-code="true"
+                      className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm [color:#fff] [-webkit-text-fill-color:#fff]">
                       {department.code.trim()}
                     </span>
                   ) : null}
