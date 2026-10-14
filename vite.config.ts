@@ -140,11 +140,75 @@ const OFFICIAL_READ_API_BASE = "https://sigapromunicipal.com.br";
 const READ_ONLY_R2_ROUTES = [
   "/api/r2-sign-get",
   "/api/r2-list-user-files",
-  "/api/r2-master-logo-source",
 ] as const;
 
 function isReadOnlyR2Route(url: string) {
   return READ_ONLY_R2_ROUTES.some((route) => url.startsWith(route));
+}
+
+function isSafeBrandingObjectKey(objectKey: string) {
+  return (
+    /^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
+    /^municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey)
+  ) && !objectKey.includes("..");
+}
+
+async function proxyOfficialLogoSource(
+  req: import("http").IncomingMessage,
+  res: import("http").ServerResponse,
+) {
+  const body = await readJsonBody(req);
+  const objectKey = typeof body.objectKey === "string" ? body.objectKey.trim() : "";
+  if (!isSafeBrandingObjectKey(objectKey)) {
+    res.statusCode = 400;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Logo inválido.");
+    return;
+  }
+
+  const signResponse = await fetch(`${OFFICIAL_READ_API_BASE}/api/r2-sign-get`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(req.headers.authorization
+        ? { Authorization: String(req.headers.authorization) }
+        : {}),
+    },
+    body: JSON.stringify({
+      bucket: readEnvValue("R2_BUCKET_LOGOS") || "sigapro-logos",
+      objectKey,
+      expiresIn: 900,
+    }),
+  });
+
+  const signPayload = await signResponse.json().catch(() => ({})) as { signedUrl?: string; error?: string };
+  if (!signResponse.ok || !signPayload.signedUrl) {
+    res.statusCode = signResponse.status || 502;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end(signPayload.error || "Não foi possível gerar acesso ao logo.");
+    return;
+  }
+
+  const imageResponse = await fetch(signPayload.signedUrl, { cache: "no-store" });
+  if (!imageResponse.ok) {
+    res.statusCode = 502;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Não foi possível carregar o logo oficial.");
+    return;
+  }
+
+  const contentType = imageResponse.headers.get("content-type");
+  if (contentType && !contentType.startsWith("image/")) {
+    res.statusCode = 415;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("O arquivo de branding não é uma imagem.");
+    return;
+  }
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", contentType || "image/png");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(Buffer.from(await imageResponse.arrayBuffer()));
 }
 
 async function proxyOfficialReadApi(
@@ -196,6 +260,7 @@ function createR2DevApiPlugin(): Plugin {
           "/api/r2-upload",
           "/api/r2-delete",
           "/api/r2-presign",
+          "/api/r2-master-logo-source",
           ...READ_ONLY_R2_ROUTES,
         ].some((route) => req.url?.startsWith(route));
 
@@ -210,6 +275,19 @@ function createR2DevApiPlugin(): Plugin {
         // Rotas de leitura usam a infraestrutura oficial através do servidor
         // local para evitar CORS e nunca expor credenciais R2 no navegador.
         // Nenhuma rota de escrita é encaminhada para produção.
+        if (req.url.startsWith("/api/r2-master-logo-source")) {
+          try {
+            await proxyOfficialLogoSource(req, res);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha ao acessar o logo oficial.";
+            console.error("[SIGAPRO][R2] proxy local de logo:", error);
+            res.statusCode = 502;
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.end(message);
+          }
+          return;
+        }
+
         if (isReadOnlyR2Route(req.url)) {
           try {
             await proxyOfficialReadApi(req, res);
