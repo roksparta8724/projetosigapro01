@@ -183,3 +183,25 @@ describe("topbar and process-card contrast isolation", () => {
     expect(stat).toContain("data-tone={tone}");
   });
 });
+
+
+describe("strict process surface contrast root", () => {
+  it("forces dark cards to use light copy and light cards to use dark copy without touching topbar", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    const contrastRoot = css.slice(css.indexOf("PROCESS SURFACE CONTRAST ROOT V3"));
+    expect(contrastRoot).toContain("#sig-process-document-command-center");
+    expect(contrastRoot).toContain(".sig-command-metric-blue");
+    expect(contrastRoot).toContain(".sig-command-metric-emerald");
+    expect(contrastRoot).toContain(".sig-command-metric-amber");
+    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(contrastRoot).toContain('[data-municipal-organogram="true"]');
+    expect(contrastRoot).not.toContain(".sig-premium-topbar");
+    expect(contrastRoot).not.toContain(".sig-topbar-shell");
+
+    expect(detail).toContain('id="sig-process-document-command-center"');
+    expect((detail.match(/sig-command-metric/g) || []).length).toBeGreaterThanOrEqual(4);
+  });
+});
