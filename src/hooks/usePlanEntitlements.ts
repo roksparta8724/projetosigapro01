@@ -72,13 +72,18 @@ export function usePlanEntitlements() {
     authContextUnresolved ||
     (!isMaster && (
       !municipalityMatchesAuth ||
-      municipalityLoading ||
-      platformDataLoading ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
       !dataReadyForCurrentUser ||
-      Boolean(dataError)
+      Boolean(dataError && !dataReadyForCurrentUser)
     ));
+
+  // Carregamentos de fundo da Prefeitura ou do store não podem desmontar uma
+  // tela já autorizada. Eles atualizam dados em segundo plano sem mostrar a
+  // página intermediária "Validando acesso da Prefeitura".
+  const isBackgroundRefreshing =
+    !isResolving &&
+    (municipalityLoading || platformDataLoading);
 
   const state = useMemo(
     () =>
@@ -95,11 +100,12 @@ export function usePlanEntitlements() {
       ...state,
       isMaster,
       isResolving,
+      isBackgroundRefreshing,
       dataError,
       isConfigured: Boolean(state.assignment && state.plan),
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [dataError, isMaster, isResolving, state],
+    [dataError, isBackgroundRefreshing, isMaster, isResolving, state],
   );
 }
