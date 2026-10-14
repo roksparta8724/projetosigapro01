@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,16 @@ function clampPercent(value: number) {
 
 export function DocumentAnalysisPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const routeState = (location.state ?? {}) as {
+    documentAccessUrl?: string;
+    returnTo?: string;
+  };
+  const prefetchedDocumentAccessUrl =
+    typeof routeState.documentAccessUrl === "string"
+      ? routeState.documentAccessUrl
+      : "";
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
@@ -76,7 +85,7 @@ export function DocumentAnalysisPage() {
   const documentMarkerTags =
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const [accessUrl, setAccessUrl] = useState("");
+  const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [accessError, setAccessError] = useState("");
   const [tool, setTool] = useState<AnalysisTool>(() => {
     const requested = searchParams.get("ferramenta");
@@ -100,6 +109,7 @@ export function DocumentAnalysisPage() {
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [draftAnnotations, setDraftAnnotations] = useState<ReviewDraftAnnotation[]>([]);
   const [draftSavedAt, setDraftSavedAt] = useState("");
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
   const reviewDraftStorageKey =
@@ -130,9 +140,12 @@ export function DocumentAnalysisPage() {
   }, [document?.id, document?.reviewStatus]);
 
   useEffect(() => {
+    setDraftHydrated(false);
+
     if (!reviewDraftStorageKey || typeof window === "undefined") {
       setDraftAnnotations([]);
       setDraftSavedAt("");
+      setDraftHydrated(true);
       return;
     }
 
@@ -141,6 +154,7 @@ export function DocumentAnalysisPage() {
       if (!raw) {
         setDraftAnnotations([]);
         setDraftSavedAt("");
+        setDraftHydrated(true);
         return;
       }
       const parsed = JSON.parse(raw) as {
@@ -152,17 +166,51 @@ export function DocumentAnalysisPage() {
     } catch {
       setDraftAnnotations([]);
       setDraftSavedAt("");
+    } finally {
+      setDraftHydrated(true);
     }
   }, [reviewDraftStorageKey]);
 
   useEffect(() => {
+    if (
+      !draftHydrated ||
+      !reviewDraftStorageKey ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const savedAt = new Date().toISOString();
+    window.localStorage.setItem(
+      reviewDraftStorageKey,
+      JSON.stringify({ annotations: draftAnnotations, savedAt }),
+    );
+    setDraftSavedAt(savedAt);
+  }, [draftAnnotations, draftHydrated, reviewDraftStorageKey]);
+
+  useEffect(() => {
     let cancelled = false;
-    setAccessUrl("");
     setAccessError("");
 
-    if (!canUseAnalysis || !document?.filePath) return () => {
-      cancelled = true;
-    };
+    if (!canUseAnalysis) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (prefetchedDocumentAccessUrl) {
+      setAccessUrl(prefetchedDocumentAccessUrl);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!document?.filePath) {
+      setAccessUrl(document?.previewUrl || "");
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
@@ -189,7 +237,12 @@ export function DocumentAnalysisPage() {
     return () => {
       cancelled = true;
     };
-  }, [canUseAnalysis, document?.filePath]);
+  }, [
+    canUseAnalysis,
+    document?.filePath,
+    document?.previewUrl,
+    prefetchedDocumentAccessUrl,
+  ]);
 
   const isPdf =
     document?.mimeType === "application/pdf" ||
@@ -493,8 +546,9 @@ export function DocumentAnalysisPage() {
             variant="outline"
             className="h-9 shrink-0 rounded-full border-white/15 bg-white/5 px-3 text-white hover:bg-white/10 hover:text-white"
             onClick={() => {
-              if (window.history.length > 1) navigate(-1);
-              else window.close();
+              if (routeState.returnTo) navigate(routeState.returnTo);
+              else if (window.history.length > 1) navigate(-1);
+              else navigate("/dashboard/processos");
             }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -692,7 +746,7 @@ export function DocumentAnalysisPage() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[72px_minmax(0,1fr)_380px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[72px_minmax(0,1fr)_420px]">
         <aside className="hidden border-r border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef4f8_100%)] py-4 shadow-[8px_0_26px_rgba(15,23,42,0.04)] xl:flex xl:flex-col xl:items-center xl:gap-3">
           <button
             type="button"
@@ -755,11 +809,23 @@ export function DocumentAnalysisPage() {
                     ? "cursor-crosshair"
                     : "cursor-cell"
               }`}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
             >
+              {tool !== "navigate" ? (
+                <div
+                  data-annotation-capture-layer="true"
+                  className="absolute inset-0 z-10 touch-none select-none"
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  aria-label={
+                    tool === "highlight"
+                      ? "Camada de marcação por área"
+                      : "Camada de inserção de texto"
+                  }
+                />
+              ) : null}
+
               {tool !== "navigate" ? (
                 <div className="pointer-events-none absolute left-4 top-4 z-50 flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.18)] backdrop-blur">
                   {tool === "highlight" ? (
@@ -853,7 +919,7 @@ export function DocumentAnalysisPage() {
                 return (
                   <div
                     key={annotation.id}
-                    className="pointer-events-none absolute z-30 flex max-w-[320px] -translate-y-1/2 items-start gap-2"
+                    className="pointer-events-none absolute z-30 flex max-w-[280px] -translate-y-1/2 items-start gap-2"
                     style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
                     title={`${annotation.note} · ${annotation.author}`}
                   >
@@ -865,7 +931,7 @@ export function DocumentAnalysisPage() {
                       {index + 1}
                     </span>
                     <span
-                      className={`max-w-[250px] rounded-xl border bg-white/95 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.20)] backdrop-blur ${
+                      className={`max-w-[210px] break-words rounded-xl border bg-white/95 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.20)] backdrop-blur ${
                         isDraftAnnotation ? "border-violet-200" : "border-sky-200"
                       }`}
                     >
@@ -904,7 +970,7 @@ export function DocumentAnalysisPage() {
           </div>
         </section>
 
-        <aside className="min-h-0 overflow-y-auto border-l border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[-10px_0_28px_rgba(15,23,42,0.04)]">
+        <aside className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border-l border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[-10px_0_28px_rgba(15,23,42,0.04)]">
           <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -933,7 +999,7 @@ export function DocumentAnalysisPage() {
                     ? "Adicionar texto"
                     : "Navegação"}
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 break-words text-xs leading-5 text-slate-500">
                 {tool === "highlight"
                   ? "Arraste sobre a área que precisa ser corrigida e registre a observação."
                   : tool === "text"
@@ -1056,7 +1122,7 @@ export function DocumentAnalysisPage() {
               </div>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+            <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
@@ -1065,7 +1131,7 @@ export function DocumentAnalysisPage() {
                   <p className="mt-1 text-sm font-semibold text-slate-950">
                     {draftAnnotations.length} apontamento(s) ainda não enviado(s)
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                  <p className="mt-1 break-words text-xs leading-5 text-slate-500">
                     Marque todos os pontos necessários, salve o rascunho e somente depois envie ao profissional.
                   </p>
                 </div>
@@ -1104,11 +1170,11 @@ export function DocumentAnalysisPage() {
                 />
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <div className="mt-4 grid min-w-0 gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 rounded-xl border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                  className="h-11 w-full min-w-0 rounded-xl border-violet-200 bg-violet-50 px-3 text-violet-800 hover:bg-violet-100"
                   disabled={busy === "send-draft"}
                   onClick={saveReviewDraft}
                 >
@@ -1117,7 +1183,7 @@ export function DocumentAnalysisPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="h-11 rounded-xl bg-[linear-gradient(135deg,#7c2d12_0%,#b45309_58%,#d97706_100%)] font-bold text-white shadow-[0_10px_24px_rgba(180,83,9,0.22)] hover:brightness-105"
+                  className="h-11 w-full min-w-0 rounded-xl bg-[linear-gradient(135deg,#7c2d12_0%,#b45309_58%,#d97706_100%)] px-3 font-bold text-white shadow-[0_10px_24px_rgba(180,83,9,0.22)] hover:brightness-105"
                   disabled={busy === "send-draft" || draftAnnotations.length === 0}
                   onClick={() => void sendDraftToProfessional()}
                 >
@@ -1131,7 +1197,7 @@ export function DocumentAnalysisPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+            <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
                 Resultado da análise
               </p>
