@@ -104,7 +104,24 @@ describe("premium document center and direct PDF analysis", () => {
     expect(detail).toContain("documentDeliveryProgress");
     expect(detail).toContain("documentReviewProgress");
     expect(detail).toContain("Analisar / marcar PDF");
-    expect(detail).toContain("Visualizar");
+    expect(detail).toContain("Abrir documento");
     expect(detail).toContain("Use “Analisar / marcar PDF” para marca-texto");
+  });
+});
+
+
+describe("theme-safe premium process and document cards", () => {
+  it("keeps document header and process cards readable in both themes", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const protocol = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
+    const analysis = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
+    const external = readFileSync(resolve(process.cwd(), "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
+
+    expect(detail).toContain("!text-white");
+    expect(detail).toContain("dark:bg-slate-900");
+    expect(detail).toContain("Abrir documento");
+    expect(protocol).toContain("dark:bg-slate-900");
+    expect(analysis).toContain("dark:bg-slate-900");
+    expect(external).toContain("dark:bg-slate-900");
   });
 });
