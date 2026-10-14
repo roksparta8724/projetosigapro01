@@ -72,6 +72,11 @@ import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
+import {
+  listRemoteMunicipalDepartments,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 interface PortalFrameProps {
   title: string;
@@ -297,6 +302,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const [portalOrganizationDepartments, setPortalOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [portalOrganizationError, setPortalOrganizationError] = useState("");
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
@@ -328,6 +335,39 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         item.email.trim().toLowerCase() === session.email?.trim().toLowerCase(),
     ) ??
     null;
+
+  useEffect(() => {
+    let active = true;
+    if (!activeInstitutionId || !isInternalRole(session.role)) {
+      setPortalOrganizationDepartments([]);
+      setPortalOrganizationError("");
+      return () => {
+        active = false;
+      };
+    }
+
+    void listRemoteMunicipalDepartments(activeInstitutionId)
+      .then((rows) => {
+        if (!active) return;
+        setPortalOrganizationDepartments(
+          rows
+            .filter((item) => item.isActive)
+            .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "pt-BR")),
+        );
+        setPortalOrganizationError("");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setPortalOrganizationDepartments([]);
+        setPortalOrganizationError(
+          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeInstitutionId, session.role, dataError]);
 
   useEffect(() => {
     if (!canonicalSignedInUser || session.id === "unknown") return;
@@ -709,18 +749,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             : null;
   const defaultDepartmentOwnership =
     departmentOwnershipKey === "financeiro"
-      ? { secretaria: "Secretaria de Finanças", diretoria: "Diretoria Financeira" }
+      ? { secretaria: "Financeiro", diretoria: "Financeiro" }
       : departmentOwnershipKey === "protocolo"
-        ? { secretaria: "Secretaria de Administração", diretoria: "Departamento de Protocolo" }
+        ? { secretaria: "Administração", diretoria: "Protocolo" }
         : departmentOwnershipKey === "analise"
-          ? {
-              secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo e Obras",
-              diretoria: tenantSettings?.diretoriaResponsavel || "Departamento de Análise Urbanística",
-            }
+          ? { secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística" }
           : departmentOwnershipKey === "acesso_externo"
             ? {
-                secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
-                diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Atendimento e Aprovação",
+                secretaria: tenantSettings?.secretariaResponsavel || "Atendimento externo",
+                diretoria: tenantSettings?.diretoriaResponsavel || "Acesso externo",
               }
             : null;
   const configuredDepartmentOwnership =
@@ -735,6 +772,30 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           defaultDepartmentOwnership.diretoria,
       }
     : null;
+
+  const currentProcessOrganizationReference =
+    currentProcess?.processControl?.currentFolder ||
+    currentProcess?.dispatches?.[0]?.to ||
+    currentProcess?.sla?.currentStage ||
+    "";
+  const routeOrganizationReference =
+    currentProcessOrganizationReference ||
+    (departmentOwnershipKey === "protocolo"
+      ? "Protocolo"
+      : departmentOwnershipKey === "analise"
+        ? "Análise Urbanística"
+        : departmentOwnershipKey === "financeiro"
+          ? "Financeiro"
+          : session.department || activeDepartmentOwnership?.diretoria || "");
+  const portalOrganizationIdentity = resolveMunicipalUnitIdentity(
+    portalOrganizationDepartments,
+    routeOrganizationReference,
+  );
+  const showPortalOrganizationContext =
+    isInternalRole(session.role) &&
+    Boolean(activeInstitutionId) &&
+    !location.pathname.startsWith("/externo");
+
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
@@ -2239,25 +2300,74 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              {activeDepartmentOwnership?.diretoria ? (
+              {showPortalOrganizationContext ? (
                 <div
-                  className="mt-4 overflow-hidden rounded-[10px] border shadow-sm"
+                  className="mt-4 overflow-hidden rounded-[18px] border shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
                   style={{
-                    borderColor: withAlpha(primaryColor, "0.24"),
-                    background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 54%, ${activeBg} 100%)`,
+                    borderColor: withAlpha(primaryColor, "0.20"),
+                    background: "linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)",
                   }}
                 >
-                  <div className="px-5 py-2.5 md:px-6">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Estrutura do departamento</p>
-                  </div>
-                  <div className="grid gap-2 border-t border-white/10 px-5 py-4 md:grid-cols-2 md:px-6">
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Secretaria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.secretaria}</p>
+                  <div className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border"
+                        style={{
+                          borderColor: withAlpha(primaryColor, "0.18"),
+                          backgroundColor: withAlpha(primaryColor, "0.07"),
+                          color: primaryColor,
+                        }}
+                      >
+                        <Network className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Organograma municipal
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          {portalOrganizationIdentity.matched && portalOrganizationIdentity.codePath ? (
+                            <span
+                              className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]"
+                              style={{
+                                borderColor: withAlpha(primaryColor, "0.20"),
+                                backgroundColor: withAlpha(primaryColor, "0.07"),
+                                color: darken(primaryColor, 18),
+                              }}
+                            >
+                              {portalOrganizationIdentity.codePath}
+                            </span>
+                          ) : session.departmentCode && !currentProcessOrganizationReference ? (
+                            <span
+                              className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]"
+                              style={{
+                                borderColor: withAlpha(primaryColor, "0.20"),
+                                backgroundColor: withAlpha(primaryColor, "0.07"),
+                                color: darken(primaryColor, 18),
+                              }}
+                            >
+                              {session.departmentCode}
+                            </span>
+                          ) : null}
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                            {portalOrganizationIdentity.matched
+                              ? portalOrganizationIdentity.breadcrumb
+                              : routeOrganizationReference || session.department || "Unidade municipal"}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {portalOrganizationIdentity.matched
+                            ? `Vínculo institucional confirmado no organograma • ${portalOrganizationDepartments.length} unidades ativas`
+                            : portalOrganizationError
+                              ? "Não foi possível confirmar a hierarquia desta unidade no banco oficial."
+                              : "Carregando vínculo institucional da unidade..."}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Diretoria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.diretoria}</p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Prefeitura</p>
+                      <p className="mt-1 max-w-[320px] truncate text-xs font-medium text-slate-600" title={institutionDisplayName}>
+                        {institutionDisplayName}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2271,6 +2381,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <p className="text-sm font-semibold">Dados oficiais temporariamente indisponíveis</p>
                     <p className="mt-1 text-sm leading-5 text-amber-800">
                       O SIGAPRO não está simulando dados locais. Aguarde a reconexão com o banco oficial antes de concluir operações.
+                    </p>
+                    <p className="mt-1.5 max-w-[1100px] break-words text-xs leading-5 text-amber-700">
+                      Diagnóstico: {dataError}
                     </p>
                   </div>
                   <Button
