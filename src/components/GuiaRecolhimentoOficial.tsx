@@ -1497,7 +1497,11 @@ export function deriveBrandingObjectKey(source?: string) {
   if (!value || value.startsWith("data:")) return "";
 
   try {
-    const url = new URL(value, window.location.origin);
+    const baseOrigin =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "http://localhost";
+    const url = new URL(value, baseOrigin);
     const path = decodeURIComponent(url.pathname).replace(/^\/+/, "");
     const municipalityMatch = path.match(
       /(municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g))$/i,
