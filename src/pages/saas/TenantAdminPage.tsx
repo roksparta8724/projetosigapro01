@@ -882,17 +882,17 @@ export function TenantAdminPage() {
                 </div>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Secretaria</p>
+                <div className="rounded-[18px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3.5 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Unidade atual</p>
                   <p className="mt-2 sig-fit-title text-sm font-semibold text-slate-900">{currentUnit}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-[18px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3.5 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                   <p className="text-xs uppercase tracking-[0.14em] text-slate-500">SLA crítico</p>
                   <p className="mt-2 text-sm font-semibold text-slate-900">
                     {criticalAlerts.length > 0 ? `${criticalAlerts.length} item(ns) com urgência` : "Sem urgência crítica"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-[18px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3.5 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
                   <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Fluxo restrito</p>
                   <p className="mt-2 text-sm font-semibold text-slate-900">{restrictedTransitCount} processo(s) com trâmite interno restrito</p>
                 </div>
