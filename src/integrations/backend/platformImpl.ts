@@ -2,6 +2,7 @@ import { databaseClient as db } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { normalizeMunicipalUnit } from "@/lib/municipalOrganization";
 import {
   buildProcessDocuments,
   serializeMarker,
@@ -1025,7 +1026,7 @@ export async function loadRemotePlatformStore() {
       Array.from(departmentById.values()).find(
         (department) =>
           membership.department &&
-          normalizeDepartmentIdentity(department.name) === normalizeDepartmentIdentity(membership.department),
+          normalizeMunicipalUnit(department.name) === normalizeMunicipalUnit(membership.department),
       );
     const departmentName =
       departmentRecord?.name ||
