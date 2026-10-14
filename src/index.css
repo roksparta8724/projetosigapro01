@@ -714,7 +714,6 @@
   }
 
 
-
   [data-layout-mode="default"] .sig-main-shell .text-slate-400,
   [data-layout-mode="default"] .sig-main-shell .text-slate-500 {
     color: #3a485c !important;
@@ -3503,7 +3502,6 @@ html {
 }
 
 
-
 /* Premium search: one source of truth, driven only by data-search-surface. */
 .sig-premium-topbar .sig-topbar-search-trigger {
   position: relative;
@@ -4429,7 +4427,6 @@ html {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
-
 
 
 /* ===== SIGAPRO FINAL THEME INTEGRITY 2026-10-11 =====
@@ -6659,7 +6656,6 @@ html body .sig-main-shell .sig-process-detail-premium :is(
 }
 
 
-
 /* ===== PROCESS SURFACE CONTRAST ROOT V3 ===== */
 /* Scope: process workspace only. Topbar/sidebar/theme palette are intentionally untouched. */
 
@@ -7055,7 +7051,6 @@ html body .sig-main-shell #sig-process-document-command-center svg * {
 /* ===== END THEME + PROCESS CONTRAST FINAL CONTRACT ===== */
 
 
-
 /* ===== SIGAPRO FINAL SURFACE POLARITY LOCK 2026-10-14 =====
    Last-authority scoped contract. It does NOT recolor the topbar/sidebar.
    Explicitly dark process/document surfaces always own a light foreground;
@@ -7212,264 +7207,3 @@ html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-un
 }
 
 
-/* ===== PROCESS DETAIL SURFACE POLARITY ROOT V5 2026-10-14 ===== */
-/* Final-authority contract scoped ONLY to the process workspace.
-   It does not recolor the municipal topbar, sidebar or global theme palette.
-   Rule: light surface => dark copy. Dark surface => light copy. */
-
-/* 1) Adaptive root cards: light theme. */
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) {
-  background-color: #ffffff !important;
-  color: #0b1726 !important;
-  border-color: #d7e2ee !important;
-}
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) :is(
-  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
-  .sig-page-title,.sig-card-title,.sig-section-title,.sig-value,.sig-fit-title
-) {
-  color: #0b1726 !important;
-  -webkit-text-fill-color: #0b1726 !important;
-}
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) :is(
-  .text-slate-600,.text-slate-500,.text-slate-400,
-  .sig-subtitle,.sig-label,.sig-field-help,.sig-section-label,.sig-fit-copy
-) {
-  color: #526174 !important;
-  -webkit-text-fill-color: #526174 !important;
-}
-
-/* 2) Adaptive root cards: inverse/dark theme. */
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) {
-  background: linear-gradient(180deg, #102238 0%, #091827 100%) !important;
-  color: #f8fafc !important;
-  border-color: #2d526f !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) :is(
-  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
-  .sig-page-title,.sig-card-title,.sig-section-title,.sig-value,.sig-fit-title
-) {
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [data-ui="card"][data-surface="adaptive-card"],
-  .sig-process-card,
-  .sig-stat-card,
-  [data-process-document-card="true"],
-  [data-municipal-organogram="true"]
-):not([data-premium-inverse-surface="true"]) :is(
-  .text-slate-600,.text-slate-500,.text-slate-400,
-  .sig-subtitle,.sig-label,.sig-field-help,.sig-section-label,.sig-fit-copy
-) {
-  color: #cbd5e1 !important;
-  -webkit-text-fill-color: #cbd5e1 !important;
-}
-
-/* 3) Nested neutral LIGHT surfaces in light theme: background and copy are locked together. */
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-white"],
-  [class~="bg-white/70"],
-  [class~="bg-white/80"],
-  [class~="bg-slate-50"],
-  [class~="bg-slate-50/70"],
-  [class~="bg-slate-50/80"],
-  [class~="bg-[#F8FAFC]"]
-):not([data-premium-inverse-surface="true"]):not([data-contrast-surface="dark"]):not([data-organogram-unit-chip="true"]) {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-white"],
-  [class~="bg-white/70"],
-  [class~="bg-white/80"],
-  [class~="bg-slate-50"],
-  [class~="bg-slate-50/70"],
-  [class~="bg-slate-50/80"],
-  [class~="bg-[#F8FAFC]"]
-):not([data-premium-inverse-surface="true"]):not([data-contrast-surface="dark"]) :is(
-  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
-  .text-slate-600,.text-slate-500,.text-slate-400,
-  .sig-label,.sig-field-help,.sig-subtitle,.sig-section-title,.sig-fit-title,.sig-fit-copy
-) {
-  color: #334155 !important;
-  -webkit-text-fill-color: #334155 !important;
-}
-
-/* 4) The same nested neutral surfaces become genuinely DARK in inverse theme;
-      copy flips to light at the same time, avoiding dark-on-dark and light-on-light. */
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-white"],
-  [class~="bg-white/70"],
-  [class~="bg-white/80"],
-  [class~="bg-slate-50"],
-  [class~="bg-slate-50/70"],
-  [class~="bg-slate-50/80"],
-  [class~="bg-[#F8FAFC]"]
-):not([data-premium-inverse-surface="true"]):not([data-contrast-surface="dark"]):not([data-organogram-unit-chip="true"]) {
-  background: linear-gradient(180deg, #12263d 0%, #0d1d30 100%) !important;
-  border-color: #31506c !important;
-  color: #f8fafc !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-white"],
-  [class~="bg-white/70"],
-  [class~="bg-white/80"],
-  [class~="bg-slate-50"],
-  [class~="bg-slate-50/70"],
-  [class~="bg-slate-50/80"],
-  [class~="bg-[#F8FAFC]"]
-):not([data-premium-inverse-surface="true"]):not([data-contrast-surface="dark"]) :is(
-  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
-  .text-slate-600,.text-slate-500,.text-slate-400,
-  .sig-label,.sig-field-help,.sig-subtitle,.sig-section-title,.sig-fit-title,.sig-fit-copy
-) {
-  color: #e8f0fa !important;
-  -webkit-text-fill-color: #e8f0fa !important;
-}
-
-/* 5) Semantic light status surfaces stay readable in light theme. */
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-sky-50"],[class~="bg-sky-50/70"],[class~="bg-sky-50/80"]
-) { color: #075985 !important; }
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-emerald-50"],[class~="bg-emerald-50/60"],[class~="bg-emerald-50/70"],[class~="bg-emerald-50/80"]
-) { color: #065f46 !important; }
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-amber-50"],[class~="bg-amber-50/60"],[class~="bg-amber-50/70"],[class~="bg-amber-50/80"]
-) { color: #78350f !important; }
-html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-rose-50"],[class~="bg-rose-50/70"],[class~="bg-rose-50/80"]
-) { color: #9f1239 !important; }
-
-/* 6) Semantic status surfaces become saturated dark surfaces in inverse theme. */
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-sky-50"],[class~="bg-sky-50/70"],[class~="bg-sky-50/80"]
-) {
-  background: #0b3551 !important;
-  border-color: #16678f !important;
-  color: #dff4ff !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-emerald-50"],[class~="bg-emerald-50/60"],[class~="bg-emerald-50/70"],[class~="bg-emerald-50/80"]
-) {
-  background: #0d3b31 !important;
-  border-color: #15745d !important;
-  color: #d1fae5 !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-amber-50"],[class~="bg-amber-50/60"],[class~="bg-amber-50/70"],[class~="bg-amber-50/80"]
-) {
-  background: #402b0d !important;
-  border-color: #8b5f17 !important;
-  color: #fef3c7 !important;
-}
-html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
-  [class~="bg-rose-50"],[class~="bg-rose-50/70"],[class~="bg-rose-50/80"]
-) {
-  background: #451b29 !important;
-  border-color: #8f2948 !important;
-  color: #ffe4e6 !important;
-}
-
-/* 7) Fixed dark surfaces are always white/light, regardless of selected theme. */
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-premium-inverse-surface="true"],
-  [data-contrast-surface="dark"],
-  [data-organogram-unit-chip="true"]
-) {
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
-}
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-premium-inverse-surface="true"],
-  [data-contrast-surface="dark"],
-  [data-organogram-unit-chip="true"]
-) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a) {
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
-  opacity: 1 !important;
-}
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-premium-inverse-surface="true"],
-  [data-contrast-surface="dark"],
-  [data-organogram-unit-chip="true"]
-) svg {
-  color: #e0f2fe !important;
-  stroke: currentColor !important;
-  opacity: 1 !important;
-}
-
-/* 8) Document command center is a fixed dark surface with vivid white copy. */
-html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center {
-  background: linear-gradient(135deg, #041525 0%, #075985 54%, #0b6f8a 100%) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center :is(
-  h1,h2,h3,h4,p,span,strong,small,label,a,button
-) {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  opacity: 1 !important;
-}
-html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center svg {
-  color: #e0f2fe !important;
-  stroke: currentColor !important;
-}
-
-/* 9) Explicitly preserve bright primary action labels/icons. */
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-primary-action="process"],
-  [data-primary-action="document"],
-  .sig-primary-process-action,
-  .sig-primary-document-action
-),
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-primary-action="process"],
-  [data-primary-action="document"],
-  .sig-primary-process-action,
-  .sig-primary-document-action
-) * {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-html body .sig-main-shell .sig-process-detail-premium :is(
-  [data-primary-action="process"],
-  [data-primary-action="document"],
-  .sig-primary-process-action,
-  .sig-primary-document-action
-) svg {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
-}
-/* ===== END PROCESS DETAIL SURFACE POLARITY ROOT V5 ===== */
