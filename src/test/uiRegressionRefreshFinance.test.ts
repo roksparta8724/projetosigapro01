@@ -19,14 +19,16 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(portal).not.toContain("Ctrl K");
   });
 
-  it("mostra a estrutura configurada do departamento atual no banner", () => {
+  it("mostra o organograma real da unidade atual no shell global", () => {
     expect(portal).toContain("departmentOwnershipKey");
     expect(portal).toContain("activeDepartmentOwnership");
-    expect(portal).toContain("Estrutura do departamento");
-    expect(portal).toContain("Secretaria de Finanças");
-    expect(portal).toContain("Diretoria Financeira");
-    expect(portal).toContain("Secretaria de Administração");
-    expect(portal).toContain("Departamento de Protocolo");
+    expect(portal).toContain("Organograma municipal");
+    expect(portal).toContain("portalOrganizationIdentity.codePath");
+    expect(portal).toContain("portalOrganizationIdentity.breadcrumb");
+    expect(portal).toContain("Vínculo institucional confirmado no organograma");
+    expect(portal).toContain('secretaria: "Administração", diretoria: "Protocolo"');
+    expect(portal).toContain('secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística"');
+    expect(portal).toContain('secretaria: "Financeiro", diretoria: "Financeiro"');
     expect(portal).not.toContain(">Diretoria responsável<");
   });
 
