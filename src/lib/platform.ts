@@ -74,6 +74,8 @@ export interface SessionUser {
   accountStatus: AccountStatus;
   userType?: string;
   department?: string;
+  departmentId?: string | null;
+  departmentCode?: string;
   createdAt?: string;
   lastAccessAt?: string;
   blockedAt?: string | null;
