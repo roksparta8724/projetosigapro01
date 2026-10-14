@@ -384,6 +384,7 @@ export function ProcessDetailPage() {
     );
   const canAttachToRequirement = (item: typeof process.requirements[number]) =>
     item.status === "aberta" &&
+    session.role !== "prefeitura_admin" &&
     (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
 
   useEffect(() => {
@@ -1437,6 +1438,14 @@ export function ProcessDetailPage() {
           </div>
         }
       />
+      {session.role === "prefeitura_admin" ? (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
+          <p className="font-semibold">Modo administrativo — consulta somente</p>
+          <p className="mt-1 leading-6">
+            O Administrador da Prefeitura pode acompanhar o processo, mas não pode aprovar documentos, emitir ou baixar guias, criar exigências, despachar, alterar a tramitação ou executar ações dos setores operacionais.
+          </p>
+        </div>
+      ) : null}
       {isProtocolTrackingOnly ? (
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <p className="font-semibold">Modo acompanhamento do Protocolo</p>
@@ -2340,7 +2349,15 @@ export function ProcessDetailPage() {
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/35">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável pela emissão</p>
                     <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">{constructionGuideIssuer || session.name}</p>
-                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">Disponível no Financeiro para controle</p>
+                    <p className={`mt-1 text-xs ${
+                      constructionGuideSentExternally
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-amber-700 dark:text-amber-300"
+                    }`}>
+                      {constructionGuideSentExternally
+                        ? "Liberada ao profissional e encaminhada ao Financeiro"
+                        : "Ainda em Análise Urbanística — aguardando liberação manual"}
+                    </p>
                   </div>
                 </div>
               ) : null}
@@ -2432,7 +2449,7 @@ export function ProcessDetailPage() {
                       ? "Nesta Prefeitura, a Análise Urbanística confirma os dados da obra e o Financeiro faz a emissão da guia."
                       : constructionGuideIssuerMode === "ambos"
                         ? "Nesta Prefeitura, a guia pode ser emitida pela Análise Urbanística ou pelo Financeiro, conforme o encaminhamento do processo."
-                        : "Nesta Prefeitura, a guia é gerada pela Análise Urbanística e o Financeiro recebe automaticamente para controle, pagamento e baixa."}
+                        : "Nesta Prefeitura, a guia é gerada na Análise Urbanística e só chega ao Financeiro depois da liberação manual ao profissional."}
                   </p>
                 </div>
                 <Badge
