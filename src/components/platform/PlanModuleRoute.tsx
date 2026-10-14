@@ -1,8 +1,9 @@
 import { type ReactNode } from "react";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { AlertTriangle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import type { PlanModuleName } from "@/lib/planEntitlements";
+import { hasBackendEnv } from "@/integrations/backend/config";
 
 export function PlanModuleRoute({
   module,
@@ -13,6 +14,30 @@ export function PlanModuleRoute({
 }) {
   const entitlements = usePlanEntitlements();
   const { refreshRemoteStore } = usePlatformData();
+
+  if (!hasBackendEnv) {
+    return (
+      <main className="flex min-h-[320px] w-full items-center justify-center bg-white px-5 py-10 text-slate-950">
+        <div className="w-full max-w-[680px] rounded-[26px] border border-amber-200 bg-amber-50/70 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.08)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200 bg-white text-amber-700 shadow-sm">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
+            Ambiente local incompleto
+          </p>
+          <h1 className="mt-2 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+            Conexão oficial do SIGAPRO não configurada neste localhost
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-700">
+            O código foi carregado, mas esta pasta não recebeu as variáveis locais do Neon. Nenhuma autorização municipal será simulada.
+          </p>
+          <p className="mt-3 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-amber-900">
+            Copie os arquivos .env da instalação local já configurada e reinicie o Vite.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   if (entitlements.isResolving) {
     // Falha fechada: durante troca de contas nunca montar um módulo cujo
