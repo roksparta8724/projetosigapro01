@@ -114,3 +114,15 @@ describe("final dark-surface contrast authority", () => {
     expect(surfacePolarity).toContain('-webkit-text-fill-color: #ffffff !important');
   });
 });
+
+
+describe("theme option card polarity", () => {
+  it("keeps every theme option card readable by its own surface tone", () => {
+    const portal = readFileSync(resolve(root, "src/components/platform/PortalFrame.tsx"), "utf8");
+
+    expect(portal).toContain('data-theme-option-tone={preset.inverseMain ? "dark" : "light"}');
+    expect(surfacePolarity).toContain("THEME OPTION CARD POLARITY LOCK - 2026-10-14");
+    expect(surfacePolarity).toContain('[data-theme-option-tone="dark"]');
+    expect(surfacePolarity).toContain('[data-theme-option-tone="light"]');
+  });
+});
