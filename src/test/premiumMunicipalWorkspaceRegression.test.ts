@@ -21,6 +21,8 @@ describe("premium municipal workspace regression", () => {
   const documentAnalysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
   const fileDropZone = read("src/components/platform/FileDropZone.tsx");
   const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
+  const officialGuide = read("src/components/GuiaRecolhimentoOficial.tsx");
+  const alternateOfficialGuide = read("src/components/platform/OfficialPaymentGuideDocument.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
   const platformData = read("src/hooks/usePlatformData.tsx");
@@ -291,5 +293,17 @@ describe("premium municipal workspace regression", () => {
   it("keeps institutional logos fully contained instead of stretching or cropping", () => {
     expect(institutionalLogo).toContain("object-contain object-center");
     expect(institutionalLogo).not.toContain("object-cover");
+  });
+
+  it("uses the administrator-configured municipality logo on every official guide", () => {
+    expect(processDetail).toContain("branding: municipalityBranding");
+    expect(processDetail).toContain("municipalityBranding?.headerLogoUrl");
+    expect(processDetail).toContain("municipalityBranding?.logoUrl");
+    expect(financeProtocols).toContain("branding: municipalityBranding");
+    expect(financeProtocols).toContain("municipalityBranding?.headerLogoUrl");
+    expect(financeProtocols).toContain("municipalityBranding?.logoUrl");
+    expect(officialGuide).toContain("prefeitura.logoUrl");
+    expect(officialGuide).not.toContain(">LOGO<");
+    expect(alternateOfficialGuide).not.toContain("BRASAO / LOGO");
   });
 });
