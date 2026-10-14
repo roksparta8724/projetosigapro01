@@ -23,6 +23,7 @@ import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
+  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -1318,8 +1319,62 @@ export function ProcessDetailPage() {
     );
   };
   const openViewer = (documentId: string) => {
-    const viewerUrl = `/processos/${process.id}/documentos/${documentId}/visualizar`;
-    window.open(viewerUrl, "_blank", "noopener,noreferrer");
+    const selectedDocument = process.documents.find((item) => item.id === documentId);
+    if (!selectedDocument) {
+      setProcessActionStatus("Documento não encontrado neste processo.");
+      return;
+    }
+
+    if (!selectedDocument.filePath && selectedDocument.previewUrl) {
+      window.open(selectedDocument.previewUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!selectedDocument.filePath) {
+      setProcessActionStatus("Este documento não possui arquivo disponível para visualização.");
+      return;
+    }
+
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      setProcessActionStatus("O navegador bloqueou a nova guia. Permita pop-ups para abrir o documento.");
+      return;
+    }
+
+    try {
+      popup.opener = null;
+      popup.document.documentElement.style.background = "#111827";
+      popup.document.body.style.margin = "0";
+      popup.document.body.style.background = "#111827";
+    } catch {
+      // A guia continua válida mesmo quando o navegador restringe o acesso inicial ao documento.
+    }
+
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    void getSignedUrlForObjectStrict({
+      bucket,
+      objectKey: selectedDocument.filePath,
+      expiresIn: 3600,
+    })
+      .then((accessUrl) => {
+        if (!accessUrl || popup.closed) return;
+        try {
+          popup.location.replace(accessUrl);
+        } catch {
+          popup.location.href = accessUrl;
+        }
+      })
+      .catch((error) => {
+        if (!popup.closed) popup.close();
+        setProcessActionStatus(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível abrir o documento armazenado.",
+        );
+      });
   };
 
   const openAnalysisViewer = (documentId: string) => {
