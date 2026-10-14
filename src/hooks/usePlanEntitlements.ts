@@ -27,6 +27,7 @@ export function usePlanEntitlements() {
     authenticatedUserId,
     authenticatedProfileId,
     authenticatedMunicipalityId,
+    authenticatedEmail,
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
@@ -56,9 +57,17 @@ export function usePlanEntitlements() {
     !sessionMunicipalityId ||
     municipality.id === sessionMunicipalityId;
 
+  const normalizedAuthenticatedEmail = String(authenticatedEmail ?? "").trim().toLowerCase();
+  const normalizedSessionEmail = String(session.email ?? "").trim().toLowerCase();
   const identityMatchesAuth =
-    Boolean(authenticatedIdentityIds.length) &&
-    authenticatedIdentityIds.includes(session.id);
+    (
+      Boolean(authenticatedIdentityIds.length) &&
+      authenticatedIdentityIds.includes(session.id)
+    ) ||
+    (
+      Boolean(normalizedAuthenticatedEmail) &&
+      normalizedAuthenticatedEmail === normalizedSessionEmail
+    );
 
   const municipalityMatchesAuth =
     isMaster ||
@@ -83,7 +92,6 @@ export function usePlanEntitlements() {
     (!isMaster && (
       !municipalityMatchesAuth ||
       municipalityLoading ||
-      platformDataLoading ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
       planDataPending
