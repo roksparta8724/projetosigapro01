@@ -100,8 +100,10 @@ describe("organogram visual contrast", () => {
     const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
     expect(bar).toContain('data-organogram-code="true"');
-    expect(bar).toContain("[-webkit-text-fill-color:#fff]");
-    expect(css).toContain('[data-organogram-code="true"]');
+    expect(bar).toContain('data-contrast-surface="dark"');
+    expect(bar).toContain("sig-dark-chip");
+    expect(css).toContain("SIGAPRO FINAL SURFACE POLARITY LOCK 2026-10-14");
+    expect(css).toContain('[data-municipal-organogram="true"] span[data-organogram-code="true"]');
     expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 });
