@@ -89,7 +89,7 @@ describe("annotation draft and professional handoff", () => {
 
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
-    expect((detail.match(/window\\.open\\(/g) || []).length).toBe(1);
+    expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
     expect(detail).toContain("openDocumentWorkspace");
   });
 });
