@@ -1070,7 +1070,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     className="dam-logo"
                   />
                 ) : (
-                  <div className="dam-logo-fallback" aria-label="Logo institucional não configurado" />
+                  <div className="dam-logo-fallback" aria-label="Logo institucional não configurado">Brasão</div>
                 )}
               </div>
 
@@ -1321,7 +1321,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     className="dam-logo-fallback"
                     style={{ width: 18, height: 18 }}
                     aria-label="Logo institucional não configurado"
-                  />
+                  >
+                    Brasão
+                  </div>
                 )}
               </div>
 
@@ -1479,6 +1481,51 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   );
 });
 
+async function embedGuideImage(source?: string) {
+  const url = String(source || "").trim();
+  if (!url || url.startsWith("data:")) return url;
+
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!response.ok) return "";
+
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) return "";
+
+    return await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
+function renderGuideOpeningState(popup: Window, title: string) {
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a}
+    .guide-opening{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;box-sizing:border-box}
+    .guide-opening-card{border:1px solid #cbd5e1;border-radius:16px;background:white;padding:18px 22px;box-shadow:0 10px 30px rgba(15,23,42,.08);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="guide-opening"><div class="guide-opening-card">Preparando a guia oficial...</div></div>
+</body>
+</html>`);
+  popup.document.close();
+}
+
 export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
@@ -1505,16 +1552,35 @@ export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const html = buildGuiaRecolhimentoOficialHtml(props, options);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const previewUrl = URL.createObjectURL(blob);
-  const popup = window.open(previewUrl, "_blank");
-  if (!popup) {
-    URL.revokeObjectURL(previewUrl);
-    return;
-  }
+  const title = options?.title || props.guia.numeroGuia;
+  const popup = window.open("", "_blank", "noopener,noreferrer");
+  if (!popup) return;
+
+  renderGuideOpeningState(popup, title);
   popup.focus();
-  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+
+  void (async () => {
+    const embeddedLogo = await embedGuideImage(props.prefeitura.logoUrl);
+    const resolvedProps: GuiaRecolhimentoOficialProps = {
+      ...props,
+      prefeitura: {
+        ...props.prefeitura,
+        logoUrl: embeddedLogo,
+      },
+    };
+
+    const html = buildGuiaRecolhimentoOficialHtml(resolvedProps, options);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const previewUrl = URL.createObjectURL(blob);
+
+    try {
+      popup.location.replace(previewUrl);
+    } catch {
+      popup.location.href = previewUrl;
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+  })();
 }
 
 
