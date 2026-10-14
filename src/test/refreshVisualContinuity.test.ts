@@ -28,6 +28,11 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
   });
 
+  it("loads critical process styles before the continuity snapshot is painted", () => {
+    expect(html).toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
+    expect(html).toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
+  });
+
   it("clears the local identity before navigation/network so account switching never shows the access validator", () => {
     const handleIndex = portal.indexOf('const handleSignOut = async');
     const handleBlock = portal.slice(handleIndex, handleIndex + 1000);
@@ -49,7 +54,9 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).toContain('sig-topbar-local-popper sig-theme-anchor relative');
     expect(portal).toContain("portal={false}");
     expect(css).toContain("SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14");
-    expect(css).toContain(".sig-topbar-local-popper > [data-radix-popper-content-wrapper]");
+    expect(css).toContain(".sig-topbar-local-popper [data-radix-popper-content-wrapper]");
+    expect(css).toContain(".sig-topbar-local-popper .sig-marker-panel");
+    expect(css).toContain(".sig-topbar-local-popper .sig-theme-panel");
     expect(css).toContain("left: 50% !important");
     expect(css).toContain("transform: translateX(-50%) !important");
   });
