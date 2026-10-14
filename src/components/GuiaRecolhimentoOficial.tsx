@@ -216,12 +216,18 @@ function getStyles() {
     .dam-logo-fallback {
       width: 32px;
       height: 32px;
-      border: 1px solid #000000;
+      border: 1px dashed #9ca3af;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 6px;
-      line-height: 1;
+      font-size: 5.5px;
+      line-height: 1.15;
+      color: #6b7280;
+      text-align: center;
+      text-transform: uppercase;
+      padding: 2px;
+      box-sizing: border-box;
     }
 
     .dam-header-center {
@@ -1064,7 +1070,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     className="dam-logo"
                   />
                 ) : (
-                  <div className="dam-logo-fallback">LOGO</div>
+                  <div className="dam-logo-fallback" aria-label="Logo institucional não configurado" />
                 )}
               </div>
 
@@ -1311,9 +1317,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 {prefeitura.logoUrl ? (
                   <img src={prefeitura.logoUrl} alt="Logo da Prefeitura" />
                 ) : (
-                  <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
-                    LOGO
-                  </div>
+                  <div
+                    className="dam-logo-fallback"
+                    style={{ width: 18, height: 18 }}
+                    aria-label="Logo institucional não configurado"
+                  />
                 )}
               </div>
 
