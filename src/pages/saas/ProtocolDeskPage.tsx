@@ -479,8 +479,8 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {visibleItems.map((process, index) => {
+          <div className="grid gap-3">
+            {visibleItems.map((process) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
               const missingRequired = getMissingRequiredDocuments(process);
@@ -497,9 +497,9 @@ export function ProtocolDeskPage() {
               return (
                 <div
                   key={process.id}
-                  className={`${index > 0 ? "border-t border-slate-200" : ""} ${selected ? "bg-sky-50/50" : "bg-white"}`}
+                  className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_10px_24px_rgba(15,23,42,0.055)] transition-[border-color,box-shadow,transform] duration-200 ${selected ? "border-sky-300 ring-2 ring-sky-100 shadow-[0_14px_30px_rgba(14,165,233,0.12)]" : "border-slate-200/90 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.075)]"}`}
                 >
-                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                  <div className="flex min-h-[76px] items-center gap-3 px-4 py-3.5 sm:px-5">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -514,7 +514,7 @@ export function ProtocolDeskPage() {
                       onClick={() => toggleProcessExpanded(process.id)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-slate-600 shadow-sm">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
 
@@ -553,13 +553,13 @@ export function ProtocolDeskPage() {
                       </span>
                     </button>
 
-                    <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl">
+                    <Button asChild variant="outline" className="h-10 shrink-0 rounded-full border-slate-300 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
                       <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                     </Button>
                   </div>
 
                   {expanded ? (
-                    <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-5">
+                    <div className="border-t border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] px-4 py-4 sm:px-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
