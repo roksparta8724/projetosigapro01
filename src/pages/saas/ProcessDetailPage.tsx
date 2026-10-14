@@ -33,6 +33,7 @@ import {
 import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
+  canFollowUpIssuedIssGuide,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -519,14 +520,23 @@ export function ProcessDetailPage() {
   const constructionGuideSentExternally = constructionGuide
     ? isGuideSharedExternally(constructionGuide.code)
     : false;
+  const canFollowIssuedIssGuide = canFollowUpIssuedIssGuide(session, process);
+  const assignedAnalysisBelongsToCurrentUser =
+    process.analysis?.assignedProfileId
+      ? process.analysis.assignedProfileId === session.id
+      : !process.analysis?.assignedTo || process.analysis.assignedTo === session.name;
   const canManageIssuedIssGuide =
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
     (
       isMasterOrMunicipalAdmin ||
       session.role === "prefeitura_supervisor" ||
-      (session.role === "analista" &&
-        (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
+      canFollowIssuedIssGuide ||
+      (
+        session.role === "analista" &&
+        ownsCurrentProcessStage &&
+        assignedAnalysisBelongsToCurrentUser
+      )
     );
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
@@ -1013,7 +1023,12 @@ export function ProcessDetailPage() {
   };
 
   const handleSendConstructionGuideToProfessional = () => {
-    if (!constructionGuide || constructionGuideSentExternally || isEditingIssuedIssGuide) return;
+    if (
+      !constructionGuide ||
+      !canManageIssuedIssGuide ||
+      constructionGuideSentExternally ||
+      isEditingIssuedIssGuide
+    ) return;
     void runProcessAction(
       "send-construction-guide",
       () => shareIssProjectGuide(process.id),
