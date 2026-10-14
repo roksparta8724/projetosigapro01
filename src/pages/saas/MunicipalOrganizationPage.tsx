@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
+import {
+  upsertRemoteMunicipalDepartment,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
 
 const UNIT_TYPES = [
   ["secretaria", "Secretaria"],
@@ -55,6 +58,8 @@ export function MunicipalOrganizationPage() {
     hasLocalOverride,
     saveLocalDepartments,
     clearLocalOverride,
+    refreshRemote,
+    localValidation,
   } = useMunicipalOrganogram(municipalityId, { includeInactive: true });
 
   const canEdit =
@@ -122,7 +127,7 @@ export function MunicipalOrganizationPage() {
     setEditorOpen(true);
   };
 
-  const saveEditor = () => {
+  const saveEditor = async () => {
     if (!canEdit || !municipalityId) return;
     const name = editor.name.trim();
     if (!name) {
@@ -156,41 +161,115 @@ export function MunicipalOrganizationPage() {
       ? departments.map((item) => (item.id === editor.id ? nextDepartment : item))
       : [...departments, nextDepartment];
 
-    saveLocalDepartments(next);
-    setEditorOpen(false);
-    setEditor(EMPTY_EDITOR);
-    setEditorStatus("Organograma atualizado localmente para os testes.");
+    try {
+      if (localValidation) {
+        saveLocalDepartments(next);
+        setEditorStatus("Organograma atualizado localmente para os testes.");
+      } else {
+        await upsertRemoteMunicipalDepartment({
+          municipalityId,
+          departmentId: editor.id,
+          name: nextDepartment.name,
+          code: nextDepartment.code,
+          description: nextDepartment.description,
+          email: nextDepartment.email,
+          phone: nextDepartment.phone,
+          parentDepartmentId: nextDepartment.parentDepartmentId,
+          unitType: nextDepartment.unitType,
+          sortOrder: nextDepartment.sortOrder,
+          isActive: nextDepartment.isActive,
+        });
+        refreshRemote();
+        setEditorStatus("Organograma municipal atualizado.");
+      }
+      setEditorOpen(false);
+      setEditor(EMPTY_EDITOR);
+    } catch (error) {
+      setEditorStatus(
+        error instanceof Error ? error.message : "Não foi possível salvar o organograma.",
+      );
+    }
   };
 
-  const toggleUnit = (department: MunicipalDepartmentRecord) => {
-    if (!canEdit) return;
-    saveLocalDepartments(
-      departments.map((item) =>
-        item.id === department.id ? { ...item, isActive: !item.isActive } : item,
-      ),
-    );
-    setEditorStatus(
-      department.isActive
-        ? `${department.name} foi ocultado do organograma ativo.`
-        : `${department.name} voltou ao organograma ativo.`,
-    );
+  const toggleUnit = async (department: MunicipalDepartmentRecord) => {
+    if (!canEdit || !municipalityId) return;
+    const nextActive = !department.isActive;
+
+    try {
+      if (localValidation) {
+        saveLocalDepartments(
+          departments.map((item) =>
+            item.id === department.id ? { ...item, isActive: nextActive } : item,
+          ),
+        );
+      } else {
+        await upsertRemoteMunicipalDepartment({
+          municipalityId,
+          departmentId: department.id,
+          name: department.name,
+          code: department.code,
+          description: department.description,
+          email: department.email,
+          phone: department.phone,
+          parentDepartmentId: department.parentDepartmentId,
+          unitType: department.unitType,
+          sortOrder: department.sortOrder,
+          isActive: nextActive,
+        });
+        refreshRemote();
+      }
+      setEditorStatus(
+        department.isActive
+          ? `${department.name} foi ocultado do organograma ativo.`
+          : `${department.name} voltou ao organograma ativo.`,
+      );
+    } catch (error) {
+      setEditorStatus(
+        error instanceof Error ? error.message : "Não foi possível alterar esta unidade.",
+      );
+    }
   };
 
-  const removeUnit = (department: MunicipalDepartmentRecord) => {
-    if (!canEdit) return;
-    const nextParent = department.parentDepartmentId;
-    saveLocalDepartments(
-      departments
-        .filter((item) => item.id !== department.id)
-        .map((item) =>
-          item.parentDepartmentId === department.id
-            ? { ...item, parentDepartmentId: nextParent }
-            : item,
-        ),
-    );
-    setEditorOpen(false);
-    setEditor(EMPTY_EDITOR);
-    setEditorStatus(`${department.name} foi removido da estrutura local de teste.`);
+  const removeUnit = async (department: MunicipalDepartmentRecord) => {
+    if (!canEdit || !municipalityId) return;
+
+    try {
+      if (localValidation) {
+        const nextParent = department.parentDepartmentId;
+        saveLocalDepartments(
+          departments
+            .filter((item) => item.id !== department.id)
+            .map((item) =>
+              item.parentDepartmentId === department.id
+                ? { ...item, parentDepartmentId: nextParent }
+                : item,
+            ),
+        );
+        setEditorStatus(`${department.name} foi removido da estrutura local de teste.`);
+      } else {
+        await upsertRemoteMunicipalDepartment({
+          municipalityId,
+          departmentId: department.id,
+          name: department.name,
+          code: department.code,
+          description: department.description,
+          email: department.email,
+          phone: department.phone,
+          parentDepartmentId: department.parentDepartmentId,
+          unitType: department.unitType,
+          sortOrder: department.sortOrder,
+          isActive: false,
+        });
+        refreshRemote();
+        setEditorStatus(`${department.name} foi desativado no organograma municipal.`);
+      }
+      setEditorOpen(false);
+      setEditor(EMPTY_EDITOR);
+    } catch (error) {
+      setEditorStatus(
+        error instanceof Error ? error.message : "Não foi possível remover esta unidade.",
+      );
+    }
   };
 
   const activeCount = departments.filter((item) => item.isActive).length;
@@ -215,7 +294,7 @@ export function MunicipalOrganizationPage() {
                   <Plus className="mr-2 h-4 w-4" />
                   Nova unidade
                 </Button>
-                {hasLocalOverride ? (
+                {localValidation && hasLocalOverride ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -240,8 +319,9 @@ export function MunicipalOrganizationPage() {
             <p className="font-semibold">Administrador da Prefeitura — gestão do organograma</p>
             <p className="mt-1 leading-6">
               Você pode criar unidades, alterar siglas e nomes, reorganizar a hierarquia,
-              mudar a ordem e ativar ou ocultar setores. Nesta fase essas alterações ficam
-              somente no ambiente local de teste e são refletidas em todo o SIGAPRO deste navegador.
+              mudar a ordem e ativar ou ocultar setores. {localValidation
+                ? "Nesta fase as alterações ficam somente no ambiente local de teste e são refletidas em todo o SIGAPRO deste navegador."
+                : "As alterações são salvas no organograma oficial desta Prefeitura."}
             </p>
           </div>
         ) : (
@@ -402,7 +482,7 @@ export function MunicipalOrganizationPage() {
                     className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
                     onClick={() => {
                       const department = departments.find((item) => item.id === editor.id);
-                      if (department) removeUnit(department);
+                      if (department) void removeUnit(department);
                     }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
@@ -461,7 +541,7 @@ export function MunicipalOrganizationPage() {
                       <button
                         key={department.id}
                         type="button"
-                        onClick={() => toggleUnit(department)}
+                        onClick={() => void toggleUnit(department)}
                         className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-sky-50 hover:text-sky-800"
                       >
                         {department.code ? `${department.code} — ` : ""}
