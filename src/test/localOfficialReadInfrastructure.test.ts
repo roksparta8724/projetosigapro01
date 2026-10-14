@@ -5,39 +5,51 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
-describe("local official read infrastructure", () => {
+describe("local and official read infrastructure", () => {
   const r2Client = read("src/integrations/r2/client.ts");
+  const r2Sign = read("api/r2-sign-get.ts");
   const vite = read("vite.config.ts");
-  const logoApi = read("api/r2-master-logo-source.ts");
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const plan = read("src/hooks/usePlanEntitlements.ts");
+  const publicDomain = read("src/lib/publicDomain.ts");
 
-  it("keeps localhost document reads same-origin and proxies only read APIs", () => {
-    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
-    expect(r2Client).not.toContain("if (isLocalBrowser) return `${officialReadApiBase}${normalized}`");
-    expect(vite).toContain('"/api/r2-sign-get"');
-    expect(vite).toContain('"/api/r2-list-user-files"');
-    expect(vite).toContain("proxyOfficialReadApi");
-    expect(vite).toContain("OFFICIAL_READ_API_BASE");
+  it("reads existing documents from the official API on localhost without sending writes to production", () => {
+    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
+    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
+    expect(r2Client).toContain("buildApiUrl(\"/api/r2-upload\")");
+    expect(r2Client).toContain("buildApiUrl(\"/api/r2-delete\")");
     expect(vite).toContain("Nenhuma rota de escrita é encaminhada para produção");
-    expect(vite).not.toContain('READ_ONLY_R2_ROUTES = [\n  "/api/r2-upload"');
-    expect(vite).not.toContain('READ_ONLY_R2_ROUTES = [\n  "/api/r2-delete"');
   });
 
-  it("returns a precise local document error instead of a raw Failed to fetch", () => {
-    expect(r2Client).toContain("Falha ao alcançar o proxy local de leitura do armazenamento");
-    expect(r2Client).toContain("A API oficial não retornou a URL segura do documento");
+  it("never allows a production API base or public portal link to point at localhost", () => {
+    expect(r2Client).toContain("isLoopbackUrl");
+    expect(r2Client).toContain('!isLocalBrowser && isLoopbackUrl(rawApiBase)');
+    expect(publicDomain).toContain("isLoopbackHostname");
+    expect(publicDomain).toContain("if (!normalized || isLoopbackHostname(normalized)) return DEFAULT_PUBLIC_ROOT");
+    expect(publicDomain).toContain("custom && !isLoopbackHostname(custom)");
   });
 
-  it("supports municipality-scoped branding object keys for official guide logos", () => {
-    expect(logoApi).toContain("isMunicipalBranding");
-    expect(logoApi).toContain("municipalities\\/[0-9a-f-]{36}\\/branding");
-    expect(vite).toContain("proxyOfficialLogoSource");
-    expect(vite).toContain("isSafeBrandingObjectKey");
-    expect(guide).toContain("logoObjectKey?: string");
-    expect(guide).toContain('fetch("/api/r2-master-logo-source"');
+  it("normalizes the R2 account endpoint and reports missing server configuration explicitly", () => {
+    expect(r2Sign).toContain("normalizeR2AccountId");
+    expect(r2Sign).toContain("r2.cloudflarestorage.com");
+    expect(r2Sign).toContain("R2_CONFIG_MISSING");
+    expect(r2Sign).toContain("Armazenamento R2 oficial não configurado neste ambiente.");
+    expect(r2Sign).toContain("R2_SIGNATURE_MISMATCH");
+  });
+
+  it("opens document viewers on the current origin using relative routes", () => {
+    expect(processDetail).toContain('const viewerUrl = `/processos/${process.id}/documentos/${documentId}/visualizar`');
+    expect(processDetail).toContain('const analysisUrl = `/processos/${process.id}/documentos/${documentId}/analisar`');
+    expect(processDetail).not.toContain("window.location.origin}/processos/");
+  });
+
+  it("uses permanent municipal branding object keys and fresh signed reads for guide logos", () => {
+    expect(guide).toContain("deriveBrandingObjectKey");
+    expect(guide).toContain("getSignedUrlForObjectStrict");
+    expect(guide).toContain("objectKey: key");
     expect(guide).toContain("blobToDataUrl");
+    expect(guide).toContain("Nunca reaproveita URL assinada antiga");
     expect(processDetail).toContain("municipalityBranding?.headerLogoObjectKey");
   });
 
@@ -45,6 +57,7 @@ describe("local official read infrastructure", () => {
     expect(plan).not.toContain("municipalityMatchesSession");
     expect(plan).toContain("const municipalityId = isMaster");
     expect(plan).toContain("const municipalityMatchesAuth");
-    expect(plan).toContain("!sessionMunicipalityId");
+    expect(plan).toContain("PLAN_RESOLUTION_TIMEOUT_MS");
+    expect(plan).toContain("resolutionStartedAtByIdentity");
   });
 });
