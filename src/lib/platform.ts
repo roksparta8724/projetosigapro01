@@ -732,6 +732,12 @@ export interface CreateProcessInput {
   ownerName: string;
   ownerDocument: string;
   technicalLead: string;
+  professionalDocument?: string;
+  professionalRegistration?: string;
+  professionalType?: string;
+  professionalPhone?: string;
+  professionalEmail?: string;
+  professionalCompany?: string;
   tags: string[];
   notes?: string;
   property: {
