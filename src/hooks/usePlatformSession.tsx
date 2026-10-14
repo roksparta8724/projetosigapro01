@@ -94,9 +94,12 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId || canonicalSessionUser?.id === businessUserId)) {
+      // A identidade autenticada do profile é canônica. Um vínculo carregado
+      // transitoriamente nunca pode rebaixar Administrador da Prefeitura para externo.
       const safeRole = normalizeRole(
-        canonicalSessionUser?.role ??
-        (businessUserId ? authenticatedRole : cachedSession.role),
+        businessUserId
+          ? authenticatedRole ?? canonicalSessionUser?.role ?? cachedSession.role
+          : canonicalSessionUser?.role ?? cachedSession.role,
       );
       return {
         ...cachedSession,
@@ -131,7 +134,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       };
     }
 
-    const safeRole = normalizeRole(canonicalSessionUser?.role ?? authenticatedRole);
+    const safeRole = normalizeRole(authenticatedRole ?? canonicalSessionUser?.role);
     const email = authenticatedEmail || canonicalSessionUser?.email || "";
     return {
       ...(canonicalSessionUser ?? {}),
