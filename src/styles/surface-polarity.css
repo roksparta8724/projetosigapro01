@@ -164,3 +164,80 @@ html body .sig-main-shell :is(
   color: #ffffff !important;
   stroke: #ffffff !important;
 }
+
+
+/* ===== ORGANOGRAM CARD ADAPTIVE POLARITY =====
+ * The organogram shell is a normal card: light theme = dark copy;
+ * inverse theme = light copy. Its unit pills remain dark/white by the rules above.
+ */
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #d7e2ee !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] > div:not(:last-child) :is(
+  h1,h2,h3,h4,p,span,strong,small,label,a
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-municipal-organogram="true"] > div:not(:last-child) svg {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] {
+  background: linear-gradient(180deg, #102238 0%, #0b1b2c 100%) !important;
+  color: #f8fafc !important;
+  border-color: #28445d !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] > div:not(:last-child) :is(
+  h1,h2,h3,h4,p,span,strong,small,label,a
+) {
+  color: #e6eef8 !important;
+  -webkit-text-fill-color: #e6eef8 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] > div:not(:last-child) svg {
+  color: #bae6fd !important;
+  stroke: currentColor !important;
+}
+
+/* ===== PROCESS DETAIL CARD ADAPTIVE POLARITY ===== */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card {
+  color: #0f172a !important;
+  background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
+  border-color: #d7e2ee !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card {
+  color: #f8fafc !important;
+  background: linear-gradient(180deg,#102238 0%,#091827 100%) !important;
+  border-color: #2d526f !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* Respect explicit light subcards inside an inverse process card. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card [data-surface-tone="light"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card [data-surface-tone="light"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
