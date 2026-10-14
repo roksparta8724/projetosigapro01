@@ -79,6 +79,43 @@ async function requestSignedUrl(path: string, input: { bucket: string; objectKey
   return response;
 }
 
+function isLocalBrowserRuntime() {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
+}
+
+async function requestSignedUrlWithLocalReadFallback(
+  path: string,
+  input: { bucket: string; objectKey: string; expiresIn?: number },
+) {
+  let response = await requestSignedUrl(path, input);
+
+  if (!isLocalBrowserRuntime() || response.ok) {
+    return response;
+  }
+
+  const cloned = response.clone();
+  const payload = await cloned.json().catch(() => ({}));
+  const message =
+    payload && typeof payload === "object" && "error" in payload
+      ? String((payload as { error?: unknown }).error || "")
+      : "";
+
+  const localStorageConfigMissing =
+    /Variáveis R2 ausentes|Endpoint R2 não configurado/i.test(message);
+
+  if (!localStorageConfigMissing) {
+    return response;
+  }
+
+  response = await requestSignedUrl(
+    "https://sigapromunicipal.com.br/api/r2-sign-get",
+    input,
+  );
+
+  return response;
+}
+
 export async function getSignedUrlForObject(input: {
   bucket: string;
   objectKey: string;
@@ -90,11 +127,11 @@ export async function getSignedUrlForObject(input: {
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+  let response = await requestSignedUrlWithLocalReadFallback(primaryUrl, { ...input, expiresIn });
 
   if (response.status === 404 && apiBase) {
     // fallback local quando VITE_R2_API_BASE aponta para outro host sem a rota
-    response = await requestSignedUrl("/api/r2-sign-get", input);
+    response = await requestSignedUrlWithLocalReadFallback("/api/r2-sign-get", input);
   }
 
   if (!response.ok) {
