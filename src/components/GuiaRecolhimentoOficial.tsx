@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 
 type PrefeituraData = {
   nome: string;
@@ -1543,32 +1544,37 @@ async function embedGuideImage(source?: string, objectKey?: string) {
   const key =
     String(objectKey || "").trim() ||
     deriveBrandingObjectKey(source);
+
   if (key) {
     try {
-      const response = await fetch("/api/r2-master-logo-source", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objectKey: key }),
+      const bucket =
+        (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+        "sigapro-logos";
+      const signedUrl = await getSignedUrlForObjectStrict({
+        bucket,
+        objectKey: key,
+        expiresIn: 900,
+      });
+      const response = await fetch(signedUrl, {
         cache: "no-store",
       });
-      if (response.ok) {
-        const embedded = await blobToDataUrl(await response.blob());
-        if (embedded) return embedded;
-      }
+      if (!response.ok) return "";
+      return await blobToDataUrl(await response.blob());
     } catch {
-      // A guia permanece válida mesmo quando o brasão estiver indisponível.
+      // Nunca reaproveita URL assinada antiga quando existe objectKey permanente.
+      return "";
     }
-
-    // Havendo objectKey oficial, a URL bruta pode ser privada/expirada.
-    // Não deixe um <img> quebrado escapar para a guia.
-    return "";
   }
 
   const url = String(source || "").trim();
   if (!url || url.startsWith("data:")) return url;
 
   try {
-    const response = await fetch(url, {
+    const parsed = new URL(url, window.location.origin);
+    if (/localhost|127\.0\.0\.1/i.test(parsed.hostname) && !/localhost|127\.0\.0\.1/i.test(window.location.hostname)) {
+      return "";
+    }
+    const response = await fetch(parsed.toString(), {
       credentials: "include",
       cache: "no-store",
     });
