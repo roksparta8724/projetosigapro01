@@ -3,7 +3,7 @@ import { AlertTriangle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import type { PlanModuleName } from "@/lib/planEntitlements";
-import { hasBackendEnv } from "@/integrations/backend/config";
+import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 
 export function PlanModuleRoute({
   module,
