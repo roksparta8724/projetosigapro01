@@ -419,10 +419,56 @@ export function DocumentViewerPage() {
               </div>
             ) : null}
 
+            {document.annotations?.length ? (
+              <div className="rounded-[20px] border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">
+                      Apontamentos do analista
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      Correções indicadas no documento
+                    </p>
+                  </div>
+                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-[11px] font-bold text-amber-800 shadow-sm">
+                    {document.annotations.length}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {document.annotations.map((annotation, index) => (
+                    <div key={annotation.id} className="rounded-xl border border-amber-100 bg-white p-3 shadow-sm">
+                      <div className="flex items-start gap-2">
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                          annotation.kind === "highlight"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-sky-50 text-sky-700"
+                        }`}>
+                          {annotation.kind === "highlight" ? (
+                            <Highlighter className="h-4 w-4" />
+                          ) : (
+                            <MessageSquareText className="h-4 w-4" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                            Apontamento {index + 1} · Página {annotation.page || 1}
+                          </p>
+                          <p className="mt-1 text-sm leading-5 text-slate-700">
+                            {annotation.note}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800">Visualização protegida</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                O arquivo é exibido por acesso temporário assinado.
+                O arquivo é exibido por acesso temporário assinado nesta mesma guia.
               </p>
               {canAnalyzeDocument ? (
                 <Button
@@ -435,7 +481,7 @@ export function DocumentViewerPage() {
                 </Button>
               ) : (
                 <p className="mt-3 text-xs leading-5 text-slate-500">
-                  As marcações técnicas são exclusivas da equipe responsável pela análise.
+                  Quando houver apontamentos enviados pela Prefeitura, eles aparecerão acima com a página e a correção solicitada.
                 </p>
               )}
             </div>
