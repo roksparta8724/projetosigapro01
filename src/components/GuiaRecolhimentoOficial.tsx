@@ -1553,8 +1553,14 @@ export function openGuiaRecolhimentoOficialWindow(
   options?: { title?: string; autoPrint?: boolean },
 ) {
   const title = options?.title || props.guia.numeroGuia;
-  const popup = window.open("", "_blank", "noopener,noreferrer");
+  const popup = window.open("", "_blank");
   if (!popup) return;
+
+  try {
+    popup.opener = null;
+  } catch {
+    // Alguns navegadores não permitem alterar opener; a guia continua funcional.
+  }
 
   renderGuideOpeningState(popup, title);
   popup.focus();
