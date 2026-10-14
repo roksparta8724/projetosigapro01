@@ -506,7 +506,7 @@ export function MunicipalOrganizationPage() {
                 <Button
                   type="button"
                   className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                  onClick={saveEditor}
+                  onClick={() => void saveEditor()}
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Salvar estrutura
