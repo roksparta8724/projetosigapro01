@@ -119,6 +119,7 @@ export function MunicipalOrganogramBar({
                 {index > 0 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" /> : null}
                 <span
                   data-organogram-unit-chip="true"
+                  data-contrast-surface="dark"
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)] transition",
                     index === chain.length - 1
@@ -136,7 +137,7 @@ export function MunicipalOrganogramBar({
                       {department.code.trim()}
                     </span>
                   ) : null}
-                  <span className="truncate">{department.name}</span>
+                  <span className="truncate !text-white">{department.name}</span>
                 </span>
               </div>
             ))}
@@ -148,6 +149,7 @@ export function MunicipalOrganogramBar({
                 {index > 0 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" /> : null}
                 <span
                   data-organogram-unit-chip="true"
+                  data-contrast-surface="dark"
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)] transition",
                     index === fallbackChain.length - 1
@@ -162,7 +164,7 @@ export function MunicipalOrganogramBar({
                     >
                     {department.code}
                   </span>
-                  <span className="truncate">{department.name}</span>
+                  <span className="truncate !text-white">{department.name}</span>
                 </span>
               </div>
             ))}
@@ -182,6 +184,7 @@ export function MunicipalOrganogramBar({
                 <span
                   key={department.id}
                   data-organogram-unit-chip="true"
+                  data-contrast-surface="dark"
                   className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)]"
                 >
                   {department.code?.trim() ? (
