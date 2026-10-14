@@ -678,6 +678,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (
           event === "SIGNED_OUT" &&
           !explicitSignOutRef.current &&
+          !needsInitialRevalidationRef.current &&
           Boolean(lastStableRef.current.authUserId)
         ) {
           console.warn("[Bootstrap] SIGNED_OUT automático do Neon ignorado para a UI estável", {
@@ -716,7 +717,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (!authUser) {
           const hasStableAuthenticatedState = Boolean(lastStableRef.current.authUserId);
           const shouldPreserveStableState =
-            event !== "SIGNED_OUT" && hasStableAuthenticatedState;
+            !needsInitialRevalidationRef.current &&
+            event !== "SIGNED_OUT" &&
+            hasStableAuthenticatedState;
 
           if (shouldPreserveStableState) {
             console.warn("[Bootstrap] Auth transitório sem user, preservando estado", {
@@ -740,9 +743,18 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             setAuthResolved(true);
             return;
           }
-          console.warn("[Bootstrap] Sem usuário autenticado");
+          console.warn("[Bootstrap] Sem usuário autenticado após revalidação");
           writeBootstrapSnapshot(null);
           clearPlatformSessionSnapshot();
+          lastStableRef.current = {
+            authUserId: null,
+            authEmail: null,
+            role: null,
+            profile: null,
+            municipalityBundle: null,
+          };
+          lastAuthUserIdRef.current = null;
+          needsInitialRevalidationRef.current = false;
           const devPreferredName =
             (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) || "";
         if (resolution.mode === "tenant") {
