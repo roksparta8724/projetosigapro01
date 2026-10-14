@@ -532,6 +532,7 @@ export function ProtocolDeskPage() {
               return (
                 <div
                   key={process.id}
+                  data-process-premium-card="true"
                   className={`${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
                 >
                   <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
