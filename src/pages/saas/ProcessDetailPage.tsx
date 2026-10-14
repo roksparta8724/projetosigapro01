@@ -209,7 +209,29 @@ export function ProcessDetailPage() {
   const planEntitlements = usePlanEntitlements();
   const documentMarkers = useDocumentMarkerAssignments();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
+  const {
+    processes,
+    institutions,
+    sessionUsers,
+    loading: platformDataLoading,
+    dataReadyForCurrentUser,
+    sendProcessMessage,
+    getInstitutionSettings,
+    getUserProfile,
+    addDocumentAnnotation,
+    createRequirement,
+    respondRequirement,
+    completeRequirement,
+    dispatchProcess,
+    setProcessTransitVisibility,
+    markGuideAsPaid,
+    appendProcessDocuments,
+    requestConstructionPaymentGuide,
+    updateIssProjectGuideData,
+    reviseIssProjectGuide,
+    shareIssProjectGuide,
+    issuePaymentGuide,
+  } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const {
     departments: organizationDepartments,
@@ -335,12 +357,6 @@ export function ProcessDetailPage() {
     }
   }, [activeTab, isExternalSession, session.role]);
 
-  useEffect(() => {
-    if (!process || !processId) return;
-    const canonicalKey = toProcessRouteKey(process.protocol);
-    if (!canonicalKey || processId === canonicalKey) return;
-    navigate(`/processos/${encodeURIComponent(canonicalKey)}${location.search}`, { replace: true });
-  }, [location.search, navigate, process, processId]);
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
@@ -418,6 +434,12 @@ export function ProcessDetailPage() {
   }, [process?.id]);
 
   if (!process) {
+    if (platformDataLoading || !dataReadyForCurrentUser) {
+      // Não montar uma página intermediária durante a resolução do store.
+      // A continuidade visual permanece até o processo real estar disponível.
+      return null;
+    }
+
     return (
       <PortalFrame eyebrow="Processo" title="Processo Não Encontrado">
         <Card className="rounded-[28px] border-slate-200">
@@ -1354,13 +1376,7 @@ export function ProcessDetailPage() {
         }
         icon={Workflow}
         actions={
-          <div className="flex flex-wrap gap-2">
-            {isExternalProcessViewer ? (
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar
-              </Button>
-            ) : null}
+          <div className="flex flex-wrap items-center gap-2">
             <MarkerSelector
               processId={process.id}
               tags={process.tags}
@@ -1368,6 +1384,17 @@ export function ProcessDetailPage() {
               subjectLabel="processo"
               triggerClassName="h-9"
             />
+            {isExternalProcessViewer ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => navigate(-1)}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -1377,7 +1404,6 @@ export function ProcessDetailPage() {
               <LogOut className="mr-2 h-4 w-4" />
               Sair do processo
             </Button>
-
           </div>
         }
       />
