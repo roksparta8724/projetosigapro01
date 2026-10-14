@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  listRemoteInternalMunicipalDepartments,
   listRemoteMunicipalDepartments,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
 
-const CACHE_PREFIX = "sigapro:municipal-organogram:v1";
+const CACHE_PREFIX = "sigapro:municipal-organogram:v2";
+const OVERRIDE_PREFIX = "sigapro:municipal-organogram:local-override:v1";
+const EVENT_NAME = "sigapro:municipal-organogram-updated";
+
+type OrganogramOptions = {
+  includeInactive?: boolean;
+};
 
 function normalize(value: string | null | undefined) {
   return String(value || "")
@@ -15,28 +22,58 @@ function normalize(value: string | null | undefined) {
     .replace(/\s+/g, " ");
 }
 
-function readCache(municipalityId: string | null | undefined) {
-  if (typeof window === "undefined" || !municipalityId) return [];
+function sortDepartments(rows: MunicipalDepartmentRecord[]) {
+  return [...rows].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"),
+  );
+}
+
+function cacheKey(municipalityId: string, includeInactive: boolean) {
+  return `${CACHE_PREFIX}:${municipalityId}:${includeInactive ? "full" : "active"}`;
+}
+
+function overrideKey(municipalityId: string) {
+  return `${OVERRIDE_PREFIX}:${municipalityId}`;
+}
+
+function readStored(key: string) {
+  if (typeof window === "undefined") return [] as MunicipalDepartmentRecord[];
   try {
-    const raw = window.sessionStorage.getItem(`${CACHE_PREFIX}:${municipalityId}`);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as MunicipalDepartmentRecord[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item?.id && item?.name) : [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return sortDepartments(
+      parsed.filter(
+        (item): item is MunicipalDepartmentRecord =>
+          Boolean(item && typeof item === "object" && "id" in item && "name" in item),
+      ),
+    );
   } catch {
     return [];
   }
 }
 
-function writeCache(municipalityId: string, departments: MunicipalDepartmentRecord[]) {
+function writeStored(key: string, departments: MunicipalDepartmentRecord[]) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(
-      `${CACHE_PREFIX}:${municipalityId}`,
-      JSON.stringify(departments),
-    );
+    window.localStorage.setItem(key, JSON.stringify(sortDepartments(departments)));
   } catch {
-    // Cache visual não pode bloquear o organograma oficial.
+    // Persistência visual nunca pode quebrar a navegação.
   }
+}
+
+function readOverride(municipalityId: string | null | undefined) {
+  if (!municipalityId) return [] as MunicipalDepartmentRecord[];
+  return readStored(overrideKey(municipalityId));
+}
+
+function resolveVisible(
+  departments: MunicipalDepartmentRecord[],
+  includeInactive: boolean,
+) {
+  const sorted = sortDepartments(departments);
+  return includeInactive ? sorted : sorted.filter((item) => item.isActive);
 }
 
 export function resolveOrganogramDepartment(
@@ -120,11 +157,21 @@ export function formatOrganogramPath(
     .join(" › ");
 }
 
-export function useMunicipalOrganogram(municipalityId: string | null | undefined) {
-  const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>(() =>
-    readCache(municipalityId),
-  );
+export function useMunicipalOrganogram(
+  municipalityId: string | null | undefined,
+  options: OrganogramOptions = {},
+) {
+  const includeInactive = options.includeInactive ?? false;
+  const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>(() => {
+    if (!municipalityId) return [];
+    const override = readOverride(municipalityId);
+    if (override.length > 0) return resolveVisible(override, includeInactive);
+    return readStored(cacheKey(municipalityId, includeInactive));
+  });
   const [status, setStatus] = useState("");
+  const [hasLocalOverride, setHasLocalOverride] = useState(() =>
+    Boolean(municipalityId && readOverride(municipalityId).length > 0),
+  );
 
   useEffect(() => {
     let active = true;
@@ -132,35 +179,65 @@ export function useMunicipalOrganogram(municipalityId: string | null | undefined
     if (!municipalityId) {
       setDepartments([]);
       setStatus("");
+      setHasLocalOverride(false);
       return () => {
         active = false;
       };
     }
 
-    const cached = readCache(municipalityId);
-    if (cached.length > 0) {
-      setDepartments(cached);
+    const localOverride = readOverride(municipalityId);
+    if (localOverride.length > 0) {
+      setDepartments(resolveVisible(localOverride, includeInactive));
+      setStatus("");
+      setHasLocalOverride(true);
+    } else {
+      const cached = readStored(cacheKey(municipalityId, includeInactive));
+      if (cached.length > 0) {
+        setDepartments(cached);
+        setStatus("");
+      } else {
+        setStatus("Carregando organograma municipal...");
+      }
+      setHasLocalOverride(false);
     }
-    setStatus(cached.length > 0 ? "" : "Carregando organograma municipal...");
 
-    void listRemoteMunicipalDepartments(municipalityId)
+    const loader = includeInactive
+      ? listRemoteInternalMunicipalDepartments
+      : listRemoteMunicipalDepartments;
+
+    void loader(municipalityId)
       .then((rows) => {
         if (!active) return;
-        const next = rows
-          .filter((item) => item.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"));
-        setDepartments(next);
-        setStatus(next.length > 0 ? "" : "Nenhuma unidade ativa foi encontrada no organograma.");
-        writeCache(municipalityId, next);
+        const next = resolveVisible(rows, includeInactive);
+        writeStored(cacheKey(municipalityId, includeInactive), next);
+
+        const latestOverride = readOverride(municipalityId);
+        if (latestOverride.length > 0) {
+          setDepartments(resolveVisible(latestOverride, includeInactive));
+          setHasLocalOverride(true);
+        } else {
+          setDepartments(next);
+          setHasLocalOverride(false);
+        }
+        setStatus("");
       })
       .catch((error) => {
         if (!active) return;
-        const fallback = readCache(municipalityId);
-        if (fallback.length > 0) {
-          setDepartments(fallback);
+        const latestOverride = readOverride(municipalityId);
+        const cached = readStored(cacheKey(municipalityId, includeInactive));
+
+        if (latestOverride.length > 0) {
+          setDepartments(resolveVisible(latestOverride, includeInactive));
+          setHasLocalOverride(true);
           setStatus("");
           return;
         }
+        if (cached.length > 0) {
+          setDepartments(cached);
+          setStatus("");
+          return;
+        }
+
         setDepartments([]);
         setStatus(
           error instanceof Error
@@ -172,7 +249,80 @@ export function useMunicipalOrganogram(municipalityId: string | null | undefined
     return () => {
       active = false;
     };
-  }, [municipalityId]);
+  }, [includeInactive, municipalityId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !municipalityId) return;
+
+    const sync = () => {
+      const localOverride = readOverride(municipalityId);
+      setHasLocalOverride(localOverride.length > 0);
+      if (localOverride.length > 0) {
+        setDepartments(resolveVisible(localOverride, includeInactive));
+        setStatus("");
+        return;
+      }
+
+      const cached = readStored(cacheKey(municipalityId, includeInactive));
+      setDepartments(cached);
+    };
+
+    const handleCustom = (event: Event) => {
+      const detail = (event as CustomEvent<{ municipalityId?: string }>).detail;
+      if (detail?.municipalityId !== municipalityId) return;
+      sync();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key !== overrideKey(municipalityId) &&
+        event.key !== cacheKey(municipalityId, includeInactive)
+      ) {
+        return;
+      }
+      sync();
+    };
+
+    window.addEventListener(EVENT_NAME, handleCustom as EventListener);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(EVENT_NAME, handleCustom as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [includeInactive, municipalityId]);
+
+  const saveLocalDepartments = useCallback(
+    (nextDepartments: MunicipalDepartmentRecord[]) => {
+      if (!municipalityId || typeof window === "undefined") return;
+      const normalized = sortDepartments(
+        nextDepartments.map((item) => ({
+          ...item,
+          municipalityId,
+        })),
+      );
+      writeStored(overrideKey(municipalityId), normalized);
+      setDepartments(resolveVisible(normalized, includeInactive));
+      setHasLocalOverride(true);
+      setStatus("");
+      window.dispatchEvent(
+        new CustomEvent(EVENT_NAME, {
+          detail: { municipalityId },
+        }),
+      );
+    },
+    [includeInactive, municipalityId],
+  );
+
+  const clearLocalOverride = useCallback(() => {
+    if (!municipalityId || typeof window === "undefined") return;
+    window.localStorage.removeItem(overrideKey(municipalityId));
+    setHasLocalOverride(false);
+    setDepartments(readStored(cacheKey(municipalityId, includeInactive)));
+    window.dispatchEvent(
+      new CustomEvent(EVENT_NAME, {
+        detail: { municipalityId },
+      }),
+    );
+  }, [includeInactive, municipalityId]);
 
   const getPath = useCallback(
     (hint: string | null | undefined) => formatOrganogramPath(departments, hint),
@@ -198,5 +348,8 @@ export function useMunicipalOrganogram(municipalityId: string | null | undefined
     status,
     getPath,
     getPathRecords,
+    hasLocalOverride,
+    saveLocalDepartments,
+    clearLocalOverride,
   };
 }
