@@ -121,6 +121,8 @@ describe("process detail workflow integrity", () => {
     expect(detail).toContain("constructionGuideSentExternally");
     expect(detail).toContain("const processExitPath");
     expect(detail).toContain("Sair do processo");
-    expect(backend).toContain('issue_process_payment_guide_v3');
+    expect(backend).toContain('issue_process_payment_guide_v2');
+    const migration = readFileSync(resolve(process.cwd(), "neon/migrations/20261014_iss_manual_release_workflow.sql"), "utf8");
+    expect(migration).toContain("issue_process_payment_guide_v3");
   });
 });
