@@ -75,10 +75,15 @@ export function usePlanEntitlements() {
 
   // Mesmo o Master deve aguardar a confirmação da identidade real antes
   // de montar módulos. Plano comercial e Prefeitura são dispensados só depois.
+  const authIdentityMismatch =
+    !authLoading &&
+    authResolved &&
+    session.id !== "unknown" &&
+    !identityMatchesAuth;
+
   const authContextUnresolved =
     authLoading ||
     !authResolved ||
-    !identityMatchesAuth ||
     session.id === "unknown";
 
   const terminalDataFailure =
@@ -92,6 +97,7 @@ export function usePlanEntitlements() {
 
   const isResolving =
     !terminalDataFailure &&
+    !authIdentityMismatch &&
     (
       authContextUnresolved ||
       (!isMaster && (
@@ -104,9 +110,13 @@ export function usePlanEntitlements() {
 
   const resolutionFailed =
     !isMaster &&
-    terminalDataFailure &&
     !authLoading &&
-    authResolved;
+    authResolved &&
+    (
+      terminalDataFailure ||
+      authIdentityMismatch ||
+      !municipalityMatchesAuth
+    );
 
   const state = useMemo(
     () =>
@@ -124,11 +134,12 @@ export function usePlanEntitlements() {
       isMaster,
       isResolving,
       resolutionFailed,
+      authIdentityMismatch,
       dataError,
       isConfigured: Boolean(state.assignment && state.plan),
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [dataError, isMaster, isResolving, resolutionFailed, state],
+    [authIdentityMismatch, dataError, isMaster, isResolving, resolutionFailed, state],
   );
 }
