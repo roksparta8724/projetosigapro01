@@ -2242,22 +2242,6 @@ export async function shareRemoteIssProjectGuide(processId: string) {
   return data as { process_id: string; guide_number: string; already_shared?: boolean };
 }
 
-export async function requestRemoteConstructionPaymentGuide(processId: string) {
-  return callProcessRpc("request_construction_payment_guide_v1", {
-    _process_id: processId,
-  });
-}
-
-export async function issueRemoteConstructionPaymentGuide(input: {
-  processId: string;
-  dueDate?: string | null;
-}) {
-  return callProcessRpc("issue_construction_payment_guide_v1", {
-    _process_id: input.processId,
-    _due_date: input.dueDate || null,
-  });
-}
-
 export async function issueRemoteProcessPaymentGuide(input: {
   processId: string;
   guideKind: "iss_obra" | "aprovacao_final";
