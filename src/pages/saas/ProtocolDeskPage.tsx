@@ -456,7 +456,7 @@ export function ProtocolDeskPage() {
 
     return (
       <div className="space-y-3">
-        <div className="sticky top-[72px] z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+        <div className="sticky top-[72px] z-20 rounded-[20px] border border-slate-200 bg-white/95 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.07)] backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -514,7 +514,7 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
             {visibleItems.map((process, index) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
@@ -532,7 +532,7 @@ export function ProtocolDeskPage() {
               return (
                 <div
                   key={process.id}
-                  className={`${index > 0 ? "border-t border-slate-200" : ""} ${selected ? "bg-sky-50/50" : "bg-white"}`}
+                  className={`${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
                 >
                   <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
                     <input
@@ -549,13 +549,13 @@ export function ProtocolDeskPage() {
                       onClick={() => toggleProcessExpanded(process.id)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
 
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-slate-950">
+                          <span className="font-semibold text-slate-950 dark:text-white">
                             {formatOfficialProcessNumber(process.protocol)}
                           </span>
                           <Badge variant="outline" className={statusTone(process.status)}>
@@ -588,13 +588,13 @@ export function ProtocolDeskPage() {
                       </span>
                     </button>
 
-                    <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl">
+                    <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
                       <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                     </Button>
                   </div>
 
                   {expanded ? (
-                    <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-5">
+                    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/35 sm:px-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
@@ -635,28 +635,28 @@ export function ProtocolDeskPage() {
                       </div>
 
                       <div className="sig-responsive-data-grid mt-4">
-                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{getOpeningDate(process)}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia principal</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">{protocolGuide?.code || "Não emitida"}</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
                           <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
                           </p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">{process.technicalLead || "Não informado"}</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fluxo atual</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {process.processControl?.currentFolder || process.dispatches[0]?.to || "Fluxo interno"}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">{process.sla.hoursRemaining}h para o SLA</p>
