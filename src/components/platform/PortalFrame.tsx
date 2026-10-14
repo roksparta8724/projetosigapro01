@@ -731,11 +731,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           ? canonicalSignedInUser?.department || session.department || "Protocolo"
           : location.pathname.startsWith("/prefeitura/analise")
             ? canonicalSignedInUser?.department || session.department || "Análise Urbanística"
-            : canonicalSignedInUser?.department ||
-              session.department ||
-              activeDepartmentOwnership?.diretoria ||
-              activeDepartmentOwnership?.secretaria ||
-              "";
+            : location.pathname.startsWith("/externo") || location.pathname.startsWith("/proprietario")
+              ? ""
+              : canonicalSignedInUser?.department ||
+                session.department ||
+                activeDepartmentOwnership?.diretoria ||
+                activeDepartmentOwnership?.secretaria ||
+                "";
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
