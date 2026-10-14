@@ -124,7 +124,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(platform).toContain("canFollowUpIssuedIssGuide");
     expect(platform).toContain("audit.actorProfileId === session.id");
     expect(backend).toContain("actorProfileId: entry.actor_profile_id ?? undefined");
-    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
   });
 
   it("não deixa referência quebrada na rota de protocolos financeiros", () => {
