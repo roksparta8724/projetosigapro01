@@ -207,6 +207,14 @@ describe("premium municipal workspace regression", () => {
     expect(financeProtocols).toContain("Nenhum PIX oficial foi configurado");
   });
 
+  it("never leaves the municipal access gate stuck after an official data failure", () => {
+    expect(planEntitlements).toContain("const terminalDataFailure");
+    expect(planEntitlements).toContain("!terminalDataFailure &&");
+    expect(planEntitlements).toContain("terminalDataFailure &&");
+    expect(planModuleRoute).toContain("Validação concluída com falha de conexão");
+    expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
+  });
+
   it("keeps F5 native and preserves tabs in the URL without scroll traps", () => {
     expect(main).toContain('window.history.scrollRestoration = "auto"');
     expect(main).not.toContain("window.scrollTo");
