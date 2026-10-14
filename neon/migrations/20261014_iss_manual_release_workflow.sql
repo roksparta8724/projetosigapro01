@@ -260,6 +260,50 @@ begin
 end;
 $function$;
 
+-- Remove o despacho/movimento tecnico criado pelo comportamento antigo apenas
+-- quando a guia ainda nao foi liberada ao profissional.
+delete from public.interdepartmental_dispatches d
+where d.subject='Guia de ISSQN / Projeto emitida — controle financeiro'
+  and d.status in ('aguardando','respondido')
+  and exists (
+    select 1
+    from public.payment_guides g
+    join public.processes p on p.id=g.process_id
+    where g.process_id=d.process_id
+      and g.guide_kind='iss_obra'
+      and coalesce(g.paid,false)=false
+      and lower(coalesce(p.process_checkpoint,'')) like '%an%lise%urban%'
+      and not exists (
+        select 1
+        from public.process_messages m
+        where m.process_id=p.id
+          and m.audience in ('externo','misto')
+          and nullif(btrim(g.guide_number),'') is not null
+          and position(g.guide_number in coalesce(m.message,'')) > 0
+      )
+  );
+
+delete from public.process_movements pm
+where pm.movement_type='guia_emitida'
+  and pm.visible_to_external=false
+  and exists (
+    select 1
+    from public.payment_guides g
+    join public.processes p on p.id=g.process_id
+    where g.process_id=pm.process_id
+      and g.guide_kind='iss_obra'
+      and coalesce(g.paid,false)=false
+      and lower(coalesce(p.process_checkpoint,'')) like '%an%lise%urban%'
+      and not exists (
+        select 1
+        from public.process_messages m
+        where m.process_id=p.id
+          and m.audience in ('externo','misto')
+          and nullif(btrim(g.guide_number),'') is not null
+          and position(g.guide_number in coalesce(m.message,'')) > 0
+      )
+  );
+
 -- Repara apenas processos que comprovadamente foram deslocados cedo demais:
 -- ISS pendente + checkpoint de Analise Urbanistica + nenhuma liberacao externa.
 update public.processes p
