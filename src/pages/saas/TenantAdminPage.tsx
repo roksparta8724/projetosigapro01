@@ -21,6 +21,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 import {
   assignRemoteProfileDepartment,
   listRemoteMunicipalDepartments,
@@ -753,6 +754,21 @@ export function TenantAdminPage() {
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
     const isEditing = editingUserId === user.id;
+    const isExternalUser =
+      user.role === "profissional_externo" ||
+      user.role === "property_owner" ||
+      user.role === "proprietario_consulta";
+    const departmentIdentity = !isExternalUser
+      ? resolveMunicipalUnitIdentity(activeDepartments, user.department)
+      : null;
+    const departmentCode =
+      user.departmentCode?.trim() ||
+      departmentIdentity?.code ||
+      "";
+    const departmentPath =
+      departmentIdentity?.matched
+        ? departmentIdentity.breadcrumb
+        : getUserDepartmentLabel(user);
 
     return (
       <div key={user.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -765,12 +781,33 @@ export function TenantAdminPage() {
                   <p className="sig-fit-title text-lg font-semibold leading-7 text-slate-950">{user.name}</p>
                   <Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge>
                 </div>
-                <p className="sig-fit-copy text-sm leading-6 text-slate-600">{user.title || user.department || "Setor não informado"}</p>
+                <p className="sig-fit-copy text-sm font-medium leading-6 text-slate-700">
+                  {user.title || "Cargo/função não informado"}
+                </p>
+                {!isExternalUser ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {departmentCode ? (
+                      <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                        {departmentCode}
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">
+                        Sem sigla
+                      </span>
+                    )}
+                    <span className="text-xs font-medium text-slate-500">{departmentPath}</span>
+                  </div>
+                ) : null}
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500" title={user.email}>{user.email}</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 xl:max-w-[42%] xl:justify-end">
+              {!isExternalUser ? (
+                <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 font-bold text-sky-800">
+                  {departmentCode || "SEM LOTAÇÃO"}
+                </Badge>
+              ) : null}
               <Badge className="sig-tenant-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{getMunicipalProfileLabel(user)}</Badge>
               <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge>
               <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-600">{user.userType || "Usuário"}</Badge>
@@ -816,7 +853,9 @@ export function TenantAdminPage() {
                   <SelectContent>
                     <SelectItem value="__none">Sem departamento</SelectItem>
                     {activeDepartments.map((department) => (
-                      <SelectItem key={department.id} value={department.name}>{department.name}</SelectItem>
+                      <SelectItem key={department.id} value={department.name}>
+                        {department.code ? `[${department.code}] ` : ""}{department.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -860,7 +899,12 @@ export function TenantAdminPage() {
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Departamento</span>
-              <span className="mt-2 block font-medium text-slate-800">{getUserDepartmentLabel(user)}</span>
+              {!isExternalUser && departmentCode ? (
+                <span className="mt-2 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                  {departmentCode}
+                </span>
+              ) : null}
+              <span className="mt-2 block font-medium text-slate-800">{departmentPath}</span>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criado em</span>
@@ -913,7 +957,14 @@ export function TenantAdminPage() {
                 <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <UserAvatar name={session.name} imageUrl={getUserProfile(session.id, session.email)?.avatarUrl} size="sm" />
                   <div className="min-w-0">
-                    <p className="sig-fit-title text-sm font-semibold text-slate-900">{session.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="sig-fit-title text-sm font-semibold text-slate-900">{session.name}</p>
+                      {session.departmentCode ? (
+                        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-800">
+                          {session.departmentCode}
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="sig-fit-copy text-xs text-slate-500">{session.title || "Responsável institucional"}</p>
                   </div>
                 </div>
