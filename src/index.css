@@ -6564,3 +6564,40 @@ body:has(.sig-app-frame[data-focus-mode="true"]) {
   color: #ffffff !important;
   stroke: #ffffff !important;
 }
+
+
+/* ===== DOCUMENT COMMAND CENTER FINAL CONTRAST 2026-10-14 ===== */
+html body .sig-main-shell [data-premium-inverse-surface="true"] {
+  background: linear-gradient(135deg, #071525 0%, #123a58 58%, #1f6489 100%) !important;
+  background-color: #0b2740 !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg,
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-sky-100,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-slate-200,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-slate-300 {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-emerald-50,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-emerald-100 {
+  color: #d1fae5 !important;
+  -webkit-text-fill-color: #d1fae5 !important;
+}
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-amber-50,
+html body .sig-main-shell [data-premium-inverse-surface="true"] .text-amber-100 {
+  color: #fef3c7 !important;
+  -webkit-text-fill-color: #fef3c7 !important;
+}
