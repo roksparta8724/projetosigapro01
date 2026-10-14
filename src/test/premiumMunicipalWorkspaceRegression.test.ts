@@ -20,6 +20,8 @@ describe("premium municipal workspace regression", () => {
   const fileDropZone = read("src/components/platform/FileDropZone.tsx");
   const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
+  const platformData = read("src/hooks/usePlatformData.tsx");
+  const platform = read("src/lib/platform.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
@@ -62,6 +64,18 @@ describe("premium municipal workspace regression", () => {
     expect(backend).toContain("/(finance|financa|fazenda|tesour|arrecad|tribut)/");
     expect(backend).toContain("/(fiscaliz|postura)/");
     expect(backend).toContain('return "setor_intersetorial"');
+  });
+
+  it("requires and persists municipal department when linking internal staff", () => {
+    expect(tenantAdmin).toContain("Departamento no organograma *");
+    expect(tenantAdmin).toContain("Selecione o departamento do funcionário no organograma");
+    expect(tenantAdmin).toContain("resolveMunicipalRoleFromDepartment");
+    expect(tenantAdmin).toContain("departmentId: selectedDepartment?.id ?? null");
+    expect(platform).toContain("departmentId?: string | null");
+    expect(platform).toContain("profileLabel?: string");
+    expect(platformData).toContain("assignRemoteProfileDepartment");
+    expect(platformData).not.toContain("department: saved.title");
+    expect(backend).toContain("profileLabel: input.profileLabel ??");
   });
 
   it("places Protocol under Administration in the administrative sidebar", () => {
