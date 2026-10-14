@@ -6846,3 +6846,172 @@ html body .sig-main-shell :is(
   resize: vertical;
   overflow-wrap: anywhere;
 }
+
+
+/* ===== SIGAPRO SURFACE CONTRAST V2 — AUTHORITATIVE 2026-10-14 =====
+   Scoped to .sig-main-shell only. Never recolors topbar/sidebar/theme chrome. */
+
+/* Fixed dark surfaces: every textual/icon descendant is light unless it is an
+   explicitly styled badge/input. This closes the Card -> CardHeader inheritance gap. */
+html body .sig-main-shell [data-surface="fixed-dark"] {
+  background: linear-gradient(135deg, #06182b 0%, #075985 56%, #0e7490 100%) !important;
+  background-color: #06182b !important;
+  border-color: rgba(125,211,252,0.34) !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body .sig-main-shell [data-surface="fixed-dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,div,a
+):not([data-ui="badge"]):not(input):not(textarea):not(select) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body .sig-main-shell [data-surface="fixed-dark"] svg {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell [data-surface="fixed-dark"] .sig-command-metric {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell [data-surface="fixed-dark"] .sig-command-metric * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Shared adaptive card contract. */
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  border-color: #d6e1ec !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dd,dt
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
+):not([data-ui="badge"]) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] {
+  background: linear-gradient(180deg,#10263d 0%,#091827 100%) !important;
+  background-color: #0b1b2d !important;
+  border-color: #294761 !important;
+  color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dd,dt
+):not([data-ui="badge"]):not(.sig-theme-chip) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
+):not([data-ui="badge"]) {
+  color: #cbd8e8 !important;
+  -webkit-text-fill-color: #cbd8e8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] svg:not([data-keep-color="true"]) {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Semantic process/document KPI cards. Light theme = light surface/dark text.
+   Dark theme = saturated dark surface/light text. */
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  box-shadow: 0 10px 24px rgba(15,23,42,0.06) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+  background: linear-gradient(180deg,#ecfdf5 0%,#dff8ec 100%) !important;
+  border-color: #86efac !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+  background: linear-gradient(180deg,#fffbeb 0%,#fff3cf 100%) !important;
+  border-color: #fcd34d !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+  background: linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%) !important;
+  border-color: #7dd3fc !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+  background: linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%) !important;
+  border-color: #cbd5e1 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] svg {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.22) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+  background: linear-gradient(145deg,#0b3d33 0%,#075f4a 100%) !important;
+  border-color: rgba(52,211,153,0.34) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+  background: linear-gradient(145deg,#4a3308 0%,#7a5308 100%) !important;
+  border-color: rgba(251,191,36,0.34) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+  background: linear-gradient(145deg,#0b3552 0%,#0c537b 100%) !important;
+  border-color: rgba(56,189,248,0.34) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+  background: linear-gradient(145deg,#18283a 0%,#22364b 100%) !important;
+  border-color: #36516a !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] svg {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
+
+/* Keep badges/chips semantic instead of inheriting a card's foreground. */
+html body .sig-main-shell [data-ui="badge"] {
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Strong primary process/document actions. */
+html body .sig-main-shell :is(
+  .sig-primary-process-action,.sig-primary-document-action,
+  [data-primary-action="process"],[data-primary-action="document"]
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell :is(
+  .sig-primary-process-action,.sig-primary-document-action,
+  [data-primary-action="process"],[data-primary-action="document"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell :is(
+  .sig-primary-process-action,.sig-primary-document-action,
+  [data-primary-action="process"],[data-primary-action="document"]
+) svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
