@@ -538,11 +538,11 @@ export function ProcessDetailPage() {
           item.message.includes(guideCode),
       ),
     );
-  const visiblePaymentGuides = isExternalProcessViewer
-    ? paymentGuides.filter(
-        (guide) => guide.kind === "protocolo" || isGuideSharedExternally(guide.code),
-      )
-    : paymentGuides;
+  // Toda guia oficialmente emitida e persistida em payment_guides integra o
+  // financeiro do processo e deve permanecer visível ao responsável externo.
+  // O compartilhamento explícito continua sendo usado para comunicação/notificação,
+  // não como condição para esconder uma cobrança já existente.
+  const visiblePaymentGuides = paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const paidPaymentGuides = visiblePaymentGuides.filter((guide) => guide.status === "compensada");
