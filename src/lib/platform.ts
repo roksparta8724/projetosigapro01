@@ -514,6 +514,7 @@ export interface PaymentGuideEntry {
   status: "pendente" | "compensada";
   dueDate: string;
   issuedAt?: string;
+  paidAt?: string;
   expiresAt?: string;
   requestedBy?: string;
   requestedAt?: string;
