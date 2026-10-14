@@ -131,6 +131,8 @@ describe("premium municipal workspace regression", () => {
     expect(processDetail).toContain("Paga / compensada");
     expect(processDetail).toContain("Em aberto");
     expect(processDetail).toContain("paidAt");
+    expect(processDetail).toContain("const visiblePaymentGuides = paymentGuides");
+    expect(processDetail).not.toContain("paymentGuides.filter(");
     expect(backend).toContain("paidAt: guide.paid_at");
   });
 
