@@ -135,6 +135,52 @@ function readJsonBody(req: import("http").IncomingMessage): Promise<Record<strin
   });
 }
 
+const OFFICIAL_READ_API_BASE = "https://sigapromunicipal.com.br";
+
+const READ_ONLY_R2_ROUTES = [
+  "/api/r2-sign-get",
+  "/api/r2-list-user-files",
+  "/api/r2-master-logo-source",
+] as const;
+
+function isReadOnlyR2Route(url: string) {
+  return READ_ONLY_R2_ROUTES.some((route) => url.startsWith(route));
+}
+
+async function proxyOfficialReadApi(
+  req: import("http").IncomingMessage,
+  res: import("http").ServerResponse,
+) {
+  const targetPath = req.url || "/";
+  const body =
+    req.method === "GET" || req.method === "HEAD"
+      ? undefined
+      : JSON.stringify(await readJsonBody(req));
+
+  const response = await fetch(`${OFFICIAL_READ_API_BASE}${targetPath}`, {
+    method: req.method,
+    headers: {
+      "Content-Type": req.headers["content-type"] || "application/json",
+      ...(req.headers.authorization
+        ? { Authorization: String(req.headers.authorization) }
+        : {}),
+    },
+    body,
+    redirect: "manual",
+  });
+
+  res.statusCode = response.status;
+  const contentType = response.headers.get("content-type");
+  const cacheControl = response.headers.get("cache-control");
+  const location = response.headers.get("location");
+  if (contentType) res.setHeader("Content-Type", contentType);
+  if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+  if (location) res.setHeader("Location", location);
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  res.end(bytes);
+}
+
 function createR2DevApiPlugin(): Plugin {
   return {
     name: "sigapro-r2-dev-api",
@@ -150,8 +196,7 @@ function createR2DevApiPlugin(): Plugin {
           "/api/r2-upload",
           "/api/r2-delete",
           "/api/r2-presign",
-          "/api/r2-sign-get",
-          "/api/r2-master-logo-source",
+          ...READ_ONLY_R2_ROUTES,
         ].some((route) => req.url?.startsWith(route));
 
         // O middleware de desenvolvimento do R2 não deve sequestrar outras APIs
@@ -159,6 +204,22 @@ function createR2DevApiPlugin(): Plugin {
         // fazia rotas não relacionadas falharem com "Variáveis R2 ausentes".
         if (!isR2ApiRoute) {
           next();
+          return;
+        }
+
+        // Rotas de leitura usam a infraestrutura oficial através do servidor
+        // local para evitar CORS e nunca expor credenciais R2 no navegador.
+        // Nenhuma rota de escrita é encaminhada para produção.
+        if (isReadOnlyR2Route(req.url)) {
+          try {
+            await proxyOfficialReadApi(req, res);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha ao acessar a API oficial de leitura.";
+            console.error("[SIGAPRO][R2] proxy local de leitura:", error);
+            res.statusCode = 502;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: message, code: "R2_READ_PROXY_ERROR" }));
+          }
           return;
         }
 
