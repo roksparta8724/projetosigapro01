@@ -21,11 +21,10 @@ function buildApiUrl(path: string) {
 function buildReadApiUrl(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
 
-  // Leitura em localhost SEMPRE usa a API oficial de leitura.
-  // Isso evita que uma VITE_R2_API_BASE antiga redirecione o visualizador
-  // para o middleware local e passe a exigir segredos R2 no computador.
-  // Upload/delete continuam separados para não gravar em produção por acidente.
-  if (isLocalBrowser) return `${officialReadApiBase}${normalized}`;
+  // Em localhost a leitura passa pelo mesmo origin. O Vite encaminha SOMENTE
+  // rotas de leitura para a API oficial, preservando a sessão e evitando CORS.
+  // Upload/delete continuam locais para não gravar em produção por acidente.
+  if (isLocalBrowser) return normalized;
 
   if (apiBase) return `${apiBase}${normalized}`;
   return normalized;
@@ -166,9 +165,21 @@ export async function getSignedUrlForObjectStrict(input: {
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+  let response: Response;
 
-  if (response.status === 404 && apiBase) {
+  try {
+    response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+  } catch (error) {
+    throw new Error(
+      isLocalBrowserRuntime()
+        ? "Falha ao alcançar o proxy local de leitura do armazenamento. Reinicie o Vite e tente novamente."
+        : error instanceof Error
+          ? error.message
+          : "Falha ao gerar URL assinada.",
+    );
+  }
+
+  if (response.status === 404 && apiBase && !isLocalBrowserRuntime()) {
     response = await requestSignedUrl("/api/r2-sign-get", input);
   }
 
@@ -182,7 +193,11 @@ export async function getSignedUrlForObjectStrict(input: {
     signedUrl?: string;
   };
 
-  return payload.signedUrl || "";
+  if (!payload.signedUrl) {
+    throw new Error("A API oficial não retornou a URL segura do documento.");
+  }
+
+  return payload.signedUrl;
 }
 
 async function fileToBase64(file: File) {
