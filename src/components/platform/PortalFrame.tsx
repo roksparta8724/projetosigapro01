@@ -71,6 +71,7 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
@@ -720,6 +721,21 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           defaultDepartmentOwnership.diretoria,
       }
     : null;
+
+  const departmentOrganogramHint =
+    location.pathname.startsWith("/prefeitura/financeiro/iptu")
+      ? "Cadastro Imobiliário / IPTU"
+      : location.pathname.startsWith("/prefeitura/financeiro")
+        ? canonicalSignedInUser?.department || session.department || "Financeiro"
+        : location.pathname.startsWith("/prefeitura/protocolos")
+          ? canonicalSignedInUser?.department || session.department || "Protocolo"
+          : location.pathname.startsWith("/prefeitura/analise")
+            ? canonicalSignedInUser?.department || session.department || "Análise Urbanística"
+            : canonicalSignedInUser?.department ||
+              session.department ||
+              activeDepartmentOwnership?.diretoria ||
+              activeDepartmentOwnership?.secretaria ||
+              "";
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
@@ -2213,28 +2229,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              {activeDepartmentOwnership?.diretoria ? (
-                <div
-                  className="mt-4 overflow-hidden rounded-[10px] border shadow-sm"
-                  style={{
-                    borderColor: withAlpha(primaryColor, "0.24"),
-                    background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 54%, ${activeBg} 100%)`,
-                  }}
-                >
-                  <div className="px-5 py-2.5 md:px-6">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Estrutura do departamento</p>
-                  </div>
-                  <div className="grid gap-2 border-t border-white/10 px-5 py-4 md:grid-cols-2 md:px-6">
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Secretaria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.secretaria}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Diretoria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.diretoria}</p>
-                    </div>
-                  </div>
-                </div>
+              {isInternalRole(session.role) && activeInstitutionId ? (
+                <MunicipalOrganogramBar
+                  municipalityId={activeInstitutionId}
+                  departmentHint={departmentOrganogramHint}
+                  title="Organograma do departamento"
+                  description="Caminho oficial da unidade no organograma municipal. Este mesmo cadastro orienta os destinos de despacho dos processos."
+                  className="mt-4"
+                />
               ) : null}
             </header> : null}
 
