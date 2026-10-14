@@ -215,7 +215,7 @@ export function ProcessDetailPage() {
 
   useEffect(() => {
     let active = true;
-    if (!effectiveScopeId || !isInternalRole(session.role)) {
+    if (!effectiveScopeId) {
       setOrganizationDepartments([]);
       setOrganizationStatus("");
       return () => {
@@ -755,9 +755,7 @@ export function ProcessDetailPage() {
     isFinalProcessStatus
       ? statusLabel(process.status)
       : flowLabels[currentFlowIndex] || statusLabel(process.status);
-  const displayOrganizationPath = isExternalProcessViewer
-    ? currentFlowStatusLabel
-    : currentOrganizationPath;
+  const displayOrganizationPath = currentOrganizationPath;
 
   const processExitPath =
     session.role === "profissional_externo"
@@ -782,7 +780,28 @@ export function ProcessDetailPage() {
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
     process.timeline[process.timeline.length - 1]?.at ||
     "";
-  const transitSteps = [...process.dispatches].reverse();
+  const transitSteps = [...process.dispatches]
+    .reverse()
+    .filter((dispatch) => {
+      if (!holdsIssuedIssInsideUrbanism) return true;
+      const destination = String(dispatch.to || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("pt-BR");
+      const subject = String(dispatch.subject || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("pt-BR");
+
+      const isPrematureIssFinanceHandoff =
+        /financ|tesour|arrecad|tribut/.test(destination) &&
+        (
+          /guia.*(issqn|iss|projeto).*emitid/.test(subject) ||
+          /controle financeiro/.test(subject)
+        );
+
+      return !isPrematureIssFinanceHandoff;
+    });
   const hasTransitHistory = transitSteps.length > 0;
   const hasAnalysisDispatch = transitSteps.some((dispatch) =>
     /analise|análise|urban|obra|engenharia/i.test(dispatch.to),
@@ -1423,18 +1442,7 @@ export function ProcessDetailPage() {
               <LogOut className="mr-2 h-4 w-4" />
               Sair do processo
             </Button>
-            {protocolGuide ? (
-              <>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Visualizar guia
-                </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Imprimir guia
-                </Button>
-              </>
-            ) : null}
+
           </div>
         }
       />
@@ -1568,11 +1576,27 @@ export function ProcessDetailPage() {
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
-            {constructionGuide ? (
-              <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Visualizar guia
-              </Button>
+            {displayGuide ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", false)}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar guia
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", true)}
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir guia
+                </Button>
+              </div>
             ) : null}
           </CardContent>
         </Card>
@@ -2596,7 +2620,7 @@ export function ProcessDetailPage() {
                       {currentOrganizationPath}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {statusLabel(process.status)}
+                      {holdsIssuedIssInsideUrbanism ? "Análise Urbanística em andamento" : statusLabel(process.status)}
                       {/analise|urban|obra|engenharia/.test(normalizedCurrentFolder) && process.analysis?.assignedTo
                         ? ` • Responsável: ${process.analysis.assignedTo}`
                         : ""}
