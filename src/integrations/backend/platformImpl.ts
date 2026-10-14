@@ -2881,7 +2881,11 @@ export async function listRemoteMunicipalDepartments(municipalityId: string) {
 
 export async function listRemotePublicMunicipalDepartments(municipalityId: string) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
-  const { data, error } = await db.rpc("list_public_municipal_departments_v1", {
+
+  // A própria RPC oficial já limita a consulta à Prefeitura vinculada ao perfil
+  // autenticado. No modo externo, sanitizamos os campos de contato antes de
+  // entregar o organograma à interface e evitamos depender de uma RPC paralela.
+  const { data, error } = await db.rpc("list_municipal_departments_v1", {
     _municipality_id: municipalityId,
   });
   if (error) {
