@@ -821,6 +821,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,
+    authenticatedProfileId,
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
@@ -860,7 +861,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       // Não iniciar o carregamento oficial no meio da restauração do token.
       // Uma leitura antecipada podia falhar com 401/403, manter dataError antigo
       // e deixar plano/organograma presos mesmo depois da sessão ficar válida.
-      if (authLoading || !authResolved) return;
+      const authenticatedBusinessIdentityReady =
+        authResolved || Boolean(authenticatedProfileId);
+      if (authLoading || !authenticatedBusinessIdentityReady) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
@@ -1110,7 +1113,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, [authenticatedUserId, authLoading, authResolved]);
+  }, [authenticatedUserId, authenticatedProfileId, authLoading, authResolved]);
 
   const refreshRemoteStore = async () => {
     if (!authenticatedUserId || !hasBackendEnv) {
