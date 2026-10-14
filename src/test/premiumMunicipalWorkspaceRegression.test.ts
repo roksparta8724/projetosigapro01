@@ -36,6 +36,7 @@ describe("premium municipal workspace regression", () => {
   const hierarchyMigration = read("neon/migrations/20261014041000_municipal_organization_hierarchy.sql");
   const publicOrganizationMigration = read("neon/migrations/20261014042000_public_municipal_organization.sql");
   const r2Client = read("src/integrations/r2/client.ts");
+  const municipalityBackend = read("src/integrations/backend/municipalityImpl.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
@@ -343,6 +344,14 @@ describe("premium municipal workspace regression", () => {
   it("does not keep plan validation spinning after the authenticated profile is already confirmed", () => {
     expect(planEntitlements).toContain("const stableAuthenticatedIdentity");
     expect(planEntitlements).toContain("(!authResolved && !stableAuthenticatedIdentity)");
+  });
+
+  it("never reuses an expired signed branding URL when a permanent R2 object key exists", () => {
+    expect(municipalityBackend).toContain("function isTemporarySignedAssetUrl");
+    expect(municipalityBackend).toContain("function canonicalBrandingUrl");
+    expect(municipalityBackend).toContain("if (objectKey && isTemporarySignedAssetUrl(url)) return");
+    expect(municipalityBackend).toContain("const headerLogoUrl = canonicalBrandingUrl");
+    expect(municipalityBackend).toContain("const logoUrl = canonicalBrandingUrl");
   });
 
   it("uses the administrator-configured municipality logo on every official guide", () => {
