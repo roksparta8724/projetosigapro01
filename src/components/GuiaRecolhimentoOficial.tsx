@@ -68,6 +68,40 @@ export type GuiaRecolhimentoOficialProps = {
   className?: string;
 };
 
+function GuideInstitutionLogo({
+  source,
+  className,
+  compact = false,
+}: {
+  source?: string;
+  className?: string;
+  compact?: boolean;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const normalizedSource = String(source || "").trim();
+
+  if (!normalizedSource || failed) {
+    return (
+      <div
+        className="dam-logo-fallback"
+        style={compact ? { width: 18, height: 18 } : undefined}
+        aria-label="Brasão institucional indisponível"
+      >
+        Brasão
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={normalizedSource}
+      alt="Brasão da Prefeitura"
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function formatCurrency(value?: number) {
   return Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -1064,15 +1098,10 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-top">
             <div className="dam-header">
               <div className="dam-logo-box">
-                {prefeitura.logoUrl ? (
-                  <img
-                    src={prefeitura.logoUrl}
-                    alt="Logo da Prefeitura"
-                    className="dam-logo"
-                  />
-                ) : (
-                  <div className="dam-logo-fallback" aria-label="Logo institucional não configurado">Brasão</div>
-                )}
+                <GuideInstitutionLogo
+                  source={prefeitura.logoUrl}
+                  className="dam-logo"
+                />
               </div>
 
               <div className="dam-header-center">
@@ -1315,17 +1344,10 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-bottom">
             <div className="dam-receipt-header">
               <div className="dam-receipt-logo">
-                {prefeitura.logoUrl ? (
-                  <img src={prefeitura.logoUrl} alt="Logo da Prefeitura" />
-                ) : (
-                  <div
-                    className="dam-logo-fallback"
-                    style={{ width: 18, height: 18 }}
-                    aria-label="Logo institucional não configurado"
-                  >
-                    Brasão
-                  </div>
-                )}
+                <GuideInstitutionLogo
+                  source={prefeitura.logoUrl}
+                  compact
+                />
               </div>
 
               <div className="dam-receipt-center">
@@ -1534,8 +1556,12 @@ async function embedGuideImage(source?: string, objectKey?: string) {
         if (embedded) return embedded;
       }
     } catch {
-      // Continue para a URL já resolvida ou para o fallback neutro.
+      // A guia permanece válida mesmo quando o brasão estiver indisponível.
     }
+
+    // Havendo objectKey oficial, a URL bruta pode ser privada/expirada.
+    // Não deixe um <img> quebrado escapar para a guia.
+    return "";
   }
 
   const url = String(source || "").trim();
