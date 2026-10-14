@@ -354,6 +354,14 @@ describe("premium municipal workspace regression", () => {
     expect(municipalityBackend).toContain("const logoUrl = canonicalBrandingUrl");
   });
 
+  it("never prints a raw profile UUID as the official guide issuer", () => {
+    expect(processDetail).toContain("const resolveProcessActorName");
+    expect(processDetail).toContain("looksLikeUuid");
+    expect(processDetail).toContain('"Emissor municipal"');
+    expect(processDetail).toContain("funcionarioResponsavel: selectedGuideIssuer");
+    expect(processDetail).not.toContain("funcionarioResponsavel: selectedGuide.issuedBy || session.name");
+  });
+
   it("uses the administrator-configured municipality logo on every official guide", () => {
     expect(processDetail).toContain("branding: municipalityBranding");
     expect(processDetail).toContain("municipalityBranding?.headerLogoUrl");
