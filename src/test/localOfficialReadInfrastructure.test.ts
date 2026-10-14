@@ -14,12 +14,14 @@ describe("local and official read infrastructure", () => {
   const plan = read("src/hooks/usePlanEntitlements.ts");
   const publicDomain = read("src/lib/publicDomain.ts");
 
-  it("reads existing documents from the official API on localhost without sending writes to production", () => {
+  it("keeps localhost reads same-origin and lets Vite choose local R2 or official read fallback", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
     expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
-    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
-    expect(r2Client).toContain("buildApiUrl(\"/api/r2-upload\")");
-    expect(r2Client).toContain("buildApiUrl(\"/api/r2-delete\")");
-    expect(vite).toContain("Nenhuma rota de escrita é encaminhada para produção");
+    expect(r2Client).toContain("localInfrastructureFailure");
+    expect(vite).toContain("hasCompleteLocalR2Env");
+    expect(vite).toContain("const localR2Ready = hasCompleteLocalR2Env()");
+    expect(vite).toContain('req.url.startsWith("/api/r2-sign-get") && !localR2Ready');
+    expect(vite).toContain("Upload/delete nunca são encaminhados para produção");
   });
 
   it("never allows a production API base or public portal link to point at localhost", () => {
