@@ -21,7 +21,7 @@ import {
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
-  getProcessPaymentGuides,
+  getExternallyVisibleProcessPaymentGuides,
   getVisibleProcessesByScope,
   statusLabel,
 } from "@/lib/platform";
@@ -61,7 +61,7 @@ export function ExternalPortalPage() {
   const paymentGuides = useMemo(
     () =>
       processes.flatMap((process) =>
-        getProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
+        getExternallyVisibleProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
       ),
     [processes, tenantSettings],
   );

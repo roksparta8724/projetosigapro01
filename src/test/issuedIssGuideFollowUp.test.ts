@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   canFollowUpIssuedIssGuide,
   canTrackProcess,
+  getExternallyVisibleProcessPaymentGuides,
   type ProcessRecord,
   type SessionUser,
 } from "@/lib/platform";
@@ -64,6 +65,44 @@ describe("ISSQN after transfer to Financeiro", () => {
     expect(canFollowUpIssuedIssGuide({ ...analyst, id: "another-user" }, process)).toBe(false);
     expect(canFollowUpIssuedIssGuide({ ...analyst, municipalityId: "prefeitura-b", tenantId: "prefeitura-b" }, process)).toBe(false);
     expect(canFollowUpIssuedIssGuide({ ...analyst, accountStatus: "blocked" }, process)).toBe(false);
+  });
+
+  it("keeps ISSQN hidden from external payment views until an explicit external share exists", () => {
+    const process = movedProcess();
+    process.payment.guides = [
+      { kind: "protocolo", code: "DAM-001", label: "Protocolo", amount: 35.24, status: "compensada", dueDate: "14/10/2026", issuedAt: "2026-10-12T21:31:34Z" },
+      { kind: "iss_obra", code: "DAM-ISS-001", label: "ISSQN / Projeto", amount: 120, status: "pendente", dueDate: "15/10/2026", issuedAt: "2026-10-13T18:57:16Z" },
+    ];
+    process.messages = [];
+
+    expect(getExternallyVisibleProcessPaymentGuides(process).map((guide) => guide.code)).toEqual(["DAM-001"]);
+
+    process.messages = [
+      {
+        id: "internal-only",
+        senderName: "Analista",
+        senderRole: "analista",
+        audience: "interno",
+        message: "Revisar DAM-ISS-001 antes de liberar.",
+        at: "13/10/2026",
+      },
+    ];
+    expect(getExternallyVisibleProcessPaymentGuides(process).map((guide) => guide.code)).toEqual(["DAM-001"]);
+
+    process.messages = [
+      {
+        id: "external-share",
+        senderName: "Analista",
+        senderRole: "analista",
+        audience: "externo",
+        message: "Guia DAM-ISS-001 liberada ao profissional.",
+        at: "13/10/2026",
+      },
+    ];
+    expect(getExternallyVisibleProcessPaymentGuides(process).map((guide) => guide.code)).toEqual([
+      "DAM-001",
+      "DAM-ISS-001",
+    ]);
   });
 
   it("requires explicit analyst review before external release and supports revision", () => {

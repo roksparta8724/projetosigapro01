@@ -15,7 +15,7 @@ import {
   getOwnerLinksForOwner,
   getOwnerMessagesForLink,
   getOwnerRequestsForOwner,
-  getProcessPaymentGuides,
+  getExternallyVisibleProcessPaymentGuides,
   statusLabel,
   type ProcessStatus,
 } from "@/lib/platform";
@@ -68,7 +68,7 @@ export function OwnerPortalPage() {
 
   const messagesForSelected = selectedLink ? getOwnerMessagesForLink(selectedLink, ownerMessages) : [];
   const tenantSettings = selectedProcess ? getInstitutionSettings(selectedProcess.tenantId) : undefined;
-  const paymentGuides = selectedProcess ? getProcessPaymentGuides(selectedProcess, tenantSettings) : [];
+  const paymentGuides = selectedProcess ? getExternallyVisibleProcessPaymentGuides(selectedProcess, tenantSettings) : [];
 
   const tabs = [
     { value: "acompanhamentos", label: "Meus acompanhamentos", helper: "Projetos aprovados" },

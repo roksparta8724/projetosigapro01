@@ -986,6 +986,31 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
   ];
 }
 
+export function isProcessPaymentGuideSharedExternally(
+  process: ProcessRecord,
+  guide: PaymentGuideEntry,
+) {
+  if (guide.kind === "protocolo") return true;
+
+  const guideCode = guide.code?.trim();
+  if (!guideCode) return false;
+
+  return (process.messages ?? []).some(
+    (item) =>
+      (item.audience === "externo" || item.audience === "misto") &&
+      item.message.includes(guideCode),
+  );
+}
+
+export function getExternallyVisibleProcessPaymentGuides(
+  process: ProcessRecord,
+  settings?: TenantSettings | null,
+) {
+  return getProcessPaymentGuides(process, settings).filter((guide) =>
+    isProcessPaymentGuideSharedExternally(process, guide),
+  );
+}
+
 export function serializeMarker(label: string, color: string) {
   const paletteEntry = getMarkerPaletteEntry(color);
   return `${label}::${paletteEntry.id}`;
