@@ -30,7 +30,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
@@ -106,7 +106,12 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+          logoUrl:
+            municipalityBranding?.headerLogoUrl ||
+            municipalityBranding?.logoUrl ||
+            tenantSettings?.logoUrl ||
+            tenantSettings?.brasaoUrl ||
+            "",
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
