@@ -81,25 +81,32 @@ export function usePlanEntitlements() {
     !identityMatchesAuth ||
     session.id === "unknown";
 
+  const terminalDataFailure =
+    Boolean(dataError) &&
+    !dataReadyForCurrentUser;
+
   const planDataPending =
     !dataReadyForCurrentUser &&
-    !dataError &&
+    !terminalDataFailure &&
     platformDataLoading;
 
   const isResolving =
-    authContextUnresolved ||
-    (!isMaster && (
-      !municipalityMatchesAuth ||
-      !sessionMunicipalityId ||
-      !municipalityMatchesSession ||
-      planDataPending
-    ));
+    !terminalDataFailure &&
+    (
+      authContextUnresolved ||
+      (!isMaster && (
+        !municipalityMatchesAuth ||
+        !sessionMunicipalityId ||
+        !municipalityMatchesSession ||
+        planDataPending
+      ))
+    );
 
   const resolutionFailed =
-    !isResolving &&
     !isMaster &&
-    Boolean(dataError) &&
-    !dataReadyForCurrentUser;
+    terminalDataFailure &&
+    !authLoading &&
+    authResolved;
 
   const state = useMemo(
     () =>
