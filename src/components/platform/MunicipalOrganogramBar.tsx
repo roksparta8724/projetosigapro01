@@ -3,6 +3,55 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 
+function normalizeHint(value: string | null | undefined) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
+function fallbackHierarchy(hint: string | null | undefined) {
+  const normalized = normalizeHint(hint);
+  if (!normalized) return [] as Array<{ code: string; name: string }>;
+
+  if (/iptu|cadastro imobiliario/.test(normalized)) {
+    return [
+      { code: "FIN", name: "Financeiro" },
+      { code: "TRIB", name: "Tributos" },
+      { code: "IPTU", name: "Cadastro Imobiliário / IPTU" },
+    ];
+  }
+  if (/tribut/.test(normalized)) {
+    return [
+      { code: "FIN", name: "Financeiro" },
+      { code: "TRIB", name: "Tributos" },
+    ];
+  }
+  if (/fisc/.test(normalized)) {
+    return [
+      { code: "URB", name: "Urbanismo e Obras" },
+      { code: "FISC", name: "Fiscalização" },
+    ];
+  }
+  if (/urban|analise|obra|engenharia/.test(normalized)) {
+    return [
+      { code: "URB", name: "Urbanismo e Obras" },
+      { code: "ANU", name: "Análise Urbanística" },
+    ];
+  }
+  if (/protocol|triagem|recep/.test(normalized)) {
+    return [
+      { code: "ADM", name: "Administração" },
+      { code: "PROT", name: "Protocolo" },
+    ];
+  }
+  if (/financ|tesour|arrecad/.test(normalized)) {
+    return [{ code: "FIN", name: "Financeiro" }];
+  }
+  return [] as Array<{ code: string; name: string }>;
+}
+
 type MunicipalOrganogramBarProps = {
   municipalityId: string | null | undefined;
   departmentHint?: string | null;
@@ -24,6 +73,7 @@ export function MunicipalOrganogramBar({
 }: MunicipalOrganogramBarProps) {
   const { departments, status, getPathRecords } = useMunicipalOrganogram(municipalityId);
   const chain = getPathRecords(departmentHint);
+  const fallbackChain = fallbackHierarchy(departmentHint);
   const fallbackLabel = String(departmentHint || "").trim();
 
   if (!municipalityId) return null;
@@ -86,14 +136,32 @@ export function MunicipalOrganogramBar({
               </div>
             ))}
           </div>
+        ) : fallbackChain.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {fallbackChain.map((department, index) => (
+              <div key={`${department.code}-${department.name}`} className="flex min-w-0 items-center gap-2">
+                {index > 0 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" /> : null}
+                <span
+                  className={cn(
+                    "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+                    index === fallbackChain.length - 1
+                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700",
+                  )}
+                >
+                  <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                    {department.code}
+                  </span>
+                  <span className="truncate">{department.name}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         ) : fallbackLabel ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-900">
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700">
               {fallbackLabel}
             </span>
-            {status ? (
-              <span className="text-[11px] text-slate-500">{status}</span>
-            ) : null}
           </div>
         ) : departments.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
