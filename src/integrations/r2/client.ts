@@ -38,10 +38,10 @@ function buildApiUrl(path: string) {
 function buildReadApiUrl(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
 
-  // Leitura local usa a API oficial diretamente. Assim o VS Code não precisa
-  // carregar segredos R2 e a porta 8080 não interfere na assinatura do arquivo.
-  // Escritas continuam usando buildApiUrl e jamais são redirecionadas para produção.
-  if (isLocalBrowser) return `${officialReadApiBase}${normalized}`;
+  // Em localhost a chamada permanece same-origin. O middleware do Vite decide:
+  // usa credenciais R2 locais quando existem; caso contrário, encaminha SOMENTE
+  // a leitura para a API oficial. Escritas nunca recebem esse fallback.
+  if (isLocalBrowser) return normalized;
 
   if (apiBase) return `${apiBase}${normalized}`;
   return normalized;
@@ -138,9 +138,21 @@ async function requestSignedUrlWithLocalReadFallback(
   path: string,
   input: { bucket: string; objectKey: string; expiresIn?: number },
 ) {
-  // buildReadApiUrl já seleciona a origem correta. Mantemos esta função como
-  // ponto único para compatibilidade com chamadas existentes.
-  return requestSignedUrl(path, input);
+  const primaryUrl = buildReadApiUrl(path);
+  try {
+    return await requestSignedUrl(primaryUrl, input);
+  } catch (error) {
+    if (!isLocalBrowser) throw error;
+
+    const message = error instanceof Error ? error.message : String(error || "");
+    const localInfrastructureFailure =
+      /R2_CONFIG_MISSING|Variáveis R2 ausentes|Endpoint R2 não configurado|R2_READ_PROXY_ERROR|Falha ao alcançar o proxy local/i.test(
+        message,
+      );
+    if (!localInfrastructureFailure) throw error;
+
+    return requestSignedUrl(`${officialReadApiBase}${path.startsWith("/") ? path : `/${path}`}`, input);
+  }
 }
 
 export async function getSignedUrlForObject(input: {
