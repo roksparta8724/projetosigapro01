@@ -2214,7 +2214,7 @@ export async function issueRemoteProcessPaymentGuide(input: {
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
 
-  const { data, error } = await db.rpc("issue_process_payment_guide_v3", {
+  const { data, error } = await db.rpc("issue_process_payment_guide_v2", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
     _due_date: input.dueDate || null,
