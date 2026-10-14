@@ -486,20 +486,13 @@ export function ProcessDetailPage() {
     process.status === "pagamento_pendente" &&
     canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
-  const isAssignedProcessAnalyst =
-    Boolean(process.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
-    Boolean(process.analysis?.assignedTo && process.analysis.assignedTo === session.name);
-
   const canReviewDocuments =
     canAnalysisOperate &&
     (
       session.role === "master_admin" ||
       session.role === "master_ops" ||
       session.role === "prefeitura_supervisor" ||
-      (
-        session.role === "analista" &&
-        (ownsCurrentProcessStage || isAssignedProcessAnalyst)
-      )
+      session.role === "analista"
     );
   const visibleDocumentRows =
     isProtocolTrackingOnly
@@ -1167,9 +1160,14 @@ export function ProcessDetailPage() {
   const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
     const shouldAnalyze = forceAnalysis || canReviewDocuments;
     const route = shouldAnalyze ? "analisar" : "visualizar";
-    const workspaceUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}`;
-    const opened = window.open(workspaceUrl, "_blank", "noopener,noreferrer");
-    if (opened) opened.opener = null;
+    const query = shouldAnalyze ? "?ferramenta=highlight" : "";
+    const workspaceUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
+    const workspaceName = `sigapro-document-${process.id}-${documentId}`;
+    const opened = window.open(workspaceUrl, workspaceName, "noopener,noreferrer");
+    if (opened) {
+      opened.opener = null;
+      opened.focus();
+    }
   };
 
   const openViewer = (documentId: string) => openDocumentWorkspace(documentId, false);
@@ -1698,7 +1696,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader data-premium-inverse-surface="true" className="sig-fixed-dark-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader data-premium-inverse-surface="true" data-surface-tone="dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
