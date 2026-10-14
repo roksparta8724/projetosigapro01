@@ -76,10 +76,21 @@ export function usePlanEntitlements() {
     session.id !== "unknown" &&
     !identityMatchesAuth;
 
+  const stableAuthenticatedIdentity =
+    session.id !== "unknown" &&
+    (
+      (Boolean(authenticatedProfileId) && session.id === authenticatedProfileId) ||
+      (Boolean(authenticatedUserId) && session.id === authenticatedUserId) ||
+      (
+        Boolean(normalizedAuthenticatedEmail) &&
+        normalizedAuthenticatedEmail === normalizedSessionEmail
+      )
+    );
+
   const authContextUnresolved =
     authLoading ||
-    !authResolved ||
-    session.id === "unknown";
+    session.id === "unknown" ||
+    (!authResolved && !stableAuthenticatedIdentity);
 
   const terminalDataFailure =
     Boolean(dataError) &&
