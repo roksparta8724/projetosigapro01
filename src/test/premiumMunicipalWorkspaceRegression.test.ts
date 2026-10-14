@@ -36,6 +36,8 @@ describe("premium municipal workspace regression", () => {
   const hierarchyMigration = read("neon/migrations/20261014041000_municipal_organization_hierarchy.sql");
   const publicOrganizationMigration = read("neon/migrations/20261014042000_public_municipal_organization.sql");
   const r2Client = read("src/integrations/r2/client.ts");
+  const app = read("src/App.tsx");
+  const externalControl = read("src/pages/saas/ExternalProcessControlPage.tsx");
   const municipalityBackend = read("src/integrations/backend/municipalityImpl.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
@@ -318,6 +320,14 @@ describe("premium municipal workspace regression", () => {
   it("keeps institutional logos fully contained instead of stretching or cropping", () => {
     expect(institutionalLogo).toContain("object-contain object-center");
     expect(institutionalLogo).not.toContain("object-cover");
+  });
+
+  it("keeps a single canonical process detail route for internal and external users", () => {
+    const canonicalRouteCount = app.split('path="/processos/:processId"').length - 1;
+    expect(canonicalRouteCount).toBe(1);
+    expect(app).toContain("ProcessDetailPage");
+    expect(externalControl).toContain('to={`/processos/${process.id}`}');
+    expect(externalControl).not.toContain("<ProcessDetailPage");
   });
 
   it("uses one read-only process rule in the document viewer", () => {
