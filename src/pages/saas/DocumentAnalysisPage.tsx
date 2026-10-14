@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -7,18 +8,20 @@ import {
   Highlighter,
   MessageSquareText,
   MousePointer2,
+  Maximize2,
   XCircle,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -48,11 +51,19 @@ function clampPercent(value: number) {
 }
 
 export function DocumentAnalysisPage() {
+  const navigate = useNavigate();
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
-  const { processes, addDocumentAnnotation, reviewProcessDocument, createRequirement } = usePlatformData();
+  const {
+    processes,
+    loading: platformDataLoading,
+    dataReadyForCurrentUser,
+    addDocumentAnnotation,
+    reviewProcessDocument,
+    createRequirement,
+  } = usePlatformData();
   const process = processId ? getProcessById(processId, processes) : undefined;
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
@@ -326,463 +337,619 @@ export function DocumentAnalysisPage() {
   };
 
   if (!process || !document) {
+    if (platformDataLoading || !dataReadyForCurrentUser) {
+      return <DocumentWorkspaceBoot mode="analysis" />;
+    }
+
     return (
-      <div className="min-h-screen bg-slate-950 p-8 text-white">
-        Documento não encontrado no processo.
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-[#dfe5ec] p-6">
+        <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+          <FileText className="mx-auto h-9 w-9 text-slate-500" />
+          <h1 className="mt-4 text-xl font-bold text-slate-950">Documento não encontrado</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            O arquivo solicitado não foi localizado neste processo.
+          </p>
+        </div>
+      </main>
     );
   }
 
   if (!canUseAnalysis) {
     return (
-      <div className="min-h-screen bg-slate-950 p-8 text-white">
-        Esta área é exclusiva da equipe interna responsável pela análise.
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-[#dfe5ec] p-6">
+        <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+          <FileText className="mx-auto h-9 w-9 text-slate-500" />
+          <h1 className="mt-4 text-xl font-bold text-slate-950">Análise protegida</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Esta área é exclusiva da equipe interna responsável pela análise deste processo.
+          </p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#07111f] text-slate-100">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07111f]/95 backdrop-blur">
-        <div className="flex min-h-[74px] flex-wrap items-center justify-between gap-4 px-5 py-3 lg:px-7">
+    <main className="flex h-screen w-screen flex-col overflow-hidden bg-[#e4e9ef] text-slate-950">
+      <header className="flex min-h-[68px] shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#102a43_55%,#123a58_100%)] px-5 py-3 text-white lg:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 shrink-0 rounded-full border-white/15 bg-white/5 px-3 text-white hover:bg-white/10 hover:text-white"
+            onClick={() => {
+              if (window.history.length > 1) navigate(-1);
+              else window.close();
+            }}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar ao processo
+          </Button>
+
+          <div className="hidden h-8 w-px bg-white/10 sm:block" />
+
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-sky-200/70">
-              <FileText className="h-4 w-4" />
-              Análise documental
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/70">
+              <FileText className="h-3.5 w-3.5" />
+              Mesa de análise documental
             </div>
-            <h1 className="mt-1 truncate text-lg font-semibold text-white">
+            <h1 className="mt-1 truncate text-[15px] font-semibold text-white">
               {document.label}
             </h1>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-0.5 truncate text-[11px] text-slate-300">
               {formatOfficialProcessNumber(process.protocol)}
-              {document.fileName ? ` • ${document.fileName}` : ""}
+              {document.fileName ? ` · ${document.fileName}` : ""}
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <MarkerSelector
-              tags={documentMarkerTags}
-              actor={session.name}
-              subjectLabel="documento"
-              triggerClassName="h-9 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-              onApplyMarker={(label, color) =>
-                documentMarkers.addMarker(process.id, document.id, label, color)
-              }
-              onRemoveMarker={(tag) =>
-                documentMarkers.removeMarker(process.id, document.id, tag)
-              }
-            />
-            <Badge
-              variant="outline"
-              className={`rounded-full font-semibold ${
-                localReviewStatus === "aprovado"
-                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
-                  : localReviewStatus === "rejeitado"
-                    ? "border-amber-300/40 bg-amber-400/15 text-amber-200"
-                    : "border-sky-300/30 bg-sky-400/10 text-sky-200"
-              }`}
-            >
-              {localReviewStatus === "aprovado"
-                ? "Aprovado"
-                : localReviewStatus === "rejeitado"
-                  ? "Comunique-se"
-                  : "Aguardando análise"}
-            </Badge>
-            {accessUrl ? (
-              <a
-                href={accessUrl}
-                download={document.fileName || document.label}
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-medium text-slate-100 hover:bg-white/10"
-              >
-                <Download className="h-4 w-4" />
-                Baixar original
-              </a>
-            ) : null}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-3 lg:px-7">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={`rounded-full border-white/15 bg-transparent text-slate-100 hover:bg-white/10 ${
-                tool === "navigate" ? "ring-2 ring-sky-400/70" : ""
-              }`}
-              onClick={() => {
-                setTool("navigate");
-                setDraft(null);
-                setDragStart(null);
-              }}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <MarkerSelector
+            tags={documentMarkerTags}
+            actor={session.name}
+            subjectLabel="documento"
+            triggerClassName="h-9 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            onApplyMarker={(label, color) =>
+              documentMarkers.addMarker(process.id, document.id, label, color)
+            }
+            onRemoveMarker={(tag) =>
+              documentMarkers.removeMarker(process.id, document.id, tag)
+            }
+          />
+          <Badge
+            variant="outline"
+            className={`rounded-full px-3 py-1.5 font-semibold ${
+              localReviewStatus === "aprovado"
+                ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-200"
+                : localReviewStatus === "rejeitado"
+                  ? "border-amber-300/35 bg-amber-300/15 text-amber-100"
+                  : "border-sky-300/30 bg-sky-300/10 text-sky-100"
+            }`}
+          >
+            {localReviewStatus === "aprovado"
+              ? "Aprovado"
+              : localReviewStatus === "rejeitado"
+                ? "Comunique-se"
+                : "Em análise"}
+          </Badge>
+          {accessUrl ? (
+            <a
+              href={accessUrl}
+              download={document.fileName || document.label}
+              className="hidden h-9 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 text-[12px] font-semibold text-white transition hover:bg-white/10 sm:inline-flex"
             >
-              <MousePointer2 className="mr-2 h-4 w-4" />
-              Navegar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={`rounded-full border-white/15 bg-transparent text-slate-100 hover:bg-white/10 ${
-                tool === "highlight" ? "ring-2 ring-amber-300/80" : ""
-              }`}
-              onClick={() => {
-                setTool("highlight");
-                setDraft(null);
-                setDragStart(null);
-              }}
-            >
-              <Highlighter className="mr-2 h-4 w-4" />
-              Marca-texto
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={`rounded-full border-white/15 bg-transparent text-slate-100 hover:bg-white/10 ${
-                tool === "text" ? "ring-2 ring-sky-400/70" : ""
-              }`}
-              onClick={() => {
-                setTool("text");
-                setDraft(null);
-                setDragStart(null);
-              }}
-            >
-              <MessageSquareText className="mr-2 h-4 w-4" />
-              Texto
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isPdf ? (
-              <>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                  disabled={page <= 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm">
-                  <span className="text-slate-400">Página</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={page}
-                    onChange={(event) => setPage(Math.max(1, Number(event.target.value) || 1))}
-                    className="h-7 w-16 border-white/10 bg-black/20 px-2 text-center text-white"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-                  onClick={() => setPage((current) => current + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            ) : null}
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-              onClick={() => setZoom((current) => Math.max(0.6, Number((current - 0.1).toFixed(2))))}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="min-w-[54px] text-center text-sm text-slate-300">
-              {Math.round(zoom * 100)}%
-            </span>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="rounded-full border-white/15 bg-transparent text-white hover:bg-white/10"
-              onClick={() => setZoom((current) => Math.min(2.5, Number((current + 0.1).toFixed(2))))}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
+              <Download className="h-4 w-4" />
+              Baixar original
+            </a>
+          ) : null}
         </div>
       </header>
 
-      <main className="grid min-h-[calc(100vh-132px)] grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="min-w-0 bg-[#0a1625] p-4 lg:p-6">
-          <div
-            ref={surfaceRef}
-            className={`relative mx-auto min-h-[760px] max-w-[1280px] overflow-hidden rounded-[22px] border border-white/10 bg-slate-900 shadow-2xl ${
-              tool === "navigate" ? "cursor-default" : tool === "highlight" ? "cursor-crosshair" : "cursor-cell"
+      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-[0_4px_18px_rgba(15,23,42,0.05)] lg:px-5">
+        <div className="flex items-center gap-2 xl:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
+              tool === "navigate" ? "border-sky-300 bg-sky-50 text-sky-800" : "bg-white"
             }`}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
+            onClick={() => {
+              setTool("navigate");
+              setDraft(null);
+              setDragStart(null);
+            }}
           >
-            {!accessUrl ? (
-              <div className="flex min-h-[760px] items-center justify-center p-8 text-center text-slate-400">
-                {accessError || "Gerando acesso seguro ao documento..."}
-              </div>
-            ) : isPdf ? (
-              <iframe
-                key={previewUrl}
-                src={previewUrl}
-                title={document.fileName || document.label}
-                className="h-[calc(100vh-180px)] min-h-[760px] w-full bg-white"
-                style={{ pointerEvents: tool === "navigate" ? "auto" : "none" }}
-              />
-            ) : (
-              <div className="flex min-h-[760px] items-start justify-center overflow-auto bg-[#111827] p-6">
-                <img
-                  src={previewUrl}
-                  alt={document.fileName || document.label}
-                  draggable={false}
-                  className="max-w-none select-none bg-white shadow-2xl"
-                  style={{
-                    width: `${zoom * 100}%`,
-                    minWidth: "640px",
-                    pointerEvents: tool === "navigate" ? "auto" : "none",
-                  }}
+            <MousePointer2 className="mr-2 h-4 w-4" />
+            Selecionar
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
+              tool === "highlight" ? "border-amber-300 bg-amber-50 text-amber-800" : "bg-white"
+            }`}
+            onClick={() => {
+              setTool("highlight");
+              setDraft(null);
+              setDragStart(null);
+            }}
+          >
+            <Highlighter className="mr-2 h-4 w-4" />
+            Marca-texto
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-9 rounded-xl border-slate-200 px-3 text-slate-700 ${
+              tool === "text" ? "border-sky-300 bg-sky-50 text-sky-800" : "bg-white"
+            }`}
+            onClick={() => {
+              setTool("text");
+              setDraft(null);
+              setDragStart(null);
+            }}
+          >
+            <MessageSquareText className="mr-2 h-4 w-4" />
+            Comentário
+          </Button>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {isPdf ? (
+            <>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-700"
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 text-[12px]">
+                <span className="text-slate-500">Página</span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={page}
+                  onChange={(event) => setPage(Math.max(1, Number(event.target.value) || 1))}
+                  className="h-7 w-14 border-0 bg-white px-2 text-center text-slate-900 shadow-none focus-visible:ring-1"
                 />
               </div>
-            )}
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-700"
+                onClick={() => setPage((current) => current + 1)}
+                aria-label="Próxima página"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          ) : null}
 
-            {pageAnnotations.map((annotation, index) => {
-              const kind = annotation.kind || "text";
-              if (kind === "highlight") {
+          <div className="mx-1 hidden h-7 w-px bg-slate-200 sm:block" />
+
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-700"
+            onClick={() => setZoom((current) => Math.max(0.6, Number((current - 0.1).toFixed(2))))}
+            aria-label="Diminuir zoom"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[52px] text-center text-[12px] font-semibold text-slate-600">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-700"
+            onClick={() => setZoom((current) => Math.min(2.5, Number((current + 0.1).toFixed(2))))}
+            aria-label="Aumentar zoom"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="hidden h-9 rounded-xl border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 sm:inline-flex"
+            onClick={() => setZoom(1)}
+          >
+            <Maximize2 className="mr-2 h-4 w-4" />
+            100%
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[72px_minmax(0,1fr)_380px]">
+        <aside className="hidden border-r border-slate-200 bg-[#f7f9fc] py-4 xl:flex xl:flex-col xl:items-center xl:gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setTool("navigate");
+              setDraft(null);
+              setDragStart(null);
+            }}
+            className={`flex w-[54px] flex-col items-center gap-1 rounded-2xl border px-2 py-3 text-[9px] font-bold uppercase tracking-[0.08em] transition ${
+              tool === "navigate"
+                ? "border-sky-200 bg-sky-50 text-sky-800 shadow-sm"
+                : "border-transparent text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <MousePointer2 className="h-5 w-5" />
+            Selecionar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTool("highlight");
+              setDraft(null);
+              setDragStart(null);
+            }}
+            className={`flex w-[54px] flex-col items-center gap-1 rounded-2xl border px-2 py-3 text-[9px] font-bold uppercase tracking-[0.08em] transition ${
+              tool === "highlight"
+                ? "border-amber-200 bg-amber-50 text-amber-800 shadow-sm"
+                : "border-transparent text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <Highlighter className="h-5 w-5" />
+            Marca
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTool("text");
+              setDraft(null);
+              setDragStart(null);
+            }}
+            className={`flex w-[54px] flex-col items-center gap-1 rounded-2xl border px-2 py-3 text-[9px] font-bold uppercase tracking-[0.08em] transition ${
+              tool === "text"
+                ? "border-sky-200 bg-sky-50 text-sky-800 shadow-sm"
+                : "border-transparent text-slate-500 hover:bg-white hover:text-slate-800"
+            }`}
+          >
+            <MessageSquareText className="h-5 w-5" />
+            Texto
+          </button>
+        </aside>
+
+        <section className="min-h-0 overflow-auto bg-[#d8dee6] p-4 lg:p-5">
+          <div className="mx-auto flex min-h-full max-w-[1440px] items-start justify-center">
+            <div
+              ref={surfaceRef}
+              className={`relative w-full overflow-hidden rounded-[14px] border border-slate-300 bg-[#2f343b] shadow-[0_24px_70px_rgba(15,23,42,0.20)] ${
+                tool === "navigate"
+                  ? "cursor-default"
+                  : tool === "highlight"
+                    ? "cursor-crosshair"
+                    : "cursor-cell"
+              }`}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            >
+              {!accessUrl ? (
+                <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#d8dee6] p-6">
+                  {accessError ? (
+                    <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
+                      <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
+                    </div>
+                  ) : (
+                    <div className="h-[82vh] max-h-[980px] min-h-[620px] w-[min(780px,86%)] rounded-[10px] border border-slate-300 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+                      <div className="mx-auto mt-16 w-[62%] space-y-4">
+                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
+                        <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
+                        <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-slate-100" />
+                        <div className="h-2.5 w-5/6 animate-pulse rounded-full bg-slate-100" />
+                        <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-50" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : isPdf ? (
+                <iframe
+                  key={previewUrl}
+                  src={`${previewUrl}${previewUrl.includes("#") ? "&" : "#"}toolbar=0&navpanes=0&view=FitH`}
+                  title={document.fileName || document.label}
+                  className="h-[calc(100vh-164px)] min-h-[700px] w-full border-0 bg-[#2f343b]"
+                  style={{ pointerEvents: tool === "navigate" ? "auto" : "none" }}
+                />
+              ) : (
+                <div className="flex min-h-[calc(100vh-164px)] items-start justify-center overflow-auto bg-[#d8dee6] p-6">
+                  <img
+                    src={previewUrl}
+                    alt={document.fileName || document.label}
+                    draggable={false}
+                    className="max-w-none select-none rounded-lg bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
+                    style={{
+                      width: `${zoom * 100}%`,
+                      minWidth: "640px",
+                      pointerEvents: tool === "navigate" ? "auto" : "none",
+                    }}
+                  />
+                </div>
+              )}
+
+              {pageAnnotations.map((annotation, index) => {
+                const kind = annotation.kind || "text";
+                if (kind === "highlight") {
+                  return (
+                    <div
+                      key={annotation.id}
+                      className="pointer-events-none absolute z-20 rounded-[3px] border border-amber-500/60 bg-amber-300/40 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]"
+                      style={{
+                        left: `${annotation.x}%`,
+                        top: `${annotation.y}%`,
+                        width: `${annotation.width ?? 3}%`,
+                        height: `${annotation.height ?? 2}%`,
+                      }}
+                      title={`${annotation.note} · ${annotation.author}`}
+                    />
+                  );
+                }
+
                 return (
                   <div
                     key={annotation.id}
-                    className="pointer-events-none absolute z-20 rounded-sm border border-amber-500/60 bg-amber-300/35 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
-                    style={{
-                      left: `${annotation.x}%`,
-                      top: `${annotation.y}%`,
-                      width: `${annotation.width ?? 3}%`,
-                      height: `${annotation.height ?? 2}%`,
-                    }}
-                    title={`${annotation.note} • ${annotation.author}`}
-                  />
+                    className="pointer-events-none absolute z-30 max-w-[260px] -translate-y-1/2 rounded-xl border border-sky-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+                    style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
+                    title={`${annotation.note} · ${annotation.author}`}
+                  >
+                    <span className="mr-1 font-bold text-sky-700">{index + 1}.</span>
+                    {annotation.note}
+                  </div>
                 );
-              }
+              })}
 
-              return (
+              {draft?.page === page && draft.kind === "highlight" ? (
                 <div
-                  key={annotation.id}
-                  className="pointer-events-none absolute z-30 max-w-[240px] -translate-y-1/2 rounded-xl border border-sky-300/50 bg-sky-950/95 px-3 py-2 text-xs text-white shadow-xl"
-                  style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
-                  title={`${annotation.note} • ${annotation.author}`}
+                  className="pointer-events-none absolute z-40 rounded-[3px] border-2 border-amber-400 bg-amber-300/40"
+                  style={{
+                    left: `${draft.x}%`,
+                    top: `${draft.y}%`,
+                    width: `${draft.width ?? 0}%`,
+                    height: `${draft.height ?? 0}%`,
+                  }}
+                />
+              ) : null}
+
+              {draft?.page === page && draft.kind === "text" ? (
+                <div
+                  className="pointer-events-none absolute z-40 -translate-y-1/2 rounded-full border-2 border-white bg-sky-600 px-3 py-1.5 text-xs font-bold text-white shadow-xl"
+                  style={{ left: `${draft.x}%`, top: `${draft.y}%` }}
                 >
-                  <span className="mr-1 font-bold text-sky-300">{index + 1}.</span>
-                  {annotation.note}
+                  Nova observação
                 </div>
-              );
-            })}
-
-            {draft?.page === page && draft.kind === "highlight" ? (
-              <div
-                className="pointer-events-none absolute z-40 rounded-sm border-2 border-amber-300 bg-amber-300/35"
-                style={{
-                  left: `${draft.x}%`,
-                  top: `${draft.y}%`,
-                  width: `${draft.width ?? 0}%`,
-                  height: `${draft.height ?? 0}%`,
-                }}
-              />
-            ) : null}
-
-            {draft?.page === page && draft.kind === "text" ? (
-              <div
-                className="pointer-events-none absolute z-40 -translate-y-1/2 rounded-full border-2 border-white bg-sky-500 px-3 py-1 text-xs font-bold text-white shadow-xl"
-                style={{ left: `${draft.x}%`, top: `${draft.y}%` }}
-              >
-                Texto
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </section>
 
-        <aside className="border-l border-white/10 bg-[#091522] p-5">
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.045] p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-              Como analisar
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Use <strong>Marca-texto</strong> e arraste sobre a área incorreta.
-              Use <strong>Texto</strong> e clique no ponto onde deseja registrar
-              uma observação. As marcações ficam gravadas no processo.
-            </p>
-            {isPdf ? (
-              <p className="mt-3 text-xs leading-5 text-amber-200/80">
-                Em PDF, informe a página correta antes de marcar. As anotações são
-                vinculadas à página selecionada.
-              </p>
-            ) : null}
-          </div>
-
-          {draft ? (
-            <div className="mt-4 rounded-[22px] border border-sky-400/20 bg-sky-400/[0.06] p-4">
-              <p className="text-sm font-semibold text-white">
-                {draft.kind === "highlight" ? "Comentário do marca-texto" : "Texto da observação"}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">Página {draft.page}</p>
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Descreva exatamente o que está errado e o que deve ser corrigido."
-                rows={5}
-                className="mt-3 w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50"
-              />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full border-white/15 bg-transparent text-slate-200 hover:bg-white/10"
-                  onClick={() => {
-                    setDraft(null);
-                    setNote("");
-                    setDragStart(null);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  className="rounded-full bg-sky-600 text-white hover:bg-sky-500"
-                  disabled={!note.trim() || busy === "annotation"}
-                  onClick={() => void saveAnnotation()}
-                >
-                  {busy === "annotation" ? "Salvando..." : "Salvar marcação"}
-                </Button>
+        <aside className="min-h-0 overflow-y-auto border-l border-slate-200 bg-white">
+          <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                  Painel técnico
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">
+                  Anotações e decisão
+                </p>
               </div>
-            </div>
-          ) : null}
-
-          <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.045] p-4">
-            <p className="text-sm font-semibold text-white">Anotações da página {page}</p>
-            <div className="mt-3 space-y-3">
-              {pageAnnotations.length === 0 ? (
-                <p className="text-sm text-slate-500">Nenhuma marcação nesta página.</p>
-              ) : (
-                pageAnnotations.map((annotation, index) => (
-                  <div key={annotation.id} className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                    <div className="flex items-center gap-2">
-                      {annotation.kind === "highlight" ? (
-                        <Highlighter className="h-4 w-4 text-amber-300" />
-                      ) : (
-                        <MessageSquareText className="h-4 w-4 text-sky-300" />
-                      )}
-                      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
-                        Marcação {index + 1}
-                      </p>
-                    </div>
-                    <p className="mt-2 text-sm leading-5 text-slate-200">{annotation.note}</p>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {annotation.author} • {annotation.createdAt}
-                    </p>
-                  </div>
-                ))
-              )}
+              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-slate-100 px-2 text-[11px] font-bold text-slate-600">
+                {pageAnnotations.length}
+              </span>
             </div>
           </div>
 
-          <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.045] p-4">
-            <p className="text-sm font-semibold text-white">Resultado da análise</p>
+          <div className="space-y-4 p-5">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                Ferramenta ativa
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">
+                {tool === "highlight"
+                  ? "Marca-texto"
+                  : tool === "text"
+                    ? "Comentário pontual"
+                    : "Navegação"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {tool === "highlight"
+                  ? "Arraste sobre a área que precisa ser corrigida e registre a observação."
+                  : tool === "text"
+                    ? "Clique no ponto do documento onde deseja inserir o comentário."
+                    : "Use o PDF normalmente para leitura, rolagem e conferência."}
+              </p>
+            </div>
 
-            {localReviewStatus === "aprovado" ? (
-              <div className="mt-3 rounded-[18px] border border-emerald-400/30 bg-emerald-500/10 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-950/30">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-emerald-200">Documento aprovado</p>
-                    <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-                      A decisão foi registrada no processo e este documento está concluído na conferência.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  className="mt-4 w-full cursor-default rounded-full bg-emerald-600 text-white hover:bg-emerald-600"
-                  disabled
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Aprovado
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="mt-3 grid gap-2">
+            {draft ? (
+              <div className="rounded-[20px] border border-sky-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
+                <p className="text-sm font-semibold text-slate-950">
+                  {draft.kind === "highlight"
+                    ? "Comentário do marca-texto"
+                    : "Texto da observação"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">Página {draft.page}</p>
+                <Textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Descreva exatamente o problema e a correção necessária."
+                  className="mt-3 min-h-[120px] resize-y rounded-xl border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"
+                />
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <Button
                     type="button"
-                    className="rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
+                    variant="outline"
+                    className="rounded-full border-slate-200"
+                    onClick={() => {
+                      setDraft(null);
+                      setNote("");
+                      setDragStart(null);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-full bg-sky-700 text-white hover:bg-sky-600"
+                    disabled={!note.trim() || busy === "annotation"}
+                    onClick={() => void saveAnnotation()}
+                  >
+                    {busy === "annotation" ? "Salvando..." : "Salvar anotação"}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-950">
+                  Anotações · página {page}
+                </p>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {pageAnnotations.length}
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {pageAnnotations.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-xs leading-5 text-slate-500">
+                    Nenhuma anotação nesta página.
+                  </div>
+                ) : (
+                  pageAnnotations.map((annotation, index) => (
+                    <div key={annotation.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                            annotation.kind === "highlight"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-sky-50 text-sky-700"
+                          }`}
+                        >
+                          {annotation.kind === "highlight" ? (
+                            <Highlighter className="h-4 w-4" />
+                          ) : (
+                            <MessageSquareText className="h-4 w-4" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                            Marcação {index + 1}
+                          </p>
+                          <p className="mt-1 text-sm leading-5 text-slate-700">{annotation.note}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[10px] text-slate-400">
+                        {annotation.author} · {annotation.createdAt}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                Resultado da análise
+              </p>
+
+              {localReviewStatus === "aprovado" ? (
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-emerald-900">Documento aprovado</p>
+                      <p className="mt-1 text-xs leading-5 text-emerald-700">
+                        A decisão foi registrada no processo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    className="mt-3 w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
                     disabled={busy.startsWith("review-")}
                     onClick={() => void approveDocument()}
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     {busy === "review-aprovado" ? "Aprovando..." : "Aprovar documento"}
                   </Button>
-                </div>
 
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <p className="text-sm font-semibold text-white">
-                    {localReviewStatus === "rejeitado" ? "Comunique-se emitido" : "Comunique-se ao profissional"}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">
-                    {localReviewStatus === "rejeitado"
-                      ? "Este documento possui pendência formalizada. Uma nova correção poderá ser analisada após o reenvio do profissional."
-                      : "Quando houver erro ou pendência, descreva o problema e informe o prazo. O profissional receberá a exigência para corrigir e reenviar."}
-                  </p>
-                  {localReviewStatus !== "rejeitado" ? (
-                    <>
-                      <Textarea
-                        value={comuniqueReason}
-                        onChange={(event) => setComuniqueReason(event.target.value)}
-                        placeholder="Descreva objetivamente o que precisa ser corrigido..."
-                        className="mt-3 min-h-[110px] border-white/10 bg-black/20 text-white placeholder:text-slate-500"
-                      />
-                      <div className="mt-3">
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-slate-400">
-                          Prazo para correção
-                        </label>
-                        <Input
-                          type="date"
-                          value={comuniqueDueDate}
-                          onChange={(event) => setComuniqueDueDate(event.target.value)}
-                          className="border-white/10 bg-black/20 text-white"
+                  <div className="mt-4 border-t border-slate-200 pt-4">
+                    <p className="text-sm font-semibold text-slate-950">
+                      {localReviewStatus === "rejeitado"
+                        ? "Comunique-se emitido"
+                        : "Emitir Comunique-se"}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {localReviewStatus === "rejeitado"
+                        ? "A pendência já foi formalizada. Aguarde a correção e o reenvio."
+                        : "Formalize a pendência com uma descrição objetiva e um prazo para correção."}
+                    </p>
+
+                    {localReviewStatus !== "rejeitado" ? (
+                      <>
+                        <Textarea
+                          value={comuniqueReason}
+                          onChange={(event) => setComuniqueReason(event.target.value)}
+                          placeholder="Descreva objetivamente o que precisa ser corrigido..."
+                          className="mt-3 min-h-[108px] rounded-xl border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"
                         />
+                        <div className="mt-3">
+                          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                            Prazo para correção
+                          </label>
+                          <Input
+                            type="date"
+                            value={comuniqueDueDate}
+                            onChange={(event) => setComuniqueDueDate(event.target.value)}
+                            className="h-10 rounded-xl border-slate-200 bg-white text-slate-900"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="mt-3 w-full rounded-full border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                          disabled={busy.startsWith("review-")}
+                          onClick={() => void issueComuniqueSe()}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          {busy === "review-rejeitado" ? "Emitindo..." : "Emitir Comunique-se"}
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-800">
+                        <XCircle className="h-4 w-4" />
+                        Aguardando correção e reenvio
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-3 w-full rounded-full border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20"
-                        disabled={busy.startsWith("review-")}
-                        onClick={() => void issueComuniqueSe()}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        {busy === "review-rejeitado" ? "Emitindo..." : "Emitir Comunique-se"}
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-3 py-3 text-sm font-medium text-amber-200">
-                      <XCircle className="h-4 w-4" />
-                      Aguardando correção e reenvio
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {status ? (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-200">
-              {status}
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-          ) : null}
+
+            {status ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                {status}
+              </div>
+            ) : null}
+          </div>
         </aside>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
