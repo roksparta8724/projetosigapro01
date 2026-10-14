@@ -32,13 +32,40 @@ function buildReadApiUrl(path: string) {
 
 async function getAuthorizationHeaders() {
   try {
+    // Neon Auth exposes the JWT specifically for authenticated API calls.
+    // Prefer it over inferring a bearer token from the session object shape.
+    const directJwt = await backendClient?.auth?.getJWTToken?.();
+    const normalizedDirectJwt =
+      typeof directJwt === "string"
+        ? directJwt
+        : typeof directJwt?.data === "string"
+          ? directJwt.data
+          : typeof directJwt?.token === "string"
+            ? directJwt.token
+            : typeof directJwt?.data?.token === "string"
+              ? directJwt.data.token
+              : "";
+
+    if (normalizedDirectJwt) {
+      return { Authorization: `Bearer ${normalizedDirectJwt}` };
+    }
+
     const sessionResult = await backendClient?.auth?.getSession?.();
-    const session = sessionResult?.data?.session ?? null;
+    const session =
+      sessionResult?.data?.session ??
+      sessionResult?.data ??
+      null;
     const token =
       session?.access_token ||
       session?.accessToken ||
+      session?.jwt ||
       session?.token ||
+      session?.session?.access_token ||
+      session?.session?.accessToken ||
+      session?.session?.jwt ||
+      session?.session?.token ||
       "";
+
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
     return {};
@@ -185,7 +212,15 @@ export async function getSignedUrlForObjectStrict(input: {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    const message = payload?.error || "Falha ao gerar URL assinada.";
+    const upstreamMessage =
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as { error?: unknown }).error || "")
+        : "";
+    const message =
+      upstreamMessage ||
+      (response.status === 401 || response.status === 403
+        ? "Sua sessão não autorizou a leitura segura deste documento. Entre novamente na conta e tente abrir o arquivo."
+        : `Falha ao gerar URL assinada (HTTP ${response.status}).`);
     throw new Error(message);
   }
 
