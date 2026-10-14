@@ -126,3 +126,38 @@ describe("active theme option contrast", () => {
     expect(surfacePolarity).not.toContain("THEME OPTION CARD POLARITY LOCK - 2026-10-14");
   });
 });
+
+
+describe("all-theme process contrast authority", () => {
+  it("covers every dark preset with the final V7 family contract", () => {
+    const expectedDarkPresets = [
+      "escuro-institucional",
+      "escuro-grafite",
+      "escuro-oceano",
+      "escuro-petroleo",
+      "escuro-vinho",
+      "escuro-floresta",
+      "escuro-cacau",
+    ];
+
+    expectedDarkPresets.forEach((id) => {
+      const start = platform.indexOf(`id: "${id}"`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const presetBlock = platform.slice(start, start + 520);
+      expect(presetBlock).toContain("inverseMain: true");
+    });
+
+    const v7Start = surfacePolarity.indexOf(
+      "PROCESS THEME CONTRAST AUTHORITY V7 — ALL THEMES 2026-10-14",
+    );
+    expect(v7Start).toBeGreaterThanOrEqual(0);
+
+    const v7 = surfacePolarity.slice(v7Start);
+    expect(v7).toContain('[data-theme-family="dark"]');
+    expect(v7).toContain('[data-theme-family="light"]');
+    expect(v7).toContain("#sig-process-document-command-center");
+    expect(v7).toContain("color:#ffffff !important");
+    expect(v7).not.toContain(".sig-premium-topbar");
+    expect(v7).not.toContain(".sig-topbar-portal-host");
+  });
+});
