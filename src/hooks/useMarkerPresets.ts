@@ -30,6 +30,7 @@ export type NewMarkerPreset = {
 export const SYSTEM_MARKER_IDS = new Set(["favorito", "prioridade", "pendencia", "retorno", "analise"]);
 
 const LEGACY_STORAGE_KEY = "sigapro-marker-presets";
+const MARKER_PRESETS_EVENT = "sigapro-marker-presets-updated";
 
 function buildStorageKey(profileId: string) {
   return `sigapro-marker-presets:${profileId}`;
@@ -169,6 +170,48 @@ export function useMarkerPresets() {
     window.localStorage.setItem(buildStorageKey(preferenceOwnerId), JSON.stringify(presets));
   }, [loadedOwnerId, preferenceOwnerId, presets]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !preferenceOwnerId) return;
+
+    const applyIncoming = (incoming: unknown) => {
+      if (!Array.isArray(incoming)) return;
+      const normalized = incoming
+        .map((item) => normalizeMarkerPreset(item))
+        .filter((item): item is MarkerPreset => item !== null);
+      if (normalized.length > 0) {
+        setPresets(normalized);
+      }
+    };
+
+    const handlePresetEvent = (event: Event) => {
+      const detail = (event as CustomEvent<{ ownerId?: string; presets?: unknown }>).detail;
+      if (!detail || detail.ownerId !== preferenceOwnerId) return;
+      applyIncoming(detail.presets);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== buildStorageKey(preferenceOwnerId)) return;
+      applyIncoming(safeParse(event.newValue));
+    };
+
+    window.addEventListener(MARKER_PRESETS_EVENT, handlePresetEvent as EventListener);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(MARKER_PRESETS_EVENT, handlePresetEvent as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [preferenceOwnerId]);
+
+  const publishPresets = (next: MarkerPreset[]) => {
+    if (typeof window === "undefined" || !preferenceOwnerId) return;
+    window.localStorage.setItem(buildStorageKey(preferenceOwnerId), JSON.stringify(next));
+    window.dispatchEvent(
+      new CustomEvent(MARKER_PRESETS_EVENT, {
+        detail: { ownerId: preferenceOwnerId, presets: next },
+      }),
+    );
+  };
+
   const presetMap = useMemo(() => {
     const map = new Map<string, MarkerPreset>();
     presets.forEach((preset) => map.set(preset.id, preset));
@@ -181,24 +224,28 @@ export function useMarkerPresets() {
 
     const id = `${label.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
     const paletteEntry = getMarkerPaletteEntry(preset.colorId ?? preset.color ?? DEFAULT_MARKER_COLOR_ID);
-    setPresets((current) => [
-      {
-        id,
-        label,
-        emoji: preset.emoji?.trim() || "",
-        colorId: paletteEntry.id,
-        color: paletteEntry.value,
-        description: preset.description?.trim() || "",
-        active: preset.active ?? true,
-        system: preset.system ?? false,
-      },
-      ...current,
-    ]);
+    setPresets((current) => {
+      const next = [
+        {
+          id,
+          label,
+          emoji: preset.emoji?.trim() || "",
+          colorId: paletteEntry.id,
+          color: paletteEntry.value,
+          description: preset.description?.trim() || "",
+          active: preset.active ?? true,
+          system: preset.system ?? false,
+        },
+        ...current,
+      ];
+      publishPresets(next);
+      return next;
+    });
   };
 
   const updatePreset = (id: string, updates: Partial<Omit<MarkerPreset, "id" | "system">>) => {
-    setPresets((current) =>
-      current.map((item) => {
+    setPresets((current) => {
+      const next = current.map((item) => {
         if (item.id !== id) return item;
 
         const nextLabel = typeof updates.label === "string" ? updates.label.trim() : item.label;
@@ -216,18 +263,26 @@ export function useMarkerPresets() {
           color: paletteEntry.value,
           description: typeof updates.description === "string" ? updates.description.trim() : item.description,
         };
-      }),
-    );
+      });
+      publishPresets(next);
+      return next;
+    });
   };
 
   const togglePresetActive = (id: string) => {
-    setPresets((current) =>
-      current.map((item) => (item.id === id ? { ...item, active: !item.active } : item)),
-    );
+    setPresets((current) => {
+      const next = current.map((item) => (item.id === id ? { ...item, active: !item.active } : item));
+      publishPresets(next);
+      return next;
+    });
   };
 
   const removePreset = (id: string) => {
-    setPresets((current) => current.filter((item) => item.id !== id));
+    setPresets((current) => {
+      const next = current.filter((item) => item.id !== id);
+      publishPresets(next);
+      return next;
+    });
   };
 
   return { presets, presetMap, addPreset, updatePreset, togglePresetActive, removePreset };
