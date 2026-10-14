@@ -41,7 +41,7 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Clique no ponto exato do documento para fixar um texto numerado");
     expect(analysis).toContain("Anotações · página");
     expect(analysis).toContain("Resultado da análise");
-    expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_380px]");
+    expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_420px]");
   });
 
   it("keeps page-specific annotations and review actions in the same workspace", () => {
@@ -83,16 +83,18 @@ describe("annotation draft and professional handoff", () => {
     expect(analysis).toContain('"rejeitado"');
   });
 
-  it("does not open an extra original-document tab from the viewer", () => {
+  it("opens from the process in the same SPA view with the signed URL already prepared", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
-    expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain("openDocumentWorkspace");
-    expect(detail).toContain("workspaceName");
-    expect(detail).not.toContain('window.open(workspaceUrl, "_blank"');
+    expect(detail).not.toContain("window.open(");
+    expect(detail).toContain("getSignedUrlForObjectStrict");
+    expect(detail).toContain("documentAccessUrl");
+    expect(detail).toContain("returnTo:");
+    expect(analysis).toContain("prefetchedDocumentAccessUrl");
   });
 });
 
@@ -111,15 +113,16 @@ describe("analyst document permission continuity", () => {
 
 
 describe("analyst PDF markup entry", () => {
-  it("routes every authorized analyst straight into markup instead of the simple viewer", () => {
+  it("routes every authorized analyst straight into markup without a temporary browser tab", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
     expect(viewer).toContain("analisar?ferramenta=highlight");
-    expect(detail).toContain("workspaceName");
-    expect(detail).toContain("window.open(workspaceUrl, workspaceName)");
-    expect(detail).not.toContain('window.open(workspaceUrl, workspaceName, "noopener,noreferrer")');
+    expect(detail).toContain("openDocumentWorkspace");
+    expect(detail).toContain("getSignedUrlForObjectStrict");
+    expect(detail).toContain("navigate(");
+    expect(detail).not.toContain("window.open(");
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
@@ -148,5 +151,28 @@ describe("canonical analyst markup access", () => {
     expect(analysis).not.toContain('canAccessMunicipalArea(session, "analise")');
     expect(detail).toContain('session.role !== "prefeitura_admin"');
     expect(detail).toContain('session.role === "analista"');
+  });
+});
+
+
+describe("precise PDF annotation interaction", () => {
+  it("uses a dedicated interaction layer so the native PDF plugin cannot steal marking gestures", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+
+    expect(analysis).toContain('data-annotation-capture-layer="true"');
+    expect(analysis).toContain("event.preventDefault()");
+    expect(analysis).toContain("event.stopPropagation()");
+    expect(analysis).toContain("touch-none select-none");
+  });
+
+  it("auto-protects draft annotations and keeps the inspector inside its bounds", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const css = read("src/index.css");
+
+    expect(analysis).toContain("draftHydrated");
+    expect(analysis).toContain("JSON.stringify({ annotations: draftAnnotations, savedAt })");
+    expect(analysis).toContain('data-analysis-inspector="true"');
+    expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_420px]");
+    expect(css).toContain("DOCUMENT ANALYSIS INSPECTOR: HARD OVERFLOW CONTRACT");
   });
 });
