@@ -19,6 +19,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
@@ -28,9 +29,7 @@ import {
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   getRemoteProcessPrivateIdentity,
-  listRemoteMunicipalDepartments,
   saveRemoteProcessPrivateIdentity,
-  type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
 import {
   calculateIssGuideAmount,
@@ -177,8 +176,14 @@ export function ProcessDetailPage() {
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
       : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
-  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
-  const [organizationStatus, setOrganizationStatus] = useState("");
+  const {
+    departments: organizationDepartments,
+    loading: organizationLoading,
+    error: organizationError,
+  } = useMunicipalOrganization();
+  const organizationStatus = organizationLoading
+    ? "Carregando organograma..."
+    : organizationError;
   const [privateIdentity, setPrivateIdentity] = useState<ProcessPrivateIdentityRecord | null>(null);
   const [privateIdentityLoading, setPrivateIdentityLoading] = useState(false);
   const [privateIdentityStatus, setPrivateIdentityStatus] = useState("");
@@ -187,39 +192,6 @@ export function ProcessDetailPage() {
     EMPTY_PROCESS_IDENTITY_FORM,
   );
 
-  useEffect(() => {
-    let active = true;
-    if (!effectiveScopeId || !isInternalRole(session.role)) {
-      setOrganizationDepartments([]);
-      setOrganizationStatus("");
-      return () => {
-        active = false;
-      };
-    }
-
-    setOrganizationStatus("Carregando organograma...");
-    void listRemoteMunicipalDepartments(effectiveScopeId)
-      .then((rows) => {
-        if (!active) return;
-        setOrganizationDepartments(
-          rows
-            .filter((item) => item.isActive)
-            .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
-        );
-        setOrganizationStatus("");
-      })
-      .catch((error) => {
-        if (!active) return;
-        setOrganizationDepartments([]);
-        setOrganizationStatus(
-          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
-        );
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [effectiveScopeId, session.role]);
   const isMasterOrMunicipalAdmin =
     session.role === "master_admin" ||
     session.role === "master_ops" ||
