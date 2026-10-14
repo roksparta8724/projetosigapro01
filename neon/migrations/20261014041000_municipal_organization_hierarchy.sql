@@ -41,6 +41,7 @@ begin
            and p.municipality_id = _municipality_id
            and p.deleted_at is null
            and coalesce(p.account_status, 'active') <> 'blocked'
+           and p.role::text not in ('profissional_externo', 'property_owner', 'proprietario_consulta')
        )
      )
   then
