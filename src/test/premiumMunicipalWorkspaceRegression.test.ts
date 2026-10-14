@@ -23,6 +23,7 @@ describe("premium municipal workspace regression", () => {
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
+  const r2Client = read("src/integrations/r2/client.ts");
 
   it("renders the organogram from the real parent-child hierarchy", () => {
     expect(organization).toContain("item.parentDepartmentId === department.id");
@@ -86,10 +87,15 @@ describe("premium municipal workspace regression", () => {
     expect(shell).toContain('item.to !== "/prefeitura/protocolos"');
   });
 
-  it("uses department-aware institutional labels in shell and footer", () => {
-    expect(shell).toContain('secretaria: "Secretaria de Administração", diretoria: "Departamento de Protocolo"');
-    expect(shell).toContain('"Secretaria de Urbanismo e Obras"');
-    expect(shell).toContain('"Departamento de Análise Urbanística"');
+  it("uses the real municipal organogram across the global shell", () => {
+    expect(shell).toContain('secretaria: "Administração", diretoria: "Protocolo"');
+    expect(shell).toContain('secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística"');
+    expect(shell).toContain('secretaria: "Financeiro", diretoria: "Financeiro"');
+    expect(shell).toContain("listRemoteMunicipalDepartments");
+    expect(shell).toContain("resolveMunicipalUnitIdentity");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("Vínculo institucional confirmado no organograma");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
     expect(shell).toContain("const institutionFooterUnit");
     expect(shell).toContain("{institutionFooterUnit}");
   });
@@ -151,6 +157,15 @@ describe("premium municipal workspace regression", () => {
     expect(fileDropZone).toContain("transition-colors duration-150");
     expect(processDetail).toContain('window.open(viewerUrl, "_blank", "noopener,noreferrer")');
     expect(processDetail).toContain('window.open(analysisUrl, "_blank", "noopener,noreferrer")');
+  });
+
+  it("reads existing R2 documents from the official signed API on localhost without copying secrets", () => {
+    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
+    expect(r2Client).toContain("function buildReadApiUrl");
+    expect(r2Client).toContain('buildReadApiUrl("/api/r2-sign-get")');
+    expect(r2Client).toContain('buildReadApiUrl("/api/r2-list-user-files")');
+    expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-upload")');
+    expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-delete")');
   });
 
   it("keeps institutional logos fully contained instead of stretching or cropping", () => {
