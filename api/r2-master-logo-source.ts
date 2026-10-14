@@ -44,9 +44,17 @@ export default async function handler(req: Req, res: Res) {
 
   try {
     const { objectKey } = await readBody(req);
-    if (typeof objectKey !== "string" ||
-      !/^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
-      objectKey.includes("..")) {
+    const isPlatformBranding =
+      typeof objectKey === "string" &&
+      /^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey);
+    const isMunicipalBranding =
+      typeof objectKey === "string" &&
+      /^municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey);
+    if (
+      typeof objectKey !== "string" ||
+      (!isPlatformBranding && !isMunicipalBranding) ||
+      objectKey.includes("..")
+    ) {
       res.statusCode = 400;
       res.end("Logo inválido.");
       return;
