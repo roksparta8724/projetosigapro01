@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -253,6 +253,10 @@ export function ProcessDetailPage() {
     isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "analise");
   const canFinanceOperate =
     isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "financeiro");
+  const isExternalSession =
+    session.role === "profissional_externo" ||
+    session.role === "property_owner" ||
+    session.role === "proprietario_consulta";
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
   const [messageRecipient, setMessageRecipient] = useState("todos");
@@ -343,6 +347,13 @@ export function ProcessDetailPage() {
     if (activeTab === "historico" || activeTab === "resumo") return;
     setActiveTab("historico");
   }, [activeTab, isProtocolTrackingOnly]);
+
+  useEffect(() => {
+    if (!isExternalSession) return;
+    if (activeTab === "analise" || activeTab === "financeiro") {
+      setActiveTab("resumo");
+    }
+  }, [activeTab, isExternalSession]);
 
   useEffect(() => {
     if (!process || !processId) return;
@@ -457,10 +468,7 @@ export function ProcessDetailPage() {
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
-  const isExternalProcessViewer =
-    session.role === "profissional_externo" ||
-    session.role === "property_owner" ||
-    session.role === "proprietario_consulta";
+  const isExternalProcessViewer = isExternalSession;
   const isGuideSharedExternally = (guideCode: string | undefined) =>
     Boolean(
       guideCode &&
@@ -739,6 +747,9 @@ export function ProcessDetailPage() {
     isFinalProcessStatus
       ? statusLabel(process.status)
       : flowLabels[currentFlowIndex] || statusLabel(process.status);
+  const displayOrganizationPath = isExternalProcessViewer
+    ? currentFlowStatusLabel
+    : currentOrganizationPath;
 
   const protocolStartedAt =
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
@@ -805,6 +816,7 @@ export function ProcessDetailPage() {
       key: "analise" as ProcessTab,
       label: "Análise Urbanística",
       enabled:
+        !isExternalProcessViewer &&
         !isProtocolTrackingOnly &&
         planEntitlements.canUseModule("Analise tecnica") &&
         canAnalysisOperate,
@@ -813,6 +825,7 @@ export function ProcessDetailPage() {
       key: "financeiro" as ProcessTab,
       label: "Financeiro",
       enabled:
+        !isExternalProcessViewer &&
         !isProtocolTrackingOnly &&
         planEntitlements.canUseModule("Financeiro") &&
         canFinanceOperate,
@@ -1347,21 +1360,39 @@ export function ProcessDetailPage() {
       <PageHero
         eyebrow="Painel do processo"
         title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
-        description="Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
+        description={
+          isExternalProcessViewer
+            ? "Acompanhe seu protocolo, seus documentos, exigências, pagamentos liberados e o andamento público do processo."
+            : "Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
+        }
         icon={Workflow}
         actions={
-          protocolGuide ? (
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Preview
-              </Button>
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
-                <Printer className="mr-2 h-4 w-4" />
-                Imprimir guia
-              </Button>
-            </div>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            {isExternalProcessViewer ? (
+              <>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar
+                </Button>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo/controle")}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair do processo
+                </Button>
+              </>
+            ) : null}
+            {protocolGuide ? (
+              <>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar guia
+                </Button>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir guia
+                </Button>
+              </>
+            ) : null}
+          </div>
         }
       />
       {isProtocolTrackingOnly ? (
@@ -1384,7 +1415,7 @@ export function ProcessDetailPage() {
         </div>
       ) : null}
       <PageStatsRow>
-        <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={currentOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
+        <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={displayOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
         <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
@@ -1398,7 +1429,8 @@ export function ProcessDetailPage() {
             </Badge>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Unidade responsável: <span className="font-medium text-slate-700 dark:text-slate-200">{currentOrganizationPath}</span>
+            {isExternalProcessViewer ? "Etapa atual" : "Unidade responsável"}:{" "}
+            <span className="font-medium text-slate-700 dark:text-slate-200">{displayOrganizationPath}</span>
             {" • "}Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}
           </p>
 
@@ -1514,43 +1546,56 @@ export function ProcessDetailPage() {
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
       <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+        <Card className={`${cardShell} h-full`}>
           <CardContent className="p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="sig-label">Controle de tramitação</p>
-                <p className="mt-2 line-clamp-2 text-base font-medium text-slate-900">Processo com tramitação entre setores e pastas institucionais</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  A unidade atual é <span className="font-medium text-slate-700">{currentFolder}</span>. Os despachos formais mantêm a conversa entre Protocolo, Análise, Financeiro, Setor de IPTU, Fiscalização, Habite-se e demais setores.
+            {isExternalProcessViewer ? (
+              <div>
+                <p className="sig-label">Andamento do processo</p>
+                <p className="mt-2 text-base font-medium text-slate-900 dark:text-slate-100">
+                  {currentFlowStatusLabel}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  Aqui aparecem apenas informações do seu protocolo e movimentações liberadas para acompanhamento externo.
                 </p>
               </div>
-              <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr))] xl:min-w-[320px]">
-                <div>
-                  <p className="sig-label">Unidade atual</p>
-                  <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={currentFolder}>{currentFolder}</p>
+            ) : (
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="sig-label">Controle de tramitação</p>
+                  <p className="mt-2 line-clamp-2 text-base font-medium text-slate-900">Processo com tramitação entre setores e pastas institucionais</p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    A unidade atual é <span className="font-medium text-slate-700">{currentFolder}</span>. Os despachos formais mantêm a conversa entre os setores responsáveis.
+                  </p>
                 </div>
-                <div>
-                  <p className="sig-label">Trâmites</p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">{process.dispatches.length}</p>
-                </div>
-                <div>
-                  <p className="sig-label">Último destino</p>
-                  <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={process.dispatches[0]?.to || currentFolder}>{process.dispatches[0]?.to || currentFolder}</p>
+                <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr))] xl:min-w-[320px]">
+                  <div>
+                    <p className="sig-label">Unidade atual</p>
+                    <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={currentFolder}>{currentFolder}</p>
+                  </div>
+                  <div>
+                    <p className="sig-label">Trâmites</p>
+                    <p className="mt-2 text-sm font-medium text-slate-900">{process.dispatches.length}</p>
+                  </div>
+                  <div>
+                    <p className="sig-label">Último destino</p>
+                    <p className="sig-fit-title mt-2 text-sm font-medium leading-6 text-slate-900" title={process.dispatches[0]?.to || currentFolder}>{process.dispatches[0]?.to || currentFolder}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
-          <CardContent className="p-5">
-            <p className="sig-label">Acesso externo ao fluxo</p>
-            <p className="mt-2 text-base font-medium text-slate-900">
-              {processTransitVisibility === "completo" ? "Acompanhamento completo liberado" : "Trâmites internos restritos"}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              No modo completo, o profissional acompanha todo o processo. No modo restrito, os trâmites internos entre pastas ficam ocultos do acesso externo.
-            </p>
-            {isInternalRole(session.role) ? (
+
+        {!isExternalProcessViewer ? (
+          <Card className={`${cardShell} h-full`}>
+            <CardContent className="p-5">
+              <p className="sig-label">Acesso externo ao fluxo</p>
+              <p className="mt-2 text-base font-medium text-slate-900">
+                {processTransitVisibility === "completo" ? "Acompanhamento completo liberado" : "Trâmites internos restritos"}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Defina se o acesso externo pode acompanhar despachos institucionais ou somente o andamento público.
+              </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Button
                   type="button"
@@ -1569,15 +1614,9 @@ export function ProcessDetailPage() {
                   Restringir trâmites
                 </Button>
               </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                {processTransitVisibility === "completo"
-                  ? "Esta visualização acompanha os despachos e trâmites do processo."
-                  : "Os trâmites internos entre setores estão ocultos para esta visualização externa."}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
       ) : null}
 
@@ -1613,7 +1652,9 @@ export function ProcessDetailPage() {
                     <p className="mt-1 text-sm text-slate-600">
                       {canUploadProcessDocuments
                         ? "Envie aqui os documentos obrigatórios. O analista municipal recebe os arquivos em modo somente leitura para conferência."
-                        : "Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável."}
+                        : isExternalProcessViewer
+                          ? "Confira os documentos enviados por você e responda às exigências quando houver."
+                          : "Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável."}
                     </p>
                     {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
                       <p className="mt-2 text-sm font-medium text-amber-700">
@@ -1957,7 +1998,7 @@ export function ProcessDetailPage() {
             />
           )}
 
-          {activeTab === "analise" && (
+          {!isExternalProcessViewer && activeTab === "analise" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2263,7 +2304,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {activeTab === "financeiro" && (
+          {!isExternalProcessViewer && activeTab === "financeiro" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap items-start justify-between gap-3">
