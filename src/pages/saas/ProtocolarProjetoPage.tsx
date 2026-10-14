@@ -1,11 +1,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  ArrowLeft,
   CheckCircle2,
   CircleDashed,
   FilePlus2,
   FileStack,
   Landmark,
+  LogOut,
   ShieldCheck,
   UploadCloud,
   UserSquare2,
@@ -177,6 +179,9 @@ export function ProtocolarProjetoPage() {
   const [form, setForm] = useState<ProtocolDraftForm>({
     ...defaultProtocolDraftForm,
     profissional: profileFullName || session.name,
+    profissionalDocumento: profile?.cpfCnpj || "",
+    tipoProfissional: profile?.professionalType || "",
+    empresaProfissional: profile?.companyName || "",
     registro: profileRegistrationNumber,
     telefone: profilePhone,
     email: profileEmail || session.email,
@@ -212,6 +217,9 @@ export function ProtocolarProjetoPage() {
         ...defaultProtocolDraftForm,
         ...draft.form,
         profissional: draft.form.profissional || profileFullName || session.name,
+        profissionalDocumento: draft.form.profissionalDocumento || profile?.cpfCnpj || "",
+        tipoProfissional: draft.form.tipoProfissional || profile?.professionalType || "",
+        empresaProfissional: draft.form.empresaProfissional || profile?.companyName || "",
         registro: draft.form.registro || profileRegistrationNumber,
         telefone: draft.form.telefone || profilePhone,
         email: draft.form.email || profileEmail || session.email,
@@ -270,11 +278,17 @@ export function ProtocolarProjetoPage() {
     setForm((current) => ({
       ...current,
       profissional: current.profissional || profileFullName || session.name,
+      profissionalDocumento: current.profissionalDocumento || profile?.cpfCnpj || "",
+      tipoProfissional: current.tipoProfissional || profile?.professionalType || "",
+      empresaProfissional: current.empresaProfissional || profile?.companyName || "",
       registro: current.registro || profileRegistrationNumber,
       telefone: current.telefone || profilePhone,
       email: current.email || profileEmail || session.email,
     }));
   }, [
+    profile?.companyName,
+    profile?.cpfCnpj,
+    profile?.professionalType,
     profileEmail,
     profileFullName,
     profilePhone,
@@ -642,8 +656,24 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula || !form.proprietario || !form.documento) {
-      setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra, o imóvel e o proprietário.");
+    if (
+      !form.profissional.trim() ||
+      !form.profissionalDocumento.trim() ||
+      !form.email.trim() ||
+      !form.proprietario.trim() ||
+      !form.documento.trim()
+    ) {
+      setStatus("Preencha os dados do profissional responsável e do proprietário antes de continuar.");
+      return;
+    }
+
+    if (tenantSettings?.registroProfissionalObrigatorio && !form.registro.trim()) {
+      setStatus("Informe o registro profissional exigido pela Prefeitura.");
+      return;
+    }
+
+    if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula) {
+      setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra e os dados do imóvel.");
       return;
     }
 
@@ -661,14 +691,14 @@ export function ProtocolarProjetoPage() {
       try {
         await registerRemoteExternalAccount({
           tenantId: effectiveScopeId,
-          fullName: profile?.fullName || session.name,
-          email: profile?.email || session.email,
-          cpfCnpj: profile?.cpfCnpj || "",
-          phone: profile?.phone || "",
-          professionalType: profile?.professionalType || "",
-          registrationNumber: profile?.registrationNumber || form.registro || "",
-          companyName: profile?.companyName || "",
-          title: session.title || profile?.professionalType || "Profissional externo",
+          fullName: form.profissional.trim(),
+          email: form.email.trim(),
+          cpfCnpj: form.profissionalDocumento.trim(),
+          phone: form.telefone.trim(),
+          professionalType: form.tipoProfissional.trim(),
+          registrationNumber: form.registro.trim(),
+          companyName: form.empresaProfissional.trim(),
+          title: form.tipoProfissional.trim() || session.title || "Profissional externo",
           bio: profile?.bio || "",
         });
       } catch (accessError) {
@@ -767,6 +797,12 @@ export function ProtocolarProjetoPage() {
           ownerName: form.proprietario,
           ownerDocument: form.documento,
           technicalLead: form.profissional,
+          professionalDocument: form.profissionalDocumento,
+          professionalRegistration: form.registro,
+          professionalType: form.tipoProfissional,
+          professionalPhone: form.telefone,
+          professionalEmail: form.email,
+          professionalCompany: form.empresaProfissional,
           tags: [form.uso || "sem classificacao", tenantSettings?.secretariaResponsavel || "urbanismo"],
           notes: form.observacoes,
           property: {
@@ -861,7 +897,7 @@ export function ProtocolarProjetoPage() {
       setSubmitting(false);
     }
 
-    navigate(`/processos/${remoteSeed.processId}?aba=financeiro`);
+    navigate(`/processos/${remoteSeed.processId}`);
   };
 
   return (
@@ -871,12 +907,19 @@ export function ProtocolarProjetoPage() {
           <PageHero
             eyebrow="Abertura de novo protocolo"
             title="Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
-            description="Os dados do profissional e da prefeitura já entram reaproveitados. Preencha o necessário, acompanhe as pendências e protocole quando tudo estiver validado."
+            description="Preencha e confira seus próprios dados profissionais, os dados do proprietário, o imóvel e os documentos. Nada é tratado como dado interno da Prefeitura nesta abertura."
             icon={FilePlus2}
             actions={
-              <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo")}>
-                ← Voltar para o painel
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar
+                </Button>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo/controle")}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair do protocolo
+                </Button>
+              </div>
             }
           />
 
@@ -921,6 +964,62 @@ export function ProtocolarProjetoPage() {
             {protocolSummary.map((item) => (
               <SoftInfoCard key={item.label} label={item.label} value={item.value} />
             ))}
+          </SectionCard>
+
+          <SectionCard
+            title="Dados do profissional responsável"
+            description="Confira ou preencha os seus próprios dados. Eles identificam quem está protocolando e quem responde tecnicamente pelo projeto."
+            icon={UserSquare2}
+            contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+          >
+            <div className="space-y-2">
+              <Label>Nome completo *</Label>
+              <Input value={form.profissional} onChange={(event) => setField("profissional", event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>CPF ou CNPJ *</Label>
+              <Input value={form.profissionalDocumento} onChange={(event) => setField("profissionalDocumento", event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo profissional</Label>
+              <Input
+                value={form.tipoProfissional}
+                onChange={(event) => setField("tipoProfissional", event.target.value)}
+                placeholder="Ex.: Engenheiro Civil, Arquiteto"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Registro profissional{tenantSettings?.registroProfissionalObrigatorio ? " *" : ""}</Label>
+              <Input value={form.registro} onChange={(event) => setField("registro", event.target.value)} placeholder="CREA, CAU ou equivalente" />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input value={form.telefone} onChange={(event) => setField("telefone", event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail *</Label>
+              <Input type="email" value={form.email} onChange={(event) => setField("email", event.target.value)} />
+            </div>
+            <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <Label>Empresa / escritório</Label>
+              <Input value={form.empresaProfissional} onChange={(event) => setField("empresaProfissional", event.target.value)} />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Dados do proprietário"
+            description="Informe os dados do proprietário vinculados a este protocolo."
+            icon={UserSquare2}
+            contentClassName="grid gap-4 md:grid-cols-2"
+          >
+            <div className="space-y-2">
+              <Label>Nome do proprietário *</Label>
+              <Input value={form.proprietario} onChange={(event) => setField("proprietario", event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>CPF ou CNPJ do proprietário *</Label>
+              <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -1021,39 +1120,10 @@ export function ProtocolarProjetoPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Nome do proprietário</Label>
-                <Input value={form.proprietario} onChange={(event) => setField("proprietario", event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Documento do proprietário</Label>
-                <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label>Observações técnicas</Label>
               <Textarea rows={4} value={form.observacoes} onChange={(event) => setField("observacoes", event.target.value)} />
             </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Dados reaproveitados e orientações"
-            description="Informações carregadas automaticamente para acelerar a abertura do protocolo."
-            icon={UserSquare2}
-            contentClassName="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-          >
-            <SoftInfoCard label="Profissional" value={form.profissional || "Não preenchido"} />
-            <SoftInfoCard label="Registro" value={form.registro || "Atualize em Meu Perfil"} />
-            <SoftInfoCard label="Telefone" value={form.telefone || "Atualize em Meu Perfil"} />
-            <SoftInfoCard label="E-mail" value={form.email || "Não informado"} />
-            <SoftInfoCard label="Secretaria responsável" value={tenantSettings?.secretariaResponsavel || "Não configurada"} />
-            <SoftInfoCard
-              label="Orientação"
-              value="Os dados do perfil técnico e as orientações da prefeitura já entram reaproveitados para agilizar o protocolo."
-              tone="amber"
-            />
           </SectionCard>
 
           <SectionCard
@@ -1190,15 +1260,28 @@ export function ProtocolarProjetoPage() {
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
           >
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => navigate(-1)}
-              disabled={savingDraft || submitting || hasPendingDocumentUpload}
-            >
-              Voltar
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => navigate(-1)}
+                disabled={savingDraft || submitting || hasPendingDocumentUpload}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => navigate("/externo/controle")}
+                disabled={savingDraft || submitting || hasPendingDocumentUpload}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair do protocolo
+              </Button>
+            </div>
 
             <div className="flex flex-col gap-3 md:flex-row">
               <Button
