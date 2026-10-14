@@ -50,6 +50,7 @@ describe("local authenticated runtime resilience", () => {
     expect(organization).toContain("listRemoteMunicipalDepartments");
     expect(organization).toContain("listRemotePublicMunicipalDepartments");
     expect(organization).toContain('mode === "full"');
-    expect(organization).toContain('mode === "public"');
+    expect(organization).toContain("? listRemoteMunicipalDepartments");
+    expect(organization).toContain(": listRemotePublicMunicipalDepartments");
   });
 });
