@@ -13,6 +13,7 @@ import {
   type OwnerProjectRequest,
   type PlanItem,
   type ProcessRecord,
+  type ProcessPrivateIdentityRecord,
   type SessionUser,
   type Tenant,
   type TenantSettings,
@@ -1859,7 +1860,7 @@ export async function createRemoteExternalProcessV2(
     })),
   };
 
-  const { data, error } = await db.rpc("create_external_process_v2", {
+  const { data, error } = await db.rpc("create_external_process_v3", {
     _tenant_id: scopeId,
     _payload: payload,
     _protocol_prefix: input.protocolPrefix || "PM",
@@ -1882,6 +1883,50 @@ export async function createRemoteExternalProcessV2(
 }
 
 
+
+export async function getRemoteProcessPrivateIdentity(
+  processId: string,
+): Promise<ProcessPrivateIdentityRecord> {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("get_process_private_identity_v1", {
+    _process_id: processId,
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  const record = (data ?? {}) as Record<string, unknown>;
+  return {
+    processId: String(record.processId ?? record.process_id ?? processId),
+    owner: (record.owner ?? {}) as ProcessPrivateIdentityRecord["owner"],
+    professional: (record.professional ?? {}) as ProcessPrivateIdentityRecord["professional"],
+  };
+}
+
+export async function saveRemoteProcessPrivateIdentity(
+  processId: string,
+  payload: {
+    ownerName: string;
+    ownerDocument: string;
+    technicalLead: string;
+    professionalDocument: string;
+    professionalRegistration: string;
+    professionalType: string;
+    professionalPhone: string;
+    professionalEmail: string;
+    professionalCompany: string;
+  },
+): Promise<ProcessPrivateIdentityRecord> {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("save_process_private_identity_v1", {
+    _process_id: processId,
+    _payload: payload,
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  const record = (data ?? {}) as Record<string, unknown>;
+  return {
+    processId: String(record.processId ?? record.process_id ?? processId),
+    owner: (record.owner ?? {}) as ProcessPrivateIdentityRecord["owner"],
+    professional: (record.professional ?? {}) as ProcessPrivateIdentityRecord["professional"],
+  };
+}
 
 async function callProcessRpc<T = Record<string, unknown>>(
   fn: string,
