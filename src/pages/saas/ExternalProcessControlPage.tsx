@@ -474,13 +474,16 @@ export function ExternalProcessControlPage() {
                             Acompanhar fluxo
                           </Link>
                         </Button>
-                        <Button asChild className="mt-1 h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#082f49_0%,#075985_45%,#0f78b8_100%)] text-[14px] font-bold !text-white shadow-[0_12px_28px_rgba(7,89,133,0.30)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white">
-                          <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
-                            <Eye className="h-5 w-5 shrink-0 !text-white" />
-                            <span className="!text-white">Abrir processo</span>
-                          </Link>
-                        </Button>
                       </div>
+                    </div>
+
+                    <div className="border-t border-slate-200/80 bg-slate-50/70 p-4 dark:border-slate-700/80 dark:bg-slate-950/35">
+                      <Button asChild className="h-16 w-full rounded-2xl bg-[linear-gradient(135deg,#082f49_0%,#075985_45%,#0f78b8_100%)] text-[15px] font-bold !text-white shadow-[0_14px_30px_rgba(7,89,133,0.32)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white">
+                        <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-3 !text-white">
+                          <Eye className="h-5 w-5 shrink-0 !text-white" />
+                          <span className="!text-white">Abrir processo</span>
+                        </Link>
+                      </Button>
                     </div>
                   </article>
                 );
