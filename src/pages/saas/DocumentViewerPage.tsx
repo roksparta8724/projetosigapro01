@@ -1,11 +1,9 @@
 import {
   ArrowLeft,
   Download,
-  ExternalLink,
   FileText,
   Highlighter,
   Info,
-  Maximize2,
   MessageSquareText,
   PenTool,
   ShieldCheck,
@@ -244,17 +242,7 @@ export function DocumentViewerPage() {
               Analisar / marcar PDF
             </Button>
           ) : null}
-          {accessUrl ? (
-            <a
-              href={accessUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden h-9 items-center justify-center rounded-full border border-white/15 bg-white/5 px-3 text-[12px] font-semibold text-white transition hover:bg-white/10 sm:inline-flex"
-            >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Original
-            </a>
-          ) : null}
+
         </div>
       </header>
 
@@ -308,15 +296,7 @@ export function DocumentViewerPage() {
         <div className="flex shrink-0 items-center gap-2">
           {accessUrl ? (
             <>
-              <a
-                href={accessUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                <Maximize2 className="mr-2 h-4 w-4" />
-                Abrir original
-              </a>
+
               <a
                 href={accessUrl}
                 download={document.fileName || document.label}
