@@ -30,7 +30,6 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
-  canAccessMunicipalArea,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
@@ -112,7 +111,7 @@ export function DocumentAnalysisPage() {
     !!process &&
     !!document &&
     canAccessProcess(session, process, effectiveScopeId) &&
-    canAccessMunicipalArea(session, "analise") &&
+    session.role !== "prefeitura_admin" &&
     (
       session.role === "master_admin" ||
       session.role === "master_ops" ||
