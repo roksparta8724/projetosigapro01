@@ -88,7 +88,7 @@ describe("layout integrity regression", () => {
     expect(detail).not.toContain(
       "sm:grid-cols-[minmax(160px,200px)_minmax(0,1fr)]",
     );
-    expect(detail).toContain("overflow-x-auto whitespace-nowrap");
+    expect(detail).toContain("sig-premium-summary-card");
     expect(detail).not.toContain('className="mt-2 break-all text-xs text-slate-500"');
   });
 
