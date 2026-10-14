@@ -167,4 +167,20 @@ describe("layout integrity regression", () => {
     );
   });
 
+  it("never leaves localhost on a silent white screen during bootstrap", () => {
+    const main = read("src/main.tsx");
+    const app = read("src/App.tsx");
+
+    expect(main).toContain('await import("./App.tsx")');
+    expect(main).toContain("renderBootstrapFailure");
+    expect(main).toContain("navigator.serviceWorker.getRegistrations()");
+    expect(main).toContain("registration.unregister()");
+    expect(main).toContain('name.startsWith("sigapro-enterprise-")');
+
+    const boundaryIndex = app.indexOf("<AppErrorBoundary>");
+    const bootstrapIndex = app.indexOf("<AppBootstrapProvider>");
+    expect(boundaryIndex).toBeGreaterThanOrEqual(0);
+    expect(bootstrapIndex).toBeGreaterThan(boundaryIndex);
+  });
+
 });
