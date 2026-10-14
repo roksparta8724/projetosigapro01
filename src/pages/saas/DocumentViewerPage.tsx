@@ -23,7 +23,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -77,14 +76,6 @@ export function DocumentViewerPage() {
       canAccessProcess(session, process, effectiveScopeId),
   );
 
-  const isAssignedProcessAnalyst = Boolean(
-    process &&
-      (
-        (process.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
-        (process.analysis?.assignedTo && process.analysis.assignedTo === session.name)
-      )
-  );
-
   const canAnalyzeDocument = Boolean(
     process &&
       document &&
@@ -95,10 +86,7 @@ export function DocumentViewerPage() {
         session.role === "master_admin" ||
         session.role === "master_ops" ||
         session.role === "prefeitura_supervisor" ||
-        (
-          session.role === "analista" &&
-          (isProcessOwnedBySessionDepartment(session, process) || isAssignedProcessAnalyst)
-        )
+        session.role === "analista"
       ),
   );
 
