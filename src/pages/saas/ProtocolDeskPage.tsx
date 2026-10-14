@@ -105,19 +105,15 @@ export function ProtocolDeskPage() {
   const isExternalProfessionalSubmission = (process: ProcessRecord) =>
     isExternalProfessionalProcess(process);
 
-  // O Protocolo acompanha todas as entradas da Prefeitura. Solicitações abertas
-  // pelo profissional externo precisam aparecer aqui desde o primeiro registro,
-  // mesmo depois de seguirem para Urbanismo, Financeiro ou outra unidade.
+  // Livro permanente do Protocolo: todo processo oficial da Prefeitura permanece
+  // rastreável aqui independentemente da etapa atual. A responsabilidade operacional
+  // continua sendo controlada separadamente por protocolQueueProcesses.
   const processes = useMemo(
     () =>
-      allProcesses.filter((item) => {
-        if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, item)) return false;
-        return (
-          canTrackProcess(session, item, effectiveScopeId) ||
-          isExternalProfessionalProcess(item)
-        );
-      }),
-    [allProcesses, effectiveScopeId, session],
+      allProcesses.filter(
+        (item) => Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item),
+      ),
+    [allProcesses, effectiveScopeId],
   );
 
   const protocolQueueProcesses = useMemo(
