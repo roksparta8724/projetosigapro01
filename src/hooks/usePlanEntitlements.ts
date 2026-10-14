@@ -68,6 +68,10 @@ export function usePlanEntitlements() {
     !identityMatchesAuth ||
     session.id === "unknown";
 
+  const planDataPending =
+    !dataReadyForCurrentUser &&
+    !dataError;
+
   const isResolving =
     authContextUnresolved ||
     (!isMaster && (
@@ -76,9 +80,14 @@ export function usePlanEntitlements() {
       platformDataLoading ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
-      !dataReadyForCurrentUser ||
-      Boolean(dataError)
+      planDataPending
     ));
+
+  const resolutionFailed =
+    !isResolving &&
+    !isMaster &&
+    Boolean(dataError) &&
+    !dataReadyForCurrentUser;
 
   const state = useMemo(
     () =>
@@ -95,11 +104,12 @@ export function usePlanEntitlements() {
       ...state,
       isMaster,
       isResolving,
+      resolutionFailed,
       dataError,
       isConfigured: Boolean(state.assignment && state.plan),
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [dataError, isMaster, isResolving, state],
+    [dataError, isMaster, isResolving, resolutionFailed, state],
   );
 }
