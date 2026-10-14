@@ -1492,7 +1492,7 @@ async function blobToDataUrl(blob: Blob) {
   });
 }
 
-function deriveBrandingObjectKey(source?: string) {
+export function deriveBrandingObjectKey(source?: string) {
   const value = String(source || "").trim();
   if (!value || value.startsWith("data:")) return "";
 
