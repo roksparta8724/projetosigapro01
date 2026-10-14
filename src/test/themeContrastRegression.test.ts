@@ -7,6 +7,11 @@ const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 const platform = readFileSync(resolve(root, "src/lib/platform.ts"), "utf8");
 const button = readFileSync(resolve(root, "src/components/ui/button.tsx"), "utf8");
 const analyst = readFileSync(resolve(root, "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
+const surfacePolarity = readFileSync(resolve(root, "src/styles/surface-polarity.css"), "utf8");
+const baseCard = readFileSync(resolve(root, "src/components/ui/card.tsx"), "utf8");
+const tableCard = readFileSync(resolve(root, "src/components/platform/TableCard.tsx"), "utf8");
+const organogram = readFileSync(resolve(root, "src/components/platform/MunicipalOrganogramBar.tsx"), "utf8");
+const processDetail = readFileSync(resolve(root, "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
 describe("theme contrast regressions", () => {
   it("covers every configured desktop theme through the two visual families", () => {
@@ -68,5 +73,31 @@ describe("premium theme selector and process contrast", () => {
     expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"]');
     expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="false"]');
     expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="true"]');
+  });
+});
+
+
+describe("authoritative surface-polarity contract", () => {
+  it("makes all reusable cards adaptive without changing the topbar or sidebar", () => {
+    expect(baseCard).toContain('data-surface="adaptive-card"');
+    expect(tableCard).toContain('data-surface="adaptive-card"');
+    expect(surfacePolarity).toContain("SIGAPRO AUTHORITATIVE SURFACE POLARITY - 2026-10-14");
+    expect(surfacePolarity).toContain('[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(surfacePolarity).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(surfacePolarity).toContain("Topbar/sidebar branding is intentionally untouched");
+  });
+
+  it("forces dark content surfaces and organogram chips to light foregrounds", () => {
+    expect(processDetail).toContain('data-premium-inverse-surface="true"');
+    expect(processDetail).toContain('data-surface-tone="dark"');
+    expect(organogram).toContain('data-organogram-unit-chip="true"');
+    expect(surfacePolarity).toContain('[data-municipal-organogram="true"] [data-organogram-unit-chip="true"]');
+    expect(surfacePolarity).toContain("-webkit-text-fill-color: #ffffff !important");
+  });
+
+  it("forces light surfaces back to dark copy even when nested inside dark layouts", () => {
+    expect(surfacePolarity).toContain('[data-surface-tone="light"]');
+    expect(surfacePolarity).toContain("color: #0f172a !important");
+    expect(surfacePolarity).toContain("color: #334155 !important");
   });
 });
