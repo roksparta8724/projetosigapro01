@@ -377,7 +377,7 @@ export function AnalystDeskPage() {
           const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
 
           return (
-            <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div key={process.id} className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -631,7 +631,7 @@ export function AnalystDeskPage() {
           return (
             <div
               key={process.id}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
+              className="rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-950/35"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0 flex-1">
@@ -778,7 +778,7 @@ export function AnalystDeskPage() {
                       </div>
                     ) : (
                       urgentProtocols.slice(0, 4).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950">
@@ -812,7 +812,7 @@ export function AnalystDeskPage() {
                   >
                     <div className="space-y-3">
                       {handedOffFromAnalysis.slice(0, 5).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950">
@@ -1131,24 +1131,24 @@ export function AnalystDeskPage() {
                 icon={Users2}
               >
                 <div className="sig-responsive-data-grid sig-responsive-data-grid-wide">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Tempo médio</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{averageSlaHours}h</p>
                     <p className="mt-1 text-sm text-slate-500">Média de horas restantes na fila</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">SLA vencido</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">
                       {processes.filter((item) => item.sla.breached).length}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">Itens que pedem reação imediata</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Carga atribuída</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{latestAssigned.length}</p>
                     <p className="mt-1 text-sm text-slate-500">Itens em nome do analista atual</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Equipe monitorada</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{productivityByAnalyst.length}</p>
                     <p className="mt-1 text-sm text-slate-500">Responsáveis técnicos com carga ativa</p>
