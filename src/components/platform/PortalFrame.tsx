@@ -299,13 +299,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
-  const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
+  const activeInstitutionId = isMasterUser
+    ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+    : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const {
     departments: portalOrganizationDepartments,
     loading: portalOrganizationLoading,
     error: portalOrganizationError,
   } = useMunicipalOrganization();
-  const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
   const resolvedHeaderLogoUrl = resolveBrandingLogoUrl(headerBranding as Record<string, unknown>, "header");
