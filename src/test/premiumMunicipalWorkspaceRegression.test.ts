@@ -255,11 +255,14 @@ describe("premium municipal workspace regression", () => {
     expect(internalTabs).toContain('urlParam = "secao"');
   });
 
-  it("keeps document uploads stable and opens documents in dedicated browser tabs", () => {
+  it("keeps document uploads stable and opens secure documents directly", () => {
     expect(fileDropZone).not.toContain("animate-pulse");
     expect(fileDropZone).not.toContain("animate-bounce");
     expect(fileDropZone).toContain("transition-colors duration-150");
-    expect(processDetail).toContain('window.open(viewerUrl, "_blank", "noopener,noreferrer")');
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain('const popup = window.open("", "_blank")');
+    expect(processDetail).toContain("popup.location.replace(accessUrl)");
+    expect(processDetail).not.toContain("window.open(viewerUrl");
     expect(processDetail).toContain('window.open(analysisUrl, "_blank", "noopener,noreferrer")');
   });
 
@@ -335,7 +338,9 @@ describe("premium municipal workspace regression", () => {
     expect(platform).toContain("return canTrackProcess(session, process, scopeId)");
     expect(documentViewer).toContain("canViewProcessDocuments(session, process, effectiveScopeId)");
     expect(documentViewer).not.toContain("canAccessProcess(session, process, effectiveScopeId)");
-    expect(documentViewer).toContain("Validando acesso ao documento");
+    expect(documentViewer).not.toContain("Carregando documento com acesso seguro...");
+    expect(documentViewer).not.toContain(">Validando acesso ao documento<");
+    expect(documentViewer).toContain("window.location.replace(accessUrl)");
   });
 
   it("uses local R2 when configured and official fallback only for localhost read failures", () => {
