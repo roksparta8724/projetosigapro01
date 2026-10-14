@@ -2108,11 +2108,11 @@ export function ProcessDetailPage() {
                               : "bg-sky-50 text-sky-700"
                         }`}>
                           {isApproved ? (
-                            <CheckCircle2 className="h-4.5 w-4.5" />
+                            <CheckCircle2 className="h-4 w-4" />
                           ) : hasCommunique ? (
-                            <ShieldAlert className="h-4.5 w-4.5" />
+                            <ShieldAlert className="h-4 w-4" />
                           ) : (
-                            <Clock3 className="h-4.5 w-4.5" />
+                            <Clock3 className="h-4 w-4" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
