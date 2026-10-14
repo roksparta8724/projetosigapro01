@@ -2456,9 +2456,9 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   }
 
   if (isExternalProfessionalRole(session.role)) {
-    if (!processBelongsToExternalProfessional(session, process)) return false;
-    const professionalScopeId = getOperationalScopeId(session);
-    return !professionalScopeId || matchesOperationalScope(professionalScopeId, process);
+    // O vínculo profissional-processo é permanente e não depende de fila,
+    // departamento, status ou cache de escopo da interface.
+    return processBelongsToExternalProfessional(session, process);
   }
 
   const activeScopeId = scopeId || getOperationalScopeId(session);
@@ -2498,9 +2498,9 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   }
 
   if (isExternalProfessionalRole(session.role)) {
-    if (!processBelongsToExternalProfessional(session, process)) return false;
-    const professionalScopeId = getOperationalScopeId(session);
-    return !professionalScopeId || matchesOperationalScope(professionalScopeId, process);
+    // O vínculo profissional-processo é permanente e não depende de fila,
+    // departamento, status ou cache de escopo da interface.
+    return processBelongsToExternalProfessional(session, process);
   }
 
   const activeScopeId = scopeId || getOperationalScopeId(session);
