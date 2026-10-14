@@ -61,7 +61,10 @@ export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const issFeeConfigured = isIssFeeConfigured(tenantSettings);
