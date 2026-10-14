@@ -91,19 +91,20 @@ describe("annotation draft and professional handoff", () => {
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
     expect(detail).toContain("openDocumentWorkspace");
+    expect(detail).toContain("workspaceName");
+    expect(detail).not.toContain('window.open(workspaceUrl, "_blank"');
   });
 });
 
 
 describe("analyst document permission continuity", () => {
-  it("keeps assigned analysts in the annotation workspace without granting prefeitura_admin review powers", () => {
+  it("keeps the annotation workspace available to authorized analysts without granting prefeitura_admin review powers", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(analysis).toContain("isAssignedProcessAnalyst");
     expect(analysis).toContain('session.role === "analista"');
     expect(analysis).not.toContain('session.role === "prefeitura_admin"');
-    expect(detail).toContain("isAssignedProcessAnalyst");
-    expect(detail).toContain("ownsCurrentProcessStage || isAssignedProcessAnalyst");
+    expect(detail).toContain('session.role === "analista"');
+    expect(detail).not.toContain("ownsCurrentProcessStage || isAssignedProcessAnalyst");
   });
 });
