@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -400,12 +401,21 @@ export function AnalystDeskPage() {
                   </p>
                 </div>
 
-                <Link
-                  to={`/processos/${process.id}`}
-                  className="sig-dark-action-btn inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white sm:w-auto"
-                >
-                  Abrir processo
-                </Link>
+                <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  <MarkerSelector
+                    processId={process.id}
+                    tags={process.tags}
+                    actor={session.name}
+                    subjectLabel="processo"
+                    triggerClassName="h-8"
+                  />
+                  <Link
+                    to={`/processos/${process.id}`}
+                    className="sig-dark-action-btn inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white"
+                  >
+                    Abrir processo
+                  </Link>
+                </div>
               </div>
 
               <div className="sig-responsive-data-grid mt-4">
