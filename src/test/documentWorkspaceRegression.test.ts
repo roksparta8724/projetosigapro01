@@ -108,3 +108,29 @@ describe("analyst document permission continuity", () => {
     expect(detail).not.toContain("ownsCurrentProcessStage || isAssignedProcessAnalyst");
   });
 });
+
+
+describe("analyst PDF markup entry", () => {
+  it("routes every authorized analyst straight into markup instead of the simple viewer", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
+    expect(viewer).toContain("analisar?ferramenta=highlight");
+    expect(detail).toContain("workspaceName");
+    expect(detail).toContain("window.open(workspaceUrl, workspaceName)");
+    expect(detail).not.toContain('window.open(workspaceUrl, workspaceName, "noopener,noreferrer")');
+  });
+
+  it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+
+    expect(analysis).toContain("Marca-texto");
+    expect(analysis).toContain("Adicionar texto");
+    expect(analysis).toContain("Digite o apontamento no painel");
+    expect(analysis).toContain("{annotation.note}");
+    expect(analysis).toContain("{index + 1}");
+    expect(analysis).toContain("Salvar rascunho");
+    expect(analysis).toContain("Enviar apontamentos");
+  });
+});
