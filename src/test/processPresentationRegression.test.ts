@@ -103,7 +103,7 @@ describe("premium document center and direct PDF analysis", () => {
     expect(detail).toContain("Central documental do processo");
     expect(detail).toContain("documentDeliveryProgress");
     expect(detail).toContain("documentReviewProgress");
-    expect(detail).toContain("Abrir documento e analisar");
+    expect(detail).toContain("Abrir documento");
     expect(detail).toContain("Abrir documento");
     expect(detail).toContain("Use “Analisar / marcar PDF” para marca-texto");
   });
@@ -118,6 +118,8 @@ describe("theme-safe premium process and document cards", () => {
     const external = readFileSync(resolve(process.cwd(), "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
 
     expect(detail).toContain("!text-white");
+    expect(detail).toContain('data-premium-inverse-surface="true"');
+    expect(detail).toContain('data-process-document-card="true"');
     expect(detail).toContain("dark:bg-slate-900");
     expect(detail).toContain("Abrir documento");
     expect(protocol).toContain("dark:bg-slate-900");
@@ -135,7 +137,7 @@ describe("external process primary action hierarchy", () => {
 
     expect(flowIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThan(flowIndex);
-    expect(external).toContain("h-14 w-full");
+    expect(external).toContain("h-16 w-full");
     expect(external).toContain("!text-white");
   });
 });
