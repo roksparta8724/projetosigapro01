@@ -160,8 +160,8 @@ describe("layout integrity regression", () => {
     expect(html).not.toContain("data-sigapro-booting");
     expect(html).not.toContain("data-sigapro-internal");
 
-    const body = html.match(/<body>([\\s\\S]*?)<\\/body>/)?.[1] ?? "";
-    const normalizedBody = body.replace(/\\s+/g, " ").trim();
+    const body = html.match(/<body>([\s\S]*?)<\/body>/)?.[1] ?? "";
+    const normalizedBody = body.replace(/\s+/g, " ").trim();
     expect(normalizedBody).toBe(
       '<div id="root"></div> <script type="module" src="/src/main.tsx"></script>',
     );
