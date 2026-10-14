@@ -50,7 +50,7 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("pageAnnotations.map");
     expect(analysis).toContain("saveAnnotation");
     expect(analysis).toContain("approveDocument");
-    expect(analysis).toContain("issueComuniqueSe");
+    expect(analysis).toContain("sendDraftToProfessional");
     expect(analysis).toContain("Voltar ao processo");
   });
 });
@@ -66,5 +66,30 @@ describe("viewer annotation entry", () => {
     expect(viewer).toContain("Marca-texto");
     expect(viewer).toContain("Adicionar texto");
     expect(analysis).toContain('searchParams.get("ferramenta")');
+  });
+});
+
+
+describe("annotation draft and professional handoff", () => {
+  it("keeps annotations private until the analyst sends the draft", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+
+    expect(analysis).toContain("reviewDraftStorageKey");
+    expect(analysis).toContain("Salvar rascunho");
+    expect(analysis).toContain("Nada foi enviado ao profissional");
+    expect(analysis).toContain("Enviar apontamentos");
+    expect(analysis).toContain("sendDraftToProfessional");
+    expect(analysis).toContain('visibility: "misto"');
+    expect(analysis).toContain('"rejeitado"');
+  });
+
+  it("does not open an extra original-document tab from the viewer", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(viewer).not.toContain('target="_blank"');
+    expect(viewer).not.toContain("Abrir original");
+    expect((detail.match(/window\\.open\\(/g) || []).length).toBe(1);
+    expect(detail).toContain("openDocumentWorkspace");
   });
 });
