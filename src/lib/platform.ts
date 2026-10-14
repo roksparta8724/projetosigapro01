@@ -2201,7 +2201,8 @@ export function can(session: SessionUser, permission: Permission) {
     return true;
   }
 
-  // Administração da Prefeitura é o único perfil municipal com visão transversal.
+  // Administração da Prefeitura governa cadastros e configuração institucional.
+  // Pode consultar processos, mas não recebe capacidades operacionais de setor.
   if (session.role === "prefeitura_admin") {
     const permissions = rolePermissions.prefeitura_admin;
     if (!permissions.includes(permission)) return false;
