@@ -95,14 +95,27 @@ export function usePlanEntitlements() {
     session.id === "unknown" ||
     (!authResolved && !stableAuthenticatedIdentity);
 
+  const state = useMemo(
+    () =>
+      resolvePlanEntitlements({
+        municipalityId,
+        plans,
+        assignments: planAssignments,
+      }),
+    [municipalityId, planAssignments, plans],
+  );
+  const hasCurrentMunicipalityEntitlement = Boolean(state.assignment && state.plan);
+
   const terminalDataFailure =
     Boolean(dataError) &&
-    !dataReadyForCurrentUser;
+    !dataReadyForCurrentUser &&
+    !hasCurrentMunicipalityEntitlement;
 
   const planDataPending =
     !dataReadyForCurrentUser &&
     !terminalDataFailure &&
-    platformDataLoading;
+    platformDataLoading &&
+    !hasCurrentMunicipalityEntitlement;
 
   const rawResolving =
     !terminalDataFailure &&
@@ -174,16 +187,6 @@ export function usePlanEntitlements() {
       resolutionTimedOut
     );
 
-  const state = useMemo(
-    () =>
-      resolvePlanEntitlements({
-        municipalityId,
-        plans,
-        assignments: planAssignments,
-      }),
-    [municipalityId, planAssignments, plans],
-  );
-
   return useMemo(
     () => ({
       ...state,
@@ -193,10 +196,10 @@ export function usePlanEntitlements() {
       resolutionTimedOut,
       authIdentityMismatch,
       dataError,
-      isConfigured: Boolean(state.assignment && state.plan),
+      isConfigured: hasCurrentMunicipalityEntitlement,
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [authIdentityMismatch, dataError, isMaster, isResolving, resolutionFailed, resolutionTimedOut, state],
+    [authIdentityMismatch, dataError, hasCurrentMunicipalityEntitlement, isMaster, isResolving, resolutionFailed, resolutionTimedOut, state],
   );
 }
