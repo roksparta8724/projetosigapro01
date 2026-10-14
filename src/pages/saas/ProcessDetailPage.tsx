@@ -59,6 +59,7 @@ import {
   workTypeCatalog,
 } from "@/lib/platform";
 import { validateBrazilianTaxId } from "@/lib/processIdentityValidation";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 function officialMunicipalityLabel(value: string | null | undefined) {
   const label = String(value || "").trim().replace(/^Prefeitura(?:\s+Municipal)?\s+(?:de|do|da)?\s*/i, "");
@@ -744,45 +745,11 @@ export function ProcessDetailPage() {
   const canViewCompleteTransit =
     !isProtocolTrackingOnly &&
     (isInternalRole(session.role) || processTransitVisibility === "completo");
-  const organizationById = new Map(
-    organizationDepartments.map((department) => [department.id, department]),
-  );
+  const getOrganizationIdentity = (departmentName: string) =>
+    resolveMunicipalUnitIdentity(organizationDepartments, departmentName);
 
-  const getOrganizationPath = (departmentName: string) => {
-    const normalized = departmentName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-
-    const matched = organizationDepartments.find((department) => {
-      const name = department.name
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLocaleLowerCase("pt-BR");
-      const code = department.code.trim().toLocaleLowerCase("pt-BR");
-      return name === normalized || (code && code === normalized);
-    });
-
-    if (!matched) return departmentName;
-
-    const chain: MunicipalDepartmentRecord[] = [];
-    let current: MunicipalDepartmentRecord | undefined = matched;
-    const visited = new Set<string>();
-
-    while (current && !visited.has(current.id)) {
-      visited.add(current.id);
-      chain.unshift(current);
-      current = current.parentDepartmentId
-        ? organizationById.get(current.parentDepartmentId)
-        : undefined;
-    }
-
-    return chain
-      .map((item) => item.code?.trim() ? `${item.code.trim()} — ${item.name}` : item.name)
-      .join(" › ");
-  };
+  const getOrganizationPath = (departmentName: string) =>
+    getOrganizationIdentity(departmentName).breadcrumb;
 
   const organizationDestinations = organizationDepartments.filter(
     (department) => department.isActive,
@@ -793,7 +760,8 @@ export function ProcessDetailPage() {
     process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
-  const currentOrganizationPath = getOrganizationPath(currentFolder);
+  const currentOrganizationIdentity = getOrganizationIdentity(currentFolder);
+  const currentOrganizationPath = currentOrganizationIdentity.breadcrumb;
 
   const protocolDepartment = organizationDepartments.find((department) =>
     /protocolo|triagem|recep[cç][aã]o/i.test(department.name),
@@ -801,11 +769,30 @@ export function ProcessDetailPage() {
   const administrationDepartment = organizationDepartments.find((department) =>
     /administra[cç][aã]o|administrativo|secretaria de administra[cç][aã]o/i.test(department.name),
   );
-  const protocolOrganizationPath = protocolDepartment
-    ? getOrganizationPath(protocolDepartment.name)
+  const protocolOrganizationIdentity = protocolDepartment
+    ? getOrganizationIdentity(protocolDepartment.name)
     : administrationDepartment
-      ? `${getOrganizationPath(administrationDepartment.name)} › Protocolo`
-      : "Administração › Protocolo";
+      ? {
+          ...getOrganizationIdentity(administrationDepartment.name),
+          codePath: [getOrganizationIdentity(administrationDepartment.name).codePath, "PROT"].filter(Boolean).join(" / "),
+          breadcrumb: `${getOrganizationPath(administrationDepartment.name)} › Protocolo`,
+          detailedPath: `${getOrganizationIdentity(administrationDepartment.name).detailedPath} › PROT — Protocolo`,
+          code: "PROT",
+          name: "Protocolo",
+          departmentId: null,
+          matched: false,
+        }
+      : {
+          matched: false,
+          departmentId: null,
+          code: "PROT",
+          name: "Protocolo",
+          codePath: "ADM / PROT",
+          breadcrumb: "Administração › Protocolo",
+          detailedPath: "ADM — Administração › PROT — Protocolo",
+        };
+  const protocolOrganizationPath = protocolOrganizationIdentity.breadcrumb;
+  const analysisOrganizationIdentity = getOrganizationIdentity(URBAN_ANALYSIS_DEPARTMENT);
 
   const normalizedCurrentFolder = currentFolder
     .normalize("NFD")
@@ -2764,6 +2751,11 @@ export function ProcessDetailPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
                       Onde está agora
                     </p>
+                    {currentOrganizationIdentity.codePath ? (
+                      <div className="mt-2 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800 shadow-sm">
+                        {currentOrganizationIdentity.codePath}
+                      </div>
+                    ) : null}
                     <p className="mt-2 text-base font-bold text-slate-950">
                       {currentOrganizationPath}
                     </p>
@@ -2780,6 +2772,23 @@ export function ProcessDetailPage() {
                 </div>
               </div>
 
+              {!isExternalProcessViewer ? (
+                <div className={`flex items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-xs ${
+                  organizationDepartments.length > 0
+                    ? "border-emerald-200 bg-emerald-50/70 text-emerald-800"
+                    : "border-amber-200 bg-amber-50 text-amber-900"
+                }`}>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Network className="h-4 w-4 shrink-0" />
+                    <span className="truncate font-medium">
+                      {organizationDepartments.length > 0
+                        ? `Organograma municipal sincronizado • ${organizationDepartments.length} unidades ativas`
+                        : organizationStatus || "Organograma municipal não carregado"}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="relative">
                 <div className="absolute bottom-5 left-[19px] top-5 w-px bg-slate-200" />
 
@@ -2793,7 +2802,12 @@ export function ProcessDetailPage() {
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                           Entrada do processo
                         </p>
-                        <p className="mt-1 font-semibold text-slate-950">{protocolOrganizationPath}</p>
+                        {protocolOrganizationIdentity.codePath ? (
+                          <div className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-700">
+                            {protocolOrganizationIdentity.codePath}
+                          </div>
+                        ) : null}
+                        <p className="mt-2 font-semibold text-slate-950">{protocolOrganizationPath}</p>
                         <p className="mt-1 text-sm text-slate-600">
                           Processo recebido e registrado oficialmente pela unidade de Protocolo.
                         </p>
@@ -2819,8 +2833,13 @@ export function ProcessDetailPage() {
                           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
                             Análise Urbanística
                           </p>
-                          <p className="mt-1 font-semibold text-slate-950">
-                            {getOrganizationPath(URBAN_ANALYSIS_DEPARTMENT)}
+                          {analysisOrganizationIdentity.codePath ? (
+                            <div className="mt-1 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-800">
+                              {analysisOrganizationIdentity.codePath}
+                            </div>
+                          ) : null}
+                          <p className="mt-2 font-semibold text-slate-950">
+                            {analysisOrganizationIdentity.breadcrumb}
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
                             Processo recebido pela mesa técnica
@@ -2841,6 +2860,8 @@ export function ProcessDetailPage() {
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
                     const isLast = index === transitSteps.length - 1;
+                    const destinationIdentity = getOrganizationIdentity(dispatch.to);
+                    const originIdentity = getOrganizationIdentity(dispatch.from);
                     return (
                       <div key={dispatch.id} className="relative flex gap-4 pb-5">
                         <div className={`z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white shadow-sm ${
@@ -2857,12 +2878,23 @@ export function ProcessDetailPage() {
                               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                                 {isLast ? "Unidade atual" : "Encaminhado para"}
                               </p>
-                              <p className="mt-1 font-semibold text-slate-950">
-                                {getOrganizationPath(dispatch.to)}
+                              {destinationIdentity.codePath ? (
+                                <div className="mt-1 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                                  {destinationIdentity.codePath}
+                                </div>
+                              ) : null}
+                              <p className="mt-2 font-semibold text-slate-950">
+                                {destinationIdentity.breadcrumb}
                               </p>
-                              <p className="mt-2 text-sm text-slate-600">
-                                Origem: <span className="font-medium text-slate-800">{getOrganizationPath(dispatch.from)}</span>
-                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                                <span>Origem:</span>
+                                {originIdentity.codePath ? (
+                                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700">
+                                    {originIdentity.codePath}
+                                  </span>
+                                ) : null}
+                                <span className="font-medium text-slate-800">{originIdentity.breadcrumb}</span>
+                              </div>
                               {dispatch.subject ? (
                                 <p className="mt-1 text-sm text-slate-500">{dispatch.subject}</p>
                               ) : null}
@@ -2900,7 +2932,12 @@ export function ProcessDetailPage() {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
                         Unidade atual
                       </p>
-                      <p className="mt-1 font-semibold text-slate-950">
+                      {currentOrganizationIdentity.codePath ? (
+                        <div className="mt-1 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                          {currentOrganizationIdentity.codePath}
+                        </div>
+                      ) : null}
+                      <p className="mt-2 font-semibold text-slate-950">
                         {currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
@@ -2923,7 +2960,7 @@ export function ProcessDetailPage() {
                       </p>
                     </div>
                     <Badge variant="outline" className="rounded-full">
-                      Origem: {currentOrganizationPath}
+                      Origem: {currentOrganizationIdentity.codePath ? `${currentOrganizationIdentity.codePath} · ` : ""}{currentOrganizationPath}
                     </Badge>
                   </div>
 
@@ -2943,7 +2980,10 @@ export function ProcessDetailPage() {
                           .filter((department) => department.name !== currentFolder)
                           .map((department) => (
                             <SelectItem key={department.id} value={department.id}>
-                              {getOrganizationPath(department.name)}
+                              {(() => {
+                                const identity = getOrganizationIdentity(department.name);
+                                return `${identity.codePath ? `[${identity.codePath}] ` : ""}${identity.breadcrumb}`;
+                              })()}
                             </SelectItem>
                           ))}
                       </SelectContent>
