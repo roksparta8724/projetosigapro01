@@ -6,7 +6,12 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
-import { canAccessProcess, getProcessById } from "@/lib/platform";
+import { canAccessProcess, getProcessById, isInternalRole } from "@/lib/platform";
+import {
+  listRemoteMunicipalDepartments,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
   if (mimeType?.trim()) return mimeType;
@@ -28,6 +33,7 @@ export function DocumentViewerPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [error, setError] = useState("");
+  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
 
   const process = useMemo(
     () => (processId ? getProcessById(processId, processes) : undefined),
@@ -43,6 +49,34 @@ export function DocumentViewerPage() {
       document &&
       document.uploaded &&
       canAccessProcess(session, process, effectiveScopeId),
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (!effectiveScopeId || !isInternalRole(session.role)) {
+      setOrganizationDepartments([]);
+      return () => { active = false; };
+    }
+
+    void listRemoteMunicipalDepartments(effectiveScopeId)
+      .then((rows) => {
+        if (!active) return;
+        setOrganizationDepartments(rows.filter((item) => item.isActive));
+      })
+      .catch(() => {
+        if (active) setOrganizationDepartments([]);
+      });
+
+    return () => { active = false; };
+  }, [effectiveScopeId, session.role]);
+
+  const organizationIdentity = resolveMunicipalUnitIdentity(
+    organizationDepartments,
+    process?.processControl?.currentFolder ||
+      process?.dispatches?.[0]?.to ||
+      process?.sla?.currentStage ||
+      session.department ||
+      "",
   );
 
   useEffect(() => {
@@ -146,10 +180,22 @@ export function DocumentViewerPage() {
             Voltar
           </Button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold">{document.label}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-bold">{document.label}</p>
+              {isInternalRole(session.role) && organizationIdentity.codePath ? (
+                <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100">
+                  {organizationIdentity.codePath}
+                </span>
+              ) : null}
+            </div>
             <p className="truncate text-xs text-slate-300">
               {document.fileName || "Documento técnico"} · {process.protocol}
             </p>
+            {isInternalRole(session.role) && organizationIdentity.matched ? (
+              <p className="mt-1 truncate text-[11px] text-slate-400" title={organizationIdentity.breadcrumb}>
+                {organizationIdentity.breadcrumb}
+              </p>
+            ) : null}
           </div>
         </div>
 
