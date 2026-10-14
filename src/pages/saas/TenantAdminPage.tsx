@@ -119,6 +119,29 @@ function getUserDepartmentLabel(user: SessionUser) {
   return "Não informado";
 }
 
+function getDescendantDepartmentIds(
+  departments: MunicipalDepartmentRecord[],
+  rootId: string | null,
+) {
+  const descendants = new Set<string>();
+  if (!rootId) return descendants;
+
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    departments
+      .filter((item) => item.parentDepartmentId === current)
+      .forEach((item) => {
+        if (descendants.has(item.id)) return;
+        descendants.add(item.id);
+        queue.push(item.id);
+      });
+  }
+
+  return descendants;
+}
+
 function normalizeDepartmentIdentity(value: string) {
   return value
     .normalize("NFD")
@@ -225,7 +248,10 @@ export function TenantAdminPage() {
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
@@ -303,6 +329,15 @@ export function TenantAdminPage() {
   const activeDepartments = useMemo(
     () => departments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
     [departments],
+  );
+  const forbiddenParentDepartmentIds = useMemo(() => {
+    const ids = getDescendantDepartmentIds(activeDepartments, editingDepartmentId);
+    if (editingDepartmentId) ids.add(editingDepartmentId);
+    return ids;
+  }, [activeDepartments, editingDepartmentId]);
+  const availableParentDepartments = useMemo(
+    () => activeDepartments.filter((department) => !forbiddenParentDepartmentIds.has(department.id)),
+    [activeDepartments, forbiddenParentDepartmentIds],
   );
 
   const filteredUsers = useMemo(() => {
@@ -1069,7 +1104,7 @@ export function TenantAdminPage() {
             <PageMainContent>
               <TableCard
                 title="Organograma municipal"
-                description="Estrutura institucional da Prefeitura exibida por siglas, sem nomes de usuários, no padrão de navegação administrativa."
+                description="Hierarquia institucional real da Prefeitura, com nomes completos, siglas, níveis e vínculos entre unidades. Servidores permanecem fora do organograma."
                 icon={Network}
               >
                 <MunicipalOrganizationChart
@@ -1082,7 +1117,7 @@ export function TenantAdminPage() {
             <PageSideContent>
               <SectionCard
                 title={editingDepartmentId ? "Ajustar unidade" : "Montar organograma"}
-                description={editingDepartmentId ? "Altere sigla, nome, nível, unidade superior e dados institucionais." : "Crie a estrutura conforme a realidade de cada Prefeitura. O quadro interno exibe somente as siglas das unidades."}
+                description={editingDepartmentId ? "Altere sigla, nome, nível, unidade superior e dados institucionais sem quebrar a hierarquia." : "Crie a estrutura conforme a realidade de cada Prefeitura. Departamentos e setores ficam visualmente dentro da unidade superior cadastrada."}
                 icon={Plus}
                 contentClassName="space-y-4"
               >
@@ -1114,7 +1149,11 @@ export function TenantAdminPage() {
                       <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__root">Nível principal</SelectItem>
-                        {activeDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
+                        {availableParentDepartments.map((department) => (
+                          <SelectItem key={department.id} value={department.id}>
+                            {department.name}{department.code ? ` (${department.code})` : ""}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
