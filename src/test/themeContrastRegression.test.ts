@@ -19,6 +19,33 @@ const finance = read("src/pages/saas/FinanceDeskPage.tsx");
 const financeProtocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
 const external = read("src/pages/saas/ExternalProcessControlPage.tsx");
 
+function relativeLuminance(hex: string) {
+  const channels = [1, 3, 5].map((start) => {
+    const value = Number.parseInt(hex.slice(start, start + 2), 16) / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : Math.pow((value + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const first = relativeLuminance(foreground);
+  const second = relativeLuminance(background);
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function presetBackground(id: string) {
+  const start = platform.indexOf(`id: "${id}"`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const block = platform.slice(start, start + 620);
+  const match = block.match(/background:\s*"(#[0-9a-fA-F]{6})"/);
+  expect(match).not.toBeNull();
+  return match?.[1] ?? "#000000";
+}
+
 describe("theme contrast authority", () => {
   it("loads the authoritative surface contract after index.css", () => {
     expect(main.indexOf('import "./index.css"')).toBeGreaterThanOrEqual(0);
@@ -50,6 +77,40 @@ describe("theme contrast authority", () => {
     expect(portal).toContain('data-theme-family={inverseMainTheme ? "dark" : "light"}');
     expect(surfacePolarity).toContain('[data-theme-family="dark"]');
     expect(surfacePolarity).toContain('[data-theme-family="light"]');
+  });
+
+  it("meets strong contrast thresholds on every light and dark preset background", () => {
+    const darkIds = [
+      "escuro-institucional",
+      "escuro-grafite",
+      "escuro-oceano",
+      "escuro-petroleo",
+      "escuro-vinho",
+      "escuro-floresta",
+      "escuro-cacau",
+    ];
+    const lightIds = [
+      "claro-institucional",
+      "claro-neutro",
+      "claro-civico",
+      "claro-ardosia",
+      "claro-vinho",
+      "claro-rosa",
+      "claro-verde",
+      "claro-marrom",
+    ];
+
+    darkIds.forEach((id) => {
+      const background = presetBackground(id);
+      expect(contrastRatio("#f8fafc", background)).toBeGreaterThanOrEqual(7);
+      expect(contrastRatio("#cbd8e8", background)).toBeGreaterThanOrEqual(7);
+    });
+
+    lightIds.forEach((id) => {
+      const background = presetBackground(id);
+      expect(contrastRatio("#0f172a", background)).toBeGreaterThanOrEqual(7);
+      expect(contrastRatio("#526174", background)).toBeGreaterThanOrEqual(4.5);
+    });
   });
 
   it("keeps all process-list surfaces inside the same light/dark contract", () => {
