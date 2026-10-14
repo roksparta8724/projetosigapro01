@@ -372,7 +372,7 @@ describe("premium municipal workspace regression", () => {
     expect(processDetail).not.toContain("funcionarioResponsavel: selectedGuide.issuedBy || session.name");
   });
 
-  it("uses the administrator-configured municipality logo on every official guide", () => {
+  it("uses the administrator-configured municipality logo on every official guide without broken images", () => {
     expect(processDetail).toContain("branding: municipalityBranding");
     expect(processDetail).toContain("municipalityBranding?.headerLogoUrl");
     expect(processDetail).toContain("municipalityBranding?.logoUrl");
@@ -383,7 +383,13 @@ describe("premium municipal workspace regression", () => {
     expect(financeProtocols).toContain("municipalityBranding?.logoUrl");
     expect(financeProtocols).toContain("logoObjectKey:");
     expect(financeProtocols).toContain("municipalityBranding?.headerLogoObjectKey");
-    expect(officialGuide).toContain("prefeitura.logoUrl");
+    expect(officialGuide).toContain("function GuideInstitutionLogo");
+    expect(officialGuide).toContain("onError={() => setFailed(true)}");
+    expect(officialGuide).toContain('aria-label="Brasão institucional indisponível"');
+    expect(officialGuide).not.toContain('src={prefeitura.logoUrl}');
+    expect(officialGuide).toContain('fetch("/api/r2-master-logo-source"');
+    expect(viteConfig).toContain('"/api/r2-master-logo-source"');
+    expect(viteConfig).toContain('"/api/r2-sign-get"');
     expect(officialGuide).not.toContain(">LOGO<");
     expect(alternateOfficialGuide).not.toContain("BRASAO / LOGO");
   });
