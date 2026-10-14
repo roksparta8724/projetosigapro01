@@ -80,3 +80,23 @@ describe("professional process workspace", () => {
     expect(detail).toContain('guide.status === "compensada" ? "Pago / compensado" : "Em aberto"');
   });
 });
+
+
+describe("safe process exit routing", () => {
+  it("never exits a process into another department's forbidden route", () => {
+    const detail = readFileSync(
+      resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
+      "utf8",
+    );
+    const start = detail.indexOf("const processExitPath =");
+    const end = detail.indexOf("const protocolStartedAt", start);
+    const block = detail.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(block).toContain('session.role === "prefeitura_admin"');
+    expect(block).toContain('canAccessMunicipalArea(session, "analise")');
+    expect(block).toContain('canAccessMunicipalArea(session, "financeiro")');
+    expect(block).toContain('canAccessMunicipalArea(session, "protocolos")');
+    expect(block).not.toContain("normalizedCurrentFolder");
+  });
+});
