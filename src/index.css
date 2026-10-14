@@ -6879,3 +6879,178 @@ html body .sig-main-shell :is(.sig-primary-process-action,.sig-primary-document-
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+/* ===== THEME + PROCESS CONTRAST FINAL CONTRACT 2026-10-14 =====
+   Final scoped rules for the theme selector and process workspaces.
+   Topbar/sidebar colors are intentionally untouched. */
+
+/* Theme selector: never light-on-light or dark-on-dark. */
+.sig-theme-panel[data-theme-panel-mode="light"] {
+  background: #ffffff !important;
+  border-color: #dbe3ec !important;
+  color: #0f172a !important;
+}
+.sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option="true"] {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+.sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option="true"] .sig-fit-title {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+.sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option="true"] .sig-fit-copy {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+.sig-theme-panel[data-theme-panel-mode="light"] [data-theme-option-active="true"] {
+  background: linear-gradient(135deg, #eef8ff 0%, #e4f2fb 100%) !important;
+  border-color: #9bd2f3 !important;
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+
+.sig-theme-panel[data-theme-panel-mode="dark"] {
+  background: linear-gradient(180deg, #0a1f33 0%, #071827 100%) !important;
+  border-color: rgba(148,163,184,0.34) !important;
+  color: #f8fafc !important;
+}
+.sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option="true"] {
+  color: #e6eef8 !important;
+  -webkit-text-fill-color: #e6eef8 !important;
+}
+.sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option="true"] .sig-fit-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option="true"] .sig-fit-copy {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+.sig-theme-panel[data-theme-panel-mode="dark"] [data-theme-option-active="true"] {
+  background: linear-gradient(135deg, #123b5b 0%, #0b304c 100%) !important;
+  border-color: rgba(103,232,249,0.48) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Primary actions: explicit inverse surface contract. */
+html body .sig-app-frame [data-primary-action="process"],
+html body .sig-app-frame [data-primary-action="process"] *,
+html body .sig-app-frame [data-primary-action="document"],
+html body .sig-app-frame [data-primary-action="document"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-app-frame [data-primary-action="process"] svg,
+html body .sig-app-frame [data-primary-action="process"] svg *,
+html body .sig-app-frame [data-primary-action="document"] svg,
+html body .sig-app-frame [data-primary-action="document"] svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Process list cards: light theme = dark copy, inverse theme = light copy. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+  border-color: #d7e2ee !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg, #102238 0%, #091827 100%) !important;
+  border-color: #2d526f !important;
+  color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Document cards share the same readable theme contract. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  background: linear-gradient(180deg, #102238 0%, #091827 100%) !important;
+  border-color: #2d526f !important;
+  color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Process tabs: inactive options stay readable, active option remains vivid. */
+html body [data-layout-mode="default"] [data-process-tabbar="true"] button[aria-pressed="false"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body [data-layout-mode="default"] [data-process-tabbar="true"] button[aria-pressed="false"]:hover {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="inverse-main"] [data-process-tabbar="true"] button[aria-pressed="false"] {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+html body [data-layout-mode="inverse-main"] [data-process-tabbar="true"] button[aria-pressed="false"]:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body [data-process-tabbar="true"] button[aria-pressed="true"],
+html body [data-process-tabbar="true"] button[aria-pressed="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Dark command center in the documents tab: guaranteed bright copy/icons. */
+html body .sig-main-shell #sig-process-document-command-center,
+html body .sig-main-shell #sig-process-document-command-center :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell #sig-process-document-command-center svg,
+html body .sig-main-shell #sig-process-document-command-center svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* ===== END THEME + PROCESS CONTRAST FINAL CONTRACT ===== */
+
