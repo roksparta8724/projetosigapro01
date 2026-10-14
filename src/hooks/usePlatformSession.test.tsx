@@ -17,6 +17,10 @@ vi.mock("@/hooks/useAuthGateway", () => ({
   useAuthGateway: () => gatewayMock,
 }));
 
+vi.mock("@/hooks/usePlatformData", () => ({
+  usePlatformData: () => ({ sessionUsers: [] }),
+}));
+
 vi.mock("@/integrations/backend/config", () => ({
   isNeonBackend: true,
   isSupabaseBackend: false,
