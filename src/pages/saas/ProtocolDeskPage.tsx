@@ -98,11 +98,9 @@ export function ProtocolDeskPage() {
   // Funcionário municipal: a Prefeitura vinculada à sessão autenticada é a fonte
   // autoritativa. O contexto visual não pode trocar silenciosamente o livro de protocolos.
   const effectiveScopeId =
-    session.municipalityId ??
-    session.tenantId ??
-    municipality?.id ??
-    scopeId ??
-    null;
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
 
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
