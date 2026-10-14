@@ -18,20 +18,18 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
-import {
-  listRemoteMunicipalDepartments,
-  type MunicipalDepartmentRecord,
-} from "@/integrations/backend/platform";
 import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
@@ -213,42 +211,11 @@ export function ProcessDetailPage() {
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
-  const [organizationStatus, setOrganizationStatus] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    if (!effectiveScopeId) {
-      setOrganizationDepartments([]);
-      setOrganizationStatus("");
-      return () => {
-        active = false;
-      };
-    }
-
-    setOrganizationStatus("Carregando organograma...");
-    void listRemoteMunicipalDepartments(effectiveScopeId)
-      .then((rows) => {
-        if (!active) return;
-        setOrganizationDepartments(
-          rows
-            .filter((item) => item.isActive)
-            .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
-        );
-        setOrganizationStatus("");
-      })
-      .catch((error) => {
-        if (!active) return;
-        setOrganizationDepartments([]);
-        setOrganizationStatus(
-          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
-        );
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [effectiveScopeId, session.role]);
+  const {
+    departments: organizationDepartments,
+    status: organizationStatus,
+    getPath: getOrganizationPath,
+  } = useMunicipalOrganogram(effectiveScopeId);
   const isMasterOperator =
     session.role === "master_admin" ||
     session.role === "master_ops";
@@ -651,49 +618,7 @@ export function ProcessDetailPage() {
   const canViewCompleteTransit =
     !isProtocolTrackingOnly &&
     (isInternalRole(session.role) || processTransitVisibility === "completo");
-  const organizationById = new Map(
-    organizationDepartments.map((department) => [department.id, department]),
-  );
-
-  const getOrganizationPath = (departmentName: string) => {
-    const normalized = departmentName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-
-    const matched = organizationDepartments.find((department) => {
-      const name = department.name
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLocaleLowerCase("pt-BR");
-      const code = department.code.trim().toLocaleLowerCase("pt-BR");
-      return name === normalized || (code && code === normalized);
-    });
-
-    if (!matched) return departmentName;
-
-    const chain: MunicipalDepartmentRecord[] = [];
-    let current: MunicipalDepartmentRecord | undefined = matched;
-    const visited = new Set<string>();
-
-    while (current && !visited.has(current.id)) {
-      visited.add(current.id);
-      chain.unshift(current);
-      current = current.parentDepartmentId
-        ? organizationById.get(current.parentDepartmentId)
-        : undefined;
-    }
-
-    return chain
-      .map((item) => item.code?.trim() ? `${item.code.trim()} — ${item.name}` : item.name)
-      .join(" › ");
-  };
-
-  const organizationDestinations = organizationDepartments.filter(
-    (department) => department.isActive,
-  );
+  const organizationDestinations = organizationDepartments;
 
   const rawCurrentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
   const holdsIssuedIssInsideUrbanism =
@@ -1483,6 +1408,14 @@ export function ProcessDetailPage() {
           {processActionStatus}
         </div>
       ) : null}
+
+      <MunicipalOrganogramBar
+        municipalityId={effectiveScopeId}
+        departmentHint={currentFolder}
+        title="Organograma do processo"
+        description="A unidade atual aparece dentro da hierarquia oficial da Prefeitura. O mesmo organograma é usado para escolher o destino dos despachos."
+      />
+
       <PageStatsRow>
         <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={displayOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
@@ -2808,7 +2741,51 @@ export function ProcessDetailPage() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                          Organograma para despacho
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Selecione visualmente a unidade ou use a lista abaixo.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                        {organizationDestinations.length} unidade(s)
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
+                      {organizationDestinations
+                        .filter((department) => department.name !== currentFolder)
+                        .map((department) => {
+                          const selected = dispatchTo === department.id;
+                          return (
+                            <button
+                              key={`org-destination-${department.id}`}
+                              type="button"
+                              onClick={() => setDispatchTo(department.id)}
+                              className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                                selected
+                                  ? "border-sky-300 bg-sky-100 text-sky-900 shadow-sm"
+                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-sky-200 hover:bg-sky-50"
+                              }`}
+                              title={getOrganizationPath(department.name)}
+                            >
+                              {department.code?.trim() ? (
+                                <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                                  {department.code.trim()}
+                                </span>
+                              ) : null}
+                              <span className="truncate">{getOrganizationPath(department.name)}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <Select value={dispatchTo} onValueChange={setDispatchTo}>
                       <SelectTrigger className="min-h-12 rounded-2xl bg-white">
                         <SelectValue placeholder="Selecionar unidade de destino" />
