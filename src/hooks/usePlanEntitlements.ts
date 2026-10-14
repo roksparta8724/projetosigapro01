@@ -19,7 +19,6 @@ export function usePlanEntitlements() {
   const {
     municipality,
     scopeId,
-    loading: municipalityLoading,
   } = useMunicipality();
   const { session } = usePlatformSession();
   const {
@@ -90,7 +89,6 @@ export function usePlanEntitlements() {
     authContextUnresolved ||
     (!isMaster && (
       !municipalityMatchesAuth ||
-      municipalityLoading ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
       planDataPending
