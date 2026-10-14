@@ -737,6 +737,7 @@ export interface TenantUserInput {
   fullName: string;
   email: string;
   role: UserRole;
+  profileLabel?: string;
   title: string;
   accessLevel: 1 | 2 | 3;
   department?: string;
