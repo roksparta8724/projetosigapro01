@@ -30,6 +30,11 @@ import {
   isInternalRole,
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
+import {
+  listRemoteMunicipalDepartments,
+  type MunicipalDepartmentRecord,
+} from "@/integrations/backend/platform";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
 type DraftAnnotation = {
@@ -55,6 +60,7 @@ export function DocumentAnalysisPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [accessError, setAccessError] = useState("");
+  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [tool, setTool] = useState<AnalysisTool>("navigate");
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -81,6 +87,34 @@ export function DocumentAnalysisPage() {
     canAccessProcess(session, process, effectiveScopeId) &&
     isProcessOwnedBySessionDepartment(session, process) &&
     canAccessMunicipalArea(session, "analise");
+
+  useEffect(() => {
+    let active = true;
+    if (!effectiveScopeId || !isInternalRole(session.role)) {
+      setOrganizationDepartments([]);
+      return () => { active = false; };
+    }
+
+    void listRemoteMunicipalDepartments(effectiveScopeId)
+      .then((rows) => {
+        if (!active) return;
+        setOrganizationDepartments(rows.filter((item) => item.isActive));
+      })
+      .catch(() => {
+        if (active) setOrganizationDepartments([]);
+      });
+
+    return () => { active = false; };
+  }, [effectiveScopeId, session.role]);
+
+  const organizationIdentity = resolveMunicipalUnitIdentity(
+    organizationDepartments,
+    process?.processControl?.currentFolder ||
+      process?.dispatches?.[0]?.to ||
+      process?.sla?.currentStage ||
+      session.department ||
+      "",
+  );
 
   useEffect(() => {
     setLocalReviewStatus(
@@ -345,13 +379,25 @@ export function DocumentAnalysisPage() {
               <FileText className="h-4 w-4" />
               Análise documental
             </div>
-            <h1 className="mt-1 truncate text-lg font-semibold text-white">
-              {document.label}
-            </h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-lg font-semibold text-white">
+                {document.label}
+              </h1>
+              {organizationIdentity.codePath ? (
+                <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100">
+                  {organizationIdentity.codePath}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-xs text-slate-400">
               {formatOfficialProcessNumber(process.protocol)}
               {document.fileName ? ` • ${document.fileName}` : ""}
             </p>
+            {organizationIdentity.matched ? (
+              <p className="mt-1 text-[11px] text-slate-500">
+                {organizationIdentity.breadcrumb}
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
