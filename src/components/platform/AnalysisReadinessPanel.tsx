@@ -5,7 +5,6 @@ import {
   hasRealRegistryValue,
   validateBrazilianTaxId,
 } from "@/lib/processIdentityValidation";
-import "./AnalysisReadinessPanel.css";
 
 type ReviewState = "ok" | "pending" | "manual";
 
