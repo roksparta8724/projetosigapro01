@@ -1902,7 +1902,7 @@ export function ProcessDetailPage() {
                   <div
                     key={document.id}
                     data-process-document-card="true"
-                    className={`relative overflow-hidden rounded-2xl border p-4 shadow-sm transition-colors [contain:layout_style] ${reviewVisual.card}`}
+                    className={`group relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)] [contain:layout_style] ${reviewVisual.card}`}
                   >
                     <div
                       className={`absolute inset-y-0 left-0 w-1 ${
@@ -1987,11 +1987,30 @@ export function ProcessDetailPage() {
                           {document.uploaded ? "Enviado" : "Pendente de envio"}
                         </Badge>
 
-                        {!canReviewDocuments && (document.previewUrl || document.uploaded) ? (
+                        {document.uploaded && canReviewDocuments ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openViewer(document.id)}
+                              className="inline-flex h-8 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Visualizar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openAnalysisViewer(document.id)}
+                              className="inline-flex h-8 items-center gap-2 rounded-full bg-slate-950 px-3.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                            >
+                              <PencilLine className="h-3.5 w-3.5" />
+                              Analisar / marcar PDF
+                            </button>
+                          </>
+                        ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
                             type="button"
                             onClick={() => openViewer(document.id)}
-                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
+                            className="inline-flex h-8 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800"
                           >
                             <Maximize2 className="h-3.5 w-3.5" />
                             Abrir documento
@@ -2080,30 +2099,36 @@ export function ProcessDetailPage() {
                     ) : null}
 
                     {canReviewDocuments && document.uploaded ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
-                        <div className="mr-auto min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                          isApproved
+                            ? "bg-emerald-50 text-emerald-700"
+                            : hasCommunique
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-sky-50 text-sky-700"
+                        }`}>
+                          {isApproved ? (
+                            <CheckCircle2 className="h-4.5 w-4.5" />
+                          ) : hasCommunique ? (
+                            <ShieldAlert className="h-4.5 w-4.5" />
+                          ) : (
+                            <Clock3 className="h-4.5 w-4.5" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-800">
                             {isApproved
                               ? "Documento conferido e aprovado."
                               : hasCommunique
-                                ? "Há Comunique-se registrado para correção pelo profissional."
-                                : "Documento aguardando conferência técnica."}
+                                ? "Comunique-se registrado para correção."
+                                : "Aguardando conferência técnica."}
                           </p>
-                          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          <p className="mt-0.5 text-xs leading-5 text-slate-500">
                             {hasCommunique
-                              ? "Abra a análise para consultar as marcações e a exigência enviada."
-                              : "A decisão e as anotações são feitas exclusivamente na tela de análise."}
+                              ? "As marcações e observações permanecem vinculadas ao documento."
+                              : "Use “Analisar / marcar PDF” para marca-texto, comentários pontuais e decisão técnica."}
                           </p>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className={`rounded-full px-5 font-semibold ${reviewVisual.button}`}
-                          onClick={() => openAnalysisViewer(document.id)}
-                        >
-                          <Maximize2 className="mr-2 h-4 w-4" />
-                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir para análise"}
-                        </Button>
                       </div>
                     ) : null}
                   </div>
