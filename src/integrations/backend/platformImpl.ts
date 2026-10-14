@@ -1020,9 +1020,16 @@ export async function loadRemotePlatformStore() {
       membership.profile_id ??
       profile?.id ??
       membership.user_id;
+    const departmentRecord =
+      (profile?.department_id ? departmentById.get(profile.department_id) : undefined) ??
+      Array.from(departmentById.values()).find(
+        (department) =>
+          membership.department &&
+          normalizeDepartmentIdentity(department.name) === normalizeDepartmentIdentity(membership.department),
+      );
     const departmentName =
+      departmentRecord?.name ||
       membership.department ||
-      (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
       "";
     const profileRole = normalizeStoredRole(profile?.role);
     const roleSource =
@@ -1069,6 +1076,8 @@ export async function loadRemotePlatformStore() {
           ? "Externo"
           : "Interno"),
       department: departmentName,
+      departmentId: departmentRecord?.id ?? profile?.department_id ?? null,
+      departmentCode: departmentRecord?.code ?? "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
@@ -1120,9 +1129,9 @@ export async function loadRemotePlatformStore() {
   for (const profile of profilesResult.data ?? []) {
     const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
     if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
-    const departmentName =
-      (profile.department_id ? departmentById.get(profile.department_id)?.name : "") ||
-      "";
+    const departmentRecord =
+      profile.department_id ? departmentById.get(profile.department_id) : undefined;
+    const departmentName = departmentRecord?.name || "";
     const role = resolveDepartmentBackedRole(profile.role, departmentName);
     sessionUsers.push({
       id: canonicalUserId,
@@ -1137,6 +1146,8 @@ export async function loadRemotePlatformStore() {
       accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
       department: departmentName,
+      departmentId: departmentRecord?.id ?? profile.department_id ?? null,
+      departmentCode: departmentRecord?.code ?? "",
       createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
