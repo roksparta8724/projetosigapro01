@@ -114,6 +114,16 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
   });
 
+  it("embute o brasão no HTML da guia antes de abrir o blob de impressão", () => {
+    expect(guide).toContain("async function embedGuideImage");
+    expect(guide).toContain('url.startsWith("data:")');
+    expect(guide).toContain("reader.readAsDataURL(blob)");
+    expect(guide).toContain("logoUrl: embeddedLogo");
+    expect(guide).toContain('window.open("", "_blank")');
+    expect(guide).toContain("popup.location.replace(previewUrl)");
+    expect(guide).toContain(">Brasão</div>");
+  });
+
   it("não fabrica código bancário ou PIX e preserva a identidade real do emissor da ISSQN", () => {
     expect(processDetail).not.toContain('.padEnd(44, "7")');
     expect(processDetail).not.toContain("const pixPayload");
