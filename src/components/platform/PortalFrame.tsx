@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
@@ -72,10 +73,6 @@ import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
-import {
-  listRemoteMunicipalDepartments,
-  type MunicipalDepartmentRecord,
-} from "@/integrations/backend/platform";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 interface PortalFrameProps {
@@ -302,8 +299,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const [portalOrganizationDepartments, setPortalOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
-  const [portalOrganizationError, setPortalOrganizationError] = useState("");
+  const {
+    departments: portalOrganizationDepartments,
+    loading: portalOrganizationLoading,
+    error: portalOrganizationError,
+  } = useMunicipalOrganization();
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
@@ -335,39 +335,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         item.email.trim().toLowerCase() === session.email?.trim().toLowerCase(),
     ) ??
     null;
-
-  useEffect(() => {
-    let active = true;
-    if (!activeInstitutionId || !isInternalRole(session.role)) {
-      setPortalOrganizationDepartments([]);
-      setPortalOrganizationError("");
-      return () => {
-        active = false;
-      };
-    }
-
-    void listRemoteMunicipalDepartments(activeInstitutionId)
-      .then((rows) => {
-        if (!active) return;
-        setPortalOrganizationDepartments(
-          rows
-            .filter((item) => item.isActive)
-            .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "pt-BR")),
-        );
-        setPortalOrganizationError("");
-      })
-      .catch((error) => {
-        if (!active) return;
-        setPortalOrganizationDepartments([]);
-        setPortalOrganizationError(
-          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
-        );
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [activeInstitutionId, session.role, dataError]);
 
   useEffect(() => {
     if (!canonicalSignedInUser || session.id === "unknown") return;
@@ -791,10 +758,12 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     portalOrganizationDepartments,
     routeOrganizationReference,
   );
+  const portalOrganizationRoots = portalOrganizationDepartments.filter(
+    (department) => !department.parentDepartmentId,
+  );
   const showPortalOrganizationContext =
-    isInternalRole(session.role) &&
     Boolean(activeInstitutionId) &&
-    !location.pathname.startsWith("/externo");
+    !isMasterUser;
 
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
@@ -2336,7 +2305,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                             >
                               {portalOrganizationIdentity.codePath}
                             </span>
-                          ) : session.departmentCode && !currentProcessOrganizationReference ? (
+                          ) : session.departmentCode && !currentProcessOrganizationReference && !externalSessionRole ? (
                             <span
                               className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]"
                               style={{
@@ -2347,19 +2316,40 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                             >
                               {session.departmentCode}
                             </span>
+                          ) : externalSessionRole && portalOrganizationRoots.length > 0 ? (
+                            portalOrganizationRoots.slice(0, 5).map((department) => (
+                              <span
+                                key={department.id}
+                                className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                                style={{
+                                  borderColor: withAlpha(primaryColor, "0.18"),
+                                  backgroundColor: withAlpha(primaryColor, "0.055"),
+                                  color: darken(primaryColor, 18),
+                                }}
+                                title={department.name}
+                              >
+                                {department.code || department.name}
+                              </span>
+                            ))
                           ) : null}
                           <p className="sig-fit-title text-sm font-semibold text-slate-950">
                             {portalOrganizationIdentity.matched
                               ? portalOrganizationIdentity.breadcrumb
-                              : routeOrganizationReference || session.department || "Unidade municipal"}
+                              : externalSessionRole
+                                ? "Estrutura institucional da Prefeitura"
+                                : routeOrganizationReference || session.department || "Unidade municipal"}
                           </p>
                         </div>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           {portalOrganizationIdentity.matched
                             ? `Vínculo institucional confirmado no organograma • ${portalOrganizationDepartments.length} unidades ativas`
-                            : portalOrganizationError
-                              ? "Não foi possível confirmar a hierarquia desta unidade no banco oficial."
-                              : "Carregando vínculo institucional da unidade..."}
+                            : portalOrganizationLoading
+                              ? "Carregando estrutura institucional da Prefeitura..."
+                              : portalOrganizationError
+                                ? portalOrganizationError
+                                : externalSessionRole && portalOrganizationDepartments.length > 0
+                                  ? `Estrutura pública sincronizada • ${portalOrganizationDepartments.length} unidades ativas`
+                                  : "Unidade ainda não vinculada ao organograma municipal."}
                         </p>
                       </div>
                     </div>
