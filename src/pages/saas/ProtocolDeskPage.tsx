@@ -577,18 +577,18 @@ export function ProtocolDeskPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {ownedByProtocol ? (
-                            <MarkerSelector
-                              processId={process.id}
-                              tags={process.tags}
-                              actor={session.name}
-                              triggerClassName="h-9 rounded-xl text-[12px]"
-                            />
-                          ) : (
-                            <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600">
-                              Somente acompanhamento
+                          <MarkerSelector
+                            processId={process.id}
+                            tags={process.tags}
+                            actor={session.name}
+                            subjectLabel="processo"
+                            triggerClassName="h-8 rounded-full text-[11px]"
+                          />
+                          {!ownedByProtocol ? (
+                            <span className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-slate-50 px-3 text-[11px] font-medium text-slate-500">
+                              Acompanhamento
                             </span>
-                          )}
+                          ) : null}
                           {ownedByProtocol && process.status === "pagamento_confirmado" ? (
                             <Button
                               type="button"
