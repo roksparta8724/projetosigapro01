@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
@@ -30,10 +31,6 @@ import {
   isInternalRole,
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
-import {
-  listRemoteMunicipalDepartments,
-  type MunicipalDepartmentRecord,
-} from "@/integrations/backend/platform";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -60,7 +57,7 @@ export function DocumentAnalysisPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [accessError, setAccessError] = useState("");
-  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const { departments: organizationDepartments } = useMunicipalOrganization();
   const [tool, setTool] = useState<AnalysisTool>("navigate");
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -87,25 +84,6 @@ export function DocumentAnalysisPage() {
     canAccessProcess(session, process, effectiveScopeId) &&
     isProcessOwnedBySessionDepartment(session, process) &&
     canAccessMunicipalArea(session, "analise");
-
-  useEffect(() => {
-    let active = true;
-    if (!effectiveScopeId || !isInternalRole(session.role)) {
-      setOrganizationDepartments([]);
-      return () => { active = false; };
-    }
-
-    void listRemoteMunicipalDepartments(effectiveScopeId)
-      .then((rows) => {
-        if (!active) return;
-        setOrganizationDepartments(rows.filter((item) => item.isActive));
-      })
-      .catch(() => {
-        if (active) setOrganizationDepartments([]);
-      });
-
-    return () => { active = false; };
-  }, [effectiveScopeId, session.role]);
 
   const organizationIdentity = resolveMunicipalUnitIdentity(
     organizationDepartments,
