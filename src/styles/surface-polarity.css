@@ -458,13 +458,12 @@ html body .sig-main-shell :is(
 
 /* ========================================================================== */
 /* FINAL CONTRAST AUTHORITY - PROCESS WORKSPACE                               */
-/* Loaded after every other project stylesheet via main.tsx.                  */
-/* Scope is intentionally limited to .sig-main-shell; topbar/sidebar are      */
-/* excluded so institutional colors are preserved.                            */
+/* Imported last by main.tsx. Selectors are semantic/attribute scoped so      */
+/* topbar/sidebar branding can never be recolored by this contract.           */
 /* ========================================================================== */
 
-/* Any explicitly dark application surface owns a bright foreground. */
-html body #root .sig-main-shell :is(
+/* DARK SURFACE = BRIGHT COPY. No dependency on shell ancestry. */
+html body #root :is(
   [data-surface-tone="dark"],
   [data-contrast-surface="dark"],
   [data-premium-inverse-surface="true"],
@@ -472,7 +471,7 @@ html body #root .sig-main-shell :is(
   .sig-dark-panel,
   .sig-inverse-panel
 ),
-html body #root .sig-main-shell :is(
+html body #root :is(
   [data-surface-tone="dark"],
   [data-contrast-surface="dark"],
   [data-premium-inverse-surface="true"],
@@ -480,15 +479,15 @@ html body #root .sig-main-shell :is(
   .sig-dark-panel,
   .sig-inverse-panel
 ) * {
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
   filter: none !important;
   mix-blend-mode: normal !important;
   text-shadow: none !important;
 }
 
-html body #root .sig-main-shell :is(
+html body #root :is(
   [data-surface-tone="dark"],
   [data-contrast-surface="dark"],
   [data-premium-inverse-surface="true"],
@@ -502,27 +501,35 @@ html body #root .sig-main-shell :is(
   filter: none !important;
 }
 
-/* The document command center from ProcessDetailPage is always dark, even
-   when the overall app theme is light. */
-html body #root .sig-main-shell #sig-process-document-command-center,
-html body #root .sig-main-shell #sig-process-document-command-center * {
+/* Document command center is intentionally dark in every theme. */
+html body #root #sig-process-document-command-center {
+  background: linear-gradient(135deg,#071525 0%,#123a58 58%,#1f6489 100%) !important;
+  border-color: rgba(125,211,252,0.24) !important;
+}
+html body #root #sig-process-document-command-center,
+html body #root #sig-process-document-command-center * {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
   filter: none !important;
   mix-blend-mode: normal !important;
 }
-html body #root .sig-main-shell #sig-process-document-command-center :is(svg,svg *) {
+html body #root #sig-process-document-command-center :is(svg,svg *) {
   color: #e0f2fe !important;
   stroke: currentColor !important;
 }
 
-/* Organogram unit pills are dark navigation chips in both themes. */
-html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+/* Organogram navigation chips are intentionally dark in every theme. */
+html body #root [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] {
+  background: linear-gradient(135deg,#0b2740 0%,#0a3654 100%) !important;
+  border-color: rgba(125,211,252,0.28) !important;
+  box-shadow: 0 7px 18px rgba(2,6,23,0.22) !important;
+}
+html body #root [data-municipal-organogram="true"] :is(
   [data-organogram-unit-chip="true"],
   [data-organogram-code="true"]
 ),
-html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+html body #root [data-municipal-organogram="true"] :is(
   [data-organogram-unit-chip="true"],
   [data-organogram-code="true"]
 ) * {
@@ -532,7 +539,11 @@ html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
   filter: none !important;
   mix-blend-mode: normal !important;
 }
-html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+html body #root [data-municipal-organogram="true"] [data-organogram-code="true"] {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+html body #root [data-municipal-organogram="true"] :is(
   [data-organogram-unit-chip="true"],
   [data-organogram-code="true"]
 ) :is(svg,svg *) {
@@ -540,29 +551,29 @@ html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
   stroke: #ffffff !important;
 }
 
-/* Light semantic surfaces keep a dark foreground. */
-html body #root .sig-main-shell [data-surface-tone="light"],
-html body #root .sig-main-shell [data-surface-tone="light"] :is(
+/* LIGHT SURFACE = DARK COPY. */
+html body #root [data-surface-tone="light"],
+html body #root [data-surface-tone="light"] :is(
   h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a
 ) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
   opacity: 1 !important;
 }
-html body #root .sig-main-shell [data-surface-tone="light"] :is(svg,svg *) {
+html body #root [data-surface-tone="light"] :is(svg,svg *) {
   color: #334155 !important;
   stroke: currentColor !important;
 }
 
-/* Primary blue/dark actions are the final exception inside light cards. */
-html body #root .sig-main-shell :is(
+/* Primary actions remain white-on-blue/dark even when nested in a light card. */
+html body #root :is(
   .sig-dark-action-btn,
   .sig-primary-process-action,
   .sig-primary-document-action,
   [data-primary-action="process"],
   [data-primary-action="document"]
 ),
-html body #root .sig-main-shell :is(
+html body #root :is(
   .sig-dark-action-btn,
   .sig-primary-process-action,
   .sig-primary-document-action,
@@ -573,7 +584,7 @@ html body #root .sig-main-shell :is(
   -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
 }
-html body #root .sig-main-shell :is(
+html body #root :is(
   .sig-dark-action-btn,
   .sig-primary-process-action,
   .sig-primary-document-action,
