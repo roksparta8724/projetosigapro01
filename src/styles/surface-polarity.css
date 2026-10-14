@@ -959,3 +959,195 @@ html body .sig-main-shell .sig-process-detail-premium :is(
   stroke:#ffffff !important;
 }
 /* ===== END PROCESS DETAIL AUTHORITATIVE POLARITY V6 ===== */
+
+
+/* ===== PROCESS THEME CONTRAST AUTHORITY V7 — ALL THEMES 2026-10-14 ===== */
+/*
+ * FINAL authority because this stylesheet loads AFTER index.css.
+ * Scope: process/document workspace only. The topbar, sidebar and saved theme
+ * colors are intentionally untouched.
+ *
+ * Invariant:
+ *   light family => light surfaces + dark copy
+ *   dark family  => dark surfaces + light copy
+ *   explicit dark command surfaces => light copy in every family
+ */
+
+/* 1) Every process/list/document card follows the selected family. */
+html body #root [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) {
+  background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
+  background-color:#ffffff !important;
+  border-color:#d7e2ee !important;
+  color:#0f172a !important;
+}
+html body #root [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-theme-family="light"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy) {
+  color:#526174 !important;
+  -webkit-text-fill-color:#526174 !important;
+}
+
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) {
+  background:linear-gradient(180deg,#11263d 0%,#091827 100%) !important;
+  background-color:#0b1b2d !important;
+  border-color:#2d526f !important;
+  color:#f8fafc !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy) {
+  color:#cbd8e8 !important;
+  -webkit-text-fill-color:#cbd8e8 !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) svg {
+  color:#e6eef8 !important;
+  stroke:currentColor !important;
+}
+
+/* 2) Explicit light semantic pills remain readable inside dark cards. */
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.bg-white,.bg-slate-50).rounded-full,
+html body #root [data-theme-family="dark"] .sig-main-shell :is(
+  .sig-process-detail-premium .sig-process-card,
+  .sig-process-detail-premium [data-process-document-card="true"],
+  [data-process-premium-card="true"]
+) :is(.bg-white,.bg-slate-50).rounded-full * {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-sky-50.rounded-full,
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-sky-50.rounded-full * {
+  color:#075985 !important;
+  -webkit-text-fill-color:#075985 !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-emerald-50.rounded-full,
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-emerald-50.rounded-full * {
+  color:#047857 !important;
+  -webkit-text-fill-color:#047857 !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-amber-50.rounded-full,
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-amber-50.rounded-full * {
+  color:#92400e !important;
+  -webkit-text-fill-color:#92400e !important;
+}
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-rose-50.rounded-full,
+html body #root [data-theme-family="dark"] .sig-main-shell .bg-rose-50.rounded-full * {
+  color:#be123c !important;
+  -webkit-text-fill-color:#be123c !important;
+}
+
+/* 3) The document command center is deliberately dark in ALL themes. */
+html body #root .sig-main-shell #sig-process-document-command-center,
+html body #root .sig-main-shell #sig-process-document-command-center :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center :is(svg,svg *) {
+  color:#e0f2fe !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center .sig-command-metric-blue {
+  background:linear-gradient(145deg,#075985 0%,#0369a1 100%) !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center .sig-command-metric-emerald {
+  background:linear-gradient(145deg,#047857 0%,#059669 100%) !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center .sig-command-metric-amber {
+  background:linear-gradient(145deg,#92400e 0%,#b45309 100%) !important;
+}
+
+/* 4) Primary actions always retain white labels/icons. */
+html body #root .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+),
+html body #root .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* 5) Explicit dark surfaces are always bright, independent of selected theme. */
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+),
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface
+) :is(svg,svg *) {
+  color:#e0f2fe !important;
+  stroke:currentColor !important;
+}
+
+/* Topbar/sidebar are deliberately not referenced in V7. */
+/* ===== END PROCESS THEME CONTRAST AUTHORITY V7 ===== */
