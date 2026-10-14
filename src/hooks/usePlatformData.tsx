@@ -51,6 +51,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  assignRemoteProfileDepartment,
   appendRemoteProcessDocuments,
   completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
@@ -1707,6 +1708,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           title: input.title,
           accessLevel: input.accessLevel,
         });
+        const assignedDepartment =
+          input.departmentId !== undefined
+            ? await assignRemoteProfileDepartment({
+                municipalityId: input.tenantId,
+                profileId: saved.userId,
+                departmentId: input.departmentId ?? null,
+              })
+            : null;
+
         const user: SessionUser = {
           id: saved.userId,
           tenantId: input.tenantId,
@@ -1715,7 +1725,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           name: saved.name,
           role: saved.role,
           title: saved.title,
-          department: saved.title,
+          department:
+            assignedDepartment?.department_name ??
+            input.department?.trim() ??
+            "",
           accessLevel: saved.accessLevel,
           accountStatus: saved.accountStatus,
           userType: saved.userType,
