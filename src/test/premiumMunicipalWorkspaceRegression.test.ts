@@ -338,10 +338,12 @@ describe("premium municipal workspace regression", () => {
     expect(documentViewer).toContain("Validando acesso ao documento");
   });
 
-  it("uses the official localhost fallback even for strict R2 document reads", () => {
+  it("uses the official read origin for strict localhost R2 document reads", () => {
+    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
+    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
     expect(r2Client).toContain("requestSignedUrlWithLocalReadFallback(primaryUrl");
-    expect(r2Client).toContain('"https://sigapromunicipal.com.br/api/r2-sign-get"');
     expect(r2Client).toContain("getSignedUrlForObjectStrict");
+    expect(r2Client).toContain("isLoopbackUrl");
   });
 
   it("waits for resolved Neon auth or confirmed profile before loading the official store", () => {
@@ -387,7 +389,9 @@ describe("premium municipal workspace regression", () => {
     expect(officialGuide).toContain("onError={() => setFailed(true)}");
     expect(officialGuide).toContain('aria-label="Brasão institucional indisponível"');
     expect(officialGuide).not.toContain('src={prefeitura.logoUrl}');
-    expect(officialGuide).toContain('fetch("/api/r2-master-logo-source"');
+    expect(officialGuide).toContain("getSignedUrlForObjectStrict");
+    expect(officialGuide).toContain("objectKey: key");
+    expect(officialGuide).toContain("Nunca reaproveita URL assinada antiga");
     expect(viteConfig).toContain('"/api/r2-master-logo-source"');
     expect(viteConfig).toContain('"/api/r2-sign-get"');
     expect(officialGuide).not.toContain(">LOGO<");
