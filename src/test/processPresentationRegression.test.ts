@@ -237,3 +237,33 @@ describe("authoritative process surface polarity file", () => {
     expect(polarity).toContain('color: #0f172a !important');
   });
 });
+
+
+describe("canonical process surface contract", () => {
+  it("keeps one scoped source of truth for light and dark process cards", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT — CANONICAL");
+    expect(css).not.toContain("PROCESS SURFACE CONTRAST ROOT V3");
+    expect(css).not.toContain("THEME + PROCESS CONTRAST FINAL CONTRACT");
+    expect(css).not.toContain("FINAL SURFACE POLARITY LOCK");
+    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(css).toContain("#sig-process-document-command-center");
+    expect(css).toContain("color: #ffffff !important");
+  });
+
+  it("covers process cards in every operational list", () => {
+    const protocol = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
+    const analyst = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
+    const external = readFileSync(resolve(process.cwd(), "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
+    const finance = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceDeskPage.tsx"), "utf8");
+    const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
+
+    expect(protocol).toContain('data-process-premium-card="true"');
+    expect(analyst).toContain('data-process-premium-card="true"');
+    expect(external).toContain('data-process-premium-card="true"');
+    expect(finance).toContain('data-process-premium-card="true"');
+    expect(financeProtocols).toContain('data-process-premium-card="true"');
+  });
+});
