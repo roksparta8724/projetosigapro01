@@ -785,7 +785,7 @@ export function AnalystDeskPage() {
                       </div>
                     ) : (
                       urgentProtocols.slice(0, 4).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} data-process-premium-card="true" className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">
@@ -819,7 +819,7 @@ export function AnalystDeskPage() {
                   >
                     <div className="space-y-3">
                       {handedOffFromAnalysis.slice(0, 5).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} data-process-premium-card="true" className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-px hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950 dark:text-white">
