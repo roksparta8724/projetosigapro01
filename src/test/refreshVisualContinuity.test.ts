@@ -12,11 +12,14 @@ describe("F5 visual continuity", () => {
     expect(html).not.toContain("sig-boot-sidebar");
   });
 
-  it.each(["default", "inverse-main"])("uses the same frozen real DOM regardless of %s theme", () => {
-    expect(html).toContain("sigapro-refresh-snapshot");
-    expect(main).toContain("snapshot.html");
-    expect(main).toContain("window.location.pathname");
-    expect(main).toContain("restoreFrozenSnapshot();");
-    expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
+  it("applies internal zoom before first paint without freezing a cloned page", () => {
+    expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
+    expect(html).toContain("data-page-zoom");
+    expect(html).not.toContain("sigapro-refresh-snapshot");
+    expect(html).not.toContain("data-sigapro-booting");
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).not.toContain("persistVisualSnapshot");
+    expect(main).not.toContain("restoreFrozenSnapshot");
+    expect(main).not.toContain("window.scrollTo");
   });
 });
