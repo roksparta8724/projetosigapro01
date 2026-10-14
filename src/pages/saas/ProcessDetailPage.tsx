@@ -170,7 +170,7 @@ export function ProcessDetailPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
@@ -914,7 +914,12 @@ export function ProcessDetailPage() {
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+        logoUrl:
+          municipalityBranding?.headerLogoUrl ||
+          municipalityBranding?.logoUrl ||
+          tenantSettings?.logoUrl ||
+          tenantSettings?.brasaoUrl ||
+          "",
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
