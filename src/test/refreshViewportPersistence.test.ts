@@ -7,23 +7,20 @@ const internalTabs = readFileSync(resolve(process.cwd(), "src/components/platfor
 const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
 describe("refresh viewport persistence", () => {
-  it("stores and restores the exact route, query, hash and scroll position across F5", () => {
-    expect(main).toContain("window.location.pathname");
-    expect(main).toContain("window.location.search");
-    expect(main).toContain("window.location.hash");
-    expect(main).toContain("pendingRefreshScrollY");
-    expect(main).toContain("pendingRefreshLocation");
-    expect(main).toContain('window.scrollTo({ top: restoreScroll, left: 0, behavior: "auto" })');
-    expect(main).toContain('window.history.scrollRestoration = "manual"');
-    expect(main).toContain("NAVIGATION_STATE_KEY");
-    expect(main).toContain("restoreWhenLayoutIsReady");
-    expect(main).toContain("window.requestAnimationFrame");
+  it("delegates F5 scroll restoration to the browser without fighting user input", () => {
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).not.toContain("window.scrollTo");
+    expect(main).not.toContain("pendingRefreshScrollY");
+    expect(main).not.toContain("restoreWhenLayoutIsReady");
+    expect(main).not.toContain("requestAnimationFrame(waitForStableFrame)");
   });
 
-  it("keeps the frozen snapshot visible until the real page reaches the stored viewport", () => {
-    expect(main).toContain("Não remover o frame congelado enquanto a página real ainda não possui");
-    expect(main).toContain("snapshot.removeAttribute");
-    expect(main).toContain("snapshot.replaceChildren");
+  it("never places a frozen DOM copy over the real application", () => {
+    expect(main).toContain("clearLegacyRefreshArtifacts");
+    expect(main).toContain('document.getElementById("sigapro-refresh-snapshot")');
+    expect(main).toContain("legacyOverlay?.remove()");
+    expect(main).not.toContain("persistVisualSnapshot");
+    expect(main).not.toContain("snapshot.html");
   });
 
   it("persists subpage and process tabs in the URL so F5 rebuilds the same view", () => {
@@ -31,6 +28,7 @@ describe("refresh viewport persistence", () => {
     expect(internalTabs).toContain("params.set(urlParam, next)");
     expect(internalTabs).toContain("preventScrollReset: true");
     expect(processDetail).toContain('nextParams.set("aba", tab)');
+    expect(processDetail).toContain("preventScrollReset: true");
     expect(processDetail).toContain("setProcessTab");
   });
 });
