@@ -1187,6 +1187,8 @@ export async function loadRemotePlatformStore() {
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
+      ownerProfileId: owner?.profile_id ?? undefined,
+      technicalProfileId: externalLead?.profile_id ?? undefined,
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
