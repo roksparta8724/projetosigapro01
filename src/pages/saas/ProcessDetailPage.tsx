@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
-import { PixQrCode } from "@/components/platform/PixQrCode";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
@@ -129,74 +128,6 @@ function buildDocumentPreview(documentLabel: string, fileName: string | undefine
   `;
 
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-}
-
-function buildProtocolGuideHtml(input: {
-  protocol: string;
-  guideCode: string;
-  tenantName: string;
-  secretariat: string;
-  address: string;
-  email: string;
-  phone: string;
-  title: string;
-  ownerName: string;
-  technicalLead: string;
-  amount: number;
-  dueDate: string;
-  pixPayload: string;
-}) {
-  return `
-    <html>
-      <head>
-        <title>${input.guideCode}</title>
-        <style>
-          @page { size: A4 portrait; margin: 10mm; }
-          body { margin: 0; font-family: Arial, sans-serif; background: #eef4fb; color: #0f172a; }
-          .page { width: 190mm; max-width: 190mm; margin: 0 auto; padding: 8mm 0; }
-          .sheet { background: white; border: 1px solid #d8e4f1; border-radius: 18px; overflow: hidden; }
-          .top { background: linear-gradient(135deg,#123a58 0%,#1b4f73 58%,#1e5a80 100%); color: white; padding: 18px 22px; }
-          .title { font-size: 28px; font-weight: 800; }
-          .sub { margin-top: 4px; font-size: 12px; line-height: 1.6; color: #dceaf5; }
-          .row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 20px 0; }
-          .box { border: 1px solid #dde7f2; border-radius: 12px; background: #fbfdff; padding: 12px; }
-          .label { font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: #64748b; }
-          .value { margin-top: 6px; font-size: 14px; font-weight: 700; color: #12253d; }
-          .section { margin: 16px 20px 20px; border: 1px solid #dde7f2; border-radius: 14px; padding: 16px; background: #fbfdff; }
-        </style>
-      </head>
-      <body>
-        <div class="page">
-          <div class="sheet">
-            <div class="top">
-              <div class="title">SIGAPRO - DAM Municipal</div>
-              <div class="sub">${input.tenantName}</div>
-              <div class="sub">${input.secretariat}</div>
-              <div class="sub">${input.phone} • ${input.address}</div>
-              <div class="sub">${input.email}</div>
-            </div>
-            <div class="row">
-              <div class="box"><div class="label">Protocolo</div><div class="value">${input.protocol}</div></div>
-              <div class="box"><div class="label">Guia</div><div class="value">${input.guideCode}</div></div>
-              <div class="box"><div class="label">Valor</div><div class="value">R$ ${input.amount.toFixed(2).replace(".", ",")}</div></div>
-              <div class="box"><div class="label">Vencimento</div><div class="value">${input.dueDate}</div></div>
-            </div>
-            <div class="section">
-              <div class="label">Dados do Projeto</div>
-              <div class="value">${input.title}</div>
-              <div class="sub" style="color:#475569;margin-top:10px;">Proprietário: ${input.ownerName}</div>
-              <div class="sub" style="color:#475569;">Responsável técnico: ${input.technicalLead}</div>
-            </div>
-            <div class="section">
-              <div class="label">Pix Copia e Cola</div>
-              <div class="value" style="font-size:12px;word-break:break-all;">${input.pixPayload}</div>
-            </div>
-          </div>
-        </div>
-        <script>window.print();</script>
-      </body>
-    </html>
-  `;
 }
 
 export function ProcessDetailPage() {
@@ -518,8 +449,8 @@ export function ProcessDetailPage() {
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
+    process.triage.status === "concluido" &&
     canProtocolOperate;
-  const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments =
     ownsCurrentProcessStage &&
     canAnalysisOperate &&
@@ -1561,6 +1492,17 @@ export function ProcessDetailPage() {
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            {canProtocolConfirmPayment ? (
+              <Button
+                type="button"
+                className="mt-3 rounded-full bg-emerald-700 px-5 !text-white hover:bg-emerald-800"
+                disabled={processActionBusy === "confirm-protocol-payment"}
+                onClick={handleConfirmProtocolPayment}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
+              </Button>
+            ) : null}
             {constructionGuide ? (
               <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -2025,7 +1967,7 @@ export function ProcessDetailPage() {
                           onClick={() => openAnalysisViewer(document.id)}
                         >
                           <Maximize2 className="mr-2 h-4 w-4" />
-                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir análise"}
+                          {isApproved || hasCommunique ? "Revisar análise" : "Abrir para análise"}
                         </Button>
                       </div>
                     ) : null}
