@@ -96,6 +96,16 @@ export function DocumentViewerPage() {
     navigate(`/processos/${process.id}/documentos/${document.id}/analisar${query}`);
   };
 
+  const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
+
+  useEffect(() => {
+    if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
+    navigate(
+      `/processos/${process.id}/documentos/${document.id}/analisar?ferramenta=highlight`,
+      { replace: true },
+    );
+  }, [document?.id, navigate, process?.id, replaceAnalystViewerWithAnalysis]);
+
   useEffect(() => {
     let cancelled = false;
     setAccessUrl("");
@@ -151,6 +161,10 @@ export function DocumentViewerPage() {
     document?.filePath,
     document?.previewUrl,
   ]);
+
+  if (replaceAnalystViewerWithAnalysis) {
+    return <DocumentWorkspaceBoot mode="analysis" />;
+  }
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
