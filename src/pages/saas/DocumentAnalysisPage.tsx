@@ -372,16 +372,27 @@ export function DocumentAnalysisPage() {
     setStatus("");
     try {
       for (const annotation of draftAnnotations) {
-        await addDocumentAnnotation(process.id, document.id, {
-          kind: annotation.kind,
-          page: annotation.page,
-          x: annotation.x,
-          y: annotation.y,
-          width: annotation.width,
-          height: annotation.height,
-          note: annotation.note,
-          author: session.name,
-        });
+        const alreadyPersisted = (document.annotations ?? []).some(
+          (item) =>
+            (item.kind || "text") === annotation.kind &&
+            Number(item.page ?? 1) === annotation.page &&
+            Math.abs(Number(item.x) - annotation.x) < 0.01 &&
+            Math.abs(Number(item.y) - annotation.y) < 0.01 &&
+            item.note.trim() === annotation.note.trim(),
+        );
+
+        if (!alreadyPersisted) {
+          await addDocumentAnnotation(process.id, document.id, {
+            kind: annotation.kind,
+            page: annotation.page,
+            x: annotation.x,
+            y: annotation.y,
+            width: annotation.width,
+            height: annotation.height,
+            note: annotation.note,
+            author: session.name,
+          });
+        }
       }
 
       const annotationSummary = draftAnnotations
