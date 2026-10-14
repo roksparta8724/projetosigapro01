@@ -89,3 +89,19 @@ describe("organogram permissions and administration", () => {
     expect(bar).not.toContain("Sem permissão para visualizar o organograma desta Prefeitura.");
   });
 });
+
+
+describe("organogram visual contrast", () => {
+  it("keeps dark organogram code chips readable in every theme", () => {
+    const bar = readFileSync(
+      resolve(process.cwd(), "src/components/platform/MunicipalOrganogramBar.tsx"),
+      "utf8",
+    );
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(bar).toContain('data-organogram-code="true"');
+    expect(bar).toContain("[-webkit-text-fill-color:#fff]");
+    expect(css).toContain('[data-organogram-code="true"]');
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
+  });
+});
