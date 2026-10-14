@@ -6601,3 +6601,119 @@ html body .sig-main-shell [data-premium-inverse-surface="true"] .text-amber-100 
   color: #fef3c7 !important;
   -webkit-text-fill-color: #fef3c7 !important;
 }
+
+
+/* ===== SIGAPRO SEMANTIC SURFACE CONTRACT 2026-10-14 =====
+   Root rule: deliberately dark cards always own a light foreground;
+   theme-aware light cards own a dark foreground in light mode and a light
+   foreground in inverse mode. This block intentionally lives last. */
+html body .sig-main-shell [data-surface-tone="dark"] {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-main-shell [data-surface-tone="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-main-shell [data-surface-tone="dark"] svg,
+html body .sig-main-shell [data-surface-tone="dark"] svg * {
+  color: #f8fafc !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell [data-surface-tone="dark"] [data-command-metric="true"] {
+  background: rgba(8, 32, 51, 0.46) !important;
+  border-color: rgba(186, 230, 253, 0.20) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell [data-surface-tone="dark"] [data-command-metric="true"] :is(
+  p,span,strong,small,label
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Document/process cards: light surface = dark copy, inverse surface = light copy. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] {
+  background: linear-gradient(180deg, #132337 0%, #0e1c2d 100%) !important;
+  border-color: rgba(148,163,184,0.22) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-slate-600,.text-slate-500,.text-slate-400
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #e7eef8 !important;
+  -webkit-text-fill-color: #e7eef8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] svg,
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Primary process action is always a dark/blue button with white copy/icons. */
+html body .sig-main-shell .sig-primary-process-action,
+html body .sig-main-shell .sig-primary-process-action :is(span,strong,small,a,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-primary-process-action svg {
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Never allow generic light-theme guards to recolor the dark document command center. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-premium-command-surface,
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-premium-command-surface {
+  background: linear-gradient(135deg, #071525 0%, #123a58 58%, #1f6489 100%) !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-premium-command-surface :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-premium-command-surface :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body .sig-main-shell .sig-premium-command-surface svg {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
