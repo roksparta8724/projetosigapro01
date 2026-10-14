@@ -35,7 +35,7 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Mesa de análise documental");
     expect(analysis).toContain("Ferramenta ativa");
     expect(analysis).toContain("Painel técnico");
-    expect(analysis).toContain("Marcar área");
+    expect(analysis).toContain("Marca-texto");
     expect(analysis).toContain("Adicionar texto");
     expect(analysis).toContain("Arraste sobre o ponto incorreto para destacar a área");
     expect(analysis).toContain("Clique no ponto exato do documento para fixar um texto numerado");
