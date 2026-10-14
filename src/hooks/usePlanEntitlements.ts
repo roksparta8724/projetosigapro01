@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -101,7 +101,7 @@ export function usePlanEntitlements() {
     !terminalDataFailure &&
     platformDataLoading;
 
-  const isResolving =
+  const rawResolving =
     !terminalDataFailure &&
     !authIdentityMismatch &&
     (
@@ -113,6 +113,27 @@ export function usePlanEntitlements() {
       ))
     );
 
+  const resolutionKey = [
+    authenticatedProfileId || authenticatedUserId || "anonymous",
+    session.id,
+    sessionMunicipalityId || "no-municipality",
+    session.role,
+  ].join(":");
+  const [resolutionTimedOut, setResolutionTimedOut] = useState(false);
+
+  useEffect(() => {
+    setResolutionTimedOut(false);
+    if (!rawResolving) return;
+
+    const timer = window.setTimeout(() => {
+      setResolutionTimedOut(true);
+    }, 6000);
+
+    return () => window.clearTimeout(timer);
+  }, [rawResolving, resolutionKey]);
+
+  const isResolving = rawResolving && !resolutionTimedOut;
+
   const resolutionFailed =
     !isMaster &&
     !authLoading &&
@@ -120,7 +141,8 @@ export function usePlanEntitlements() {
     (
       terminalDataFailure ||
       authIdentityMismatch ||
-      !municipalityMatchesAuth
+      !municipalityMatchesAuth ||
+      resolutionTimedOut
     );
 
   const state = useMemo(
@@ -139,12 +161,13 @@ export function usePlanEntitlements() {
       isMaster,
       isResolving,
       resolutionFailed,
+      resolutionTimedOut,
       authIdentityMismatch,
       dataError,
       isConfigured: Boolean(state.assignment && state.plan),
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [authIdentityMismatch, dataError, isMaster, isResolving, resolutionFailed, state],
+    [authIdentityMismatch, dataError, isMaster, isResolving, resolutionFailed, resolutionTimedOut, state],
   );
 }
