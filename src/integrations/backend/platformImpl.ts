@@ -330,14 +330,20 @@ function resolveDepartmentBackedRole(
     .trim()
     .toLowerCase();
 
-  // Perfis externos nunca podem ser convertidos em funcionário municipal
-  // apenas porque o vínculo técnico possui um rótulo de departamento como
-  // "Profissional Externo" ou "Portal externo". A identidade externa é estável.
-  if (
+  const isExternalStoredRole =
     storedRole === "profissional_externo" ||
     storedRole === "property_owner" ||
-    storedRole === "proprietario_consulta"
-  ) {
+    storedRole === "proprietario_consulta";
+  const isExternalDepartment =
+    !normalizedDepartment ||
+    /(acesso externo|portal externo|profissional externo|proprietario|consulta externa)/.test(
+      normalizedDepartment,
+    );
+
+  // A identidade externa permanece externa somente quando a lotação também é
+  // realmente externa. Se a conta estiver vinculada a uma unidade municipal
+  // real (Protocolo, Urbanismo, Financeiro etc.), a lotação funcional prevalece.
+  if (isExternalStoredRole && isExternalDepartment) {
     return storedRole;
   }
 
