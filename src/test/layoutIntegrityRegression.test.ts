@@ -147,4 +147,18 @@ describe("layout integrity regression", () => {
     expect(desk).not.toMatch(/\sxl:min-w-\[560px\]/);
     expect(desk).toContain("2xl:min-w-[560px]");
   });
+
+  it("keeps refresh native and never traps user scrolling behind a frozen snapshot", () => {
+    const main = read("src/main.tsx");
+    const html = read("index.html");
+
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).not.toContain("window.scrollTo");
+    expect(main).not.toContain("requestAnimationFrame(waitForStableFrame)");
+    expect(main).not.toContain("persistVisualSnapshot");
+    expect(html).not.toContain("sigapro-refresh-snapshot");
+    expect(html).not.toContain("data-sigapro-booting");
+    expect(html).not.toContain("data-sigapro-internal");
+  });
+
 });
