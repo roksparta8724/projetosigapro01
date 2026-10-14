@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
@@ -26,7 +27,9 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  getRemoteProcessPrivateIdentity,
   listRemoteMunicipalDepartments,
+  saveRemoteProcessPrivateIdentity,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
 import {
@@ -49,11 +52,13 @@ import {
   statusLabel,
   statusTone,
   type PaymentGuideKind,
+  type ProcessPrivateIdentityRecord,
   type ProcessRecord,
   type ProcessTransitVisibility,
   URBAN_ANALYSIS_DEPARTMENT,
   workTypeCatalog,
 } from "@/lib/platform";
+import { validateBrazilianTaxId } from "@/lib/processIdentityValidation";
 
 function officialMunicipalityLabel(value: string | null | undefined) {
   const label = String(value || "").trim().replace(/^Prefeitura(?:\s+Municipal)?\s+(?:de|do|da)?\s*/i, "");
@@ -88,6 +93,35 @@ function resolveProcessFromRoute(processes: ProcessRecord[], routeValue?: string
     const protocol = String(item.protocol || "");
     return protocol.toLowerCase() === normalized || toProcessRouteKey(protocol).toLowerCase() === normalized;
   });
+}
+
+type ProcessIdentityEditForm = {
+  ownerName: string;
+  ownerDocument: string;
+  technicalLead: string;
+  professionalDocument: string;
+  professionalRegistration: string;
+  professionalType: string;
+  professionalPhone: string;
+  professionalEmail: string;
+  professionalCompany: string;
+};
+
+const EMPTY_PROCESS_IDENTITY_FORM: ProcessIdentityEditForm = {
+  ownerName: "",
+  ownerDocument: "",
+  technicalLead: "",
+  professionalDocument: "",
+  professionalRegistration: "",
+  professionalType: "",
+  professionalPhone: "",
+  professionalEmail: "",
+  professionalCompany: "",
+};
+
+function fullTaxIdOrEmpty(value: string | null | undefined) {
+  const text = String(value ?? "").trim();
+  return validateBrazilianTaxId(text) === "formato_valido" ? text : "";
 }
 
 function inferMimeType(fileName: string) {
@@ -144,6 +178,13 @@ export function ProcessDetailPage() {
       : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [organizationStatus, setOrganizationStatus] = useState("");
+  const [privateIdentity, setPrivateIdentity] = useState<ProcessPrivateIdentityRecord | null>(null);
+  const [privateIdentityLoading, setPrivateIdentityLoading] = useState(false);
+  const [privateIdentityStatus, setPrivateIdentityStatus] = useState("");
+  const [isEditingPrivateIdentity, setIsEditingPrivateIdentity] = useState(false);
+  const [privateIdentityForm, setPrivateIdentityForm] = useState<ProcessIdentityEditForm>(
+    EMPTY_PROCESS_IDENTITY_FORM,
+  );
 
   useEffect(() => {
     let active = true;
@@ -265,6 +306,91 @@ export function ProcessDetailPage() {
     session.role !== "prefeitura_admin" &&
     session.role !== "master_admin" &&
     session.role !== "master_ops";
+  const isProfessionalProcessOwner =
+    !!process &&
+    session.role === "profissional_externo" &&
+    (
+      process.professionalProfileId === session.id ||
+      process.technicalProfileId === session.id ||
+      process.createdByProfileId === session.id ||
+      process.createdBy === session.id
+    );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!process || !canTrackProcess(session, process, effectiveScopeId)) {
+      setPrivateIdentity(null);
+      setPrivateIdentityStatus("");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadPrivateIdentity = async () => {
+      setPrivateIdentityLoading(true);
+      setPrivateIdentityStatus("");
+      try {
+        const identity = await getRemoteProcessPrivateIdentity(process.id);
+        if (cancelled) return;
+        setPrivateIdentity(identity);
+
+        const technicalProfile = process.technicalProfileId
+          ? getUserProfile(process.technicalProfileId)
+          : process.professionalProfileId
+            ? getUserProfile(process.professionalProfileId)
+            : undefined;
+
+        setPrivateIdentityForm({
+          ownerName: identity.owner?.name?.trim() || process.ownerName || "",
+          ownerDocument: fullTaxIdOrEmpty(
+            identity.owner?.documentNumber || process.ownerDocument,
+          ),
+          technicalLead: identity.professional?.name?.trim() || process.technicalLead || "",
+          professionalDocument: fullTaxIdOrEmpty(
+            identity.professional?.documentNumber || technicalProfile?.cpfCnpj,
+          ),
+          professionalRegistration:
+            identity.professional?.registrationNumber?.trim() ||
+            technicalProfile?.registrationNumber ||
+            "",
+          professionalType:
+            identity.professional?.professionalType?.trim() ||
+            technicalProfile?.professionalType ||
+            "",
+          professionalPhone:
+            identity.professional?.phone?.trim() ||
+            technicalProfile?.phone ||
+            "",
+          professionalEmail:
+            identity.professional?.email?.trim() ||
+            technicalProfile?.email ||
+            process.professionalEmail ||
+            "",
+          professionalCompany:
+            identity.professional?.companyName?.trim() ||
+            technicalProfile?.companyName ||
+            "",
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setPrivateIdentity(null);
+        setPrivateIdentityStatus(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os dados cadastrais integrais deste processo.",
+        );
+      } finally {
+        if (!cancelled) setPrivateIdentityLoading(false);
+      }
+    };
+
+    void loadPrivateIdentity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveScopeId, process?.id, session.id]);
 
   useEffect(() => {
     if (!processId || openedProcessRef.current === processId) return;
@@ -753,10 +879,16 @@ export function ProcessDetailPage() {
   const linkedTechnicalProfile = process.technicalProfileId
     ? getUserProfile(process.technicalProfileId)
     : undefined;
-  const canViewCompleteCadastro = !isProtocolTrackingOnly &&
-    isInternalRole(session.role) &&
-    matchesOperationalScope(effectiveScopeId, process) &&
-    (canProtocolOperate || canAnalysisOperate || canFinanceOperate);
+  const canViewCompleteCadastro =
+    !isProtocolTrackingOnly &&
+    (
+      (
+        isInternalRole(session.role) &&
+        matchesOperationalScope(effectiveScopeId, process) &&
+        (canProtocolOperate || canAnalysisOperate || canFinanceOperate)
+      ) ||
+      isProfessionalProcessOwner
+    );
   const getProfileByName = (name: string) => {
     const matchedUser = sessionUsers.find((user) => user.name === name || user.email === name);
     return matchedUser ? getUserProfile(matchedUser.id, matchedUser.email) : undefined;
@@ -912,6 +1044,69 @@ export function ProcessDetailPage() {
       () => markGuideAsPaid(process.id, session.name, "protocolo"),
       "Pagamento da guia de protocolo confirmado. O processo foi liberado para a próxima etapa.",
     );
+  };
+
+  const setPrivateIdentityField = (field: keyof ProcessIdentityEditForm, value: string) => {
+    setPrivateIdentityForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSavePrivateIdentity = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!isProfessionalProcessOwner) {
+      setPrivateIdentityStatus("Somente o profissional responsável pode alterar estes dados pelo acesso externo.");
+      return;
+    }
+
+    if (!privateIdentityForm.technicalLead.trim() || !privateIdentityForm.ownerName.trim()) {
+      setPrivateIdentityStatus("Informe o nome completo do profissional e do proprietário.");
+      return;
+    }
+    if (validateBrazilianTaxId(privateIdentityForm.professionalDocument) !== "formato_valido") {
+      setPrivateIdentityStatus("Informe um CPF/CNPJ válido do profissional responsável.");
+      return;
+    }
+    if (validateBrazilianTaxId(privateIdentityForm.ownerDocument) !== "formato_valido") {
+      setPrivateIdentityStatus("Informe um CPF/CNPJ válido do proprietário.");
+      return;
+    }
+    if (!privateIdentityForm.professionalEmail.trim() || !privateIdentityForm.professionalEmail.includes("@")) {
+      setPrivateIdentityStatus("Informe um e-mail válido do profissional responsável.");
+      return;
+    }
+    if (tenantSettings?.registroProfissionalObrigatorio && !privateIdentityForm.professionalRegistration.trim()) {
+      setPrivateIdentityStatus("Informe o registro profissional exigido pela Prefeitura.");
+      return;
+    }
+
+    setProcessActionBusy("save-private-identity");
+    setPrivateIdentityStatus("");
+    try {
+      const saved = await saveRemoteProcessPrivateIdentity(process.id, {
+        ownerName: privateIdentityForm.ownerName.trim(),
+        ownerDocument: privateIdentityForm.ownerDocument.trim(),
+        technicalLead: privateIdentityForm.technicalLead.trim(),
+        professionalDocument: privateIdentityForm.professionalDocument.trim(),
+        professionalRegistration: privateIdentityForm.professionalRegistration.trim(),
+        professionalType: privateIdentityForm.professionalType.trim(),
+        professionalPhone: privateIdentityForm.professionalPhone.trim(),
+        professionalEmail: privateIdentityForm.professionalEmail.trim(),
+        professionalCompany: privateIdentityForm.professionalCompany.trim(),
+      });
+      setPrivateIdentity(saved);
+      setIsEditingPrivateIdentity(false);
+      setPrivateIdentityStatus(
+        "Dados cadastrais atualizados. O documento integral ficou protegido e vinculado somente a este processo.",
+      );
+    } catch (error) {
+      setPrivateIdentityStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar os dados cadastrais deste processo.",
+      );
+    } finally {
+      setProcessActionBusy("");
+    }
   };
 
   const getConstructionGuideInput = () => {
@@ -1613,13 +1808,133 @@ export function ProcessDetailPage() {
         {showPrimaryDetailColumn ? (
         <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
           {activeTab === "imovel" && (
-            <ProcessIdentityPanel
-              process={process}
-              ownerProfile={linkedOwnerProfile}
-              technicalProfile={linkedTechnicalProfile}
-              constructionStandardLabel={constructionStandardLabel}
-              canViewFullIdentity={canViewCompleteCadastro}
-            />
+            <>
+              <ProcessIdentityPanel
+                process={process}
+                ownerProfile={linkedOwnerProfile}
+                technicalProfile={linkedTechnicalProfile}
+                privateIdentity={privateIdentity}
+                constructionStandardLabel={constructionStandardLabel}
+                canViewFullIdentity={canViewCompleteCadastro}
+              />
+
+              {isProfessionalProcessOwner ? (
+                <Card className={cardShell}>
+                  <CardHeader className="border-b border-slate-100">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-slate-950">
+                          <PencilLine className="h-5 w-5 text-sky-700" />
+                          Seus dados e dados do proprietário
+                        </CardTitle>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Estes dados foram informados por você no protocolo. Você pode completar ou corrigir registros antigos sem alterar controles internos da Prefeitura.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={privateIdentityLoading}
+                        onClick={() => setIsEditingPrivateIdentity((current) => !current)}
+                      >
+                        <PencilLine className="mr-2 h-4 w-4" />
+                        {isEditingPrivateIdentity ? "Cancelar edição" : "Editar dados cadastrais"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-5">
+                    {privateIdentityLoading ? (
+                      <p className="text-sm text-slate-600">Carregando os dados cadastrados neste processo...</p>
+                    ) : null}
+
+                    {privateIdentityStatus ? (
+                      <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                        /não foi|inválido|válido do|somente|sem acesso/i.test(privateIdentityStatus)
+                          ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      }`}>
+                        {privateIdentityStatus}
+                      </div>
+                    ) : null}
+
+                    {isEditingPrivateIdentity ? (
+                      <form className="space-y-5" onSubmit={handleSavePrivateIdentity}>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">Profissional responsável</p>
+                          <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label>Nome completo *</Label>
+                              <Input value={privateIdentityForm.technicalLead} onChange={(event) => setPrivateIdentityField("technicalLead", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>CPF ou CNPJ *</Label>
+                              <Input value={privateIdentityForm.professionalDocument} onChange={(event) => setPrivateIdentityField("professionalDocument", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Tipo profissional</Label>
+                              <Input value={privateIdentityForm.professionalType} onChange={(event) => setPrivateIdentityField("professionalType", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Registro profissional{tenantSettings?.registroProfissionalObrigatorio ? " *" : ""}</Label>
+                              <Input value={privateIdentityForm.professionalRegistration} onChange={(event) => setPrivateIdentityField("professionalRegistration", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Telefone</Label>
+                              <Input value={privateIdentityForm.professionalPhone} onChange={(event) => setPrivateIdentityField("professionalPhone", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>E-mail *</Label>
+                              <Input type="email" value={privateIdentityForm.professionalEmail} onChange={(event) => setPrivateIdentityField("professionalEmail", event.target.value)} />
+                            </div>
+                            <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                              <Label>Empresa / escritório</Label>
+                              <Input value={privateIdentityForm.professionalCompany} onChange={(event) => setPrivateIdentityField("professionalCompany", event.target.value)} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-5">
+                          <p className="text-sm font-semibold text-slate-950">Proprietário</p>
+                          <div className="mt-3 grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Nome completo *</Label>
+                              <Input value={privateIdentityForm.ownerName} onChange={(event) => setPrivateIdentityField("ownerName", event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>CPF ou CNPJ *</Label>
+                              <Input value={privateIdentityForm.ownerDocument} onChange={(event) => setPrivateIdentityField("ownerDocument", event.target.value)} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="submit"
+                            className="rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
+                            disabled={processActionBusy === "save-private-identity"}
+                          >
+                            {processActionBusy === "save-private-identity" ? "Salvando..." : "Salvar dados cadastrais"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => setIsEditingPrivateIdentity(false)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <p className="text-sm leading-6 text-slate-600">
+                        O profissional responsável visualiza os dados integrais que cadastrou neste processo. Informações internas, análise e controles municipais continuam separados deste acesso.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
+            </>
           )}
 
           {activeTab === "documentos" && (

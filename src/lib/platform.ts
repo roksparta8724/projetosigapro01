@@ -185,6 +185,23 @@ export interface UserProfile {
   useAvatarInHeader?: boolean;
   bio: string;
 }
+
+export interface ProcessPrivateIdentityParty {
+  partyId?: string;
+  name?: string;
+  documentNumber?: string;
+  registrationNumber?: string;
+  professionalType?: string;
+  email?: string;
+  phone?: string;
+  companyName?: string;
+}
+
+export interface ProcessPrivateIdentityRecord {
+  processId: string;
+  owner: ProcessPrivateIdentityParty;
+  professional: ProcessPrivateIdentityParty;
+}
 export type OwnerRequestStatus = "pending" | "approved" | "rejected";
 
 export interface OwnerProjectRequest {

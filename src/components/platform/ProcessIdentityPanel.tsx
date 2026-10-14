@@ -1,5 +1,5 @@
 import { AlertTriangle, Building2, ClipboardCheck, Contact, FileBadge2, MapPinned, UserRound } from "lucide-react";
-import type { ProcessRecord, UserProfile } from "@/lib/platform";
+import type { ProcessPrivateIdentityRecord, ProcessRecord, UserProfile } from "@/lib/platform";
 import { getProcessRegistrationIssues, validateBrazilianTaxId } from "@/lib/processIdentityValidation";
 import "./ProcessIdentityPanel.css";
 
@@ -7,6 +7,7 @@ interface ProcessIdentityPanelProps {
   process: ProcessRecord;
   ownerProfile?: UserProfile;
   technicalProfile?: UserProfile;
+  privateIdentity?: ProcessPrivateIdentityRecord | null;
   constructionStandardLabel: string;
   canViewFullIdentity: boolean;
 }
@@ -34,19 +35,45 @@ export function ProcessIdentityPanel({
   process,
   ownerProfile,
   technicalProfile,
+  privateIdentity,
   constructionStandardLabel,
   canViewFullIdentity,
 }: ProcessIdentityPanelProps) {
   // Nunca associar cadastros só por nome parecido. Uma vinculação inequívoca é obrigatória.
   const linkedOwner = samePerson(ownerProfile?.fullName, process.ownerName) ? ownerProfile : undefined;
   const linkedProfessional = samePerson(technicalProfile?.fullName, process.technicalLead) ? technicalProfile : undefined;
-  const ownerDocument = linkedOwner?.cpfCnpj?.trim() || process.ownerDocument || "";
+  const ownerName = privateIdentity?.owner?.name?.trim() || process.ownerName;
+  const professionalName = privateIdentity?.professional?.name?.trim() || process.technicalLead;
+  const ownerDocument =
+    privateIdentity?.owner?.documentNumber?.trim() ||
+    linkedOwner?.cpfCnpj?.trim() ||
+    process.ownerDocument ||
+    "";
   const ownerDocumentStatus = validateBrazilianTaxId(ownerDocument);
   const hasFullDocument = ownerDocumentStatus === "formato_valido";
-  const professionalDocument = linkedProfessional?.cpfCnpj?.trim() || "";
+  const professionalDocument =
+    privateIdentity?.professional?.documentNumber?.trim() ||
+    linkedProfessional?.cpfCnpj?.trim() ||
+    "";
   const professionalDocumentStatus = validateBrazilianTaxId(professionalDocument);
-  const professionalRegistration = linkedProfessional?.registrationNumber?.trim() || "";
-  const issues = getProcessRegistrationIssues({ ...process, ownerDocument }, Boolean(professionalRegistration));
+  const professionalRegistration =
+    privateIdentity?.professional?.registrationNumber?.trim() ||
+    linkedProfessional?.registrationNumber?.trim() ||
+    "";
+  const professionalType =
+    privateIdentity?.professional?.professionalType?.trim() ||
+    linkedProfessional?.professionalType?.trim() ||
+    "";
+  const professionalContact =
+    privateIdentity?.professional?.email?.trim() ||
+    privateIdentity?.professional?.phone?.trim() ||
+    linkedProfessional?.email ||
+    linkedProfessional?.phone ||
+    "";
+  const issues = getProcessRegistrationIssues(
+    { ...process, ownerName, ownerDocument, technicalLead: professionalName },
+    Boolean(professionalRegistration),
+  );
   const visibleDocument = !canViewFullIdentity
     ? "Acesso restrito à equipe autorizada"
     : ownerDocumentStatus === "incompleto"
@@ -73,7 +100,7 @@ export function ProcessIdentityPanel({
       <div className="sig-pid-section">
         <div className="sig-pid-section-title"><UserRound size={19} aria-hidden="true" /> Proprietário / titular</div>
         <div className="sig-pid-grid">
-          <DetailField label="Nome completo" value={dataOrPending(process.ownerName)} warning={!process.ownerName.trim()} />
+          <DetailField label="Nome completo" value={dataOrPending(ownerName)} warning={!ownerName.trim()} />
           <DetailField label="CPF / CNPJ" value={visibleDocument} warning={canViewFullIdentity && !hasFullDocument} />
           <DetailField label="Situação do documento" value={canViewFullIdentity ? (
             hasFullDocument ? "Formato conferido · titularidade não verificada" :
@@ -87,11 +114,11 @@ export function ProcessIdentityPanel({
       <div className="sig-pid-section">
         <div className="sig-pid-section-title"><Contact size={19} aria-hidden="true" /> Responsável técnico</div>
         <div className="sig-pid-grid">
-          <DetailField label="Nome completo" value={dataOrPending(process.technicalLead)} warning={!process.technicalLead.trim()} />
-          <DetailField label="Profissão" value={dataOrPending(linkedProfessional?.professionalType)} />
+          <DetailField label="Nome completo" value={dataOrPending(professionalName)} warning={!professionalName.trim()} />
+          <DetailField label="Profissão" value={dataOrPending(professionalType)} />
           <DetailField label="CPF / CNPJ do profissional" value={canViewFullIdentity ? dataOrPending(professionalDocument) : "Acesso restrito à equipe autorizada"} warning={canViewFullIdentity && professionalDocumentStatus !== "formato_valido"} />
           <DetailField label="CREA / CAU / CFT" value={dataOrPending(professionalRegistration)} warning={!professionalRegistration} />
-          <DetailField label="Contato profissional" value={canViewFullIdentity ? dataOrPending(linkedProfessional?.email || linkedProfessional?.phone) : "Consulta interna"} />
+          <DetailField label="Contato profissional" value={canViewFullIdentity ? dataOrPending(professionalContact) : "Consulta interna"} />
         </div>
         <p className="sig-pid-footnote"><FileBadge2 size={15} aria-hidden="true" /> Registro exibido não comprova regularidade no conselho. ART/RRT/TRT e vínculo devem ser conferidos nos documentos do processo.</p>
       </div>
