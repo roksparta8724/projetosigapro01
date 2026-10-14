@@ -118,11 +118,12 @@ export function MunicipalOrganogramBar({
               <div key={department.id} className="flex min-w-0 items-center gap-2">
                 {index > 0 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" /> : null}
                 <span
+                  data-organogram-unit-chip="true"
                   className={cn(
-                    "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+                    "inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)] transition",
                     index === chain.length - 1
-                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/60 dark:text-sky-100"
-                      : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
+                      ? "border-sky-400/40 bg-[linear-gradient(135deg,#0b4f7a_0%,#075985_100%)]"
+                      : "border-slate-700 bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)]",
                   )}
                   title={department.name}
                 >
@@ -130,7 +131,7 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                       {department.code.trim()}
                     </span>
@@ -146,17 +147,18 @@ export function MunicipalOrganogramBar({
               <div key={`${department.code}-${department.name}`} className="flex min-w-0 items-center gap-2">
                 {index > 0 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" /> : null}
                 <span
+                  data-organogram-unit-chip="true"
                   className={cn(
-                    "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+                    "inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)] transition",
                     index === fallbackChain.length - 1
-                      ? "border-sky-200 bg-sky-50 text-sky-900 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/60 dark:text-sky-100"
-                      : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
+                      ? "border-sky-400/40 bg-[linear-gradient(135deg,#0b4f7a_0%,#075985_100%)]"
+                      : "border-slate-700 bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)]",
                   )}
                 >
                   <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                     {department.code}
                   </span>
@@ -179,13 +181,14 @@ export function MunicipalOrganogramBar({
               .map((department) => (
                 <span
                   key={department.id}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
+                  data-organogram-unit-chip="true"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-3.5 py-2 text-[11px] font-bold !text-white shadow-[0_6px_16px_rgba(2,6,23,0.18)]"
                 >
                   {department.code?.trim() ? (
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[28px] items-center justify-center rounded-md bg-slate-950 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] text-white shadow-sm"
+                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                       {department.code.trim()}
                     </span>
