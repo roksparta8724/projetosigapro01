@@ -150,18 +150,18 @@ const navItems = [
   },
   {
       key: "external",
-      to: "/externo",
-      label: "Acesso Externo",
+      to: "/externo/controle",
+      label: "Processos",
       icon: IdCard,
       permission: "submit_processes" as Permission,
       module: "Acesso externo" as PlanModuleName,
       children: [
-        { to: "/externo", label: "Visão geral", icon: LayoutDashboard },
-        { to: "/externo/protocolar", label: "Protocolar", icon: ListChecks },
-        { to: "/externo/controle", label: "Controle de processos", icon: FileBarChart2 },
+        { to: "/externo/controle", label: "Processos", icon: FileBarChart2 },
+        { to: "/externo/protocolar", label: "Novo protocolo", icon: ListChecks },
         { to: "/externo/pagamentos", label: "Pagamentos", icon: Wallet },
         { to: "/externo/historico", label: "Histórico", icon: History },
         { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
+        { to: "/externo", label: "Resumo da conta", icon: LayoutDashboard },
       ],
     },
   { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
@@ -807,7 +807,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         ? "/externo/controle"
         : session.role === "proprietario_consulta" || session.role === "property_owner"
           ? "/proprietario"
-          : "/prefeitura/protocolos";
+          : session.role === "prefeitura_admin"
+            ? "/dashboard/processos"
+            : "/prefeitura/protocolos";
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
