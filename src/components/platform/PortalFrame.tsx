@@ -1785,17 +1785,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <DropdownMenuItem
                       key={preset.id}
                       data-theme-option="true"
-                      data-theme-option-tone={preset.inverseMain ? "dark" : "light"}
                       data-theme-option-active={activeThemeOption ? "true" : "false"}
                       className={cn(
                         "my-1 rounded-[14px] border px-3 py-2.5 text-[13px] outline-none transition-colors",
-                        preset.inverseMain
+                        inverseMainTheme
                           ? activeThemeOption
-                            ? "border-sky-400/50 bg-[linear-gradient(135deg,#123b5b_0%,#0b304c_100%)] !text-white"
-                            : "border-slate-600/60 bg-[linear-gradient(135deg,#10283f_0%,#0a1f33_100%)] !text-white hover:border-sky-400/40 hover:bg-[#14344f] focus:bg-[#14344f]"
+                            ? "border-sky-400/40 bg-[linear-gradient(135deg,#123b5b_0%,#0b304c_100%)] !text-white"
+                            : "border-transparent bg-transparent !text-slate-100 hover:border-white/10 hover:bg-white/[0.07] focus:bg-white/[0.07]"
                           : activeThemeOption
                             ? "border-sky-200 bg-sky-50 !text-slate-950"
-                            : "border-slate-200/80 bg-white !text-slate-800 hover:border-sky-200 hover:bg-sky-50 focus:bg-sky-50",
+                            : "border-transparent bg-transparent !text-slate-700 hover:border-slate-200 hover:bg-slate-50 focus:bg-slate-50",
                       )}
                       onClick={() =>
                         applyLayoutTheme({
@@ -1820,7 +1819,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                         <span
                           className={cn(
                             "sig-fit-title block text-[13px] font-semibold",
-                            preset.inverseMain ? "!text-white" : "!text-slate-900",
+                            inverseMainTheme ? "!text-white" : "!text-slate-900",
                           )}
                         >
                           {preset.label}
@@ -1828,7 +1827,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                         <span
                           className={cn(
                             "sig-fit-copy mt-0.5 block text-[11px] leading-5",
-                            preset.inverseMain ? "!text-slate-300" : "!text-slate-500",
+                            inverseMainTheme ? "!text-slate-300" : "!text-slate-500",
                             isMobileViewport && "line-clamp-2",
                           )}
                         >
@@ -1839,7 +1838,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                         <span
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]",
-                            preset.inverseMain
+                            inverseMainTheme
                               ? "bg-cyan-200 !text-slate-950"
                               : "bg-slate-950 !text-white",
                           )}
