@@ -246,7 +246,16 @@ export function OfficialPaymentGuideDocument({
                 style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
               />
             ) : (
-              <span style={{ fontSize: "11px", textAlign: "center", padding: "8px" }}>BRASAO / LOGO</span>
+              <span
+                aria-label="Logo institucional não configurado"
+                style={{
+                  display: "block",
+                  width: "42px",
+                  height: "42px",
+                  border: "1px dashed #9ca3af",
+                  borderRadius: "6px",
+                }}
+              />
             )}
           </div>
 
