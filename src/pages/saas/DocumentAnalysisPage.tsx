@@ -827,10 +827,10 @@ export function DocumentAnalysisPage() {
                   return (
                     <div
                       key={annotation.id}
-                      className={`pointer-events-none absolute z-20 rounded-[3px] border ${
+                      className={`pointer-events-none absolute z-20 rounded-[4px] border ${
                         isDraftAnnotation
-                          ? "border-dashed border-violet-500 bg-violet-300/35 shadow-[0_0_0_2px_rgba(139,92,246,0.16)]"
-                          : "border-amber-500/60 bg-amber-300/40 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]"
+                          ? "border-dashed border-violet-500 bg-violet-300/35 shadow-[0_0_0_2px_rgba(139,92,246,0.18)]"
+                          : "border-amber-500/70 bg-amber-300/38 shadow-[0_0_0_1px_rgba(251,191,36,0.18)]"
                       }`}
                       style={{
                         left: `${annotation.x}%`,
@@ -839,23 +839,38 @@ export function DocumentAnalysisPage() {
                         height: `${annotation.height ?? 2}%`,
                       }}
                       title={`${annotation.note} · ${annotation.author}`}
-                    />
+                    >
+                      <span
+                        className={`absolute -right-2 -top-3 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 text-[9px] font-black text-white shadow-lg ${
+                          isDraftAnnotation ? "bg-violet-600" : "bg-amber-600"
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                    </div>
                   );
                 }
 
                 return (
                   <div
                     key={annotation.id}
-                    className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2"
+                    className="pointer-events-none absolute z-30 flex max-w-[320px] -translate-y-1/2 items-start gap-2"
                     style={{ left: `${annotation.x}%`, top: `${annotation.y}%` }}
                     title={`${annotation.note} · ${annotation.author}`}
                   >
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow-[0_8px_22px_rgba(2,132,199,0.40)] ring-2 ${
+                    <span className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full border-2 border-white text-[11px] font-black text-white shadow-[0_8px_22px_rgba(2,132,199,0.40)] ring-2 ${
                       isDraftAnnotation
                         ? "bg-violet-600 ring-violet-300/40"
                         : "bg-sky-600 ring-sky-300/40"
                     }`}>
                       {index + 1}
+                    </span>
+                    <span
+                      className={`max-w-[250px] rounded-xl border bg-white/95 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.20)] backdrop-blur ${
+                        isDraftAnnotation ? "border-violet-200" : "border-sky-200"
+                      }`}
+                    >
+                      {annotation.note}
                     </span>
                   </div>
                 );
@@ -875,11 +890,14 @@ export function DocumentAnalysisPage() {
 
               {draft?.page === page && draft.kind === "text" ? (
                 <div
-                  className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2"
+                  className="pointer-events-none absolute z-40 flex -translate-y-1/2 items-center gap-2"
                   style={{ left: `${draft.x}%`, top: `${draft.y}%` }}
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-sky-600 text-xs font-bold text-white shadow-[0_10px_26px_rgba(2,132,199,0.45)] ring-4 ring-sky-300/30">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-sky-600 text-xs font-black text-white shadow-[0_10px_26px_rgba(2,132,199,0.45)] ring-4 ring-sky-300/30">
                     +
+                  </span>
+                  <span className="rounded-xl border border-sky-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg">
+                    Digite o apontamento no painel
                   </span>
                 </div>
               ) : null}
@@ -911,7 +929,7 @@ export function DocumentAnalysisPage() {
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
                 {tool === "highlight"
-                  ? "Marcar área"
+                  ? "Marca-texto"
                   : tool === "text"
                     ? "Adicionar texto"
                     : "Navegação"}
