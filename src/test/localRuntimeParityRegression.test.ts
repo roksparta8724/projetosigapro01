@@ -12,15 +12,12 @@ describe("local runtime parity regressions", () => {
   const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
   const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
-  it("reads existing documents through the same-origin localhost proxy", () => {
-    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
+  it("reads existing localhost documents from the official read API without routing writes to production", () => {
+    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
+    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
     expect(r2Client).toContain("getSignedUrlForObjectStrict");
-    expect(r2Client).toContain("Falha ao alcançar o proxy local de leitura do armazenamento");
-    const readUrlBlock = r2Client.slice(
-      r2Client.indexOf("function buildReadApiUrl"),
-      r2Client.indexOf("async function getAuthorizationHeaders"),
-    );
-    expect(readUrlBlock.indexOf("if (isLocalBrowser)")).toBeLessThan(readUrlBlock.indexOf("if (apiBase)"));
+    expect(r2Client).toContain('buildApiUrl("/api/r2-upload")');
+    expect(r2Client).toContain('buildApiUrl("/api/r2-delete")');
   });
 
   it("does not keep plan access stuck on secondary loading states after auth is stable", () => {
