@@ -28,6 +28,8 @@ describe("premium municipal workspace regression", () => {
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
+  const entitlements = read("src/hooks/usePlanEntitlements.ts");
+  const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
   const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
   const viteConfig = read("vite.config.ts");
@@ -217,6 +219,28 @@ describe("premium municipal workspace regression", () => {
     expect(planEntitlements).toContain("terminalDataFailure &&");
     expect(planModuleRoute).toContain("Validação concluída com falha de conexão");
     expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
+  });
+
+  it("keeps the global organogram tied to the authenticated municipality", () => {
+    expect(shell).toContain("session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null");
+    expect(shell).toContain("showPortalOrganizationContext");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+  });
+
+  it("never leaves module validation spinning forever after a terminal identity mismatch", () => {
+    expect(entitlements).toContain("const authIdentityMismatch");
+    expect(entitlements).toContain("!authIdentityMismatch");
+    expect(entitlements).toContain("terminalDataFailure ||");
+    expect(entitlements).toContain("authIdentityMismatch ||");
+  });
+
+  it("embeds the municipal logo before rendering the printable guide blob", () => {
+    expect(guide).toContain("async function embedGuideImage");
+    expect(guide).toContain("reader.readAsDataURL(blob)");
+    expect(guide).toContain("logoUrl: embeddedLogo");
+    expect(guide).toContain('window.open("", "_blank")');
+    expect(guide).toContain("popup.opener = null");
   });
 
   it("keeps F5 native and preserves tabs in the URL without scroll traps", () => {
