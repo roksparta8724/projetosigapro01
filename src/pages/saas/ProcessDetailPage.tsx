@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
+import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
+import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
@@ -749,7 +751,19 @@ export function ProcessDetailPage() {
         ? "Primeira"
         : process.property.constructionStandard === "economico"
           ? "Econômico"
-          : "Médio";
+          : process.property.constructionStandard === "medio"
+            ? "Médio"
+            : "Não informado";
+  const linkedOwnerProfile = process.ownerProfileId
+    ? getUserProfile(process.ownerProfileId)
+    : undefined;
+  const linkedTechnicalProfile = process.technicalProfileId
+    ? getUserProfile(process.technicalProfileId)
+    : undefined;
+  const canViewCompleteCadastro = !isProtocolTrackingOnly &&
+    isInternalRole(session.role) &&
+    matchesOperationalScope(effectiveScopeId, process) &&
+    (canProtocolOperate || canAnalysisOperate || canFinanceOperate);
   const getProfileByName = (name: string) => {
     const matchedUser = sessionUsers.find((user) => user.name === name || user.email === name);
     return matchedUser ? getUserProfile(matchedUser.id, matchedUser.email) : undefined;
@@ -1589,25 +1603,13 @@ export function ProcessDetailPage() {
         {showPrimaryDetailColumn ? (
         <div className="grid min-w-0 content-start auto-rows-max gap-6 self-start">
           {activeTab === "imovel" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Landmark className="h-5 w-5" />
-                Dados do Imóvel e do Protocolo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Proprietário: ${process.ownerName}`}>Proprietário: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerName}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Documento do proprietário: ${process.ownerDocument}`}>Documento do proprietário: <span className="sig-fit-copy mt-1 block text-slate-800">{process.ownerDocument}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Responsável Técnico: ${process.technicalLead}`}>Responsável Técnico: <span className="sig-fit-copy mt-1 block text-slate-800">{process.technicalLead}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">IPTU: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.iptu}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Matrícula: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.registration}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Lote/Quadra: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.lot} / {process.property.block}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Área: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.area} m²</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Uso: ${process.property.usage}`}>Uso: <span className="sig-fit-copy mt-1 block text-slate-800">{process.property.usage}</span></div>
-              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" title={`Padrão construtivo: ${constructionStandardLabel}`}>Padrão construtivo: <span className="sig-fit-copy mt-1 block text-slate-800">{constructionStandardLabel}</span></div>
-            </CardContent>
-          </Card>
+            <ProcessIdentityPanel
+              process={process}
+              ownerProfile={linkedOwnerProfile}
+              technicalProfile={linkedTechnicalProfile}
+              constructionStandardLabel={constructionStandardLabel}
+              canViewFullIdentity={canViewCompleteCadastro}
+            />
           )}
 
           {activeTab === "documentos" && (
@@ -1964,6 +1966,14 @@ export function ProcessDetailPage() {
               })}
             </CardContent>
           </Card>
+          )}
+
+          {activeTab === "analise" && canReviewDocuments && (
+            <AnalysisReadinessPanel
+              process={process}
+              ownerProfile={linkedOwnerProfile}
+              technicalProfile={linkedTechnicalProfile}
+            />
           )}
 
           {!isExternalProcessViewer && activeTab === "analise" && (
