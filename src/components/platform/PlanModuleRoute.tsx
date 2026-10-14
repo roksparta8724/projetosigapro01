@@ -91,7 +91,7 @@ export function PlanModuleRoute({
             Não foi possível confirmar o plano da Prefeitura
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-700">
-            A página permanece dentro do shell institucional. Reconecte os dados oficiais para confirmar o módulo antes de continuar.
+            A página não ficará mais presa em validação; ela permanece dentro do shell institucional. Reconecte os dados oficiais para confirmar o módulo antes de continuar.
           </p>
           {entitlements.dataError ? (
             <p className="mt-3 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-amber-900">
