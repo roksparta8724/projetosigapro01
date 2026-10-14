@@ -274,7 +274,13 @@ export function ProcessDetailPage() {
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
   type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico";
-  const [activeTab, setActiveTab] = useState<ProcessTab>("imovel");
+  const validProcessTabs: ProcessTab[] = ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"];
+  const [activeTab, setActiveTab] = useState<ProcessTab>(() => {
+    const requested = new URLSearchParams(location.search).get("aba");
+    return requested && validProcessTabs.includes(requested as ProcessTab)
+      ? requested as ProcessTab
+      : "imovel";
+  });
   const openedProcessRef = useRef<string | null>(null);
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
@@ -299,6 +305,13 @@ export function ProcessDetailPage() {
     if (isExternalSession && (tab === "analise" || tab === "financeiro")) return;
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
     if (tab === "financeiro" && (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)) return;
+
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set("aba", tab);
+    navigate(
+      { pathname: location.pathname, search: nextParams.toString() },
+      { replace: true, preventScrollReset: true },
+    );
     setActiveTab(tab);
   };
 
@@ -325,8 +338,39 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!processId || openedProcessRef.current === processId) return;
     openedProcessRef.current = processId;
-    setActiveTab(isProtocolTrackingOnly ? "historico" : isExternalSession ? "resumo" : "imovel");
-  }, [isExternalSession, isProtocolTrackingOnly, processId]);
+
+    const requested = new URLSearchParams(location.search).get("aba");
+    let preferredTab: ProcessTab =
+      requested && validProcessTabs.includes(requested as ProcessTab)
+        ? requested as ProcessTab
+        : isExternalSession
+          ? "resumo"
+          : "imovel";
+
+    if (isExternalSession && (preferredTab === "analise" || preferredTab === "financeiro")) {
+      preferredTab = "resumo";
+    }
+    if (isProtocolTrackingOnly && preferredTab !== "resumo") {
+      preferredTab = "historico";
+    }
+    setActiveTab(preferredTab);
+  }, [isExternalSession, isProtocolTrackingOnly, location.search, processId]);
+
+
+  useEffect(() => {
+    if (!processId) return;
+    const requested = new URLSearchParams(location.search).get("aba");
+    if (!requested || !validProcessTabs.includes(requested as ProcessTab)) return;
+
+    let nextTab = requested as ProcessTab;
+    if (isExternalSession && (nextTab === "analise" || nextTab === "financeiro")) {
+      nextTab = "resumo";
+    }
+    if (isProtocolTrackingOnly && nextTab !== "resumo") {
+      nextTab = "historico";
+    }
+    setActiveTab(nextTab);
+  }, [isExternalSession, isProtocolTrackingOnly, location.search, processId]);
 
   useEffect(() => {
     if (!isProtocolTrackingOnly) return;
