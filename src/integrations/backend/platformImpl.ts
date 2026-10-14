@@ -2819,11 +2819,21 @@ function mapMunicipalDepartment(row: Record<string, unknown>): MunicipalDepartme
 
 export async function listRemoteMunicipalDepartments(municipalityId: string) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
-  // RPC institucional faz o isolamento por Prefeitura no banco.
-  const { data, error } = await db.rpc("list_municipal_departments_v1", {
+  // A estrutura ativa é institucional e acompanha qualquer usuário autenticado
+  // que tenha vínculo ou acesso a um processo desta Prefeitura.
+  const { data, error } = await db.rpc("list_public_municipal_departments_v1", {
     _municipality_id: municipalityId,
   });
   if (error) throw new Error(error.message || "Não foi possível carregar o organograma.");
+  return (data ?? []).map((row) => mapMunicipalDepartment(row as Record<string, unknown>));
+}
+
+export async function listRemoteInternalMunicipalDepartments(municipalityId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_internal_municipal_departments_v1", {
+    _municipality_id: municipalityId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar o organograma interno.");
   return (data ?? []).map((row) => mapMunicipalDepartment(row as Record<string, unknown>));
 }
 
