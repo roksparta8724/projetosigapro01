@@ -12,6 +12,7 @@ describe("document storage and origin root-cause regression", () => {
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const publicDomain = read("src/lib/publicDomain.ts");
   const entitlements = read("src/hooks/usePlanEntitlements.ts");
+  const vite = read("vite.config.ts");
 
   it("cannot leak a localhost R2 base into a production build", () => {
     expect(r2Client).toContain("isLoopbackUrl");
@@ -19,11 +20,20 @@ describe("document storage and origin root-cause regression", () => {
     expect(r2Client).toContain('const apiBase =');
   });
 
-  it("uses official read infrastructure on localhost but keeps write endpoints local", () => {
+  it("keeps localhost reads same-origin, with official fallback only when local R2 is unavailable", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
     expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
-    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
+    expect(r2Client).toContain("localInfrastructureFailure");
     expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-upload")');
     expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-delete")');
+  });
+
+  it("lets Vite use local R2 credentials before falling back to official reads", () => {
+    expect(vite).toContain("hasCompleteLocalR2Env");
+    expect(vite).toContain("normalizeR2AccountId");
+    expect(vite).toContain("const localR2Ready = hasCompleteLocalR2Env()");
+    expect(vite).toContain('req.url.startsWith("/api/r2-sign-get") && !localR2Ready');
+    expect(vite).toContain("Upload/delete nunca são encaminhados para produção");
   });
 
   it("normalizes bucket-prefixed Cloudflare R2 endpoints to the account endpoint", () => {
