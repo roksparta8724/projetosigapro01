@@ -461,23 +461,23 @@ export function ExternalProcessControlPage() {
                         </div>
                       </div>
 
-                      <div className="flex min-w-0 flex-col justify-center gap-2 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-t-0">
+                      <div className="flex min-w-0 flex-col justify-center gap-2.5 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-t-0">
                         <MarkerSelector
                           processId={process.id}
                           tags={process.tags}
                           actor={session.name}
                           triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                         />
-                        <Button asChild className="h-11 w-full rounded-xl bg-slate-950 text-[13px] font-semibold !text-white shadow-[0_8px_18px_rgba(15,23,42,0.22)] hover:bg-slate-900 [&_*]:!text-white">
-                          <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2 !text-white">
-                            <Eye className="h-4 w-4 shrink-0 !text-white" />
-                            <span className="!text-white">Ver detalhes</span>
-                          </Link>
-                        </Button>
-                        <Button asChild variant="outline" className="h-11 w-full rounded-xl border-slate-300 bg-white text-[13px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+                        <Button asChild variant="outline" className="h-10 w-full rounded-xl border-slate-300 bg-white text-[12px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
                           <Link to={`/processos/${process.id}?aba=fluxo`}>
                             <Workflow className="mr-2 h-4 w-4" />
                             Acompanhar fluxo
+                          </Link>
+                        </Button>
+                        <Button asChild className="mt-1 h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#082f49_0%,#075985_45%,#0f78b8_100%)] text-[14px] font-bold !text-white shadow-[0_12px_28px_rgba(7,89,133,0.30)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white">
+                          <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
+                            <Eye className="h-5 w-5 shrink-0 !text-white" />
+                            <span className="!text-white">Abrir processo</span>
                           </Link>
                         </Button>
                       </div>
