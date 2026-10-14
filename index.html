@@ -35,17 +35,13 @@
       content="SIGAPRO | Plataforma institucional para protocolo digital, analise tecnica, tramitacao e aprovacao de projetos urbanos."
     />
     <meta name="twitter:image" content="%BASE_URL%favicon.png?v=3" />
+
     <script>
       (function () {
         var path = window.location.pathname || "/";
         var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-        var initialBackground = "#ffffff";
-
-        var isInternalPath =
-          publicPaths.indexOf(path) < 0 &&
-          authPaths.indexOf(path) < 0 &&
-          path.indexOf("/cliente/") !== 0;
+        var initialBackground = "#f5f7fb";
 
         if (publicPaths.indexOf(path) >= 0 || path.indexOf("/cliente/") === 0) {
           initialBackground = "#f5f7fb";
@@ -53,36 +49,37 @@
           initialBackground = "#06111d";
         } else {
           try {
+            var lastBackground = window.localStorage.getItem("sigapro.last-page-background.v1");
             var rawTheme = window.localStorage.getItem("sigapro-layout-theme");
             var theme = rawTheme ? JSON.parse(rawTheme) : null;
-            if (theme && typeof theme.background === "string" && theme.background.trim()) {
+
+            if (lastBackground && lastBackground.trim()) {
+              initialBackground = lastBackground.trim();
+            } else if (theme && typeof theme.background === "string" && theme.background.trim()) {
               initialBackground = theme.background.trim();
             }
           } catch (error) {
-            initialBackground = "#ffffff";
+            initialBackground = "#f5f7fb";
           }
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
-        // O App usa 85% nas telas internas. Aplicar aqui, antes do primeiro paint,
-        // impede o frame em 100% que aparece no F5 e depois "encolhe" para 85%.
+        // O zoom usado pelo App e aplicado antes do primeiro paint.
+        // Isso elimina o frame em 100% que dava a sensacao de esticar no F5.
         var isFullDocumentRoute =
           /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
         var initialAppZoom =
           publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+
         document.documentElement.style.zoom = initialAppZoom;
         document.documentElement.setAttribute(
           "data-page-zoom",
           initialAppZoom === "1" ? "100" : "85"
         );
-
-        document.documentElement.setAttribute("data-sigapro-booting", "true");
-        if (isInternalPath) {
-          document.documentElement.setAttribute("data-sigapro-internal", "true");
-        }
       })();
     </script>
+
     <style>
       html,
       body,
@@ -90,12 +87,16 @@
         width: 100%;
         min-height: 100%;
         margin: 0;
-        background: var(--sig-initial-bg, #ffffff);
+        background: var(--sig-initial-bg, #f5f7fb);
       }
 
+      html,
       body {
         min-height: 100vh;
         min-height: 100dvh;
+      }
+
+      body {
         overflow-x: hidden;
         font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -107,113 +108,10 @@
         min-height: 100vh;
         min-height: 100dvh;
       }
-
-      #sigapro-refresh-snapshot {
-        display: none;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 2147483646;
-        overflow: hidden;
-        background: var(--sig-initial-bg, #ffffff);
-        pointer-events: none;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] > .sigapro-snapshot-page {
-        position: absolute;
-        left: 0;
-        top: var(--sig-snapshot-top, 0px);
-        width: 100%;
-        min-width: 100%;
-        min-height: 100vh;
-        transform: none !important;
-        transform-origin: top left !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::before,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] *::after {
-        animation: none !important;
-        transition: none !important;
-        scroll-behavior: auto !important;
-        caret-color: transparent !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-premium-topbar,
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] .sig-sidebar-shell {
-        transform: none !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-      }
-
-      html[data-sigapro-internal="true"] #sigapro-refresh-snapshot[data-visible="true"] ~ #root {
-        visibility: hidden !important;
-      }
-
     </style>
   </head>
 
   <body>
-    <div id="sigapro-refresh-snapshot" aria-hidden="true"></div>
-    <script>
-      (function () {
-        try {
-          var publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
-          var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-          var pathname = window.location.pathname;
-          var internal =
-            publicPaths.indexOf(pathname) === -1 &&
-            authPaths.indexOf(pathname) === -1 &&
-            pathname.indexOf("/cliente/") !== 0;
-          if (!internal) return;
-
-          var raw = window.sessionStorage.getItem("sigapro.visual.snapshot.v4");
-          if (!raw) return;
-
-          var snapshot = JSON.parse(raw);
-          var cachedSession = window.localStorage.getItem("sigapro.platform.session.v1");
-          var currentSession = cachedSession ? JSON.parse(cachedSession) : null;
-          var currentUserId =
-            currentSession && currentSession.id && currentSession.accountStatus !== "blocked" && currentSession.accountStatus !== "inactive"
-              ? String(currentSession.id) : "";
-          var locationKey =
-            window.location.pathname + window.location.search + window.location.hash;
-
-          var valid =
-            snapshot &&
-            snapshot.host === window.location.host &&
-            snapshot.path === locationKey &&
-            currentUserId.length > 0 &&
-            snapshot.userId === currentUserId &&
-            typeof snapshot.html === "string" &&
-            snapshot.html.length > 500 &&
-            typeof snapshot.savedAt === "number" &&
-            Date.now() - snapshot.savedAt < 1000 * 60 * 5;
-
-          if (!valid) {
-            window.sessionStorage.removeItem("sigapro.visual.snapshot.v4");
-            return;
-          }
-
-          var host = document.getElementById("sigapro-refresh-snapshot");
-          if (!host) return;
-
-          var scrollY = Math.max(0, Number(snapshot.scrollY) || 0);
-          host.innerHTML =
-            '<div class="sigapro-snapshot-page">' + snapshot.html + "</div>";
-          host.style.setProperty("--sig-snapshot-top", String(-scrollY) + "px");
-          host.setAttribute("data-scroll-y", String(scrollY));
-          host.setAttribute("data-visible", "true");
-        } catch (error) {
-          try {
-            window.sessionStorage.removeItem("sigapro.visual.snapshot.v4");
-          } catch (_) {}
-        }
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

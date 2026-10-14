@@ -865,13 +865,19 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       console.warn("[SIGAPRO] Falha ao encerrar sessão, forçando redirecionamento.", error);
     } finally {
       console.log("[Logout] redirect", { destination });
-      if (typeof window !== "undefined") {
-        window.location.replace(destination);
-      } else {
-        navigate(destination, { replace: true });
-      }
+      // Navegacao SPA: preserva o documento, o tema e a continuidade visual.
+      navigate(destination, { replace: true });
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("sigapro.last-page-background.v1", pageBackground);
+    } catch {
+      // Persistencia visual e opcional; nunca bloquear a interface.
+    }
+  }, [pageBackground]);
 
   const applyLayoutTheme = (theme: LayoutThemeOverride | null) => {
     const normalizedTheme = normalizeLayoutThemeOverride(theme);
@@ -1432,7 +1438,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <Flag className={topbarUtilityIconClass} />
                   </button>
                 </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={10} className="sig-marker-panel max-h-[min(78vh,720px)] w-[min(100vw-24px,416px)] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_28px_60px_rgba(15,42,68,0.22)]">
+              <DropdownMenuContent
+                side="bottom"
+                align="center"
+                sideOffset={12}
+                collisionPadding={16}
+                className="sig-marker-panel max-h-[min(78vh,720px)] w-[min(100vw-24px,416px)] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_28px_60px_rgba(15,42,68,0.22)]"
+              >
                 <DropdownMenuLabel className="px-0 py-0">
                   <div className="sig-marker-header rounded-[22px] border px-4 py-4">
                     <div className="flex items-start gap-3.5">

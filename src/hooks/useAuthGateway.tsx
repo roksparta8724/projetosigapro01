@@ -85,7 +85,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
           } catch {
             // ignore
           }
-          window.location.replace("/acesso");
+          // A navegacao e responsabilidade da rota chamadora. Nunca descarregar o documento aqui.
         }
       },
     }),

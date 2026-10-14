@@ -2,289 +2,112 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const NAVIGATION_STATE_KEY = "sigapro.navigation.state.v1";
-const VISUAL_SNAPSHOT_KEY = "sigapro.visual.snapshot.v4";
-const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
+const LEGACY_REFRESH_KEYS = [
+  "sigapro.navigation.state.v1",
+  "sigapro.visual.snapshot.v4",
+];
 
-function currentSnapshotIdentity(): string {
+function clearLegacyRefreshArtifacts() {
   try {
-    const raw = window.localStorage.getItem(PLATFORM_SESSION_CACHE_KEY);
-    const session = raw ? JSON.parse(raw) as { id?: string; accountStatus?: string } : null;
-    return session?.id && session.accountStatus !== "blocked" && session.accountStatus !== "inactive"
-      ? String(session.id)
-      : "";
+    for (const key of LEGACY_REFRESH_KEYS) {
+      window.sessionStorage.removeItem(key);
+    }
   } catch {
-    return "";
+    // Storage pode estar indisponivel em navegacao privada.
+  }
+
+  document.documentElement.removeAttribute("data-sigapro-booting");
+  document.documentElement.removeAttribute("data-sigapro-internal");
+
+  // Remove qualquer residuo de versoes antigas sem criar uma nova camada visual.
+  const legacyOverlay = document.getElementById("sigapro-refresh-snapshot");
+  legacyOverlay?.remove();
+}
+
+async function clearLocalDevelopmentCaches() {
+  if (import.meta.env.PROD) return;
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch (error) {
+    console.warn("[SIGAPRO][DevBootstrap] Nao foi possivel remover Service Workers antigos.", error);
+  }
+
+  try {
+    if ("caches" in window) {
+      const cacheNames = await window.caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith("sigapro-enterprise-"))
+          .map((name) => window.caches.delete(name)),
+      );
+    }
+  } catch (error) {
+    console.warn("[SIGAPRO][DevBootstrap] Nao foi possivel limpar caches antigos.", error);
   }
 }
-let pendingRefreshScrollY: number | null = null;
-let pendingRefreshLocation = "";
-let scrollPersistRaf = 0;
-let appStable = false;
 
-function currentLocationKey() {
-  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
-}
+function renderBootstrapFailure(error: unknown) {
+  console.error("[SIGAPRO][Bootstrap] Falha ao carregar a aplicacao.", error);
 
-function isInternalPath(pathname: string) {
-  const publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"];
-  const authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
-  return (
-    !publicPaths.includes(pathname) &&
-    !authPaths.includes(pathname) &&
-    !pathname.startsWith("/cliente/")
-  );
-}
-
-function persistNavigationState() {
-  if (!isInternalPath(window.location.pathname)) return;
-  try {
-    window.sessionStorage.setItem(
-      NAVIGATION_STATE_KEY,
-      JSON.stringify({
-        host: window.location.host,
-        location: currentLocationKey(),
-        scrollY: window.scrollY || 0,
-        savedAt: Date.now(),
-      }),
-    );
-  } catch {}
-}
-
-function persistVisualSnapshot() {
-  if (!appStable || !isInternalPath(window.location.pathname)) return;
-  const userId = currentSnapshotIdentity();
-  if (!userId) return;
   const root = document.getElementById("root");
-  if (!root || root.innerHTML.length < 500) return;
+  if (!root) return;
 
-  try {
-    window.sessionStorage.setItem(
-      VISUAL_SNAPSHOT_KEY,
-      JSON.stringify({
-        host: window.location.host,
-        path: currentLocationKey(),
-        userId,
-        html: root.innerHTML,
-        scrollY: window.scrollY || 0,
-        savedAt: Date.now(),
-      }),
-    );
-  } catch {}
+  const message =
+    import.meta.env.DEV && error instanceof Error && error.message
+      ? error.message
+      : "O navegador nao conseguiu iniciar a aplicacao. Atualize a pagina para tentar novamente.";
+
+  root.innerHTML = `
+    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--sig-initial-bg,#f5f7fb);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a">
+      <section style="width:min(620px,100%);border:1px solid #e2e8f0;border-radius:24px;background:#fff;padding:28px;box-shadow:0 24px 60px rgba(15,23,42,.10)">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#b91c1c">Inicializacao protegida</div>
+        <h1 style="margin:10px 0 0;font-size:22px;line-height:1.25">O SIGAPRO encontrou uma falha ao iniciar</h1>
+        <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#475569">A interface real nao foi substituida por um shell temporario. O erro tecnico abaixo fica disponivel apenas para diagnostico.</p>
+        <pre style="margin:18px 0 0;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;border-radius:16px;background:#0f172a;color:#f8fafc;padding:16px;font-size:12px;line-height:1.55">${String(message).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+        <button type="button" onclick="window.location.reload()" style="margin-top:18px;border:0;border-radius:999px;background:#123f32;color:#fff;padding:11px 18px;font-size:13px;font-weight:700;cursor:pointer">Atualizar tela</button>
+      </section>
+    </main>
+  `;
 }
 
-function persistSnapshotScroll() {
-  if (!isInternalPath(window.location.pathname)) return;
-  try {
-    const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
-    if (!raw) return;
-    const snapshot = JSON.parse(raw);
-    if (
-      snapshot?.host !== window.location.host ||
-      snapshot?.path !== currentLocationKey()
-    ) return;
-    snapshot.scrollY = window.scrollY || 0;
-    snapshot.savedAt = Date.now();
-    window.sessionStorage.setItem(VISUAL_SNAPSHOT_KEY, JSON.stringify(snapshot));
-  } catch {}
+function scheduleLocalCacheMaintenance() {
+  if (import.meta.env.PROD) return;
+
+  // Nunca bloquear o primeiro paint do localhost por manutencao de cache.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      void clearLocalDevelopmentCaches();
+    });
+  });
 }
 
-function primeNavigationState() {
-  if (!isInternalPath(window.location.pathname)) return;
-  try {
-    const raw = window.sessionStorage.getItem(NAVIGATION_STATE_KEY);
-    if (!raw) return;
-    const state = JSON.parse(raw) as {
-      host?: string;
-      location?: string;
-      scrollY?: number;
-      savedAt?: number;
-    };
-    if (
-      state.host === window.location.host &&
-      state.location === currentLocationKey() &&
-      typeof state.scrollY === "number" &&
-      typeof state.savedAt === "number" &&
-      Date.now() - state.savedAt < 1000 * 60 * 30
-    ) {
-      pendingRefreshScrollY = Math.max(0, state.scrollY);
-      pendingRefreshLocation = state.location;
-    }
-  } catch {}
-}
+function bootApplication() {
+  clearLegacyRefreshArtifacts();
 
-function releaseRefreshSnapshot() {
-  const overlay = document.getElementById("sigapro-refresh-snapshot");
-  if (!overlay || overlay.getAttribute("data-visible") !== "true") {
-    document.documentElement.removeAttribute("data-sigapro-booting");
+  if ("scrollRestoration" in window.history) {
+    // O navegador preserva a posicao do F5 sem snapshot clonado.
+    window.history.scrollRestoration = "auto";
+  }
+
+  const rootElement = document.getElementById("root");
+  if (!rootElement) {
+    renderBootstrapFailure(new Error("Elemento #root nao encontrado."));
     return;
   }
 
-  const target =
-    pendingRefreshScrollY !== null &&
-    pendingRefreshLocation === currentLocationKey()
-      ? pendingRefreshScrollY
-      : Number(overlay.getAttribute("data-scroll-y") || "0");
-
-  let stableFrames = 0;
-  let previousGeometry = "";
-  const restoreStartedAt = performance.now();
-  const maxRestoreMs = 10000;
-
-  const rectSignature = (el: Element | null) => {
-    if (!(el instanceof HTMLElement)) return "missing";
-    const r = el.getBoundingClientRect();
-    return [r.left, r.top, r.width, r.height]
-      .map((value) => Math.round(value * 10) / 10)
-      .join(",");
-  };
-
-  const readGeometry = () => {
-    const root = document.getElementById("root");
-    if (!root) return "missing";
-
-    const anchors = [
-      root.querySelector(".sig-app-frame"),
-      root.querySelector(".sig-premium-topbar"),
-      root.querySelector(".sig-sidebar-shell"),
-      root.querySelector(".sig-main-shell"),
-      root.querySelector(".sig-page-shell"),
-    ];
-
-    const visibleBlocks = Array.from(
-      root.querySelectorAll(
-        ".sig-section-card,.sig-stat-card,.sig-metric-card,[data-ui=card],main,header,footer",
-      ),
-    ).slice(0, 80);
-
-    return [
-      ...anchors.map(rectSignature),
-      ...visibleBlocks.map(rectSignature),
-      document.documentElement.scrollWidth,
-      document.documentElement.scrollHeight,
-    ].join("|");
-  };
-
-  const imagesReady = () => {
-    const root = document.getElementById("root");
-    if (!root) return false;
-    return Array.from(root.querySelectorAll("img")).every(
-      (img) => img.complete && (img.naturalWidth > 0 || !img.getAttribute("src")),
-    );
-  };
-
-  const finish = () => {
-    overlay.removeAttribute("data-visible");
-    overlay.replaceChildren();
-    document.documentElement.removeAttribute("data-sigapro-booting");
-    pendingRefreshScrollY = null;
-    pendingRefreshLocation = "";
-    persistNavigationState();
-    persistVisualSnapshot();
-  };
-
-  const waitForStableFrame = () => {
-    const maxScroll = Math.max(
-      0,
-      Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0) -
-        window.innerHeight,
-    );
-    const next = Math.min(Math.max(0, target), maxScroll);
-    window.scrollTo({ top: next, left: 0, behavior: "auto" });
-
-    const geometry = readGeometry();
-    const scrollReady = Math.abs(window.scrollY - next) <= 2;
-    const geometryReady =
-      geometry !== "missing" &&
-      !geometry.includes("missing") &&
-      geometry === previousGeometry;
-    const ready = scrollReady && geometryReady && imagesReady();
-
-    stableFrames = ready ? stableFrames + 1 : 0;
-    previousGeometry = geometry;
-
-    // Não prender o usuário em uma sobreposição congelada quando uma fonte,
-    // imagem ou integração nunca estabiliza. A interface real sempre assume o controle.
-    if (stableFrames >= 5 || performance.now() - restoreStartedAt > maxRestoreMs) {
-      finish();
-      return;
-    }
-
-    window.requestAnimationFrame(waitForStableFrame);
-  };
-
-  const start = async () => {
-    try {
-      if ("fonts" in document && document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-    } catch {}
-    window.requestAnimationFrame(waitForStableFrame);
-  };
-
-  void start();
+  try {
+    createRoot(rootElement).render(<App />);
+    scheduleLocalCacheMaintenance();
+  } catch (error) {
+    renderBootstrapFailure(error);
+  }
 }
 
-window.history.scrollRestoration = "manual";
-primeNavigationState();
-
-window.addEventListener(
-  "scroll",
-  () => {
-    if (scrollPersistRaf) return;
-    scrollPersistRaf = window.requestAnimationFrame(() => {
-      scrollPersistRaf = 0;
-      persistNavigationState();
-      persistSnapshotScroll();
-    });
-  },
-  { passive: true },
-);
-
-window.addEventListener(
-  "beforeunload",
-  () => {
-    persistNavigationState();
-    persistVisualSnapshot();
-    persistSnapshotScroll();
-  },
-  { capture: true },
-);
-
-window.addEventListener(
-  "pagehide",
-  () => {
-    persistNavigationState();
-    persistVisualSnapshot();
-    persistSnapshotScroll();
-  },
-  { capture: true },
-);
-
-window.addEventListener("sigapro-platform-session-updated", () => {
-  try {
-    const raw = window.sessionStorage.getItem(VISUAL_SNAPSHOT_KEY);
-    const snapshot = raw ? JSON.parse(raw) : null;
-    if (snapshot && snapshot.userId !== currentSnapshotIdentity()) {
-      window.sessionStorage.removeItem(VISUAL_SNAPSHOT_KEY);
-      window.sessionStorage.removeItem(NAVIGATION_STATE_KEY);
-      const overlay = document.getElementById("sigapro-refresh-snapshot");
-      overlay?.removeAttribute("data-visible");
-      overlay?.replaceChildren();
-      document.documentElement.removeAttribute("data-sigapro-booting");
-    }
-  } catch {
-    window.sessionStorage.removeItem(VISUAL_SNAPSHOT_KEY);
-  }
-});
-
-window.addEventListener("sigapro-app-stable", () => {
-  appStable = true;
-  persistVisualSnapshot();
-  releaseRefreshSnapshot();
-});
-
-createRoot(document.getElementById("root")!).render(<App />);
+bootApplication();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
