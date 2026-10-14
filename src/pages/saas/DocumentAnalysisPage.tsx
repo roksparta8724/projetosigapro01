@@ -945,7 +945,7 @@ export function DocumentAnalysisPage() {
                     disabled={!note.trim() || busy === "annotation"}
                     onClick={() => void saveAnnotation()}
                   >
-                    {busy === "annotation" ? "Salvando..." : "Salvar anotação"}
+                    "Adicionar ao rascunho"
                   </Button>
                 </div>
               </div>
