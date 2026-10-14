@@ -94,7 +94,15 @@ export function ProtocolDeskPage() {
     getUserProfile,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  // Para funcionário municipal, a Prefeitura vinculada à conta é a fonte
+  // autoritativa do livro de protocolos. O contexto visual nunca pode trocar
+  // silenciosamente o escopo e fazer registros oficiais desaparecerem.
+  const effectiveScopeId =
+    session.municipalityId ??
+    session.tenantId ??
+    municipality?.id ??
+    scopeId ??
+    null;
 
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
