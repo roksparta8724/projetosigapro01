@@ -26,7 +26,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(portal).toContain("Secretaria de Finanças");
     expect(portal).toContain("Diretoria Financeira");
     expect(portal).toContain("Secretaria de Administração");
-    expect(portal).toContain("Diretoria de Protocolo");
+    expect(portal).toContain("Departamento de Protocolo");
     expect(portal).not.toContain(">Diretoria responsável<");
   });
 
