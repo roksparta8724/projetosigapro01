@@ -642,7 +642,7 @@ export function AnalystDeskPage() {
               data-surface="adaptive-card"
               className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
             >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
@@ -676,29 +676,36 @@ export function AnalystDeskPage() {
                   </p>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button asChild variant="outline" className="rounded-full">
-                    <Link to={`/processos/${process.id}`}>
+                <div className="mt-1 flex flex-col gap-2.5 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full"
+                      onClick={() => setProcessArchived(process.id, !isArchived)}
+                    >
+                      {isArchived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" />
+                          Restaurar na lista
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" />
+                          Arquivar da minha lista
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <Button
+                    asChild
+                    data-primary-action="process"
+                    className="sig-primary-process-action h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#082f49_0%,#075985_50%,#0f78b8_100%)] text-[14px] font-bold !text-white shadow-[0_12px_28px_rgba(7,89,133,0.30)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
+                  >
+                    <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center !text-white">
+                      <Eye className="mr-2 h-5 w-5 !text-white" />
                       {isActiveAnalysis ? "Abrir processo" : "Consultar processo"}
                     </Link>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => setProcessArchived(process.id, !isArchived)}
-                  >
-                    {isArchived ? (
-                      <>
-                        <ArchiveRestore className="mr-2 h-4 w-4" />
-                        Restaurar na lista
-                      </>
-                    ) : (
-                      <>
-                        <Archive className="mr-2 h-4 w-4" />
-                        Arquivar da minha lista
-                      </>
-                    )}
                   </Button>
                 </div>
               </div>
