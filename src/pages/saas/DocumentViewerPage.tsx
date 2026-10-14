@@ -23,7 +23,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isInternalRole,
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
@@ -78,14 +77,29 @@ export function DocumentViewerPage() {
       canAccessProcess(session, process, effectiveScopeId),
   );
 
+  const isAssignedProcessAnalyst = Boolean(
+    process &&
+      (
+        (process.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
+        (process.analysis?.assignedTo && process.analysis.assignedTo === session.name)
+      )
+  );
+
   const canAnalyzeDocument = Boolean(
     process &&
       document &&
       document.uploaded &&
-      isInternalRole(session.role) &&
       canAccessProcess(session, process, effectiveScopeId) &&
-      isProcessOwnedBySessionDepartment(session, process) &&
-      canAccessMunicipalArea(session, "analise"),
+      canAccessMunicipalArea(session, "analise") &&
+      (
+        session.role === "master_admin" ||
+        session.role === "master_ops" ||
+        session.role === "prefeitura_supervisor" ||
+        (
+          session.role === "analista" &&
+          (isProcessOwnedBySessionDepartment(session, process) || isAssignedProcessAnalyst)
+        )
+      ),
   );
 
   const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
