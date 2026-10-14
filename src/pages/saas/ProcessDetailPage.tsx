@@ -55,6 +55,11 @@ import {
   workTypeCatalog,
 } from "@/lib/platform";
 
+function officialMunicipalityLabel(value: string | null | undefined) {
+  const label = String(value || "").trim().replace(/^Prefeitura(?:\s+Municipal)?\s+(?:de|do|da)?\s*/i, "");
+  return label ? "Prefeitura de " + label : "Prefeitura municipal";
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "tamanho não informado";
   if (bytes < 1024) return `${bytes} B`;
@@ -814,7 +819,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "min-w-0 rounded-[8px] border border-[#E5E7EB] bg-white shadow-sm";
+  const cardShell = "min-w-0 rounded-[18px] border border-[#CBD5E1] bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)]";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
@@ -1472,8 +1477,8 @@ export function ProcessDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
-        <Card className={`${cardShell} h-full`}>
+      <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]">
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -1484,16 +1489,16 @@ export function ProcessDetailPage() {
               </Badge>
             </div>
             <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - Prefeitura ${tenant?.name || ""}`}>
-              Protocolo oficial {process.externalProtocol} - Prefeitura {tenant?.name}
+            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
+              Protocolo oficial {process.externalProtocol} - {officialMunicipalityLabel(tenant?.name || municipalityName)}
             </p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{formatCurrency(displayGuide?.amount || 0)}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {constructionGuide ? (
               <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
@@ -1503,7 +1508,7 @@ export function ProcessDetailPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
+        <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900">
@@ -1512,14 +1517,16 @@ export function ProcessDetailPage() {
             <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} h-full`}>
-          <CardContent className="p-5">
-            <p className="sig-label">SLA atual</p>
-            <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
-            <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
-            {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
-          </CardContent>
-        </Card>
+        {!isExternalProcessViewer ? (
+          <Card className={`${cardShell} sig-premium-summary-card h-full`}>
+            <CardContent className="p-5">
+              <p className="sig-label">SLA atual</p>
+              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
+              <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+              {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
