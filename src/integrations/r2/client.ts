@@ -168,7 +168,7 @@ export async function getSignedUrlForObjectStrict(input: {
   let response: Response;
 
   try {
-    response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+    response = await requestSignedUrlWithLocalReadFallback(primaryUrl, { ...input, expiresIn });
   } catch (error) {
     throw new Error(
       isLocalBrowserRuntime()
