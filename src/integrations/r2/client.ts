@@ -6,11 +6,28 @@ export type R2UploadResult = {
   publicUrl: string;
 };
 
-const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const rawApiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().trim().replace(/\/+$/, "");
 const isLocalBrowser =
   typeof window !== "undefined" &&
   ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
 const officialReadApiBase = "https://sigapromunicipal.com.br";
+
+function isLoopbackUrl(value: string) {
+  if (!value) return false;
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return ["localhost", "127.0.0.1", "::1"].includes(url.hostname.toLowerCase());
+  } catch {
+    return /(^|\/\/)(localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(value);
+  }
+}
+
+// Nunca permita que uma build oficial carregue uma API-base de desenvolvimento.
+// Isso elimina redirects/leitura apontando para localhost em produção.
+const apiBase =
+  !isLocalBrowser && isLoopbackUrl(rawApiBase)
+    ? ""
+    : rawApiBase;
 
 function buildApiUrl(path: string) {
   if (!apiBase) return path;
@@ -21,10 +38,10 @@ function buildApiUrl(path: string) {
 function buildReadApiUrl(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
 
-  // Em localhost a leitura passa pelo mesmo origin. O Vite encaminha SOMENTE
-  // rotas de leitura para a API oficial, preservando a sessão e evitando CORS.
-  // Upload/delete continuam locais para não gravar em produção por acidente.
-  if (isLocalBrowser) return normalized;
+  // Leitura local usa a API oficial diretamente. Assim o VS Code não precisa
+  // carregar segredos R2 e a porta 8080 não interfere na assinatura do arquivo.
+  // Escritas continuam usando buildApiUrl e jamais são redirecionadas para produção.
+  if (isLocalBrowser) return `${officialReadApiBase}${normalized}`;
 
   if (apiBase) return `${apiBase}${normalized}`;
   return normalized;
@@ -121,32 +138,9 @@ async function requestSignedUrlWithLocalReadFallback(
   path: string,
   input: { bucket: string; objectKey: string; expiresIn?: number },
 ) {
-  let response = await requestSignedUrl(path, input);
-
-  if (!isLocalBrowserRuntime() || response.ok) {
-    return response;
-  }
-
-  const cloned = response.clone();
-  const payload = await cloned.json().catch(() => ({}));
-  const message =
-    payload && typeof payload === "object" && "error" in payload
-      ? String((payload as { error?: unknown }).error || "")
-      : "";
-
-  const localStorageConfigMissing =
-    /Variáveis R2 ausentes|Endpoint R2 não configurado/i.test(message);
-
-  if (!localStorageConfigMissing) {
-    return response;
-  }
-
-  response = await requestSignedUrl(
-    "https://sigapromunicipal.com.br/api/r2-sign-get",
-    input,
-  );
-
-  return response;
+  // buildReadApiUrl já seleciona a origem correta. Mantemos esta função como
+  // ponto único para compatibilidade com chamadas existentes.
+  return requestSignedUrl(path, input);
 }
 
 export async function getSignedUrlForObject(input: {
