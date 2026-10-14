@@ -7184,3 +7184,29 @@ html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-un
   opacity: 1 !important;
 }
 /* ===== END ORGANOGRAM UNIT CHIP CONTRAST LOCK ===== */
+
+
+/* ===== DOCUMENT ANALYSIS INSPECTOR: HARD OVERFLOW CONTRACT ===== */
+[data-analysis-inspector="true"] {
+  min-width: 0;
+  overflow-x: hidden;
+}
+[data-analysis-inspector="true"] * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+[data-analysis-inspector="true"] :is(p,span,label,dd,dt,strong,small) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+[data-analysis-inspector="true"] :is(input,textarea,button) {
+  max-width: 100%;
+}
+[data-analysis-inspector="true"] button {
+  white-space: normal;
+  line-height: 1.2;
+}
+[data-analysis-inspector="true"] textarea {
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
