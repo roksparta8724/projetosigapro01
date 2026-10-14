@@ -47,6 +47,7 @@ import {
   getExternallyVisibleProcessPaymentGuides,
   isProcessPaymentGuideSharedExternally,
   isInternalRole,
+  processBelongsToExternalProfessional,
   matchesOperationalScope,
   statusLabel,
   statusTone,
@@ -245,16 +246,15 @@ export function ProcessDetailPage() {
       active = false;
     };
   }, [effectiveScopeId, session.role]);
-  const isMasterOrMunicipalAdmin =
+  const isMasterOperator =
     session.role === "master_admin" ||
-    session.role === "master_ops" ||
-    session.role === "prefeitura_admin";
+    session.role === "master_ops";
   const canProtocolOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "protocolos");
+    isMasterOperator || canAccessMunicipalArea(session, "protocolos");
   const canAnalysisOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "analise");
+    isMasterOperator || canAccessMunicipalArea(session, "analise");
   const canFinanceOperate =
-    isMasterOrMunicipalAdmin || canAccessMunicipalArea(session, "financeiro");
+    isMasterOperator || canAccessMunicipalArea(session, "financeiro");
   const isExternalSession =
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
@@ -300,7 +300,11 @@ export function ProcessDetailPage() {
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
-    if (tab === "financeiro" && (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)) return;
+    if (
+      tab === "financeiro" &&
+      session.role !== "profissional_externo" &&
+      (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)
+    ) return;
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("aba", tab);
     navigate({ pathname: location.pathname, search: nextParams.toString() }, { replace: true, preventScrollReset: true });
@@ -352,10 +356,14 @@ export function ProcessDetailPage() {
 
   useEffect(() => {
     if (!isExternalSession) return;
-    if (activeTab === "analise" || activeTab === "financeiro") {
+    if (activeTab === "analise") {
+      setActiveTab("resumo");
+      return;
+    }
+    if (activeTab === "financeiro" && session.role !== "profissional_externo") {
       setActiveTab("resumo");
     }
-  }, [activeTab, isExternalSession]);
+  }, [activeTab, isExternalSession, session.role]);
 
   useEffect(() => {
     if (!process || !processId) return;
@@ -489,7 +497,6 @@ export function ProcessDetailPage() {
     ownsCurrentProcessStage &&
     canAnalysisOperate &&
     (
-      session.role === "prefeitura_admin" ||
       session.role === "prefeitura_supervisor" ||
       session.role === "analista" ||
       session.role === "master_admin" ||
@@ -533,7 +540,7 @@ export function ProcessDetailPage() {
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
     (
-      isMasterOrMunicipalAdmin ||
+      isMasterOperator ||
       session.role === "prefeitura_supervisor" ||
       (session.role === "analista" &&
         (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
@@ -802,10 +809,16 @@ export function ProcessDetailPage() {
   const linkedTechnicalProfile = process.technicalProfileId
     ? getUserProfile(process.technicalProfileId)
     : undefined;
-  const canViewCompleteCadastro = !isProtocolTrackingOnly &&
-    isInternalRole(session.role) &&
-    matchesOperationalScope(effectiveScopeId, process) &&
-    (canProtocolOperate || canAnalysisOperate || canFinanceOperate);
+  const isProjectProfessionalViewer =
+    session.role === "profissional_externo" &&
+    processBelongsToExternalProfessional(session, process);
+  const isUrbanAnalysisViewer =
+    (session.role === "analista" || session.role === "prefeitura_supervisor") &&
+    canAnalysisOperate &&
+    matchesOperationalScope(effectiveScopeId, process);
+  const canViewCompleteCadastro =
+    !isProtocolTrackingOnly &&
+    (isProjectProfessionalViewer || isUrbanAnalysisViewer);
   const getProfileByName = (name: string) => {
     const matchedUser = sessionUsers.find((user) => user.name === name || user.email === name);
     return matchedUser ? getUserProfile(matchedUser.id, matchedUser.email) : undefined;
@@ -844,10 +857,13 @@ export function ProcessDetailPage() {
       key: "financeiro" as ProcessTab,
       label: "Financeiro",
       enabled:
-        !isExternalProcessViewer &&
-        !isProtocolTrackingOnly &&
-        planEntitlements.canUseModule("Financeiro") &&
-        canFinanceOperate,
+        session.role === "profissional_externo" ||
+        (
+          !isExternalProcessViewer &&
+          !isProtocolTrackingOnly &&
+          planEntitlements.canUseModule("Financeiro") &&
+          canFinanceOperate
+        ),
     },
     { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
@@ -939,6 +955,10 @@ export function ProcessDetailPage() {
     action: () => Promise<void>,
     successMessage: string,
   ) => {
+    if (session.role === "prefeitura_admin") {
+      setProcessActionStatus("O Administrador da Prefeitura possui acesso administrativo e de consulta, sem permissão para alterar o fluxo dos processos.");
+      return false;
+    }
     setProcessActionBusy(key);
     setProcessActionStatus("");
     try {
@@ -1610,7 +1630,7 @@ export function ProcessDetailPage() {
           </CardContent>
         </Card>
 
-        {!isExternalProcessViewer ? (
+        {!isExternalProcessViewer && canAnalysisOperate && ownsCurrentProcessStage ? (
           <Card className={`${cardShell} h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">Acesso externo ao fluxo</p>
