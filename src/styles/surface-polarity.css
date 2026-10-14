@@ -1,0 +1,166 @@
+/*
+ * SIGAPRO - Surface Polarity Contract
+ * Loaded AFTER index.css on purpose.
+ * Scope: content/workspace cards only. Topbar/sidebar colors are not touched.
+ *
+ * Rule:
+ *   dark surface -> light copy/icons
+ *   light surface -> dark copy/icons
+ */
+
+/* Explicit dark surfaces */
+html body .sig-main-shell [data-surface-tone="dark"],
+html body .sig-main-shell [data-contrast-surface="dark"],
+html body .sig-main-shell [data-premium-inverse-surface="true"],
+html body .sig-main-shell #sig-process-document-command-center {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body .sig-main-shell [data-surface-tone="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+),
+html body .sig-main-shell [data-contrast-surface="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+),
+html body .sig-main-shell [data-premium-inverse-surface="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+),
+html body .sig-main-shell #sig-process-document-command-center :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-surface-tone="dark"] svg,
+html body .sig-main-shell [data-contrast-surface="dark"] svg,
+html body .sig-main-shell [data-premium-inverse-surface="true"] svg,
+html body .sig-main-shell #sig-process-document-command-center svg {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Explicit light surfaces */
+html body .sig-main-shell [data-surface-tone="light"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body .sig-main-shell [data-surface-tone="light"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body .sig-main-shell [data-surface-tone="light"] svg {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+/* Organogram unit pills are intentionally dark in BOTH themes. */
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] *,
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] .truncate {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.20) !important;
+}
+
+html body .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Adaptive process cards. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  color: #f8fafc !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* Secondary copy remains readable, not washed out. */
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600
+),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600
+),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(
+  .text-slate-400,.text-slate-500,.text-slate-600
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Primary CTA labels/icons always stay white. */
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+),
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell :is(
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
