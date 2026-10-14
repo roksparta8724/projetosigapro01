@@ -49,8 +49,11 @@ describe("document storage and origin root-cause regression", () => {
     expect(r2Sign).toContain('"R2_SIGNATURE_MISMATCH"');
   });
 
-  it("opens viewers with relative routes so the browser keeps its current origin", () => {
-    expect(processDetail).toContain('const viewerUrl = `/processos/${process.id}/documentos/${documentId}/visualizar`');
+  it("opens secured documents directly and keeps analysis on the current origin", () => {
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain('const popup = window.open("", "_blank")');
+    expect(processDetail).toContain("popup.location.replace(accessUrl)");
+    expect(processDetail).not.toContain("window.open(viewerUrl");
     expect(processDetail).toContain('const analysisUrl = `/processos/${process.id}/documentos/${documentId}/analisar`');
     expect(processDetail).not.toContain("window.location.origin}/processos/");
   });
