@@ -629,15 +629,41 @@ export function ProcessDetailPage() {
       entry.category === "financeiro" &&
       /guia.*(issqn|iss).*emitida/i.test(`${entry.title} ${entry.detail}`),
   );
+  const looksLikeUuid = (value: string | null | undefined) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      String(value ?? "").trim(),
+    );
+  const resolveProcessActorName = (
+    rawValue: string | null | undefined,
+    profileId?: string | null,
+  ) => {
+    const raw = String(rawValue ?? "").trim();
+    const identityId =
+      String(profileId ?? "").trim() ||
+      (looksLikeUuid(raw) ? raw : "");
+    const linkedSessionUser = identityId
+      ? sessionUsers.find((user) => user.id === identityId)
+      : undefined;
+    const linkedProfile = identityId ? getUserProfile(identityId) : undefined;
+    return (
+      linkedProfile?.fullName?.trim() ||
+      linkedSessionUser?.name?.trim() ||
+      (!looksLikeUuid(raw) ? raw : "") ||
+      ""
+    );
+  };
   const constructionGuideRequester =
-    constructionGuide?.requestedBy ||
-    constructionGuideRequest?.requestedBy ||
-    process.analysis?.assignedTo ||
-    "";
+    resolveProcessActorName(
+      constructionGuide?.requestedBy ||
+        constructionGuideRequest?.requestedBy ||
+        process.analysis?.assignedTo ||
+        "",
+    );
   const constructionGuideIssuer =
-    constructionGuide?.issuedBy ||
-    constructionGuideIssueAudit?.actor ||
-    "";
+    resolveProcessActorName(
+      constructionGuide?.issuedBy || constructionGuideIssueAudit?.actor || "",
+      constructionGuideIssueAudit?.actorProfileId,
+    );
   const constructionGuideIssuerMode =
     tenantSettings?.constructionGuideIssuerMode ?? "analise";
   const analysisCanIssueConstructionGuide =
@@ -906,6 +932,16 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
+    const selectedGuideIssuer =
+      resolveProcessActorName(
+        selectedGuide.issuedBy,
+        selectedGuide.kind === "iss_obra"
+          ? constructionGuideIssueAudit?.actorProfileId
+          : null,
+      ) ||
+      constructionGuideIssuer ||
+      session.name ||
+      "Emissor municipal";
     // Nunca fabricar código bancário. A DAM só exibe linha digitável/PIX
     // quando vier de integração oficial de arrecadação da Prefeitura.
     const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -938,7 +974,7 @@ export function ProcessDetailPage() {
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
-        funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+        funcionarioResponsavel: selectedGuideIssuer,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
@@ -947,8 +983,8 @@ export function ProcessDetailPage() {
             : undefined,
         funcionarioEmissor:
           selectedGuide.kind === "iss_obra"
-            ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
-            : selectedGuide.issuedBy,
+            ? constructionGuideIssuer || selectedGuideIssuer
+            : selectedGuideIssuer,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
