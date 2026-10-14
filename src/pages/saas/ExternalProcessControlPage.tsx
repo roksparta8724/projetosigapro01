@@ -369,12 +369,12 @@ export function ExternalProcessControlPage() {
                   <article
                     key={process.id}
                     data-process-premium-card="true"
-                    className="group overflow-hidden rounded-[22px] border shadow-[0_10px_30px_rgba(15,23,42,0.055)] transition-all duration-200 hover:-translate-y-0.5"
+                    className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.11)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_42px_rgba(0,0,0,0.24)]"
                   >
                     <div className="grid gap-0 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:items-stretch">
                       <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80 dark:2xl:border-slate-700/80">
                         <div className="flex items-start gap-4">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm dark:border-blue-800/60 dark:bg-blue-950/50 dark:text-blue-300">
                             <FileText className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">
