@@ -1,6 +1,7 @@
 import { LockKeyhole } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
@@ -46,9 +47,19 @@ export function PermissionRoute({
     (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
 
   if (isInitialAccessResolution) {
-    // Não desenhar skeleton/placeholder em rotas autenticadas.
-    // No F5, a sessão visual em cache mantém a página montada; em um cold start
-    // sem contexto conhecido, aguardamos a resolução sem introduzir uma tela falsa.
+    const documentRoute =
+      /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
+
+    if (documentRoute) {
+      return (
+        <DocumentWorkspaceBoot
+          mode={documentRoute[1] === "analisar" ? "analysis" : "viewer"}
+        />
+      );
+    }
+
+    // Nas demais rotas autenticadas, a continuidade visual preserva a tela
+    // anterior sem introduzir uma página intermediária.
     return null;
   }
 
