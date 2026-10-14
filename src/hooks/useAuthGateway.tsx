@@ -81,6 +81,14 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
                 localStorage.removeItem(key);
               }
             }
+            try {
+              sessionStorage.removeItem("sigapro.refresh.continuity.v1");
+              sessionStorage.removeItem("sigapro.navigation.state.v1");
+              sessionStorage.removeItem("sigapro.visual.snapshot.v4");
+            } catch {
+              // ignore
+            }
+
             // Rascunhos sigapro-protocol-draft:* são preservados de propósito.
           } catch {
             // ignore

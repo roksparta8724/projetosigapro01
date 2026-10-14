@@ -856,17 +856,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   }, [commandOpen]);
 
   const handleSignOut = async (destination = "/acesso") => {
+    console.log("[Logout] click");
+
+    // A rota muda primeiro. O documento nunca e descarregado e a tela de acesso
+    // aparece imediatamente, sem aguardar rede ou sessao remota.
+    navigate(destination, { replace: true });
+
     try {
-      console.log("[Logout] click");
       console.log("[Logout] signOut start");
       await signOut();
       console.log("[Logout] signOut result");
     } catch (error) {
-      console.warn("[SIGAPRO] Falha ao encerrar sessão, forçando redirecionamento.", error);
-    } finally {
-      console.log("[Logout] redirect", { destination });
-      // Navegacao SPA: preserva o documento, o tema e a continuidade visual.
-      navigate(destination, { replace: true });
+      console.warn("[SIGAPRO] Falha ao encerrar sessao remota apos a troca de rota.", error);
     }
   };
 
@@ -1439,6 +1440,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent
+                portal={false}
                 side="bottom"
                 align="center"
                 sideOffset={12}
@@ -1719,7 +1721,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <Palette className={topbarUtilityIconClass} aria-hidden="true" />
                   </button>
                 </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]">
+              <DropdownMenuContent
+                portal={false}
+                side="bottom"
+                align="center"
+                sideOffset={12}
+                collisionPadding={16}
+                className="sig-theme-panel max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border border-slate-200 bg-white p-1.5 shadow-[0_20px_42px_rgba(15,42,68,0.18)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]"
+              >
                 <DropdownMenuLabel className="px-3 py-2">
                   <p className="text-xs uppercase tracking-[0.08em] text-slate-500">Tema do layout</p>
                   <p className="mt-1 text-[13px] font-normal leading-5 text-slate-500">

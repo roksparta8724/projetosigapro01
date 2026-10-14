@@ -7,18 +7,17 @@ const internalTabs = readFileSync(resolve(process.cwd(), "src/components/platfor
 const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
 describe("refresh viewport persistence", () => {
-  it("delegates F5 scroll restoration to the browser without fighting user input", () => {
+  it("delegates scroll restoration to the browser and never drives a geometry loop", () => {
     expect(main).toContain('window.history.scrollRestoration = "auto"');
     expect(main).not.toContain("window.scrollTo");
     expect(main).not.toContain("pendingRefreshScrollY");
     expect(main).not.toContain("pendingRefreshLocation");
-    expect(main).not.toContain("requestAnimationFrame(waitForStableFrame)");
+    expect(main).not.toContain("waitForStableFrame");
   });
 
-  it("removes legacy snapshot residue without ever drawing a frozen DOM copy", () => {
-    expect(main).toContain("clearLegacyRefreshArtifacts");
-    expect(main).toContain('document.getElementById("sigapro-refresh-snapshot")');
-    expect(main).toContain("legacyOverlay?.remove()");
+  it("keeps continuity inside the real root instead of overlaying the application", () => {
+    expect(main).toContain("persistRefreshContinuity");
+    expect(main).toContain("data-sigapro-continuity");
     expect(main).not.toContain("persistVisualSnapshot");
     expect(main).not.toContain("snapshot.html");
   });

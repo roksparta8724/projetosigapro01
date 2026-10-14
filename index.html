@@ -65,8 +65,6 @@
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
-        // O zoom usado pelo App e aplicado antes do primeiro paint.
-        // Isso elimina o frame em 100% que dava a sensacao de esticar no F5.
         var isFullDocumentRoute =
           /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
         var initialAppZoom =
@@ -108,11 +106,72 @@
         min-height: 100vh;
         min-height: 100dvh;
       }
+
+      #root[data-sigapro-continuity="true"] {
+        pointer-events: none;
+        user-select: none;
+      }
+
+      #root[data-sigapro-continuity="true"] *,
+      #root[data-sigapro-continuity="true"] *::before,
+      #root[data-sigapro-continuity="true"] *::after {
+        animation: none !important;
+        transition: none !important;
+        caret-color: transparent !important;
+      }
     </style>
   </head>
 
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        var continuityKey = "sigapro.refresh.continuity.v1";
+        try {
+          var raw = window.sessionStorage.getItem(continuityKey);
+          if (!raw) return;
+
+          var snapshot = JSON.parse(raw);
+          var sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          var currentSession = sessionRaw ? JSON.parse(sessionRaw) : null;
+          var currentUserId =
+            currentSession &&
+            currentSession.id &&
+            currentSession.accountStatus !== "blocked" &&
+            currentSession.accountStatus !== "inactive"
+              ? String(currentSession.id)
+              : "";
+          var locationKey =
+            window.location.pathname + window.location.search + window.location.hash;
+
+          var valid =
+            snapshot &&
+            snapshot.host === window.location.host &&
+            snapshot.location === locationKey &&
+            snapshot.userId === currentUserId &&
+            currentUserId.length > 0 &&
+            typeof snapshot.html === "string" &&
+            snapshot.html.length > 500 &&
+            typeof snapshot.savedAt === "number" &&
+            Date.now() - snapshot.savedAt < 1000 * 60 * 5;
+
+          if (!valid) {
+            window.sessionStorage.removeItem(continuityKey);
+            return;
+          }
+
+          var root = document.getElementById("root");
+          if (!root) return;
+
+          root.innerHTML = snapshot.html;
+          root.setAttribute("data-sigapro-continuity", "true");
+        } catch (error) {
+          try {
+            window.sessionStorage.removeItem(continuityKey);
+          } catch (_) {}
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
