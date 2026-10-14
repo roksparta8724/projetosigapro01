@@ -26,7 +26,7 @@ import {
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
-  getProcessPaymentGuides,
+  getExternallyVisibleProcessPaymentGuides,
   getVisibleProcessesByScope,
   parseMarker,
   statusLabel,
@@ -173,7 +173,7 @@ export function ExternalProcessControlPage() {
   const paymentCount = useMemo(
     () =>
       processes.filter((process) =>
-        getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status !== "compensada"),
+        getExternallyVisibleProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status !== "compensada"),
       ).length,
     [processes, tenantSettings],
   );
@@ -358,7 +358,7 @@ export function ExternalProcessControlPage() {
               </div>
 
               {filteredProcesses.map((process) => {
-                const guides = getProcessPaymentGuides(process, tenantSettings);
+                const guides = getExternallyVisibleProcessPaymentGuides(process, tenantSettings);
                 const pendingGuide = guides.find((guide) => guide.status !== "compensada");
                 const lastUpdateLabel = formatProcessDate(process);
                 const officialNumber = formatOfficialProcessNumber(process.protocol);
