@@ -123,6 +123,12 @@ describe("premium municipal workspace regression", () => {
     expect(processDetail).toContain("Selecionar unidade de destino");
   });
 
+  it("loads the organogram through profile-first RPCs for internal and external viewers", () => {
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_municipal_departments_v2"');
+  });
+
   it("shows the organogram unit code on every internal staff profile and account identity", () => {
     expect(platform).toContain("departmentId?: string | null");
     expect(platform).toContain("departmentCode?: string");
