@@ -22,6 +22,8 @@ describe("local and official read infrastructure", () => {
     expect(vite).toContain("const localR2Ready = hasCompleteLocalR2Env()");
     expect(vite).toContain('req.url.startsWith("/api/r2-sign-get") && !localR2Ready');
     expect(vite).toContain("Upload/delete nunca são encaminhados para produção");
+    expect(vite).toContain("loadDevelopmentEnvWithWorktreeFallback");
+    expect(vite).toContain("resolvePrimaryWorktreeEnvDir");
   });
 
   it("never allows a production API base or public portal link to point at localhost", () => {
@@ -40,8 +42,11 @@ describe("local and official read infrastructure", () => {
     expect(r2Sign).toContain("R2_SIGNATURE_MISMATCH");
   });
 
-  it("opens document viewers on the current origin using relative routes", () => {
-    expect(processDetail).toContain('const viewerUrl = `/processos/${process.id}/documentos/${documentId}/visualizar`');
+  it("opens documents directly with secure URLs and keeps analysis relative", () => {
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain('const popup = window.open("", "_blank")');
+    expect(processDetail).toContain("popup.location.replace(accessUrl)");
+    expect(processDetail).not.toContain("window.open(viewerUrl");
     expect(processDetail).toContain('const analysisUrl = `/processos/${process.id}/documentos/${documentId}/analisar`');
     expect(processDetail).not.toContain("window.location.origin}/processos/");
   });
