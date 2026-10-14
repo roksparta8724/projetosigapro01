@@ -825,9 +825,8 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
-    const barcode = `${process.protocol.replace(/\D/g, "")}${selectedGuide.code.replace(/\D/g, "")}${Math.round(selectedGuide.amount * 100)}`
-      .padEnd(44, "7")
-      .slice(0, 44);
+    // Nunca fabricar código bancário. A DAM só exibe linha digitável/PIX
+    // quando vier de integração oficial de arrecadação da Prefeitura.
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
@@ -865,8 +864,8 @@ export function ProcessDetailPage() {
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
           ? process.property.workType || workTypeInput || undefined
           : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: barcode,
-        linhaDigitavel: barcode,
+        codigoBarras: "",
+        linhaDigitavel: "",
         qrCodePixUrl: "",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
