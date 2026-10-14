@@ -139,8 +139,28 @@ async function requestSignedUrlWithLocalReadFallback(
   input: { bucket: string; objectKey: string; expiresIn?: number },
 ) {
   const primaryUrl = buildReadApiUrl(path);
+  const officialUrl = `${officialReadApiBase}${path.startsWith("/") ? path : `/${path}`}`;
+
   try {
-    return await requestSignedUrl(primaryUrl, input);
+    const response = await requestSignedUrl(primaryUrl, input);
+
+    if (isLocalBrowser && !response.ok) {
+      const payload = await response.clone().json().catch(() => ({})) as {
+        error?: string;
+        code?: string;
+      };
+      const diagnostic = `${payload.code || ""} ${payload.error || ""}`;
+      const localInfrastructureFailure =
+        /R2_CONFIG_MISSING|Variáveis R2 ausentes|Endpoint R2 não configurado|R2_READ_PROXY_ERROR|proxy local|credenciais.*R2/i.test(
+          diagnostic,
+        );
+
+      if (localInfrastructureFailure) {
+        return requestSignedUrl(officialUrl, input);
+      }
+    }
+
+    return response;
   } catch (error) {
     if (!isLocalBrowser) throw error;
 
@@ -151,7 +171,7 @@ async function requestSignedUrlWithLocalReadFallback(
       );
     if (!localInfrastructureFailure) throw error;
 
-    return requestSignedUrl(`${officialReadApiBase}${path.startsWith("/") ? path : `/${path}`}`, input);
+    return requestSignedUrl(officialUrl, input);
   }
 }
 
