@@ -514,6 +514,14 @@ export function ProcessDetailPage() {
       document.reviewStatus !== "rejeitado",
   ).length;
   const reviewedDocumentCount = approvedDocumentCount + communicateDocumentCount;
+  const documentReviewProgress =
+    uploadedCount > 0
+      ? Math.min(100, Math.round((reviewedDocumentCount / uploadedCount) * 100))
+      : 0;
+  const documentDeliveryProgress =
+    process.documents.length > 0
+      ? Math.min(100, Math.round((uploadedCount / process.documents.length) * 100))
+      : 0;
   const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
   const requiredAnalysisDocuments = process.documents.filter(
     (document) => document.required || document.uploaded,
@@ -1682,77 +1690,132 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "documentos" && (
-          <Card className={cardShell}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <FileStack className="h-5 w-5" />
-                {canUploadProcessDocuments ? "Documentos do protocolo" : "Documentos enviados pelo profissional"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">
-                      {uploadedCount}/{process.documents.length} arquivo(s) enviado(s)
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {canUploadProcessDocuments
-                        ? "Envie aqui os documentos obrigatórios. O analista municipal recebe os arquivos em modo somente leitura para conferência."
-                        : isExternalProcessViewer
-                          ? "Confira os documentos enviados por você e responda às exigências quando houver."
-                          : "Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável."}
-                    </p>
-                    {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
-                      <p className="mt-2 text-sm font-medium text-amber-700">
-                        {pendingExternalDocumentCount} item(ns) do checklist ainda aguardam envio do profissional.
-                      </p>
-                    ) : null}
-                    {canRecoverStoredDocuments && recoverableStatus ? (
-                      <p className="mt-2 text-sm font-medium text-sky-700">{recoverableStatus}</p>
-                    ) : null}
+          <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
+            <CardHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#0b1f35_0%,#123a58_58%,#1e577a_100%)] px-5 py-5 text-white md:px-6">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner">
+                    <FileStack className="h-6 w-6 text-sky-200" />
                   </div>
-                  {canRecoverStoredDocuments ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full"
-                      disabled={recoverableLoading}
-                      onClick={() => {
-                        setRecoverableStatus("");
-                        setRecoverableFiles([]);
-                        const reload = async () => {
-                          setRecoverableLoading(true);
-                          try {
-                            const files = await listRecoverableProcessFiles({ processId: process.id });
-                            const alreadyLinked = new Set(
-                              process.documents
-                                .map((document) => document.filePath)
-                                .filter((value): value is string => Boolean(value)),
-                            );
-                            const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
-                            setRecoverableFiles(available);
-                            setRecoverableStatus(
-                              available.length > 0
-                                ? `${available.length} upload(s) anterior(es) encontrado(s).`
-                                : "Nenhum upload anterior disponível para recuperação.",
-                            );
-                          } catch (error) {
-                            setRecoverableStatus(
-                              error instanceof Error ? error.message : "Falha ao procurar uploads anteriores.",
-                            );
-                          } finally {
-                            setRecoverableLoading(false);
-                          }
-                        };
-                        void reload();
-                      }}
-                    >
-                      {recoverableLoading ? "Procurando..." : "Buscar uploads anteriores"}
-                    </Button>
-                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/75">
+                      Central documental do processo
+                    </p>
+                    <CardTitle className="mt-1 text-xl font-bold text-white">
+                      {canUploadProcessDocuments ? "Documentos do protocolo" : "Documentos enviados pelo profissional"}
+                    </CardTitle>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-300">
+                      {canUploadProcessDocuments
+                        ? "Envie e acompanhe os documentos obrigatórios deste protocolo."
+                        : isExternalProcessViewer
+                          ? "Acompanhe os arquivos enviados, o resultado das conferências e as exigências vinculadas."
+                          : "Confira, visualize e analise tecnicamente os documentos encaminhados pelo profissional responsável."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100/70">Enviados</p>
+                    <p className="mt-1 text-xl font-bold text-white">{uploadedCount}/{process.documents.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-100/80">Aprovados</p>
+                    <p className="mt-1 text-xl font-bold text-emerald-100">{approvedDocumentCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-3 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100/80">Pendências</p>
+                    <p className="mt-1 text-xl font-bold text-amber-100">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100/70">Conferência</p>
+                    <p className="mt-1 text-xl font-bold text-white">{documentReviewProgress}%</p>
+                  </div>
                 </div>
               </div>
+
+              <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+                    <span>Entrega documental</span>
+                    <span>{documentDeliveryProgress}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-sky-300 transition-[width]"
+                      style={{ width: `${documentDeliveryProgress}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+                    <span>Conferência técnica</span>
+                    <span>{documentReviewProgress}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-emerald-300 transition-[width]"
+                      style={{ width: `${documentReviewProgress}%` }}
+                    />
+                  </div>
+                </div>
+                {canRecoverStoredDocuments ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-full border-white/20 bg-white/10 px-4 text-white hover:bg-white/15 hover:text-white"
+                    disabled={recoverableLoading}
+                    onClick={() => {
+                      setRecoverableStatus("");
+                      setRecoverableFiles([]);
+                      const reload = async () => {
+                        setRecoverableLoading(true);
+                        try {
+                          const files = await listRecoverableProcessFiles({ processId: process.id });
+                          const alreadyLinked = new Set(
+                            process.documents
+                              .map((document) => document.filePath)
+                              .filter((value): value is string => Boolean(value)),
+                          );
+                          const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
+                          setRecoverableFiles(available);
+                          setRecoverableStatus(
+                            available.length > 0
+                              ? `${available.length} upload(s) anterior(es) encontrado(s).`
+                              : "Nenhum upload anterior disponível para recuperação.",
+                          );
+                        } catch (error) {
+                          setRecoverableStatus(
+                            error instanceof Error ? error.message : "Falha ao procurar uploads anteriores.",
+                          );
+                        } finally {
+                          setRecoverableLoading(false);
+                        }
+                      };
+                      void reload();
+                    }}
+                  >
+                    {recoverableLoading ? "Procurando..." : "Buscar uploads anteriores"}
+                  </Button>
+                ) : null}
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4 bg-[linear-gradient(180deg,#fbfdff_0%,#f7fafc_100%)] p-5 md:p-6">
+              {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
+                <div className="grid gap-2 lg:grid-cols-2">
+                  {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                      {pendingExternalDocumentCount} item(ns) ainda aguardam envio do profissional.
+                    </div>
+                  ) : <div />}
+                  {canRecoverStoredDocuments && recoverableStatus ? (
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                      {recoverableStatus}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {canReviewDocuments ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
