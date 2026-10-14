@@ -28,26 +28,42 @@ function assertEnv() {
   }
 }
 
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
+function hasCompleteLocalR2Env() {
+  return REQUIRED_ENV.every((key) => Boolean(readEnvValue(key)));
+}
 
-  const rawEndpoint = readEnvValue("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+function normalizeR2AccountId(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    const labels = url.hostname.toLowerCase().split(".");
+    const r2Index = labels.indexOf("r2");
+    if (r2Index > 0 && labels.slice(r2Index).join(".") === "r2.cloudflarestorage.com") {
+      return labels[r2Index - 1].replace(/[^a-z0-9]/g, "");
     }
+  } catch {
+    // Pode ser somente o account id.
   }
 
-  const accountId = readEnvValue("R2_ACCOUNT_ID")
+  return raw
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
+}
 
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  const accountId = normalizeR2AccountId(readEnvValue("R2_ACCOUNT_ID"));
+  if (accountId && !/^(sua|seu)_?account_?id$/i.test(accountId)) {
     candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
+  }
+
+  const endpointAccountId = normalizeR2AccountId(readEnvValue("R2_ENDPOINT"));
+  if (endpointAccountId && !/^(sua|seu)_?account_?id$/i.test(endpointAccountId)) {
+    candidates.push(`https://${endpointAccountId}.r2.cloudflarestorage.com`);
   }
 
   return Array.from(new Set(candidates.filter(Boolean)));
@@ -272,10 +288,13 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
-        // Rotas de leitura usam a infraestrutura oficial através do servidor
-        // local para evitar CORS e nunca expor credenciais R2 no navegador.
-        // Nenhuma rota de escrita é encaminhada para produção.
-        if (req.url.startsWith("/api/r2-master-logo-source")) {
+        // Desenvolvimento pode validar o R2 de forma independente da produção:
+        // - com env R2 completo, /r2-sign-get e o logo são resolvidos localmente;
+        // - sem env local, somente leituras são encaminhadas para a API oficial.
+        // Upload/delete nunca são encaminhados para produção.
+        const localR2Ready = hasCompleteLocalR2Env();
+
+        if (req.url.startsWith("/api/r2-master-logo-source") && !localR2Ready) {
           try {
             await proxyOfficialLogoSource(req, res);
           } catch (error) {
@@ -288,7 +307,7 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
-        if (isReadOnlyR2Route(req.url)) {
+        if (req.url.startsWith("/api/r2-list-user-files") || (req.url.startsWith("/api/r2-sign-get") && !localR2Ready)) {
           try {
             await proxyOfficialReadApi(req, res);
           } catch (error) {
@@ -533,9 +552,7 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-master-logo-source")) {
             const objectKey = body?.objectKey;
-            if (typeof objectKey !== "string" ||
-              !/^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
-              objectKey.includes("..")) {
+            if (typeof objectKey !== "string" || !isSafeBrandingObjectKey(objectKey)) {
               res.statusCode = 400;
               res.end("Logo inválido.");
               return;
