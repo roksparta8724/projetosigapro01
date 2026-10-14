@@ -2489,7 +2489,7 @@ export function ProcessDetailPage() {
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
                             Processo recebido pela mesa técnica
-                            {process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
+                            {!isExternalProcessViewer && process.analysis?.assignedTo ? ` • Responsável pela análise: ${process.analysis.assignedTo}` : ""}.
                           </p>
                         </div>
                         {analysisStartedAt ? (
