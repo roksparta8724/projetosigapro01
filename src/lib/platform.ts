@@ -1058,14 +1058,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   prefeitura_admin: [
     "manage_tenant_users",
     "manage_tenant_branding",
-    "manage_protocols",
     "manage_own_profile",
     "view_own_processes",
-    "review_processes",
-    "dispatch_interdepartmental",
-    "manage_financial",
-    "manage_fiscal_financial",
-    "sign_documents",
   ],
   prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
   analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
@@ -2339,7 +2333,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "profissional_externo":
     case "professional":
     case "profissional":
-      return "/externo";
+      return "/externo/controle";
     case "property_owner":
     case "proprietario_consulta":
       return "/proprietario";
@@ -2352,7 +2346,6 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
   if (
     session.role === "master_admin" ||
     session.role === "master_ops" ||
-    session.role === "prefeitura_admin" ||
     session.role === "prefeitura_supervisor"
   ) {
     return true;
@@ -2377,10 +2370,10 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
 }
 
 export function isProcessOwnedBySessionDepartment(session: SessionUser, process: ProcessRecord) {
-  if (session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin") {
+  if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
   }
-  if (!isInternalRole(session.role)) return false;
+  if (!isInternalRole(session.role) || session.role === "prefeitura_admin") return false;
 
   const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
   if (!userDepartment) return false;
