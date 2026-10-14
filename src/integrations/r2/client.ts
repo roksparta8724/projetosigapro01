@@ -7,11 +7,24 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const isLocalBrowser =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
+const officialReadApiBase = "https://sigapromunicipal.com.br";
 
 function buildApiUrl(path: string) {
   if (!apiBase) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${normalized}`;
+}
+
+function buildReadApiUrl(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (apiBase) return `${apiBase}${normalized}`;
+  // No localhost, leitura de arquivos existentes usa o backend oficial.
+  // As credenciais secretas do R2 nunca precisam ser copiadas para o computador.
+  if (isLocalBrowser) return `${officialReadApiBase}${normalized}`;
+  return normalized;
 }
 
 async function getAuthorizationHeaders() {
@@ -73,7 +86,7 @@ export async function getSignedUrlForObject(input: {
 }) {
   const allowPublicFallback =
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
+  const primaryUrl = buildReadApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
@@ -108,7 +121,7 @@ export async function getSignedUrlForObjectStrict(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
+  const primaryUrl = buildReadApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
@@ -225,7 +238,7 @@ export type RecoverableProcessFile = {
 };
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
-  const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
+  const response = await fetch(buildReadApiUrl("/api/r2-list-user-files"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
