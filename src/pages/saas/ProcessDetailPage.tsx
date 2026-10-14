@@ -17,10 +17,12 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import {
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
@@ -207,6 +209,7 @@ export function ProcessDetailPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
+  const documentMarkers = useDocumentMarkerAssignments();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
@@ -1433,6 +1436,13 @@ export function ProcessDetailPage() {
                 Voltar
               </Button>
             ) : null}
+            <MarkerSelector
+              processId={process.id}
+              tags={process.tags}
+              actor={session.name}
+              subjectLabel="processo"
+              triggerClassName="h-9"
+            />
             <Button
               type="button"
               variant="outline"
@@ -1863,6 +1873,7 @@ export function ProcessDetailPage() {
                 const reviewVisual = getDocumentReviewVisual(document);
                 const isApproved = document.reviewStatus === "aprovado";
                 const hasCommunique = document.reviewStatus === "rejeitado";
+                const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
 
                 return (
                   <div
@@ -1927,6 +1938,18 @@ export function ProcessDetailPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
+                        <MarkerSelector
+                          tags={documentMarkerTags}
+                          actor={session.name}
+                          subjectLabel="documento"
+                          triggerClassName="h-8"
+                          onApplyMarker={(label, color) =>
+                            documentMarkers.addMarker(process.id, document.id, label, color)
+                          }
+                          onRemoveMarker={(tag) =>
+                            documentMarkers.removeMarker(process.id, document.id, tag)
+                          }
+                        />
                         <Badge variant="outline" className="rounded-full border-slate-200 bg-white/70 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                           {document.required ? "Obrigatório" : "Opcional"}
                         </Badge>
