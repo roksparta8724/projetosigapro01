@@ -502,7 +502,7 @@ export function DocumentAnalysisPage() {
             }}
           >
             <MessageSquareText className="mr-2 h-4 w-4" />
-            Comentário
+            Adicionar texto
           </Button>
         </div>
 
@@ -612,7 +612,7 @@ export function DocumentAnalysisPage() {
             }`}
           >
             <Highlighter className="h-5 w-5" />
-            Marca
+            Área
           </button>
           <button
             type="button"
@@ -632,11 +632,11 @@ export function DocumentAnalysisPage() {
           </button>
         </aside>
 
-        <section className="min-h-0 overflow-auto bg-[#d8dee6] p-4 lg:p-5">
+        <section className="min-h-0 overflow-auto bg-[radial-gradient(circle_at_top,#eef2f6_0%,#d8dee6_48%,#cdd5de_100%)] p-4 lg:p-5">
           <div className="mx-auto flex min-h-full max-w-[1440px] items-start justify-center">
             <div
               ref={surfaceRef}
-              className={`relative w-full overflow-hidden rounded-[14px] border border-slate-300 bg-[#2f343b] shadow-[0_24px_70px_rgba(15,23,42,0.20)] ${
+              className={`relative w-full overflow-hidden rounded-[16px] border border-slate-400/70 bg-[#2f343b] shadow-[0_28px_80px_rgba(15,23,42,0.24)] ring-1 ring-white/50 ${
                 tool === "navigate"
                   ? "cursor-default"
                   : tool === "highlight"
@@ -765,8 +765,8 @@ export function DocumentAnalysisPage() {
           </div>
         </section>
 
-        <aside className="min-h-0 overflow-y-auto border-l border-slate-200 bg-white">
-          <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4">
+        <aside className="min-h-0 overflow-y-auto border-l border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[-10px_0_28px_rgba(15,23,42,0.04)]">
+          <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
