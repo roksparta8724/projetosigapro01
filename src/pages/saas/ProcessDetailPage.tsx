@@ -1725,11 +1725,11 @@ export function ProcessDetailPage() {
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
                     <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-300/25 bg-[#145245] px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric sig-command-metric-emerald rounded-2xl border px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
                     <p className="mt-1 text-xl font-bold !text-emerald-50">{approvedDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-amber-300/25 bg-[#5c4a1f] px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric sig-command-metric-amber rounded-2xl border px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
                     <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
