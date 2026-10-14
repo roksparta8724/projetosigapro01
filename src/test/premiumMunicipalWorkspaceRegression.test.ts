@@ -319,13 +319,43 @@ describe("premium municipal workspace regression", () => {
     expect(institutionalLogo).not.toContain("object-cover");
   });
 
+  it("uses one read-only process rule in the document viewer", () => {
+    expect(platform).toContain("export function canViewProcessDocuments");
+    expect(platform).toContain("return canTrackProcess(session, process, scopeId)");
+    expect(documentViewer).toContain("canViewProcessDocuments(session, process, effectiveScopeId)");
+    expect(documentViewer).not.toContain("canAccessProcess(session, process, effectiveScopeId)");
+    expect(documentViewer).toContain("Validando acesso ao documento");
+  });
+
+  it("uses the official localhost fallback even for strict R2 document reads", () => {
+    expect(r2Client).toContain("requestSignedUrlWithLocalReadFallback(primaryUrl");
+    expect(r2Client).toContain('"https://sigapromunicipal.com.br/api/r2-sign-get"');
+    expect(r2Client).toContain("getSignedUrlForObjectStrict");
+  });
+
+  it("waits for resolved Neon auth or confirmed profile before loading the official store", () => {
+    expect(platformData).toContain("authenticatedProfileId");
+    expect(platformData).toContain("authenticatedBusinessIdentityReady");
+    expect(platformData).toContain("authResolved || Boolean(authenticatedProfileId)");
+    expect(platformData).toContain("[authenticatedUserId, authenticatedProfileId, authLoading, authResolved]");
+  });
+
+  it("does not keep plan validation spinning after the authenticated profile is already confirmed", () => {
+    expect(planEntitlements).toContain("const stableAuthenticatedIdentity");
+    expect(planEntitlements).toContain("(!authResolved && !stableAuthenticatedIdentity)");
+  });
+
   it("uses the administrator-configured municipality logo on every official guide", () => {
     expect(processDetail).toContain("branding: municipalityBranding");
     expect(processDetail).toContain("municipalityBranding?.headerLogoUrl");
     expect(processDetail).toContain("municipalityBranding?.logoUrl");
+    expect(processDetail).toContain("logoObjectKey:");
+    expect(processDetail).toContain("municipalityBranding?.headerLogoObjectKey");
     expect(financeProtocols).toContain("branding: municipalityBranding");
     expect(financeProtocols).toContain("municipalityBranding?.headerLogoUrl");
     expect(financeProtocols).toContain("municipalityBranding?.logoUrl");
+    expect(financeProtocols).toContain("logoObjectKey:");
+    expect(financeProtocols).toContain("municipalityBranding?.headerLogoObjectKey");
     expect(officialGuide).toContain("prefeitura.logoUrl");
     expect(officialGuide).not.toContain(">LOGO<");
     expect(alternateOfficialGuide).not.toContain("BRASAO / LOGO");
