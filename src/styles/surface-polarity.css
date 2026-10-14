@@ -454,3 +454,134 @@ html body .sig-main-shell :is(
   stroke: #ffffff !important;
 }
 
+
+
+/* ========================================================================== */
+/* FINAL CONTRAST AUTHORITY - PROCESS WORKSPACE                               */
+/* Loaded after every other project stylesheet via main.tsx.                  */
+/* Scope is intentionally limited to .sig-main-shell; topbar/sidebar are      */
+/* excluded so institutional colors are preserved.                            */
+/* ========================================================================== */
+
+/* Any explicitly dark application surface owns a bright foreground. */
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface,
+  .sig-dark-panel,
+  .sig-inverse-panel
+),
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) * {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+}
+
+html body #root .sig-main-shell :is(
+  [data-surface-tone="dark"],
+  [data-contrast-surface="dark"],
+  [data-premium-inverse-surface="true"],
+  .sig-premium-command-surface,
+  .sig-dark-panel,
+  .sig-inverse-panel
+) :is(svg,svg *) {
+  color: #e7f4ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* The document command center from ProcessDetailPage is always dark, even
+   when the overall app theme is light. */
+html body #root .sig-main-shell #sig-process-document-command-center,
+html body #root .sig-main-shell #sig-process-document-command-center * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center :is(svg,svg *) {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+}
+
+/* Organogram unit pills are dark navigation chips in both themes. */
+html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+  [data-organogram-unit-chip="true"],
+  [data-organogram-code="true"]
+),
+html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+  [data-organogram-unit-chip="true"],
+  [data-organogram-code="true"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell [data-municipal-organogram="true"] :is(
+  [data-organogram-unit-chip="true"],
+  [data-organogram-code="true"]
+) :is(svg,svg *) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Light semantic surfaces keep a dark foreground. */
+html body #root .sig-main-shell [data-surface-tone="light"],
+html body #root .sig-main-shell [data-surface-tone="light"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell [data-surface-tone="light"] :is(svg,svg *) {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+/* Primary blue/dark actions are the final exception inside light cards. */
+html body #root .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+),
+html body #root .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell :is(
+  .sig-dark-action-btn,
+  .sig-primary-process-action,
+  .sig-primary-document-action,
+  [data-primary-action="process"],
+  [data-primary-action="document"]
+) :is(svg,svg *) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* ===== END FINAL CONTRAST AUTHORITY ===== */
