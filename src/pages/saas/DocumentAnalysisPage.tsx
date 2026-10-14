@@ -34,7 +34,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -109,10 +108,6 @@ export function DocumentAnalysisPage() {
       ? `sigapro:document-review-draft:${session.id}:${process.id}:${document.id}`
       : "";
 
-  const isAssignedProcessAnalyst =
-    Boolean(process?.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
-    Boolean(process?.analysis?.assignedTo && process.analysis.assignedTo === session.name);
-
   const canUseAnalysis =
     !!process &&
     !!document &&
@@ -122,10 +117,7 @@ export function DocumentAnalysisPage() {
       session.role === "master_admin" ||
       session.role === "master_ops" ||
       session.role === "prefeitura_supervisor" ||
-      (
-        session.role === "analista" &&
-        (isProcessOwnedBySessionDepartment(session, process) || isAssignedProcessAnalyst)
-      )
+      session.role === "analista"
     );
 
   useEffect(() => {
@@ -702,7 +694,7 @@ export function DocumentAnalysisPage() {
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[72px_minmax(0,1fr)_380px]">
-        <aside className="hidden border-r border-slate-200 bg-[#f7f9fc] py-4 xl:flex xl:flex-col xl:items-center xl:gap-3">
+        <aside className="hidden border-r border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef4f8_100%)] py-4 shadow-[8px_0_26px_rgba(15,23,42,0.04)] xl:flex xl:flex-col xl:items-center xl:gap-3">
           <button
             type="button"
             onClick={() => {
