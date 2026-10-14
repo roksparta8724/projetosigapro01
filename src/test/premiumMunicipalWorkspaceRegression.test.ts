@@ -25,7 +25,6 @@ describe("premium municipal workspace regression", () => {
   const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
   const platformData = read("src/hooks/usePlatformData.tsx");
   const platform = read("src/lib/platform.ts");
-  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const organizationResolver = read("src/lib/municipalOrganization.ts");
   const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
   const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
