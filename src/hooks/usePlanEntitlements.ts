@@ -9,6 +9,9 @@ import {
   type PlanModuleName,
 } from "@/lib/planEntitlements";
 
+const PLAN_RESOLUTION_TIMEOUT_MS = 6000;
+const resolutionStartedAtByIdentity = new Map<string, number>();
+
 export function usePlanEntitlements() {
   const {
     plans,
@@ -114,23 +117,49 @@ export function usePlanEntitlements() {
     );
 
   const resolutionKey = [
-    authenticatedProfileId || authenticatedUserId || "anonymous",
-    session.id,
-    sessionMunicipalityId || "no-municipality",
-    session.role,
+    authenticatedBusinessUserId ||
+      normalizedAuthenticatedEmail ||
+      session.id ||
+      "anonymous",
+    authenticatedMunicipalityId ||
+      sessionMunicipalityId ||
+      "no-municipality",
   ].join(":");
   const [resolutionTimedOut, setResolutionTimedOut] = useState(false);
 
   useEffect(() => {
-    setResolutionTimedOut(false);
-    if (!rawResolving) return;
+    if (!rawResolving) {
+      if (dataReadyForCurrentUser || terminalDataFailure || authIdentityMismatch) {
+        resolutionStartedAtByIdentity.delete(resolutionKey);
+      }
+      setResolutionTimedOut(false);
+      return;
+    }
 
+    const now = Date.now();
+    const startedAt =
+      resolutionStartedAtByIdentity.get(resolutionKey) ?? now;
+    resolutionStartedAtByIdentity.set(resolutionKey, startedAt);
+
+    const remaining = PLAN_RESOLUTION_TIMEOUT_MS - (now - startedAt);
+    if (remaining <= 0) {
+      setResolutionTimedOut(true);
+      return;
+    }
+
+    setResolutionTimedOut(false);
     const timer = window.setTimeout(() => {
       setResolutionTimedOut(true);
-    }, 6000);
+    }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [rawResolving, resolutionKey]);
+  }, [
+    authIdentityMismatch,
+    dataReadyForCurrentUser,
+    rawResolving,
+    resolutionKey,
+    terminalDataFailure,
+  ]);
 
   const isResolving = rawResolving && !resolutionTimedOut;
 
