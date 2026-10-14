@@ -44,6 +44,8 @@ import {
   getGuideReference,
   getProcessById,
   getProcessPaymentGuides,
+  getExternallyVisibleProcessPaymentGuides,
+  isProcessPaymentGuideSharedExternally,
   isInternalRole,
   matchesOperationalScope,
   statusLabel,
@@ -469,20 +471,13 @@ export function ProcessDetailPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const isExternalProcessViewer = isExternalSession;
-  const isGuideSharedExternally = (guideCode: string | undefined) =>
-    Boolean(
-      guideCode &&
-      process.messages.some(
-        (item) =>
-          (item.audience === "externo" || item.audience === "misto") &&
-          item.message.includes(guideCode),
-      ),
-    );
   const visiblePaymentGuides = isExternalProcessViewer
-    ? paymentGuides.filter(
-        (guide) => guide.kind === "protocolo" || isGuideSharedExternally(guide.code),
-      )
+    ? getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
     : paymentGuides;
+  const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
+  const constructionGuideSentExternally = issuedConstructionGuide
+    ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
+    : false;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const canProtocolConfirmPayment =
@@ -534,9 +529,6 @@ export function ProcessDetailPage() {
   const constructionGuide = visiblePaymentGuides.find(
     (guide) => guide.kind === "iss_obra",
   );
-  const constructionGuideSentExternally = constructionGuide
-    ? isGuideSharedExternally(constructionGuide.code)
-    : false;
   const canManageIssuedIssGuide =
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
@@ -693,8 +685,13 @@ export function ProcessDetailPage() {
   );
 
   const rawCurrentFolder = process.processControl?.currentFolder || process.dispatches[0]?.to || process.sla.currentStage;
-  const currentFolder =
-    process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
+  const holdsIssuedIssInsideUrbanism =
+    Boolean(issuedConstructionGuide) &&
+    !constructionGuideSentExternally &&
+    issuedConstructionGuide?.status !== "compensada";
+  const currentFolder = holdsIssuedIssInsideUrbanism
+    ? URBAN_ANALYSIS_DEPARTMENT
+    : process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
   const currentOrganizationPath = getOrganizationPath(currentFolder);
@@ -720,7 +717,10 @@ export function ProcessDetailPage() {
   let currentFlowIndex = 0;
   if (isFinalProcessStatus) {
     currentFlowIndex = 4;
-  } else if (constructionGuide || /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)) {
+  } else if (
+    constructionGuideSentExternally &&
+    (issuedConstructionGuide || /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder))
+  ) {
     currentFlowIndex = 3;
   } else if (
     /analise|urban|obra|engenharia|fiscal/.test(normalizedCurrentFolder) ||
@@ -750,6 +750,25 @@ export function ProcessDetailPage() {
   const displayOrganizationPath = isExternalProcessViewer
     ? currentFlowStatusLabel
     : currentOrganizationPath;
+
+  const processExitPath =
+    session.role === "profissional_externo"
+      ? "/externo/controle"
+      : session.role === "property_owner" || session.role === "proprietario_consulta"
+        ? "/proprietario"
+        : /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder)
+          ? "/prefeitura/financeiro"
+          : /protocolo|triagem|recepcao|recepção/.test(normalizedCurrentFolder)
+            ? "/prefeitura/protocolos"
+            : /analise|análise|urban|obra|engenharia|fiscal/.test(normalizedCurrentFolder)
+              ? "/prefeitura/analise"
+              : session.role === "financeiro"
+                ? "/prefeitura/financeiro"
+                : canAnalysisOperate
+                  ? "/prefeitura/analise"
+                  : canProtocolOperate
+                    ? "/prefeitura/protocolos"
+                    : "/dashboard";
 
   const protocolStartedAt =
     process.auditTrail.find((entry) => /processo protocolado|protocolado|abertura/i.test(entry.title))?.at ||
@@ -1369,17 +1388,20 @@ export function ProcessDetailPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             {isExternalProcessViewer ? (
-              <>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar
-                </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo/controle")}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair do processo
-                </Button>
-              </>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+              </Button>
             ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              onClick={() => navigate(processExitPath)}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair do processo
+            </Button>
             {protocolGuide ? (
               <>
                 <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
