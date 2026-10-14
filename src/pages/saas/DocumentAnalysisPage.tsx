@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAccessMunicipalArea,
@@ -49,9 +51,12 @@ export function DocumentAnalysisPage() {
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
+  const documentMarkers = useDocumentMarkerAssignments();
   const { processes, addDocumentAnnotation, reviewProcessDocument, createRequirement } = usePlatformData();
   const process = processId ? getProcessById(processId, processes) : undefined;
   const document = process?.documents.find((item) => item.id === documentId);
+  const documentMarkerTags =
+    process && document ? documentMarkers.getTags(process.id, document.id) : [];
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [accessError, setAccessError] = useState("");
@@ -355,6 +360,18 @@ export function DocumentAnalysisPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <MarkerSelector
+              tags={documentMarkerTags}
+              actor={session.name}
+              subjectLabel="documento"
+              triggerClassName="h-9 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              onApplyMarker={(label, color) =>
+                documentMarkers.addMarker(process.id, document.id, label, color)
+              }
+              onRemoveMarker={(tag) =>
+                documentMarkers.removeMarker(process.id, document.id, tag)
+              }
+            />
             <Badge
               variant="outline"
               className={`rounded-full font-semibold ${
