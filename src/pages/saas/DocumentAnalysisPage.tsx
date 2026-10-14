@@ -110,13 +110,24 @@ export function DocumentAnalysisPage() {
       ? `sigapro:document-review-draft:${session.id}:${process.id}:${document.id}`
       : "";
 
+  const isAssignedProcessAnalyst =
+    Boolean(process?.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
+    Boolean(process?.analysis?.assignedTo && process.analysis.assignedTo === session.name);
+
   const canUseAnalysis =
     !!process &&
     !!document &&
-    isInternalRole(session.role) &&
     canAccessProcess(session, process, effectiveScopeId) &&
-    isProcessOwnedBySessionDepartment(session, process) &&
-    canAccessMunicipalArea(session, "analise");
+    canAccessMunicipalArea(session, "analise") &&
+    (
+      session.role === "master_admin" ||
+      session.role === "master_ops" ||
+      session.role === "prefeitura_supervisor" ||
+      (
+        session.role === "analista" &&
+        (isProcessOwnedBySessionDepartment(session, process) || isAssignedProcessAnalyst)
+      )
+    );
 
   useEffect(() => {
     setLocalReviewStatus(
