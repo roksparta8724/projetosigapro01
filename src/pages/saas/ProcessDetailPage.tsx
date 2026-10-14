@@ -486,14 +486,20 @@ export function ProcessDetailPage() {
     process.status === "pagamento_pendente" &&
     canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
+  const isAssignedProcessAnalyst =
+    Boolean(process.analysis?.assignedProfileId && process.analysis.assignedProfileId === session.id) ||
+    Boolean(process.analysis?.assignedTo && process.analysis.assignedTo === session.name);
+
   const canReviewDocuments =
-    ownsCurrentProcessStage &&
     canAnalysisOperate &&
     (
-      session.role === "prefeitura_supervisor" ||
-      session.role === "analista" ||
       session.role === "master_admin" ||
-      session.role === "master_ops"
+      session.role === "master_ops" ||
+      session.role === "prefeitura_supervisor" ||
+      (
+        session.role === "analista" &&
+        (ownsCurrentProcessStage || isAssignedProcessAnalyst)
+      )
     );
   const visibleDocumentRows =
     isProtocolTrackingOnly
@@ -1692,10 +1698,10 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader data-premium-inverse-surface="true" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader data-premium-inverse-surface="true" className="sig-fixed-dark-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
                     <FileStack className="h-6 w-6 text-sky-200" />
                   </div>
                   <div className="min-w-0">
@@ -1716,19 +1722,19 @@ export function ProcessDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
-                  <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3 shadow-sm backdrop-blur-sm">
+                  <div className="rounded-2xl border border-sky-300/20 bg-[#163a56] px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
                     <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.12] px-3 py-3 shadow-sm backdrop-blur-sm">
+                  <div className="rounded-2xl border border-emerald-300/25 bg-[#145245] px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
                     <p className="mt-1 text-xl font-bold !text-emerald-50">{approvedDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.12] px-3 py-3 shadow-sm backdrop-blur-sm">
+                  <div className="rounded-2xl border border-amber-300/25 bg-[#5c4a1f] px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
                     <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3 shadow-sm backdrop-blur-sm">
+                  <div className="rounded-2xl border border-sky-300/20 bg-[#163a56] px-3 py-3 shadow-sm">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Conferência</p>
                     <p className="mt-1 text-xl font-bold !text-white">{documentReviewProgress}%</p>
                   </div>
@@ -1995,7 +2001,7 @@ export function ProcessDetailPage() {
                             className="inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                           >
                             <PencilLine className="h-4 w-4" />
-                            Abrir documento e analisar
+                            Abrir documento
                           </button>
                         ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
