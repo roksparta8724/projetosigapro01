@@ -640,6 +640,9 @@ export interface ProcessRecord {
   ownerName: string;
   ownerDocument: string;
   technicalLead: string;
+  /** Referências explícitas das partes processuais aos perfis cadastrados. */
+  ownerProfileId?: string;
+  technicalProfileId?: string;
   createdBy: string;
   createdByProfileId?: string;
   createdByUserId?: string;
