@@ -38,3 +38,35 @@ describe("theme contrast regressions", () => {
     expect(css).toContain('.sig-main-shell .sig-dark-action-btn');
   });
 });
+
+
+describe("premium theme selector and process contrast", () => {
+  it("keeps the theme selector readable in both visual families", () => {
+    const portal = readFileSync(resolve(root, "src/components/platform/PortalFrame.tsx"), "utf8");
+
+    expect(portal).toContain('data-theme-panel-mode={inverseMainTheme ? "dark" : "light"}');
+    expect(portal).toContain('data-theme-option="true"');
+    expect(portal).toContain('data-theme-option-active={activeThemeOption ? "true" : "false"}');
+    expect(css).toContain('.sig-theme-panel[data-theme-panel-mode="dark"]');
+    expect(css).toContain('.sig-theme-panel[data-theme-panel-mode="light"]');
+    expect(css).toContain('[data-theme-option-active="true"]');
+  });
+
+  it("locks process and document primary actions to white copy/icons", () => {
+    const external = readFileSync(resolve(root, "src/pages/saas/ExternalProcessControlPage.tsx"), "utf8");
+    const detail = readFileSync(resolve(root, "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    expect(external).toContain('data-primary-action="process"');
+    expect(detail).toContain('data-primary-action="document"');
+    expect(css).toContain('[data-primary-action="process"]');
+    expect(css).toContain('[data-primary-action="document"]');
+    expect(css).toContain('-webkit-text-fill-color: #ffffff !important');
+  });
+
+  it("keeps process cards and tabs legible after switching themes", () => {
+    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"]');
+    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"]');
+    expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="false"]');
+    expect(css).toContain('[data-process-tabbar="true"] button[aria-pressed="true"]');
+  });
+});
