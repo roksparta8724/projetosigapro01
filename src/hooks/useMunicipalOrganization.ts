@@ -3,8 +3,10 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   listRemoteMunicipalDepartments,
+  listRemotePublicMunicipalDepartments,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
+import { isInternalRole } from "@/lib/platform";
 
 type CacheEntry = {
   rows: MunicipalDepartmentRecord[];
@@ -15,38 +17,54 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const departmentCache = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<MunicipalDepartmentRecord[]>>();
 
+type OrganizationAccessMode = "full" | "public";
+
+function cacheKey(municipalityId: string, mode: OrganizationAccessMode) {
+  return `${mode}:${municipalityId}`;
+}
+
 function sortDepartments(rows: MunicipalDepartmentRecord[]) {
   return rows
     .filter((item) => item.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"));
 }
 
-function loadDepartments(municipalityId: string) {
-  const cached = departmentCache.get(municipalityId);
+function loadDepartments(municipalityId: string, mode: OrganizationAccessMode) {
+  const key = cacheKey(municipalityId, mode);
+  const cached = departmentCache.get(key);
   if (cached && Date.now() - cached.loadedAt < CACHE_TTL_MS) {
     return Promise.resolve(cached.rows);
   }
 
-  const existing = inFlight.get(municipalityId);
+  const existing = inFlight.get(key);
   if (existing) return existing;
 
-  const request = listRemoteMunicipalDepartments(municipalityId)
+  const loader =
+    mode === "full"
+      ? listRemoteMunicipalDepartments
+      : listRemotePublicMunicipalDepartments;
+
+  const request = loader(municipalityId)
     .then((rows) => {
       const sorted = sortDepartments(rows);
-      departmentCache.set(municipalityId, { rows: sorted, loadedAt: Date.now() });
+      departmentCache.set(key, { rows: sorted, loadedAt: Date.now() });
       return sorted;
     })
     .finally(() => {
-      inFlight.delete(municipalityId);
+      inFlight.delete(key);
     });
 
-  inFlight.set(municipalityId, request);
+  inFlight.set(key, request);
   return request;
 }
 
 export function invalidateMunicipalOrganizationCache(municipalityId?: string | null) {
-  if (municipalityId) departmentCache.delete(municipalityId);
-  else departmentCache.clear();
+  if (municipalityId) {
+    departmentCache.delete(cacheKey(municipalityId, "full"));
+    departmentCache.delete(cacheKey(municipalityId, "public"));
+  } else {
+    departmentCache.clear();
+  }
 }
 
 export function useMunicipalOrganization() {
@@ -57,8 +75,16 @@ export function useMunicipalOrganization() {
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
       : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
+  const accessMode: OrganizationAccessMode =
+    session.role === "master_admin" ||
+    session.role === "master_ops" ||
+    isInternalRole(session.role)
+      ? "full"
+      : "public";
 
-  const initial = municipalityId ? departmentCache.get(municipalityId)?.rows ?? [] : [];
+  const initial = municipalityId
+    ? departmentCache.get(cacheKey(municipalityId, accessMode))?.rows ?? []
+    : [];
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>(initial);
   const [loading, setLoading] = useState(Boolean(municipalityId && initial.length === 0));
   const [error, setError] = useState("");
@@ -74,7 +100,7 @@ export function useMunicipalOrganization() {
       };
     }
 
-    const cached = departmentCache.get(municipalityId);
+    const cached = departmentCache.get(cacheKey(municipalityId, accessMode));
     if (cached?.rows?.length) {
       setDepartments(cached.rows);
       setLoading(false);
@@ -83,7 +109,7 @@ export function useMunicipalOrganization() {
       setLoading(true);
     }
 
-    void loadDepartments(municipalityId)
+    void loadDepartments(municipalityId, accessMode)
       .then((rows) => {
         if (!active) return;
         setDepartments(rows);
@@ -104,7 +130,7 @@ export function useMunicipalOrganization() {
     return () => {
       active = false;
     };
-  }, [municipalityId]);
+  }, [accessMode, municipalityId]);
 
   return useMemo(
     () => ({
@@ -115,12 +141,12 @@ export function useMunicipalOrganization() {
       refresh: async () => {
         if (!municipalityId) return [] as MunicipalDepartmentRecord[];
         invalidateMunicipalOrganizationCache(municipalityId);
-        const rows = await loadDepartments(municipalityId);
+        const rows = await loadDepartments(municipalityId, accessMode);
         setDepartments(rows);
         setError("");
         return rows;
       },
     }),
-    [departments, error, loading, municipalityId],
+    [accessMode, departments, error, loading, municipalityId],
   );
 }
