@@ -8,8 +8,7 @@ import {
 } from "lucide-react";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
-
-const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
+import { getMunicipalDepartmentAcronym } from "@/lib/municipalOrganization";
 
 const UNIT_LABELS: Record<string, string> = {
   secretaria: "Secretaria",
@@ -66,23 +65,6 @@ function getRootTone(department: MunicipalDepartmentRecord) {
   };
 }
 
-export function getDepartmentAcronym(input: Pick<MunicipalDepartmentRecord, "code" | "name">) {
-  const explicit = input.code?.trim().toUpperCase();
-  if (explicit) return explicit.slice(0, 8);
-
-  const words = input.name
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.replace(/[^A-Za-zÀ-ÿ0-9]/g, ""))
-    .filter(Boolean)
-    .filter((word) => !STOP_WORDS.has(word.toLocaleLowerCase("pt-BR")));
-
-  const initials = words.map((word) => word[0]).join("").toUpperCase();
-  if (initials.length >= 2) return initials.slice(0, 8);
-
-  return input.name.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").toUpperCase().slice(0, 8) || "UN";
-}
-
 function UnitNode({
   department,
   allDepartments,
@@ -98,7 +80,7 @@ function UnitNode({
   lineage?: Set<string>;
   inheritedTone?: ReturnType<typeof getRootTone>;
 }) {
-  const acronym = getDepartmentAcronym(department);
+  const acronym = getMunicipalDepartmentAcronym(department);
   const tone = inheritedTone || getRootTone(department);
   const children = allDepartments
     .filter((item) => item.parentDepartmentId === department.id)
