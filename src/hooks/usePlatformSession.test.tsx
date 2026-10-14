@@ -17,8 +17,12 @@ vi.mock("@/hooks/useAuthGateway", () => ({
   useAuthGateway: () => gatewayMock,
 }));
 
+const platformDataMock = vi.hoisted(() => ({
+  sessionUsers: [] as Array<Record<string, unknown>>,
+}));
+
 vi.mock("@/hooks/usePlatformData", () => ({
-  usePlatformData: () => ({ sessionUsers: [] }),
+  usePlatformData: () => platformDataMock,
 }));
 
 vi.mock("@/integrations/backend/config", () => ({
@@ -50,6 +54,7 @@ describe("PlatformSessionProvider Neon profile-first identity", () => {
     gatewayMock.authenticatedMunicipalityId = "49dac0b6-6352-4744-9aab-9ff91c59d970";
     gatewayMock.authResolved = true;
     gatewayMock.loading = false;
+    platformDataMock.sessionUsers = [];
   });
 
   it("preserves the canonical master_admin role instead of falling back to an owner role", () => {
@@ -112,6 +117,41 @@ describe("PlatformSessionProvider Neon profile-first identity", () => {
     expect(screen.getByTestId("session-role")).toHaveTextContent("profissional_externo");
     expect(screen.getByTestId("session-municipality")).toHaveTextContent(
       "49dac0b6-6352-4744-9aab-9ff91c59d970",
+    );
+  });
+
+  it("does not let a stale external membership override an authenticated prefeitura_admin profile", () => {
+    platformDataMock.sessionUsers = [
+      {
+        id: gatewayMock.authenticatedProfileId,
+        name: "Administrador da Prefeitura",
+        role: "profissional_externo",
+        accessLevel: 1,
+        tenantId: gatewayMock.authenticatedMunicipalityId,
+        municipalityId: gatewayMock.authenticatedMunicipalityId,
+        title: "Profissional externo",
+        email: gatewayMock.authenticatedEmail,
+        accountStatus: "active",
+        userType: "Externo",
+        department: "",
+        createdAt: "",
+        lastAccessAt: "",
+        blockedAt: null,
+        blockedBy: null,
+        blockReason: null,
+        deletedAt: null,
+      },
+    ];
+
+    render(
+      <PlatformSessionProvider>
+        <Probe />
+      </PlatformSessionProvider>,
+    );
+
+    expect(screen.getByTestId("session-role")).toHaveTextContent("prefeitura_admin");
+    expect(screen.getByTestId("session-municipality")).toHaveTextContent(
+      gatewayMock.authenticatedMunicipalityId,
     );
   });
 
