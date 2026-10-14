@@ -2379,9 +2379,17 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
   const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
   if (!userDepartment) return false;
 
-  const currentFolder = resolveDepartmentAccessBucket(
-    process.processControl?.currentFolder || process.dispatches[0]?.to || "",
+  const issuedIssGuide = process.payment.guides?.find(
+    (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
   );
+  const holdsPrivateIssInAnalysis =
+    Boolean(issuedIssGuide) &&
+    !isProcessPaymentGuideSharedExternally(process, issuedIssGuide!);
+  const currentFolder = holdsPrivateIssInAnalysis
+    ? "analise"
+    : resolveDepartmentAccessBucket(
+        process.processControl?.currentFolder || process.dispatches[0]?.to || "",
+      );
   if (currentFolder) return currentFolder === userDepartment;
 
   if (userDepartment === "protocolos") {
@@ -2550,7 +2558,15 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   const userDepartment = resolveDepartmentAccessBucket(userDepartmentRaw);
   if (!userDepartment) return false;
 
-  const currentFolderRaw = process.processControl?.currentFolder || "";
+  const issuedIssGuide = process.payment.guides?.find(
+    (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
+  );
+  const holdsPrivateIssInAnalysis =
+    Boolean(issuedIssGuide) &&
+    !isProcessPaymentGuideSharedExternally(process, issuedIssGuide!);
+  const currentFolderRaw = holdsPrivateIssInAnalysis
+    ? URBAN_ANALYSIS_DEPARTMENT
+    : process.processControl?.currentFolder || "";
   const currentFolder = resolveDepartmentAccessBucket(currentFolderRaw);
   if (currentFolder) {
     if (currentFolder === userDepartment) return true;
