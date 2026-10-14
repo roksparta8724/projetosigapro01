@@ -338,10 +338,10 @@ describe("premium municipal workspace regression", () => {
     expect(documentViewer).toContain("Validando acesso ao documento");
   });
 
-  it("uses the official read origin for strict localhost R2 document reads", () => {
-    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
-    expect(r2Client).toContain('if (isLocalBrowser) return `${officialReadApiBase}${normalized}`');
-    expect(r2Client).toContain("requestSignedUrlWithLocalReadFallback(primaryUrl");
+  it("uses local R2 when configured and official fallback only for localhost read failures", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
+    expect(r2Client).toContain("requestSignedUrlWithLocalReadFallback");
+    expect(r2Client).toContain("localInfrastructureFailure");
     expect(r2Client).toContain("getSignedUrlForObjectStrict");
     expect(r2Client).toContain("isLoopbackUrl");
   });
