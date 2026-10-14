@@ -2519,6 +2519,21 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   return false;
 }
 
+export function canViewProcessDocuments(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
+    return false;
+  }
+
+  // Visualização é uma operação de acompanhamento, não de posse da etapa atual.
+  // Quem pode acompanhar legitimamente o processo deve poder abrir os documentos
+  // já protocolados daquele processo. Edição/análise continuam com regras próprias.
+  return canTrackProcess(session, process, scopeId);
+}
+
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
