@@ -3,8 +3,10 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Highlighter,
   Info,
   Maximize2,
+  MessageSquareText,
   PenTool,
   ShieldCheck,
 } from "lucide-react";
@@ -88,9 +90,10 @@ export function DocumentViewerPage() {
       canAccessMunicipalArea(session, "analise"),
   );
 
-  const openAnalysisWorkspace = () => {
+  const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
     if (!process || !document || !canAnalyzeDocument) return;
-    navigate(`/processos/${process.id}/documentos/${document.id}/analisar`);
+    const query = tool ? `?ferramenta=${tool}` : "";
+    navigate(`/processos/${process.id}/documentos/${document.id}/analisar${query}`);
   };
 
   useEffect(() => {
@@ -234,7 +237,7 @@ export function DocumentViewerPage() {
           {canAnalyzeDocument ? (
             <Button
               type="button"
-              onClick={openAnalysisWorkspace}
+              onClick={() => openAnalysisWorkspace()}
               className="h-9 rounded-full border border-amber-300/40 bg-amber-300/15 px-4 text-[12px] font-semibold text-amber-100 hover:bg-amber-300/25 hover:text-white"
             >
               <PenTool className="mr-2 h-4 w-4" />
@@ -274,6 +277,32 @@ export function DocumentViewerPage() {
             <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
             Acesso seguro
           </span>
+
+          {canAnalyzeDocument ? (
+            <div className="ml-1 hidden items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1 shadow-sm lg:flex">
+              <span className="px-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                Ferramentas
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-xl border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
+                onClick={() => openAnalysisWorkspace("highlight")}
+              >
+                <Highlighter className="mr-1.5 h-3.5 w-3.5" />
+                Marca-texto
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-xl border-sky-200 bg-sky-50 px-3 text-[11px] font-semibold text-sky-900 hover:bg-sky-100"
+                onClick={() => openAnalysisWorkspace("text")}
+              >
+                <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
+                Adicionar texto
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -379,6 +408,37 @@ export function DocumentViewerPage() {
               </dl>
             </div>
 
+            {canAnalyzeDocument ? (
+              <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(145deg,#f8fafc_0%,#eef6fb_100%)] p-4 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  Ferramentas de análise
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">
+                  Marque diretamente os pontos incorretos
+                </p>
+                <div className="mt-3 grid gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-start rounded-xl border-amber-200 bg-white text-amber-900 hover:bg-amber-50"
+                    onClick={() => openAnalysisWorkspace("highlight")}
+                  >
+                    <Highlighter className="mr-2 h-4 w-4" />
+                    Marca-texto por área
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-start rounded-xl border-sky-200 bg-white text-sky-900 hover:bg-sky-50"
+                    onClick={() => openAnalysisWorkspace("text")}
+                  >
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    Texto / comentário por ponto
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800">Visualização protegida</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -387,7 +447,7 @@ export function DocumentViewerPage() {
               {canAnalyzeDocument ? (
                 <Button
                   type="button"
-                  onClick={openAnalysisWorkspace}
+                  onClick={() => openAnalysisWorkspace()}
                   className="mt-4 w-full rounded-full bg-slate-950 text-white hover:bg-slate-800"
                 >
                   <PenTool className="mr-2 h-4 w-4" />
