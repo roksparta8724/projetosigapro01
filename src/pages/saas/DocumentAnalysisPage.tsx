@@ -465,7 +465,7 @@ export function DocumentAnalysisPage() {
         .join("\n");
 
       const description = [
-        communiqueReason.trim(),
+        comuniqueReason.trim(),
         "Apontamentos técnicos registrados no documento:",
         annotationSummary,
       ]
@@ -476,7 +476,7 @@ export function DocumentAnalysisPage() {
         processId: process.id,
         title: `Correções solicitadas — ${document.label}`,
         description,
-        dueDate: communiqueDueDate,
+        dueDate: comuniqueDueDate,
         actor: session.name,
         targetName: process.technicalLead || process.ownerName,
         visibility: "misto",
