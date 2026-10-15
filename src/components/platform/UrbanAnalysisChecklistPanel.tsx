@@ -937,12 +937,26 @@ export function UrbanAnalysisChecklistPanel({
         return y + 5.5;
       };
 
-      const drawRow = (item: ChecklistTemplateItem, y: number) => {
+      const drawRow = (
+        item: ChecklistTemplateItem,
+        y: number,
+        compact = false,
+      ) => {
         const itemState = state.items[item.id] ?? { status: "", observation: "" };
-        const desc = fitLines(item.label, widths.desc - 3.2, 2, 5.4);
-        const obs = fitLines(itemState.observation || "", widths.obs - 3.2, 2, 5.2);
+        const desc = fitLines(
+          item.label,
+          widths.desc - 3.2,
+          compact ? 1 : 2,
+          compact ? 4.9 : 5.4,
+        );
+        const obs = fitLines(
+          itemState.observation || "",
+          widths.obs - 3.2,
+          compact ? 1 : 2,
+          compact ? 4.8 : 5.2,
+        );
         const lineCount = Math.max(desc.lines.length, obs.lines.length, 1);
-        const rowH = Math.max(5.8, 2.65 * lineCount + 2.3);
+        const rowH = compact ? 5.6 : Math.max(5.8, 2.65 * lineCount + 2.3);
 
         let x = margin;
         doc.setDrawColor(...line);
@@ -1014,9 +1028,10 @@ export function UrbanAnalysisChecklistPanel({
         title: string,
         items: ChecklistTemplateItem[],
         startY: number,
+        compact = false,
       ) => {
         let y = drawTableHeader(title, startY);
-        for (const item of items) y = drawRow(item, y);
+        for (const item of items) y = drawRow(item, y, compact);
         return y;
       };
 
@@ -1113,16 +1128,11 @@ export function UrbanAnalysisChecklistPanel({
           doc.setFont("helvetica", "normal");
           doc.setTextColor(...muted);
           doc.setFontSize(5.4);
+          const pendingMessage = signature
+            ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
+            : "Aguardando assinatura eletrônica com senha de acesso.";
           doc.text(
-            signature
-              ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
-              : "Aguardando assinatura eletrônica com senha de acesso.",
-            doc.splitTextToSize(
-              signature
-                ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
-                : "Aguardando assinatura eletrônica com senha de acesso.",
-              w - 10,
-            ),
+            doc.splitTextToSize(pendingMessage, w - 10).slice(0, 3),
             x + 5,
             y + 17,
           );
@@ -1162,10 +1172,15 @@ export function UrbanAnalysisChecklistPanel({
         43,
       );
 
-      y = drawSectionRows("Engenharia - Itens 21 a 31", ENGINEERING_ITEMS.slice(20), 51);
-      y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y + 4);
+      y = drawSectionRows(
+        "Engenharia - Itens 21 a 31",
+        ENGINEERING_ITEMS.slice(20),
+        51,
+        true,
+      );
+      y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y + 4, true);
 
-      const resultY = Math.min(Math.max(y + 4, 170), 197);
+      const resultY = Math.max(y + 4, 170);
       doc.setFillColor(...light);
       doc.setDrawColor(...line);
       doc.roundedRect(margin, resultY, contentW, 25, 2.2, 2.2, "FD");
