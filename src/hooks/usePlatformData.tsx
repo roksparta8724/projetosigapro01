@@ -837,7 +837,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     () => initialStateRef.current?.contextUserId ?? null,
   );
   const lastFetchedUserId = useRef<string | null>(null);
-  const softRefreshInFlightRef = useRef(false);
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1152,30 +1151,6 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       throw error;
     }
   };
-
-  useEffect(() => {
-    const handleSoftRefresh = () => {
-      if (softRefreshInFlightRef.current) return;
-
-      // F5 permanece na MESMA árvore React. Os dados oficiais são buscados em
-      // segundo plano e trocados de forma atômica somente depois da resposta,
-      // sem loading global, sem desmontar cards, tema, menu ou guia ativa.
-      softRefreshInFlightRef.current = true;
-      void refreshRemoteStore()
-        .catch((error) => {
-          console.error("[SIGAPRO][SoftRefresh] Falha ao atualizar dados oficiais.", error);
-        })
-        .finally(() => {
-          softRefreshInFlightRef.current = false;
-          window.dispatchEvent(new CustomEvent("sigapro-soft-refresh-complete"));
-        });
-    };
-
-    window.addEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
-    return () => {
-      window.removeEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
-    };
-  }, [authenticatedUserId]);
 
   // Não atualize o store inteiro em focus/visibility: esse padrão substituía
   // simultaneamente processos, plano, tema e permissões, causando cards,
