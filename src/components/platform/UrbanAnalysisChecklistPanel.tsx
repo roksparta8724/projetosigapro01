@@ -83,22 +83,22 @@ const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: 
   A: {
     label: "De acordo",
     short: "A",
-    classes: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-emerald-950/45 dark:text-emerald-200",
+    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_6px_16px_rgba(5,150,105,0.28)] ring-2 ring-emerald-200/80 dark:border-emerald-400 dark:bg-emerald-500 dark:!text-slate-950 dark:ring-emerald-300/30",
   },
   AP: {
     label: "Apresentar",
     short: "AP",
-    classes: "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/50 dark:bg-sky-950/45 dark:text-sky-200",
+    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_6px_16px_rgba(2,132,199,0.28)] ring-2 ring-sky-200/80 dark:border-sky-400 dark:bg-sky-500 dark:!text-slate-950 dark:ring-sky-300/30",
   },
   C: {
     label: "Corrigir",
     short: "C",
-    classes: "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-950/45 dark:text-amber-200",
+    classes: "border-amber-600 bg-amber-500 !text-slate-950 shadow-[0_6px_16px_rgba(217,119,6,0.28)] ring-2 ring-amber-200/80 dark:border-amber-300 dark:bg-amber-400 dark:!text-slate-950 dark:ring-amber-300/30",
   },
   NA: {
     label: "Não se aplica",
     short: "N/A",
-    classes: "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
+    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_6px_16px_rgba(51,65,85,0.25)] ring-2 ring-slate-200/80 dark:border-slate-400 dark:bg-slate-300 dark:!text-slate-950 dark:ring-slate-300/30",
   },
 };
 
@@ -613,11 +613,12 @@ export function UrbanAnalysisChecklistPanel({
                       type="button"
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-8 items-center justify-center rounded-xl border px-2.5 text-[10px] font-bold transition",
+                        "inline-flex h-9 min-w-10 items-center justify-center rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
                         selected
                           ? STATUS_META[status].classes
                           : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                       )}
+                      aria-pressed={selected}
                       title={STATUS_META[status].label}
                     >
                       {STATUS_META[status].short}
@@ -641,7 +642,7 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader data-force-card-contrast="dark" className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
+      <CardHeader data-force-card-contrast="dark" data-premium-process-dark-header="analysis" className="border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 text-white shadow-inner md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
@@ -657,20 +658,20 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[430px]">
-            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
+            <div className="rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(3,105,161,0.24)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Avaliados</p>
               <p className="mt-1 text-xl font-bold !text-white">{counts.evaluated}/{counts.total}</p>
             </div>
-            <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.12] px-3 py-3">
+            <div className="rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">De acordo</p>
               <p className="mt-1 text-xl font-bold !text-emerald-50">{counts.a}</p>
             </div>
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.12] px-3 py-3">
+            <div className="rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
               <p className="mt-1 text-xl font-bold !text-amber-50">{pendingCorrectionCount}</p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Progresso</p>
+            <div className="rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.22)]">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Progresso</p>
               <p className="mt-1 text-xl font-bold !text-white">{progress}%</p>
             </div>
           </div>
