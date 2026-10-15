@@ -320,10 +320,18 @@ begin
   order by tm.updated_at desc nulls last
   limit 1;
 
-  _position := lower(unaccent(coalesce(_membership.position_title,'') || ' ' || coalesce(_membership.profile_label,'')));
-  _department := lower(unaccent(coalesce(_membership.department,'')));
+  _position := lower(translate(
+    coalesce(_membership.position_title,'') || ' ' || coalesce(_membership.profile_label,''),
+    'ÁÀÃÂÉÊÍÓÔÕÚÇáàãâéêíóôõúç',
+    'AAAAEEIOOOUCaaaaeeiooouc'
+  ));
+  _department := lower(translate(
+    coalesce(_membership.department,''),
+    'ÁÀÃÂÉÊÍÓÔÕÚÇáàãâéêíóôõúç',
+    'AAAAEEIOOOUCaaaaeeiooouc'
+  ));
 
-  if _position !~ '\mdiretor(a)?\M'
+  if _position !~ '(diretor|diretora)'
      or _department !~ '(urban|obra|planejamento|projeto|habitacao)' then
     raise exception 'A assinatura final exige usuário cadastrado como Diretor/Diretora da área de Planejamento Urbano ou Obras.';
   end if;
