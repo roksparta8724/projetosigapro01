@@ -659,19 +659,19 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[430px]">
-            <div className="rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(3,105,161,0.24)]">
+            <div data-analysis-metric="blue" className="rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(3,105,161,0.24)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Avaliados</p>
               <p className="mt-1 text-xl font-bold !text-white">{counts.evaluated}/{counts.total}</p>
             </div>
-            <div className="rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.22)]">
+            <div data-analysis-metric="emerald" className="rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">De acordo</p>
               <p className="mt-1 text-xl font-bold !text-emerald-50">{counts.a}</p>
             </div>
-            <div className="rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.22)]">
+            <div data-analysis-metric="amber" className="rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
               <p className="mt-1 text-xl font-bold !text-amber-50">{pendingCorrectionCount}</p>
             </div>
-            <div className="rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.22)]">
+            <div data-analysis-metric="cyan" className="rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Progresso</p>
               <p className="mt-1 text-xl font-bold !text-white">{progress}%</p>
             </div>
