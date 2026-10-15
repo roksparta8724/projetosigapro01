@@ -136,3 +136,20 @@ describe("organogram surface polarity", () => {
     expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 });
+
+
+describe("dispatch organogram destination cards", () => {
+  it("keeps every destination readable without duplicated code/path clutter", () => {
+    const detail = readFileSync(
+      resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
+      "utf8",
+    );
+
+    expect(detail).toContain("getPathRecords: getOrganizationPathRecords");
+    expect(detail).toContain("hierarchyLabel");
+    expect(detail).toContain("Destino selecionado");
+    expect(detail).toContain("h-9 min-w-[48px]");
+    expect(detail).toContain("sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4");
+    expect(detail).not.toContain('max-w-[310px] truncate">{getOrganizationPath(department.name)}');
+  });
+});
