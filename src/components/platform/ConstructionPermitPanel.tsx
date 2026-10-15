@@ -313,7 +313,8 @@ export function ConstructionPermitPanel({
         data-force-card-contrast="dark"
         data-premium-process-dark-header="permit"
         data-permit-dark-header="true"
-        className="border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] dark:border-slate-700"
+        data-premium-inverse-surface="true"
+        className="sig-process-dark-surface-v9 border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] dark:border-slate-700"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
