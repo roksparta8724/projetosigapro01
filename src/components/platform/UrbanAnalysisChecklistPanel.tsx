@@ -99,7 +99,7 @@ function buildChecklistSignaturePayload(
   return {
     schema: "sigapro.urban-analysis-checklist.v2",
     processId: process.id,
-    protocol: formatOfficialProcessNumber(process),
+    protocol: formatOfficialProcessNumber(process.protocol),
     municipalityId,
     analysisDate: state.analysisDate,
     sheetNumber: state.sheetNumber,
