@@ -204,7 +204,10 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
-    const reauth = await reauthenticateWithPassword(email, password, origin);
+    const authOrigin =
+      readEnv("E_SIGNATURE_AUTH_ORIGIN") ||
+      "https://sigapromunicipal.com.br";
+    const reauth = await reauthenticateWithPassword(email, password, authOrigin);
     if (!reauth.ok) {
       json(res, 401, { error: "Senha de acesso incorreta. A assinatura não foi realizada." });
       return;
