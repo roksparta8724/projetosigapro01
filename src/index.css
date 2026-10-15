@@ -9592,3 +9592,83 @@ html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
 }
 
 /* ===== END PROCESS DETAIL VISIBILITY CONTRACT V10 ===== */
+
+
+/* ===== PROCESS DARK HEADERS + ORGANOGRAM ACRONYMS V10 ===== */
+/* Scope intentionally limited to process blue headers. Does not touch the topbar or global theme. */
+html body [data-premium-process-dark-header] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body [data-premium-process-dark-header] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body [data-premium-process-dark-header] :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+html body [data-premium-process-dark-header] .text-slate-200,
+html body [data-premium-process-dark-header] .text-slate-300 {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+html body [data-premium-process-dark-header] .text-sky-100,
+html body [data-premium-process-dark-header] .text-cyan-100 {
+  color:#e0f2fe !important;
+  -webkit-text-fill-color:#e0f2fe !important;
+}
+
+/* Official organogram path inside the blue cards. */
+html body [data-premium-process-dark-header] [data-dark-organogram-trail="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body [data-premium-process-dark-header] [data-dark-organogram-code="true"] {
+  background:rgba(255,255,255,.12) !important;
+  border-color:rgba(255,255,255,.32) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 7px 18px rgba(2,20,35,.18) !important;
+}
+html body [data-premium-process-dark-header] [data-dark-organogram-code="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* The chosen checklist state must remain obvious in every theme. */
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-width:2px !important;
+  font-weight:900 !important;
+  transform:translateY(-1px) scale(1.07) !important;
+}
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important;
+  border-color:#065f46 !important;
+  box-shadow:0 0 0 4px rgba(16,185,129,.26),0 10px 22px rgba(5,150,105,.30) !important;
+}
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important;
+  border-color:#075985 !important;
+  box-shadow:0 0 0 4px rgba(14,165,233,.26),0 10px 22px rgba(2,132,199,.30) !important;
+}
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#d97706 !important;
+  border-color:#92400e !important;
+  box-shadow:0 0 0 4px rgba(245,158,11,.26),0 10px 22px rgba(217,119,6,.30) !important;
+}
+html body [data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#334155 !important;
+  border-color:#0f172a !important;
+  box-shadow:0 0 0 4px rgba(100,116,139,.26),0 10px 22px rgba(51,65,85,.30) !important;
+}
+/* ===== END PROCESS DARK HEADERS + ORGANOGRAM ACRONYMS V10 ===== */
