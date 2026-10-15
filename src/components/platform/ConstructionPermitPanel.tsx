@@ -309,11 +309,11 @@ export function ConstructionPermitPanel({
 
   return (
     <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-      <CardHeader data-force-card-contrast="dark" data-premium-process-dark-header="permit" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 text-white shadow-inner dark:border-slate-700">
+      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 !text-white shadow-inner dark:border-slate-700">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 shadow-inner">
-              <FileBadge2 className="h-6 w-6" />
+            <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
+              <FileBadge2 className="h-6 w-6 !text-white" />
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
@@ -704,10 +704,10 @@ export function ConstructionPermitPanel({
 
             <Dialog open={fillOpen} onOpenChange={setFillOpen}>
               <DialogContent className="z-[95] max-h-[92vh] w-[min(1180px,calc(100vw-32px))] max-w-none overflow-hidden rounded-[28px] border-slate-200 bg-white p-0 shadow-[0_32px_100px_rgba(15,23,42,0.34)] dark:border-slate-700 dark:bg-slate-950">
-                <DialogHeader data-force-card-contrast="dark" data-premium-process-dark-header="permit-dialog" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-6 py-5 pr-14 text-left shadow-inner dark:border-slate-700">
+                <DialogHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit-dialog" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-6 py-5 pr-14 text-left shadow-inner dark:border-slate-700">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white">
-                      <ClipboardPenLine className="h-6 w-6" />
+                    <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
+                      <ClipboardPenLine className="h-6 w-6 !text-white" />
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-100">
