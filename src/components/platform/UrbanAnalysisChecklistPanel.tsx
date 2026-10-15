@@ -581,7 +581,7 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
-    <section data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
+    <section data-analysis-section="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
@@ -596,7 +596,7 @@ export function UrbanAnalysisChecklistPanel({
         {items.map((item) => {
           const itemState = state.items[item.id] ?? { status: "", observation: "" };
           return (
-            <div key={item.id} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center">
+            <div key={item.id} data-analysis-row="true" className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {item.order}
@@ -777,7 +777,7 @@ export function UrbanAnalysisChecklistPanel({
         {renderSection("Engenharia", "Conferência documental e técnica do projeto.", ENGINEERING_ITEMS)}
         {renderSection("Aprovações externas", "Órgãos e documentos complementares exigidos conforme o caso.", EXTERNAL_ITEMS)}
 
-        <section data-force-card-contrast="adaptive" className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
+        <section data-analysis-conclusion="true" data-force-card-contrast="adaptive" className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
           <div>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
@@ -842,7 +842,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
-        <section data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+        <section data-analysis-validation="true" data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
@@ -865,7 +865,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            <div className={cn(
+            <div data-analysis-signature-card="technical" className={cn(
               "rounded-[20px] border p-4",
               state.technicalSignature
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
@@ -902,7 +902,7 @@ export function UrbanAnalysisChecklistPanel({
               ) : null}
             </div>
 
-            <div className={cn(
+            <div data-analysis-signature-card="fiscal" className={cn(
               "rounded-[20px] border p-4",
               state.fiscalSignature
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
