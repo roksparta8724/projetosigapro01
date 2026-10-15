@@ -92,7 +92,7 @@ html body #root .sig-main-shell #sig-process-document-command-center .sig-comman
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) {
   background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
   background-color: #ffffff !important;
@@ -103,7 +103,7 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
@@ -112,7 +112,7 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy):not([data-ui="badge"]) {
   color: #526174 !important;
   -webkit-text-fill-color: #526174 !important;
@@ -121,7 +121,7 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) {
   background: linear-gradient(180deg,#11283f 0%,#0a1928 100%) !important;
   background-color: #0a1928 !important;
@@ -132,7 +132,7 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
@@ -141,7 +141,7 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy):not([data-ui="badge"]) {
   color: #cbd8e8 !important;
   -webkit-text-fill-color: #cbd8e8 !important;
@@ -150,7 +150,7 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"]
 ) svg:not([data-keep-color="true"]) {
   color: currentColor !important;
   stroke: currentColor !important;
@@ -160,52 +160,52 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 /* VIVID SEMANTIC CARDS                                                       */
 /* -------------------------------------------------------------------------- */
 
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] {
   color: #172033 !important;
   -webkit-text-fill-color: #172033 !important;
 }
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="emerald"] {
   background: linear-gradient(180deg,#ecfdf5 0%,#dcfce7 100%) !important;
   border-color: #86efac !important;
 }
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="amber"] {
   background: linear-gradient(180deg,#fffbeb 0%,#fef3c7 100%) !important;
   border-color: #fcd34d !important;
 }
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="sky"] {
   background: linear-gradient(180deg,#f0f9ff 0%,#dff4ff 100%) !important;
   border-color: #7dd3fc !important;
 }
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="neutral"] {
   background: linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%) !important;
   border-color: #cbd5e1 !important;
 }
-html body #root [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
   color: #172033 !important;
   -webkit-text-fill-color: #172033 !important;
 }
 
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
 }
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="emerald"] {
   background: linear-gradient(145deg,#0b4537 0%,#08745a 100%) !important;
   border-color: rgba(52,211,153,.40) !important;
 }
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="amber"] {
   background: linear-gradient(145deg,#563b08 0%,#8b5e08 100%) !important;
   border-color: rgba(251,191,36,.40) !important;
 }
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="sky"] {
   background: linear-gradient(145deg,#0b3858 0%,#0d638f 100%) !important;
   border-color: rgba(56,189,248,.40) !important;
 }
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="neutral"] {
   background: linear-gradient(145deg,#1a2c40 0%,#263e55 100%) !important;
   border-color: #3a5a73 !important;
 }
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
 }
