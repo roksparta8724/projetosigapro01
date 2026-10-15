@@ -150,6 +150,62 @@
     <script>
       (function () {
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
+
+        try {
+          var raw = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
+          var sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          if (!raw || !sessionRaw) return;
+
+          var snapshot = JSON.parse(raw);
+          var session = JSON.parse(sessionRaw);
+          var userId =
+            session &&
+            session.id &&
+            session.accountStatus !== "blocked" &&
+            session.accountStatus !== "inactive"
+              ? String(session.id)
+              : "";
+          var locationKey =
+            window.location.pathname + window.location.search + window.location.hash;
+
+          var valid =
+            snapshot &&
+            snapshot.host === window.location.host &&
+            snapshot.location === locationKey &&
+            snapshot.userId === userId &&
+            userId &&
+            typeof snapshot.html === "string" &&
+            snapshot.html.length > 500 &&
+            typeof snapshot.savedAt === "number" &&
+            Date.now() - snapshot.savedAt < 1000 * 60 * 5;
+
+          if (!valid) {
+            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
+            return;
+          }
+
+          var overlay = document.createElement("div");
+          overlay.id = "sigapro-refresh-snapshot";
+          overlay.setAttribute("aria-hidden", "true");
+          overlay.setAttribute("inert", "");
+          overlay.style.position = "fixed";
+          overlay.style.inset = "0";
+          overlay.style.zIndex = "2147483646";
+          overlay.style.overflow = "hidden";
+          overlay.style.pointerEvents = "none";
+          overlay.style.background = "var(--sig-initial-bg,#f5f7fb)";
+          overlay.innerHTML = snapshot.html;
+          document.body.appendChild(overlay);
+
+          if (typeof snapshot.scrollX === "number" || typeof snapshot.scrollY === "number") {
+            overlay.scrollLeft = snapshot.scrollX || 0;
+            overlay.scrollTop = snapshot.scrollY || 0;
+          }
+        } catch (error) {
+          try {
+            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
+          } catch (_) {}
+        }
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
