@@ -10,13 +10,16 @@ describe("F5, logout and topbar visual continuity", () => {
   const bootstrap = readFileSync(resolve(process.cwd(), "src/hooks/useAppBootstrap.tsx"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
-  it("reuses the real previous root during a full refresh without a separate shell overlay", () => {
-    expect(html).toContain('var continuityKey = "sigapro.refresh.continuity.v1"');
-    expect(html).toContain('root.setAttribute("data-sigapro-continuity", "true")');
+  it("never injects stale application HTML before React takes ownership of the root", () => {
+    expect(html).not.toContain('root.setAttribute("data-sigapro-continuity", "true")');
+    expect(html).not.toContain("root.innerHTML = snapshot.html");
     expect(html).not.toContain('<div id="sigapro-refresh-snapshot"');
     expect(html).not.toContain("sigapro-snapshot-page");
+    expect(html).toContain('data-sigapro-initial-render');
     expect(main).toContain('const CONTINUITY_KEY = "sigapro.refresh.continuity.v1"');
     expect(main).toContain("persistRefreshContinuity");
+    expect(main).not.toContain("html: root.innerHTML");
+    expect(main).toContain('removeAttribute("data-sigapro-initial-render")');
     expect(main).not.toContain("waitForStableFrame");
     expect(main).not.toContain("window.scrollTo");
   });
@@ -28,7 +31,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
   });
 
-  it("loads critical process styles before the continuity snapshot is painted", () => {
+  it("loads critical process styles before the first React paint", () => {
     expect(html).toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
     expect(html).toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
   });
