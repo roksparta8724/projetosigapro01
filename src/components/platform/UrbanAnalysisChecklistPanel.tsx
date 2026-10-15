@@ -83,22 +83,22 @@ const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: 
   A: {
     label: "De acordo",
     short: "A",
-    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_6px_16px_rgba(5,150,105,0.28)] ring-2 ring-emerald-200/80 dark:border-emerald-400 dark:bg-emerald-500 dark:!text-slate-950 dark:ring-emerald-300/30",
+    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_8px_20px_rgba(5,150,105,0.32)] ring-2 ring-emerald-200/90 dark:border-emerald-300 dark:bg-emerald-600 dark:!text-white dark:ring-emerald-300/40",
   },
   AP: {
     label: "Apresentar",
     short: "AP",
-    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_6px_16px_rgba(2,132,199,0.28)] ring-2 ring-sky-200/80 dark:border-sky-400 dark:bg-sky-500 dark:!text-slate-950 dark:ring-sky-300/30",
+    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_8px_20px_rgba(2,132,199,0.32)] ring-2 ring-sky-200/90 dark:border-sky-300 dark:bg-sky-600 dark:!text-white dark:ring-sky-300/40",
   },
   C: {
     label: "Corrigir",
     short: "C",
-    classes: "border-amber-600 bg-amber-500 !text-slate-950 shadow-[0_6px_16px_rgba(217,119,6,0.28)] ring-2 ring-amber-200/80 dark:border-amber-300 dark:bg-amber-400 dark:!text-slate-950 dark:ring-amber-300/30",
+    classes: "border-amber-700 bg-amber-600 !text-white shadow-[0_8px_20px_rgba(217,119,6,0.32)] ring-2 ring-amber-200/90 dark:border-amber-300 dark:bg-amber-600 dark:!text-white dark:ring-amber-300/40",
   },
   NA: {
     label: "Não se aplica",
     short: "N/A",
-    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_6px_16px_rgba(51,65,85,0.25)] ring-2 ring-slate-200/80 dark:border-slate-400 dark:bg-slate-300 dark:!text-slate-950 dark:ring-slate-300/30",
+    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_8px_20px_rgba(51,65,85,0.30)] ring-2 ring-slate-200/90 dark:border-slate-300 dark:bg-slate-600 dark:!text-white dark:ring-slate-300/40",
   },
 };
 
@@ -631,7 +631,7 @@ export function UrbanAnalysisChecklistPanel({
                       data-selected={selected ? "true" : "false"}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
+                        "sig-checklist-status inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
                         selected
                           ? STATUS_META[status].classes
                           : "border-slate-300 bg-white text-slate-600 shadow-sm hover:-translate-y-px hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
@@ -640,7 +640,7 @@ export function UrbanAnalysisChecklistPanel({
                       title={STATUS_META[status].label}
                     >
                       {selected ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : null}
-                      <span>{STATUS_META[status].short}</span>
+                      <span>{selected ? STATUS_META[status].label : STATUS_META[status].short}</span>
                     </button>
                   );
                 })}
@@ -661,7 +661,7 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="analysis" data-process-dark-header="true" className="border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 !text-white shadow-inner md:px-6">
+      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="analysis" data-process-dark-header="true" className="sig-process-dark-header border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 !text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_34px_rgba(2,34,57,0.20)] md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
