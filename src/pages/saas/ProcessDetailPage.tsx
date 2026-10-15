@@ -33,6 +33,7 @@ import {
   createRemoteProcessDispatchWithSignature,
   getRemoteProcessPrivateIdentity,
   issueRemotePaymentGuideWithSignature,
+  listRemoteProcessElectronicSignatures,
   saveRemoteProcessPrivateIdentity,
 } from "@/integrations/backend/platform";
 import {
@@ -62,6 +63,10 @@ import {
   workTypeCatalog,
 } from "@/lib/platform";
 import { validateBrazilianTaxId } from "@/lib/processIdentityValidation";
+import {
+  electronicSignatureLevelLabel,
+  type ElectronicSignatureRecord,
+} from "@/lib/electronicSignature";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 function officialMunicipalityLabel(value: string | null | undefined) {
@@ -189,12 +194,29 @@ export function ProcessDetailPage() {
     ? "Carregando organograma..."
     : organizationError;
   const [privateIdentity, setPrivateIdentity] = useState<ProcessPrivateIdentityRecord | null>(null);
+  const [electronicSignatures, setElectronicSignatures] = useState<ElectronicSignatureRecord[]>([]);
   const [privateIdentityLoading, setPrivateIdentityLoading] = useState(false);
   const [privateIdentityStatus, setPrivateIdentityStatus] = useState("");
   const [isEditingPrivateIdentity, setIsEditingPrivateIdentity] = useState(false);
   const [privateIdentityForm, setPrivateIdentityForm] = useState<ProcessIdentityEditForm>(
     EMPTY_PROCESS_IDENTITY_FORM,
   );
+
+  const reloadElectronicSignatures = async () => {
+    if (!processId) {
+      setElectronicSignatures([]);
+      return;
+    }
+    try {
+      setElectronicSignatures(await listRemoteProcessElectronicSignatures(processId));
+    } catch {
+      setElectronicSignatures([]);
+    }
+  };
+
+  useEffect(() => {
+    void reloadElectronicSignatures();
+  }, [processId]);
 
   const isMasterOrMunicipalAdmin =
     session.role === "master_admin" ||
@@ -950,6 +972,14 @@ export function ProcessDetailPage() {
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
+    const selectedGuideSignature = selectedGuide.id
+      ? electronicSignatures.find(
+          (signature) =>
+            signature.entityType === "payment_guide_issue" &&
+            signature.entityId === selectedGuide.id &&
+            !signature.revokedAt,
+        )
+      : undefined;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
     const selectedGuideIssuer =
@@ -1019,6 +1049,23 @@ export function ProcessDetailPage() {
         valorCobrado: selectedGuide.amount,
         autenticacaoMecanica: "",
         referencia: getGuideReference(selectedGuide.kind),
+        assinaturaEletronica: selectedGuideSignature
+          ? {
+              signerName: selectedGuideSignature.signerName,
+              signerTitle:
+                selectedGuideSignature.signerTitle ||
+                selectedGuideSignature.signerProfileLabel ||
+                undefined,
+              departmentCode: selectedGuideSignature.departmentCode || undefined,
+              departmentName: selectedGuideSignature.departmentName || undefined,
+              signedAt: selectedGuideSignature.signedAt,
+              signatureCode: selectedGuideSignature.signatureCode,
+              signatureFingerprint: selectedGuideSignature.signatureFingerprint,
+              assuranceLabel: electronicSignatureLevelLabel(
+                selectedGuideSignature.assuranceLevel,
+              ),
+            }
+          : undefined,
       },
       itens: [
         {
@@ -1344,6 +1391,7 @@ export function ProcessDetailPage() {
             statement: "Emissão da Guia de ISSQN / Projeto pela Análise Urbanística.",
           });
           await refreshRemoteStore();
+          await reloadElectronicSignatures();
         },
         "Guia de ISSQN / Projeto emitida e assinada eletronicamente.",
       );
@@ -1359,6 +1407,7 @@ export function ProcessDetailPage() {
             statement: "Emissão da Guia de ISSQN / Projeto pelo Financeiro.",
           });
           await refreshRemoteStore();
+          await reloadElectronicSignatures();
         },
         "Guia de ISSQN / Projeto emitida e assinada eletronicamente pelo Financeiro.",
       );
@@ -1379,6 +1428,7 @@ export function ProcessDetailPage() {
             statement: `Despacho para ${action.toDepartment}: ${action.subject}`,
           });
           await refreshRemoteStore();
+          await reloadElectronicSignatures();
         },
         "Despacho registrado e assinado eletronicamente.",
       );
