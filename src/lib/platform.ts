@@ -2310,7 +2310,7 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
   if (!normalized) return "";
   if (/protocolo|protocol|triagem|recepcao|administracao|administrativo|expediente|atendimento/.test(normalized)) return "protocolos";
   if (/finance|financa|fazenda|tribut|arrecad/.test(normalized)) return "financeiro";
-  if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao/.test(normalized)) return "analise";
+  if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao|fiscal|fiscalizacao|postura|topografia|cadista/.test(normalized)) return "analise";
   return normalized;
 }
 
@@ -2360,7 +2360,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "setor_intersetorial":
       return "/prefeitura/protocolos";
     case "fiscal":
-      return "/prefeitura/financeiro/iptu";
+      return "/prefeitura/analise";
     case "profissional_externo":
     case "professional":
     case "profissional":
