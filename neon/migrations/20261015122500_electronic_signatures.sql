@@ -458,8 +458,108 @@ begin
 end;
 $$;
 
+create or replace function public.issue_process_payment_guide_signed_v2(
+  _process_id uuid,
+  _guide_kind text,
+  _due_date date,
+  _statement text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public','extensions'
+set row_security to 'off'
+as $
+declare
+  _issued jsonb;
+  _guide_id text;
+  _guide_hash text;
+  _signature jsonb;
+begin
+  perform public.require_recent_password_auth_v1(180);
+
+  _issued := public.issue_process_payment_guide_v2(_process_id,_guide_kind,_due_date);
+  _guide_id := coalesce(_issued->'guide'->>'id',_issued->>'guide_id',_issued->>'id');
+
+  if nullif(_guide_id,'') is null then
+    select g.id::text into _guide_id
+    from public.payment_guides g
+    where g.process_id=_process_id and g.guide_kind=_guide_kind
+    order by g.created_at desc
+    limit 1;
+  end if;
+
+  select encode(extensions.digest(to_jsonb(g)::text,'sha256'),'hex')
+    into _guide_hash
+  from public.payment_guides g
+  where g.id::text=_guide_id and g.process_id=_process_id;
+
+  if nullif(_guide_id,'') is null or nullif(_guide_hash,'') is null then
+    raise exception 'Guia emitida sem registro oficial para assinatura';
+  end if;
+
+  _signature := public.create_electronic_signature_v1(
+    _process_id,'payment_guide_issue',_guide_id,_guide_hash,null,
+    coalesce(_statement,'Emissão de guia municipal')
+  );
+
+  return _issued || jsonb_build_object('electronic_signature',_signature);
+end;
+$;
+
+create or replace function public.create_process_dispatch_signed_v2(
+  _process_id uuid,
+  _from_department text,
+  _to_department text,
+  _subject text,
+  _due_at timestamptz,
+  _visibility text,
+  _priority text,
+  _assigned_to text,
+  _statement text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public','extensions'
+set row_security to 'off'
+as $
+declare
+  _dispatch_result jsonb;
+  _dispatch_id text;
+  _dispatch_hash text;
+  _signature jsonb;
+begin
+  perform public.require_recent_password_auth_v1(180);
+
+  _dispatch_result := public.create_process_dispatch(
+    _process_id,_from_department,_to_department,_subject,_due_at,
+    _visibility,_priority,_assigned_to
+  );
+  _dispatch_id := _dispatch_result->'dispatch'->>'id';
+
+  select encode(extensions.digest(to_jsonb(d)::text,'sha256'),'hex')
+    into _dispatch_hash
+  from public.interdepartmental_dispatches d
+  where d.id::text=_dispatch_id and d.process_id=_process_id;
+
+  if nullif(_dispatch_id,'') is null or nullif(_dispatch_hash,'') is null then
+    raise exception 'Despacho criado sem registro oficial para assinatura';
+  end if;
+
+  _signature := public.create_electronic_signature_v1(
+    _process_id,'process_dispatch',_dispatch_id,_dispatch_hash,null,
+    coalesce(_statement,'Despacho interdepartamental')
+  );
+
+  return _dispatch_result || jsonb_build_object('electronic_signature',_signature);
+end;
+$;
+
 grant execute on function public.create_electronic_signature_v1(uuid,text,text,text,integer,text) to authenticated;
 grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
 grant execute on function public.approve_process_document_signed_v1(uuid,text,text) to authenticated;
 grant execute on function public.issue_process_payment_guide_signed_v1(uuid,text,date,text,text) to authenticated;
 grant execute on function public.create_process_dispatch_signed_v1(uuid,text,text,text,timestamptz,text,text,text,text,text) to authenticated;
+grant execute on function public.issue_process_payment_guide_signed_v2(uuid,text,date,text) to authenticated;
+grant execute on function public.create_process_dispatch_signed_v2(uuid,text,text,text,timestamptz,text,text,text,text) to authenticated;
