@@ -32,7 +32,7 @@ create unique index if not exists ux_process_signature_requests_pending
 create index if not exists ix_process_signature_requests_process
   on public.process_signature_requests(process_id, signer_slot, requested_at desc);
 
-revoke all on table public.process_signature_requests from anon, authenticated;
+revoke all on table public.process_signature_requests from authenticated;
 
 create or replace function public.get_process_artifact_signature_context_v1(
   _process_id uuid,
