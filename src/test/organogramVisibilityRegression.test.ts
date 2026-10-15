@@ -13,6 +13,7 @@ describe("municipal organogram visibility", () => {
     expect(portal).toContain('title="Organograma do departamento"');
     expect(portal).toContain("departmentOrganogramHint");
     expect(bar).toContain('data-municipal-organogram="true"');
+    expect(bar).toContain("sig-organogram-card");
     expect(bar).toContain("Ver organograma completo");
   });
 
