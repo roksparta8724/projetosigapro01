@@ -167,6 +167,7 @@ function bootApplication() {
 
 window.addEventListener("beforeunload", persistRefreshContinuity, { capture: true });
 window.addEventListener("pagehide", persistRefreshContinuity, { capture: true });
+window.addEventListener("pageswap", persistRefreshContinuity as EventListener, { capture: true });
 
 window.addEventListener("sigapro-platform-session-updated", () => {
   try {
