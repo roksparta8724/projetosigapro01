@@ -787,6 +787,7 @@ function getInitialPlatformStoreState() {
         store: warmStore.store,
         source: "warm" as const,
         legacyStore,
+        contextUserId: warmStore.userId,
       };
     }
 
@@ -797,6 +798,7 @@ function getInitialPlatformStoreState() {
         : staticCatalogStore,
       source: "local" as const,
       legacyStore,
+      contextUserId: null,
     };
   }
 
@@ -805,6 +807,7 @@ function getInitialPlatformStoreState() {
     store: initialStore,
     source: initialStore === defaultStore ? ("demo" as const) : ("local" as const),
     legacyStore: null,
+    contextUserId: readCachedPlatformSession()?.id ?? null,
   };
 }
 
@@ -830,7 +833,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const [dataError, setDataError] = useState<string | null>(null);
-  const [remoteContextUserId, setRemoteContextUserId] = useState<string | null>(null);
+  const [remoteContextUserId, setRemoteContextUserId] = useState<string | null>(
+    () => initialStateRef.current?.contextUserId ?? null,
+  );
   const lastFetchedUserId = useRef<string | null>(null);
   const allowRemoteInLocal =
     isNeonBackend ||
@@ -1569,7 +1574,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       !loading &&
       (
         !expectsRemoteStore ||
-        source === "remote"
+        source === "remote" ||
+        source === "warm"
       ),
     );
 
