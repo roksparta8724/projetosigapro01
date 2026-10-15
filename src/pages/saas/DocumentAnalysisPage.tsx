@@ -35,7 +35,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -123,12 +122,6 @@ export function DocumentAnalysisPage() {
   const isMasterAnalysisOperator =
     session.role === "master_admin" || session.role === "master_ops";
   const isAnalysisSupervisor = session.role === "prefeitura_supervisor";
-  const isCurrentAnalysisOwner =
-    !!process &&
-    (
-      isProcessOwnedBySessionDepartment(session, process) ||
-      process.analysis?.assignedProfileId === session.id
-    );
 
   const canUseAnalysis =
     !!process &&
@@ -138,10 +131,7 @@ export function DocumentAnalysisPage() {
     (
       isMasterAnalysisOperator ||
       isAnalysisSupervisor ||
-      (
-        canAccessMunicipalArea(session, "analise") &&
-        isCurrentAnalysisOwner
-      )
+      (session.role === "analista" && canAccessMunicipalArea(session, "analise"))
     );
 
   useEffect(() => {
