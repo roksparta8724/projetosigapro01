@@ -4,6 +4,7 @@
   CheckCircle2,
   Clock3,
   Download,
+  Eye,
   FileText,
   ListTodo,
   Search,
