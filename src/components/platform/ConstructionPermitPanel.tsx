@@ -308,7 +308,7 @@ export function ConstructionPermitPanel({
   };
 
   return (
-    <Card className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+    <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
       <CardHeader data-force-card-contrast="dark" className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-5 py-5 text-white dark:border-slate-700 [&_*]:!text-white">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
@@ -357,7 +357,7 @@ export function ConstructionPermitPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5 p-5 md:p-6">
+      <CardContent data-workspace-surface="adaptive" className="space-y-5 p-5 md:p-6">
         {externalView ? (
           permit && isIssued ? (
             <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
@@ -467,7 +467,7 @@ export function ConstructionPermitPanel({
             </div>
 
             {!permit ? (
-              <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
+              <div data-permit-prep="true" className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="font-semibold text-slate-950 dark:text-white">
@@ -479,7 +479,7 @@ export function ConstructionPermitPanel({
                   </div>
                   <Button
                     type="button"
-                    className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] px-5 font-bold text-white shadow-[0_10px_24px_rgba(14,116,181,0.22)] hover:brightness-105"
+                    className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white"
                     disabled={!canStartDraft}
                     onClick={preparePermit}
                   >
