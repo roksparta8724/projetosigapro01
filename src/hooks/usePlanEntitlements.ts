@@ -13,6 +13,7 @@ export function usePlanEntitlements() {
   const {
     plans,
     planAssignments,
+    source: platformDataSource,
     loading: platformDataLoading,
     dataError,
     dataReadyForCurrentUser,
@@ -60,13 +61,40 @@ export function usePlanEntitlements() {
     !authenticatedMunicipalityId ||
     sessionMunicipalityId === authenticatedMunicipalityId;
 
-  // Mesmo o Master deve aguardar a confirmação da identidade real antes
-  // de montar módulos. Plano comercial e Prefeitura são dispensados só depois.
+  const hasStableCachedSession =
+    session.id !== "unknown" &&
+    Boolean(session.role) &&
+    (
+      isMaster ||
+      Boolean(sessionMunicipalityId) ||
+      session.role === "profissional_externo" ||
+      session.role === "proprietario_consulta" ||
+      session.role === "property_owner"
+    );
+
+  // Se o provedor já informou outra identidade, bloqueie imediatamente para
+  // nunca cruzar contas. No F5 da MESMA conta, porém, a sessão visual cacheada
+  // permanece autorizada para renderização enquanto a revalidação ocorre.
+  const explicitIdentityMismatch =
+    Boolean(authenticatedBusinessUserId) &&
+    session.id !== authenticatedBusinessUserId;
+
   const authContextUnresolved =
-    authLoading ||
-    !authResolved ||
-    !identityMatchesAuth ||
-    session.id === "unknown";
+    explicitIdentityMismatch ||
+    (
+      !hasStableCachedSession &&
+      (
+        authLoading ||
+        !authResolved ||
+        !identityMatchesAuth ||
+        session.id === "unknown"
+      )
+    );
+
+  const hasWarmPlanContext =
+    platformDataSource === "warm" &&
+    hasStableCachedSession &&
+    (isMaster || Boolean(sessionMunicipalityId));
 
   const isResolving =
     authContextUnresolved ||
@@ -74,8 +102,8 @@ export function usePlanEntitlements() {
       !municipalityMatchesAuth ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
-      !dataReadyForCurrentUser ||
-      Boolean(dataError && !dataReadyForCurrentUser)
+      (!dataReadyForCurrentUser && !hasWarmPlanContext) ||
+      Boolean(dataError && !dataReadyForCurrentUser && !hasWarmPlanContext)
     ));
 
   // Carregamentos de fundo da Prefeitura ou do store não podem desmontar uma
