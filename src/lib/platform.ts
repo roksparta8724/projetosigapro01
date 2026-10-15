@@ -2639,18 +2639,24 @@ export function canAnalyzeProcessDocument(
     return true;
   }
 
+  // Segurança: o vínculo municipal do USUÁRIO precisa coincidir com o processo.
+  // O escopo visual da página nunca concede acesso por conta própria.
+  const sessionScopeId = getOperationalScopeId(session);
+  if (!sessionScopeId || !matchesOperationalScope(sessionScopeId, process)) {
+    return false;
+  }
+
   if (session.role === "prefeitura_supervisor") {
-    const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? null;
-    return matchesOperationalScope(processScopeId, process);
+    return true;
   }
 
   if (session.role !== "analista") return false;
   if (!canAccessMunicipalArea(session, "analise")) return false;
 
-  // Em páginas vinculadas a um processo, o próprio processo é a fonte canônica
-  // do escopo. Isso evita bloqueio falso quando o contexto visual da Prefeitura
-  // ainda está atualizando após troca de conta/F5.
-  const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? null;
+  // Depois de validar o vínculo municipal do usuário, usamos o escopo do próprio
+  // processo para a checagem operacional. Isso evita bloqueio falso quando o
+  // contexto visual da Prefeitura ainda está atualizando após troca de conta/F5.
+  const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? sessionScopeId;
   return canAccessProcess(session, process, processScopeId);
 }
 
