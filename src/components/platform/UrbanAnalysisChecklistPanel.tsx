@@ -611,6 +611,7 @@ export function UrbanAnalysisChecklistPanel({
                     <button
                       key={status}
                       type="button"
+                      data-checklist-status={status}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
                         "inline-flex h-9 min-w-10 items-center justify-center rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
@@ -769,7 +770,7 @@ export function UrbanAnalysisChecklistPanel({
         <div data-analysis-legend="true" data-force-card-contrast="adaptive" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900">
           <span className="font-bold text-slate-700 dark:text-slate-200">Legenda:</span>
           {(Object.keys(STATUS_META) as Array<Exclude<ChecklistStatus, "">>).map((status) => (
-            <span key={status} className={cn("rounded-full border px-2.5 py-1 font-semibold", STATUS_META[status].classes)}>
+            <span key={status} data-checklist-status={status} data-selected="true" className={cn("rounded-full border px-2.5 py-1 font-semibold", STATUS_META[status].classes)}>
               {STATUS_META[status].short} = {STATUS_META[status].label}
             </span>
           ))}
