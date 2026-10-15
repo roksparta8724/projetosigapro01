@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
+import { SignedApprovalWorkflowPanel } from "@/components/platform/SignedApprovalWorkflowPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { PageHero } from "@/components/platform/PageHero";
@@ -2610,6 +2611,16 @@ export function ProcessDetailPage() {
               technicalProfile={linkedTechnicalProfile}
             />
           )}
+
+          {!isExternalProcessViewer && activeTab === "analise" ? (
+            <SignedApprovalWorkflowPanel
+              processId={process.id}
+              onChanged={async () => {
+                await refreshRemoteStore();
+                await reloadElectronicSignatures();
+              }}
+            />
+          ) : null}
 
           {!isExternalProcessViewer && activeTab === "analise" && (
           <Card className={cardShell}>
