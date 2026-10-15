@@ -2,47 +2,7 @@ import { type ReactNode } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
-
-function hasValidRefreshContinuity() {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const raw = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
-    const sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
-    if (!raw || !sessionRaw) return false;
-
-    const snapshot = JSON.parse(raw) as {
-      host?: string;
-      location?: string;
-      userId?: string;
-      savedAt?: number;
-    };
-    const cachedSession = JSON.parse(sessionRaw) as {
-      id?: string;
-      accountStatus?: string;
-    };
-
-    const currentLocation =
-      window.location.pathname + window.location.search + window.location.hash;
-    const cachedUserId =
-      cachedSession.id &&
-      cachedSession.accountStatus !== "blocked" &&
-      cachedSession.accountStatus !== "inactive"
-        ? String(cachedSession.id)
-        : "";
-
-    return (
-      Boolean(cachedUserId) &&
-      snapshot.host === window.location.host &&
-      snapshot.location === currentLocation &&
-      snapshot.userId === cachedUserId &&
-      typeof snapshot.savedAt === "number" &&
-      Date.now() - snapshot.savedAt < 1000 * 60 * 5
-    );
-  } catch {
-    return false;
-  }
-}
+import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
 
 export function PlanModuleRoute({
   module,
