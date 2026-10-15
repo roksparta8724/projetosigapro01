@@ -31,8 +31,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
-  canAccessMunicipalArea,
-  canAccessProcess,
+  canAnalyzeProcessDocument,
   formatOfficialProcessNumber,
   getProcessById,
 } from "@/lib/platform";
@@ -86,7 +85,13 @@ export function DocumentAnalysisPage() {
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    process?.municipalityId ??
+    process?.tenantId ??
+    municipality?.id ??
+    scopeId ??
+    session.tenantId ??
+    null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [accessError, setAccessError] = useState("");
   const [tool, setTool] = useState<AnalysisTool>(() => {
@@ -119,20 +124,10 @@ export function DocumentAnalysisPage() {
       ? `sigapro:document-review-draft:${session.id}:${process.id}:${document.id}`
       : "";
 
-  const isMasterAnalysisOperator =
-    session.role === "master_admin" || session.role === "master_ops";
-  const isAnalysisSupervisor = session.role === "prefeitura_supervisor";
-
   const canUseAnalysis =
     !!process &&
     !!document &&
-    session.role !== "prefeitura_admin" &&
-    canAccessProcess(session, process, effectiveScopeId) &&
-    (
-      isMasterAnalysisOperator ||
-      isAnalysisSupervisor ||
-      (session.role === "analista" && canAccessMunicipalArea(session, "analise"))
-    );
+    canAnalyzeProcessDocument(session, process, effectiveScopeId);
 
   useEffect(() => {
     setLocalReviewStatus(
@@ -535,6 +530,10 @@ export function DocumentAnalysisPage() {
   }
 
   if (!canUseAnalysis) {
+    if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") {
+      return <DocumentWorkspaceBoot mode="analysis" />;
+    }
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#dfe5ec] p-6">
         <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
