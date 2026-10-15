@@ -7102,3 +7102,126 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-
 
 /* ===== END SIGAPRO PROCESS SURFACE CONTRACT V3 ===== */
 
+
+
+/* ===== SIGAPRO CONTRAST HARD STOP — PROCESS ONLY 2026-10-14 ===== */
+/*
+  Última camada, propositalmente no fim do arquivo.
+  Escopo: SOMENTE processo/documentos/organograma.
+  Não toca topbar, sidebar, rodapé ou cores do tema institucional.
+*/
+
+/* Superfície documental fixa escura: jamais herdar texto escuro do tema claro. */
+html body .sig-main-shell #sig-process-document-command-center {
+  background: linear-gradient(135deg,#06192d 0%,#075985 55%,#0b719b 100%) !important;
+  border-color: rgba(125,211,252,.30) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html body .sig-main-shell #sig-process-document-command-center * {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell #sig-process-document-command-center svg,
+html body .sig-main-shell #sig-process-document-command-center svg * {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric {
+  border-color: rgba(255,255,255,.22) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-blue {
+  background: linear-gradient(145deg,#075985 0%,#0c7eb9 100%) !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-emerald {
+  background: linear-gradient(145deg,#056249 0%,#079b70 100%) !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric-amber {
+  background: linear-gradient(145deg,#8b5b06 0%,#b97b08 100%) !important;
+}
+
+/* Todo chip explicitamente escuro dentro do processo usa foreground claro. */
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"],
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"] svg,
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"] svg * {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+/* Organograma: os chips escuros ficam legíveis em qualquer tema. */
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"] *,
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-code="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-code="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Tema claro: cards adaptativos realmente claros + texto escuro. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border-color: #d3dfeb !important;
+  color: #0b1726 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]):not([data-contrast-surface="dark"] *),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-meta,.sig-label):not([data-contrast-surface="dark"] *),
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-meta,.sig-label) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+/* Tema inverso: cards escuros + texto claro, sem exceção acidental. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  background: linear-gradient(180deg,#12283f 0%,#091827 100%) !important;
+  border-color: #2d4d68 !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-meta,.sig-label),
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-meta,.sig-label) {
+  color: #cbd8e8 !important;
+  -webkit-text-fill-color: #cbd8e8 !important;
+}
+
+/* Ações primárias de processo/documento sempre fortes e legíveis. */
+html body .sig-main-shell :is([data-primary-action="process"],[data-primary-action="document"]) {
+  background: linear-gradient(135deg,#075985 0%,#0b78b6 100%) !important;
+  border-color: #0b6fa8 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 12px 28px rgba(7,89,133,.30) !important;
+}
+html body .sig-main-shell :is([data-primary-action="process"],[data-primary-action="document"]) *,
+html body .sig-main-shell :is([data-primary-action="process"],[data-primary-action="document"]) svg {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+/* ===== END SIGAPRO CONTRAST HARD STOP ===== */
