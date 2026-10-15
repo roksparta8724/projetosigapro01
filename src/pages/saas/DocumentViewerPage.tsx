@@ -63,6 +63,10 @@ export function DocumentViewerPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
+  const process = useMemo(
+    () => (processId ? getProcessById(processId, processes) : undefined),
+    [processId, processes],
+  );
   const effectiveScopeId =
     process?.municipalityId ??
     process?.tenantId ??
@@ -72,11 +76,6 @@ export function DocumentViewerPage() {
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
-
-  const process = useMemo(
-    () => (processId ? getProcessById(processId, processes) : undefined),
-    [processId, processes],
-  );
   const document = useMemo(
     () => process?.documents.find((item) => item.id === documentId),
     [documentId, process],
