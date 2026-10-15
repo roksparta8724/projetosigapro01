@@ -1633,7 +1633,7 @@ export function UrbanAnalysisChecklistPanel({
           <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
             <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:border-r xl:border-b-0">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
-              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">{process.protocol?.trim() || "Não informado"}</p>
             </div>
             <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 xl:border-b-0 xl:border-r">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Requerente / proprietário</p>
@@ -1653,7 +1653,7 @@ export function UrbanAnalysisChecklistPanel({
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
-            <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+            <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{process.protocol?.trim() || "Não informado"}</p>
             <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{process.title}</p>
           </div>
           <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
