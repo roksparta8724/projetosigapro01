@@ -1691,7 +1691,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1700,7 +1700,7 @@ export function ProcessDetailPage() {
                     {constructionPermit?.permitNumber || "Em preparação"}
                   </p>
                 </div>
-                <span data-summary-icon="permit" className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-100 text-sky-800 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/70 dark:text-sky-100">
+                <span data-summary-icon="permit" className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-100 text-sky-800 shadow-[0_8px_18px_rgba(14,165,233,0.14)] dark:border-sky-500/40 dark:bg-sky-950/70 dark:text-sky-100">
                   <FileBadge2 className="h-4 w-4" />
                 </span>
               </div>
@@ -1714,7 +1714,7 @@ export function ProcessDetailPage() {
               <Button
                 type="button"
                 data-primary-action="process"
-                className="mt-4 min-h-11 w-full rounded-xl bg-sky-700 px-4 font-bold text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:bg-sky-800"
+                className="mt-4 min-h-11 w-full rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-4 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-105 [&_*]:!text-white"
                 onClick={() => setProcessTab("alvara")}
               >
                 {constructionPermit?.status === "emitido"
