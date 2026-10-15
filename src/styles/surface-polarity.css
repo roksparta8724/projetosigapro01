@@ -732,3 +732,318 @@ html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail
 }
 
 /* PROCESS DETAIL VISIBILITY LOCK V13 END */
+
+
+/* ==========================================================================
+   PROCESS DETAIL VISIBILITY LOCK V14 — AUTHORITATIVE FINAL OVERRIDE
+   This file is imported AFTER index.css. Scope is only the opened process.
+   Topbar/sidebar/footer/theme controls are intentionally untouched.
+   ========================================================================== */
+
+/* Fixed dark process headers: strong blue surface + unquestionably light copy. */
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+:is(#sig-process-document-command-center,[data-analysis-dark-header="true"],[data-permit-dark-header="true"]) {
+  background:linear-gradient(135deg,#041829 0%,#075985 54%,#087ba8 100%) !important;
+  background-color:#06192b !important;
+  border-color:rgba(125,211,252,.34) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-shadow:none !important;
+}
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+:is(#sig-process-document-command-center,[data-analysis-dark-header="true"],[data-permit-dark-header="true"])
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a,button) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+:is(#sig-process-document-command-center,[data-analysis-dark-header="true"],[data-permit-dark-header="true"])
+:is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+:is(#sig-process-document-command-center,[data-analysis-dark-header="true"],[data-permit-dark-header="true"])
+:is(.text-slate-200,.text-slate-300,.text-slate-400,.text-sky-100,.text-cyan-100) {
+  color:#e6f4ff !important;
+  -webkit-text-fill-color:#e6f4ff !important;
+}
+
+/* Vivid metrics inside fixed dark headers. */
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+[data-analysis-dark-header="true"] [data-analysis-metric],
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-command-metric] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-color:rgba(255,255,255,.24) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 10px 24px rgba(2,6,23,.20) !important;
+}
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+[data-analysis-dark-header="true"] [data-analysis-metric] *,
+html body #root .sig-app-frame .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-command-metric] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* Summary cards: deterministic polarity in the app's real theme system. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] {
+  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  border-color:#cbd9e6 !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(.sig-field-help,.sig-label,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#4f6378 !important;
+  -webkit-text-fill-color:#4f6378 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] {
+  background:linear-gradient(180deg,#10263d 0%,#0a1929 100%) !important;
+  border-color:#2f506d !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(.sig-field-help,.sig-label,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c8d7e8 !important;
+  -webkit-text-fill-color:#c8d7e8 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#eef9ff 0%,#dff2ff 100%) !important;
+  border-color:#38bdf8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#0c3553 0%,#0a2237 100%) !important;
+  border-color:#1c86b8 !important;
+}
+
+/* Analysis sheet adaptive surfaces. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+:is([data-analysis-section="true"],[data-analysis-identity="true"],[data-analysis-mini-card="true"]) {
+  background:#ffffff !important;
+  border-color:#d7e2ee !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+:is([data-analysis-section="true"],[data-analysis-identity="true"],[data-analysis-mini-card="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+:is([data-analysis-section="true"],[data-analysis-identity="true"],[data-analysis-mini-card="true"]) {
+  background:#102136 !important;
+  border-color:#2e4c68 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+:is([data-analysis-section="true"],[data-analysis-identity="true"],[data-analysis-mini-card="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-analysis-section-header="true"] {
+  background:linear-gradient(180deg,#152b44 0%,#102238 100%) !important;
+  border-color:#2e4c68 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-analysis-row="true"] {
+  background:#102136 !important;
+  border-color:#263f59 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-analysis-row="true"] :is(p,span,strong,small,label) {
+  color:#f3f7fb !important;
+  -webkit-text-fill-color:#f3f7fb !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-analysis-row="true"] input {
+  background:#091727 !important;
+  border-color:#36546f !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-analysis-row="true"] input::placeholder {
+  color:#9db0c5 !important;
+  -webkit-text-fill-color:#9db0c5 !important;
+}
+
+/* Checklist status buttons: selected state has check icon + solid semantic fill. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status] {
+  min-width:48px !important;
+  height:40px !important;
+  border-radius:12px !important;
+  font-weight:900 !important;
+  transform:none !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-width:2px !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#047857 !important;
+  border-color:#6ee7b7 !important;
+  box-shadow:0 0 0 4px rgba(16,185,129,.24),0 8px 20px rgba(5,150,105,.32) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0369a1 !important;
+  border-color:#7dd3fc !important;
+  box-shadow:0 0 0 4px rgba(14,165,233,.24),0 8px 20px rgba(2,132,199,.32) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#b45309 !important;
+  border-color:#fcd34d !important;
+  box-shadow:0 0 0 4px rgba(245,158,11,.24),0 8px 20px rgba(217,119,6,.32) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#334155 !important;
+  border-color:#cbd5e1 !important;
+  box-shadow:0 0 0 4px rgba(100,116,139,.24),0 8px 20px rgba(51,65,85,.32) !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#091727 !important;
+  border-color:#36546f !important;
+  color:#d5e1ee !important;
+  -webkit-text-fill-color:#d5e1ee !important;
+}
+
+/* Dispatch organogram: no white strip with white text in inverse mode. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] {
+  background:#ffffff !important;
+  border-color:#d7e2ee !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram-header="true"] {
+  background:linear-gradient(135deg,#f9fcff 0%,#edf5fb 100%) !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram-header="true"] :is(p,span,strong,small) {
+  color:#172033 !important;
+  -webkit-text-fill-color:#172033 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] {
+  background:#0b1726 !important;
+  border-color:#2d4964 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram-header="true"] {
+  background:linear-gradient(135deg,#142940 0%,#0e1e31 100%) !important;
+  border-color:#2d4964 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram-header="true"] :is(p,span,strong,small) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"] {
+  background:#16253a !important;
+  border-color:#304c68 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"]
+:is(span,strong,small) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"]
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#b9c9da !important;
+  -webkit-text-fill-color:#b9c9da !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-code="true"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-code="true"] * {
+  background:#075985 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="true"] {
+  background:linear-gradient(135deg,#075985 0%,#0b73a6 100%) !important;
+  border-color:#38bdf8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(56,189,248,.22),0 10px 24px rgba(2,132,199,.28) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* Construction permit body follows the real layout-mode, not Tailwind .dark only. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background:#0f1e30 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+:is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+/* PROCESS DETAIL VISIBILITY LOCK V14 END */
