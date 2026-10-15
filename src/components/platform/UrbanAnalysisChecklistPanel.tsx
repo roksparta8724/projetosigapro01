@@ -622,7 +622,7 @@ export function UrbanAnalysisChecklistPanel({
                       aria-pressed={selected}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "relative inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-[11px] font-black transition-all",
+                        "relative inline-flex h-11 min-w-[46px] items-center justify-center rounded-xl border px-3 text-[11px] font-black transition-all duration-150",
                         selected
                           ? status === "A"
                             ? "border-emerald-800 bg-emerald-600 !text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22),0_8px_18px_rgba(5,150,105,0.24)] ring-1 ring-emerald-300"
@@ -636,8 +636,13 @@ export function UrbanAnalysisChecklistPanel({
                       title={STATUS_META[status].label}
                     >
                       <span className="inline-flex items-center gap-1.5">
-                        {selected ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                        {selected ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : null}
                         <span>{STATUS_META[status].short}</span>
+                        {selected ? (
+                          <span className="hidden 2xl:inline text-[9px] font-extrabold uppercase tracking-[0.08em]">
+                            {STATUS_META[status].label}
+                          </span>
+                        ) : null}
                       </span>
                     </button>
                   );
@@ -660,6 +665,7 @@ export function UrbanAnalysisChecklistPanel({
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
       <CardHeader
+        data-fixed-dark-card="true"
         data-force-card-contrast="dark"
         data-premium-process-dark-header="analysis"
         data-analysis-dark-header="true"
