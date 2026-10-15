@@ -6,12 +6,14 @@ import {
   Landmark,
   ReceiptText,
   Scale,
+  Signature,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertCard } from "@/components/platform/AlertCard";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { PageHero } from "@/components/platform/PageHero";
 import {
   PageMainContent,
@@ -35,13 +37,16 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { issueRemotePaymentGuideWithSignature } from "@/integrations/backend/platform";
 
 export function IptuDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, issuePaymentGuide } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const [issueBusyId, setIssueBusyId] = useState("");
   const [issueStatus, setIssueStatus] = useState("");
+  const [signatureTargetProcessId, setSignatureTargetProcessId] = useState<string | null>(null);
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
@@ -92,7 +97,7 @@ export function IptuDeskPage() {
         );
       });
 
-  const handleIssueIssGuide = async (processId: string) => {
+  const handleIssueIssGuide = (processId: string) => {
     if (tenantSettings?.issStageEnabled === false) {
       setIssueStatus("A etapa de ISSQN está desativada no workflow financeiro desta Prefeitura.");
       return;
@@ -102,17 +107,32 @@ export function IptuDeskPage() {
       return;
     }
 
+    setIssueStatus("");
+    setSignatureTargetProcessId(processId);
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedIssGuide = async (password: string) => {
+    const processId = signatureTargetProcessId;
+    if (!processId) throw new Error("Nenhum processo selecionado para emissão.");
+
     setIssueBusyId(processId);
     setIssueStatus("");
     try {
-      await issuePaymentGuide(processId, session.name, "iss_obra");
-      setIssueStatus("Guia de ISSQN emitida no banco oficial com sucesso.");
+      await issueRemotePaymentGuideWithSignature({
+        processId,
+        guideKind: "iss_obra",
+        password,
+        statement: "Emissão da Guia de ISSQN pelo setor de Cadastro Imobiliário / IPTU.",
+      });
+      await refreshRemoteStore();
+      setIssueStatus("Guia de ISSQN emitida e assinada eletronicamente.");
+      setSignatureDialogOpen(false);
+      setSignatureTargetProcessId(null);
     } catch (error) {
-      setIssueStatus(
-        error instanceof Error
-          ? `Não foi possível emitir a guia de ISSQN: ${error.message}`
-          : "Não foi possível emitir a guia de ISSQN no banco oficial.",
-      );
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível emitir e assinar a guia de ISSQN.");
     } finally {
       setIssueBusyId("");
     }
@@ -303,9 +323,10 @@ export function IptuDeskPage() {
                               type="button"
                               className="rounded-full"
                               disabled={issueBusyId === process.id}
-                              onClick={() => void handleIssueIssGuide(process.id)}
+                              onClick={() => handleIssueIssGuide(process.id)}
                             >
-                              {issueBusyId === process.id ? "Emitindo..." : "Emitir guia ISSQN"}
+                              <Signature className="mr-2 h-4 w-4" />
+                          {issueBusyId === process.id ? "Assinando..." : "Emitir e assinar ISSQN"}
                             </Button>
                           </div>
                         </div>
@@ -541,6 +562,25 @@ export function IptuDeskPage() {
           </PageSideContent>
         </PageMainGrid>
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !issueBusyId) setSignatureTargetProcessId(null);
+        }}
+        title="Emitir e assinar Guia de ISSQN"
+        subject={
+          signatureTargetProcessId
+            ? formatOfficialProcessNumber(
+                allProcesses.find((process) => process.id === signatureTargetProcessId)?.protocol || "",
+              )
+            : "Processo municipal"
+        }
+        statement="Confirmo a emissão desta Guia de ISSQN com os dados fiscais e cadastrais registrados no processo."
+        busy={Boolean(issueBusyId)}
+        onConfirm={confirmSignedIssGuide}
+      />
     </PortalFrame>
   );
 }
