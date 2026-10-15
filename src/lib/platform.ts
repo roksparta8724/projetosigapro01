@@ -83,8 +83,16 @@ export interface SessionUser {
 }
 export type InstitutionSessionUser = SessionUser & { institutionId?: string | null };
 
-export function formatOfficialProcessNumber(protocol: string) {
-  const value = protocol?.trim() || "";
+export function formatOfficialProcessNumber(
+  protocol: string | { protocol?: string | null } | null | undefined,
+) {
+  const raw =
+    typeof protocol === "string"
+      ? protocol
+      : protocol && typeof protocol === "object"
+        ? protocol.protocol
+        : "";
+  const value = typeof raw === "string" ? raw.trim() : "";
   const auditMatch = value.match(/^AUDIT(?:-[A-Z0-9]+)?-(\d{4})(\d{2})(\d{2})-(\d+)$/i);
   if (auditMatch) {
     const year = auditMatch[1];
