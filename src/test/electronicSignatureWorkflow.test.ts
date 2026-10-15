@@ -36,10 +36,11 @@ describe("electronic signature workflow", () => {
   });
 
   it("approves documents transactionally with a password-backed signature", () => {
-    expect(migration).toContain("approve_process_document_signed_v1");
+    expect(migration).toContain("approve_process_document_signed_v2");
+    expect(migration).toContain("select d.process_id,d.version,lower(d.file_hash)");
     expect(migration).toContain("public.review_process_document(_document_id,'aprovado')");
     expect(analysis).toContain("approveRemoteProcessDocumentWithSignature");
-    expect(analysis).toContain("sha256RemoteFile(accessUrl)");
+    expect(analysis).not.toContain("sha256RemoteFile(accessUrl)");
     expect(analysis).toContain("Aprovar e assinar");
   });
 
