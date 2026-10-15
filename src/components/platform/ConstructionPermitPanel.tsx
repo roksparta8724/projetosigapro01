@@ -173,16 +173,17 @@ export function ConstructionPermitPanel({
 
   const selectedDirector =
     directors.find((item) => item.id === selectedDirectorId) ?? directors[0];
-  const canPrepare =
-    issPaymentConfirmed &&
-    allDocumentsApproved &&
+  const canStartDraft =
     !externalView &&
     userCanSignPermitAsAnalyst(session, process);
+  const permitReadyForSignature =
+    issPaymentConfirmed && allDocumentsApproved;
+  const canPrepare = canStartDraft;
   const canSignAnalyst =
     Boolean(permit) &&
+    permitReadyForSignature &&
     !permit?.analystSignature &&
-    !externalView &&
-    userCanSignPermitAsAnalyst(session, process);
+    canStartDraft;
   const canSignDirector =
     Boolean(permit?.analystSignature) &&
     !permit?.directorSignature &&
@@ -190,9 +191,8 @@ export function ConstructionPermitPanel({
     userCanSignPermitAsDirector(session);
   const canPreview = Boolean(permit);
   const canEditForm =
-    !externalView &&
-    !permit?.analystSignature &&
-    userCanSignPermitAsAnalyst(session, process);
+    canStartDraft &&
+    !permit?.analystSignature;
   const isIssued = permit?.status === "emitido";
 
   const openPdf = () => {
@@ -208,7 +208,7 @@ export function ConstructionPermitPanel({
   };
 
   const openPermitForm = () => {
-    if (!canEditForm && !canPrepare) return;
+    if (!canEditForm && !canStartDraft) return;
     setFormData({
       ...buildConstructionPermitFormData(process),
       ...(permit?.formData ?? {}),
@@ -222,7 +222,7 @@ export function ConstructionPermitPanel({
   };
 
   const savePermitForm = (openPreviewAfterSave = false) => {
-    if (!canEditForm && !canPrepare) return;
+    if (!canEditForm && !canStartDraft) return;
 
     const area = Number(String(formData.areaM2).replace(",", "."));
     if (!formData.ownerName.trim()) {
@@ -334,7 +334,7 @@ export function ConstructionPermitPanel({
             <Badge className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-white shadow-sm">
               {permitStatusLabel(permit)}
             </Badge>
-            {!externalView && (canPrepare || canEditForm) ? (
+            {!externalView && (canStartDraft || canEditForm) ? (
               <Button
                 type="button"
                 onClick={openPermitForm}
@@ -468,24 +468,45 @@ export function ConstructionPermitPanel({
             </div>
 
             {!permit ? (
-              <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
-                <p className="font-semibold text-slate-950 dark:text-white">
-                  O processo já retornou do Financeiro.
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Quando o ISSQN / Projeto estiver compensado e os documentos
-                  aprovados, a Análise Urbanística prepara o Alvará de
-                  Construção para assinatura técnica e assinatura da Diretoria.
-                </p>
-                <Button
-                  type="button"
-                  className="mt-4 rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
-                  disabled={!canPrepare}
-                  onClick={preparePermit}
-                >
-                  <PenLine className="mr-2 h-4 w-4" />
-                  Preencher Alvará de Construção
-                </Button>
+              <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950 dark:text-white">
+                      O Alvará pode ser preparado antecipadamente em rascunho.
+                    </p>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                      O analista já pode conferir e preencher todos os dados do documento. A assinatura técnica e a emissão final permanecem bloqueadas até o pagamento do ISSQN / Projeto estar compensado e a análise documental estar concluída.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] px-5 font-bold text-white shadow-[0_10px_24px_rgba(14,116,181,0.22)] hover:brightness-105"
+                    disabled={!canStartDraft}
+                    onClick={preparePermit}
+                  >
+                    <PenLine className="mr-2 h-4 w-4" />
+                    Abrir e preencher Alvará
+                  </Button>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <div className={issPaymentConfirmed
+                    ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
+                    : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito financeiro</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                      {issPaymentConfirmed ? "ISSQN / Projeto compensado" : "Aguardando compensação do ISSQN / Projeto"}
+                    </p>
+                  </div>
+                  <div className={allDocumentsApproved
+                    ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
+                    : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito técnico</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                      {allDocumentsApproved ? "Análise documental concluída" : "Aguardando conclusão da análise documental"}
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : (
               <>
