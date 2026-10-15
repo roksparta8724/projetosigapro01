@@ -303,6 +303,7 @@ export function ProcessDetailPage() {
   const [workTypeInput, setWorkTypeInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
+  const documentWorkspaceWindowRef = useRef<Window | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
     if (
@@ -1229,20 +1230,32 @@ export function ProcessDetailPage() {
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
 
-    const openedTab = window.open(workspaceUrl, "_blank");
+    // Reutiliza sempre a MESMA guia de trabalho documental.
+    // Isso elimina a duplicação de abas mesmo em clique duplo ou troca de documento.
+    const existingWorkspace = documentWorkspaceWindowRef.current;
+    const openedTab =
+      existingWorkspace && !existingWorkspace.closed
+        ? existingWorkspace
+        : window.open("", "sigapro-document-workspace");
 
     if (!openedTab) {
       setProcessActionStatus(
-        "O navegador bloqueou a nova guia do documento. Libere pop-ups para o SIGAPRO e tente novamente.",
+        "O navegador bloqueou a guia do documento. Libere pop-ups para o SIGAPRO e tente novamente.",
       );
       setOpeningDocumentId("");
       return;
     }
 
-    // Uma única nova guia, ocupando todo o viewport do navegador.
-    openedTab.opener = null;
-    openedTab.focus();
-    setOpeningDocumentId("");
+    documentWorkspaceWindowRef.current = openedTab;
+    try {
+      openedTab.opener = null;
+      if (openedTab.location.href !== workspaceUrl) {
+        openedTab.location.replace(workspaceUrl);
+      }
+      openedTab.focus();
+    } finally {
+      window.setTimeout(() => setOpeningDocumentId(""), 180);
+    }
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
