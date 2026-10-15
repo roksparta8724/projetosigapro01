@@ -3,10 +3,13 @@ import {
   BadgeCheck,
   Building2,
   CheckCircle2,
+  ClipboardPenLine,
   Clock3,
+  Eye,
   FileBadge2,
   FileDown,
   PenLine,
+  Save,
   ShieldCheck,
   Signature,
   UserCheck,
@@ -14,6 +17,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -23,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import {
   CONSTRUCTION_PERMIT_EVENT,
+  buildConstructionPermitFormData,
   createConstructionPermitDraft,
   getMunicipalDirectorCandidates,
   readLocalConstructionPermit,
@@ -30,7 +44,9 @@ import {
   signConstructionPermitAsDirector,
   userCanSignPermitAsAnalyst,
   userCanSignPermitAsDirector,
+  updateConstructionPermitFormData,
   writeLocalConstructionPermit,
+  type ConstructionPermitFormData,
   type ConstructionPermitRecord,
 } from "@/lib/constructionPermit";
 import { openConstructionPermitPdf } from "@/lib/constructionPermitPdf";
@@ -76,6 +92,15 @@ export function ConstructionPermitPanel({
     readLocalConstructionPermit(municipalityId, process.id),
   );
   const [status, setStatus] = useState("");
+  const [fillOpen, setFillOpen] = useState(false);
+  const [formData, setFormData] = useState<ConstructionPermitFormData>(() => ({
+    ...buildConstructionPermitFormData(process),
+    ...(readLocalConstructionPermit(municipalityId, process.id)?.formData ?? {}),
+    technicalRegistration:
+      readLocalConstructionPermit(municipalityId, process.id)?.formData?.technicalRegistration ||
+      technicalProfile?.registrationNumber ||
+      "",
+  }));
   const directors = useMemo(
     () => getMunicipalDirectorCandidates(sessionUsers, municipalityId),
     [municipalityId, sessionUsers],
@@ -89,6 +114,33 @@ export function ConstructionPermitPanel({
       setSelectedDirectorId(directors[0].id);
     }
   }, [directors, selectedDirectorId]);
+
+  useEffect(() => {
+    setFormData({
+      ...buildConstructionPermitFormData(process),
+      ...(permit?.formData ?? {}),
+      technicalRegistration:
+        permit?.formData?.technicalRegistration ||
+        technicalProfile?.registrationNumber ||
+        "",
+    });
+  }, [
+    permit?.updatedAt,
+    process.id,
+    process.address,
+    process.ownerName,
+    process.ownerDocument,
+    process.technicalLead,
+    process.property.area,
+    process.property.block,
+    process.property.constructionStandard,
+    process.property.iptu,
+    process.property.lot,
+    process.property.registration,
+    process.property.usage,
+    process.property.workType,
+    technicalProfile?.registrationNumber,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -137,6 +189,10 @@ export function ConstructionPermitPanel({
     !externalView &&
     userCanSignPermitAsDirector(session);
   const canPreview = Boolean(permit);
+  const canEditForm =
+    !externalView &&
+    !permit?.analystSignature &&
+    userCanSignPermitAsAnalyst(session, process);
   const isIssued = permit?.status === "emitido";
 
   if (externalView && !isIssued) {
@@ -155,15 +211,87 @@ export function ConstructionPermitPanel({
     });
   };
 
-  const preparePermit = () => {
-    if (!canPrepare) return;
-    const draft =
-      permit ?? createConstructionPermitDraft(process, municipalityId);
-    writeLocalConstructionPermit(draft);
-    setPermit(draft);
+  const openPermitForm = () => {
+    if (!canEditForm && !canPrepare) return;
+    setFormData({
+      ...buildConstructionPermitFormData(process),
+      ...(permit?.formData ?? {}),
+      technicalRegistration:
+        permit?.formData?.technicalRegistration ||
+        technicalProfile?.registrationNumber ||
+        "",
+    });
+    setStatus("");
+    setFillOpen(true);
+  };
+
+  const savePermitForm = (openPreviewAfterSave = false) => {
+    if (!canEditForm && !canPrepare) return;
+
+    const area = Number(String(formData.areaM2).replace(",", "."));
+    if (!formData.ownerName.trim()) {
+      setStatus("Informe o proprietário/titular do Alvará.");
+      return;
+    }
+    if (!formData.technicalLead.trim()) {
+      setStatus("Informe o responsável técnico.");
+      return;
+    }
+    if (!formData.propertyAddress.trim()) {
+      setStatus("Informe o endereço do imóvel.");
+      return;
+    }
+    if (!Number.isFinite(area) || area <= 0) {
+      setStatus("Informe uma área licenciada válida.");
+      return;
+    }
+    if (!formData.usage.trim() || !formData.workType.trim()) {
+      setStatus("Informe o uso da edificação e a natureza da obra.");
+      return;
+    }
+
+    const base =
+      permit ??
+      createConstructionPermitDraft(process, municipalityId, {
+        ...formData,
+        technicalRegistration:
+          formData.technicalRegistration ||
+          technicalProfile?.registrationNumber ||
+          "",
+      });
+
+    if (!permit) {
+      writeLocalConstructionPermit(base);
+    }
+
+    const next = updateConstructionPermitFormData(base, {
+      ...formData,
+      technicalRegistration:
+        formData.technicalRegistration ||
+        technicalProfile?.registrationNumber ||
+        "",
+    });
+
+    setPermit(next);
+    setFillOpen(false);
     setStatus(
-      "Rascunho do Alvará de Construção preparado. Revise o PDF e faça as assinaturas municipais.",
+      "Preenchimento do Alvará salvo em rascunho. Revise a prévia antes das assinaturas.",
     );
+
+    if (openPreviewAfterSave) {
+      openConstructionPermitPdf({
+        permit: next,
+        process,
+        municipalityName,
+        secretariat,
+        directorate,
+        technicalProfile,
+      });
+    }
+  };
+
+  const preparePermit = () => {
+    openPermitForm();
   };
 
   const signAsAnalyst = () => {
@@ -206,9 +334,31 @@ export function ConstructionPermitPanel({
             </div>
           </div>
 
-          <Badge className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-white shadow-sm">
-            {permitStatusLabel(permit)}
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Badge className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-white shadow-sm">
+              {permitStatusLabel(permit)}
+            </Badge>
+            {!externalView && (canPrepare || canEditForm) ? (
+              <Button
+                type="button"
+                onClick={openPermitForm}
+                className="h-9 rounded-full border border-white/20 bg-white px-4 text-[12px] font-bold !text-slate-950 shadow-sm hover:bg-sky-50"
+              >
+                <ClipboardPenLine className="mr-2 h-4 w-4 text-sky-700" />
+                Preencher Alvará
+              </Button>
+            ) : null}
+            {permit ? (
+              <Button
+                type="button"
+                onClick={openPdf}
+                className="h-9 rounded-full border border-white/20 bg-sky-500 px-4 text-[12px] font-bold !text-white shadow-sm hover:bg-sky-400"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Visualizar Alvará
+              </Button>
+            ) : null}
+          </div>
         </div>
       </CardHeader>
 
@@ -321,7 +471,7 @@ export function ConstructionPermitPanel({
                   onClick={preparePermit}
                 >
                   <PenLine className="mr-2 h-4 w-4" />
-                  Preparar Alvará de Construção
+                  Preencher Alvará de Construção
                 </Button>
               </div>
             ) : (
@@ -343,16 +493,29 @@ export function ConstructionPermitPanel({
                       O PDF em rascunho recebe marca d’água “SEM VALIDADE”. Ela
                       só desaparece depois das duas assinaturas.
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-4 rounded-full"
-                      disabled={!canPreview}
-                      onClick={openPdf}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" />
-                      Visualizar PDF
-                    </Button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {canEditForm ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={openPermitForm}
+                        >
+                          <ClipboardPenLine className="mr-2 h-4 w-4" />
+                          Editar preenchimento
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={!canPreview}
+                        onClick={openPdf}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Visualizar guia do Alvará
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35">
@@ -497,6 +660,154 @@ export function ConstructionPermitPanel({
                 ) : null}
               </>
             )}
+
+            <Dialog open={fillOpen} onOpenChange={setFillOpen}>
+              <DialogContent className="z-[95] max-h-[92vh] w-[min(1180px,calc(100vw-32px))] max-w-none overflow-hidden rounded-[28px] border-slate-200 bg-white p-0 shadow-[0_32px_100px_rgba(15,23,42,0.34)] dark:border-slate-700 dark:bg-slate-950">
+                <DialogHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-6 py-5 pr-14 text-left dark:border-slate-700">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white">
+                      <ClipboardPenLine className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-100">
+                        Preenchimento oficial
+                      </p>
+                      <DialogTitle className="mt-1 text-xl font-bold !text-white">
+                        Alvará de Construção
+                      </DialogTitle>
+                      <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
+                        O formulário abre sobre o processo, já preenchido com os dados existentes. Revise, ajuste o necessário e salve o rascunho antes das assinaturas.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="max-h-[calc(92vh-170px)] overflow-y-auto bg-slate-50/70 px-6 py-5 dark:bg-slate-900/70">
+                  <div className="grid gap-5">
+                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            Identificação
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
+                            Processo e número do Alvará
+                          </p>
+                        </div>
+                        <Badge className="rounded-full bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+                          {permit?.permitNumber || createConstructionPermitDraft(process, municipalityId).permitNumber}
+                        </Badge>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Processo</label>
+                          <Input value={process.protocol} readOnly className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Objeto do licenciamento</label>
+                          <Input
+                            value={formData.licenseObject}
+                            onChange={(event) => setFormData((current) => ({ ...current, licenseObject: event.target.value }))}
+                            className="h-11 rounded-xl"
+                            placeholder="Ex.: Construção residencial unifamiliar"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        Titular e responsável técnico
+                      </p>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Proprietário / titular</label>
+                          <Input value={formData.ownerName} onChange={(event) => setFormData((current) => ({ ...current, ownerName: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">CPF / CNPJ</label>
+                          <Input value={formData.ownerDocument} onChange={(event) => setFormData((current) => ({ ...current, ownerDocument: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Responsável técnico</label>
+                          <Input value={formData.technicalLead} onChange={(event) => setFormData((current) => ({ ...current, technicalLead: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">CREA / CAU / CFT</label>
+                          <Input value={formData.technicalRegistration} onChange={(event) => setFormData((current) => ({ ...current, technicalRegistration: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        Imóvel e obra
+                      </p>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="md:col-span-2 xl:col-span-4">
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Endereço do imóvel</label>
+                          <Input value={formData.propertyAddress} onChange={(event) => setFormData((current) => ({ ...current, propertyAddress: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Inscrição imobiliária / IPTU</label>
+                          <Input value={formData.propertyRegistration} onChange={(event) => setFormData((current) => ({ ...current, propertyRegistration: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Lote</label>
+                          <Input value={formData.lot} onChange={(event) => setFormData((current) => ({ ...current, lot: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Quadra</label>
+                          <Input value={formData.block} onChange={(event) => setFormData((current) => ({ ...current, block: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Área licenciada (m²)</label>
+                          <Input value={formData.areaM2} onChange={(event) => setFormData((current) => ({ ...current, areaM2: event.target.value }))} className="h-11 rounded-xl" inputMode="decimal" />
+                        </div>
+                        <div className="xl:col-span-2">
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Natureza da obra</label>
+                          <Input value={formData.workType} onChange={(event) => setFormData((current) => ({ ...current, workType: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Uso da edificação</label>
+                          <Input value={formData.usage} onChange={(event) => setFormData((current) => ({ ...current, usage: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Padrão construtivo</label>
+                          <Input value={formData.constructionStandard} onChange={(event) => setFormData((current) => ({ ...current, constructionStandard: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Condições / observações complementares
+                      </label>
+                      <Textarea
+                        value={formData.complementaryConditions}
+                        onChange={(event) => setFormData((current) => ({ ...current, complementaryConditions: event.target.value }))}
+                        className="min-h-[120px] resize-y rounded-xl"
+                        placeholder="Registre somente condições específicas que devam constar no Alvará."
+                      />
+                    </section>
+                  </div>
+                </div>
+
+                <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-950">
+                  <Button type="button" variant="outline" className="rounded-full" onClick={() => setFillOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" variant="outline" className="rounded-full" onClick={() => savePermitForm(false)}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Salvar rascunho
+                  </Button>
+                  <Button type="button" className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800" onClick={() => savePermitForm(true)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Salvar e visualizar Alvará
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {status ? (
               <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
