@@ -315,3 +315,78 @@ html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organog
 }
 
 /* End Surface Polarity Contract V8 */
+
+
+/* FINAL PROCESS POLARITY LOCK V9 - loaded last */
+/*
+ * This is the final authority for PROCESS surfaces only.
+ * It intentionally does NOT target topbar/sidebar/theme chrome.
+ */
+
+/* Document command center: fixed dark means pure light foreground, always. */
+html body #root .sig-main-shell #sig-process-document-command-center,
+html body #root .sig-main-shell #sig-process-document-command-center * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: none;
+}
+html body #root .sig-main-shell #sig-process-document-command-center svg,
+html body #root .sig-main-shell #sig-process-document-command-center svg * {
+  color: #eaf7ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center {
+  background: linear-gradient(135deg,#06192d 0%,#075985 52%,#0a719b 100%) !important;
+  background-color: #06192d !important;
+}
+html body #root .sig-main-shell #sig-process-document-command-center .sig-command-metric,
+html body #root .sig-main-shell #sig-process-document-command-center .sig-command-metric * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Dark organogram chips: dark pill + white text/icon regardless of page theme. */
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"],
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] *,
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"],
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organogram-code="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organogram-unit-chip="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Light process cards keep dark copy. */
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"],
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
+  color: #0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd),
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Inverse process cards keep light copy. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
+  color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+/* Primary actions are vivid and readable in both visual families. */
+html body #root .sig-main-shell [data-primary-action="process"],
+html body #root .sig-main-shell [data-primary-action="process"] *,
+html body #root .sig-main-shell [data-primary-action="document"],
+html body #root .sig-main-shell [data-primary-action="document"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
