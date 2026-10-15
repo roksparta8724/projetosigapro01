@@ -24,6 +24,14 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(main).not.toContain("window.scrollTo");
   });
 
+  it("keeps F5 inside the live React tree instead of performing a document reload", () => {
+    expect(html).toContain('event.key === "F5"');
+    expect(html).toContain('window.dispatchEvent(new CustomEvent("sigapro-soft-refresh"');
+    expect(html).toContain("event.preventDefault()");
+    expect(html).not.toContain("data-sigapro-document-preboot");
+    expect(html).not.toContain("isDocumentWorkspace");
+  });
+
   it("matches background and zoom before first paint", () => {
     expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v1")');
     expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme")');
