@@ -477,11 +477,11 @@ export function ExternalProcessControlPage() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end border-t border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-700/80 dark:bg-slate-950/35">
+                    <div className="border-t border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-700/80 dark:bg-slate-950/35">
                       <Button
                         asChild
                         data-primary-action="process"
-                        className="sig-primary-process-action h-11 w-full rounded-xl bg-[linear-gradient(135deg,#082f49_0%,#075985_45%,#0f78b8_100%)] px-5 text-[13px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 sm:w-[220px] [&_*]:!text-white"
+                        className="sig-primary-process-action h-14 w-full rounded-2xl px-6 text-[14px] font-bold !text-white transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                       >
                         <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
                           <Eye className="h-4 w-4 shrink-0 !text-white" />
