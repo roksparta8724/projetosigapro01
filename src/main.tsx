@@ -42,20 +42,10 @@ function isInternalPath(pathname: string) {
   );
 }
 
-function sanitizeContinuityHtml(html: string) {
-  return html
-    .replace(/\sid="[^"]*"/gi, "")
-    .replace(/\sname="[^"]*"/gi, "")
-    .replace(/\sautofocus(?:="[^"]*")?/gi, "");
-}
-
 function persistRefreshContinuity() {
   if (!isInternalPath(window.location.pathname)) return;
-
   const userId = currentIdentity();
-  const root = document.getElementById("root");
-  if (!userId || !root || root.innerHTML.length < 500) return;
-
+  if (!userId) return;
   try {
     window.sessionStorage.setItem(
       CONTINUITY_KEY,
@@ -63,14 +53,11 @@ function persistRefreshContinuity() {
         host: window.location.host,
         location: currentLocationKey(),
         userId,
-        html: sanitizeContinuityHtml(root.innerHTML),
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
         savedAt: Date.now(),
       }),
     );
   } catch {
-    // Continuidade visual é progressiva; quota/storage nunca bloqueiam o app.
+    // Continuidade de rota/sessão é auxiliar e nunca pode afetar a UI.
   }
 }
 
@@ -86,7 +73,8 @@ function clearLegacyRefreshArtifacts() {
   document.documentElement.removeAttribute("data-sigapro-booting");
   document.documentElement.removeAttribute("data-sigapro-internal");
 
-  // O overlay atual de continuidade só é removido após o app real sinalizar estabilidade.
+  const legacyOverlay = document.getElementById("sigapro-refresh-snapshot");
+  legacyOverlay?.remove();
 }
 
 async function clearLocalDevelopmentCaches() {
@@ -165,20 +153,11 @@ function bootApplication() {
   try {
     createRoot(rootElement).render(<App />);
 
-    const finishVisualHandoff = () => {
+    // O F5 comum é tratado dentro da aplicação e não desmonta o documento.
+    // Num cold boot real, apenas neutralizamos animações no primeiro frame.
+    window.requestAnimationFrame(() => {
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-      const overlay = document.getElementById("sigapro-refresh-snapshot");
-      if (overlay) {
-        overlay.remove();
-      }
-      window.removeEventListener("sigapro-app-stable", finishVisualHandoff as EventListener);
-    };
-
-    window.addEventListener("sigapro-app-stable", finishVisualHandoff as EventListener, { once: true });
-
-    // Segurança: em caso de falha inesperada no bootstrap, não deixar a cópia
-    // visual presa para sempre. O limite é longo o bastante para evitar flashes.
-    window.setTimeout(finishVisualHandoff, 8000);
+    });
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
