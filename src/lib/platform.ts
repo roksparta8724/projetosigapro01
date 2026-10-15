@@ -2387,6 +2387,23 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
   return department === area;
 }
 
+export function hasCompensatedIssReturnedToAnalysis(process: ProcessRecord) {
+  const paidIss = process.payment.guides?.some(
+    (guide) => guide.kind === "iss_obra" && guide.status === "compensada",
+  );
+
+  if (!paidIss) return false;
+
+  const currentFolder = normalizeDepartmentAccessLabel(
+    process.processControl?.currentFolder || "",
+  );
+
+  return (
+    process.status === "analise_tecnica" &&
+    /analise|urbanismo|urbanistica/.test(currentFolder)
+  );
+}
+
 export function isProcessOwnedBySessionDepartment(session: SessionUser, process: ProcessRecord) {
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
@@ -2395,6 +2412,10 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
 
   const userDepartment = resolveSessionOperationalArea(session);
   if (!userDepartment) return false;
+
+  if (hasCompensatedIssReturnedToAnalysis(process)) {
+    return userDepartment === "analise";
+  }
 
   const issuedIssGuide = process.payment.guides?.find(
     (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
@@ -2574,6 +2595,10 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   const userDepartmentRaw = session.department || session.title || "";
   const userDepartment = resolveSessionOperationalArea(session);
   if (!userDepartment) return false;
+
+  if (hasCompensatedIssReturnedToAnalysis(process)) {
+    return userDepartment === "analise";
+  }
 
   const issuedIssGuide = process.payment.guides?.find(
     (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
