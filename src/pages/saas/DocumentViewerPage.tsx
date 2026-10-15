@@ -19,7 +19,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
-  canAccessMunicipalArea,
+  canAnalyzeProcessDocument,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
@@ -63,7 +63,13 @@ export function DocumentViewerPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    process?.municipalityId ??
+    process?.tenantId ??
+    municipality?.id ??
+    scopeId ??
+    session.tenantId ??
+    null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
 
@@ -89,14 +95,7 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
-      session.role !== "prefeitura_admin" &&
-      canAccessProcess(session, process, effectiveScopeId) &&
-      (
-        session.role === "master_admin" ||
-        session.role === "master_ops" ||
-        session.role === "prefeitura_supervisor" ||
-        (session.role === "analista" && canAccessMunicipalArea(session, "analise"))
-      ),
+      canAnalyzeProcessDocument(session, process, effectiveScopeId),
   );
 
   const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
