@@ -9271,3 +9271,324 @@ html body .sig-main-shell .sig-process-detail-premium
 }
 
 /* ===== END PROCESS DETAIL CONTRAST FINAL V9 ===== */
+
+
+/* ===== PROCESS DETAIL VISIBILITY CONTRACT V10 =====
+   Escopo exclusivo do processo. Não altera topbar, sidebar ou tema global. */
+
+/* 1. Cabeçalhos azuis escuros: SEMPRE texto/ícones claros. */
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"],
+  #sig-process-document-command-center
+) {
+  background:linear-gradient(135deg,#06192b 0%,#0a4166 52%,#0879a8 100%) !important;
+  border-color:rgba(186,230,253,.20) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"],
+  #sig-process-document-command-center
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"],
+  #sig-process-document-command-center
+) :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"],
+  #sig-process-document-command-center
+) :is(.text-slate-200,.text-slate-300,.text-slate-400) {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"],
+  #sig-process-document-command-center
+) [data-analysis-metric],
+html body #root .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-command-metric] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-dark-header="true"] [data-analysis-metric],
+  #sig-process-document-command-center [data-command-metric]
+) :is(p,span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* 2. Cartões-resumo: claro = texto escuro; tema inverso = fundo escuro + texto claro. */
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-process-summary-card="true"] {
+  background:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  border-color:#cbd5e1 !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-process-summary-card="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-process-summary-card="true"]
+:is(.sig-field-help,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#526579 !important;
+  -webkit-text-fill-color:#526579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-process-summary-card="true"] {
+  background:linear-gradient(180deg,#11243a 0%,#0b1a2b 100%) !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  border-color:rgba(125,173,214,.30) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-process-summary-card="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-process-summary-card="true"]
+:is(.sig-field-help,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#cbd5e1 !important;
+  -webkit-text-fill-color:#cbd5e1 !important;
+}
+
+/* Alvará-resumo recebe o mesmo azul vivo da linguagem visual do processo. */
+html body .sig-process-detail-premium [data-permit-summary-card="true"] {
+  border-color:#38bdf8 !important;
+  box-shadow:0 14px 34px rgba(2,132,199,.16) !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#f5fbff 0%,#e1f3ff 100%) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#0b2a43 0%,#0a2135 100%) !important;
+}
+
+/* 3. Ficha técnica: tabelas e cartões adaptam-se ao tema real do SIGAPRO. */
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-section="true"],
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-identity="true"],
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-mini-card="true"] {
+  background:#ffffff !important;
+  border-color:#d7e2ee !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-section="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-identity="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-mini-card="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-analysis-section-header="true"] {
+  background:linear-gradient(180deg,#f8fbff 0%,#f1f6fb 100%) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-section="true"],
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-identity="true"],
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-mini-card="true"] {
+  background:#101f32 !important;
+  border-color:#29435e !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-section="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-identity="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-mini-card="true"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-section="true"]
+:is(.text-slate-600,.text-slate-500,.text-slate-400),
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-identity="true"]
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c8d6e5 !important;
+  -webkit-text-fill-color:#c8d6e5 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-section-header="true"] {
+  background:linear-gradient(180deg,#13263d 0%,#0e1e31 100%) !important;
+  border-color:#29435e !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-row="true"] {
+  background:#101f32 !important;
+  border-color:#263f59 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-row="true"]:hover {
+  background:#162a43 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-row="true"] input {
+  background:#0b1828 !important;
+  border-color:#36516d !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-analysis-row="true"] input::placeholder {
+  color:#94a3b8 !important;
+  -webkit-text-fill-color:#94a3b8 !important;
+}
+
+/* 4. Checklist: selecionado fica impossível de confundir. */
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status] {
+  min-width:46px !important;
+  height:40px !important;
+  border-radius:12px !important;
+  font-weight:900 !important;
+  transition:transform .15s ease, box-shadow .15s ease, background-color .15s ease !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status][data-selected="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-width:2px !important;
+  transform:translateY(-2px) scale(1.08) !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status][data-selected="true"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important;
+  border-color:#34d399 !important;
+  box-shadow:0 0 0 4px rgba(16,185,129,.24),0 10px 24px rgba(5,150,105,.34) !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important;
+  border-color:#38bdf8 !important;
+  box-shadow:0 0 0 4px rgba(14,165,233,.24),0 10px 24px rgba(2,132,199,.34) !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status="C"][data-selected="true"] {
+  background:#d97706 !important;
+  border-color:#fbbf24 !important;
+  box-shadow:0 0 0 4px rgba(245,158,11,.24),0 10px 24px rgba(217,119,6,.34) !important;
+}
+html body .sig-process-detail-premium [data-urban-analysis-sheet="true"]
+button[data-checklist-status="NA"][data-selected="true"] {
+  background:#475569 !important;
+  border-color:#94a3b8 !important;
+  box-shadow:0 0 0 4px rgba(100,116,139,.24),0 10px 24px rgba(51,65,85,.34) !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium
+button[data-checklist-status][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+button[data-checklist-status][data-selected="false"] {
+  background:#0b1828 !important;
+  border-color:#36516d !important;
+  color:#cbd5e1 !important;
+  -webkit-text-fill-color:#cbd5e1 !important;
+}
+
+/* 5. Organograma de despacho: elimina faixa branca ilegível no tema escuro. */
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-dispatch-organogram="true"] {
+  background:#ffffff !important;
+  border-color:#d7e2ee !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-dispatch-organogram-header="true"] {
+  background:linear-gradient(135deg,#f8fbff 0%,#edf5fb 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium [data-dispatch-organogram-header="true"]
+:is(p,span,strong,small) {
+  color:#1e293b !important;
+  -webkit-text-fill-color:#1e293b !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-dispatch-organogram="true"] {
+  background:#0b1726 !important;
+  border-color:#29435e !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-dispatch-organogram-header="true"] {
+  background:linear-gradient(135deg,#13263d 0%,#0d1b2b 100%) !important;
+  border-color:#29435e !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium [data-dispatch-organogram-header="true"]
+:is(p,span,strong,small) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"] {
+  background:#16243a !important;
+  border-color:#314a66 !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"]
+:is(span,strong,small) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"]
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#b9c9da !important;
+  -webkit-text-fill-color:#b9c9da !important;
+}
+html body .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="true"] {
+  background:linear-gradient(135deg,#075985 0%,#0b6f9f 100%) !important;
+  border-color:#38bdf8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(56,189,248,.22),0 10px 24px rgba(2,132,199,.28) !important;
+}
+html body .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="true"]
+:is(span,strong,small,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* 6. Alvará completo: cabeçalho azul consistente; corpo adaptável ao tema real. */
+html body #root .sig-main-shell .sig-process-detail-premium [data-permit-dark-header="true"] {
+  background:linear-gradient(135deg,#06192b 0%,#0a4166 52%,#0879a8 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background:#0f1e30 !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+
+/* ===== END PROCESS DETAIL VISIBILITY CONTRACT V10 ===== */
