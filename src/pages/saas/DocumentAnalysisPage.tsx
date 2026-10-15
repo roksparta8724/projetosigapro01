@@ -35,7 +35,6 @@ import {
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
-import { sha256RemoteFile } from "@/lib/electronicSignature";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
 type DraftAnnotation = {
@@ -289,11 +288,9 @@ export function DocumentAnalysisPage() {
     setBusy("review-aprovado");
     setStatus("");
     try {
-      const contentSha256 = await sha256RemoteFile(accessUrl);
       const result = await approveRemoteProcessDocumentWithSignature({
         documentId: document.id,
         password,
-        contentSha256,
         statement: `Aprovo o documento "${document.label}" na versão ${Number(document.version || 1)} após análise técnica.`,
       });
 
