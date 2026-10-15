@@ -100,21 +100,17 @@ describe("annotation draft and professional handoff", () => {
 
 
 describe("analyst document permission continuity", () => {
-  it("keeps the annotation workspace tied to the Analysis role without stale queue ownership", () => {
+  it("uses one canonical permission helper in process, viewer and analyzer", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(analysis).toContain('session.role !== "prefeitura_admin"');
-    expect(analysis).toContain('(session.role === "analista" && canAccessMunicipalArea(session, "analise"))');
-    expect(analysis).not.toContain("isCurrentAnalysisOwner");
+    expect(analysis).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
+    expect(viewer).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
+    expect(detail).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
+
     expect(analysis).not.toContain("isProcessOwnedBySessionDepartment");
-
-    expect(viewer).toContain('(session.role === "analista" && canAccessMunicipalArea(session, "analise"))');
     expect(viewer).not.toContain("isProcessOwnedBySessionDepartment");
-
-    expect(detail).toContain('session.role !== "prefeitura_admin"');
-    expect(detail).toContain('(session.role === "analista" && canAnalysisOperate)');
   });
 });
 
@@ -147,21 +143,28 @@ describe("analyst PDF markup entry", () => {
 
 
 describe("canonical analyst markup access", () => {
-  it("uses the canonical Analysis operational area with legacy-role fallback", () => {
+  it("keeps the assigned analyst authorized after the process advances to another queue", () => {
+    const platform = read("src/lib/platform.ts");
+
+    expect(platform).toContain("export function canAnalyzeProcessDocument");
+    expect(platform).toContain('if (session.role === "prefeitura_admin") return false');
+    expect(platform).toContain('if (session.role !== "analista") return false');
+    expect(platform).toContain('canAccessMunicipalArea(session, "analise")');
+    expect(platform).toContain("process.analysis?.assignedProfileId");
+    expect(platform).toContain("return assignedProfileId === session.id");
+    expect(platform).toContain("process.analysis?.assignedTo");
+    expect(platform).toContain("return canAccessProcess(session, process, processScopeId)");
+  });
+
+  it("derives document scope from the process before transient UI municipality state", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-    const platform = read("src/lib/platform.ts");
 
-    expect(viewer).toContain('session.role !== "prefeitura_admin"');
-    expect(viewer).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(analysis).toContain('session.role !== "prefeitura_admin"');
-    expect(analysis).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(detail).toContain('session.role !== "prefeitura_admin"');
-    expect(detail).toContain("canAnalysisOperate");
-
-    expect(platform).toContain("resolveSessionOperationalArea");
-    expect(platform).toContain('if (session.role === "analista") return "analise"');
+    for (const source of [viewer, analysis, detail]) {
+      expect(source).toContain("process?.municipalityId");
+      expect(source).toContain("process?.tenantId");
+    }
   });
 });
 
