@@ -201,7 +201,7 @@ function createR2DevApiPlugin(): Plugin {
           const body = await readJsonBody(req);
           const targetBase =
             readEnvValue("SIGAPRO_SIGNATURE_DEV_PROXY") ||
-            "https://projetosigapro01-git-fix-analise-d2ff63-roksparta8724s-projects.vercel.app";
+            "https://sigapromunicipal.com.br";
           const targetUrl = new URL("/api/e-sign-artifact", targetBase);
           const authorization = String(req.headers.authorization || "");
 
@@ -217,10 +217,50 @@ function createR2DevApiPlugin(): Plugin {
           });
 
           const responseBody = await response.text();
+          let responsePayload: unknown = null;
+          try {
+            responsePayload = responseBody ? JSON.parse(responseBody) : {};
+          } catch {
+            responsePayload = null;
+          }
+
+          if (!response.ok) {
+            const source =
+              responsePayload && typeof responsePayload === "object"
+                ? (responsePayload as Record<string, unknown>)
+                : {};
+            const nestedError =
+              source.error && typeof source.error === "object"
+                ? (source.error as Record<string, unknown>)
+                : {};
+            const message =
+              (typeof source.error === "string" && source.error) ||
+              (typeof source.message === "string" && source.message) ||
+              (typeof nestedError.message === "string" && nestedError.message) ||
+              (typeof nestedError.code === "string" && nestedError.code) ||
+              (response.status === 401 || response.status === 403
+                ? "A assinatura foi bloqueada pelo ambiente remoto antes de chegar ao SIGAPRO."
+                : "Falha no serviço remoto de assinatura.");
+
+            res.statusCode = response.status;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(JSON.stringify({
+              error: String(message),
+              stage: "dev_proxy",
+              code: `HTTP_${response.status}`,
+            }));
+            return;
+          }
+
           res.statusCode = response.status;
-          res.setHeader("Content-Type", response.headers.get("content-type") || "application/json; charset=utf-8");
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
-          res.end(responseBody);
+          res.end(
+            responsePayload && typeof responsePayload === "object"
+              ? JSON.stringify(responsePayload)
+              : responseBody,
+          );
           return;
         }
 
