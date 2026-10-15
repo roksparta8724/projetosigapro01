@@ -1,9 +1,11 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   callDataApiRpc,
   readBearer,
   readEnv,
   type ApiReq,
+  resolveMunicipalDocumentTarget,
 } from "../server/municipal-storage";
 
 type Res = import("http").ServerResponse;
@@ -93,6 +95,84 @@ function getNeonAuthUrl() {
     readEnv("VITE_NEON_AUTH_URL") ||
     VALIDATED_NEON_AUTH_URL
   ).replace(/\/+$/, "");
+}
+
+function resolveR2Endpoint() {
+  const accountId = readEnv("R2_ACCOUNT_ID")
+    .replace(/^https?:\/\//i, "")
+    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
+    .replace(/[^a-zA-Z0-9]/g, "");
+
+  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
+    return `https://${accountId}.r2.cloudflarestorage.com`;
+  }
+
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (!rawEndpoint) return "";
+  try {
+    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return rawEndpoint.replace(/\/+$/, "");
+  }
+}
+
+async function sha256StoredDocument(req: ApiReq, context: SignatureContext) {
+  const objectKey = String(context.file_path || "").trim();
+  if (!objectKey) {
+    throw new Error("O documento não possui referência válida no armazenamento oficial.");
+  }
+
+  const requestedBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  const municipalityId = String(context.municipality_id || "").trim();
+  const municipalTarget = municipalityId
+    ? await resolveMunicipalDocumentTarget(req, municipalityId, requestedBucket, objectKey)
+    : null;
+
+  let client: S3Client;
+  let bucket: string;
+  let key: string;
+
+  if (municipalTarget) {
+    client = municipalTarget.client;
+    bucket = municipalTarget.bucket;
+    key = municipalTarget.objectKey;
+  } else {
+    const endpoint = resolveR2Endpoint();
+    const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
+    const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
+    if (!endpoint || !accessKeyId || !secretAccessKey) {
+      throw new Error("Armazenamento oficial indisponível para conferir a integridade do documento.");
+    }
+    client = new S3Client({
+      region: "auto",
+      endpoint,
+      credentials: { accessKeyId, secretAccessKey },
+    });
+    bucket = requestedBucket;
+    key = objectKey;
+  }
+
+  const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!object.Body) {
+    throw new Error("Não foi possível ler o conteúdo do documento no armazenamento oficial.");
+  }
+
+  const hash = createHash("sha256");
+  const stream = object.Body as unknown as AsyncIterable<Uint8Array>;
+  if (typeof (stream as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function") {
+    for await (const chunk of stream) {
+      hash.update(Buffer.from(chunk));
+    }
+  } else {
+    const body = object.Body as unknown as { transformToByteArray?: () => Promise<Uint8Array> };
+    if (!body.transformToByteArray) {
+      throw new Error("O armazenamento não retornou um fluxo legível para conferência.");
+    }
+    hash.update(Buffer.from(await body.transformToByteArray()));
+  }
+
+  return hash.digest("hex");
 }
 
 function extractClientIp(req: ApiReq) {
@@ -205,6 +285,8 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    const contentHash = await sha256StoredDocument(req, context);
+
     const secret = readEnv("E_SIGNATURE_SERVER_SECRET");
     if (secret.length < 32) {
       json(res, 503, { error: "Assinatura eletrônica ainda não foi habilitada neste ambiente." });
@@ -216,15 +298,16 @@ export default async function handler(req: ApiReq, res: Res) {
     const ip = extractClientIp(req);
     const userAgent = String(req.headers["user-agent"] || "").slice(0, 1000);
     const userAgentHash = createHash("sha256").update(userAgent, "utf8").digest("hex");
-    const canonical = [authSubject, documentId, String(epoch), nonce, ip, userAgentHash].join("|");
+    const canonical = [authSubject, documentId, contentHash, String(epoch), nonce, ip, userAgentHash].join("|");
     const proofKey = createHash("sha256").update(secret, "utf8").digest("hex");
     const proof = createHmac("sha256", proofKey).update(canonical, "utf8").digest("hex");
 
     const signResult = await callDataApiRpc<Record<string, unknown>>(
       req,
-      "sign_process_document_v1",
+      "sign_process_document_v2",
       {
         _document_id: documentId,
+        _content_hash: contentHash,
         _server_proof: proof,
         _nonce: nonce,
         _reauthenticated_at_epoch: epoch,
@@ -247,7 +330,7 @@ export default async function handler(req: ApiReq, res: Res) {
       document: {
         id: context.document_id,
         title: context.document_title,
-        hash: context.document_hash,
+        hash: contentHash,
         version: context.document_version,
       },
     });
