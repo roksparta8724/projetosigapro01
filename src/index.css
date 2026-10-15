@@ -7671,3 +7671,224 @@ html body .sig-main-shell #sig-process-document-command-center .sig-command-metr
 }
 
 /* ===== END PROCESS CARD CONTRAST CONTRACT V4 ===== */
+
+
+/* ===== PROCESS FORMS / SHEETS CONTRAST CONTRACT V1 — 2026-10-15 =====
+   Strictly scoped to the latest process cards and municipal worksheets.
+   Topbar, sidebar, footer and global theme colors are intentionally untouched. */
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#fbfdff 0%,#f5f8fc 100%) !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#091827 0%,#07131f 100%) !important;
+  color: #f8fbff !important;
+}
+
+/* Any adaptive nested card follows the actual SIGAPRO workspace mode,
+   not Tailwind's independent html.dark selector. */
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  border-color: #dbe5ef !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #536579 !important;
+  -webkit-text-fill-color: #536579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] {
+  background: linear-gradient(180deg,#11263b 0%,#0d1d2e 100%) !important;
+  border-color: #2a4964 !important;
+  color: #f8fbff !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.22) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) [data-force-card-contrast="adaptive"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #c8d8e8 !important;
+  -webkit-text-fill-color: #c8d8e8 !important;
+}
+
+/* The large light identity panel was the main low-contrast regression
+   in inverse mode; give it a saturated municipal surface instead. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-identity="true"] {
+  background: linear-gradient(135deg,#10263c 0%,#123754 56%,#0d2940 100%) !important;
+  border-color: #365977 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-identity="true"] > div:first-child {
+  background: linear-gradient(135deg,#153552 0%,#163f60 100%) !important;
+  border-color: #3d6483 !important;
+}
+
+/* Mini worksheet cards become real dark cards in inverse mode. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-mini-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend="true"] {
+  background: #102338 !important;
+  border-color: #31516d !important;
+  color: #f8fbff !important;
+}
+
+/* Inputs/selectors in inverse workspaces: dark field + high contrast content. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) :is(input,textarea,[role="combobox"]) {
+  background-color: #091827 !important;
+  border-color: #385875 !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"],
+  [data-technical-checklist="true"]
+) :is(input,textarea)::placeholder {
+  color: #9fb3c8 !important;
+  -webkit-text-fill-color: #9fb3c8 !important;
+  opacity: 1 !important;
+}
+
+/* Permit preparation block: never leave a pale card under an inverse workspace. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] {
+  background: linear-gradient(145deg,#10273d 0%,#0b1e30 100%) !important;
+  border-color: #345774 !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,label
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] .text-slate-600,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] .text-slate-500,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] .text-slate-400 {
+  color: #c8d8e8 !important;
+  -webkit-text-fill-color: #c8d8e8 !important;
+}
+
+/* Semantic state cards stay vivid instead of washed-out in inverse mode. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-emerald-50"] {
+  background-color: #0d3b32 !important;
+  border-color: #24745e !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-amber-50"] {
+  background-color: #4b3215 !important;
+  border-color: #8b6429 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-sky-50"] {
+  background-color: #0d3552 !important;
+  border-color: #2f668c !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-emerald-50"] :is(p,label),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-amber-50"] :is(p,label),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [class*="bg-sky-50"] :is(p,label) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+/* Worksheet rows and unselected controls must not go gray-on-gray. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-force-card-contrast="adaptive"] [class*="bg-white"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-force-card-contrast="adaptive"] [class*="bg-slate-50"] {
+  background-color: #0c1b2a !important;
+  border-color: #304d67 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-force-card-contrast="adaptive"] button:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-sky"]) {
+  color: #e7f1fb !important;
+  -webkit-text-fill-color: #e7f1fb !important;
+}
+
+/* Keep the fixed dark headers vivid and readable. */
+html body .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"]
+) [data-force-card-contrast="dark"] {
+  background-color: #071b2e !important;
+  color: #ffffff !important;
+}
+html body .sig-main-shell :is(
+  [data-construction-permit-panel="true"],
+  [data-urban-analysis-sheet="true"]
+) [data-force-card-contrast="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,span
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* ===== END PROCESS FORMS / SHEETS CONTRAST CONTRACT V1 ===== */
