@@ -643,11 +643,11 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader data-force-card-contrast="dark" data-premium-process-dark-header="analysis" className="border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 text-white shadow-inner md:px-6">
+      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="analysis" className="border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 !text-white shadow-inner md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
-              <ClipboardCheck className="h-6 w-6" />
+            <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
+              <ClipboardCheck className="h-6 w-6 !text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
