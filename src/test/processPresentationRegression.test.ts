@@ -401,3 +401,17 @@ describe("process contrast v9", () => {
     expect(css).toContain('button[data-checklist-status="A"][data-selected="true"]');
   });
 });
+
+
+describe("dispatch organogram polarity v14", () => {
+  it("keeps the dispatch hierarchy readable in both visual families", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
+
+    expect(detail).toContain('data-dispatch-organogram-header="true"');
+    expect(detail).toContain('data-dispatch-organogram-grid="true"');
+    expect(polarity).toContain('[data-layout-mode="inverse-main"]');
+    expect(polarity).toContain('[data-dispatch-organogram-header="true"]');
+    expect(polarity).toContain('[data-organogram-destination="true"][data-selected="false"]');
+  });
+});
