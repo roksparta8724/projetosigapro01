@@ -19,6 +19,8 @@ import { clearPendingSignup, readPendingSignup, type AuthUserLike } from "@/lib/
 
 const BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.snapshot.v1";
 const BOOTSTRAP_SESSION_CACHE_KEY = "sigapro.bootstrap.session-snapshot.v1";
+const NEON_BROWSER_BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.neon-browser.v1";
+const NEON_BROWSER_SESSION_COOKIE = "sigapro_browser_session_v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 
 interface AppBootstrapProfile {
@@ -64,6 +66,49 @@ const AppBootstrapContext = createContext<AppBootstrapState | null>(null);
 
 function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
+}
+
+function hasNeonBrowserSessionMarker() {
+  if (!isNeonBackend || typeof document === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .some((part) => part.startsWith(`${NEON_BROWSER_SESSION_COOKIE}=`));
+}
+
+function setNeonBrowserSessionMarker() {
+  if (!isNeonBackend || typeof document === "undefined") return;
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  // Cookie de sessão: sobrevive ao fechamento/reabertura de abas no mesmo
+  // navegador, mas não recebe Expires/Max-Age persistente.
+  document.cookie = `${NEON_BROWSER_SESSION_COOKIE}=1; Path=/; SameSite=Lax${secure}`;
+}
+
+function clearNeonBrowserSessionMarker() {
+  if (!isNeonBackend || typeof document === "undefined") return;
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `${NEON_BROWSER_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+}
+
+function hasLegacyNeonTabSnapshot() {
+  if (!isNeonBackend || typeof window === "undefined") return false;
+  return Boolean(window.sessionStorage.getItem(BOOTSTRAP_SESSION_CACHE_KEY));
+}
+
+function shouldRequireFreshNeonLogin() {
+  if (!isNeonBackend || typeof window === "undefined") return false;
+  if (hasNeonBrowserSessionMarker() || hasLegacyNeonTabSnapshot()) return false;
+
+  return Boolean(
+    window.localStorage.getItem(NEON_BROWSER_BOOTSTRAP_CACHE_KEY) ||
+    window.localStorage.getItem(PLATFORM_SESSION_CACHE_KEY),
+  );
 }
 
 async function markCurrentProfileAccess() {
@@ -148,9 +193,26 @@ function readBootstrapSnapshot(
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = isNeonBackend
-      ? window.sessionStorage.getItem(BOOTSTRAP_SESSION_CACHE_KEY)
-      : window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+    let raw: string | null = null;
+
+    if (isNeonBackend) {
+      const legacyTabSnapshot = window.sessionStorage.getItem(BOOTSTRAP_SESSION_CACHE_KEY);
+
+      if (!hasNeonBrowserSessionMarker() && legacyTabSnapshot) {
+        // Migração transparente da sessão ativa anterior: um F5/hot reload não
+        // pode expulsar quem já estava autenticado quando esta melhoria entrou.
+        setNeonBrowserSessionMarker();
+        window.localStorage.setItem(NEON_BROWSER_BOOTSTRAP_CACHE_KEY, legacyTabSnapshot);
+        raw = legacyTabSnapshot;
+      } else if (hasNeonBrowserSessionMarker()) {
+        raw =
+          window.localStorage.getItem(NEON_BROWSER_BOOTSTRAP_CACHE_KEY) ||
+          legacyTabSnapshot;
+      }
+    } else {
+      raw = window.localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+    }
+
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<BootstrapSnapshot>;
@@ -158,7 +220,10 @@ function readBootstrapSnapshot(
     if (parsed.hostname !== resolution.hostname) return null;
     if (parsed.mode !== resolution.mode) return null;
     if ((parsed.subdomain ?? null) !== (resolution.subdomain ?? null)) return null;
-    if (typeof parsed.cachedAt !== "number" || Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8) {
+    if (
+      typeof parsed.cachedAt !== "number" ||
+      (!isNeonBackend && Date.now() - parsed.cachedAt > 1000 * 60 * 60 * 8)
+    ) {
       return null;
     }
     // No Neon, o snapshot da sessão serve apenas como warm render para o F5.
@@ -250,6 +315,10 @@ function resolveScopeType(role: UserRole | null): "platform" | "municipality" | 
 function readWarmBootstrapSnapshot(
   resolution: ReturnType<typeof resolveTenantFromLocation>,
 ): BootstrapSnapshot | null {
+  if (isNeonBackend && !hasNeonBrowserSessionMarker()) {
+    return null;
+  }
+
   const storedUser = readStoredSupabaseUser();
   const storedSession = readPlatformSessionSnapshot();
 
@@ -308,14 +377,19 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
   try {
     if (!snapshot) {
       window.localStorage.removeItem(BOOTSTRAP_CACHE_KEY);
+      window.localStorage.removeItem(NEON_BROWSER_BOOTSTRAP_CACHE_KEY);
       window.sessionStorage.removeItem(BOOTSTRAP_SESSION_CACHE_KEY);
+      clearNeonBrowserSessionMarker();
       return;
     }
 
     if (isNeonBackend) {
-      // sessionStorage sobrevive ao F5, mas é descartado ao encerrar a sessão do navegador.
-      // Isso permite pintura imediata sem transformar cache visual em autorização persistente.
-      window.sessionStorage.setItem(BOOTSTRAP_SESSION_CACHE_KEY, JSON.stringify(snapshot));
+      const serialized = JSON.stringify(snapshot);
+      setNeonBrowserSessionMarker();
+      // O snapshot não contém token/senha. Ele existe apenas para manter a
+      // continuidade visual entre abas enquanto a sessão real do Neon é revalidada.
+      window.localStorage.setItem(NEON_BROWSER_BOOTSTRAP_CACHE_KEY, serialized);
+      window.sessionStorage.setItem(BOOTSTRAP_SESSION_CACHE_KEY, serialized);
       return;
     }
 
@@ -557,8 +631,13 @@ async function completePendingSignup(
 
 export function AppBootstrapProvider({ children }: { children: React.ReactNode }) {
   const [resolution] = useState(() => resolveTenantFromLocation());
+  const requireFreshLoginAfterBrowserRestartRef = useRef(
+    shouldRequireFreshNeonLogin(),
+  );
   const cachedSnapshotRef = useRef<BootstrapSnapshot | null>(
-    readBootstrapSnapshot(resolution) ?? readWarmBootstrapSnapshot(resolution),
+    requireFreshLoginAfterBrowserRestartRef.current
+      ? null
+      : readBootstrapSnapshot(resolution) ?? readWarmBootstrapSnapshot(resolution),
   );
   const cachedSnapshot = cachedSnapshotRef.current;
   const [loading, setLoading] = useState(!cachedSnapshot);
@@ -883,12 +962,53 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
     runBootstrapRef.current = runBootstrap;
     const { data } = backendClient.auth.onAuthStateChange((event, session) => {
       authEventRef.current = event;
-      if (manualSignInRef.current) return;
+      if (manualSignInRef.current || explicitSignOutRef.current) return;
       // Supabase awaits this callback under its auth lock; data loading belongs in the effect below.
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
         setAuthChange({ event, user: session?.user ?? null });
       }
     });
+
+    if (requireFreshLoginAfterBrowserRestartRef.current) {
+      // Havia uma sessão autenticada persistida, mas o marcador da sessão do
+      // navegador desapareceu. Tratamos isso como uma nova sessão do navegador
+      // (ex.: reinicialização) e exigimos login sem depender de eventos do adapter.
+      explicitSignOutRef.current = true;
+      writeBootstrapSnapshot(null);
+      clearPlatformSessionSnapshot();
+      lastAuthUserIdRef.current = null;
+      initializedRef.current = false;
+      needsInitialRevalidationRef.current = false;
+      lastStableRef.current = {
+        authUserId: null,
+        authEmail: null,
+        role: null,
+        profile: null,
+        municipalityBundle: null,
+      };
+      setAuthUserId(null);
+      setAuthEmail(null);
+      setRole(null);
+      setProfile(null);
+      setMunicipalityBundle(null);
+      setAuthResolved(false);
+
+      void (async () => {
+        try {
+          await backendClient.auth.signOut();
+        } catch (restartSignOutError) {
+          console.warn(
+            "[Bootstrap] Não foi possível revogar a sessão anterior ao iniciar nova sessão do navegador",
+            restartSignOutError,
+          );
+        } finally {
+          if (!active) return;
+          explicitSignOutRef.current = false;
+          requireFreshLoginAfterBrowserRestartRef.current = false;
+          void runBootstrap("SIGNED_OUT", null);
+        }
+      })();
+    }
 
     return () => {
       active = false;
