@@ -203,7 +203,22 @@ interface PlatformDataState {
     processId: string,
     documents: ProcessDocument[],
     actor: string,
-  ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
+  ) => Promise<{
+    process_id: string;
+    synced: number;
+    inserted: number;
+    updated: number;
+    stored: number;
+    reused?: number;
+    documents?: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      fileHash: string;
+      version: number;
+      inserted: boolean;
+    }>;
+  }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
   addDocumentAnnotation: (
     processId: string,
@@ -2079,6 +2094,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           inserted: number;
           updated: number;
           stored: number;
+          reused?: number;
+          documents?: Array<{
+            id: string;
+            label: string;
+            filePath: string;
+            fileHash: string;
+            version: number;
+            inserted: boolean;
+          }>;
         };
         await refreshRemoteStore();
         return result;
