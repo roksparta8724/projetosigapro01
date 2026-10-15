@@ -19,15 +19,18 @@ describe("urban analysis checklist", () => {
     expect(detail).toContain("<UrbanAnalysisChecklistPanel");
   });
 
-  it("stores one draft per process and analyst, signs it and exports PDF", () => {
+  it("shares one municipal draft per process, uses dual signatures and exports PDF", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 
-    expect(panel).toContain("sigapro:urban-analysis-checklist:v1");
-    expect(panel).toContain("session.id");
+    expect(panel).toContain("sigapro:urban-analysis-checklist:v2");
+    expect(panel).toContain("municipalityId");
     expect(panel).toContain("Salvar rascunho");
-    expect(panel).toContain("Assinar avaliação");
+    expect(panel).toContain("Assinar análise técnica");
+    expect(panel).toContain("Assinar conferência fiscal");
+    expect(panel).toContain("technicalSignature");
+    expect(panel).toContain("fiscalSignature");
     expect(panel).toContain("new jsPDF");
-    expect(panel).toContain("Gerar PDF");
+    expect(panel).toContain("Gerar PDF final");
     expect(panel).toContain("RASCUNHO");
   });
 
@@ -42,5 +45,22 @@ describe("urban analysis checklist", () => {
     expect(panel).toContain("Encaminhamento após análise");
     expect(panel).toContain("Expediente");
     expect(panel).toContain("Topografia");
+  });
+});
+
+
+describe("official municipal analysis sheet header", () => {
+  it("uses the official municipality header and process identity", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(panel).toContain("Caderno técnico digital");
+    expect(panel).toContain("Ficha Oficial de Análise do Processo");
+    expect(panel).toContain("municipalityLogoUrl");
+    expect(panel).toContain("secretariat");
+    expect(panel).toContain("directorate");
+    expect(panel).toContain("Requerente / proprietário");
+    expect(detail).toContain("municipalityLogoUrl=");
+    expect(detail).toContain("canUseMunicipalChecklist");
   });
 });
