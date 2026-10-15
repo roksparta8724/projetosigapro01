@@ -96,13 +96,7 @@ export function DocumentViewerPage() {
         session.role === "master_admin" ||
         session.role === "master_ops" ||
         session.role === "prefeitura_supervisor" ||
-        (
-          canAccessMunicipalArea(session, "analise") &&
-          (
-            isProcessOwnedBySessionDepartment(session, process) ||
-            process.analysis?.assignedProfileId === session.id
-          )
-        )
+        (session.role === "analista" && canAccessMunicipalArea(session, "analise"))
       ),
   );
 
