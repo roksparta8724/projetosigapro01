@@ -2653,9 +2653,30 @@ export function canAnalyzeProcessDocument(
   if (session.role !== "analista") return false;
   if (!canAccessMunicipalArea(session, "analise")) return false;
 
-  // Depois de validar o vínculo municipal do usuário, usamos o escopo do próprio
-  // processo para a checagem operacional. Isso evita bloqueio falso quando o
-  // contexto visual da Prefeitura ainda está atualizando após troca de conta/F5.
+  // A análise documental pertence ao analista designado, não à fila operacional
+  // em que o processo está neste instante. Depois que Urbanismo libera uma guia
+  // e o processo avança para o Financeiro, o analista responsável precisa manter
+  // acesso aos documentos para revisar, apontar correções e acompanhar reenvios.
+  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
+  const normalizeAssignee = (value: string | null | undefined) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .replace(/\s+/g, " ");
+  const assignedName = normalizeAssignee(process.analysis?.assignedTo);
+  const sessionName = normalizeAssignee(session.name);
+
+  if (assignedProfileId) {
+    return assignedProfileId === session.id;
+  }
+
+  if (assignedName) {
+    return Boolean(sessionName && assignedName === sessionName);
+  }
+
+  // Processos antigos ainda sem analista designado seguem a regra da fila atual.
   const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? sessionScopeId;
   return canAccessProcess(session, process, processScopeId);
 }
