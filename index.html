@@ -40,25 +40,60 @@
 
     <script>
       (function () {
-        function requestSoftRefresh(event) {
-          var isF5 = event.key === "F5";
-          var isCtrlR =
+        var lastDispatchAt = 0;
+
+        function isRefreshShortcut(event) {
+          var key = String(event.key || "").toLowerCase();
+          var code = String(event.code || "").toLowerCase();
+          var keyCode = Number(event.keyCode || event.which || 0);
+
+          var isF5 =
+            key === "f5" ||
+            code === "f5" ||
+            keyCode === 116;
+
+          var isReloadShortcut =
             (event.ctrlKey || event.metaKey) &&
-            String(event.key || "").toLowerCase() === "r" &&
+            key === "r" &&
             !event.shiftKey;
 
-          if (!isF5 && !isCtrlR) return;
-
-          // F5 normal no SIGAPRO atualiza dados e sessão sem desmontar o documento.
-          // Ctrl+Shift+R permanece disponível como hard reload de emergência.
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          window.dispatchEvent(new CustomEvent("sigapro-soft-refresh", {
-            detail: { source: isF5 ? "f5" : "keyboard" }
-          }));
+          return isF5 || isReloadShortcut;
         }
 
-        window.addEventListener("keydown", requestSoftRefresh, true);
+        function blockDocumentReload(event) {
+          if (!isRefreshShortcut(event)) return true;
+
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof event.stopImmediatePropagation === "function") {
+            event.stopImmediatePropagation();
+          }
+          try {
+            event.returnValue = false;
+            event.cancelBubble = true;
+          } catch (_) {}
+
+          var now = Date.now();
+          if (now - lastDispatchAt > 180) {
+            lastDispatchAt = now;
+            window.dispatchEvent(
+              new CustomEvent("sigapro-soft-refresh", {
+                detail: { source: "keyboard", at: now }
+              })
+            );
+          }
+
+          return false;
+        }
+
+        // Captura em dois níveis e nas três fases de teclado para evitar que
+        // Chrome/Edge/atalhos legados executem o reload do documento.
+        ["keydown", "keypress", "keyup"].forEach(function (type) {
+          window.addEventListener(type, blockDocumentReload, true);
+          document.addEventListener(type, blockDocumentReload, true);
+        });
+
+        window.__sigaproBlockDocumentReload = blockDocumentReload;
       })();
     </script>
 
@@ -81,12 +116,20 @@
           try {
             var lastBackground = window.localStorage.getItem("sigapro.last-page-background.v1");
             var rawTheme = window.localStorage.getItem("sigapro-layout-theme");
+            var rawEffectiveTheme = window.localStorage.getItem("sigapro.effective-theme.v1");
             var theme = rawTheme ? JSON.parse(rawTheme) : null;
+            var effectiveTheme = rawEffectiveTheme ? JSON.parse(rawEffectiveTheme) : null;
 
             if (lastBackground && lastBackground.trim()) {
               initialBackground = lastBackground.trim();
             } else if (theme && typeof theme.background === "string" && theme.background.trim()) {
               initialBackground = theme.background.trim();
+            } else if (
+              effectiveTheme &&
+              typeof effectiveTheme.background === "string" &&
+              effectiveTheme.background.trim()
+            ) {
+              initialBackground = effectiveTheme.background.trim();
             }
           } catch (error) {
             initialBackground = "#f5f7fb";
@@ -148,73 +191,6 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      (function () {
-        try {
-          var raw = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
-          var sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
-          if (!raw || !sessionRaw) return;
-
-          var snapshot = JSON.parse(raw);
-          var session = JSON.parse(sessionRaw);
-          var userId =
-            session &&
-            session.id &&
-            session.accountStatus !== "blocked" &&
-            session.accountStatus !== "inactive"
-              ? String(session.id)
-              : "";
-          var locationKey =
-            window.location.pathname + window.location.search + window.location.hash;
-
-          var valid =
-            snapshot &&
-            snapshot.host === window.location.host &&
-            snapshot.location === locationKey &&
-            snapshot.userId === userId &&
-            userId &&
-            typeof snapshot.svg === "string" &&
-            snapshot.svg.length > 1000 &&
-            typeof snapshot.savedAt === "number" &&
-            Date.now() - snapshot.savedAt < 1000 * 60 * 5;
-
-          if (!valid) {
-            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
-            return;
-          }
-
-          var holder = document.createElement("div");
-          holder.id = "sigapro-refresh-snapshot";
-          holder.setAttribute("aria-hidden", "true");
-          holder.setAttribute("inert", "");
-          holder.style.position = "fixed";
-          holder.style.inset = "0";
-          holder.style.zIndex = "2147483646";
-          holder.style.pointerEvents = "none";
-          holder.style.overflow = "hidden";
-          holder.style.background = "var(--sig-initial-bg,#f5f7fb)";
-          var snapshotZoom = Number(snapshot.zoomValue) || 1;
-          holder.style.zoom = String(1 / snapshotZoom);
-
-          var image = document.createElement("img");
-          image.alt = "";
-          image.draggable = false;
-          image.style.display = "block";
-          image.style.width = "100vw";
-          image.style.height = "100vh";
-          image.style.objectFit = "fill";
-          image.style.userSelect = "none";
-          image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(snapshot.svg);
-
-          holder.appendChild(image);
-          document.body.appendChild(holder);
-        } catch (_) {
-          try {
-            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
-          } catch (_) {}
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
