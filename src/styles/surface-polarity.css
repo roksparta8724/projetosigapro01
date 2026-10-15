@@ -156,6 +156,33 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   stroke: currentColor !important;
 }
 
+/* Document cards keep a subtle status tint so the process never looks flat. */
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"][data-document-state="approved"] {
+  background: linear-gradient(180deg,#ffffff 0%,#effcf6 100%) !important;
+  border-color: #86efac !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"][data-document-state="issue"] {
+  background: linear-gradient(180deg,#ffffff 0%,#fff9e8 100%) !important;
+  border-color: #f6c85f !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"][data-document-state="review"] {
+  background: linear-gradient(180deg,#ffffff 0%,#edf8ff 100%) !important;
+  border-color: #7dd3fc !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"][data-document-state="approved"] {
+  background: linear-gradient(180deg,#10372f 0%,#0b241f 100%) !important;
+  border-color: #167c62 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"][data-document-state="issue"] {
+  background: linear-gradient(180deg,#4a350d 0%,#2e220c 100%) !important;
+  border-color: #9a6b16 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"][data-document-state="review"] {
+  background: linear-gradient(180deg,#113b58 0%,#0b263a 100%) !important;
+  border-color: #17648d !important;
+}
+
 /* -------------------------------------------------------------------------- */
 /* VIVID SEMANTIC CARDS                                                       */
 /* -------------------------------------------------------------------------- */
