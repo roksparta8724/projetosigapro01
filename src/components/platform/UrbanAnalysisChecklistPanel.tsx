@@ -1681,30 +1681,30 @@ export function UrbanAnalysisChecklistPanel({
               "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em]",
               isFullySigned
                 ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200"
-                : state.technicalSignature
+                : technicalOfficial
                   ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/35 dark:text-sky-200"
                   : "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300",
             )}>
               {isFullySigned ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Signature className="h-3.5 w-3.5" />}
-              {isFullySigned ? "Ficha concluída" : state.technicalSignature ? "Aguardando Fiscal" : "Em elaboração"}
+              {isFullySigned ? "Ficha concluída" : technicalOfficial ? "Aguardando Fiscal" : "Em elaboração"}
             </div>
           </div>
 
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             <div className={cn(
               "rounded-[20px] border p-4",
-              state.technicalSignature
+              technicalOfficial
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
                 : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
             )}>
               <div className="flex items-start gap-3">
                 <div className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  state.technicalSignature
+                  technicalOfficial
                     ? "bg-emerald-600 text-white"
                     : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
                 )}>
-                  {state.technicalSignature ? <CheckCircle2 className="h-5 w-5" /> : <PenLine className="h-5 w-5" />}
+                  {technicalOfficial ? <CheckCircle2 className="h-5 w-5" /> : <PenLine className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">1ª assinatura</p>
@@ -1746,22 +1746,22 @@ export function UrbanAnalysisChecklistPanel({
 
             <div className={cn(
               "rounded-[20px] border p-4",
-              state.fiscalSignature
+              fiscalOfficial
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
-                : state.technicalSignature
+                : technicalOfficial
                   ? "border-violet-200 bg-violet-50/70 dark:border-violet-500/30 dark:bg-violet-950/25"
                   : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
             )}>
               <div className="flex items-start gap-3">
                 <div className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  state.fiscalSignature
+                  fiscalOfficial
                     ? "bg-emerald-600 text-white"
-                    : state.technicalSignature
+                    : technicalOfficial
                       ? "bg-violet-600 text-white"
                       : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
                 )}>
-                  {state.fiscalSignature ? <CheckCircle2 className="h-5 w-5" /> : <Signature className="h-5 w-5" />}
+                  {fiscalOfficial ? <CheckCircle2 className="h-5 w-5" /> : <Signature className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">2ª assinatura</p>
