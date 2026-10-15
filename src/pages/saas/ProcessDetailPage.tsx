@@ -3119,7 +3119,7 @@ export function ProcessDetailPage() {
                       data-dispatch-organogram="true"
                       className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-950/55"
                     >
-                      <div className="flex flex-col gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-4 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#132338_0%,#0d1b2b_100%)] sm:flex-row sm:items-center sm:justify-between">
+                      <div data-dispatch-organogram-header="true" className="flex flex-col gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-4 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#132338_0%,#0d1b2b_100%)] sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-100">
                             Organograma para despacho
@@ -3133,7 +3133,7 @@ export function ProcessDetailPage() {
                         </span>
                       </div>
 
-                      <div className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div data-dispatch-organogram-grid="true" className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                         {organizationDestinations
                           .filter((department) => department.name !== currentFolder)
                           .map((department) => {
