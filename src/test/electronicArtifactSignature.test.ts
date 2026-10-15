@@ -40,6 +40,7 @@ describe("official electronic signatures", () => {
   it("uses the unprotected official custom domain for localhost signing", () => {
     expect(viteConfig).toContain('"https://sigapromunicipal.com.br"');
     expect(viteConfig).not.toContain("projetosigapro01-git-fix-analise-d2ff63-roksparta8724s-projects.vercel.app");
+    expect(viteConfig).not.toContain('import eSignArtifactHandler from "./api/e-sign-artifact"');
     expect(viteConfig).toContain('stage: "dev_proxy"');
   });
 
