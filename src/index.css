@@ -9126,3 +9126,148 @@ html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premi
 }
 
 /* ===== END PROCESS DETAIL CONTRAST FINAL V8 ===== */
+
+
+/* ===== PROCESS DETAIL CONTRAST FINAL V9: scoped only to process cards ===== */
+/* Fixed dark process headers: dark surface always means light copy/icons.
+   Intentionally scoped below .sig-process-detail-premium so topbar/theme colors are untouched. */
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a,button
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 :is(
+  svg,svg *
+) {
+  color:#ffffff !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+
+/* Secondary copy remains visibly lighter than the title without becoming dark. */
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 :is(
+  .text-slate-200,.text-slate-300,.text-slate-400
+) {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 :is(
+  .text-sky-100,.text-cyan-100
+) {
+  color:#e0f2fe !important;
+  -webkit-text-fill-color:#e0f2fe !important;
+}
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 .text-emerald-100,
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 .text-emerald-50 {
+  color:#d1fae5 !important;
+  -webkit-text-fill-color:#d1fae5 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 .text-amber-100,
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9 .text-amber-50 {
+  color:#fef3c7 !important;
+  -webkit-text-fill-color:#fef3c7 !important;
+}
+
+/* Metric tiles keep vivid semantic fills and guaranteed readable copy. */
+html body .sig-main-shell .sig-process-detail-premium .sig-process-dark-surface-v9
+:is([data-command-metric],[data-analysis-metric]) :is(p,span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* Analysis checklist: selected option must be unmistakable. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  font-weight:900 !important;
+  border-width:2px !important;
+  transform:translateY(-1px) scale(1.06) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important;
+  border-color:#065f46 !important;
+  box-shadow:0 0 0 4px rgba(16,185,129,.20),0 8px 18px rgba(5,150,105,.28) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important;
+  border-color:#075985 !important;
+  box-shadow:0 0 0 4px rgba(14,165,233,.20),0 8px 18px rgba(2,132,199,.28) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#d97706 !important;
+  border-color:#92400e !important;
+  box-shadow:0 0 0 4px rgba(245,158,11,.20),0 8px 18px rgba(217,119,6,.28) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#334155 !important;
+  border-color:#0f172a !important;
+  box-shadow:0 0 0 4px rgba(100,116,139,.20),0 8px 18px rgba(51,65,85,.28) !important;
+}
+
+/* Unselected options stay quiet so the selected state reads instantly. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#64748b !important;
+  -webkit-text-fill-color:#64748b !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#0f1f31 !important;
+  border-color:#3b556d !important;
+  color:#cbd5e1 !important;
+  -webkit-text-fill-color:#cbd5e1 !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+
+/* Summary/permit light cards: explicit contrast in each theme. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#102a42 0%,#0b2033 100%) !important;
+  border-color:#28587c !important;
+  color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+/* Primary blue action on permit summary always remains white-on-blue. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* ===== END PROCESS DETAIL CONTRAST FINAL V9 ===== */
