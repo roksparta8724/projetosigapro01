@@ -2612,7 +2612,7 @@ export function ProcessDetailPage() {
               municipalityId={effectiveScopeId || process.tenantId}
               municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
               secretariat={tenantSettings?.secretariaResponsavel}
-              directorate={tenantSettings?.diretoriaResponsavel || "Diretoria de Planejamento Urbano"}
+              directorate={tenantSettings?.diretoriaResponsavel || "Divisão de Análise e Aprovação de Projetos - DAAP"}
               technicalProfile={linkedTechnicalProfile}
               issPaymentConfirmed={constructionGuide?.status === "compensada"}
               issPaidAt={constructionGuide?.paidAt}
