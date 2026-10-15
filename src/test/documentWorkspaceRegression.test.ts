@@ -35,7 +35,7 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Mesa de análise documental");
     expect(analysis).toContain("Ferramenta ativa");
     expect(analysis).toContain("Painel técnico");
-    expect(analysis).toContain("Marca-texto");
+    expect(analysis).toContain("Marcar área");
     expect(analysis).toContain("Adicionar texto");
     expect(analysis).toContain("Arraste sobre o ponto incorreto para destacar a área");
     expect(analysis).toContain("Clique no ponto exato do documento para fixar um texto numerado");
@@ -100,19 +100,21 @@ describe("annotation draft and professional handoff", () => {
 
 
 describe("analyst document permission continuity", () => {
-  it("keeps the annotation workspace tied to the Analysis department and current process ownership", () => {
+  it("keeps the annotation workspace tied to the Analysis role without stale queue ownership", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(analysis).toContain('session.role !== "prefeitura_admin"');
-    expect(analysis).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(analysis).toContain("isProcessOwnedBySessionDepartment(session, process)");
-    expect(analysis).toContain("process.analysis?.assignedProfileId === session.id");
+    expect(analysis).toContain('(session.role === "analista" && canAccessMunicipalArea(session, "analise"))');
+    expect(analysis).not.toContain("isCurrentAnalysisOwner");
+    expect(analysis).not.toContain("isProcessOwnedBySessionDepartment");
+
+    expect(viewer).toContain('(session.role === "analista" && canAccessMunicipalArea(session, "analise"))');
+    expect(viewer).not.toContain("isProcessOwnedBySessionDepartment");
 
     expect(detail).toContain('session.role !== "prefeitura_admin"');
-    expect(detail).toContain("canAnalysisOperate");
-    expect(detail).toContain("isProcessOwnedBySessionDepartment(session, process)");
-    expect(detail).toContain("process.analysis?.assignedProfileId === session.id");
+    expect(detail).toContain('(session.role === "analista" && canAnalysisOperate)');
   });
 });
 
@@ -133,7 +135,7 @@ describe("analyst PDF markup entry", () => {
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
-    expect(analysis).toContain("Marca-texto");
+    expect(analysis).toContain("Marcar área");
     expect(analysis).toContain("Adicionar texto");
     expect(analysis).toContain("Digite o apontamento no painel");
     expect(analysis).toContain("{annotation.note}");
