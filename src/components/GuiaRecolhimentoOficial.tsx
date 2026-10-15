@@ -1633,6 +1633,8 @@ async function embedGuideImage(source?: string, objectKey?: string) {
 
   if (key) {
     try {
+      // Nunca reaproveita URL assinada antiga: com objectKey disponível,
+      // solicita uma URL R2 nova antes de renderizar/imprimir a guia.
       const bucket =
         (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
         "sigapro-logos";
