@@ -77,6 +77,7 @@ type UrbanAnalysisChecklistPanelProps = {
   municipalityPhone?: string | null;
   municipalityEmail?: string | null;
   departmentLabel?: string | null;
+  organogramTrail?: Array<{ code: string; name: string }>;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -214,6 +215,7 @@ export function UrbanAnalysisChecklistPanel({
   municipalityPhone,
   municipalityEmail,
   departmentLabel,
+  organogramTrail = [],
 }: UrbanAnalysisChecklistPanelProps) {
   const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() => makeInitialState(process, session));
@@ -675,6 +677,26 @@ export function UrbanAnalysisChecklistPanel({
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
                 A ficha municipal foi transformada em uma mesa digital de conferência: análise técnica, observações por item, encaminhamento, assinatura técnica, conferência fiscal e PDF oficial.
               </p>
+
+              {organogramTrail.length > 0 ? (
+                <div data-dark-organogram-trail="true" className="mt-3 flex flex-wrap items-center gap-2">
+                  {organogramTrail.map((unit, index) => (
+                    <div key={`analysis-org-${unit.code}-${unit.name}`} className="flex items-center gap-2">
+                      {index > 0 ? <span className="!text-sky-200/80">›</span> : null}
+                      <span
+                        data-dark-organogram-code="true"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-black tracking-[0.10em] !text-white shadow-sm backdrop-blur-sm"
+                        title={unit.name}
+                      >
+                        <span className="!text-white">{unit.code}</span>
+                        <span className="hidden font-semibold tracking-normal !text-sky-100 sm:inline">
+                          {unit.name}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
