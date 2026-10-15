@@ -537,3 +537,407 @@ html body #root .sig-main-shell :is(
 
 /* End Surface Polarity Contract V10 */
 
+
+
+/* ==========================================================================
+   PROCESS ANALYSIS + ALVARA POLARITY LOCK V11 - 2026-10-15
+   Final authority for the process analysis worksheet and construction permit.
+   This block is intentionally local: it does NOT touch topbar, sidebar,
+   footer, theme picker or global brand colors.
+   Rule: dark surface => light copy/icons; light surface => dark copy/icons.
+   ========================================================================== */
+
+/* ----- Fixed dark headers: always vivid and readable in both themes. ----- */
+html body #root .sig-main-shell :is(
+  [data-urban-analysis-sheet="true"],
+  [data-construction-permit-panel="true"]
+) [data-force-card-contrast="dark"] {
+  background: linear-gradient(135deg,#06182b 0%,#0b456a 54%,#0c78a6 100%) !important;
+  background-color: #06182b !important;
+  border-color: rgba(125,211,252,.30) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 16px 38px rgba(2,18,35,.18) !important;
+}
+html body #root .sig-main-shell :is(
+  [data-urban-analysis-sheet="true"],
+  [data-construction-permit-panel="true"]
+) [data-force-card-contrast="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell :is(
+  [data-urban-analysis-sheet="true"],
+  [data-construction-permit-panel="true"]
+) [data-force-card-contrast="dark"] :is(svg,svg *) {
+  color: #e0f2fe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* ----- Analysis worksheet: light mode uses clean municipal paper cards. ----- */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#f8fbff 0%,#eef4fa 100%) !important;
+  color: #0b1726 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  border-color: #cbd9e7 !important;
+  color: #0b1726 !important;
+  box-shadow: 0 14px 34px rgba(15,23,42,.07) !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  background: #ffffff !important;
+  border-color: #e5edf5 !important;
+  color: #0b1726 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"]:hover {
+  background: #f0f8ff !important;
+}
+
+/* ----- Analysis worksheet: inverse mode becomes true navy, never gray-on-gray. ----- */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#071522 0%,#081a2a 100%) !important;
+  color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) {
+  background: linear-gradient(180deg,#102a43 0%,#0b1d2f 100%) !important;
+  border-color: #31536f !important;
+  color: #f8fbff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 16px 38px rgba(0,0,0,.28) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-analysis-legend="true"],
+  [data-analysis-section="true"],
+  [data-analysis-conclusion="true"],
+  [data-analysis-validation="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #c8d8e8 !important;
+  -webkit-text-fill-color: #c8d8e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  background: #0b1d2e !important;
+  border-color: #294861 !important;
+  color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"]:hover {
+  background: #12324d !important;
+}
+
+/* Analysis inputs/selects: explicit polarity based on workspace, not html.dark. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(input,textarea,[role="combobox"]) {
+  background: #ffffff !important;
+  border-color: #cbd9e7 !important;
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(input,textarea,[role="combobox"]) {
+  background: #071522 !important;
+  border-color: #3b5f7b !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(input,textarea)::placeholder {
+  color: #9fb4c8 !important;
+  -webkit-text-fill-color: #9fb4c8 !important;
+  opacity: 1 !important;
+}
+
+/* Signature cards retain meaning without washing out the copy. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-signature-card] {
+  box-shadow: 0 10px 26px rgba(15,23,42,.06) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-signature-card] {
+  background: linear-gradient(180deg,#10283f 0%,#0b1c2d 100%) !important;
+  border-color: #31536f !important;
+  color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-signature-card] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+/* ----- Construction permit root/workspace. ----- */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#fbfdff 0%,#f2f7fb 100%) !important;
+  color: #0b1726 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  background: linear-gradient(180deg,#071522 0%,#091a2b 100%) !important;
+  color: #f8fbff !important;
+}
+
+/* Permit status cards: vivid semantic surfaces. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="emerald"] {
+  background: linear-gradient(145deg,#ecfdf5 0%,#d8f8e8 100%) !important;
+  border-color: #74d9ae !important;
+  color: #133629 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="amber"] {
+  background: linear-gradient(145deg,#fffbeb 0%,#ffedb7 100%) !important;
+  border-color: #efbd43 !important;
+  color: #4b3410 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="sky"] {
+  background: linear-gradient(145deg,#f0f9ff 0%,#dff3ff 100%) !important;
+  border-color: #79cbed !important;
+  color: #123a55 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="emerald"] {
+  background: linear-gradient(145deg,#0b4537 0%,#08745a 100%) !important;
+  border-color: #279a78 !important;
+  color: #f2fff9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="amber"] {
+  background: linear-gradient(145deg,#563b08 0%,#8b5e08 100%) !important;
+  border-color: #c28a20 !important;
+  color: #fff9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"][data-tone="sky"] {
+  background: linear-gradient(145deg,#0b3858 0%,#0d638f 100%) !important;
+  border-color: #2a82ae !important;
+  color: #f4fbff !important;
+}
+html body #root .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body #root .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-status-card="true"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Permit preparation/details/signatures: coherent premium cards in both modes. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) {
+  background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border-color: #cad9e7 !important;
+  color: #0b1726 !important;
+  box-shadow: 0 12px 30px rgba(15,23,42,.07) !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) {
+  background: linear-gradient(180deg,#102a43 0%,#0b1d2f 100%) !important;
+  border-color: #31536f !important;
+  color: #f8fbff !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.28) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-prep="true"],
+  [data-permit-prerequisite-card="true"],
+  [data-permit-detail-card="true"],
+  [data-permit-signature-card],
+  [data-permit-dialog-section="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #c8d8e8 !important;
+  -webkit-text-fill-color: #c8d8e8 !important;
+}
+
+/* Signed permit stages get an unmistakable success treatment. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-signature-card][data-state="signed"],
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-issued-card="true"] {
+  background: linear-gradient(145deg,#ecfdf5 0%,#d9f8e9 100%) !important;
+  border-color: #72d8ad !important;
+  color: #12382a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-signature-card][data-state="signed"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-issued-card="true"] {
+  background: linear-gradient(145deg,#0b4537 0%,#08745a 100%) !important;
+  border-color: #2a9d7b !important;
+  color: #f2fff9 !important;
+}
+html body #root .sig-main-shell
+[data-construction-permit-panel="true"] :is(
+  [data-permit-signature-card][data-state="signed"],
+  [data-permit-issued-card="true"]
+) :is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* Permit form fields: stable, high-contrast, theme-aware. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(input,textarea,[role="combobox"]) {
+  background: #ffffff !important;
+  border-color: #cbd9e7 !important;
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(input,textarea,[role="combobox"]) {
+  background: #071522 !important;
+  border-color: #3b5f7b !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] :is(input,textarea)::placeholder {
+  color: #9fb4c8 !important;
+  -webkit-text-fill-color: #9fb4c8 !important;
+  opacity: 1 !important;
+}
+
+/* The Alvara summary card follows the same vivid semantic language. */
+html body #root [data-layout-mode="default"] .sig-main-shell [data-permit-summary-card="true"] {
+  background: linear-gradient(145deg,#f0f9ff 0%,#dff3ff 100%) !important;
+  border-color: #79cbed !important;
+  color: #123a55 !important;
+  box-shadow: 0 14px 34px rgba(14,116,181,.10) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-permit-summary-card="true"] {
+  background: linear-gradient(145deg,#0b3858 0%,#0d638f 100%) !important;
+  border-color: #2a82ae !important;
+  color: #f4fbff !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.30) !important;
+}
+html body #root .sig-main-shell [data-permit-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label
+) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body #root .sig-main-shell [data-permit-summary-card="true"] svg:not([data-keep-color="true"]) {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* ===== END PROCESS ANALYSIS + ALVARA POLARITY LOCK V11 ===== */
