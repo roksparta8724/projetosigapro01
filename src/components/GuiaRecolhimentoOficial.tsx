@@ -83,24 +83,35 @@ export type GuiaRecolhimentoOficialProps = {
 
 function GuideInstitutionLogo({
   source,
+  municipalityName,
   className,
   compact = false,
 }: {
   source?: string;
+  municipalityName?: string;
   className?: string;
   compact?: boolean;
 }) {
   const [failed, setFailed] = React.useState(false);
   const normalizedSource = String(source || "").trim();
+  const initials = String(municipalityName || "Prefeitura")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => !/^(de|da|do|das|dos|e)$/i.test(word))
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 4)
+    .toUpperCase() || "PM";
 
   if (!normalizedSource || failed) {
     return (
       <div
         className="dam-logo-fallback"
-        style={compact ? { width: 18, height: 18 } : undefined}
-        aria-label="Brasão institucional indisponível"
+        style={compact ? { width: 26, height: 26 } : undefined}
+        role="img"
+        aria-label={`Brasão de ${municipalityName || "Prefeitura"} indisponível`}
       >
-        Brasão
+        <span className="dam-logo-fallback-mark">{initials}</span>
       </div>
     );
   }
@@ -108,7 +119,7 @@ function GuideInstitutionLogo({
   return (
     <img
       src={normalizedSource}
-      alt="Brasão da Prefeitura"
+      alt={`Brasão de ${municipalityName || "Prefeitura"}`}
       className={className}
       onError={() => setFailed(true)}
     />
@@ -262,20 +273,29 @@ function getStyles() {
     }
 
     .dam-logo-fallback {
-      width: 32px;
-      height: 32px;
-      border: 1px dashed #9ca3af;
-      border-radius: 4px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid #111827;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 5.5px;
-      line-height: 1.15;
-      color: #6b7280;
+      background: #ffffff;
+      color: #111827;
       text-align: center;
-      text-transform: uppercase;
       padding: 2px;
       box-sizing: border-box;
+    }
+
+    .dam-logo-fallback-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .dam-header-center {
@@ -1154,6 +1174,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-logo-box">
                 <GuideInstitutionLogo
                   source={prefeitura.logoUrl}
+                  municipalityName={prefeitura.nome}
                   className="dam-logo"
                 />
               </div>
@@ -1433,6 +1454,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-receipt-logo">
                 <GuideInstitutionLogo
                   source={prefeitura.logoUrl}
+                  municipalityName={prefeitura.nome}
                   compact
                 />
               </div>
@@ -1645,6 +1667,7 @@ async function embedGuideImage(source?: string, objectKey?: string) {
       });
       const response = await fetch(signedUrl, {
         cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
       });
       if (response.ok) {
         return await blobToDataUrl(await response.blob());
@@ -1667,6 +1690,7 @@ async function embedGuideImage(source?: string, objectKey?: string) {
     const response = await fetch(parsed.toString(), {
       credentials: "include",
       cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) return "";
     return await blobToDataUrl(await response.blob());
@@ -1700,8 +1724,9 @@ export function buildGuiaRecolhimentoOficialHtml(
     ...props,
     prefeitura: {
       ...props.prefeitura,
-      // HTML estático não hidrata onError. Nunca deixe URL remota quebrada
-      // dentro da guia: a abertura oficial incorpora o brasão como data URL.
+      // HTML estático não hidrata onError. Nunca deixa URL remota quebrada
+      // na guia: só aceita imagem incorporada; caso contrário usa o fallback
+      // institucional renderizado no próprio HTML.
       logoUrl: /^data:image\//i.test(staticLogo) ? staticLogo : "",
     },
   };
