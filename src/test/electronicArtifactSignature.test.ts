@@ -88,6 +88,26 @@ describe("official electronic signatures", () => {
     expect(migrationV2).not.toContain("select secret_value");
   });
 
+  it("generates the municipal analysis PDF in exactly two pages with the crest and signature evidence", () => {
+    expect(checklist).toContain("resolveMunicipalityLogoUrl");
+    expect(checklist).toContain("loadPdfImageDataUrl");
+    expect(checklist).toContain("doc.addImage");
+    expect(checklist).toContain("Página ${pageNumber} de ${totalPages}");
+    expect(checklist).toContain("ASSINATURA ELETRÔNICA VÁLIDA");
+    expect(checklist).toContain("Código:");
+    expect(checklist).toContain("SHA-256:");
+    expect(checklist.match(/doc\.addPage\(\)/g) ?? []).toHaveLength(1);
+    expect(checklist).not.toContain('doc.setFontSize(28);');
+  });
+
+  it("shows the verified electronic signature as a premium evidence card on screen", () => {
+    expect(checklist).toContain("renderSignatureEvidence");
+    expect(checklist).toContain("Assinatura eletrônica válida");
+    expect(checklist).toContain("Código de verificação");
+    expect(checklist).toContain("Integridade SHA-256");
+    expect(checklist).toContain("Gerando PDF premium...");
+  });
+
   it("keeps immutable database evidence and audit trail", () => {
     expect(migration).toContain("sign_process_artifact_v1");
     expect(migration).toContain("artifact_payload");
