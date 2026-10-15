@@ -53,7 +53,7 @@ describe("process forms and worksheet contrast", () => {
 describe("analysis and Alvara premium V11 contract", () => {
   it("locks the final V11 visual contract without touching app chrome", () => {
     const css = read("src/styles/surface-polarity.css");
-    const start = css.lastIndexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
+    const start = css.indexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
     const block = css.slice(start);
 
     expect(start).toBeGreaterThanOrEqual(0);
