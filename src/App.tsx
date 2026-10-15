@@ -96,12 +96,12 @@ const AppRoutes = () => {
     const zoom = isLandingRoute || isFullDocumentRoute ? "1" : "0.85";
     document.documentElement.style.zoom = zoom;
     document.body.style.zoom = "1";
-    document.documentElement.dataset.pageZoom =
-      isLandingRoute || isFullDocumentRoute ? "100" : "85";
+    document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
 
-    // Não limpe o zoom no teardown. No F5/revalidação o cleanup anterior
-    // criava um frame físico em 100% antes de a nova árvore voltar para 85%,
-    // causando a compressão/expansão visível da página.
+    return () => {
+      document.documentElement.style.zoom = "";
+      delete document.documentElement.dataset.pageZoom;
+    };
   }, [pathname]);
   const isPublicEntryPath =
     pathname === "/" ||
