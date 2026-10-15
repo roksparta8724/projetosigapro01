@@ -92,7 +92,8 @@ html body #root .sig-main-shell #sig-process-document-command-center .sig-comman
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) {
   background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
   background-color: #ffffff !important;
@@ -103,7 +104,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
@@ -112,7 +114,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy):not([data-ui="badge"]) {
   color: #526174 !important;
   -webkit-text-fill-color: #526174 !important;
@@ -121,7 +124,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) {
   background: linear-gradient(180deg,#11283f 0%,#0a1928 100%) !important;
   background-color: #0a1928 !important;
@@ -132,7 +136,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd):not([data-ui="badge"]) {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
@@ -141,7 +146,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-field-help,.sig-fit-copy):not([data-ui="badge"]) {
   color: #cbd8e8 !important;
   -webkit-text-fill-color: #cbd8e8 !important;
@@ -150,7 +156,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) svg:not([data-keep-color="true"]) {
   color: currentColor !important;
   stroke: currentColor !important;
@@ -384,7 +391,8 @@ html body #root .sig-main-shell [data-municipal-organogram="true"] [data-organog
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) {
   background: linear-gradient(180deg,#ffffff 0%,#f4f9ff 100%) !important;
   background-color: #ffffff !important;
@@ -395,7 +403,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700) {
   color: #0b1726 !important;
   -webkit-text-fill-color: #0b1726 !important;
@@ -403,7 +412,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="default"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-fit-copy) {
   color: #526174 !important;
   -webkit-text-fill-color: #526174 !important;
@@ -413,7 +423,8 @@ html body #root [data-layout-mode="default"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) {
   background: linear-gradient(180deg,#123454 0%,#081a2b 100%) !important;
   background-color: #0b2238 !important;
@@ -424,7 +435,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(h1,h2,h3,h4,h5,h6,p,strong,small,label,dt,dd,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700) {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
@@ -432,7 +444,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) :is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-label,.sig-meta,.sig-subtitle,.sig-fit-copy) {
   color: #cddceb !important;
   -webkit-text-fill-color: #cddceb !important;
@@ -440,7 +453,8 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is(
   [data-process-premium-card="true"],
   [data-process-document-card="true"],
-  .sig-process-detail-premium [data-surface="adaptive-card"]
+  .sig-process-detail-premium [data-surface="adaptive-card"],
+  .sig-process-detail-premium .sig-process-card:not([data-surface="semantic-card"]):not([data-surface="fixed-dark"])
 ) svg:not([data-keep-color="true"]) {
   color: currentColor !important;
   stroke: currentColor !important;
