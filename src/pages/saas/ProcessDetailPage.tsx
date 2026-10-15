@@ -1030,7 +1030,7 @@ export function ProcessDetailPage() {
     );
   };
 
-  const handleConfirmConstructionPayment = () => {
+  const handleConfirmConstructionPayment = async () => {
     if (!constructionGuide) return;
     if (!constructionGuideSentExternally) {
       setProcessActionStatus(
@@ -1045,11 +1045,20 @@ export function ProcessDetailPage() {
       return;
     }
 
-    void runProcessAction(
+    const ok = await runProcessAction(
       "confirm-construction-payment",
       () => markGuideAsPaid(process.id, session.name, "iss_obra"),
-      "Pagamento da Guia de ISSQN / Projeto confirmado pelo Financeiro.",
+      "Pagamento confirmado. O processo retornou automaticamente à Análise Urbanística.",
     );
+
+    if (ok) {
+      navigate(
+        `/prefeitura/financeiro/protocolos?retorno=analise&processo=${encodeURIComponent(
+          formatOfficialProcessNumber(process.protocol),
+        )}`,
+        { replace: true },
+      );
+    }
   };
 
   const handleReviseConstructionGuide = async () => {
