@@ -413,7 +413,7 @@ export function AnalystDeskPage() {
                 </div>
               </div>
 
-              <div className="sig-responsive-data-grid mt-4">
+              <div className="sig-responsive-data-grid mx-5 mt-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Responsável pela análise</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
@@ -453,7 +453,7 @@ export function AnalystDeskPage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mx-5 mt-4 flex flex-wrap gap-2">
                 {process.tags.map((tag) => (
                   <Badge
                     key={tag}
@@ -469,7 +469,7 @@ export function AnalystDeskPage() {
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mx-5 mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   variant={analysisStarted ? "default" : "outline"}
