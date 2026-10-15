@@ -648,10 +648,10 @@ export function UrbanAnalysisChecklistPanel({
               <ClipboardCheck className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Guia técnica do analista</p>
-              <CardTitle className="mt-1 text-xl font-bold !text-white">Avaliação Urbanística do Processo</CardTitle>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
+              <CardTitle className="mt-1 text-xl font-bold !text-white">Ficha Oficial de Análise do Processo</CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
-                Checklist digital inspirado na ficha oficial de análise: cada analista registra A, AP, C ou N/A, inclui observações, assina e gera o relatório em PDF.
+                A ficha municipal foi transformada em uma mesa digital de conferência: análise técnica, observações por item, encaminhamento, assinatura técnica, conferência fiscal e PDF oficial.
               </p>
             </div>
           </div>
@@ -682,6 +682,58 @@ export function UrbanAnalysisChecklistPanel({
       </CardHeader>
 
       <CardContent className="space-y-5 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#0b1320_100%)] md:p-6">
+        <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-5 py-5 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0d2032_0%,#10283d_100%)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+              {municipalityLogoUrl ? (
+                <img src={municipalityLogoUrl} alt="" className="h-full w-full object-contain p-2" />
+              ) : (
+                <ClipboardCheck className="h-6 w-6 text-sky-700 dark:text-sky-300" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                {municipalityName || "Prefeitura Municipal"}
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                {secretariat || "Secretaria responsável"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                {directorate || departmentLabel || "Diretoria de Urbanismo"}
+              </p>
+              {[municipalityPhone, municipalityEmail, municipalityAddress].filter(Boolean).length > 0 ? (
+                <p className="mt-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                  {[municipalityPhone, municipalityEmail, municipalityAddress].filter(Boolean).join(" • ")}
+                </p>
+              ) : null}
+            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-right dark:border-sky-500/30 dark:bg-sky-950/30">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">Documento municipal</p>
+              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Análise de Processos</p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Folha {state.sheetNumber || "1"}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
+            <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:border-r xl:border-b-0">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
+              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+            </div>
+            <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 xl:border-b-0 xl:border-r">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Requerente / proprietário</p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-950 dark:text-white">{process.ownerName}</p>
+            </div>
+            <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:border-r xl:border-b-0">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Responsável técnico</p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-950 dark:text-white">{process.technicalLead || "Não informado"}</p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Imóvel</p>
+              <p className="mt-1 line-clamp-2 text-sm font-bold text-slate-950 dark:text-white">{process.address || "Não informado"}</p>
+            </div>
+          </div>
+        </section>
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
@@ -689,9 +741,9 @@ export function UrbanAnalysisChecklistPanel({
             <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{process.title}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Analista</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Usuário em conferência</p>
             <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{session.name}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{session.title || "Analista"}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{session.title || "Servidor municipal"}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data da análise</p>
