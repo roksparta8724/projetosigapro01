@@ -1926,11 +1926,7 @@ export function UrbanAnalysisChecklistPanel({
                 ) : (
                   <FileDown className="mr-2 h-4 w-4" />
                 )}
-                {pdfBusy
-                  ? "Gerando PDF premium..."
-                  : isFullySigned
-                    ? "Gerar PDF final"
-                    : "Gerar PDF rascunho"}
+                {pdfBusy ? "Gerando PDF oficial..." : "Gerar PDF oficial"}
               </Button>
             </div>
           </div>
