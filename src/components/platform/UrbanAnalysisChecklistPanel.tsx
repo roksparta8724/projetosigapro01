@@ -1726,6 +1726,11 @@ export function UrbanAnalysisChecklistPanel({
                   </p>
                 </div>
               </div>
+              {renderSignatureEvidence(
+                state.technicalSignature,
+                technicalOfficial,
+                "Análise técnica",
+              )}
               {canSignTechnical ? (
                 <Button
                   type="button"
@@ -1785,6 +1790,11 @@ export function UrbanAnalysisChecklistPanel({
                   </p>
                 </div>
               </div>
+              {renderSignatureEvidence(
+                state.fiscalSignature,
+                fiscalOfficial,
+                "Conferência fiscal",
+              )}
               {canSignFiscal ? (
                 <Button
                   type="button"
@@ -1818,10 +1828,19 @@ export function UrbanAnalysisChecklistPanel({
               <Button
                 type="button"
                 className="rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-110 [&_*]:!text-white"
-                onClick={generatePdf}
+                onClick={() => void generatePdf()}
+                disabled={pdfBusy}
               >
-                <FileDown className="mr-2 h-4 w-4" />
-                {isFullySigned ? "Gerar PDF final" : "Gerar PDF rascunho"}
+                {pdfBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {pdfBusy
+                  ? "Gerando PDF premium..."
+                  : isFullySigned
+                    ? "Gerar PDF final"
+                    : "Gerar PDF rascunho"}
               </Button>
             </div>
           </div>
