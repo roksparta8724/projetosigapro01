@@ -230,6 +230,7 @@ describe("authoritative process surface polarity file", () => {
       main.indexOf('import "./index.css"'),
     );
     expect(polarity).toContain("Surface Polarity Contract V8");
+    expect(polarity).toContain("FINAL PROCESS POLARITY LOCK V9");
     expect(polarity).toContain("#sig-process-document-command-center");
     expect(polarity).toContain('[data-layout-mode="default"]');
     expect(polarity).toContain('[data-layout-mode="inverse-main"]');
@@ -265,5 +266,22 @@ describe("canonical process surface contract", () => {
     expect(external).toContain('data-process-premium-card="true"');
     expect(finance).toContain('data-process-premium-card="true"');
     expect(financeProtocols).toContain('data-process-premium-card="true"');
+  });
+});
+
+
+describe("final process contrast authority", () => {
+  it("keeps the final polarity lock after every earlier rule and never targets topbar", () => {
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
+    const finalIndex = polarity.lastIndexOf("FINAL PROCESS POLARITY LOCK V9");
+    const commandIndex = polarity.lastIndexOf("#sig-process-document-command-center");
+
+    expect(finalIndex).toBeGreaterThan(0);
+    expect(commandIndex).toBeGreaterThan(finalIndex);
+    expect(polarity.slice(finalIndex)).toContain("color: #ffffff !important");
+    expect(polarity.slice(finalIndex)).toContain('[data-organogram-unit-chip="true"]');
+    expect(polarity.slice(finalIndex)).toContain('[data-primary-action="process"]');
+    expect(polarity.slice(finalIndex)).not.toContain(".sig-topbar");
+    expect(polarity.slice(finalIndex)).not.toContain(".sig-premium-topbar");
   });
 });
