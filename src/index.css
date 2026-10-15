@@ -7573,3 +7573,101 @@ html body .sig-main-shell :is(
 }
 
 /* ===== END FINAL PROCESS CARD PREMIUM POLISH ===== */
+
+
+/* ===== PROCESS CARD CONTRAST CONTRACT V4 — 2026-10-14 =====
+   Scope is deliberately limited to .sig-main-shell.
+   It NEVER recolors topbar/sidebar/footer.
+   Rule: dark surface => light content; light surface => dark content. */
+html body .sig-main-shell [data-force-card-contrast="dark"] {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body .sig-main-shell [data-force-card-contrast="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell [data-force-card-contrast="dark"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #d5e3f2 !important;
+  -webkit-text-fill-color: #d5e3f2 !important;
+}
+html body .sig-main-shell [data-force-card-contrast="dark"] > :is(svg,[data-card-icon="true"]),
+html body .sig-main-shell [data-force-card-contrast="dark"] > * > :is(svg,[data-card-icon="true"]) {
+  color: #e7f4ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Adaptive cards follow the actual SIGAPRO workspace theme. */
+html body [data-layout-mode="default"] .sig-main-shell [data-force-card-contrast="adaptive"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-force-card-contrast="adaptive"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-force-card-contrast="adaptive"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-force-card-contrast="adaptive"] {
+  background-color: #0d1d2e !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-force-card-contrast="adaptive"] :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-force-card-contrast="adaptive"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd8e8 !important;
+  -webkit-text-fill-color: #cbd8e8 !important;
+}
+
+/* The document command center is always a saturated dark surface. */
+html body .sig-main-shell #sig-process-document-command-center,
+html body .sig-main-shell #sig-process-document-command-center[data-force-card-contrast="dark"] {
+  background: linear-gradient(135deg,#06182b 0%,#075985 54%,#0c7ca8 100%) !important;
+  background-color: #06182b !important;
+  border-color: rgba(125,211,252,.34) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08),0 16px 36px rgba(2,20,36,.18) !important;
+}
+html body .sig-main-shell #sig-process-document-command-center :is(
+  h1,h2,h3,h4,h5,h6,p,label,dt,dd
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell #sig-process-document-command-center .sig-command-metric :is(
+  p,strong,small
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ===== END PROCESS CARD CONTRAST CONTRACT V4 ===== */
