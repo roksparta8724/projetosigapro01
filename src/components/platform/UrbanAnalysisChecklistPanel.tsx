@@ -1303,8 +1303,12 @@ export function UrbanAnalysisChecklistPanel({
 
       // Página 1 - dados principais + primeiros 20 itens de Engenharia.
       drawHeader(1);
-      drawProcessSummary(41);
-      let y = drawSectionRows("Engenharia - Itens 1 a 20", ENGINEERING_ITEMS.slice(0, 20), 68);
+      drawProcessSummary(47);
+      let y = drawSectionRows(
+        "Engenharia - Itens 1 a 20",
+        ENGINEERING_ITEMS.slice(0, 20),
+        82,
+      );
 
       doc.setTextColor(...muted);
       doc.setFont("helvetica", "normal");
@@ -1319,25 +1323,32 @@ export function UrbanAnalysisChecklistPanel({
       // Página 2 - conclusão dos itens + externas + resultado + assinaturas.
       doc.addPage();
       drawHeader(2, true);
-      doc.setFillColor(...light);
-      doc.setDrawColor(...line);
-      doc.roundedRect(margin, 37, contentW, 10, 2, 2, "FD");
+      doc.setFillColor(250, 252, 254);
+      doc.setDrawColor(218, 226, 234);
+      doc.roundedRect(margin, 47, contentW, 10, 2, 2, "FD");
       doc.setTextColor(...slate);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.2);
-      doc.text(formatOfficialProcessNumber(process.protocol), margin + 4, 43);
+      doc.setFontSize(6);
+      doc.text(protocolLabel, margin + 4, 53.2);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...muted);
+      doc.setFontSize(5.4);
       doc.text(
-        doc.splitTextToSize(process.title || "Projeto", 92).slice(0, 1),
-        margin + 50,
-        43,
+        doc.splitTextToSize(process.title || "Projeto", 82).slice(0, 1),
+        margin + 58,
+        53.2,
+      );
+      doc.text(
+        `Análise: ${analysisDateLabel}  •  Folha ${state.sheetNumber || "1"}`,
+        pageW - margin - 4,
+        53.2,
+        { align: "right" },
       );
 
       y = drawSectionRows(
         "Engenharia - Itens 21 a 31",
         ENGINEERING_ITEMS.slice(20),
-        51,
+        61,
         true,
       );
       y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y + 4, true);
