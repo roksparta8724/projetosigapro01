@@ -347,3 +347,29 @@ describe("process analysis premium contrast contract v7", () => {
     expect(detail).toContain('data-premium-dark-action="true"');
   });
 });
+
+
+describe("process detail visibility lock v13", () => {
+  it("makes the post-index polarity file the final authority only inside the open process", () => {
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
+    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V13");
+    const v13 = polarity.slice(start);
+
+    expect(start).toBeGreaterThan(0);
+    expect(v13).toContain(".sig-process-detail-premium");
+    expect(v13).toContain('[data-analysis-dark-header="true"]');
+    expect(v13).toContain('[data-permit-dark-header="true"]');
+    expect(v13).toContain('[data-analysis-signature-action="technical"]');
+    expect(v13).toContain('[data-dispatch-organogram="true"] [data-organogram-code="true"]');
+    expect(v13).toContain('button[data-checklist-status="NA"][data-selected="true"]');
+    expect(v13).not.toContain(".sig-premium-topbar");
+    expect(v13).not.toContain(".sig-topbar-shell");
+
+    expect(detail).toContain('data-dark-header-action="true"');
+    expect(analysis).toContain('data-analysis-dark-header="true"');
+    expect(permit).toContain('data-permit-dark-header="true"');
+  });
+});
