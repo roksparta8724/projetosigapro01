@@ -86,3 +86,22 @@ describe("selected checklist statuses unmistakable", () => {
     expect(polarity).toContain('[data-checklist-status="C"][aria-pressed="true"]');
   });
 });
+
+
+describe("V14/V15 process polarity authority", () => {
+  it("forces blue analysis headers to white copy and keeps selected checklist values obvious", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(panel).toContain('data-analysis-dark-header="true"');
+    expect(panel).toContain("<CheckCircle2");
+    expect(panel).toContain('data-analysis-section="true"');
+    expect(panel).toContain('data-analysis-section-header="true"');
+
+    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V14");
+    expect(polarity).toContain("PROCESS DETAIL ADAPTIVE CARDS V15");
+    expect(polarity).toContain('[data-analysis-dark-header="true"]');
+    expect(polarity).toContain('button[data-checklist-status="A"][data-selected="true"]');
+    expect(polarity).toContain("color:#ffffff !important");
+  });
+});
