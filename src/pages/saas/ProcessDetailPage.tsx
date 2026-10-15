@@ -2174,6 +2174,49 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
 
+                    {document.uploaded && (document.annotations?.length ?? 0) > 0 ? (
+                      <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-500/30 dark:bg-violet-950/25">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">
+                              Apontamentos técnicos
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
+                              {document.annotations?.length} marcação(ões) vinculada(s) a este documento
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="rounded-full border-violet-200 bg-white text-violet-700 dark:border-violet-500/40 dark:bg-violet-950/40 dark:text-violet-300">
+                            Lista de correções
+                          </Badge>
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          {(document.annotations ?? []).slice(0, 3).map((annotation, annotationIndex) => (
+                            <div
+                              key={annotation.id}
+                              className="flex items-start gap-3 rounded-xl border border-violet-100 bg-white px-3 py-2.5 dark:border-violet-500/20 dark:bg-slate-900"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
+                                {annotationIndex + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                  Página {annotation.page || 1} • {annotation.kind === "highlight" ? "Área marcada" : "Texto / comentário"}
+                                </p>
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                  {annotation.note}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {(document.annotations?.length ?? 0) > 3 ? (
+                          <p className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300">
+                            + {(document.annotations?.length ?? 0) - 3} apontamento(s). Abra o documento para visualizar todos no painel técnico.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     {canReviewDocuments && document.uploaded ? (
                       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700/80 dark:bg-slate-950/55">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
