@@ -36,6 +36,17 @@ type TaxaItem = {
   total: number;
 };
 
+type ElectronicSignatureData = {
+  signerName: string;
+  signerTitle?: string;
+  departmentCode?: string;
+  departmentName?: string;
+  signedAt: string;
+  signatureCode: string;
+  signatureFingerprint: string;
+  assuranceLabel?: string;
+};
+
 type GuiaData = {
   numeroGuia: string;
   exercicio?: string | number;
@@ -59,6 +70,7 @@ type GuiaData = {
   valorCobrado?: number;
   autenticacaoMecanica?: string;
   referencia?: string;
+  assinaturaEletronica?: ElectronicSignatureData;
 };
 
 export type GuiaRecolhimentoOficialProps = {
@@ -765,6 +777,47 @@ function getStyles() {
       box-sizing: border-box;
     }
 
+    .dam-electronic-signature {
+      margin-top: 3px;
+      border: 1px solid #000000;
+      display: grid;
+      grid-template-columns: 22mm minmax(0, 1fr);
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+
+    .dam-electronic-signature-badge {
+      border-right: 1px solid #000000;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 6.5px;
+      line-height: 1.25;
+      font-weight: 800;
+      text-transform: uppercase;
+      box-sizing: border-box;
+    }
+
+    .dam-electronic-signature-body {
+      padding: 4px 5px;
+      font-size: 6.5px;
+      line-height: 1.35;
+      box-sizing: border-box;
+    }
+
+    .dam-electronic-signature-body strong {
+      font-size: 7px;
+    }
+
+    .dam-electronic-signature-code {
+      margin-top: 2px;
+      font-family: "Courier New", monospace;
+      font-size: 6px;
+      overflow-wrap: anywhere;
+    }
+
     .dam-auth {
       padding: 3px 4px;
       box-sizing: border-box;
@@ -1312,9 +1365,42 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
+            {guia.assinaturaEletronica ? (
+              <div className="dam-electronic-signature">
+                <div className="dam-electronic-signature-badge">
+                  Assinatura
+                  <br />
+                  Eletrônica
+                </div>
+                <div className="dam-electronic-signature-body">
+                  Documento assinado eletronicamente por{" "}
+                  <strong>{guia.assinaturaEletronica.signerName}</strong>
+                  {guia.assinaturaEletronica.signerTitle
+                    ? `, ${guia.assinaturaEletronica.signerTitle}`
+                    : ""}
+                  {guia.assinaturaEletronica.departmentName
+                    ? `, ${[
+                        guia.assinaturaEletronica.departmentCode,
+                        guia.assinaturaEletronica.departmentName,
+                      ].filter(Boolean).join(" — ")}`
+                    : ""}
+                  , em {new Date(guia.assinaturaEletronica.signedAt).toLocaleString("pt-BR")}.
+                  <div className="dam-electronic-signature-code">
+                    Código: {guia.assinaturaEletronica.signatureCode}
+                    {" • "}
+                    SHA-256: {guia.assinaturaEletronica.signatureFingerprint}
+                  </div>
+                  <div className="dam-electronic-signature-code">
+                    {guia.assinaturaEletronica.assuranceLabel || "Assinatura eletrônica autenticada por login e senha no SIGAPRO"}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="dam-warning-row">
-              ** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O
-              VENCIMENTO **
+              {guia.assinaturaEletronica
+                ? "** DOCUMENTO ELETRÔNICO ASSINADO NO SIGAPRO — CONFIRA O CÓDIGO DE VERIFICAÇÃO **"
+                : "** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O VENCIMENTO **"}
             </div>
 
             <div className="dam-observation-row">
