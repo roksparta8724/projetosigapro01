@@ -895,7 +895,8 @@ export function UrbanAnalysisChecklistPanel({
               {canSignTechnical ? (
                 <Button
                   type="button"
-                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
+                  data-premium-dark-action="true"
+                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold !text-white shadow-[0_8px_18px_rgba(3,105,161,0.24)] hover:bg-sky-800 [&_*]:!text-white"
                   onClick={signTechnicalEvaluation}
                 >
                   <Signature className="mr-2 h-4 w-4" />
@@ -963,6 +964,7 @@ export function UrbanAnalysisChecklistPanel({
               </Button>
               <Button
                 type="button"
+                data-premium-dark-action="true"
                 className="rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-110 [&_*]:!text-white"
                 onClick={generatePdf}
               >
