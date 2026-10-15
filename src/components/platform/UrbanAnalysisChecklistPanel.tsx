@@ -553,16 +553,22 @@ export function UrbanAnalysisChecklistPanel({
     state.directorSignature?.verificationCode &&
     state.directorSignature?.authMethod === "password_reauth",
   );
-  const directorRequestPending =
-    directorRequest.request?.status === "pending" &&
+  const directorRequestMatchesCurrentVersion =
+    Boolean(directorRequest.request) &&
     directorRequest.request?.artifact_hash === state.technicalSignature?.evidenceHash;
+  const directorRequestPending =
+    directorRequestMatchesCurrentVersion &&
+    directorRequest.request?.status === "pending";
+  const directorRequestCompleted =
+    directorRequestMatchesCurrentVersion &&
+    directorRequest.request?.status === "completed";
   const canRequestDirector =
     technicalOfficial &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
   const isFullySigned =
     technicalOfficial &&
     fiscalOfficial &&
-    (!directorRequest.request || directorOfficial);
+    (!(directorRequestPending || directorRequestCompleted) || directorOfficial);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
     ...next,
