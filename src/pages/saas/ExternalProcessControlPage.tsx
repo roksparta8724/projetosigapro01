@@ -481,7 +481,7 @@ export function ExternalProcessControlPage() {
                       <Button
                         asChild
                         data-primary-action="process"
-                        className="sig-primary-process-action h-14 w-full rounded-2xl px-6 text-[14px] font-bold !text-white transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
+                        className="sig-primary-process-action h-16 w-full rounded-[20px] px-7 text-[15px] font-extrabold tracking-[0.01em] !text-white transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                       >
                         <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
                           <Eye className="h-4 w-4 shrink-0 !text-white" />
