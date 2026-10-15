@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -135,13 +136,55 @@ function readJsonBody(req: import("http").IncomingMessage): Promise<Record<strin
   });
 }
 
+function readGitIdentity() {
+  try {
+    const branch = execFileSync("git", ["branch", "--show-current"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return { branch, sha };
+  } catch {
+    return { branch: "unknown", sha: "unknown" };
+  }
+}
+
 function createR2DevApiPlugin(): Plugin {
   return {
     name: "sigapro-r2-dev-api",
     configureServer(server) {
+      const gitIdentity = readGitIdentity();
+      console.log("");
+      console.log("[SIGAPRO][DEV SOURCE]");
+      console.log(`  pasta : ${process.cwd()}`);
+      console.log(`  branch: ${gitIdentity.branch}`);
+      console.log(`  commit: ${gitIdentity.sha}`);
+      console.log("  porta : 8080 (strict)");
+      console.log("");
+
       server.middlewares.use(async (req, res, next) => {
         if (!req.url || !req.method || !req.url.startsWith("/api/")) {
           next();
+          return;
+        }
+
+        if (req.url.startsWith("/api/dev-source")) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify({
+            app: "SIGAPRO",
+            cwd: process.cwd(),
+            branch: gitIdentity.branch,
+            sha: gitIdentity.sha,
+            pid: process.pid,
+            port: 8080,
+          }));
           return;
         }
 
@@ -444,6 +487,23 @@ export default defineConfig(({ mode }) => {
   server: {
     host: "::",
     port: 8080,
+    strictPort: true,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+    warmup: {
+      clientFiles: [
+        "./src/main.tsx",
+        "./src/App.tsx",
+        "./src/pages/saas/ProcessDetailPage.tsx",
+        "./src/components/platform/PortalFrame.tsx",
+        "./src/components/platform/UrbanAnalysisChecklistPanel.tsx",
+        "./src/hooks/useAppBootstrap.tsx",
+        "./src/hooks/usePlatformData.tsx",
+        "./src/hooks/usePlanEntitlements.ts",
+        "./src/hooks/usePlatformSession.tsx",
+      ],
+    },
     hmr: {
       overlay: false,
     },
