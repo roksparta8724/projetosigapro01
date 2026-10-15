@@ -3084,7 +3084,7 @@ export function ProcessDetailPage() {
               </div>
 
               {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
-                <form onSubmit={handleDispatchSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <form data-dispatch-panel="true" onSubmit={handleDispatchSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/55">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Encaminhar processo</p>
@@ -3103,7 +3103,7 @@ export function ProcessDetailPage() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+                  <div data-dispatch-organogram="true" className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950/45">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
