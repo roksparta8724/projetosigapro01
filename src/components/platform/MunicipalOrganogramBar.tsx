@@ -86,17 +86,17 @@ export function MunicipalOrganogramBar({
         className,
       )}
     >
-      <div className={cn("flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between", !compact && "md:px-5 md:py-4")}>
+      <div className={cn("sig-organogram-card-header flex flex-col gap-3 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-3 dark:bg-[linear-gradient(180deg,#132338_0%,#0d1b2b_100%)] sm:flex-row sm:items-center sm:justify-between", !compact && "md:px-5 md:py-4")}>
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/60 dark:text-sky-200">
             <Network className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-200">
               {title}
             </p>
             {!compact ? (
-              <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{description}</p>
             ) : null}
           </div>
         </div>
@@ -104,14 +104,14 @@ export function MunicipalOrganogramBar({
         {showLink ? (
           <Link
             to="/prefeitura/organograma"
-            className="inline-flex h-8 shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800"
+            className="inline-flex h-9 shrink-0 items-center rounded-full border border-slate-200 bg-white px-3.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/60 dark:hover:text-sky-100"
           >
             Ver organograma completo
           </Link>
         ) : null}
       </div>
 
-      <div className="border-t border-slate-100 bg-[linear-gradient(180deg,#fbfdff_0%,#f8fbfe_100%)] px-4 py-3 dark:border-slate-700 dark:bg-[linear-gradient(180deg,#111c2b_0%,#0f172a_100%)] md:px-5">
+      <div className="sig-organogram-card-body border-t border-slate-100 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f9fd_100%)] px-4 py-3 dark:border-slate-700 dark:bg-[linear-gradient(180deg,#0d1b2b_0%,#0a1624_100%)] md:px-5">
         {chain.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             {chain.map((department, index) => (
