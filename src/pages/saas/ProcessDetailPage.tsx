@@ -1836,7 +1836,7 @@ export function ProcessDetailPage() {
                   <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/35 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
                     <FileStack className="h-6 w-6 !text-white" />
                   </div>
-                  <div className="min-w-0">
+                  <div data-command-header-copy="true" className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
                       Central documental do processo
                     </p>
@@ -3084,109 +3084,121 @@ export function ProcessDetailPage() {
               </div>
 
               {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
-                <form data-dispatch-panel="true" onSubmit={handleDispatchSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/55">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">Encaminhar processo</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Escolha a próxima unidade da Prefeitura.
-                      </p>
+                <form
+                  data-dispatch-panel="true"
+                  onSubmit={handleDispatchSubmit}
+                  className="overflow-hidden rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#111f31_0%,#0b1725_100%)]"
+                >
+                  <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/50 dark:text-sky-200">
+                        <Workflow className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-950 dark:text-white">Encaminhar processo</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          Escolha a unidade no organograma, informe o assunto e defina o prazo.
+                        </p>
+                      </div>
                     </div>
-                    <Badge variant="outline" className="rounded-full">
+                    <Badge variant="outline" className="max-w-full rounded-full border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
                       Origem: {currentOrganizationPath}
                     </Badge>
                   </div>
 
-                  {organizationStatus ? (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                      {organizationStatus}
-                    </div>
-                  ) : null}
-
-                  <div data-dispatch-organogram="true" className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950/45">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                          Organograma para despacho
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Selecione visualmente a unidade ou use a lista abaixo.
-                        </p>
+                  <div className="p-4">
+                    {organizationStatus ? (
+                      <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200">
+                        {organizationStatus}
                       </div>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                        {organizationDestinations.length} unidade(s)
-                      </span>
-                    </div>
+                    ) : null}
 
-                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
-                      {organizationDestinations
-                        .filter((department) => department.name !== currentFolder)
-                        .map((department) => {
-                          const selected = dispatchTo === department.id;
-                          return (
-                            <button
-                              key={`org-destination-${department.id}`}
-                              type="button"
-                              data-organogram-destination="true"
-                              data-selected={selected ? "true" : "false"}
-                              onClick={() => setDispatchTo(department.id)}
-                              className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
-                                selected
-                                  ? "border-sky-400 bg-sky-100 text-sky-950 shadow-sm dark:border-sky-400 dark:bg-sky-950/70 dark:text-sky-100"
-                                  : "border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/35"
-                              }`}
-                              title={getOrganizationPath(department.name)}
-                            >
-                              {department.code?.trim() ? (
-                                <span data-organogram-code="true" className="rounded-md border border-sky-300/25 bg-[#0b5e93] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] !text-white shadow-sm">
-                                  {department.code.trim()}
-                                </span>
-                              ) : null}
-                              <span className="truncate">{getOrganizationPath(department.name)}</span>
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </div>
+                    <div data-dispatch-organogram="true" className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-950/45">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">
+                            Organograma para despacho
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Clique na unidade de destino.
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          {organizationDestinations.length} unidade(s)
+                        </span>
+                      </div>
 
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <Select value={dispatchTo} onValueChange={setDispatchTo}>
-                      <SelectTrigger className="min-h-12 rounded-2xl bg-white">
-                        <SelectValue placeholder="Selecionar unidade de destino" />
-                      </SelectTrigger>
-                      <SelectContent>
+                      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 pr-1 [scrollbar-width:thin]">
                         {organizationDestinations
                           .filter((department) => department.name !== currentFolder)
-                          .map((department) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {getOrganizationPath(department.name)}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                          .map((department) => {
+                            const selected = dispatchTo === department.id;
+                            return (
+                              <button
+                                key={`org-destination-${department.id}`}
+                                type="button"
+                                data-organogram-destination="true"
+                                data-selected={selected ? "true" : "false"}
+                                onClick={() => setDispatchTo(department.id)}
+                                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold transition ${
+                                  selected
+                                    ? "border-sky-400 bg-sky-100 text-sky-950 shadow-[0_7px_18px_rgba(14,165,233,0.16)] dark:border-sky-400 dark:bg-sky-950/70 dark:text-sky-100"
+                                    : "border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/35"
+                                }`}
+                                title={getOrganizationPath(department.name)}
+                              >
+                                {department.code?.trim() ? (
+                                  <span data-organogram-code="true" className="rounded-md border border-sky-300/25 bg-[#0b5e93] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] !text-white shadow-sm">
+                                    {department.code.trim()}
+                                  </span>
+                                ) : null}
+                                <span className="max-w-[310px] truncate">{getOrganizationPath(department.name)}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
 
-                    <Input
-                      value={dispatchSubject}
-                      onChange={(event) => setDispatchSubject(event.target.value)}
-                      placeholder="Motivo ou assunto do encaminhamento"
-                      className="min-h-12 rounded-2xl bg-white"
-                    />
-                  </div>
+                    <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(250px,1fr)_minmax(320px,1.25fr)_180px_auto] xl:items-center">
+                      <Select value={dispatchTo} onValueChange={setDispatchTo}>
+                        <SelectTrigger className="min-h-11 rounded-xl bg-white dark:bg-slate-950">
+                          <SelectValue placeholder="Selecionar unidade de destino" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {organizationDestinations
+                            .filter((department) => department.name !== currentFolder)
+                            .map((department) => (
+                              <SelectItem key={department.id} value={department.id}>
+                                {getOrganizationPath(department.name)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <Input
-                      type="date"
-                      value={dispatchDueDate}
-                      onChange={(event) => setDispatchDueDate(event.target.value)}
-                      className="w-full rounded-2xl bg-white sm:w-[220px]"
-                    />
-                    <Button
-                      type="submit"
-                      className="rounded-full bg-slate-950 px-5 hover:bg-slate-900"
-                      disabled={!dispatchTo || !dispatchSubject.trim() || !dispatchDueDate || organizationDestinations.length === 0}
-                    >
-                      Encaminhar processo
-                    </Button>
+                      <Input
+                        value={dispatchSubject}
+                        onChange={(event) => setDispatchSubject(event.target.value)}
+                        placeholder="Motivo ou assunto do encaminhamento"
+                        className="min-h-11 rounded-xl bg-white dark:bg-slate-950"
+                      />
+
+                      <Input
+                        type="date"
+                        value={dispatchDueDate}
+                        onChange={(event) => setDispatchDueDate(event.target.value)}
+                        className="min-h-11 rounded-xl bg-white dark:bg-slate-950"
+                      />
+
+                      <Button
+                        type="submit"
+                        data-premium-dark-action="true"
+                        className="min-h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_22px_rgba(7,89,133,0.22)] hover:brightness-105 [&_*]:!text-white"
+                        disabled={!dispatchTo || !dispatchSubject.trim() || !dispatchDueDate || organizationDestinations.length === 0}
+                      >
+                        <Workflow className="mr-2 h-4 w-4" />
+                        Encaminhar
+                      </Button>
+                    </div>
                   </div>
                 </form>
               ) : null}
