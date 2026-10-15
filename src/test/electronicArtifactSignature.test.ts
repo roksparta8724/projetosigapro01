@@ -91,6 +91,8 @@ describe("official electronic signatures", () => {
   it("generates the municipal analysis PDF in exactly two pages with the crest and signature evidence", () => {
     expect(checklist).toContain("resolveMunicipalityLogoUrl");
     expect(checklist).toContain("loadPdfImageDataUrl");
+    expect(checklist).toContain("Brasao-campo-limpo-paulista2.png");
+    expect(checklist).toContain("protocolLabel");
     expect(checklist).toContain("doc.addImage");
     expect(checklist).toContain("Página ${pageNumber} de ${totalPages}");
     expect(checklist).toContain("ASSINATURA ELETRÔNICA VÁLIDA");
@@ -105,7 +107,11 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("Assinatura eletrônica válida");
     expect(checklist).toContain("Código de verificação");
     expect(checklist).toContain("Integridade SHA-256");
-    expect(checklist).toContain("Gerando PDF premium...");
+    expect(checklist).toContain("Gerando PDF oficial...");
+    expect(checklist).toContain("Gerar PDF oficial");
+    expect(checklist).not.toContain("Gerar PDF rascunho");
+    expect(checklist).not.toContain("PDF premium de rascunho");
+    expect(checklist).not.toContain("RASCUNHO - aguardando conferência fiscal");
   });
 
   it("keeps immutable database evidence and audit trail", () => {
