@@ -83,22 +83,22 @@ const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: 
   A: {
     label: "De acordo",
     short: "A",
-    classes: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-emerald-950/45 dark:text-emerald-200",
+    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_8px_18px_rgba(5,150,105,0.28)] hover:bg-emerald-600 dark:border-emerald-400 dark:bg-emerald-600 dark:!text-white",
   },
   AP: {
     label: "Apresentar",
     short: "AP",
-    classes: "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/50 dark:bg-sky-950/45 dark:text-sky-200",
+    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_8px_18px_rgba(2,132,199,0.28)] hover:bg-sky-600 dark:border-sky-400 dark:bg-sky-600 dark:!text-white",
   },
   C: {
     label: "Corrigir",
     short: "C",
-    classes: "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-950/45 dark:text-amber-200",
+    classes: "border-amber-700 bg-amber-600 !text-white shadow-[0_8px_18px_rgba(217,119,6,0.28)] hover:bg-amber-600 dark:border-amber-400 dark:bg-amber-600 dark:!text-white",
   },
   NA: {
     label: "Não se aplica",
     short: "N/A",
-    classes: "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
+    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_8px_18px_rgba(51,65,85,0.28)] hover:bg-slate-700 dark:border-slate-400 dark:bg-slate-700 dark:!text-white",
   },
 };
 
@@ -620,7 +620,7 @@ export function UrbanAnalysisChecklistPanel({
                       aria-pressed={selected}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-8 items-center justify-center rounded-xl border px-2.5 text-[10px] font-bold transition",
+                        "inline-flex h-9 min-w-9 items-center justify-center rounded-xl border px-2.5 text-[10px] font-extrabold transition",
                         selected
                           ? STATUS_META[status].classes
                           : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
@@ -651,12 +651,13 @@ export function UrbanAnalysisChecklistPanel({
       <CardHeader
         data-force-card-contrast="dark"
         data-premium-process-dark-header="analysis"
+        data-analysis-dark-header="true"
         className="border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] md:px-6"
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
-              <ClipboardCheck className="h-6 w-6" />
+            <div data-analysis-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-sky-400/15 !text-white shadow-inner">
+              <ClipboardCheck className="h-6 w-6 !text-white" />
             </div>
             <div data-analysis-header-copy="true" className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
@@ -904,7 +905,8 @@ export function UrbanAnalysisChecklistPanel({
               {canSignTechnical ? (
                 <Button
                   type="button"
-                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
+                  data-analysis-signature-action="technical"
+                  className="mt-4 w-full rounded-xl border border-sky-500 bg-[#082f49] font-bold !text-white shadow-[0_9px_22px_rgba(8,47,73,0.24)] hover:bg-[#0b4568] [&_*]:!text-white"
                   onClick={signTechnicalEvaluation}
                 >
                   <Signature className="mr-2 h-4 w-4" />
