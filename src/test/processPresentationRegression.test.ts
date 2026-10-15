@@ -195,8 +195,8 @@ describe("strict process surface contrast root", () => {
     expect(contrastRoot).toContain(".sig-command-metric-blue");
     expect(contrastRoot).toContain(".sig-command-metric-emerald");
     expect(contrastRoot).toContain(".sig-command-metric-amber");
-    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"]');
-    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
+    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
     expect(contrastRoot).toContain('[data-municipal-organogram="true"]');
     expect(contrastRoot).not.toContain(".sig-premium-topbar");
     expect(contrastRoot).not.toContain(".sig-topbar-shell");
@@ -247,8 +247,8 @@ describe("canonical process surface contract", () => {
     expect(css).not.toContain("PROCESS SURFACE CONTRAST ROOT V3");
     expect(css).not.toContain("THEME + PROCESS CONTRAST FINAL CONTRACT");
     expect(css).not.toContain("FINAL SURFACE POLARITY LOCK");
-    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"]');
-    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
+    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
     expect(css).toContain("#sig-process-document-command-center");
     expect(css).toContain("color: #ffffff !important");
   });
