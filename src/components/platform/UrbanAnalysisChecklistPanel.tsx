@@ -581,7 +581,7 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
-    <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
+    <section data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
@@ -641,7 +641,7 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
+      <CardHeader data-force-card-contrast="dark" className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
