@@ -94,30 +94,6 @@
     </script>
 
     <style>
-      /*
-       * Continuidade nativa de F5/reload.
-       * O próprio navegador mantém o último frame REAL até o novo documento
-       * estar renderizado. Não há shell, overlay, clone de DOM ou tela artificial.
-       */
-      @view-transition {
-        navigation: auto;
-      }
-
-      ::view-transition-group(root),
-      ::view-transition-image-pair(root),
-      ::view-transition-old(root),
-      ::view-transition-new(root) {
-        animation-duration: 0s !important;
-        animation-delay: 0s !important;
-        animation-timing-function: linear !important;
-      }
-
-      ::view-transition-old(root),
-      ::view-transition-new(root) {
-        animation-name: none !important;
-        mix-blend-mode: normal !important;
-      }
-
       html,
       body,
       #root {
@@ -154,10 +130,21 @@
         scroll-behavior: auto !important;
       }
     </style>
+
+    <!--
+      O módulo principal é render-blocking de propósito:
+      em F5 o novo documento não pode pintar #root vazio. O navegador só libera
+      o primeiro paint depois de main.tsx executar e o React concluir o commit inicial.
+    -->
+    <script
+      type="module"
+      src="/src/main.tsx"
+      blocking="render"
+      fetchpriority="high"
+    ></script>
   </head>
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
