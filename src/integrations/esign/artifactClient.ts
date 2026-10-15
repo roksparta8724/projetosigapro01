@@ -37,6 +37,27 @@ export type ArtifactSignatureSigner = {
   auth_method?: string;
 };
 
+export type ArtifactSignatureRequest = {
+  id: string;
+  status: "pending" | "completed" | "cancelled" | "stale" | string;
+  signer_slot: ArtifactSignerSlot | string;
+  artifact_key: string;
+  artifact_hash: string;
+  requested_at: string;
+  requested_by_profile_id?: string | null;
+  requested_by_name?: string | null;
+  assigned_profile_id?: string | null;
+  completed_at?: string | null;
+  completed_by_profile_id?: string | null;
+  completed_by_name?: string | null;
+  note?: string | null;
+};
+
+export type ArtifactSignatureRequestSnapshot = {
+  request: ArtifactSignatureRequest | null;
+  candidate_count: number;
+};
+
 export type ArtifactSignatureSnapshot = {
   block: {
     id?: string;
@@ -189,5 +210,64 @@ export async function getProcessArtifactSignatures(
   return {
     block: raw.block ?? null,
     signers: Array.isArray(raw.signers) ? raw.signers : [],
+  };
+}
+
+
+export async function getProcessArtifactSignatureRequest(
+  processId: string,
+  artifactKey: string,
+  signerSlot: ArtifactSignerSlot,
+): Promise<ArtifactSignatureRequestSnapshot> {
+  const { data, error } = await backendClient.rpc(
+    "get_process_artifact_signature_request_v1",
+    {
+      _process_id: processId,
+      _artifact_key: artifactKey,
+      _signer_slot: signerSlot,
+    },
+  );
+
+  if (error) throw error;
+
+  const raw = (data ?? {}) as Partial<ArtifactSignatureRequestSnapshot>;
+  return {
+    request: raw.request ?? null,
+    candidate_count: Number(raw.candidate_count ?? 0),
+  };
+}
+
+export async function requestProcessArtifactSignature(input: {
+  processId: string;
+  artifactKey: string;
+  artifactHash: string;
+  signerSlot: "diretoria";
+}): Promise<ArtifactSignatureRequestSnapshot & { ok?: boolean; created?: boolean }> {
+  const { data, error } = await backendClient.rpc(
+    "request_process_artifact_signature_v1",
+    {
+      _process_id: input.processId,
+      _artifact_key: input.artifactKey,
+      _artifact_hash: input.artifactHash,
+      _signer_slot: input.signerSlot,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(normalizeApiError(error) || "Não foi possível solicitar a assinatura da Diretoria.", {
+      stage: "request",
+      code: "DIRECTOR_SIGNATURE_REQUEST_FAILED",
+    });
+  }
+
+  const raw = (data ?? {}) as Partial<
+    ArtifactSignatureRequestSnapshot & { ok?: boolean; created?: boolean }
+  >;
+
+  return {
+    ok: raw.ok,
+    created: raw.created,
+    request: raw.request ?? null,
+    candidate_count: Number(raw.candidate_count ?? 0),
   };
 }
