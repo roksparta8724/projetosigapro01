@@ -312,6 +312,7 @@ export function ConstructionPermitPanel({
   return (
     <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
       <CardHeader
+        data-fixed-dark-card="true"
         data-force-card-contrast="dark"
         data-premium-process-dark-header="permit"
         data-permit-dark-header="true"
