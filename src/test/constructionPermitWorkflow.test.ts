@@ -101,3 +101,17 @@ describe("construction permit early workspace", () => {
     expect(detail).toContain("canAnalysisOperate || constructionPaymentCompensated");
   });
 });
+
+
+describe("permit header follows the same premium process contrast", () => {
+  it("keeps the dark permit header readable without touching global chrome", () => {
+    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(panel).toContain('data-premium-process-dark-header="permit"');
+    expect(panel).toContain('data-premium-process-dark-header="permit-dialog"');
+    expect(panel).toContain("!text-white");
+    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V12");
+    expect(polarity).toContain('[data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"]');
+  });
+});
