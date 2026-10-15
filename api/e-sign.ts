@@ -217,7 +217,8 @@ export default async function handler(req: ApiReq, res: Res) {
     const userAgent = String(req.headers["user-agent"] || "").slice(0, 1000);
     const userAgentHash = createHash("sha256").update(userAgent, "utf8").digest("hex");
     const canonical = [authSubject, documentId, String(epoch), nonce, ip, userAgentHash].join("|");
-    const proof = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
+    const proofKey = createHash("sha256").update(secret, "utf8").digest("hex");
+    const proof = createHmac("sha256", proofKey).update(canonical, "utf8").digest("hex");
 
     const signResult = await callDataApiRpc<Record<string, unknown>>(
       req,
