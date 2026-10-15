@@ -92,6 +92,59 @@ type SignatureFlowError = {
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const CAMPO_LIMPO_BRASAO_FALLBACK =
+  "https://upload.wikimedia.org/wikipedia/commons/c/c9/Bras%C3%A3o_de_Campo_Limpo_Paulista_%28Vetor%29.png";
+
+function resolveMunicipalityLogoUrl(
+  municipalityName?: string | null,
+  municipalityLogoUrl?: string | null,
+) {
+  if (municipalityLogoUrl?.trim()) return municipalityLogoUrl.trim();
+  if (/campo\s+limpo\s+paulista/i.test(municipalityName || "")) {
+    return CAMPO_LIMPO_BRASAO_FALLBACK;
+  }
+  return "";
+}
+
+async function loadPdfImageDataUrl(url?: string | null) {
+  const normalized = url?.trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("data:image/")) return normalized;
+
+  try {
+    const response = await fetch(normalized, {
+      cache: "force-cache",
+      credentials: "omit",
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) return null;
+
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function pdfImageFormat(dataUrl: string) {
+  if (/^data:image\/jpe?g/i.test(dataUrl)) return "JPEG";
+  if (/^data:image\/webp/i.test(dataUrl)) return "WEBP";
+  return "PNG";
+}
+
+function compactEvidenceHash(hash?: string) {
+  const value = hash?.trim() || "";
+  if (value.length <= 34) return value;
+  return `${value.slice(0, 18)}...${value.slice(-12)}`;
+}
+
+
 function stableSignatureStringify(value: unknown): string {
   if (value === undefined) return "null";
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
@@ -323,6 +376,7 @@ export function UrbanAnalysisChecklistPanel({
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureStage, setSignatureStage] = useState<SignatureFlowStage>("idle");
   const [signatureError, setSignatureError] = useState<SignatureFlowError>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
@@ -658,234 +712,572 @@ export function UrbanAnalysisChecklistPanel({
   const signTechnicalEvaluation = () => openSignatureConfirmation("technical");
   const signFiscalReview = () => openSignatureConfirmation("fiscal");
 
-  const generatePdf = () => {
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = 210;
-    const pageH = 297;
-    const margin = 12;
-    const contentW = pageW - margin * 2;
+  const generatePdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
 
-    const drawHeader = (pageNumber: number) => {
-      doc.setFillColor(8, 47, 73);
-      doc.roundedRect(margin, 10, contentW, 32, 3, 3, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11.5);
-      doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), margin + 6, 17);
-      doc.setFontSize(8.4);
-      doc.setFont("helvetica", "normal");
-      doc.text((secretariat || "Secretaria responsável").toUpperCase(), margin + 6, 22);
-      doc.text((directorate || departmentLabel || "Diretoria de Urbanismo").toUpperCase(), margin + 6, 27);
-      doc.setFont("helvetica", "bold");
-      doc.text("FICHA OFICIAL DE ANÁLISE DE PROCESSO", margin + 6, 33);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      const contact = [municipalityPhone, municipalityEmail, municipalityAddress].filter(Boolean).join(" • ");
-      if (contact) doc.text(contact.slice(0, 105), margin + 6, 38);
-      doc.text(`Folha ${state.sheetNumber || "1"} · Página ${pageNumber}`, pageW - margin - 6, 38, { align: "right" });
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = 210;
+      const pageH = 297;
+      const margin = 10;
+      const contentW = pageW - margin * 2;
+      const totalPages = 2;
 
-      doc.setTextColor(15, 23, 42);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(formatOfficialProcessNumber(process.protocol), margin, 49);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text(`Projeto: ${process.title}`, margin, 54);
-      doc.text(`Proprietário: ${process.ownerName}`, margin, 59);
-      doc.text(`Responsável técnico: ${process.technicalLead || "Não informado"}`, margin, 64);
-      doc.text(`Imóvel: ${process.address || "Não informado"}`, margin, 69);
+      const navy = [7, 47, 73] as const;
+      const blue = [7, 89, 133] as const;
+      const slate = [15, 23, 42] as const;
+      const muted = [71, 85, 105] as const;
+      const line = [203, 213, 225] as const;
+      const light = [248, 250, 252] as const;
+      const emerald = [5, 150, 105] as const;
+      const amber = [180, 83, 9] as const;
 
-      doc.setDrawColor(203, 213, 225);
-      doc.line(margin, 73, pageW - margin, 73);
-    };
+      const logoUrl = resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl);
+      const logoDataUrl = await loadPdfImageDataUrl(logoUrl);
 
-    let pageNumber = 1;
-    drawHeader(pageNumber);
-    let y = 79;
+      const drawCheckSeal = (cx: number, cy: number, radius = 3.2) => {
+        doc.setFillColor(...emerald);
+        doc.circle(cx, cy, radius, "F");
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.65);
+        doc.line(cx - 1.35, cy, cx - 0.35, cy + 1.05);
+        doc.line(cx - 0.35, cy + 1.05, cx + 1.55, cy - 1.15);
+      };
 
-    const statusWidths = { item: 9, desc: 82, a: 10, ap: 10, c: 10, na: 12 };
-    const obsW = contentW - statusWidths.item - statusWidths.desc - statusWidths.a - statusWidths.ap - statusWidths.c - statusWidths.na;
+      const drawFooter = (pageNumber: number) => {
+        doc.setDrawColor(...line);
+        doc.setLineWidth(0.2);
+        doc.line(margin, 286, pageW - margin, 286);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.7);
+        doc.setTextColor(...muted);
+        doc.text(
+          "SIGAPRO Municipal - Ficha Oficial de Análise de Processo",
+          margin,
+          290.3,
+        );
+        doc.text(
+          `Página ${pageNumber} de ${totalPages}`,
+          pageW - margin,
+          290.3,
+          { align: "right" },
+        );
+      };
 
-    const drawTableHeader = (sectionTitle: string) => {
-      doc.setFillColor(226, 232, 240);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.rect(margin, y, contentW, 8, "F");
-      doc.text(sectionTitle.toUpperCase(), margin + 2, y + 5.2);
-      y += 8;
+      const drawHeader = (pageNumber: number, compact = false) => {
+        const headerH = compact ? 26 : 29;
+        doc.setFillColor(...navy);
+        doc.roundedRect(margin, 8, contentW, headerH, 3, 3, "F");
 
-      const headers = [
-        ["Item", statusWidths.item],
-        ["Documentação", statusWidths.desc],
-        ["A", statusWidths.a],
-        ["AP", statusWidths.ap],
-        ["C", statusWidths.c],
-        ["N/A", statusWidths.na],
-        ["Observações", obsW],
-      ] as const;
-      let x = margin;
-      doc.setFillColor(248, 250, 252);
-      doc.setFontSize(6.5);
-      headers.forEach(([label, width]) => {
-        doc.rect(x, y, width, 7, "FD");
-        doc.text(label, x + width / 2, y + 4.7, { align: "center" });
-        x += width;
-      });
-      y += 7;
-    };
+        if (logoDataUrl) {
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(margin + 4, 11, 20, 20, 2.2, 2.2, "F");
+          try {
+            doc.addImage(
+              logoDataUrl,
+              pdfImageFormat(logoDataUrl),
+              margin + 6,
+              12.5,
+              16,
+              17,
+              undefined,
+              "FAST",
+            );
+          } catch {
+            // O documento continua íntegro mesmo se um navegador não decodificar a imagem.
+          }
+        }
 
-    const ensureRoom = (height: number, sectionTitle?: string) => {
-      if (y + height <= pageH - 24) return;
-      doc.addPage();
-      pageNumber += 1;
-      drawHeader(pageNumber);
-      y = 79;
-      if (sectionTitle) drawTableHeader(sectionTitle);
-    };
+        const copyX = logoDataUrl ? margin + 28 : margin + 6;
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(compact ? 10.2 : 11);
+        doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), copyX, 15);
 
-    const drawSection = (title: string, items: ChecklistTemplateItem[]) => {
-      ensureRoom(18);
-      drawTableHeader(title);
-      for (const item of items) {
-        const itemState = state.items[item.id] ?? { status: "", observation: "" };
-        const descLines = doc.splitTextToSize(item.label, statusWidths.desc - 4) as string[];
-        const obsLines = doc.splitTextToSize(itemState.observation || "", obsW - 4) as string[];
-        const rowH = Math.max(8, (Math.max(descLines.length, obsLines.length) * 3.8) + 3);
-        ensureRoom(rowH, title);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.text((secretariat || "Secretaria responsável").toUpperCase(), copyX, 20);
+        doc.text(
+          (directorate || departmentLabel || "Diretoria de Urbanismo").toUpperCase(),
+          copyX,
+          24.5,
+        );
+
+        if (!compact) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.3);
+          doc.text("FICHA OFICIAL DE ANÁLISE DE PROCESSO", copyX, 29.5);
+        }
+
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(pageW - margin - 34, 13, 28, 8.5, 4.2, 4.2, "F");
+        doc.setTextColor(...navy);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.2);
+        doc.text(`PÁGINA ${pageNumber}/${totalPages}`, pageW - margin - 20, 18.4, {
+          align: "center",
+        });
+
+        doc.setTextColor(226, 232, 240);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.6);
+        doc.text(formatOfficialProcessNumber(process.protocol), pageW - margin - 6, 29.3, {
+          align: "right",
+        });
+      };
+
+      const drawProcessSummary = (y: number) => {
+        doc.setDrawColor(...line);
+        doc.setFillColor(...light);
+        doc.roundedRect(margin, y, contentW, 22, 2.2, 2.2, "FD");
+
+        const leftX = margin + 4;
+        const rightX = margin + 102;
+        doc.setTextColor(...muted);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.3);
+        doc.text("PROCESSO", leftX, y + 5);
+        doc.text("PROPRIETÁRIO", rightX, y + 5);
+
+        doc.setTextColor(...slate);
+        doc.setFontSize(7.2);
+        doc.text(formatOfficialProcessNumber(process.protocol), leftX, y + 10);
+        doc.text(
+          doc.splitTextToSize(process.ownerName || "Não informado", 82).slice(0, 1),
+          rightX,
+          y + 10,
+        );
+
+        doc.setTextColor(...muted);
+        doc.setFontSize(5.3);
+        doc.text("PROJETO", leftX, y + 15);
+        doc.text("RESPONSÁVEL TÉCNICO", rightX, y + 15);
+
+        doc.setTextColor(...slate);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.3);
+        doc.text(
+          doc.splitTextToSize(process.title || "Não informado", 82).slice(0, 1),
+          leftX,
+          y + 19.5,
+        );
+        doc.text(
+          doc.splitTextToSize(process.technicalLead || "Não informado", 82).slice(0, 1),
+          rightX,
+          y + 19.5,
+        );
+      };
+
+      const widths = {
+        item: 8,
+        desc: 82,
+        a: 8,
+        ap: 8,
+        c: 8,
+        na: 10,
+        obs: 66,
+      };
+
+      const fitLines = (
+        text: string,
+        width: number,
+        maxLines = 2,
+        preferredFont = 5.6,
+      ) => {
+        let fontSize = preferredFont;
+        let lines: string[] = [];
+        while (fontSize >= 4.7) {
+          doc.setFontSize(fontSize);
+          lines = doc.splitTextToSize(text || "", width) as string[];
+          if (lines.length <= maxLines) return { lines, fontSize };
+          fontSize -= 0.25;
+        }
+
+        doc.setFontSize(4.7);
+        lines = doc.splitTextToSize(text || "", width) as string[];
+        if (lines.length > maxLines) {
+          const clipped = lines.slice(0, maxLines);
+          const last = clipped[maxLines - 1] || "";
+          clipped[maxLines - 1] = `${last.replace(/[. ]+$/g, "")}…`;
+          lines = clipped;
+        }
+        return { lines, fontSize: 4.7 };
+      };
+
+      const drawTableHeader = (title: string, y: number) => {
+        doc.setFillColor(226, 232, 240);
+        doc.setTextColor(...slate);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.7);
+        doc.roundedRect(margin, y, contentW, 6.5, 1.5, 1.5, "F");
+        doc.text(title.toUpperCase(), margin + 3, y + 4.4);
+        y += 6.5;
+
+        const headers = [
+          ["Item", widths.item],
+          ["Documentação", widths.desc],
+          ["A", widths.a],
+          ["AP", widths.ap],
+          ["C", widths.c],
+          ["N/A", widths.na],
+          ["Observações", widths.obs],
+        ] as const;
 
         let x = margin;
-        doc.setDrawColor(203, 213, 225);
-        doc.setTextColor(30, 41, 59);
+        doc.setFillColor(...navy);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(5.2);
+        headers.forEach(([label, width]) => {
+          doc.rect(x, y, width, 5.5, "F");
+          doc.text(label, x + width / 2, y + 3.7, { align: "center" });
+          x += width;
+        });
+
+        return y + 5.5;
+      };
+
+      const drawRow = (item: ChecklistTemplateItem, y: number) => {
+        const itemState = state.items[item.id] ?? { status: "", observation: "" };
+        const desc = fitLines(item.label, widths.desc - 3.2, 2, 5.4);
+        const obs = fitLines(itemState.observation || "", widths.obs - 3.2, 2, 5.2);
+        const lineCount = Math.max(desc.lines.length, obs.lines.length, 1);
+        const rowH = Math.max(5.8, 2.65 * lineCount + 2.3);
+
+        let x = margin;
+        doc.setDrawColor(...line);
+        doc.setLineWidth(0.18);
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(...slate);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.6);
 
-        doc.rect(x, y, statusWidths.item, rowH);
-        doc.text(String(item.order), x + statusWidths.item / 2, y + 5, { align: "center" });
-        x += statusWidths.item;
+        doc.rect(x, y, widths.item, rowH, "FD");
+        doc.setFontSize(5.2);
+        doc.text(String(item.order), x + widths.item / 2, y + rowH / 2 + 1.6, {
+          align: "center",
+        });
+        x += widths.item;
 
-        doc.rect(x, y, statusWidths.desc, rowH);
-        doc.text(descLines, x + 2, y + 4.3);
-        x += statusWidths.desc;
+        doc.rect(x, y, widths.desc, rowH, "FD");
+        doc.setFontSize(desc.fontSize);
+        doc.text(desc.lines, x + 1.6, y + 3.5);
+        x += widths.desc;
 
         for (const status of ["A", "AP", "C", "NA"] as const) {
-          const width = status === "A" ? statusWidths.a : status === "AP" ? statusWidths.ap : status === "C" ? statusWidths.c : statusWidths.na;
-          doc.rect(x, y, width, rowH);
+          const width =
+            status === "A"
+              ? widths.a
+              : status === "AP"
+                ? widths.ap
+                : status === "C"
+                  ? widths.c
+                  : widths.na;
+          doc.rect(x, y, width, rowH, "FD");
+
           if (itemState.status === status) {
+            const fill =
+              status === "A"
+                ? emerald
+                : status === "AP"
+                  ? blue
+                  : status === "C"
+                    ? amber
+                    : ([71, 85, 105] as const);
+            doc.setFillColor(...fill);
+            doc.roundedRect(
+              x + width / 2 - 2.2,
+              y + rowH / 2 - 2.2,
+              4.4,
+              4.4,
+              1.1,
+              1.1,
+              "F",
+            );
+            doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.text("X", x + width / 2, y + 5.1, { align: "center" });
+            doc.setFontSize(5.5);
+            doc.text("X", x + width / 2, y + rowH / 2 + 1.6, { align: "center" });
+            doc.setTextColor(...slate);
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(6.6);
           }
           x += width;
         }
 
-        doc.rect(x, y, obsW, rowH);
-        if (obsLines.length > 0) doc.text(obsLines, x + 2, y + 4.3);
-        y += rowH;
-      }
-      y += 5;
-    };
+        doc.rect(x, y, widths.obs, rowH, "FD");
+        doc.setFontSize(obs.fontSize);
+        doc.text(obs.lines, x + 1.6, y + 3.5);
 
-    drawSection("Engenharia", ENGINEERING_ITEMS);
-    drawSection("Aprovações externas", EXTERNAL_ITEMS);
+        return y + rowH;
+      };
 
-    ensureRoom(68);
-    doc.setDrawColor(203, 213, 225);
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, contentW, 60, 2, 2, "FD");
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text("RESULTADO DA ANÁLISE", margin + 4, y + 6);
+      const drawSectionRows = (
+        title: string,
+        items: ChecklistTemplateItem[],
+        startY: number,
+      ) => {
+        let y = drawTableHeader(title, startY);
+        for (const item of items) y = drawRow(item, y);
+        return y;
+      };
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text(`A = De acordo: ${counts.a}`, margin + 4, y + 12);
-    doc.text(`AP = Apresentar: ${counts.ap}`, margin + 42, y + 12);
-    doc.text(`C = Corrigir: ${counts.c}`, margin + 84, y + 12);
-    doc.text(`N/A: ${counts.na}`, margin + 122, y + 12);
+      const drawSignatureCard = (
+        x: number,
+        y: number,
+        w: number,
+        label: string,
+        signature: ChecklistSignature | null | undefined,
+        official: boolean,
+      ) => {
+        const h = 39;
+        if (official && signature) {
+          doc.setFillColor(240, 253, 250);
+          doc.setDrawColor(167, 243, 208);
+          doc.roundedRect(x, y, w, h, 2.2, 2.2, "FD");
+          drawCheckSeal(x + 7, y + 7, 3.2);
 
-    const conclusionLines = doc.splitTextToSize(state.conclusion || "Sem conclusão complementar.", contentW - 8) as string[];
-    doc.text("Conclusão / observações gerais:", margin + 4, y + 19);
-    doc.text(conclusionLines.slice(0, 4), margin + 4, y + 24);
+          doc.setTextColor(...emerald);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(5.8);
+          doc.text("ASSINATURA ELETRÔNICA VÁLIDA", x + 13, y + 5.7);
 
-    const routingLabel =
-      state.routing === "expediente"
-        ? "Expediente"
-        : state.routing === "topografia"
-          ? "Topografia"
-          : state.routing === "outro"
-            ? state.routingOther || "Outro"
-            : "Não definido";
-    doc.text(`Encaminhar: ${routingLabel}`, margin + 4, y + 39);
-    doc.text(`Folhas do Comunique-se: ${state.communiquePages || "Não informado"}`, margin + 80, y + 39);
+          doc.setTextColor(...slate);
+          doc.setFontSize(6.2);
+          doc.text(label.toUpperCase(), x + 13, y + 9.7);
 
-    doc.setDrawColor(203, 213, 225);
-    doc.line(margin + 4, y + 44, pageW - margin - 4, y + 44);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.2);
+          doc.setTextColor(...muted);
+          doc.text("Documento assinado eletronicamente por", x + 5, y + 15);
 
-    doc.setFont("helvetica", "bold");
-    doc.text("ANÁLISE TÉCNICA", margin + 4, y + 49);
-    doc.text("CONFERÊNCIA FISCAL", margin + 98, y + 49);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.text(
-      state.technicalSignature
-        ? `${state.technicalSignature.name} · ${state.technicalSignature.title}`
-        : "Pendente de assinatura técnica",
-      margin + 4,
-      y + 54,
-    );
-    doc.text(
-      state.fiscalSignature
-        ? `${state.fiscalSignature.name} · ${state.fiscalSignature.title}`
-        : "Pendente de assinatura fiscal",
-      margin + 98,
-      y + 54,
-    );
-    doc.text(
-      state.technicalSignature
-        ? new Date(state.technicalSignature.signedAt).toLocaleString("pt-BR")
-        : "",
-      margin + 4,
-      y + 58,
-    );
-    doc.text(
-      state.fiscalSignature
-        ? new Date(state.fiscalSignature.signedAt).toLocaleString("pt-BR")
-        : "",
-      margin + 98,
-      y + 58,
-    );
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.4);
+          doc.setTextColor(...slate);
+          doc.text(
+            doc.splitTextToSize(signature.name || "Usuário", w - 10).slice(0, 1),
+            x + 5,
+            y + 19.4,
+          );
 
-    if (isFullySigned && state.technicalSignature?.verificationCode && state.technicalSignature?.evidenceHash) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(5.5);
-      doc.setTextColor(15, 23, 42);
-      doc.text(
-        `SIGAPRO • assinatura eletrônica por senha • código ${state.technicalSignature.verificationCode}`,
-        margin + 4,
-        y + 63,
-      );
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.3);
+          const titleLine = [
+            signature.title,
+            signature.registration ? `Registro ${signature.registration}` : "",
+          ]
+            .filter(Boolean)
+            .join(" - ");
+          doc.text(
+            doc.splitTextToSize(titleLine || "Função registrada no SIGAPRO", w - 10).slice(0, 1),
+            x + 5,
+            y + 23.6,
+          );
+          doc.text(
+            new Date(signature.signedAt).toLocaleString("pt-BR"),
+            x + 5,
+            y + 27.6,
+          );
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(5.1);
+          doc.setTextColor(...emerald);
+          doc.text(
+            `Código: ${signature.verificationCode || "registrado"}`,
+            x + 5,
+            y + 32,
+          );
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(...muted);
+          doc.setFontSize(4.7);
+          doc.text(
+            `SHA-256: ${compactEvidenceHash(signature.evidenceHash) || "registrado"}`,
+            x + 5,
+            y + 35.6,
+          );
+        } else {
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(...line);
+          doc.roundedRect(x, y, w, h, 2.2, 2.2, "FD");
+
+          doc.setFillColor(226, 232, 240);
+          doc.circle(x + 7, y + 7, 3.2, "F");
+          doc.setTextColor(...muted);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(5.8);
+          doc.text("ASSINATURA PENDENTE", x + 13, y + 5.7);
+
+          doc.setTextColor(...slate);
+          doc.setFontSize(6.2);
+          doc.text(label.toUpperCase(), x + 13, y + 9.7);
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(...muted);
+          doc.setFontSize(5.4);
+          doc.text(
+            signature
+              ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
+              : "Aguardando assinatura eletrônica com senha de acesso.",
+            doc.splitTextToSize(
+              signature
+                ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
+                : "Aguardando assinatura eletrônica com senha de acesso.",
+              w - 10,
+            ),
+            x + 5,
+            y + 17,
+          );
+        }
+      };
+
+      // Página 1 - dados principais + primeiros 20 itens de Engenharia.
+      drawHeader(1);
+      drawProcessSummary(41);
+      let y = drawSectionRows("Engenharia - Itens 1 a 20", ENGINEERING_ITEMS.slice(0, 20), 68);
+
+      doc.setTextColor(...muted);
       doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.2);
       doc.text(
-        `SHA-256 da ficha: ${state.technicalSignature.evidenceHash}`,
-        margin + 4,
-        y + 67,
+        "Legenda: A = De acordo   AP = Apresentar   C = Corrigir   N/A = Não se aplica",
+        margin,
+        Math.min(y + 5.5, 281),
       );
-    }
+      drawFooter(1);
 
-    if (!isFullySigned) {
-      doc.setTextColor(148, 163, 184);
+      // Página 2 - conclusão dos itens + externas + resultado + assinaturas.
+      doc.addPage();
+      drawHeader(2, true);
+      doc.setFillColor(...light);
+      doc.setDrawColor(...line);
+      doc.roundedRect(margin, 37, contentW, 10, 2, 2, "FD");
+      doc.setTextColor(...slate);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(28);
-      doc.text("RASCUNHO", pageW / 2, pageH - 12, { align: "center" });
-    }
+      doc.setFontSize(6.2);
+      doc.text(formatOfficialProcessNumber(process.protocol), margin + 4, 43);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...muted);
+      doc.text(
+        doc.splitTextToSize(process.title || "Projeto", 92).slice(0, 1),
+        margin + 50,
+        43,
+      );
 
-    const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
-    doc.save(fileName);
-    setNotice(isFullySigned ? "PDF final assinado gerado." : "PDF de rascunho gerado.");
+      y = drawSectionRows("Engenharia - Itens 21 a 31", ENGINEERING_ITEMS.slice(20), 51);
+      y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y + 4);
+
+      const resultY = Math.min(Math.max(y + 4, 170), 197);
+      doc.setFillColor(...light);
+      doc.setDrawColor(...line);
+      doc.roundedRect(margin, resultY, contentW, 25, 2.2, 2.2, "FD");
+
+      doc.setTextColor(...slate);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.8);
+      doc.text("RESULTADO DA ANÁLISE", margin + 4, resultY + 5.2);
+
+      const metrics = [
+        ["DE ACORDO", counts.a, emerald],
+        ["APRESENTAR", counts.ap, blue],
+        ["CORRIGIR", counts.c, amber],
+        ["N/A", counts.na, [71, 85, 105] as const],
+      ] as const;
+
+      metrics.forEach(([label, value, color], index) => {
+        const x = margin + 4 + index * 31;
+        doc.setFillColor(...color);
+        doc.roundedRect(x, resultY + 8, 28, 8, 2, 2, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(4.5);
+        doc.text(label, x + 3, resultY + 11.2);
+        doc.setFontSize(7.2);
+        doc.text(String(value), x + 24, resultY + 13.3, { align: "right" });
+      });
+
+      const routingLabel =
+        state.routing === "expediente"
+          ? "Expediente"
+          : state.routing === "topografia"
+            ? "Topografia"
+            : state.routing === "outro"
+              ? state.routingOther || "Outro"
+              : "Não definido";
+
+      doc.setTextColor(...muted);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.1);
+      const conclusion =
+        state.conclusion?.trim() || "Sem conclusão complementar.";
+      doc.text(
+        `Conclusão: ${doc.splitTextToSize(conclusion, 82).slice(0, 1).join(" ")}`,
+        margin + 4,
+        resultY + 21,
+      );
+      doc.text(
+        `Encaminhamento: ${routingLabel}`,
+        margin + 98,
+        resultY + 18.6,
+      );
+      doc.text(
+        `Comunique-se: ${state.communiquePages || "Não informado"}`,
+        margin + 98,
+        resultY + 22,
+      );
+
+      const signatureY = resultY + 30;
+      drawSignatureCard(
+        margin,
+        signatureY,
+        92,
+        "Análise técnica",
+        state.technicalSignature,
+        technicalOfficial,
+      );
+      drawSignatureCard(
+        margin + 98,
+        signatureY,
+        92,
+        "Conferência fiscal",
+        state.fiscalSignature,
+        fiscalOfficial,
+      );
+
+      if (!isFullySigned) {
+        doc.setFillColor(255, 247, 237);
+        doc.setDrawColor(253, 186, 116);
+        doc.roundedRect(margin, 273, contentW, 8, 2, 2, "FD");
+        doc.setTextColor(...amber);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.5);
+        doc.text(
+          technicalOfficial
+            ? "RASCUNHO - aguardando conferência fiscal para emissão final."
+            : "RASCUNHO - assinatura técnica eletrônica ainda pendente.",
+          pageW / 2,
+          278,
+          { align: "center" },
+        );
+      }
+
+      drawFooter(2);
+
+      const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
+      doc.save(fileName);
+      setNotice(
+        isFullySigned
+          ? "PDF premium final gerado em 2 páginas com assinaturas eletrônicas."
+          : "PDF premium de rascunho gerado em 2 páginas. As assinaturas oficiais aparecem individualmente quando concluídas.",
+      );
+    } catch (error) {
+      console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
+      setNotice(
+        error instanceof Error
+          ? `Não foi possível gerar o PDF: ${error.message}`
+          : "Não foi possível gerar o PDF.",
+      );
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
