@@ -38,104 +38,7 @@
     />
     <meta name="twitter:image" content="%BASE_URL%favicon.png?v=3" />
 
-    <script>
-      (function () {
-        var lastDispatchAt = 0;
 
-        function dispatchSoftRefresh(source) {
-          var now = Date.now();
-          if (now - lastDispatchAt < 180) return;
-          lastDispatchAt = now;
-          window.dispatchEvent(
-            new CustomEvent("sigapro-soft-refresh", {
-              detail: { source: source || "reload", at: now }
-            })
-          );
-        }
-
-        function isRefreshShortcut(event) {
-          var key = String(event.key || "").toLowerCase();
-          var code = String(event.code || "").toLowerCase();
-          var keyCode = Number(event.keyCode || event.which || 0);
-
-          var isF5 = key === "f5" || code === "f5" || keyCode === 116;
-          var isReloadShortcut =
-            (event.ctrlKey || event.metaKey) &&
-            key === "r" &&
-            !event.shiftKey;
-
-          return isF5 || isReloadShortcut;
-        }
-
-        function blockKeyboardReload(event) {
-          if (!isRefreshShortcut(event)) return true;
-
-          event.preventDefault();
-          event.stopPropagation();
-          if (typeof event.stopImmediatePropagation === "function") {
-            event.stopImmediatePropagation();
-          }
-
-          try {
-            event.returnValue = false;
-            event.cancelBubble = true;
-          } catch (_) {}
-
-          dispatchSoftRefresh("keyboard");
-          return false;
-        }
-
-        // Fallback para navegadores antigos: bloqueia F5/Ctrl+R antes do React.
-        ["keydown", "keypress", "keyup"].forEach(function (type) {
-          window.addEventListener(type, blockKeyboardReload, true);
-          document.addEventListener(type, blockKeyboardReload, true);
-        });
-
-        // Chrome/Edge atuais expõem a Navigation API. Ela captura o reload
-        // propriamente dito (F5 e botão Atualizar) antes do descarregamento do
-        // documento e o transforma em navegação same-document. Assim o DOM
-        // existente NÃO é desmontado e não existe frame branco/intermediário.
-        var navigationApi = window.navigation;
-        if (navigationApi && typeof navigationApi.addEventListener === "function") {
-          navigationApi.addEventListener("navigate", function (event) {
-            if (event.navigationType !== "reload") {
-              return;
-            }
-
-            try {
-              var destination = new URL(event.destination.url);
-              if (destination.origin !== window.location.origin) return;
-            } catch (_) {
-              return;
-            }
-
-            // Intercepta QUALQUER reload same-origin: F5, Ctrl+R, botão Atualizar
-            // e location.reload(). Não dependemos de userInitiated porque Chrome/
-            // Edge podem reportar esse campo de forma diferente entre atalhos e UI.
-            if (event.canIntercept && typeof event.intercept === "function") {
-              event.intercept({
-                focusReset: "manual",
-                scroll: "manual",
-                handler: function () {
-                  dispatchSoftRefresh("navigation-api");
-                  return Promise.resolve();
-                }
-              });
-              return;
-            }
-
-            // Última barreira: se o navegador expuser o evento como cancelável,
-            // bloqueia o unload em vez de aceitar um frame vazio.
-            if (event.cancelable) {
-              event.preventDefault();
-              dispatchSoftRefresh("navigation-api-cancel");
-            }
-          });
-        }
-
-        window.__sigaproBlockDocumentReload = blockKeyboardReload;
-      })();
-    </script>
 
     <script>
       (function () {
@@ -191,6 +94,30 @@
     </script>
 
     <style>
+      /*
+       * Continuidade nativa de F5/reload.
+       * O próprio navegador mantém o último frame REAL até o novo documento
+       * estar renderizado. Não há shell, overlay, clone de DOM ou tela artificial.
+       */
+      @view-transition {
+        navigation: auto;
+      }
+
+      ::view-transition-group(root),
+      ::view-transition-image-pair(root),
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        animation-timing-function: linear !important;
+      }
+
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation-name: none !important;
+        mix-blend-mode: normal !important;
+      }
+
       html,
       body,
       #root {
