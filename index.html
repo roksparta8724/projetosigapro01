@@ -42,16 +42,23 @@
       (function () {
         var lastDispatchAt = 0;
 
+        function dispatchSoftRefresh(source) {
+          var now = Date.now();
+          if (now - lastDispatchAt < 180) return;
+          lastDispatchAt = now;
+          window.dispatchEvent(
+            new CustomEvent("sigapro-soft-refresh", {
+              detail: { source: source || "reload", at: now }
+            })
+          );
+        }
+
         function isRefreshShortcut(event) {
           var key = String(event.key || "").toLowerCase();
           var code = String(event.code || "").toLowerCase();
           var keyCode = Number(event.keyCode || event.which || 0);
 
-          var isF5 =
-            key === "f5" ||
-            code === "f5" ||
-            keyCode === 116;
-
+          var isF5 = key === "f5" || code === "f5" || keyCode === 116;
           var isReloadShortcut =
             (event.ctrlKey || event.metaKey) &&
             key === "r" &&
@@ -60,7 +67,7 @@
           return isF5 || isReloadShortcut;
         }
 
-        function blockDocumentReload(event) {
+        function blockKeyboardReload(event) {
           if (!isRefreshShortcut(event)) return true;
 
           event.preventDefault();
@@ -68,32 +75,63 @@
           if (typeof event.stopImmediatePropagation === "function") {
             event.stopImmediatePropagation();
           }
+
           try {
             event.returnValue = false;
             event.cancelBubble = true;
           } catch (_) {}
 
-          var now = Date.now();
-          if (now - lastDispatchAt > 180) {
-            lastDispatchAt = now;
-            window.dispatchEvent(
-              new CustomEvent("sigapro-soft-refresh", {
-                detail: { source: "keyboard", at: now }
-              })
-            );
-          }
-
+          dispatchSoftRefresh("keyboard");
           return false;
         }
 
-        // Captura em dois níveis e nas três fases de teclado para evitar que
-        // Chrome/Edge/atalhos legados executem o reload do documento.
+        // Fallback para navegadores antigos: bloqueia F5/Ctrl+R antes do React.
         ["keydown", "keypress", "keyup"].forEach(function (type) {
-          window.addEventListener(type, blockDocumentReload, true);
-          document.addEventListener(type, blockDocumentReload, true);
+          window.addEventListener(type, blockKeyboardReload, true);
+          document.addEventListener(type, blockKeyboardReload, true);
         });
 
-        window.__sigaproBlockDocumentReload = blockDocumentReload;
+        // Chrome/Edge atuais expõem a Navigation API. Ela captura o reload
+        // propriamente dito (F5 e botão Atualizar) antes do descarregamento do
+        // documento e o transforma em navegação same-document. Assim o DOM
+        // existente NÃO é desmontado e não existe frame branco/intermediário.
+        var navigationApi = window.navigation;
+        if (navigationApi && typeof navigationApi.addEventListener === "function") {
+          navigationApi.addEventListener("navigate", function (event) {
+            if (
+              event.navigationType !== "reload" ||
+              event.userInitiated !== true
+            ) {
+              return;
+            }
+
+            try {
+              var destination = new URL(event.destination.url);
+              if (destination.origin !== window.location.origin) return;
+            } catch (_) {
+              return;
+            }
+
+            if (event.canIntercept && typeof event.intercept === "function") {
+              event.intercept({
+                focusReset: "manual",
+                scroll: "manual",
+                handler: function () {
+                  dispatchSoftRefresh("navigation-api");
+                  return Promise.resolve();
+                }
+              });
+              return;
+            }
+
+            if (event.cancelable) {
+              event.preventDefault();
+              dispatchSoftRefresh("navigation-api-cancel");
+            }
+          });
+        }
+
+        window.__sigaproBlockDocumentReload = blockKeyboardReload;
       })();
     </script>
 
