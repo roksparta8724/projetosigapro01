@@ -376,36 +376,41 @@ export function UrbanAnalysisChecklistPanel({
 
     const drawHeader = (pageNumber: number) => {
       doc.setFillColor(8, 47, 73);
-      doc.roundedRect(margin, 10, contentW, 27, 3, 3, "F");
+      doc.roundedRect(margin, 10, contentW, 32, 3, 3, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), margin + 6, 18);
-      doc.setFontSize(9);
+      doc.setFontSize(11.5);
+      doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), margin + 6, 17);
+      doc.setFontSize(8.4);
       doc.setFont("helvetica", "normal");
-      doc.text((departmentLabel || "Análise Urbanística").toUpperCase(), margin + 6, 24);
-      doc.setFontSize(8);
-      doc.text("RELATÓRIO DE ANÁLISE DE PROCESSO", margin + 6, 30);
-      doc.text(`Folha ${state.sheetNumber || "1"} · Página ${pageNumber}`, pageW - margin - 6, 30, { align: "right" });
+      doc.text((secretariat || "Secretaria responsável").toUpperCase(), margin + 6, 22);
+      doc.text((directorate || departmentLabel || "Diretoria de Urbanismo").toUpperCase(), margin + 6, 27);
+      doc.setFont("helvetica", "bold");
+      doc.text("FICHA OFICIAL DE ANÁLISE DE PROCESSO", margin + 6, 33);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      const contact = [municipalityPhone, municipalityEmail, municipalityAddress].filter(Boolean).join(" • ");
+      if (contact) doc.text(contact.slice(0, 105), margin + 6, 38);
+      doc.text(`Folha ${state.sheetNumber || "1"} · Página ${pageNumber}`, pageW - margin - 6, 38, { align: "right" });
 
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(formatOfficialProcessNumber(process.protocol), margin, 45);
+      doc.text(formatOfficialProcessNumber(process.protocol), margin, 49);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.text(`Projeto: ${process.title}`, margin, 50);
-      doc.text(`Proprietário: ${process.ownerName}`, margin, 55);
-      doc.text(`Responsável técnico: ${process.technicalLead || "Não informado"}`, margin, 60);
-      doc.text(`Imóvel: ${process.address || "Não informado"}`, margin, 65);
+      doc.text(`Projeto: ${process.title}`, margin, 54);
+      doc.text(`Proprietário: ${process.ownerName}`, margin, 59);
+      doc.text(`Responsável técnico: ${process.technicalLead || "Não informado"}`, margin, 64);
+      doc.text(`Imóvel: ${process.address || "Não informado"}`, margin, 69);
 
       doc.setDrawColor(203, 213, 225);
-      doc.line(margin, 69, pageW - margin, 69);
+      doc.line(margin, 73, pageW - margin, 73);
     };
 
     let pageNumber = 1;
     drawHeader(pageNumber);
-    let y = 76;
+    let y = 79;
 
     const statusWidths = { item: 9, desc: 82, a: 10, ap: 10, c: 10, na: 12 };
     const obsW = contentW - statusWidths.item - statusWidths.desc - statusWidths.a - statusWidths.ap - statusWidths.c - statusWidths.na;
@@ -444,7 +449,7 @@ export function UrbanAnalysisChecklistPanel({
       doc.addPage();
       pageNumber += 1;
       drawHeader(pageNumber);
-      y = 76;
+      y = 79;
       if (sectionTitle) drawTableHeader(sectionTitle);
     };
 
@@ -495,10 +500,10 @@ export function UrbanAnalysisChecklistPanel({
     drawSection("Engenharia", ENGINEERING_ITEMS);
     drawSection("Aprovações externas", EXTERNAL_ITEMS);
 
-    ensureRoom(57);
+    ensureRoom(68);
     doc.setDrawColor(203, 213, 225);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, contentW, 49, 2, 2, "FD");
+    doc.roundedRect(margin, y, contentW, 60, 2, 2, "FD");
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
@@ -523,31 +528,56 @@ export function UrbanAnalysisChecklistPanel({
           : state.routing === "outro"
             ? state.routingOther || "Outro"
             : "Não definido";
-    doc.text(`Encaminhar: ${routingLabel}`, margin + 4, y + 40);
-    doc.text(`Folhas do Comunique-se: ${state.communiquePages || "Não informado"}`, margin + 80, y + 40);
+    doc.text(`Encaminhar: ${routingLabel}`, margin + 4, y + 39);
+    doc.text(`Folhas do Comunique-se: ${state.communiquePages || "Não informado"}`, margin + 80, y + 39);
 
-    const signedDate = state.signedAt ? new Date(state.signedAt).toLocaleString("pt-BR") : "";
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin + 4, y + 44, pageW - margin - 4, y + 44);
+
     doc.setFont("helvetica", "bold");
-    doc.text(`Responsável pela análise: ${state.signedBy || state.analystName}`, margin + 4, y + 46);
+    doc.text("ANÁLISE TÉCNICA", margin + 4, y + 49);
+    doc.text("CONFERÊNCIA FISCAL", margin + 98, y + 49);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
     doc.text(
-      state.signedAt
-        ? `Assinado eletronicamente em ${signedDate} · ${state.analystTitle}`
-        : "Documento ainda não assinado — RASCUNHO",
+      state.technicalSignature
+        ? `${state.technicalSignature.name} · ${state.technicalSignature.title}`
+        : "Pendente de assinatura técnica",
       margin + 4,
-      y + 50,
+      y + 54,
+    );
+    doc.text(
+      state.fiscalSignature
+        ? `${state.fiscalSignature.name} · ${state.fiscalSignature.title}`
+        : "Pendente de assinatura fiscal",
+      margin + 98,
+      y + 54,
+    );
+    doc.text(
+      state.technicalSignature
+        ? new Date(state.technicalSignature.signedAt).toLocaleString("pt-BR")
+        : "",
+      margin + 4,
+      y + 58,
+    );
+    doc.text(
+      state.fiscalSignature
+        ? new Date(state.fiscalSignature.signedAt).toLocaleString("pt-BR")
+        : "",
+      margin + 98,
+      y + 58,
     );
 
-    if (!state.signedAt) {
+    if (!isFullySigned) {
       doc.setTextColor(148, 163, 184);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(28);
       doc.text("RASCUNHO", pageW / 2, pageH - 12, { align: "center" });
     }
 
-    const fileName = `analise-${normalizeFilePart(process.protocol)}-${normalizeFilePart(session.name)}.pdf`;
+    const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
     doc.save(fileName);
-    setNotice(state.signedAt ? "PDF assinado gerado." : "PDF de rascunho gerado.");
+    setNotice(isFullySigned ? "PDF final assinado gerado." : "PDF de rascunho gerado.");
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
