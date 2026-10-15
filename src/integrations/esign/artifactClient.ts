@@ -1,5 +1,22 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 
+export class ArtifactSignatureError extends Error {
+  readonly stage?: string;
+  readonly code?: string;
+  readonly status?: number;
+
+  constructor(
+    message: string,
+    options: { stage?: string; code?: string; status?: number } = {},
+  ) {
+    super(message);
+    this.name = "ArtifactSignatureError";
+    this.stage = options.stage;
+    this.code = options.code;
+    this.status = options.status;
+  }
+}
+
 export type ArtifactSignerSlot =
   | "analise_tecnica"
   | "conferencia_fiscal"
@@ -147,7 +164,11 @@ export async function signProcessArtifactWithPassword(input: {
     const suffix = [stage ? `etapa: ${stage}` : "", code ? `código: ${code}` : ""]
       .filter(Boolean)
       .join(" • ");
-    throw new Error(suffix ? `${message} (${suffix})` : message);
+    throw new ArtifactSignatureError(message, {
+      stage: stage || undefined,
+      code: code || undefined,
+      status: response.status,
+    });
   }
 
   return payload;
