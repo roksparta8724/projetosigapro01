@@ -382,6 +382,35 @@ begin
       )
   where id = _permit.signature_block_id;
 
+  update public.processes
+  set status = 'deferido',
+      process_checkpoint = 'Alvará de Construção emitido',
+      updated_at = _now
+  where id = _process_id;
+
+  insert into public.process_audit_entries(
+    tenant_id,
+    municipality_id,
+    process_id,
+    actor_user_id,
+    actor_profile_id,
+    category,
+    title,
+    detail,
+    visible_to_external
+  )
+  values (
+    _permit.tenant_id,
+    _permit.municipality_id,
+    _process_id,
+    _profile.user_id,
+    _profile_id,
+    'assinatura',
+    'Alvará de Construção emitido',
+    'Alvará ' || _permit.permit_number || ' concluído após assinatura da Análise Técnica e da Diretoria responsável.',
+    true
+  );
+
   return _permit;
 end;
 $function$;
