@@ -193,6 +193,8 @@
           holder.style.pointerEvents = "none";
           holder.style.overflow = "hidden";
           holder.style.background = "var(--sig-initial-bg,#f5f7fb)";
+          var snapshotZoom = Number(snapshot.zoomValue) || 1;
+          holder.style.zoom = String(1 / snapshotZoom);
 
           var image = document.createElement("img");
           image.alt = "";
