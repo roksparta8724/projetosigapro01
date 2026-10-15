@@ -172,8 +172,17 @@ async function reauthenticateWithPassword(email: string, password: string, origi
 }
 
 export default async function handler(req: ApiReq, res: Res) {
+  if (req.method === "GET") {
+    json(res, 200, {
+      ok: true,
+      service: "sigapro-electronic-signature",
+      version: 1,
+    });
+    return;
+  }
+
   if (req.method !== "POST") {
-    json(res, 405, { error: "Método não permitido." });
+    fail(res, 405, "request", "METHOD_NOT_ALLOWED", null, "Método não permitido.");
     return;
   }
 
