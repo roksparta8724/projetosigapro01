@@ -1872,6 +1872,7 @@ export async function createRemoteExternalProcessV2(
       source: document.source,
       fileName: document.fileName,
       filePath: document.filePath,
+      fileHash: document.fileHash,
       mimeType: document.mimeType,
       sizeLabel: document.sizeLabel,
       fileSizeBytes: document.fileSizeBytes,
@@ -1904,6 +1905,116 @@ export async function createRemoteExternalProcessV2(
 }
 
 
+
+export async function createRemoteSignedExternalProcess(
+  input: CreateProcessInput & {
+    guidePrefix?: string;
+    protocolPrefix?: string;
+    requestedProtocolNumber?: string | null;
+  },
+  password: string,
+) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Escopo municipal inválido para protocolar o processo.");
+  }
+
+  if (input.documents.length === 0) {
+    throw new Error("Inclua os documentos obrigatórios antes de assinar e protocolar.");
+  }
+
+  const invalidHash = input.documents.find(
+    (document) => !/^[0-9a-f]{64}$/i.test(document.fileHash || ""),
+  );
+  if (invalidHash) {
+    throw new Error(
+      `O arquivo "${invalidHash.fileName || invalidHash.label}" ainda não possui SHA-256 real. Selecione o arquivo novamente antes de assinar.`,
+    );
+  }
+
+  await revalidateCurrentPasswordForSignature(password);
+
+  const primaryGuide = input.remote?.guides?.find((guide) => guide.kind === "protocolo");
+  const payload = {
+    title: input.title,
+    type: input.type,
+    address: input.address,
+    iptu: input.property.iptu,
+    registration: input.property.registration || null,
+    lot: input.property.lot || null,
+    block: input.property.block || null,
+    area: input.property.area || null,
+    usage: input.property.usage || null,
+    workType: input.property.workType || null,
+    constructionStandard: input.property.constructionStandard || null,
+    ownerName: input.ownerName,
+    ownerDocument: input.ownerDocument,
+    technicalLead: input.technicalLead,
+    professionalDocument: input.professionalDocument || null,
+    professionalRegistration: input.professionalRegistration || null,
+    professionalType: input.professionalType || null,
+    professionalPhone: input.professionalPhone || null,
+    professionalEmail: input.professionalEmail || null,
+    professionalCompany: input.professionalCompany || null,
+    notes: input.notes || null,
+    amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
+    guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
+    guidePrefix: input.guidePrefix || "DAM",
+    documents: [],
+  };
+
+  const documents = input.documents.map((document) => ({
+    label: document.label,
+    required: document.required,
+    signed: false,
+    version: document.version,
+    source: document.source,
+    fileName: document.fileName,
+    filePath: document.filePath,
+    fileHash: document.fileHash,
+    mimeType: document.mimeType,
+    sizeLabel: document.sizeLabel,
+    fileSizeBytes: document.fileSizeBytes,
+    reviewStatus: document.reviewStatus ?? "pendente",
+    annotations: document.annotations ?? [],
+  }));
+
+  const { data, error } = await db.rpc("create_signed_external_process_v1", {
+    _tenant_id: scopeId,
+    _payload: payload,
+    _documents: documents,
+    _protocol_prefix: input.protocolPrefix || "PM",
+    _requested_protocol_number: input.requestedProtocolNumber || null,
+  });
+
+  if (error) throw new Error(formatDatabaseError(error));
+
+  return data as {
+    process_id: string;
+    protocol_number: string;
+    guide_number: string;
+    due_date: string;
+    amount: number;
+    documents: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      fileHash: string;
+      version: number;
+      inserted: boolean;
+    }>;
+    signatures: Array<{
+      id: string;
+      signatureCode: string;
+      contentSha256: string;
+      signedAt: string;
+    }>;
+    professional_signature_complete: boolean;
+    identity_saved?: boolean;
+  };
+}
 
 export async function getRemoteProcessPrivateIdentity(
   processId: string,
