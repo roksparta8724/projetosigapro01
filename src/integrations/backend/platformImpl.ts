@@ -2180,14 +2180,12 @@ export async function listRemoteProcessElectronicSignatures(
 export async function approveRemoteProcessDocumentWithSignature(input: {
   documentId: string;
   password: string;
-  contentSha256: string;
   statement?: string;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
   await revalidateCurrentPasswordForSignature(input.password);
-  const { data, error } = await db.rpc("approve_process_document_signed_v1", {
+  const { data, error } = await db.rpc("approve_process_document_signed_v2", {
     _document_id: input.documentId,
-    _content_sha256: input.contentSha256,
     _statement: input.statement ?? "Aprovação documental",
   });
   if (error) throw new Error(formatDatabaseError(error));
