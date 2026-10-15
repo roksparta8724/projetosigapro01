@@ -2035,6 +2035,25 @@ html body #root .sig-main-shell .sig-process-detail-premium .sig-process-dark-he
   -webkit-text-fill-color:#dbeafe !important;
 }
 
+/* Generic process card body also follows the same polarity contract. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card
+:is(h1,h2,h3,h4,h5,h6,p,label,dt,dd,.sig-label) {
+  color:#0a1726 !important;
+  -webkit-text-fill-color:#0a1726 !important;
+  opacity:1 !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card
+:is(.sig-field-help,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#4b5f74 !important;
+  -webkit-text-fill-color:#4b5f74 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card
+:is(h1,h2,h3,h4,h5,h6,p,label,dt,dd,.sig-label,.sig-field-help,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#f4f9ff !important;
+  -webkit-text-fill-color:#f4f9ff !important;
+  opacity:1 !important;
+}
+
 /* Explicit readable process cards: light mode uses dark copy, inverse uses bright copy. */
 html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
   .sig-process-readable-card,
