@@ -842,27 +842,118 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
-        <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                state.signedAt ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300",
-              )}>
-                {state.signedAt ? <CheckCircle2 className="h-5 w-5" /> : <Signature className="h-5 w-5" />}
+        <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
+              <p className="mt-1 text-base font-bold text-slate-950 dark:text-white">Assinatura técnica + conferência fiscal</p>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+                O analista conclui a avaliação técnica. Em seguida, o Fiscal de Obras confere a ficha e registra a segunda assinatura. Qualquer alteração posterior invalida as assinaturas e reabre a conferência.
+              </p>
+            </div>
+            <div className={cn(
+              "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em]",
+              isFullySigned
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200"
+                : state.technicalSignature
+                  ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/35 dark:text-sky-200"
+                  : "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300",
+            )}>
+              {isFullySigned ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Signature className="h-3.5 w-3.5" />}
+              {isFullySigned ? "Ficha concluída" : state.technicalSignature ? "Aguardando Fiscal" : "Em elaboração"}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            <div className={cn(
+              "rounded-[20px] border p-4",
+              state.technicalSignature
+                ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  state.technicalSignature
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+                )}>
+                  {state.technicalSignature ? <CheckCircle2 className="h-5 w-5" /> : <PenLine className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">1ª assinatura</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Responsável pela análise técnica</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {state.technicalSignature
+                      ? `${state.technicalSignature.name} · ${state.technicalSignature.title} · ${new Date(state.technicalSignature.signedAt).toLocaleString("pt-BR")}`
+                      : "Pendente da assinatura do analista responsável."}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-950 dark:text-white">
-                  {state.signedAt ? "Avaliação assinada eletronicamente" : "Assinatura do responsável pela análise"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  {state.signedAt
-                    ? `${state.signedBy} · ${new Date(state.signedAt).toLocaleString("pt-BR")}. Qualquer alteração invalida a assinatura.`
-                    : "A assinatura usa o usuário autenticado e a data/hora da sessão. Depois você pode gerar o PDF final."}
-                </p>
-              </div>
+              {canSignTechnical ? (
+                <Button
+                  type="button"
+                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
+                  onClick={signTechnicalEvaluation}
+                >
+                  <Signature className="mr-2 h-4 w-4" />
+                  {state.technicalSignature ? "Assinar análise novamente" : "Assinar análise técnica"}
+                </Button>
+              ) : null}
             </div>
 
+            <div className={cn(
+              "rounded-[20px] border p-4",
+              state.fiscalSignature
+                ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                : state.technicalSignature
+                  ? "border-violet-200 bg-violet-50/70 dark:border-violet-500/30 dark:bg-violet-950/25"
+                  : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  state.fiscalSignature
+                    ? "bg-emerald-600 text-white"
+                    : state.technicalSignature
+                      ? "bg-violet-600 text-white"
+                      : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+                )}>
+                  {state.fiscalSignature ? <CheckCircle2 className="h-5 w-5" /> : <Signature className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">2ª assinatura</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Conferência do Fiscal de Obras</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {state.fiscalSignature
+                      ? `${state.fiscalSignature.name} · ${state.fiscalSignature.title} · ${new Date(state.fiscalSignature.signedAt).toLocaleString("pt-BR")}`
+                      : state.technicalSignature
+                        ? "Aguardando conferência e assinatura fiscal."
+                        : "Disponível depois da assinatura técnica."}
+                  </p>
+                </div>
+              </div>
+              {canSignFiscal ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 w-full rounded-xl border-violet-300 bg-violet-50 font-semibold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
+                  disabled={!state.technicalSignature}
+                  onClick={signFiscalReview}
+                >
+                  <Signature className="mr-2 h-4 w-4" />
+                  {state.fiscalSignature ? "Assinar conferência novamente" : "Assinar conferência fiscal"}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <div className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {state.savedAt
+                ? `Último rascunho: ${new Date(state.savedAt).toLocaleString("pt-BR")}`
+                : "Nenhum rascunho salvo ainda."}
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" className="rounded-full" onClick={saveDraft}>
                 <Save className="mr-2 h-4 w-4" />
@@ -870,20 +961,11 @@ export function UrbanAnalysisChecklistPanel({
               </Button>
               <Button
                 type="button"
-                variant="outline"
-                className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-200"
-                onClick={signEvaluation}
-              >
-                <PenLine className="mr-2 h-4 w-4" />
-                {state.signedAt ? "Assinar novamente" : "Assinar avaliação"}
-              </Button>
-              <Button
-                type="button"
                 className="rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-110 [&_*]:!text-white"
                 onClick={generatePdf}
               >
                 <FileDown className="mr-2 h-4 w-4" />
-                Gerar PDF
+                {isFullySigned ? "Gerar PDF final" : "Gerar PDF rascunho"}
               </Button>
             </div>
           </div>
