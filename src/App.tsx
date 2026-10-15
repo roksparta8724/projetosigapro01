@@ -50,6 +50,7 @@ import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
 import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
+import { SignatureVerificationPage } from "@/pages/saas/SignatureVerificationPage";
 
 const App = () => {
   return (
@@ -92,8 +93,9 @@ const AppRoutes = () => {
       pathname === "/apresentacao";
     const isFullDocumentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
+    const isSignatureVerificationRoute = pathname.startsWith("/validar-assinatura/");
 
-    const zoom = isLandingRoute || isFullDocumentRoute ? "1" : "0.85";
+    const zoom = isLandingRoute || isFullDocumentRoute || isSignatureVerificationRoute ? "1" : "0.85";
     document.documentElement.style.zoom = zoom;
     document.body.style.zoom = "1";
     document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
@@ -110,7 +112,8 @@ const AppRoutes = () => {
     pathname === "/acesso" ||
     pathname === "/criar-conta" ||
     pathname === "/recuperar-senha" ||
-    pathname.startsWith("/cliente/");
+    pathname.startsWith("/cliente/") ||
+    pathname.startsWith("/validar-assinatura/");
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
     !bootstrap.loading &&
@@ -134,6 +137,7 @@ const AppRoutes = () => {
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
+        <Route path="/validar-assinatura/:code" element={<SignatureVerificationPage />} />
         <Route
           path="/apresentacao"
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}

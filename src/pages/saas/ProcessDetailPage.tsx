@@ -26,6 +26,7 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { signDocumentWithPassword } from "@/integrations/esign/client";
 import {
   getRemoteProcessPrivateIdentity,
   listRemoteMunicipalDepartments,
@@ -34,6 +35,7 @@ import {
 } from "@/integrations/backend/platform";
 import {
   calculateIssGuideAmount,
+  can,
   canAccessMunicipalArea,
   canFollowUpIssuedIssGuide,
   canTrackProcess,
@@ -171,7 +173,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
@@ -255,6 +257,10 @@ export function ProcessDetailPage() {
   });
   const openedProcessRef = useRef<string | null>(null);
   const [viewerDocumentId, setViewerDocumentId] = useState<string | null>(null);
+  const [signatureDocumentId, setSignatureDocumentId] = useState<string | null>(null);
+  const [signaturePassword, setSignaturePassword] = useState("");
+  const [signatureBusy, setSignatureBusy] = useState(false);
+  const [signatureStatus, setSignatureStatus] = useState("");
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
@@ -577,6 +583,9 @@ export function ProcessDetailPage() {
     process.status === "pagamento_pendente" &&
     process.triage.status === "concluido" &&
     canProtocolOperate;
+  const canSignDocuments =
+    can(session, "sign_documents") &&
+    ["profissional_externo", "analista", "prefeitura_supervisor", "prefeitura_admin"].includes(session.role);
   const canReviewDocuments =
     ownsCurrentProcessStage &&
     canAnalysisOperate &&
@@ -1497,6 +1506,55 @@ export function ProcessDetailPage() {
     }
   };
 
+  const openSignatureDialog = (documentId: string) => {
+    setSignatureStatus("");
+    setSignaturePassword("");
+    setSignatureDocumentId(documentId);
+  };
+
+  const closeSignatureDialog = () => {
+    if (signatureBusy) return;
+    setSignatureDocumentId(null);
+    setSignaturePassword("");
+    setSignatureStatus("");
+  };
+
+  const handleElectronicSignature = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!signatureDocumentId || !signaturePassword) {
+      setSignatureStatus("Informe sua senha de acesso para confirmar a assinatura.");
+      return;
+    }
+
+    setSignatureBusy(true);
+    setSignatureStatus("");
+    try {
+      const result = await signDocumentWithPassword({
+        documentId: signatureDocumentId,
+        password: signaturePassword,
+      });
+      setSignaturePassword("");
+      await refreshRemoteStore();
+      const code = result.signature?.verification_code;
+      setSignatureStatus(
+        code
+          ? `Assinatura concluída e registrada. Código de verificação: ${code}.`
+          : "Assinatura concluída e registrada com sucesso.",
+      );
+      window.setTimeout(() => {
+        setSignatureDocumentId(null);
+        setSignatureStatus("");
+      }, 1200);
+    } catch (error) {
+      setSignaturePassword("");
+      setSignatureStatus(
+        error instanceof Error ? error.message : "Não foi possível concluir a assinatura eletrônica.",
+      );
+    } finally {
+      setSignatureBusy(false);
+    }
+  };
+
   const handleSaveAnnotation = async () => {
     if (!viewerDocument || !annotationPoint || !annotationDraft.trim()) return;
     const ok = await runProcessAction(
@@ -2089,6 +2147,14 @@ export function ProcessDetailPage() {
                 const reviewVisual = getDocumentReviewVisual(document);
                 const isApproved = document.reviewStatus === "aprovado";
                 const hasCommunique = document.reviewStatus === "rejeitado";
+                const documentSignatureBlocks = process.signatures.filter(
+                  (block) => block.documentId === document.id && block.status === "concluido",
+                );
+                const documentSigners = documentSignatureBlocks.flatMap((block) => block.signers);
+                const currentUserSigned = documentSigners.some(
+                  (signer) => signer.profileId === session.id,
+                );
+                const primarySignatureBlock = documentSignatureBlocks[0];
 
                 return (
                   <div
@@ -2256,6 +2322,91 @@ export function ProcessDetailPage() {
                             </Button>
                           </>
                         ) : null}
+                      </div>
+                    ) : null}
+
+                    {document.uploaded ? (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Signature className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                              <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                                Assinatura eletrônica SIGAPRO
+                              </p>
+                              {documentSigners.length > 0 ? (
+                                <Badge className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                  {documentSigners.length} assinatura(s)
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="rounded-full border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300">
+                                  Aguardando assinatura
+                                </Badge>
+                              )}
+                            </div>
+
+                            {documentSigners.length > 0 ? (
+                              <div className="mt-3 space-y-2">
+                                {documentSigners.map((signer, signerIndex) => (
+                                  <div
+                                    key={`${signer.profileId || signer.name}-${signerIndex}`}
+                                    className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 text-sm text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-100"
+                                  >
+                                    <p className="font-semibold">
+                                      Documento assinado eletronicamente por {signer.name}
+                                      {signer.title ? `, ${signer.title}` : ""}.
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-300">
+                                      {signer.signedAt ? `Assinado em ${signer.signedAt}` : "Assinatura registrada"}
+                                      {signer.registration ? ` • Registro ${signer.registration}` : ""}
+                                    </p>
+                                  </div>
+                                ))}
+                                {primarySignatureBlock?.verificationCode ? (
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                    <span className="font-mono">
+                                      Código: {primarySignatureBlock.verificationCode}
+                                    </span>
+                                    {primarySignatureBlock.evidence?.hash ? (
+                                      <span className="font-mono">
+                                        SHA-256: {primarySignatureBlock.evidence.hash.slice(0, 18)}…
+                                      </span>
+                                    ) : null}
+                                    <a
+                                      href={`/validar-assinatura/${primarySignatureBlock.verificationCode}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="font-semibold text-sky-700 hover:underline dark:text-sky-300"
+                                    >
+                                      Validar autenticidade
+                                    </a>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                A assinatura exige a senha atual da conta. A senha é apenas revalidada no provedor de identidade e não é gravada no processo.
+                              </p>
+                            )}
+                          </div>
+
+                          {canSignDocuments ? (
+                            <Button
+                              type="button"
+                              variant={currentUserSigned ? "outline" : "default"}
+                              className={
+                                currentUserSigned
+                                  ? "rounded-full"
+                                  : "rounded-full bg-sky-700 px-5 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950 dark:hover:bg-sky-400"
+                              }
+                              disabled={currentUserSigned}
+                              onClick={() => openSignatureDialog(document.id)}
+                            >
+                              <Signature className="mr-2 h-4 w-4" />
+                              {currentUserSigned ? "Assinado por você" : "Assinar eletronicamente"}
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
 
@@ -2981,6 +3132,63 @@ export function ProcessDetailPage() {
         ) : null}
       </div>
       ) : null}
+
+      <Dialog open={!!signatureDocumentId} onOpenChange={(open) => !open && closeSignatureDialog()}>
+        <DialogContent className="max-w-lg overflow-hidden rounded-[24px] border-slate-200 p-0 dark:border-slate-700">
+          <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-900/70">
+            <DialogTitle className="flex items-center gap-2 text-left text-xl text-slate-950 dark:text-white">
+              <Signature className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+              Confirmar assinatura eletrônica
+            </DialogTitle>
+          </DialogHeader>
+          <form className="space-y-5 p-6" onSubmit={handleElectronicSignature}>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-100">
+              <p className="font-semibold">Confirmação de identidade obrigatória</p>
+              <p className="mt-1">
+                Informe a mesma senha usada para entrar no SIGAPRO. Ela será revalidada no Neon Auth, não será armazenada e não será registrada nos logs do processo.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="signature-current-password">Senha de acesso</Label>
+              <Input
+                id="signature-current-password"
+                type="password"
+                autoComplete="current-password"
+                value={signaturePassword}
+                onChange={(event) => setSignaturePassword(event.target.value)}
+                placeholder="Digite sua senha atual"
+                disabled={signatureBusy}
+                autoFocus
+              />
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 text-xs leading-5 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+              Ao confirmar, o sistema vincula sua identidade, cargo/função, data e hora, versão do documento, hash SHA-256 e evidências técnicas à assinatura.
+            </div>
+            {signatureStatus ? (
+              <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                /incorreta|não foi|inválid|expirou|falha|erro/i.test(signatureStatus)
+                  ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200"
+              }`}>
+                {signatureStatus}
+              </div>
+            ) : null}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="rounded-full" onClick={closeSignatureDialog} disabled={signatureBusy}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-full bg-sky-700 px-6 !text-white hover:bg-sky-800 dark:bg-sky-500 dark:!text-slate-950"
+                disabled={signatureBusy || !signaturePassword}
+              >
+                <Signature className="mr-2 h-4 w-4" />
+                {signatureBusy ? "Validando e assinando..." : "Confirmar com minha senha"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!viewerDocument} onOpenChange={(open) => !open && setViewerDocumentId(null)}>
         <DialogContent className="max-h-[96vh] max-w-[96vw] overflow-hidden border-slate-200 p-0">
