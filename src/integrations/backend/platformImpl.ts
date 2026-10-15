@@ -3,6 +3,7 @@ import { isNeonBackend } from "@/integrations/backend/config";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { normalizeMunicipalUnit } from "@/lib/municipalOrganization";
+import type { ElectronicSignatureRecord } from "@/lib/electronicSignature";
 import {
   buildProcessDocuments,
   serializeMarker,
@@ -2085,6 +2086,163 @@ export async function reviewRemoteProcessDocument(documentId: string, status: "a
     _document_id: documentId,
     _status: status,
   });
+}
+
+async function revalidateCurrentPasswordForSignature(password: string) {
+  const cleanPassword = password.trim();
+  if (!cleanPassword) {
+    throw new Error("Digite sua senha de acesso para assinar.");
+  }
+  if (!db?.auth) {
+    throw new Error("Serviço de autenticação indisponível para assinatura.");
+  }
+
+  const sessionResult = await db.auth.getSession();
+  const currentUser = sessionResult?.data?.session?.user ?? null;
+  const currentUserId = currentUser?.id ? String(currentUser.id) : "";
+  const currentEmail = String(currentUser?.email ?? "").trim().toLowerCase();
+
+  if (!currentUserId || !currentEmail) {
+    throw new Error("Sua sessão não está pronta para assinatura. Entre novamente na sua conta.");
+  }
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: currentEmail,
+    password: cleanPassword,
+  });
+
+  if (error || !data?.user) {
+    const raw = String(error?.message ?? "Senha inválida.");
+    throw new Error(
+      /invalid email or password|invalid credentials|password/i.test(raw)
+        ? "Senha de acesso incorreta. A assinatura não foi realizada."
+        : raw,
+    );
+  }
+
+  if (String(data.user.id) !== currentUserId) {
+    throw new Error("A identidade revalidada não corresponde ao usuário da sessão atual.");
+  }
+
+  return { userId: currentUserId, email: currentEmail };
+}
+
+function mapElectronicSignature(data: unknown): ElectronicSignatureRecord {
+  const record = (data ?? {}) as Record<string, unknown>;
+  return {
+    id: String(record.id ?? ""),
+    processId: String(record.processId ?? record.process_id ?? ""),
+    entityType: String(record.entityType ?? record.entity_type ?? ""),
+    entityId: String(record.entityId ?? record.entity_id ?? ""),
+    documentVersion:
+      record.documentVersion == null && record.document_version == null
+        ? null
+        : Number(record.documentVersion ?? record.document_version),
+    signerProfileId: String(record.signerProfileId ?? record.signer_profile_id ?? ""),
+    signerName: String(record.signerName ?? record.signer_name ?? ""),
+    signerRole: String(record.signerRole ?? record.signer_role ?? "") || null,
+    signerProfileLabel:
+      String(record.signerProfileLabel ?? record.signer_profile_label ?? "") || null,
+    signerTitle: String(record.signerTitle ?? record.signer_title ?? "") || null,
+    departmentId: String(record.departmentId ?? record.department_id ?? "") || null,
+    departmentCode: String(record.departmentCode ?? record.department_code ?? "") || null,
+    departmentName: String(record.departmentName ?? record.department_name ?? "") || null,
+    authMethod: (String(record.authMethod ?? record.auth_method ?? "password") ||
+      "password") as ElectronicSignatureRecord["authMethod"],
+    assuranceLevel: (String(
+      record.assuranceLevel ?? record.assurance_level ?? "simple_password",
+    ) || "simple_password") as ElectronicSignatureRecord["assuranceLevel"],
+    contentSha256: String(record.contentSha256 ?? record.content_sha256 ?? ""),
+    signatureCode: String(record.signatureCode ?? record.signature_code ?? ""),
+    signatureFingerprint: String(
+      record.signatureFingerprint ?? record.signature_fingerprint ?? "",
+    ),
+    statement: String(record.statement ?? "") || null,
+    signedAt: String(record.signedAt ?? record.signed_at ?? ""),
+    revokedAt: String(record.revokedAt ?? record.revoked_at ?? "") || null,
+    revocationReason:
+      String(record.revocationReason ?? record.revocation_reason ?? "") || null,
+  };
+}
+
+export async function listRemoteProcessElectronicSignatures(
+  processId: string,
+): Promise<ElectronicSignatureRecord[]> {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("list_process_electronic_signatures_v1", {
+    _process_id: processId,
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return Array.isArray(data) ? data.map(mapElectronicSignature) : [];
+}
+
+export async function approveRemoteProcessDocumentWithSignature(input: {
+  documentId: string;
+  password: string;
+  contentSha256: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("approve_process_document_signed_v1", {
+    _document_id: input.documentId,
+    _content_sha256: input.contentSha256,
+    _statement: input.statement ?? "Aprovação documental",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function issueRemotePaymentGuideWithSignature(input: {
+  processId: string;
+  guideKind: "iss_obra" | "aprovacao_final";
+  dueDate?: string | null;
+  password: string;
+  contentSha256: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("issue_process_payment_guide_signed_v1", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _due_date: input.dueDate || null,
+    _content_sha256: input.contentSha256,
+    _statement: input.statement ?? "Emissão de guia municipal",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function createRemoteProcessDispatchWithSignature(input: {
+  processId: string;
+  fromDepartment: string;
+  toDepartment: string;
+  subject: string;
+  dueAt?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+  priority?: "baixa" | "media" | "alta" | "critica";
+  assignedTo?: string | null;
+  password: string;
+  contentSha256: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("create_process_dispatch_signed_v1", {
+    _process_id: input.processId,
+    _from_department: input.fromDepartment,
+    _to_department: input.toDepartment,
+    _subject: input.subject,
+    _due_at: input.dueAt || null,
+    _visibility: input.visibility || "interno",
+    _priority: input.priority || "media",
+    _assigned_to: input.assignedTo || null,
+    _content_sha256: input.contentSha256,
+    _statement: input.statement ?? "Despacho interdepartamental",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
 }
 
 export async function annotateRemoteProcessDocument(input: {
