@@ -26,16 +26,17 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(main).not.toContain("sigapro-app-stable");
   });
 
-  it("uses browser-native cross-document continuity without any custom refresh shell", () => {
-    expect(html).toContain("@view-transition");
-    expect(html).toContain("navigation: auto");
-    expect(html).toContain("::view-transition-old(root)");
-    expect(html).toContain("::view-transition-new(root)");
-    expect(html).not.toContain("window.navigation");
-    expect(html).not.toContain("dispatchSoftRefresh");
-    expect(html).not.toContain("blockKeyboardReload");
+  it("never paints an empty root during F5", () => {
+    expect(html).not.toContain("@view-transition");
+    expect(html).not.toContain("sigapro-refresh-snapshot");
     expect(html).not.toContain("sigapro-soft-refresh");
-    expect(main).toContain('"pageswap"');
+    expect(html).toContain('type="module"');
+    expect(html).toContain('src="/src/main.tsx"');
+    expect(html).toContain('blocking="render"');
+    expect(html).toContain('fetchpriority="high"');
+    expect(main).toContain('import { flushSync } from "react-dom"');
+    expect(main).toContain("flushSync(() =>");
+    expect(main).toContain("root.render(<App />)");
   });
 
   it("locks background and zoom before first paint and never clears zoom on teardown", () => {
