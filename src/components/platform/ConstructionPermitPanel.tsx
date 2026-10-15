@@ -315,7 +315,7 @@ export function ConstructionPermitPanel({
             <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
               <FileBadge2 className="h-6 w-6 !text-white" />
             </div>
-            <div>
+            <div data-permit-header-copy="true">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
                 Licenciamento da obra
               </p>
@@ -357,7 +357,7 @@ export function ConstructionPermitPanel({
         </div>
       </CardHeader>
 
-      <CardContent data-workspace-surface="adaptive" className="space-y-5 p-5 md:p-6">
+      <CardContent data-workspace-surface="adaptive" className="space-y-5 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#0b1320_100%)] md:p-6">
         {externalView ? (
           permit && isIssued ? (
             <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
