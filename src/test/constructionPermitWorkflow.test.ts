@@ -85,3 +85,19 @@ describe("construction permit workflow", () => {
     expect(pdf).toContain("form?.licenseObject");
     expect(pdf).toContain("form?.complementaryConditions");
   });
+
+
+describe("construction permit early workspace", () => {
+  it("opens the Alvara workspace before final readiness but keeps signatures gated", () => {
+    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(panel).toContain("canStartDraft");
+    expect(panel).toContain("permitReadyForSignature");
+    expect(panel).toContain("Abrir e preencher Alvará");
+    expect(panel).toContain("O Alvará pode ser preparado antecipadamente em rascunho");
+    expect(panel).toContain("Pré-requisito financeiro");
+    expect(panel).toContain("Pré-requisito técnico");
+    expect(detail).toContain("canAnalysisOperate || constructionPaymentCompensated");
+  });
+});
