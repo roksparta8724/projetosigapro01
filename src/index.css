@@ -8299,3 +8299,129 @@ html body .sig-main-shell .sig-process-detail-premium [data-primary-action="proc
 }
 
 /* ===== END PROCESS DETAIL VISIBILITY CONTRACT V5 ===== */
+
+
+/* ===== PROCESS DETAIL VISIBILITY CONTRACT V5.1 ===== */
+
+/* Validation/signature cards are adaptive cards too. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) {
+  color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#526174 !important;
+  -webkit-text-fill-color:#526174 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) {
+  color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-validation="true"],
+  [data-analysis-signature-card],
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c8d8e8 !important;
+  -webkit-text-fill-color:#c8d8e8 !important;
+}
+
+/* Explicit dark actions must never receive dark text from surrounding cards. */
+html body .sig-main-shell .sig-process-detail-premium [data-premium-dark-action="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-premium-dark-action="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-dark-action="true"] svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Signature icon blocks: filled surface => bright icon. */
+html body .sig-main-shell .sig-process-detail-premium [data-analysis-signature-card] :is(
+  .bg-emerald-600,.bg-violet-600,.bg-sky-700
+) svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Inputs/selects inside light process surfaces stay readable. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"],
+  [data-analysis-validation="true"]
+) :is(input,textarea,[role="combobox"]) {
+  background:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  border-color:#d7e1ec !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"],
+  [data-analysis-validation="true"]
+) :is(input,textarea)::placeholder {
+  color:#7a8a9d !important;
+  -webkit-text-fill-color:#7a8a9d !important;
+  opacity:1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"],
+  [data-analysis-validation="true"]
+) :is(input,textarea,[role="combobox"]) {
+  background:#091827 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  border-color:#385875 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-dispatch-panel="true"],
+  [data-dispatch-organogram="true"],
+  [data-analysis-validation="true"]
+) :is(input,textarea)::placeholder {
+  color:#9fb3c8 !important;
+  -webkit-text-fill-color:#9fb3c8 !important;
+  opacity:1 !important;
+}
+
+/* ===== END PROCESS DETAIL VISIBILITY CONTRACT V5.1 ===== */
