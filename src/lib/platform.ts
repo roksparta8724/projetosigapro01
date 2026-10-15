@@ -2315,6 +2315,35 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
 
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 
+export function resolveSessionOperationalArea(
+  session: Pick<SessionUser, "role" | "department" | "title">,
+): MunicipalOperationalArea | "" {
+  const explicitDepartment = resolveDepartmentAccessBucket(session.department || "");
+  if (
+    explicitDepartment === "protocolos" ||
+    explicitDepartment === "analise" ||
+    explicitDepartment === "financeiro"
+  ) {
+    return explicitDepartment;
+  }
+
+  const titleDepartment = resolveDepartmentAccessBucket(session.title || "");
+  if (
+    titleDepartment === "protocolos" ||
+    titleDepartment === "analise" ||
+    titleDepartment === "financeiro"
+  ) {
+    return titleDepartment;
+  }
+
+  // Compatibilidade com contas internas antigas ainda sem department_id.
+  // O papel canônico é usado somente quando não existe um departamento explícito.
+  if (session.role === "setor_intersetorial") return "protocolos";
+  if (session.role === "analista") return "analise";
+  if (session.role === "financeiro" || session.role === "fiscal") return "financeiro";
+  return "";
+}
+
 export function getRoleLandingPath(role: UserRole | string | null | undefined) {
   switch (role) {
     case "master_admin":
@@ -2354,20 +2383,8 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
 
   if (!isInternalRole(session.role)) return false;
 
-  // A pasta operacional pertence ao setor/departamento, não ao rótulo genérico do cargo.
-  // Isso evita bloquear Assistente/Auxiliar Administrativo quando a sessão ainda traz
-  // temporariamente um papel antigo em cache.
-  const department = resolveDepartmentAccessBucket(session.department || session.title);
-  if (department === "protocolos" || department === "analise" || department === "financeiro") {
-    return department === area;
-  }
-
-  // Fallback apenas para cadastros antigos sem departamento operacional definido.
-  if (session.role === "setor_intersetorial") return area === "protocolos";
-  if (session.role === "analista") return area === "analise";
-  if (session.role === "financeiro" || session.role === "fiscal") return area === "financeiro";
-
-  return false;
+  const department = resolveSessionOperationalArea(session);
+  return department === area;
 }
 
 export function isProcessOwnedBySessionDepartment(session: SessionUser, process: ProcessRecord) {
@@ -2376,7 +2393,7 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
   }
   if (!isInternalRole(session.role) || session.role === "prefeitura_admin") return false;
 
-  const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
+  const userDepartment = resolveSessionOperationalArea(session);
   if (!userDepartment) return false;
 
   const issuedIssGuide = process.payment.guides?.find(
@@ -2501,7 +2518,7 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
 
   if (isProcessOwnedBySessionDepartment(session, process)) return true;
 
-  const userDepartment = resolveDepartmentAccessBucket(session.department || session.title);
+  const userDepartment = resolveSessionOperationalArea(session);
   if (userDepartment === "protocolos") {
     const originatedInProtocol =
       process.dispatches.some((dispatch) =>
@@ -2554,8 +2571,8 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   }
 
   // Todo funcionário municipal comum enxerga somente a fila do próprio departamento.
-  const userDepartmentRaw = session.department || "";
-  const userDepartment = resolveDepartmentAccessBucket(userDepartmentRaw);
+  const userDepartmentRaw = session.department || session.title || "";
+  const userDepartment = resolveSessionOperationalArea(session);
   if (!userDepartment) return false;
 
   const issuedIssGuide = process.payment.guides?.find(
