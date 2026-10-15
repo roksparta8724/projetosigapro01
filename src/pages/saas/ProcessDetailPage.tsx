@@ -1691,7 +1691,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1828,10 +1828,10 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-200/25 bg-[#0b5e93] text-white shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
                     <FileStack className="h-6 w-6 text-sky-200" />
                   </div>
                   <div className="min-w-0">
@@ -1852,20 +1852,20 @@ export function ProcessDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
-                  <div className="sig-command-metric sig-command-metric-blue rounded-2xl border px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
                     <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
-                  <div className="sig-command-metric sig-command-metric-emerald rounded-2xl border px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
                     <p className="mt-1 text-xl font-bold !text-emerald-50">{approvedDocumentCount}</p>
                   </div>
-                  <div className="sig-command-metric sig-command-metric-amber rounded-2xl border px-3 py-3 shadow-sm">
+                  <div className="sig-command-metric rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
                     <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
-                  <div className="sig-command-metric sig-command-metric-blue rounded-2xl border px-3 py-3 shadow-sm">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Conferência</p>
+                  <div className="sig-command-metric rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.20)]">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Conferência</p>
                     <p className="mt-1 text-xl font-bold !text-white">{documentReviewProgress}%</p>
                   </div>
                 </div>
