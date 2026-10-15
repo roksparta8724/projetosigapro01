@@ -1691,7 +1691,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card data-process-summary-card="true" data-summary-tone="sky" className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1711,7 +1711,8 @@ export function ProcessDetailPage() {
               </p>
               <Button
                 type="button"
-                className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
+                data-primary-action="process"
+                className="mt-4 min-h-11 w-full rounded-xl bg-sky-700 px-4 font-bold text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:bg-sky-800"
                 onClick={() => setProcessTab("alvara")}
               >
                 {constructionPermit?.status === "emitido"
