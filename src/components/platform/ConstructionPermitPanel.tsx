@@ -309,7 +309,7 @@ export function ConstructionPermitPanel({
 
   return (
     <Card className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-      <CardHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-5 py-5 text-white dark:border-slate-700 [&_*]:!text-white">
+      <CardHeader data-force-card-contrast="dark" className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-5 py-5 text-white dark:border-slate-700 [&_*]:!text-white">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 shadow-inner">
@@ -696,7 +696,7 @@ export function ConstructionPermitPanel({
 
             <Dialog open={fillOpen} onOpenChange={setFillOpen}>
               <DialogContent className="z-[95] max-h-[92vh] w-[min(1180px,calc(100vw-32px))] max-w-none overflow-hidden rounded-[28px] border-slate-200 bg-white p-0 shadow-[0_32px_100px_rgba(15,23,42,0.34)] dark:border-slate-700 dark:bg-slate-950">
-                <DialogHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-6 py-5 pr-14 text-left dark:border-slate-700">
+                <DialogHeader data-force-card-contrast="dark" className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-6 py-5 pr-14 text-left dark:border-slate-700">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white">
                       <ClipboardPenLine className="h-6 w-6" />
