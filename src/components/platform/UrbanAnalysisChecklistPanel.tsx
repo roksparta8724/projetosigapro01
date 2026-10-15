@@ -1364,21 +1364,22 @@ export function UrbanAnalysisChecklistPanel({
       doc.text("RESULTADO DA ANÁLISE", margin + 4, resultY + 5.2);
 
       const metrics = [
-        ["DE ACORDO", counts.a, emerald],
-        ["APRESENTAR", counts.ap, blue],
-        ["CORRIGIR", counts.c, amber],
-        ["N/A", counts.na, [71, 85, 105] as const],
+        ["DE ACORDO", counts.a, [236, 253, 245] as const, [167, 243, 208] as const, [4, 120, 87] as const],
+        ["APRESENTAR", counts.ap, [239, 246, 255] as const, [186, 230, 253] as const, [3, 105, 161] as const],
+        ["CORRIGIR", counts.c, [255, 247, 237] as const, [254, 215, 170] as const, [180, 83, 9] as const],
+        ["N/A", counts.na, [248, 250, 252] as const, [203, 213, 225] as const, [71, 85, 105] as const],
       ] as const;
 
-      metrics.forEach(([label, value, color], index) => {
+      metrics.forEach(([label, value, fill, border, textColor], index) => {
         const x = margin + 4 + index * 31;
-        doc.setFillColor(...color);
-        doc.roundedRect(x, resultY + 8, 28, 8, 2, 2, "F");
-        doc.setTextColor(255, 255, 255);
+        doc.setFillColor(...fill);
+        doc.setDrawColor(...border);
+        doc.roundedRect(x, resultY + 8, 28, 8, 2, 2, "FD");
+        doc.setTextColor(...textColor);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(4.5);
+        doc.setFontSize(4.4);
         doc.text(label, x + 3, resultY + 11.2);
-        doc.setFontSize(7.2);
+        doc.setFontSize(7.1);
         doc.text(String(value), x + 24, resultY + 13.3, { align: "right" });
       });
 
@@ -1430,31 +1431,16 @@ export function UrbanAnalysisChecklistPanel({
         fiscalOfficial,
       );
 
-      if (!isFullySigned) {
-        doc.setFillColor(255, 247, 237);
-        doc.setDrawColor(253, 186, 116);
-        doc.roundedRect(margin, 273, contentW, 8, 2, 2, "FD");
-        doc.setTextColor(...amber);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(5.5);
-        doc.text(
-          technicalOfficial
-            ? "RASCUNHO - aguardando conferência fiscal para emissão final."
-            : "RASCUNHO - assinatura técnica eletrônica ainda pendente.",
-          pageW / 2,
-          278,
-          { align: "center" },
-        );
-      }
-
       drawFooter(2);
 
       const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
       doc.save(fileName);
       setNotice(
-        isFullySigned
-          ? "PDF premium final gerado em 2 páginas com assinaturas eletrônicas."
-          : "PDF premium de rascunho gerado em 2 páginas. As assinaturas oficiais aparecem individualmente quando concluídas.",
+        fiscalOfficial
+          ? "PDF oficial gerado em 2 páginas com as assinaturas eletrônicas registradas."
+          : technicalOfficial
+            ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada; a conferência fiscal permanece pendente."
+            : "PDF oficial gerado em 2 páginas. As assinaturas eletrônicas pendentes permanecem identificadas no documento.",
       );
     } catch (error) {
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
