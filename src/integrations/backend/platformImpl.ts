@@ -2429,7 +2429,7 @@ export async function getRemoteSuperiorTechnicalConclusion(processId: string) {
 }
 
 export async function listRemoteSuperiorApprovalActions(processId: string) {
-  return callProcessRpc<Array<Record<string, unknown>>>("list_available_superior_approval_actions", {
+  return callProcessRpc<Array<Record<string, unknown>>>("list_signed_superior_approval_actions", {
     p_process_id: processId,
   });
 }
