@@ -93,8 +93,9 @@ const AppRoutes = () => {
       pathname === "/apresentacao";
     const isFullDocumentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
+    const isSignatureVerificationRoute = pathname.startsWith("/validar-assinatura/");
 
-    const zoom = isLandingRoute || isFullDocumentRoute ? "1" : "0.85";
+    const zoom = isLandingRoute || isFullDocumentRoute || isSignatureVerificationRoute ? "1" : "0.85";
     document.documentElement.style.zoom = zoom;
     document.body.style.zoom = "1";
     document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
