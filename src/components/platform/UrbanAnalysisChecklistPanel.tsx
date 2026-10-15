@@ -93,7 +93,7 @@ type SignatureFlowError = {
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const CAMPO_LIMPO_BRASAO_FALLBACK =
-  "https://upload.wikimedia.org/wikipedia/commons/c/c9/Bras%C3%A3o_de_Campo_Limpo_Paulista_%28Vetor%29.png";
+  "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
 
 function resolveMunicipalityLogoUrl(
   municipalityName?: string | null,
@@ -806,7 +806,35 @@ export function UrbanAnalysisChecklistPanel({
       const emerald = [5, 150, 105] as const;
       const amber = [180, 83, 9] as const;
 
-      const logoDataUrl = await loadPdfImageDataUrl(resolvedMunicipalityLogoUrl);
+      const logoDataUrl =
+        (await loadPdfImageDataUrl(resolvedMunicipalityLogoUrl)) ||
+        (await loadPdfImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK));
+
+      const rawProtocol = process.protocol?.trim() || "Não informado";
+      const protocolLabel = /^processo\b/i.test(rawProtocol)
+        ? rawProtocol
+        : `Processo nº ${rawProtocol}`;
+      const currentSecretariat =
+        /campo\s+limpo\s+paulista/i.test(municipalityName || "") &&
+        (!secretariat ||
+          /^secretaria\s+de\s+desenvolvimento\s+urbano$/i.test(secretariat.trim()))
+          ? "Secretaria de Desenvolvimento Urbano, Habitação e Meio Ambiente"
+          : secretariat || "Secretaria responsável";
+      const currentDirectorate =
+        directorate || departmentLabel || "Diretoria de Urbanismo";
+      const currentAddress =
+        municipalityAddress ||
+        (/campo\s+limpo\s+paulista/i.test(municipalityName || "")
+          ? "Avenida Adherbal da Costa Moreira, 255 - Jardim América - Campo Limpo Paulista/SP"
+          : "");
+      const currentPhone =
+        municipalityPhone ||
+        (/campo\s+limpo\s+paulista/i.test(municipalityName || "")
+          ? "(11) 4038-8300"
+          : "");
+      const analysisDateLabel = state.analysisDate
+        ? state.analysisDate.split("-").reverse().join("/")
+        : "Não informada";
 
       const drawCheckSeal = (cx: number, cy: number, radius = 3.2) => {
         doc.setFillColor(...emerald);
