@@ -233,7 +233,7 @@ describe("authoritative process surface polarity file", () => {
     expect(polarity).toContain("#sig-process-document-command-center");
     expect(polarity).toContain('[data-layout-mode="default"]');
     expect(polarity).toContain('[data-layout-mode="inverse-main"]');
-    expect(polarity).toContain('color:#ffffff !important');
+    expect(polarity).toContain('color: #ffffff !important');
     expect(polarity).toContain('color: #0f172a !important');
   });
 });
