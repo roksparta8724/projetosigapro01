@@ -604,8 +604,11 @@ export interface FormalRequirement {
 
 export interface SignatureBlock {
   id: string;
+  documentId?: string;
   title: string;
   status: "pendente" | "concluido" | "invalidado";
+  verificationCode?: string;
+  completedAt?: string;
   evidence?: {
     ip?: string;
     userAgent?: string;
@@ -614,9 +617,14 @@ export interface SignatureBlock {
     timestampAuthority?: string;
   };
   signers: Array<{
+    profileId?: string;
     name: string;
     role: string;
+    title?: string;
+    registration?: string;
     signedAt?: string;
+    documentHash?: string;
+    authMethod?: string;
   }>;
 }
 
