@@ -583,7 +583,9 @@ export function ProcessDetailPage() {
     process.status === "pagamento_pendente" &&
     process.triage.status === "concluido" &&
     canProtocolOperate;
-  const canSignDocuments = can(session, "sign_documents");
+  const canSignDocuments =
+    can(session, "sign_documents") &&
+    ["profissional_externo", "analista", "prefeitura_supervisor", "prefeitura_admin"].includes(session.role);
   const canReviewDocuments =
     ownsCurrentProcessStage &&
     canAnalysisOperate &&
