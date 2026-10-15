@@ -189,6 +189,44 @@ function makeInitialState(process: ProcessRecord, session: SessionUser): Analysi
   };
 }
 
+function readInitialChecklistState(
+  key: string,
+  process: ProcessRecord,
+  session: SessionUser,
+): AnalysisChecklistState {
+  const empty = makeInitialState(process, session);
+  if (typeof window === "undefined") return empty;
+
+  try {
+    const raw =
+      window.localStorage.getItem(key) ||
+      window.localStorage.getItem(legacyStorageKey(process.id, session.id));
+    if (!raw) return empty;
+
+    const parsed = JSON.parse(raw) as Partial<AnalysisChecklistState>;
+    return {
+      ...empty,
+      ...parsed,
+      processId: process.id,
+      items: { ...blankItems(), ...(parsed.items ?? {}) },
+      technicalSignature: parsed.technicalSignature ?? (
+        parsed.signedAt && parsed.signedBy
+          ? {
+              userId: parsed.analystId || session.id,
+              name: parsed.signedBy,
+              title: parsed.analystTitle || "Analista",
+              signedAt: parsed.signedAt,
+            }
+          : null
+      ),
+      fiscalSignature: parsed.fiscalSignature ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+
 function statusLabel(status: ChecklistStatus) {
   if (!status) return "Não avaliado";
   return STATUS_META[status].label;
@@ -218,40 +256,17 @@ export function UrbanAnalysisChecklistPanel({
   organogramTrail = [],
 }: UrbanAnalysisChecklistPanelProps) {
   const key = storageKey(municipalityId, process.id);
-  const [state, setState] = useState<AnalysisChecklistState>(() => makeInitialState(process, session));
+  const [state, setState] = useState<AnalysisChecklistState>(() =>
+    readInitialChecklistState(key, process, session),
+  );
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    try {
-      const raw =
-        window.localStorage.getItem(key) ||
-        window.localStorage.getItem(legacyStorageKey(process.id, session.id));
-      if (!raw) {
-        setState(makeInitialState(process, session));
-        return;
-      }
-      const parsed = JSON.parse(raw) as Partial<AnalysisChecklistState>;
-      setState({
-        ...makeInitialState(process, session),
-        ...parsed,
-        processId: process.id,
-        items: { ...blankItems(), ...(parsed.items ?? {}) },
-        technicalSignature: parsed.technicalSignature ?? (
-          parsed.signedAt && parsed.signedBy
-            ? {
-                userId: parsed.analystId || session.id,
-                name: parsed.signedBy,
-                title: parsed.analystTitle || "Analista",
-                signedAt: parsed.signedAt,
-              }
-            : null
-        ),
-        fiscalSignature: parsed.fiscalSignature ?? null,
-      });
-    } catch {
-      setState(makeInitialState(process, session));
-    }
-  }, [key, process.id, session.id, session.name, session.title]);
+    // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
+    // processo o useState lazy já leu o estado antes do primeiro paint,
+    // evitando o salto 0/38 -> valor real.
+    setState(readInitialChecklistState(key, process, session));
+  }, [key, process.id, session.id]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
