@@ -205,6 +205,47 @@ function buildProtocolGuideHtml(input: {
   `;
 }
 
+type CachedProcessTabAccess = {
+  sessionId: string;
+  processId: string;
+  analysis: boolean;
+  finance: boolean;
+};
+
+function processTabAccessCacheKey(sessionId: string, processId: string) {
+  return `sigapro.process-tab-access.v1:${sessionId}:${processId}`;
+}
+
+function readCachedProcessTabAccess(sessionId: string, processId: string): CachedProcessTabAccess | null {
+  if (typeof window === "undefined" || !sessionId || sessionId === "unknown" || !processId) return null;
+  try {
+    const raw = window.sessionStorage.getItem(processTabAccessCacheKey(sessionId, processId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedProcessTabAccess>;
+    if (parsed.sessionId !== sessionId || parsed.processId !== processId) return null;
+    return {
+      sessionId,
+      processId,
+      analysis: parsed.analysis === true,
+      finance: parsed.finance === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProcessTabAccess(value: CachedProcessTabAccess) {
+  if (typeof window === "undefined" || !value.sessionId || value.sessionId === "unknown" || !value.processId) return;
+  try {
+    window.sessionStorage.setItem(
+      processTabAccessCacheKey(value.sessionId, value.processId),
+      JSON.stringify(value),
+    );
+  } catch {
+    // Cache apenas visual; nunca interfere no banco oficial.
+  }
+}
+
 export function ProcessDetailPage() {
   const { processId } = useParams();
   const navigate = useNavigate();
@@ -260,12 +301,9 @@ export function ProcessDetailPage() {
     isMasterOperator || canAccessMunicipalArea(session, "analise");
   const canFinanceOperate =
     isMasterOperator || canAccessMunicipalArea(session, "financeiro");
-  const stableTabAccessRef = useRef<{
-    sessionId: string;
-    processId: string;
-    analysis: boolean;
-    finance: boolean;
-  } | null>(null);
+  const stableTabAccessRef = useRef<CachedProcessTabAccess | null>(
+    readCachedProcessTabAccess(session.id, processId ?? ""),
+  );
 
   const currentStableTabAccess =
     stableTabAccessRef.current &&
@@ -304,6 +342,17 @@ export function ProcessDetailPage() {
 
   const stableAnalysisAccess = stableTabAccessRef.current.analysis;
   const stableFinanceAccess = stableTabAccessRef.current.finance;
+  useEffect(() => {
+    const current = stableTabAccessRef.current;
+    if (!current || current.sessionId === "unknown" || !current.processId) return;
+    if (!current.analysis && !current.finance) return;
+    writeCachedProcessTabAccess(current);
+  }, [
+    session.id,
+    processId,
+    stableTabAccessRef.current.analysis,
+    stableTabAccessRef.current.finance,
+  ]);
   const requestedTabForContinuity = new URLSearchParams(location.search).get("aba");
   const analysisTabVisible =
     stableAnalysisAccess ||
