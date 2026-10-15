@@ -405,6 +405,8 @@ export async function loadRemotePlatformStore() {
     dispatchesResult,
     processMessagesResult,
     markersResult,
+    signatureBlocksResult,
+    signaturesResult,
     ownerRequestsResult,
     ownerLinksResult,
     ownerMessagesResult,
@@ -442,6 +444,8 @@ export async function loadRemotePlatformStore() {
     db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
     db.from("process_messages").select("*").order("created_at", { ascending: false }),
     db.from("process_markers").select("*").order("created_at", { ascending: false }),
+    db.from("signature_blocks").select("*").order("created_at", { ascending: false }),
+    db.from("signatures").select("*").order("signed_at", { ascending: true }),
     db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
     db.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
     db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
@@ -485,6 +489,8 @@ export async function loadRemotePlatformStore() {
     dispatchesResult.error,
     processMessagesResult.error,
     markersResult.error,
+    tolerateLegacyMissing(signatureBlocksResult.error, "public.signature_blocks"),
+    tolerateLegacyMissing(signaturesResult.error, "public.signatures"),
     tolerateLegacyMissing(ownerRequestsResult.error, "public.project_owner_requests"),
     tolerateLegacyMissing(ownerLinksResult.error, "public.project_owner_links"),
     tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
@@ -523,6 +529,8 @@ export async function loadRemotePlatformStore() {
   const dispatchesByProcess = new Map<string, Record<string, unknown>[]>();
   const messagesByProcess = new Map<string, Record<string, unknown>[]>();
   const markersByProcess = new Map<string, Record<string, unknown>[]>();
+  const signatureBlocksByProcess = new Map<string, Record<string, unknown>[]>();
+  const signaturesByBlock = new Map<string, Record<string, unknown>[]>();
   for (const guide of guidesResult.data ?? []) {
     const list = guidesByProcess.get(guide.process_id) ?? [];
     list.push(guide);
@@ -572,6 +580,16 @@ export async function loadRemotePlatformStore() {
     const list = markersByProcess.get(item.process_id) ?? [];
     list.push(item);
     markersByProcess.set(item.process_id, list);
+  }
+  for (const item of signatureBlocksResult.data ?? []) {
+    const list = signatureBlocksByProcess.get(item.process_id) ?? [];
+    list.push(item);
+    signatureBlocksByProcess.set(item.process_id, list);
+  }
+  for (const item of signaturesResult.data ?? []) {
+    const list = signaturesByBlock.get(item.signature_block_id) ?? [];
+    list.push(item);
+    signaturesByBlock.set(item.signature_block_id, list);
   }
 
   const ownerRequests: OwnerProjectRequest[] = (ownerRequestsResult.data ?? []).map((row) => ({
@@ -1167,6 +1185,7 @@ export async function loadRemotePlatformStore() {
     const dispatches = dispatchesByProcess.get(process.id) ?? [];
     const processMessages = messagesByProcess.get(process.id) ?? [];
     const markers = markersByProcess.get(process.id) ?? [];
+    const signatureBlocks = signatureBlocksByProcess.get(process.id) ?? [];
     const owner = parties.find((party) => party.party_type === "proprietario");
     const externalLead = parties.find((party) => party.party_type === "profissional_externo");
     const creatorProfile =
@@ -1313,7 +1332,34 @@ export async function loadRemotePlatformStore() {
         onHold: Boolean(process.is_on_hold),
         onHoldReason: process.hold_reason ?? undefined,
       },
-      signatures: [],
+      signatures: signatureBlocks.map((block) => ({
+        id: String(block.id),
+        documentId: block.document_id ? String(block.document_id) : undefined,
+        title: String(block.title ?? "Documento"),
+        status:
+          block.status === "concluido" || block.status === "invalidado"
+            ? block.status
+            : "pendente",
+        verificationCode: block.verification_code ? String(block.verification_code) : undefined,
+        completedAt: block.completed_at ? new Date(String(block.completed_at)).toLocaleString("pt-BR") : undefined,
+        evidence: {
+          ip: block.evidence_ip ? String(block.evidence_ip) : undefined,
+          userAgent: block.evidence_user_agent ? String(block.evidence_user_agent) : undefined,
+          hash: block.evidence_hash ? String(block.evidence_hash) : undefined,
+          signedVersion: block.evidence_version == null ? undefined : Number(block.evidence_version),
+          timestampAuthority: block.evidence_timestamp_authority ? String(block.evidence_timestamp_authority) : undefined,
+        },
+        signers: (signaturesByBlock.get(String(block.id)) ?? []).map((signature) => ({
+          profileId: signature.signer_profile_id ? String(signature.signer_profile_id) : undefined,
+          name: String(signature.signer_name ?? "Usuário"),
+          role: String(signature.signer_role ?? "usuario"),
+          title: signature.signer_title ? String(signature.signer_title) : undefined,
+          registration: signature.signer_registration ? String(signature.signer_registration) : undefined,
+          signedAt: signature.signed_at ? new Date(String(signature.signed_at)).toLocaleString("pt-BR") : undefined,
+          documentHash: signature.document_hash ? String(signature.document_hash) : undefined,
+          authMethod: signature.auth_method ? String(signature.auth_method) : undefined,
+        })),
+      })),
       dispatches: dispatches.map((dispatch) => ({
         id: String(dispatch.id),
         from: String(dispatch.from_department ?? ""),
