@@ -12,6 +12,23 @@ export type PermitSignature = {
   signedAt: string;
 };
 
+export interface ConstructionPermitFormData {
+  ownerName: string;
+  ownerDocument: string;
+  technicalLead: string;
+  technicalRegistration: string;
+  propertyAddress: string;
+  propertyRegistration: string;
+  lot: string;
+  block: string;
+  areaM2: string;
+  usage: string;
+  workType: string;
+  constructionStandard: string;
+  licenseObject: string;
+  complementaryConditions: string;
+}
+
 export interface ConstructionPermitRecord {
   processId: string;
   municipalityId: string;
@@ -20,6 +37,7 @@ export interface ConstructionPermitRecord {
   preparedAt: string;
   updatedAt: string;
   issuedAt?: string;
+  formData?: ConstructionPermitFormData;
   analystSignature?: PermitSignature;
   directorSignature?: PermitSignature;
 }
@@ -40,9 +58,33 @@ export function buildConstructionPermitNumber(protocol: string) {
   return `ALV-${year}-${sequence}`;
 }
 
+export function buildConstructionPermitFormData(
+  process: ProcessRecord,
+): ConstructionPermitFormData {
+  return {
+    ownerName: process.ownerName || "",
+    ownerDocument: process.ownerDocument || "",
+    technicalLead: process.technicalLead || "",
+    technicalRegistration: "",
+    propertyAddress: process.address || "",
+    propertyRegistration:
+      process.property.iptu || process.property.registration || "",
+    lot: process.property.lot || "",
+    block: process.property.block || "",
+    areaM2: process.property.area > 0 ? String(process.property.area) : "",
+    usage: process.property.usage || "",
+    workType: process.property.workType || process.type || "",
+    constructionStandard: process.property.constructionStandard || "",
+    licenseObject:
+      process.property.workType || process.type || "Licenciamento da obra",
+    complementaryConditions: "",
+  };
+}
+
 export function createConstructionPermitDraft(
   process: ProcessRecord,
   municipalityId: string,
+  formData?: Partial<ConstructionPermitFormData>,
 ): ConstructionPermitRecord {
   const now = new Date().toISOString();
   return {
@@ -52,6 +94,10 @@ export function createConstructionPermitDraft(
     status: "rascunho",
     preparedAt: now,
     updatedAt: now,
+    formData: {
+      ...buildConstructionPermitFormData(process),
+      ...formData,
+    },
   };
 }
 
@@ -187,6 +233,20 @@ export function signConstructionPermitAsDirector(
     status: record.analystSignature ? "emitido" : "rascunho",
     issuedAt: record.analystSignature ? now : record.issuedAt,
     updatedAt: now,
+  };
+  writeLocalConstructionPermit(next);
+  return next;
+}
+
+
+export function updateConstructionPermitFormData(
+  record: ConstructionPermitRecord,
+  formData: ConstructionPermitFormData,
+): ConstructionPermitRecord {
+  const next: ConstructionPermitRecord = {
+    ...record,
+    formData: { ...formData },
+    updatedAt: new Date().toISOString(),
   };
   writeLocalConstructionPermit(next);
   return next;
