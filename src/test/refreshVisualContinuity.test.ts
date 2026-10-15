@@ -26,6 +26,15 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(main).not.toContain("sigapro-app-stable");
   });
 
+  it("intercepts browser reload itself with the Navigation API before document teardown", () => {
+    expect(html).toContain("window.navigation");
+    expect(html).toContain('event.navigationType !== "reload"');
+    expect(html).toContain("event.userInitiated !== true");
+    expect(html).toContain("event.canIntercept");
+    expect(html).toContain("event.intercept({");
+    expect(html).toContain('dispatchSoftRefresh("navigation-api")');
+  });
+
   it("hard-blocks F5 and normal reload shortcuts before the application boots", () => {
     expect(html).toContain('key === "f5"');
     expect(html).toContain('code === "f5"');
@@ -54,6 +63,13 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(planEntitlements).toContain("hasStableCachedSession");
     expect(planEntitlements).toContain("hasStablePlanContext");
     expect(planEntitlements).toContain("explicitIdentityMismatch");
+  });
+
+  it("keeps the last verified process model available during a hard refresh", () => {
+    expect(processDetail).toContain("sigapro.process-view.v1:");
+    expect(processDetail).toContain("readCachedProcessVisual");
+    expect(processDetail).toContain("writeCachedProcessVisual");
+    expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
   });
 
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
