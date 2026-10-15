@@ -199,7 +199,7 @@ begin
     and (
       lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
       or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
-      or lower(coalesce(r.code,'')) ~ '(diretor|director)'
+      or lower(coalesce(r.code::text,'')) ~ '(diretor|director)'
       or lower(coalesce(p.role,'')) ~ '(diretor|director)'
     );
 
@@ -383,7 +383,7 @@ begin
     and (
       lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
       or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
-      or lower(coalesce(r.code,'')) ~ '(diretor|director)'
+      or lower(coalesce(r.code::text,'')) ~ '(diretor|director)'
       or lower(coalesce(p.role,'')) ~ '(diretor|director)'
     );
 
@@ -418,7 +418,7 @@ begin
       and (
         lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
         or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
-        or lower(coalesce(r.code,'')) ~ '(diretor|director)'
+        or lower(coalesce(r.code::text,'')) ~ '(diretor|director)'
         or lower(coalesce(p.role,'')) ~ '(diretor|director)'
       );
 
