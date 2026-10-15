@@ -178,7 +178,6 @@ export function ConstructionPermitPanel({
     userCanSignPermitAsAnalyst(session, process);
   const permitReadyForSignature =
     issPaymentConfirmed && allDocumentsApproved;
-  const canPrepare = canStartDraft;
   const canSignAnalyst =
     Boolean(permit) &&
     permitReadyForSignature &&
