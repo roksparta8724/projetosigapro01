@@ -5,48 +5,69 @@ import { describe, expect, it } from "vitest";
 describe("F5, logout and topbar visual continuity", () => {
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
+  const app = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
   const auth = readFileSync(resolve(process.cwd(), "src/hooks/useAuthGateway.tsx"), "utf8");
   const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
   const bootstrap = readFileSync(resolve(process.cwd(), "src/hooks/useAppBootstrap.tsx"), "utf8");
+  const platformData = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
+  const planEntitlements = readFileSync(resolve(process.cwd(), "src/hooks/usePlanEntitlements.ts"), "utf8");
+  const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
-  it("never injects stale application HTML before React takes ownership of the root", () => {
-    expect(html).not.toContain('root.setAttribute("data-sigapro-continuity", "true")');
-    expect(html).not.toContain("root.innerHTML = snapshot.html");
-    expect(html).toContain('holder.id = "sigapro-refresh-snapshot"');
+  it("has no refresh shell, DOM clone, preboot screen or frozen snapshot", () => {
+    expect(html).not.toContain("sigapro-refresh-snapshot");
+    expect(html).not.toContain("snapshot.html");
+    expect(html).not.toContain("snapshot.svg");
     expect(html).not.toContain("sigapro-snapshot-page");
-    expect(html).toContain('data-sigapro-initial-render');
-    expect(main).toContain('const CONTINUITY_KEY = "sigapro.refresh.continuity.v1"');
-    expect(main).toContain("persistRefreshContinuity");
-    expect(main).toContain("buildRefreshVisualSnapshot(root)");
-    expect(main).toContain('removeAttribute("data-sigapro-initial-render")');
-    expect(main).toContain('window.addEventListener("sigapro-app-stable"');
-    expect(main).not.toContain("waitForStableFrame");
-    expect(main).not.toContain("window.scrollTo");
-  });
-
-  it("uses an isolated rendered viewport snapshot for hard reload continuity", () => {
-    expect(html).toContain('holder.id = "sigapro-refresh-snapshot"');
-    expect(html).toContain('image.src = "data:image/svg+xml;charset=utf-8,"');
-    expect(html).toContain('holder.style.zoom = String(1 / snapshotZoom)');
-    expect(main).toContain("buildRefreshVisualSnapshot(root)");
-    expect(main).toContain("collectSnapshotCss()");
-    expect(main).toContain('document.getElementById("sigapro-refresh-snapshot")');
-  });
-
-  it("keeps F5 inside the live React tree instead of performing a document reload", () => {
-    expect(html).toContain('event.key === "F5"');
-    expect(html).toContain('window.dispatchEvent(new CustomEvent("sigapro-soft-refresh"');
-    expect(html).toContain("event.preventDefault()");
     expect(html).not.toContain("data-sigapro-document-preboot");
-    expect(html).not.toContain("isDocumentWorkspace");
+    expect(main).not.toContain("buildRefreshVisualSnapshot");
+    expect(main).not.toContain("collectSnapshotCss");
+    expect(main).not.toContain("sigapro-app-stable");
   });
 
-  it("matches background and zoom before first paint", () => {
+  it("hard-blocks F5 and normal reload shortcuts before the application boots", () => {
+    expect(html).toContain('key === "f5"');
+    expect(html).toContain('code === "f5"');
+    expect(html).toContain("keyCode === 116");
+    expect(html).toContain("event.preventDefault()");
+    expect(html).toContain("event.stopImmediatePropagation()");
+    expect(html).toContain("event.returnValue = false");
+    expect(html).toContain('window.addEventListener(type, blockDocumentReload, true)');
+    expect(html).toContain('document.addEventListener(type, blockDocumentReload, true)');
+    expect(html).toContain('new CustomEvent("sigapro-soft-refresh"');
+  });
+
+  it("locks background and zoom before first paint and never clears zoom on teardown", () => {
     expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v1")');
     expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme")');
+    expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v1")');
     expect(html).toContain('document.documentElement.style.setProperty("--sig-initial-bg", initialBackground)');
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
+    expect(app).toContain("document.documentElement.style.zoom = zoom");
+    expect(app).not.toContain('document.documentElement.style.zoom = ""');
+  });
+
+  it("treats same-user warm store as visually ready during F5 revalidation", () => {
+    expect(platformData).toContain('source: "warm" as const');
+    expect(platformData).toContain("contextUserId: warmStore.userId");
+    expect(platformData).toContain('source === "warm"');
+    expect(planEntitlements).toContain("hasStableCachedSession");
+    expect(planEntitlements).toContain("hasWarmPlanContext");
+    expect(planEntitlements).toContain("explicitIdentityMismatch");
+  });
+
+  it("keeps the current Analysis tab visible while the same session revalidates", () => {
+    expect(processDetail).toContain("requestedTabForContinuity");
+    expect(processDetail).toContain("analysisTabVisible");
+    expect(processDetail).toContain('requestedTabForContinuity === "analise"');
+    expect(processDetail).toContain("planEntitlements.isResolving");
+  });
+
+  it("persists the effective municipal theme so refresh cannot flash another palette", () => {
+    expect(portal).toContain("readEffectiveThemeCache");
+    expect(portal).toContain('"sigapro.effective-theme.v1"');
+    expect(portal).toContain("stableMunicipalityTheme");
+    expect(portal).toContain("municipalityLoading ? effectiveThemeCache?.background");
   });
 
   it("loads critical process styles before the first React paint", () => {
@@ -54,7 +75,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
   });
 
-  it("clears the local identity before navigation/network so account switching never shows the access validator", () => {
+  it("clears the local identity before navigation/network so account switching stays isolated", () => {
     const handleIndex = portal.indexOf('const handleSignOut = async');
     const handleBlock = portal.slice(handleIndex, handleIndex + 1000);
     expect(handleBlock).toContain("const signOutTask = signOut();");
