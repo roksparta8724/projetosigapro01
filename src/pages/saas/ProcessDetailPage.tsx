@@ -1249,9 +1249,7 @@ export function ProcessDetailPage() {
     documentWorkspaceWindowRef.current = openedTab;
     try {
       openedTab.opener = null;
-      if (openedTab.location.href !== workspaceUrl) {
-        openedTab.location.replace(workspaceUrl);
-      }
+      openedTab.location.replace(workspaceUrl);
       openedTab.focus();
     } finally {
       window.setTimeout(() => setOpeningDocumentId(""), 180);
