@@ -84,6 +84,8 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("prevents localhost project crossing and transform waterfalls", () => {
+    expect(viteConfig).toContain('host: "localhost"');
+    expect(viteConfig).toContain('dns.setDefaultResultOrder("verbatim")');
     expect(viteConfig).toContain("strictPort: true");
     expect(viteConfig).toContain('"/api/dev-source"');
     expect(viteConfig).toContain("[SIGAPRO][DEV SOURCE]");
