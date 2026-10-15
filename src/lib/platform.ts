@@ -2623,6 +2623,38 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   return false;
 }
 
+export function canAnalyzeProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
+    return false;
+  }
+
+  // O Administrador da Prefeitura governa o ambiente, mas não opera a análise técnica.
+  if (session.role === "prefeitura_admin") return false;
+
+  if (session.role === "master_admin" || session.role === "master_ops") {
+    return true;
+  }
+
+  if (session.role === "prefeitura_supervisor") {
+    const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? null;
+    return matchesOperationalScope(processScopeId, process);
+  }
+
+  if (session.role !== "analista") return false;
+  if (!canAccessMunicipalArea(session, "analise")) return false;
+
+  // Em páginas vinculadas a um processo, o próprio processo é a fonte canônica
+  // do escopo. Isso evita bloqueio falso quando o contexto visual da Prefeitura
+  // ainda está atualizando após troca de conta/F5.
+  const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? null;
+  return canAccessProcess(session, process, processScopeId);
+}
+
+
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
   return records.filter((process) => canAccessProcess(session, process));
 }
