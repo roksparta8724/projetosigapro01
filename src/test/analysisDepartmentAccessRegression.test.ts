@@ -79,3 +79,25 @@ describe("Analysis department document access", () => {
     expect(isProcessOwnedBySessionDepartment(admin, privateIssProcess)).toBe(false);
   });
 });
+
+
+describe("Fiscal de Obras operational area", () => {
+  it("keeps Fiscalizacao inside the Urbanism analysis area", () => {
+    const fiscal: SessionUser = {
+      id: "fiscal-obras",
+      name: "Fiscal de Obras",
+      role: "fiscal",
+      accessLevel: 2,
+      tenantId: "municipality-1",
+      municipalityId: "municipality-1",
+      title: "Fiscal de Obras",
+      email: "fiscal@prefeitura.test",
+      accountStatus: "active",
+      userType: "Interno",
+      department: "Fiscalização",
+    };
+
+    expect(resolveSessionOperationalArea(fiscal)).toBe("analise");
+    expect(canAccessMunicipalArea(fiscal, "analise")).toBe(true);
+  });
+});
