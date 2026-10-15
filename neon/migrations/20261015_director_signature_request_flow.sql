@@ -334,6 +334,14 @@ begin
     raise exception 'A Diretoria já assinou eletronicamente esta versão.';
   end if;
 
+  update public.process_signature_requests
+  set status='stale'
+  where process_id=_process_id
+    and artifact_key=_key
+    and signer_slot=_slot
+    and status='pending'
+    and artifact_hash<>_hash;
+
   insert into public.process_signature_requests(
     tenant_id, municipality_id, process_id, artifact_key, artifact_hash,
     signer_slot, status, requested_by_profile_id, requested_by_user_id
