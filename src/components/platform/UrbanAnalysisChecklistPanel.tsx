@@ -10,9 +10,11 @@ import {
   Route,
   Save,
   Signature,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +24,11 @@ import {
   type SessionUser,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import {
+  getProcessArtifactSignatures,
+  signProcessArtifactWithPassword,
+  type ArtifactSignerSlot,
+} from "@/integrations/esign/artifactClient";
 
 type ChecklistStatus = "" | "A" | "AP" | "C" | "NA";
 type ChecklistSection = "engenharia" | "externas";
@@ -43,6 +50,11 @@ type ChecklistSignature = {
   name: string;
   title: string;
   signedAt: string;
+  verificationCode?: string;
+  evidenceHash?: string;
+  registration?: string | null;
+  authMethod?: string;
+  official?: boolean;
 };
 
 type AnalysisChecklistState = {
@@ -64,6 +76,9 @@ type AnalysisChecklistState = {
   technicalSignature?: ChecklistSignature | null;
   fiscalSignature?: ChecklistSignature | null;
 };
+
+const ANALYSIS_ARTIFACT_TYPE = "urban_analysis_checklist";
+const ANALYSIS_ARTIFACT_KEY = "urban-analysis-checklist";
 
 type UrbanAnalysisChecklistPanelProps = {
   process: ProcessRecord;
@@ -260,6 +275,10 @@ export function UrbanAnalysisChecklistPanel({
     readInitialChecklistState(key, process, session),
   );
   const [notice, setNotice] = useState("");
+  const [signatureDialog, setSignatureDialog] = useState<"technical" | "fiscal" | null>(null);
+  const [signaturePassword, setSignaturePassword] = useState("");
+  const [signatureBusy, setSignatureBusy] = useState(false);
+  const [signatureError, setSignatureError] = useState("");
 
   useEffect(() => {
     // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
@@ -267,6 +286,66 @@ export function UrbanAnalysisChecklistPanel({
     // evitando o salto 0/38 -> valor real.
     setState(readInitialChecklistState(key, process, session));
   }, [key, process.id, session.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    void getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)
+      .then((snapshot) => {
+        if (!active || !snapshot.block) return;
+
+        const technical = snapshot.signers.find((item) => item.slot === "analise_tecnica");
+        const fiscal = snapshot.signers.find((item) => item.slot === "conferencia_fiscal");
+
+        if (!technical && !fiscal) return;
+
+        setState((current) => {
+          const verificationCode = snapshot.block?.verification_code;
+          const evidenceHash = snapshot.block?.artifact_hash;
+
+          const next: AnalysisChecklistState = {
+            ...current,
+            technicalSignature: technical
+              ? {
+                  userId: technical.profile_id || "",
+                  name: technical.name || "Usuário",
+                  title: technical.title || technical.role || "Analista Técnico",
+                  signedAt: technical.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
+                  verificationCode,
+                  evidenceHash,
+                  registration: technical.registration ?? null,
+                  authMethod: technical.auth_method || "password_reauth",
+                  official: true,
+                }
+              : current.technicalSignature,
+            fiscalSignature: fiscal
+              ? {
+                  userId: fiscal.profile_id || "",
+                  name: fiscal.name || "Usuário",
+                  title: fiscal.title || fiscal.role || "Fiscal de Obras",
+                  signedAt: fiscal.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
+                  verificationCode,
+                  evidenceHash,
+                  registration: fiscal.registration ?? null,
+                  authMethod: fiscal.auth_method || "password_reauth",
+                  official: true,
+                }
+              : current.fiscalSignature,
+          };
+
+          window.localStorage.setItem(key, JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Assinatura] Falha ao carregar assinaturas oficiais.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [key, process.id]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
@@ -284,10 +363,20 @@ export function UrbanAnalysisChecklistPanel({
   const pendingCorrectionCount = counts.ap + counts.c;
 
   const canSignTechnical =
-    ["master_admin", "master_ops", "prefeitura_supervisor", "analista"].includes(session.role);
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
   const canSignFiscal =
-    ["master_admin", "master_ops", "prefeitura_supervisor", "fiscal"].includes(session.role);
-  const isFullySigned = Boolean(state.technicalSignature && state.fiscalSignature);
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "fiscal"].includes(session.role);
+  const technicalOfficial = Boolean(
+    state.technicalSignature?.official &&
+    state.technicalSignature?.verificationCode &&
+    state.technicalSignature?.authMethod === "password_reauth",
+  );
+  const fiscalOfficial = Boolean(
+    state.fiscalSignature?.official &&
+    state.fiscalSignature?.verificationCode &&
+    state.fiscalSignature?.authMethod === "password_reauth",
+  );
+  const isFullySigned = technicalOfficial && fiscalOfficial;
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
     ...next,
@@ -326,63 +415,139 @@ export function UrbanAnalysisChecklistPanel({
     );
   };
 
-  const signTechnicalEvaluation = () => {
-    if (!canSignTechnical) {
-      setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
-      return;
-    }
-    if (counts.evaluated === 0) {
-      setNotice("Avalie pelo menos um item antes de assinar.");
-      return;
+  const openSignatureConfirmation = (kind: "technical" | "fiscal") => {
+    if (kind === "technical") {
+      if (!canSignTechnical) {
+        setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
+        return;
+      }
+      if (counts.evaluated === 0) {
+        setNotice("Avalie pelo menos um item antes de assinar.");
+        return;
+      }
+      if (technicalOfficial) {
+        setNotice("A análise técnica já possui assinatura eletrônica oficial nesta versão.");
+        return;
+      }
+    } else {
+      if (!canSignFiscal) {
+        setNotice("Este perfil não possui atribuição para assinar a conferência fiscal.");
+        return;
+      }
+      if (!technicalOfficial) {
+        setNotice("A assinatura técnica eletrônica precisa ser concluída antes da conferência fiscal.");
+        return;
+      }
+      if (fiscalOfficial) {
+        setNotice("A conferência fiscal já possui assinatura eletrônica oficial nesta versão.");
+        return;
+      }
     }
 
-    const now = new Date().toISOString();
-    const signature: ChecklistSignature = {
-      userId: session.id,
-      name: session.name,
-      title: session.title || "Analista Técnico",
-      signedAt: now,
-    };
-    const next = {
-      ...state,
-      analystId: session.id,
-      analystName: session.name,
-      analystTitle: session.title || "Analista Técnico",
-      technicalSignature: signature,
-      fiscalSignature: null,
-      signedBy: session.name,
-      signedAt: now,
-      savedAt: now,
-    };
-    persistState(next);
-    setNotice("Análise técnica assinada. A ficha agora pode seguir para conferência e assinatura fiscal.");
+    setSignaturePassword("");
+    setSignatureError("");
+    setSignatureDialog(kind);
   };
 
-  const signFiscalReview = () => {
-    if (!canSignFiscal) {
-      setNotice("Este perfil não possui atribuição para assinar a conferência fiscal.");
-      return;
-    }
-    if (!state.technicalSignature) {
-      setNotice("A assinatura técnica precisa ser registrada antes da conferência fiscal.");
+  const buildSignaturePayload = (): Record<string, unknown> => ({
+    schema: "sigapro.urban-analysis-checklist.v2",
+    processId: process.id,
+    protocol: formatOfficialProcessNumber(process),
+    municipalityId,
+    analysisDate: state.analysisDate,
+    sheetNumber: state.sheetNumber,
+    analystId: state.analystId,
+    analystName: state.analystName,
+    analystTitle: state.analystTitle,
+    items: state.items,
+    routing: state.routing,
+    routingOther: state.routingOther,
+    conclusion: state.conclusion,
+    communiquePages: state.communiquePages,
+  });
+
+  const confirmElectronicSignature = async () => {
+    if (!signatureDialog || !signaturePassword) {
+      setSignatureError("Informe sua senha de acesso.");
       return;
     }
 
-    const now = new Date().toISOString();
-    const signature: ChecklistSignature = {
-      userId: session.id,
-      name: session.name,
-      title: session.title || "Fiscal de Obras",
-      signedAt: now,
-    };
-    const next = {
-      ...state,
-      fiscalSignature: signature,
-      savedAt: now,
-    };
-    persistState(next);
-    setNotice("Conferência fiscal assinada. A ficha técnica está concluída e pronta para gerar o PDF final.");
+    const slot: ArtifactSignerSlot =
+      signatureDialog === "technical" ? "analise_tecnica" : "conferencia_fiscal";
+
+    setSignatureBusy(true);
+    setSignatureError("");
+
+    try {
+      const result = await signProcessArtifactWithPassword({
+        processId: process.id,
+        artifactType: ANALYSIS_ARTIFACT_TYPE,
+        artifactKey: ANALYSIS_ARTIFACT_KEY,
+        signerSlot: slot,
+        password: signaturePassword,
+        payload: buildSignaturePayload(),
+      });
+
+      const signedAt = result.signature?.signed_at || new Date().toISOString();
+      const signer = result.signature?.signer;
+      const verificationCode = result.signature?.verification_code;
+      const evidenceHash = result.signature?.artifact_hash;
+
+      const signature: ChecklistSignature = {
+        userId: signer?.profile_id || session.id,
+        name: signer?.name || session.name,
+        title:
+          signer?.title ||
+          session.title ||
+          (signatureDialog === "technical" ? "Analista Técnico" : "Fiscal de Obras"),
+        signedAt,
+        verificationCode,
+        evidenceHash,
+        registration: signer?.registration ?? null,
+        authMethod: "password_reauth",
+        official: true,
+      };
+
+      const now = new Date().toISOString();
+      const next: AnalysisChecklistState =
+        signatureDialog === "technical"
+          ? {
+              ...state,
+              analystId: session.id,
+              analystName: signature.name,
+              analystTitle: signature.title,
+              technicalSignature: signature,
+              fiscalSignature: null,
+              signedBy: signature.name,
+              signedAt,
+              savedAt: now,
+            }
+          : {
+              ...state,
+              fiscalSignature: signature,
+              savedAt: now,
+            };
+
+      persistState(next);
+      setSignaturePassword("");
+      setSignatureDialog(null);
+      setNotice(
+        signatureDialog === "technical"
+          ? `Análise técnica assinada eletronicamente. Código de verificação: ${verificationCode || "registrado"}.`
+          : `Conferência fiscal assinada eletronicamente. Código de verificação: ${verificationCode || "registrado"}.`,
+      );
+    } catch (error) {
+      setSignaturePassword("");
+      setSignatureError(
+        error instanceof Error ? error.message : "Não foi possível concluir a assinatura eletrônica.",
+      );
+    } finally {
+      setSignatureBusy(false);
+    }
   };
+
+  const signTechnicalEvaluation = () => openSignatureConfirmation("technical");
+  const signFiscalReview = () => openSignatureConfirmation("fiscal");
 
   const generatePdf = () => {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -946,6 +1111,16 @@ export function UrbanAnalysisChecklistPanel({
                     {state.technicalSignature
                       ? `${state.technicalSignature.name} · ${state.technicalSignature.title} · ${new Date(state.technicalSignature.signedAt).toLocaleString("pt-BR")}`
                       : "Pendente da assinatura do analista responsável."}
+                    {state.technicalSignature && !technicalOfficial ? (
+                      <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">
+                        Registro anterior ainda não confirmado eletronicamente com senha.
+                      </span>
+                    ) : null}
+                    {technicalOfficial && state.technicalSignature?.verificationCode ? (
+                      <span className="mt-1 block font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        Código: {state.technicalSignature.verificationCode}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -955,9 +1130,14 @@ export function UrbanAnalysisChecklistPanel({
                   data-analysis-signature-action="technical"
                   className="mt-4 w-full rounded-xl border border-sky-500 bg-[#082f49] font-bold !text-white shadow-[0_9px_22px_rgba(8,47,73,0.24)] hover:bg-[#0b4568] [&_*]:!text-white"
                   onClick={signTechnicalEvaluation}
+                  disabled={technicalOfficial}
                 >
                   <Signature className="mr-2 h-4 w-4" />
-                  {state.technicalSignature ? "Assinar análise novamente" : "Assinar análise técnica"}
+                  {technicalOfficial
+                    ? "Assinatura eletrônica concluída"
+                    : state.technicalSignature
+                      ? "Confirmar assinatura com senha"
+                      : "Assinar análise técnica"}
                 </Button>
               ) : null}
             </div>
@@ -987,9 +1167,19 @@ export function UrbanAnalysisChecklistPanel({
                   <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     {state.fiscalSignature
                       ? `${state.fiscalSignature.name} · ${state.fiscalSignature.title} · ${new Date(state.fiscalSignature.signedAt).toLocaleString("pt-BR")}`
-                      : state.technicalSignature
+                      : technicalOfficial
                         ? "Aguardando conferência e assinatura fiscal."
-                        : "Disponível depois da assinatura técnica."}
+                        : "Disponível depois da assinatura técnica eletrônica."}
+                    {state.fiscalSignature && !fiscalOfficial ? (
+                      <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">
+                        Registro anterior ainda não confirmado eletronicamente com senha.
+                      </span>
+                    ) : null}
+                    {fiscalOfficial && state.fiscalSignature?.verificationCode ? (
+                      <span className="mt-1 block font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        Código: {state.fiscalSignature.verificationCode}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -998,11 +1188,15 @@ export function UrbanAnalysisChecklistPanel({
                   type="button"
                   variant="outline"
                   className="mt-4 w-full rounded-xl border-violet-300 bg-violet-50 font-semibold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                  disabled={!state.technicalSignature}
+                  disabled={!technicalOfficial || fiscalOfficial}
                   onClick={signFiscalReview}
                 >
                   <Signature className="mr-2 h-4 w-4" />
-                  {state.fiscalSignature ? "Assinar conferência novamente" : "Assinar conferência fiscal"}
+                  {fiscalOfficial
+                    ? "Assinatura eletrônica concluída"
+                    : state.fiscalSignature
+                      ? "Confirmar assinatura com senha"
+                      : "Assinar conferência fiscal"}
                 </Button>
               ) : null}
             </div>
@@ -1045,6 +1239,91 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           ) : null}
         </section>
+
+        <Dialog
+          open={Boolean(signatureDialog)}
+          onOpenChange={(open) => {
+            if (!open && !signatureBusy) {
+              setSignatureDialog(null);
+              setSignaturePassword("");
+              setSignatureError("");
+            }
+          }}
+        >
+          <DialogContent className="max-w-lg overflow-hidden rounded-[26px] border-slate-200 p-0 dark:border-slate-700">
+            <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-900">
+              <DialogTitle className="flex items-center gap-2 text-left text-xl text-slate-950 dark:text-white">
+                <ShieldCheck className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                Confirmar assinatura eletrônica
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-100">
+                <p className="font-bold">
+                  {signatureDialog === "technical"
+                    ? "Assinatura da análise técnica"
+                    : "Assinatura da conferência fiscal"}
+                </p>
+                <p className="mt-1">
+                  Informe a mesma senha usada para entrar no SIGAPRO. A senha será revalidada no Neon Auth e não será armazenada no processo.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="analysis-signature-password" className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  Senha de acesso
+                </label>
+                <Input
+                  id="analysis-signature-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={signaturePassword}
+                  onChange={(event) => setSignaturePassword(event.target.value)}
+                  className="mt-2"
+                  placeholder="Digite sua senha atual"
+                  disabled={signatureBusy}
+                  autoFocus
+                />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 p-4 text-xs leading-5 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                A assinatura vincula sua identidade, cargo/função, data e hora, hash SHA-256 da ficha, código de verificação e trilha de auditoria.
+              </div>
+
+              {signatureError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200">
+                  {signatureError}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={signatureBusy}
+                  onClick={() => {
+                    setSignatureDialog(null);
+                    setSignaturePassword("");
+                    setSignatureError("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-full bg-[#082f49] px-6 font-bold !text-white hover:bg-[#0b4568] [&_*]:!text-white"
+                  disabled={signatureBusy || !signaturePassword}
+                  onClick={() => void confirmElectronicSignature()}
+                >
+                  <Signature className="mr-2 h-4 w-4" />
+                  {signatureBusy ? "Validando e assinando..." : "Confirmar com minha senha"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
