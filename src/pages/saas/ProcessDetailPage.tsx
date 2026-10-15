@@ -26,7 +26,6 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
-  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -1164,53 +1163,33 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = async (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
     const shouldAnalyze = forceAnalysis || canReviewDocuments;
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
+    const workspaceUrl =
+      `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
+
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
 
-    try {
-      let documentAccessUrl = selectedDocument.previewUrl || "";
+    const openedTab = window.open(workspaceUrl, "_blank");
 
-      if (selectedDocument.filePath) {
-        const bucket =
-          (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-          "sigapro-documentos";
-
-        documentAccessUrl = await getSignedUrlForObjectStrict({
-          bucket,
-          objectKey: selectedDocument.filePath,
-          expiresIn: 21600,
-        });
-      }
-
-      if (!documentAccessUrl) {
-        throw new Error("Não foi possível preparar o acesso seguro ao documento.");
-      }
-
-      navigate(
-        `/processos/${process.id}/documentos/${documentId}/${route}${query}`,
-        {
-          state: {
-            documentAccessUrl,
-            returnTo: `${location.pathname}${location.search}`,
-          },
-        },
-      );
-    } catch (error) {
+    if (!openedTab) {
       setProcessActionStatus(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível abrir o documento.",
+        "O navegador bloqueou a nova guia do documento. Libere pop-ups para o SIGAPRO e tente novamente.",
       );
-    } finally {
       setOpeningDocumentId("");
+      return;
     }
+
+    // Uma única nova guia, ocupando todo o viewport do navegador.
+    openedTab.opener = null;
+    openedTab.focus();
+    setOpeningDocumentId("");
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
