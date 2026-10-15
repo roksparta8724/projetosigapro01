@@ -23,7 +23,6 @@ import {
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
-  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
