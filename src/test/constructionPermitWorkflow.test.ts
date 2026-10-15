@@ -57,3 +57,31 @@ describe("construction permit workflow", () => {
     expect(migration).toContain("status = 'emitido'");
   });
 });
+
+
+  it("opens permit filling over the process and keeps the external permit stage visible", () => {
+    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const model = read("src/lib/constructionPermit.ts");
+
+    expect(panel).toContain("Preencher Alvará");
+    expect(panel).toContain("<Dialog");
+    expect(panel).toContain("O formulário abre sobre o processo");
+    expect(panel).toContain("Salvar rascunho");
+    expect(panel).toContain("Salvar e visualizar Alvará");
+    expect(panel).toContain("Alvará em preparação pela Prefeitura");
+    expect(detail).toContain("currentFlowIndex >= 4");
+    expect(detail).toContain("Acompanhar Alvará");
+    expect(model).toContain("ConstructionPermitFormData");
+    expect(model).toContain("complementaryConditions");
+  });
+
+  it("uses filled permit data in the generated PDF", () => {
+    const pdf = read("src/lib/constructionPermitPdf.ts");
+
+    expect(pdf).toContain("const form = permit.formData");
+    expect(pdf).toContain("form?.propertyAddress");
+    expect(pdf).toContain("form?.technicalRegistration");
+    expect(pdf).toContain("form?.licenseObject");
+    expect(pdf).toContain("form?.complementaryConditions");
+  });
