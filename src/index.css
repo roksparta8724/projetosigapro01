@@ -8425,3 +8425,253 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-
 }
 
 /* ===== END PROCESS DETAIL VISIBILITY CONTRACT V5.1 ===== */
+
+
+/* ===== PROCESS DETAIL VISIBILITY CONTRACT V6 — 2026-10-15 =====
+   Escopo estrito do processo aberto. Não altera topbar, sidebar ou paleta global. */
+
+/* Cabeçalhos escuros do Caderno Técnico e do Alvará: texto/ícones sempre claros. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"]
+[data-premium-process-dark-header="analysis"],
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"]
+[data-premium-process-dark-header="permit"] {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"]
+[data-premium-process-dark-header="analysis"]
+[data-force-card-contrast="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,.sig-label,.sig-field-help
+),
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"]
+[data-premium-process-dark-header="permit"]
+[data-force-card-contrast="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,.sig-label,.sig-field-help
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"]
+[data-premium-process-dark-header="analysis"] :is(svg,svg *),
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"]
+[data-premium-process-dark-header="permit"] :is(svg,svg *) {
+  color:#eaf6ff !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"]
+[data-analysis-header-copy="true"] p:first-child,
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"]
+[data-permit-header-copy="true"] p:first-child {
+  color:#d8efff !important;
+  -webkit-text-fill-color:#d8efff !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"]
+[data-analysis-header-copy="true"] > p:last-child,
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"]
+[data-permit-header-copy="true"] > p:last-child {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+
+/* Métricas do cabeçalho escuro: fundos vivos + leitura inequívoca. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-width:1px !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric] :is(p,span,strong) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="blue"] {
+  background:linear-gradient(145deg,#075985 0%,#0c7fb9 100%) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="emerald"] {
+  background:linear-gradient(145deg,#056249 0%,#079b70 100%) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="amber"] {
+  background:linear-gradient(145deg,#8a5b08 0%,#b77908 100%) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="cyan"] {
+  background:linear-gradient(145deg,#0a6077 0%,#0891b2 100%) !important;
+}
+
+/* Ficha técnica: item selecionado precisa saltar visualmente. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status] {
+  font-weight:800 !important;
+  min-width:48px !important;
+  height:40px !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#64748b !important;
+  -webkit-text-fill-color:#64748b !important;
+  box-shadow:0 2px 7px rgba(15,23,42,.05) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#0b1b2b !important;
+  border-color:#405a74 !important;
+  color:#cbd5e1 !important;
+  -webkit-text-fill-color:#cbd5e1 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important;
+  border-color:#047857 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(16,185,129,.22),0 8px 20px rgba(5,150,105,.28) !important;
+  transform:translateY(-1px);
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important;
+  border-color:#0369a1 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(14,165,233,.22),0 8px 20px rgba(2,132,199,.28) !important;
+  transform:translateY(-1px);
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#f59e0b !important;
+  border-color:#d97706 !important;
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.24),0 8px 20px rgba(217,119,6,.26) !important;
+  transform:translateY(-1px);
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#475569 !important;
+  border-color:#334155 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(100,116,139,.22),0 8px 20px rgba(51,65,85,.26) !important;
+  transform:translateY(-1px);
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] :is(span,svg,svg *) {
+  color:inherit !important;
+  -webkit-text-fill-color:inherit !important;
+  stroke:currentColor !important;
+}
+
+/* Linhas e inputs da ficha: contraste real nos dois temas. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] :is(p,span,label) {
+  color:#1f2937 !important;
+  -webkit-text-fill-color:#1f2937 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"] :is(p,span,label) {
+  color:#e8f0f8 !important;
+  -webkit-text-fill-color:#e8f0f8 !important;
+}
+
+/* Cards-resumo: branco = texto escuro; inverso = texto claro. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] {
+  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+  color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#53657a !important;
+  -webkit-text-fill-color:#53657a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] {
+  background:linear-gradient(180deg,#13283f 0%,#0a1828 100%) !important;
+  border-color:#31516b !important;
+  color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] svg {
+  color:#dbeafe !important;
+  stroke:currentColor !important;
+}
+
+/* Card-resumo do Alvará mantém acento azul, sem sacrificar leitura. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#f8fcff 0%,#e6f5ff 100%) !important;
+  border-color:#7dd3fc !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#10314d 0%,#0a2034 100%) !important;
+  border-color:#2f7199 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:currentColor !important;
+}
+
+/* Alvará principal: cabeçalho escuro e conteúdo adaptativo consistentes com o Caderno Técnico. */
+html body .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"] {
+  background:linear-gradient(135deg,#061a2c 0%,#0b456a 58%,#0a78a8 100%) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 12px 28px rgba(2,34,57,.16) !important;
+}
+
+/* ===== END PROCESS DETAIL VISIBILITY CONTRACT V6 ===== */
