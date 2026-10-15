@@ -1963,12 +1963,12 @@ export async function appendRemoteProcessDocuments(
   processId: string,
   documents: ProcessDocument[],
 ) {
-  return callProcessRpc("append_process_documents", {
+  return callProcessRpc("append_process_documents_v2", {
     _process_id: processId,
     _documents: documents.map((document) => ({
       label: document.label,
       required: document.required,
-      signed: document.signed,
+      signed: false,
       version: document.version,
       source: document.source,
       fileName: document.fileName,
@@ -1977,7 +1977,6 @@ export async function appendRemoteProcessDocuments(
       mimeType: document.mimeType,
       sizeLabel: document.sizeLabel,
       fileSizeBytes: document.fileSizeBytes,
-      previewUrl: document.filePath ? undefined : document.previewUrl,
       reviewStatus: document.reviewStatus ?? "pendente",
       annotations: document.annotations ?? [],
     })),
@@ -2175,6 +2174,97 @@ export async function listRemoteProcessElectronicSignatures(
   });
   if (error) throw new Error(formatDatabaseError(error));
   return Array.isArray(data) ? data.map(mapElectronicSignature) : [];
+}
+
+export async function signRemoteProfessionalProcessDocument(input: {
+  documentId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("sign_professional_process_document_v1", {
+    _document_id: input.documentId,
+    _statement:
+      input.statement ??
+      "Declaro a autoria e a integridade deste documento apresentado ao processo.",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return mapElectronicSignature(data);
+}
+
+export async function signAndFinalizeRemoteTechnicalConclusion(input: {
+  processId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "sign_and_finalize_process_technical_conclusion_electronic_v1",
+    {
+      _process_id: input.processId,
+      _statement: input.statement ?? "Assinatura da conclusão técnica",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function signRemoteRequiredProcessDocument(input: {
+  processId: string;
+  requirementId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "sign_required_process_document_electronic_v1",
+    {
+      _process_id: input.processId,
+      _requirement_id: input.requirementId,
+      _statement:
+        input.statement ?? "Assinatura obrigatória de documento administrativo",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function executeRemoteSuperiorApprovalWithSignature(input: {
+  processId: string;
+  transitionId: string;
+  decisionNote?: string;
+  idempotencyKey: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "execute_signed_superior_approval_action_electronic_v1",
+    {
+      _process_id: input.processId,
+      _transition_id: input.transitionId,
+      _decision_note: input.decisionNote ?? "",
+      _idempotency_key: input.idempotencyKey,
+      _statement:
+        input.statement ??
+        "Decisão administrativa superior assinada eletronicamente",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function verifyRemoteElectronicSignature(signatureCode: string) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("verify_electronic_signature_v1", {
+    _signature_code: signatureCode.trim(),
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return (data ?? {}) as Record<string, unknown>;
 }
 
 export async function approveRemoteProcessDocumentWithSignature(input: {
