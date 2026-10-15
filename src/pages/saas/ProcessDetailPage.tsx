@@ -248,6 +248,7 @@ export function ProcessDetailPage() {
     departments: organizationDepartments,
     status: organizationStatus,
     getPath: getOrganizationPath,
+    getPathRecords: getOrganizationPathRecords,
   } = useMunicipalOrganogram(effectiveScopeId);
   const constructionPermit = useConstructionPermit(effectiveScopeId, process?.id);
   const isMasterOperator =
@@ -3114,26 +3115,31 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
 
-                    <div data-dispatch-organogram="true" className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-950/45">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div
+                      data-dispatch-organogram="true"
+                      className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-950/55"
+                    >
+                      <div className="flex flex-col gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-4 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#132338_0%,#0d1b2b_100%)] sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">
+                          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-100">
                             Organograma para despacho
                           </p>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Clique na unidade de destino.
+                          <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                            Escolha visualmente a unidade de destino. A sigla, o nome e a hierarquia oficial ficam sempre visíveis.
                           </p>
                         </div>
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <span className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-sky-50 px-3 text-[10px] font-bold text-sky-800 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/60 dark:text-sky-100">
                           {organizationDestinations.length} unidade(s)
                         </span>
                       </div>
 
-                      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 pr-1 [scrollbar-width:thin]">
+                      <div className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                         {organizationDestinations
                           .filter((department) => department.name !== currentFolder)
                           .map((department) => {
                             const selected = dispatchTo === department.id;
+                            const hierarchy = getOrganizationPathRecords(department.name);
+                            const hierarchyLabel = hierarchy.map((item) => item.name).join(" › ");
                             return (
                               <button
                                 key={`org-destination-${department.id}`}
@@ -3141,19 +3147,58 @@ export function ProcessDetailPage() {
                                 data-organogram-destination="true"
                                 data-selected={selected ? "true" : "false"}
                                 onClick={() => setDispatchTo(department.id)}
-                                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold transition ${
+                                className={`group relative min-w-0 rounded-[18px] border p-3 text-left transition-all duration-200 ${
                                   selected
-                                    ? "border-sky-400 bg-sky-100 text-sky-950 shadow-[0_7px_18px_rgba(14,165,233,0.16)] dark:border-sky-400 dark:bg-sky-950/70 dark:text-sky-100"
-                                    : "border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/35"
+                                    ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_12px_28px_rgba(7,89,133,0.28)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
+                                    : "border-slate-200 bg-white shadow-[0_7px_18px_rgba(15,23,42,0.055)] hover:-translate-y-px hover:border-sky-300 hover:bg-sky-50/70 hover:shadow-[0_12px_26px_rgba(15,23,42,0.09)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/30"
                                 }`}
                                 title={getOrganizationPath(department.name)}
                               >
-                                {department.code?.trim() ? (
-                                  <span data-organogram-code="true" className="rounded-md border border-sky-300/40 bg-[#075985] px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm">
-                                    {department.code.trim()}
+                                <div className="flex min-w-0 items-start gap-3">
+                                  <span
+                                    data-organogram-code="true"
+                                    className={`inline-flex h-9 min-w-[48px] shrink-0 items-center justify-center rounded-xl border px-2 text-[10px] font-black tracking-[0.10em] shadow-sm ${
+                                      selected
+                                        ? "border-white/20 bg-white/15 !text-white"
+                                        : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] !text-white dark:border-sky-500/30"
+                                    }`}
+                                  >
+                                    {department.code?.trim() || "UNID"}
+                                  </span>
+
+                                  <span className="min-w-0 flex-1">
+                                    <span
+                                      className={`block truncate text-[12px] font-extrabold ${
+                                        selected
+                                          ? "!text-white"
+                                          : "text-slate-950 dark:text-white"
+                                      }`}
+                                    >
+                                      {department.name}
+                                    </span>
+                                    <span
+                                      className={`mt-1 block truncate text-[10px] leading-4 ${
+                                        selected
+                                          ? "!text-sky-100"
+                                          : "text-slate-500 dark:text-slate-400"
+                                      }`}
+                                    >
+                                      {hierarchyLabel || department.name}
+                                    </span>
+                                  </span>
+
+                                  {selected ? (
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
+                                      <CheckCircle2 className="h-4 w-4 !text-white" />
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {selected ? (
+                                  <span className="mt-3 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] !text-white">
+                                    Destino selecionado
                                   </span>
                                 ) : null}
-                                <span className="max-w-[310px] truncate">{getOrganizationPath(department.name)}</span>
                               </button>
                             );
                           })}
