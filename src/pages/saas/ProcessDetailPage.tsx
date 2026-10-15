@@ -675,6 +675,12 @@ export function ProcessDetailPage() {
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
   const currentOrganizationPath = getOrganizationPath(currentFolder);
+  const currentOrganizationTrail = getOrganizationPathRecords(currentFolder)
+    .filter((item) => item.isActive)
+    .map((item) => ({
+      code: item.code?.trim() || "UNID",
+      name: item.name,
+    }));
 
   const protocolDepartment = organizationDepartments.find((department) =>
     /protocolo|triagem|recep[cç][aã]o/i.test(department.name),
@@ -1851,6 +1857,28 @@ export function ProcessDetailPage() {
                           ? "Acompanhe os arquivos enviados, o resultado das conferências e as exigências vinculadas."
                           : "Confira, visualize e analise tecnicamente os documentos encaminhados pelo profissional responsável."}
                     </p>
+
+                    {currentOrganizationTrail.length > 0 ? (
+                      <div data-dark-organogram-trail="true" className="mt-3 flex flex-wrap items-center gap-2">
+                        {currentOrganizationTrail.map((unit, index) => (
+                          <div key={`document-org-${unit.code}-${unit.name}`} className="flex items-center gap-2">
+                            {index > 0 ? (
+                              <span aria-hidden="true" className="!text-sky-200/80">›</span>
+                            ) : null}
+                            <span
+                              data-dark-organogram-code="true"
+                              className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-black tracking-[0.10em] !text-white shadow-sm backdrop-blur-sm"
+                              title={unit.name}
+                            >
+                              <span className="!text-white">{unit.code}</span>
+                              <span className="hidden font-semibold tracking-normal !text-sky-100 sm:inline">
+                                {unit.name}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -2348,6 +2376,7 @@ export function ProcessDetailPage() {
                 municipalityPhone={tenantSettings?.telefone || ""}
                 municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
+                organogramTrail={currentOrganizationTrail}
               />
               {canReviewDocuments ? (
                 <AnalysisReadinessPanel
@@ -2693,6 +2722,7 @@ export function ProcessDetailPage() {
               issPaidAt={constructionGuide?.paidAt}
               allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
               externalView={isExternalProcessViewer}
+              organogramTrail={currentOrganizationTrail}
             />
           )}
 
