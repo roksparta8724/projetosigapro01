@@ -1960,6 +1960,15 @@ export function ProcessDetailPage() {
                   <div
                     key={document.id}
                     data-process-document-card="true"
+                    data-document-state={
+                      isApproved
+                        ? "approved"
+                        : hasCommunique
+                          ? "issue"
+                          : document.uploaded
+                            ? "review"
+                            : "missing"
+                    }
                     data-surface="adaptive-card"
                     className={`group relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)] dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.28)] [contain:layout_style] ${reviewVisual.card}`}
                   >
