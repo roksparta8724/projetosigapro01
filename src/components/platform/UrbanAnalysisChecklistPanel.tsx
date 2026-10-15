@@ -266,10 +266,18 @@ export function UrbanAnalysisChecklistPanel({
   const progress = Math.round((counts.evaluated / counts.total) * 100);
   const pendingCorrectionCount = counts.ap + counts.c;
 
+  const canSignTechnical =
+    ["master_admin", "master_ops", "prefeitura_supervisor", "analista"].includes(session.role);
+  const canSignFiscal =
+    ["master_admin", "master_ops", "prefeitura_supervisor", "fiscal"].includes(session.role);
+  const isFullySigned = Boolean(state.technicalSignature && state.fiscalSignature);
+
   const invalidateSignature = (next: AnalysisChecklistState) => ({
     ...next,
     signedAt: "",
     signedBy: "",
+    technicalSignature: null,
+    fiscalSignature: null,
   });
 
   const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
@@ -287,31 +295,76 @@ export function UrbanAnalysisChecklistPanel({
     );
   };
 
+  const persistState = (next: AnalysisChecklistState) => {
+    window.localStorage.setItem(key, JSON.stringify(next));
+    setState(next);
+  };
+
   const saveDraft = () => {
     const now = new Date().toISOString();
     const next = { ...state, savedAt: now };
-    window.localStorage.setItem(key, JSON.stringify(next));
-    setState(next);
-    setNotice("Rascunho da avaliação salvo somente para este analista.");
+    persistState(next);
+    setNotice(
+      "Rascunho técnico salvo para este processo. Analista e Fiscal podem continuar a conferência neste ambiente de validação.",
+    );
   };
 
-  const signEvaluation = () => {
+  const signTechnicalEvaluation = () => {
+    if (!canSignTechnical) {
+      setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
+      return;
+    }
     if (counts.evaluated === 0) {
       setNotice("Avalie pelo menos um item antes de assinar.");
       return;
     }
+
     const now = new Date().toISOString();
+    const signature: ChecklistSignature = {
+      userId: session.id,
+      name: session.name,
+      title: session.title || "Analista Técnico",
+      signedAt: now,
+    };
     const next = {
       ...state,
+      analystId: session.id,
       analystName: session.name,
-      analystTitle: session.title || "Analista",
+      analystTitle: session.title || "Analista Técnico",
+      technicalSignature: signature,
+      fiscalSignature: null,
       signedBy: session.name,
       signedAt: now,
       savedAt: now,
     };
-    window.localStorage.setItem(key, JSON.stringify(next));
-    setState(next);
-    setNotice("Avaliação assinada pelo usuário autenticado. Qualquer alteração posterior invalidará a assinatura.");
+    persistState(next);
+    setNotice("Análise técnica assinada. A ficha agora pode seguir para conferência e assinatura fiscal.");
+  };
+
+  const signFiscalReview = () => {
+    if (!canSignFiscal) {
+      setNotice("Este perfil não possui atribuição para assinar a conferência fiscal.");
+      return;
+    }
+    if (!state.technicalSignature) {
+      setNotice("A assinatura técnica precisa ser registrada antes da conferência fiscal.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const signature: ChecklistSignature = {
+      userId: session.id,
+      name: session.name,
+      title: session.title || "Fiscal de Obras",
+      signedAt: now,
+    };
+    const next = {
+      ...state,
+      fiscalSignature: signature,
+      savedAt: now,
+    };
+    persistState(next);
+    setNotice("Conferência fiscal assinada. A ficha técnica está concluída e pronta para gerar o PDF final.");
   };
 
   const generatePdf = () => {
