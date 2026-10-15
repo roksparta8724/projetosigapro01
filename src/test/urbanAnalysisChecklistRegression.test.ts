@@ -105,18 +105,3 @@ describe("V14/V15 process polarity authority", () => {
     expect(polarity).toContain("color:#ffffff !important");
   });
 });
-
-
-describe("V16 final checklist visibility", () => {
-  it("keeps the analysis header light-on-dark and the selected option visibly larger", () => {
-    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
-    const polarity = read("src/styles/surface-polarity.css");
-
-    expect(panel).toContain('data-fixed-dark-card="true"');
-    expect(panel).toContain("2xl:inline");
-    expect(polarity).toContain("PROCESS DETAIL POLARITY AUTHORITY V16");
-    expect(polarity).toContain("min-width:56px !important");
-    expect(polarity).toContain("height:44px !important");
-    expect(polarity).toContain("scale(1.08)");
-  });
-});

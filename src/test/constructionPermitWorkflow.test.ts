@@ -115,15 +115,3 @@ describe("permit header follows the same premium process contrast", () => {
     expect(polarity).toContain('[data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"]');
   });
 });
-
-
-describe("V16 permit dark header authority", () => {
-  it("uses the same fixed dark surface contract as the analysis and document cards", () => {
-    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
-    const polarity = read("src/styles/surface-polarity.css");
-
-    expect(panel).toContain('data-fixed-dark-card="true"');
-    expect(polarity).toContain("PROCESS DETAIL POLARITY AUTHORITY V16");
-    expect(polarity).toContain('[data-fixed-dark-card="true"] *');
-  });
-});

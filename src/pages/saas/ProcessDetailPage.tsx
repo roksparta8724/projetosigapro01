@@ -893,7 +893,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "sig-process-card sig-process-readable-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
+  const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
@@ -1698,7 +1698,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-fixed-light-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1837,7 +1837,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-fixed-dark-card="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-process-dark-surface-v9 sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-white [&_p]:!text-white [&_span]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-process-dark-surface-v9 sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-white [&_p]:!text-white [&_span]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/35 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">

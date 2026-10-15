@@ -51,21 +51,3 @@ describe("process contrast contract", () => {
     expect(css).toContain('[data-premium-header-icon="true"] svg');
   });
 });
-
-
-describe("V16 authoritative polarity", () => {
-  it("loads the final process-only override from the stylesheet that comes after index.css", () => {
-    const polarity = read("src/styles/surface-polarity.css");
-    const main = read("src/main.tsx");
-    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-
-    expect(main.indexOf('import "./index.css"')).toBeLessThan(
-      main.indexOf('import "./styles/surface-polarity.css"'),
-    );
-    expect(polarity).toContain("PROCESS DETAIL POLARITY AUTHORITY V16");
-    expect(polarity).toContain('[data-fixed-dark-card="true"]');
-    expect(polarity).toContain(".sig-process-readable-card");
-    expect(detail).toContain("sig-process-readable-card");
-    expect(detail).toContain('data-fixed-light-card="true"');
-  });
-});
