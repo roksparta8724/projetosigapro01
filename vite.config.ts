@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
+import dns from "node:dns";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+dns.setDefaultResultOrder("verbatim");
 
 const REQUIRED_ENV = [
   "R2_ENDPOINT",
@@ -485,7 +488,7 @@ export default defineConfig(({ mode }) => {
 
   return {
   server: {
-    host: "::",
+    host: "localhost",
     port: 8080,
     strictPort: true,
     headers: {
