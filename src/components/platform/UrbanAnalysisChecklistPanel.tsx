@@ -377,6 +377,10 @@ export function UrbanAnalysisChecklistPanel({
   const [signatureStage, setSignatureStage] = useState<SignatureFlowStage>("idle");
   const [signatureError, setSignatureError] = useState<SignatureFlowError>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const resolvedMunicipalityLogoUrl = useMemo(
+    () => resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl),
+    [municipalityLogoUrl, municipalityName],
+  );
 
   useEffect(() => {
     // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
@@ -802,8 +806,7 @@ export function UrbanAnalysisChecklistPanel({
       const emerald = [5, 150, 105] as const;
       const amber = [180, 83, 9] as const;
 
-      const logoUrl = resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl);
-      const logoDataUrl = await loadPdfImageDataUrl(logoUrl);
+      const logoDataUrl = await loadPdfImageDataUrl(resolvedMunicipalityLogoUrl);
 
       const drawCheckSeal = (cx: number, cy: number, radius = 3.2) => {
         doc.setFillColor(...emerald);
@@ -1511,8 +1514,8 @@ export function UrbanAnalysisChecklistPanel({
         <section data-analysis-identity="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="grid gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-5 py-5 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0d2032_0%,#10283d_100%)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
-              {municipalityLogoUrl ? (
-                <img src={municipalityLogoUrl} alt="" className="h-full w-full object-contain p-2" />
+              {resolvedMunicipalityLogoUrl ? (
+                <img src={resolvedMunicipalityLogoUrl} alt="" className="h-full w-full object-contain p-2" />
               ) : (
                 <ClipboardCheck className="h-6 w-6 text-sky-700 dark:text-sky-300" />
               )}
