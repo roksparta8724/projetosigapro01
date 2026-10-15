@@ -399,8 +399,10 @@ export function ConstructionPermitPanel({
           )
         ) : (
           <>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div data-permit-status-grid="true" className="grid gap-3 md:grid-cols-3">
               <div
+                data-permit-status-card="true"
+                data-tone={issPaymentConfirmed ? "emerald" : "amber"}
                 className={
                   issPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/30"
@@ -430,6 +432,8 @@ export function ConstructionPermitPanel({
               </div>
 
               <div
+                data-permit-status-card="true"
+                data-tone={allDocumentsApproved ? "emerald" : "amber"}
                 className={
                   allDocumentsApproved
                     ? "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/30"
@@ -449,7 +453,7 @@ export function ConstructionPermitPanel({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-950/30">
+              <div data-permit-status-card="true" data-tone="sky" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-950/30">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-sky-700 dark:text-sky-300" />
                   <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-600 dark:text-slate-300">
@@ -489,7 +493,7 @@ export function ConstructionPermitPanel({
                 </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  <div className={issPaymentConfirmed
+                  <div data-permit-prerequisite-card="true" data-tone={issPaymentConfirmed ? "emerald" : "amber"} className={issPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito financeiro</p>
@@ -497,7 +501,7 @@ export function ConstructionPermitPanel({
                       {issPaymentConfirmed ? "ISSQN / Projeto compensado" : "Aguardando compensação do ISSQN / Projeto"}
                     </p>
                   </div>
-                  <div className={allDocumentsApproved
+                  <div data-permit-prerequisite-card="true" data-tone={allDocumentsApproved ? "emerald" : "amber"} className={allDocumentsApproved
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito técnico</p>
@@ -510,7 +514,7 @@ export function ConstructionPermitPanel({
             ) : (
               <>
                 <div className="grid gap-3 lg:grid-cols-2">
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
+                  <div data-permit-detail-card="true" className="rounded-[20px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -551,7 +555,7 @@ export function ConstructionPermitPanel({
                     </div>
                   </div>
 
-                  <div className="rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35">
+                  <div data-permit-detail-card="true" className="rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                       Diretor responsável
                     </p>
@@ -589,6 +593,8 @@ export function ConstructionPermitPanel({
 
                 <div className="grid gap-3 lg:grid-cols-2">
                   <div
+                    data-permit-signature-card="analyst"
+                    data-state={permit.analystSignature ? "signed" : "pending"}
                     className={
                       permit.analystSignature
                         ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
@@ -626,6 +632,8 @@ export function ConstructionPermitPanel({
                   </div>
 
                   <div
+                    data-permit-signature-card="director"
+                    data-state={permit.directorSignature ? "signed" : permit.analystSignature ? "ready" : "pending"}
                     className={
                       permit.directorSignature
                         ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
@@ -666,7 +674,7 @@ export function ConstructionPermitPanel({
                 </div>
 
                 {isIssued ? (
-                  <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                  <div data-permit-issued-card="true" className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
@@ -717,7 +725,7 @@ export function ConstructionPermitPanel({
 
                 <div className="max-h-[calc(92vh-170px)] overflow-y-auto bg-slate-50/70 px-6 py-5 dark:bg-slate-900/70">
                   <div className="grid gap-5">
-                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                    <section data-permit-dialog-section="true" className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                       <div className="mb-4 flex items-center justify-between gap-3">
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -748,7 +756,7 @@ export function ConstructionPermitPanel({
                       </div>
                     </section>
 
-                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                    <section data-permit-dialog-section="true" className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         Titular e responsável técnico
                       </p>
@@ -772,7 +780,7 @@ export function ConstructionPermitPanel({
                       </div>
                     </section>
 
-                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                    <section data-permit-dialog-section="true" className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         Imóvel e obra
                       </p>
@@ -812,7 +820,7 @@ export function ConstructionPermitPanel({
                       </div>
                     </section>
 
-                    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                    <section data-permit-dialog-section="true" className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                       <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Condições / observações complementares
                       </label>
