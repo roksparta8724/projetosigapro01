@@ -581,8 +581,8 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
-    <section data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45 sm:flex-row sm:items-center sm:justify-between">
+    <section data-analysis-section="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
+      <div data-analysis-section-header="true" className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
@@ -633,7 +633,10 @@ export function UrbanAnalysisChecklistPanel({
                       )}
                       title={STATUS_META[status].label}
                     >
-                      {STATUS_META[status].short}
+                      <span className="inline-flex items-center gap-1.5">
+                        {selected ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                        <span>{STATUS_META[status].short}</span>
+                      </span>
                     </button>
                   );
                 })}
