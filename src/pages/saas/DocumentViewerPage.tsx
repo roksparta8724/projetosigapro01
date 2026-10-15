@@ -2,11 +2,14 @@ import { ArrowLeft, Download, ExternalLink, FileText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ElectronicSignatureSeal } from "@/components/platform/ElectronicSignatureSeal";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { listRemoteProcessElectronicSignatures } from "@/integrations/backend/platform";
+import type { ElectronicSignatureRecord } from "@/lib/electronicSignature";
 import { canViewProcessDocuments, getProcessById, isInternalRole } from "@/lib/platform";
 import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
@@ -33,6 +36,7 @@ export function DocumentViewerPage() {
       : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [error, setError] = useState("");
+  const [documentSignatures, setDocumentSignatures] = useState<ElectronicSignatureRecord[]>([]);
   const { departments: organizationDepartments } = useMunicipalOrganization();
 
   const process = useMemo(
@@ -68,6 +72,38 @@ export function DocumentViewerPage() {
       session.department ||
       "",
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    setDocumentSignatures([]);
+
+    if (!process?.id || !document?.id || !allowed) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void listRemoteProcessElectronicSignatures(process.id)
+      .then((items) => {
+        if (cancelled) return;
+        setDocumentSignatures(
+          items.filter(
+            (signature) =>
+              signature.entityId === document.id &&
+              ["professional_document_submission", "process_document_review"].includes(
+                signature.entityType,
+              ),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setDocumentSignatures([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed, document?.id, process?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,11 +156,6 @@ export function DocumentViewerPage() {
     document?.filePath,
     document?.previewUrl,
   ]);
-
-  useEffect(() => {
-    if (!allowed || !accessUrl || isImage) return;
-    window.location.replace(accessUrl);
-  }, [accessUrl, allowed, isImage]);
 
   if ((!process || !document) && documentContextResolving) {
     return <main className="h-screen w-screen bg-slate-950" aria-busy="true" aria-label="Carregando documento" />;
@@ -187,6 +218,11 @@ export function DocumentViewerPage() {
                   {organizationIdentity.codePath}
                 </span>
               ) : null}
+              {documentSignatures.filter((signature) => !signature.revokedAt).length > 0 ? (
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-100">
+                  {documentSignatures.filter((signature) => !signature.revokedAt).length} assinatura(s)
+                </span>
+              ) : null}
             </div>
             <p className="truncate text-xs text-slate-300">
               {document.fileName || "Documento técnico"} · {process.protocol}
@@ -232,7 +268,7 @@ export function DocumentViewerPage() {
               <p className="mt-2 text-sm text-slate-300">{error}</p>
             </div>
           </div>
-        ) : !accessUrl || !isImage ? (
+        ) : !accessUrl ? (
           <div className="h-full w-full bg-slate-800" aria-busy="true" aria-label="Abrindo documento seguro" />
         ) : isImage ? (
           <div className="h-full w-full overflow-auto p-4">
@@ -250,6 +286,20 @@ export function DocumentViewerPage() {
           />
         )}
       </section>
+
+      {documentSignatures.length > 0 ? (
+        <footer className="max-h-[220px] shrink-0 overflow-y-auto border-t border-white/10 bg-slate-100 px-4 py-3">
+          <div className="mx-auto grid max-w-[1500px] gap-3 xl:grid-cols-2">
+            {documentSignatures.map((signature) => (
+              <ElectronicSignatureSeal
+                key={signature.id}
+                signature={signature}
+                compact
+              />
+            ))}
+          </div>
+        </footer>
+      ) : null}
     </main>
   );
 }
