@@ -620,10 +620,16 @@ export function UrbanAnalysisChecklistPanel({
                       aria-pressed={selected}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-9 min-w-9 items-center justify-center rounded-xl border px-2.5 text-[10px] font-extrabold transition",
+                        "relative inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-[11px] font-black transition-all",
                         selected
-                          ? STATUS_META[status].classes
-                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
+                          ? status === "A"
+                            ? "border-emerald-800 bg-emerald-600 !text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22),0_8px_18px_rgba(5,150,105,0.24)] ring-1 ring-emerald-300"
+                            : status === "AP"
+                              ? "border-sky-800 bg-sky-600 !text-white shadow-[0_0_0_3px_rgba(14,165,233,0.20),0_8px_18px_rgba(2,132,199,0.24)] ring-1 ring-sky-300"
+                              : status === "C"
+                                ? "border-amber-800 bg-amber-600 !text-white shadow-[0_0_0_3px_rgba(245,158,11,0.20),0_8px_18px_rgba(217,119,6,0.24)] ring-1 ring-amber-300"
+                                : "border-slate-800 bg-slate-700 !text-white shadow-[0_0_0_3px_rgba(100,116,139,0.20),0_8px_18px_rgba(51,65,85,0.24)] ring-1 ring-slate-400"
+                          : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
                       )}
                       title={STATUS_META[status].label}
                     >
@@ -652,7 +658,8 @@ export function UrbanAnalysisChecklistPanel({
         data-force-card-contrast="dark"
         data-premium-process-dark-header="analysis"
         data-analysis-dark-header="true"
-        className="border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] md:px-6"
+        data-premium-inverse-surface="true"
+        className="sig-process-dark-surface-v9 border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] md:px-6"
       >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
