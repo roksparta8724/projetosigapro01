@@ -51,3 +51,46 @@ describe("process contrast contract", () => {
     expect(css).toContain('[data-premium-header-icon="true"] svg');
   });
 });
+
+
+describe("V14 process-only authority", () => {
+  it("locks dark process headers to light typography without touching app chrome", () => {
+    const css = read("src/styles/surface-polarity.css");
+    const process = read("src/pages/saas/ProcessDetailPage.tsx");
+    const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
+
+    expect(css).toContain("PROCESS PREMIUM POLARITY AUTHORITY V14");
+    expect(css).toContain('[data-process-dark-header="true"]');
+    expect(css).toContain("color:#ffffff !important");
+    expect(process).toContain('data-process-dark-header="true"');
+    expect(analysis).toContain('data-process-dark-header="true"');
+    expect(permit).toContain('data-process-dark-header="true"');
+
+    const block = css.slice(css.lastIndexOf("PROCESS PREMIUM POLARITY AUTHORITY V14"));
+    expect(block).not.toContain(".sig-topbar");
+    expect(block).not.toContain(".sig-sidebar");
+    expect(block).not.toContain(".sig-footer");
+  });
+
+  it("makes checklist selections visually unmistakable", () => {
+    const css = read("src/styles/surface-polarity.css");
+
+    expect(css).toContain('button[data-checklist-status][data-selected="true"]');
+    expect(css).toContain("scale(1.08)");
+    expect(css).toContain('button[data-checklist-status="A"][data-selected="true"]');
+    expect(css).toContain('button[data-checklist-status="AP"][data-selected="true"]');
+    expect(css).toContain('button[data-checklist-status="C"][data-selected="true"]');
+    expect(css).toContain('button[data-checklist-status="NA"][data-selected="true"]');
+  });
+
+  it("keeps light process cards dark-on-light and inverse cards light-on-dark", () => {
+    const css = read("src/styles/surface-polarity.css");
+
+    expect(css).toContain('[data-layout-mode="default"]');
+    expect(css).toContain('[data-process-summary-card="true"]');
+    expect(css).toContain("color:#0b1726 !important");
+    expect(css).toContain('[data-layout-mode="inverse-main"]');
+    expect(css).toContain("color:#f8fbff !important");
+  });
+});
