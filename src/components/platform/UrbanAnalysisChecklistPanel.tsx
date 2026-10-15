@@ -712,6 +712,75 @@ export function UrbanAnalysisChecklistPanel({
   const signTechnicalEvaluation = () => openSignatureConfirmation("technical");
   const signFiscalReview = () => openSignatureConfirmation("fiscal");
 
+  const renderSignatureEvidence = (
+    signature: ChecklistSignature | null | undefined,
+    official: boolean,
+    label: string,
+  ) => {
+    if (!official || !signature) return null;
+
+    return (
+      <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_10px_28px_rgba(5,150,105,0.10)] dark:border-emerald-500/30 dark:bg-slate-950">
+        <div className="flex items-center gap-3 border-b border-emerald-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffc_100%)] px-4 py-3 dark:border-emerald-500/20 dark:bg-none dark:bg-emerald-950/25">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_8px_18px_rgba(5,150,105,0.25)]">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+              Assinatura eletrônica válida
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-slate-950 dark:text-white">
+              {label}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 px-4 py-4 text-xs sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              Documento assinado eletronicamente por
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+              {signature.name}
+            </p>
+            <p className="mt-0.5 text-slate-500 dark:text-slate-300">
+              {[signature.title, signature.registration ? `Registro ${signature.registration}` : ""]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              Data e hora
+            </p>
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
+              {new Date(signature.signedAt).toLocaleString("pt-BR")}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/25">
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-300">
+              Código de verificação
+            </p>
+            <p className="mt-1 font-mono text-[11px] font-black text-emerald-800 dark:text-emerald-100">
+              {signature.verificationCode}
+            </p>
+          </div>
+
+          <div className="sm:col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              Integridade SHA-256
+            </p>
+            <p className="mt-1 break-all font-mono text-[10px] font-semibold leading-4 text-slate-600 dark:text-slate-300">
+              {signature.evidenceHash || "Registrado no banco oficial"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const generatePdf = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
