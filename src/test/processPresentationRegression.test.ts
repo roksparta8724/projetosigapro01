@@ -287,3 +287,23 @@ describe("final process contrast authority", () => {
     expect(polarity.slice(finalIndex)).not.toContain(".sig-premium-topbar");
   });
 });
+
+
+describe("authoritative V12 process-only contrast", () => {
+  it("runs after earlier polarity locks and keeps the topbar out of scope", () => {
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V12");
+    const v12 = polarity.slice(start);
+
+    expect(start).toBeGreaterThan(0);
+    expect(v12).toContain("[data-premium-process-dark-header]");
+    expect(v12).toContain("[data-command-metric]");
+    expect(v12).toContain("[data-process-summary-card");
+    expect(v12).not.toContain(".sig-premium-topbar");
+    expect(v12).not.toContain(".sig-topbar-shell");
+    expect(detail).toContain('data-premium-process-dark-header="documents"');
+    expect(detail).toContain('data-command-metric="blue"');
+    expect(detail).toContain("sig-summary-sky");
+  });
+});
