@@ -1,6 +1,6 @@
 import { Copy, Eye, Printer, Receipt, WalletCards } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
@@ -23,7 +23,7 @@ import {
   getGuideObservation,
   getGuideReference,
   getProcessPaymentGuides,
-  getVisibleProcessesByScope,
+  matchesOperationalScope,
   type PaymentGuideKind,
 } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -37,14 +37,31 @@ function buildBarcodeValue(protocol: string, guideNumber: string, amount: number
 
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
+  const [searchParams] = useSearchParams();
   const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+
+  // O Financeiro precisa manter o livro de registro mesmo depois que a responsabilidade
+  // operacional retorna à Análise Urbanística. A fila pendente muda de setor; o histórico
+  // financeiro não desaparece.
+  const processes = allProcesses.filter((process) => {
+    if (!matchesOperationalScope(effectiveScopeId, process)) return false;
+    return getProcessPaymentGuides(process, tenantSettings).some(
+      (guide) => guide.kind !== "protocolo",
+    );
+  });
+
+  const returnedProcessLabel = searchParams.get("processo") || "";
+  const returnedToAnalysis = searchParams.get("retorno") === "analise";
   const [copiedPayload, setCopiedPayload] = useState("");
-  const [financialStatus, setFinancialStatus] = useState("");
+  const [financialStatus, setFinancialStatus] = useState(
+    returnedToAnalysis
+      ? `Pagamento confirmado. ${returnedProcessLabel || "O processo"} retornou automaticamente à Análise Urbanística e permanece registrado no histórico financeiro.`
+      : "",
+  );
   const [financialBusyKey, setFinancialBusyKey] = useState("");
 
   const paymentGuides = processes.flatMap((process) =>
@@ -81,7 +98,11 @@ export function FinanceProtocolsPage() {
 
     try {
       await markGuideAsPaid(processId, session.name, guideKind);
-      setFinancialStatus("Pagamento confirmado no banco oficial com sucesso.");
+      setFinancialStatus(
+        guideKind === "iss_obra"
+          ? "Pagamento confirmado. O processo retornou automaticamente à Análise Urbanística e continua disponível neste histórico financeiro."
+          : "Pagamento confirmado no banco oficial com sucesso.",
+      );
     } catch (error) {
       setFinancialStatus(
         error instanceof Error
@@ -215,7 +236,7 @@ export function FinanceProtocolsPage() {
           <PageMainContent>
             <SectionCard
               title="Lista de processos e guias"
-              description="Consulte, imprima a DAM e confirme os recolhimentos de ISSQN da obra e aprovação final."
+              description="Consulte, imprima e concilie as guias. Processos já pagos permanecem neste registro, mesmo após o retorno operacional à Análise Urbanística."
             >
               <Card className="rounded-[24px] border-slate-200 shadow-sm">
                 <CardHeader>
