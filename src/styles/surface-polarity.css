@@ -1047,3 +1047,103 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-d
 }
 
 /* PROCESS DETAIL VISIBILITY LOCK V14 END */
+
+
+/* ==========================================================================
+   PROCESS DETAIL ADAPTIVE CARDS V15 — FINAL CARD CONSISTENCY
+   Generic process cards and permit subcards follow the real layout mode.
+   ========================================================================== */
+
+/* Generic process cards not already owned by a semantic surface. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"]) {
+  background:#ffffff !important;
+  border-color:#d7e2ee !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"])
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-field-help,.sig-label) {
+  color:#526579 !important;
+  -webkit-text-fill-color:#526579 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"]) {
+  background:linear-gradient(180deg,#102136 0%,#0b1929 100%) !important;
+  border-color:#2e4c68 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"])
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+.sig-process-card:not([data-process-summary-card="true"]):not([data-surface="semantic-card"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400,.sig-field-help,.sig-label) {
+  color:#c6d5e5 !important;
+  -webkit-text-fill-color:#c6d5e5 !important;
+}
+
+/* Permit subcards: keep semantic meaning while avoiding light-card/light-text clashes. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] .bg-white,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] .bg-slate-50 {
+  background:#112238 !important;
+  border-color:#304e6a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] .bg-sky-50 {
+  background:#0b3554 !important;
+  border-color:#176b98 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] .bg-emerald-50 {
+  background:#0b3d31 !important;
+  border-color:#16785f !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] .bg-amber-50 {
+  background:#49340d !important;
+  border-color:#946716 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+:is(.bg-white,.bg-slate-50,.bg-sky-50,.bg-emerald-50,.bg-amber-50)
+:is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+:is(.bg-white,.bg-slate-50,.bg-sky-50,.bg-emerald-50,.bg-amber-50)
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c5d4e4 !important;
+  -webkit-text-fill-color:#c5d4e4 !important;
+}
+
+/* Fixed dark permit/header actions stay vivid white-on-blue. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-premium-dark-action="true"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-premium-dark-action="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-premium-dark-action="true"] svg {
+  stroke:#ffffff !important;
+}
+
+/* PROCESS DETAIL ADAPTIVE CARDS V15 END */
