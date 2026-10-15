@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
@@ -153,7 +154,10 @@ function bootApplication() {
   }
 
   try {
-    createRoot(rootElement).render(<App />);
+    const root = createRoot(rootElement);
+    flushSync(() => {
+      root.render(<App />);
+    });
 
     window.requestAnimationFrame(() => {
       document.documentElement.removeAttribute("data-sigapro-initial-render");
