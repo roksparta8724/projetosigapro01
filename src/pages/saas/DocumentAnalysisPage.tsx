@@ -624,8 +624,8 @@ export function DocumentAnalysisPage() {
         </div>
       </header>
 
-      <div data-analysis-toolbar="true" className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-300 bg-[linear-gradient(180deg,#ffffff_0%,#f3f7fb_100%)] px-4 py-2.5 shadow-[0_6px_22px_rgba(15,23,42,0.08)] lg:px-5">
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-white p-1.5 shadow-[0_8px_20px_rgba(15,23,42,0.07)]">
+      <div data-analysis-toolbar="true" className="flex min-h-[76px] shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-300 bg-[linear-gradient(180deg,#ffffff_0%,#eef4fa_100%)] px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.10)] lg:px-5">
+        <div data-pdf-annotation-toolbar="true" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-white p-1.5 shadow-[0_8px_20px_rgba(15,23,42,0.07)]">
           <span className="hidden rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white lg:inline">
             Ferramentas PDF
           </span>
@@ -649,7 +649,7 @@ export function DocumentAnalysisPage() {
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl px-3 text-slate-700 ${
+            className={`h-10 rounded-xl px-4 text-[12px] font-bold text-slate-700 ${
               tool === "highlight"
                 ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
                 : "border-transparent bg-white hover:border-amber-200 hover:bg-amber-50/70"
@@ -661,12 +661,12 @@ export function DocumentAnalysisPage() {
             }}
           >
             <Highlighter className="mr-2 h-4 w-4" />
-            Marcar área
+            Marca-texto / Marcar área
           </Button>
           <Button
             type="button"
             variant="outline"
-            className={`h-9 rounded-xl px-3 text-slate-700 ${
+            className={`h-10 rounded-xl px-4 text-[12px] font-bold text-slate-700 ${
               tool === "text"
                 ? "border-sky-300 bg-sky-50 text-sky-900 shadow-sm"
                 : "border-transparent bg-white hover:border-sky-200 hover:bg-sky-50/70"
@@ -678,7 +678,7 @@ export function DocumentAnalysisPage() {
             }}
           >
             <MessageSquareText className="mr-2 h-4 w-4" />
-            Adicionar texto
+            Adicionar texto / apontamento
           </Button>
         </div>
 
