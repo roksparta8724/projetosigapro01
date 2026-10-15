@@ -1403,6 +1403,7 @@ export async function loadRemotePlatformStore() {
                 : "protocolo";
 
           return {
+            id: String(guide.id ?? ""),
             kind,
             label:
               kind === "iss_obra"
