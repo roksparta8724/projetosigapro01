@@ -82,7 +82,7 @@ export function MunicipalOrganogramBar({
     <section
       data-municipal-organogram="true"
       className={cn(
-        "overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.24)]",
+        "sig-organogram-card overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_14px_34px_rgba(0,0,0,0.24)]",
         className,
       )}
     >
