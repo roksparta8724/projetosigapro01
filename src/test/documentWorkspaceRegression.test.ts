@@ -35,8 +35,9 @@ describe("premium PDF analysis workspace", () => {
     expect(analysis).toContain("Mesa de análise documental");
     expect(analysis).toContain("Ferramenta ativa");
     expect(analysis).toContain("Painel técnico");
-    expect(analysis).toContain("Marcar área");
-    expect(analysis).toContain("Adicionar texto");
+    expect(analysis).toContain('data-pdf-annotation-toolbar="true"');
+    expect(analysis).toContain("Marca-texto / Marcar área");
+    expect(analysis).toContain("Adicionar texto / apontamento");
     expect(analysis).toContain("Arraste sobre o ponto incorreto para destacar a área");
     expect(analysis).toContain("Clique no ponto exato do documento para fixar um texto numerado");
     expect(analysis).toContain("Anotações · página");
@@ -90,7 +91,7 @@ describe("annotation draft and professional handoff", () => {
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
+    expect(detail).toContain('window.open("", "sigapro-document-workspace")');
     expect(detail).toContain("openedTab.opener = null");
     expect(detail).toContain("openedTab.focus()");
   });
@@ -123,7 +124,7 @@ describe("analyst PDF markup entry", () => {
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
     expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
-    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
+    expect(detail).toContain('window.open("", "sigapro-document-workspace")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
