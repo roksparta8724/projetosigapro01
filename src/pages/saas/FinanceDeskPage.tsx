@@ -1,6 +1,7 @@
 ﻿import {
   ArrowRight,
   Banknote,
+  CheckCircle2,
   Building2,
   FileSpreadsheet,
   Landmark,
@@ -26,6 +27,17 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +50,8 @@ import {
   formatOfficialProcessTitle,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  resolveSessionOperationalArea,
+  type PaymentGuideKind,
   isFinalApprovalFeeConfigured,
   isIssFeeConfigured,
 } from "@/lib/platform";
@@ -61,7 +75,13 @@ type FinanceSection =
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    saveInstitutionSettings,
+    issuePaymentGuide,
+    markGuideAsPaid,
+  } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
@@ -72,7 +92,12 @@ export function FinanceDeskPage() {
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
   const [constructionGuideBusyId, setConstructionGuideBusyId] = useState("");
+  const [manualPaymentStatus, setManualPaymentStatus] = useState("");
+  const [manualPaymentBusyKey, setManualPaymentBusyKey] = useState("");
   const currentUnit = session.department || session.title || "Financeiro";
+  const canConfirmManualPayment =
+    session.role !== "prefeitura_admin" &&
+    resolveSessionOperationalArea(session) === "financeiro";
   const canConfigureWorkflow =
     session.role === "prefeitura_admin" ||
     session.role === "master_admin" ||
@@ -114,6 +139,43 @@ export function FinanceDeskPage() {
           ["aguardando", "respondido"].includes(dispatch.status) &&
           /financ/i.test(dispatch.to),
       );
+  const handleManualPaymentConfirmation = async (
+    processId: string,
+    guideKind: PaymentGuideKind,
+  ) => {
+    if (!canConfirmManualPayment) {
+      setManualPaymentStatus(
+        "A confirmação manual de pagamento está disponível somente para o setor Financeiro.",
+      );
+      return;
+    }
+    if (guideKind === "protocolo") {
+      setManualPaymentStatus(
+        "A guia inicial continua sob responsabilidade do Setor de Protocolo.",
+      );
+      return;
+    }
+
+    const busyKey = processId + ":" + guideKind;
+    setManualPaymentBusyKey(busyKey);
+    setManualPaymentStatus("");
+
+    try {
+      await markGuideAsPaid(processId, session.name, guideKind);
+      setManualPaymentStatus(
+        "Pagamento confirmado manualmente pelo Financeiro. A guia foi marcada como compensada.",
+      );
+    } catch (error) {
+      setManualPaymentStatus(
+        error instanceof Error
+          ? "Não foi possível confirmar o pagamento: " + error.message
+          : "Não foi possível confirmar o pagamento.",
+      );
+    } finally {
+      setManualPaymentBusyKey("");
+    }
+  };
+
   const handleWorkflowSetting = async (
     key: "issStageEnabled" | "finalApprovalFeeEnabled",
     enabled: boolean,
