@@ -277,7 +277,7 @@ function readCachedProcessVisual(sessionId: string, routeKey?: string): ProcessR
       parsed.sessionId !== sessionId ||
       parsed.routeKey !== routeKey ||
       typeof parsed.cachedAt !== "number" ||
-      Date.now() - parsed.cachedAt > 1000 * 60 * 30 ||
+      Date.now() - parsed.cachedAt > 1000 * 60 * 5 ||
       !parsed.process?.id
     ) {
       window.sessionStorage.removeItem(processVisualCacheKey(sessionId, routeKey));
@@ -357,8 +357,24 @@ export function ProcessDetailPage() {
     if (!processId || !session.id || session.id === "unknown") return;
 
     if (liveProcess) {
-      writeCachedProcessVisual(session.id, processId, liveProcess);
-      setCachedProcessVisual(liveProcess);
+      const liveScopeId =
+        liveProcess.municipalityId ??
+        liveProcess.tenantId ??
+        session.municipalityId ??
+        session.tenantId ??
+        null;
+
+      if (canTrackProcess(session, liveProcess, liveScopeId)) {
+        writeCachedProcessVisual(session.id, processId, liveProcess);
+        setCachedProcessVisual(liveProcess);
+      } else {
+        try {
+          window.sessionStorage.removeItem(processVisualCacheKey(session.id, processId));
+        } catch {
+          // noop
+        }
+        setCachedProcessVisual(undefined);
+      }
       return;
     }
 
