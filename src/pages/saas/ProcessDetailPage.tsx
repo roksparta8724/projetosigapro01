@@ -1902,7 +1902,8 @@ export function ProcessDetailPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 rounded-full border-white/20 bg-white/10 px-4 text-white hover:bg-white/15 hover:text-white"
+                    data-dark-header-action="true"
+                    className="h-10 rounded-full border-white/30 bg-[#0a3552] px-4 !text-white shadow-[0_8px_18px_rgba(2,30,50,0.20)] hover:bg-[#0c456b] hover:!text-white [&_*]:!text-white"
                     disabled={recoverableLoading}
                     onClick={() => {
                       setRecoverableStatus("");
@@ -3148,7 +3149,7 @@ export function ProcessDetailPage() {
                                 title={getOrganizationPath(department.name)}
                               >
                                 {department.code?.trim() ? (
-                                  <span data-organogram-code="true" className="rounded-md border border-sky-300/25 bg-[#0b5e93] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] !text-white shadow-sm">
+                                  <span data-organogram-code="true" className="rounded-md border border-sky-300/40 bg-[#075985] px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm">
                                     {department.code.trim()}
                                   </span>
                                 ) : null}
