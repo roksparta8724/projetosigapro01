@@ -12,6 +12,8 @@ describe("F5, logout and topbar visual continuity", () => {
   const platformData = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
   const planEntitlements = readFileSync(resolve(process.cwd(), "src/hooks/usePlanEntitlements.ts"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+  const urbanChecklist = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+  const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
   it("has no refresh shell, DOM clone, preboot screen or frozen snapshot", () => {
@@ -68,6 +70,27 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).toContain('"sigapro.effective-theme.v1"');
     expect(portal).toContain("stableMunicipalityTheme");
     expect(portal).toContain("municipalityLoading ? effectiveThemeCache?.background");
+  });
+
+  it("hydrates analysis checklist synchronously before first paint", () => {
+    expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
+    expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
+    expect(urbanChecklist).not.toContain("useState<AnalysisChecklistState>(() => makeInitialState(process, session))");
+  });
+
+  it("persists process tab authorization per user and process across F5", () => {
+    expect(processDetail).toContain("sigapro.process-tab-access.v1");
+    expect(processDetail).toContain("readCachedProcessTabAccess");
+    expect(processDetail).toContain("writeCachedProcessTabAccess");
+    expect(processDetail).toContain("analysisTabVisible");
+  });
+
+  it("prevents localhost project crossing and transform waterfalls", () => {
+    expect(viteConfig).toContain("strictPort: true");
+    expect(viteConfig).toContain('"/api/dev-source"');
+    expect(viteConfig).toContain("[SIGAPRO][DEV SOURCE]");
+    expect(viteConfig).toContain("warmup:");
+    expect(viteConfig).toContain('"./src/pages/saas/ProcessDetailPage.tsx"');
   });
 
   it("loads critical process styles before the first React paint", () => {
