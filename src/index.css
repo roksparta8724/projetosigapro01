@@ -8675,3 +8675,241 @@ html body .sig-main-shell .sig-process-detail-premium
 }
 
 /* ===== END PROCESS DETAIL VISIBILITY CONTRACT V6 ===== */
+
+
+/* ===== PROCESS DETAIL PREMIUM CONTRACT V7 — scoped, no topbar/sidebar ===== */
+
+/* Dark institutional headers: the surface is dark, therefore copy and icons are always light. */
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center,
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] > [data-premium-process-dark-header="analysis"],
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"] {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+),
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] > [data-premium-process-dark-header="analysis"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+),
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center :is(svg,svg *),
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] > [data-premium-process-dark-header="analysis"] :is(svg,svg *),
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"] :is(svg,svg *) {
+  color:#eef8ff !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-header-copy="true"] > p:first-child,
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-header-copy="true"] > p:first-child,
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-permit-header-copy="true"] > p:first-child {
+  color:#d7efff !important;
+  -webkit-text-fill-color:#d7efff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-header-copy="true"] > p:last-child,
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-header-copy="true"] > p:last-child,
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-permit-header-copy="true"] > p:last-child {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+
+/* Command-center and analysis metrics: vivid institutional colors with guaranteed white copy. */
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric],
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  border-width:1px !important;
+  box-shadow:0 9px 22px rgba(2,24,43,.18) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric] :is(p,span,strong),
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric] :is(p,span,strong) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric="blue"],
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric="blue"] {
+  background:linear-gradient(145deg,#075985 0%,#087fb6 100%) !important;
+  border-color:#38bdf8 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric="emerald"],
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric="emerald"] {
+  background:linear-gradient(145deg,#056249 0%,#07966e 100%) !important;
+  border-color:#34d399 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric="amber"],
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric="amber"] {
+  background:linear-gradient(145deg,#8a5b08 0%,#b87708 100%) !important;
+  border-color:#fbbf24 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium #sig-process-document-command-center [data-command-metric="cyan"],
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] [data-analysis-metric="cyan"] {
+  background:linear-gradient(145deg,#0a6077 0%,#0b8ca9 100%) !important;
+  border-color:#22d3ee !important;
+}
+
+/* Summary cards: light surface -> dark copy; inverse surface -> bright copy. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] {
+  border-color:#d3dfeb !important;
+  color:#0f172a !important;
+  box-shadow:0 12px 30px rgba(15,23,42,.07) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"][data-summary-tone="blue"] {
+  background:linear-gradient(145deg,#ffffff 0%,#eef7ff 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"][data-summary-tone="emerald"] {
+  background:linear-gradient(145deg,#ffffff 0%,#effcf7 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"][data-summary-tone="violet"] {
+  background:linear-gradient(145deg,#ffffff 0%,#f5f1ff 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"][data-summary-tone="amber"] {
+  background:linear-gradient(145deg,#ffffff 0%,#fff8e7 100%) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color:#122033 !important;
+  -webkit-text-fill-color:#122033 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color:#52657a !important;
+  -webkit-text-fill-color:#52657a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] {
+  background:linear-gradient(145deg,#12283e 0%,#0a1929 100%) !important;
+  border-color:#31516b !important;
+  color:#f8fbff !important;
+  box-shadow:0 15px 34px rgba(0,0,0,.24) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color:#eef7ff !important;
+  -webkit-text-fill-color:#eef7ff !important;
+}
+
+/* Alvará summary keeps a stronger blue accent while following the same contrast rule. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#f9fdff 0%,#e5f5ff 100%) !important;
+  border-color:#38bdf8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-permit-summary-card="true"] {
+  background:linear-gradient(145deg,#10334f 0%,#092238 100%) !important;
+  border-color:#2f84b2 !important;
+}
+
+/* Checklist: selected states are unmistakable; unselected states stay quiet. */
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status] {
+  min-width:48px !important;
+  height:40px !important;
+  border-radius:12px !important;
+  font-weight:800 !important;
+  transition:transform .16s ease, box-shadow .16s ease, background-color .16s ease !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] {
+  transform:translateY(-2px) scale(1.03) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important; border-color:#047857 !important; color:#fff !important;
+  -webkit-text-fill-color:#fff !important; box-shadow:0 0 0 3px rgba(16,185,129,.22),0 9px 20px rgba(5,150,105,.30) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important; border-color:#0369a1 !important; color:#fff !important;
+  -webkit-text-fill-color:#fff !important; box-shadow:0 0 0 3px rgba(14,165,233,.22),0 9px 20px rgba(2,132,199,.30) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#d97706 !important; border-color:#b45309 !important; color:#fff !important;
+  -webkit-text-fill-color:#fff !important; box-shadow:0 0 0 3px rgba(245,158,11,.22),0 9px 20px rgba(217,119,6,.30) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#334155 !important; border-color:#1e293b !important; color:#fff !important;
+  -webkit-text-fill-color:#fff !important; box-shadow:0 0 0 3px rgba(100,116,139,.22),0 9px 20px rgba(51,65,85,.30) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#fff !important; border-color:#d2dce7 !important; color:#64748b !important; -webkit-text-fill-color:#64748b !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#0a1928 !important; border-color:#36536d !important; color:#cbd5e1 !important; -webkit-text-fill-color:#cbd5e1 !important;
+}
+
+/* Alvará dark header controls: never white-on-white or dark-on-dark. */
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-permit-header-status="true"] {
+  background:#083a59 !important;
+  border-color:#4faed8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-premium-dark-action="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-premium-dark-action="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] [data-premium-dark-action="true"] svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Dispatch workspace: compact, readable and consistent in both themes. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] {
+  background:linear-gradient(180deg,#ffffff 0%,#f7fafc 100%) !important;
+  border-color:#d5e0eb !important;
+  color:#0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] :is(
+  h1,h2,h3,h4,p,span,strong,label,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color:#122033 !important;
+  -webkit-text-fill-color:#122033 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#586b80 !important;
+  -webkit-text-fill-color:#586b80 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] {
+  background:linear-gradient(180deg,#112238 0%,#0a1726 100%) !important;
+  border-color:#31516b !important;
+  color:#f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] :is(
+  h1,h2,h3,h4,p,span,strong,label,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color:#eaf3fb !important;
+  -webkit-text-fill-color:#eaf3fb !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] [data-organogram-code="true"] {
+  background:#0b5e93 !important;
+  border-color:#38a7dc !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] [data-organogram-destination="true"][data-selected="true"] {
+  border-color:#0ea5e9 !important;
+  box-shadow:0 0 0 3px rgba(14,165,233,.16),0 7px 18px rgba(14,165,233,.14) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] [data-premium-dark-action="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] [data-premium-dark-action="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-dispatch-panel="true"] [data-premium-dark-action="true"] svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* ===== END PROCESS DETAIL PREMIUM CONTRACT V7 ===== */
