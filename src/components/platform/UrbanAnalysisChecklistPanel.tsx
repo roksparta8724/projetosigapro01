@@ -38,8 +38,15 @@ type ChecklistItemState = {
   observation: string;
 };
 
+type ChecklistSignature = {
+  userId: string;
+  name: string;
+  title: string;
+  signedAt: string;
+};
+
 type AnalysisChecklistState = {
-  version: 1;
+  version: 2;
   processId: string;
   analystId: string;
   analystName: string;
@@ -54,12 +61,21 @@ type AnalysisChecklistState = {
   savedAt: string;
   signedAt: string;
   signedBy: string;
+  technicalSignature?: ChecklistSignature | null;
+  fiscalSignature?: ChecklistSignature | null;
 };
 
 type UrbanAnalysisChecklistPanelProps = {
   process: ProcessRecord;
   session: SessionUser;
+  municipalityId: string;
   municipalityName?: string | null;
+  municipalityLogoUrl?: string | null;
+  secretariat?: string | null;
+  directorate?: string | null;
+  municipalityAddress?: string | null;
+  municipalityPhone?: string | null;
+  municipalityEmail?: string | null;
   departmentLabel?: string | null;
 };
 
@@ -142,13 +158,17 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function storageKey(processId: string, analystId: string) {
+function storageKey(municipalityId: string, processId: string) {
+  return `sigapro:urban-analysis-checklist:v2:${municipalityId}:${processId}`;
+}
+
+function legacyStorageKey(processId: string, analystId: string) {
   return `sigapro:urban-analysis-checklist:v1:${processId}:${analystId}`;
 }
 
 function makeInitialState(process: ProcessRecord, session: SessionUser): AnalysisChecklistState {
   return {
-    version: 1,
+    version: 2,
     processId: process.id,
     analystId: session.id,
     analystName: session.name,
@@ -163,6 +183,8 @@ function makeInitialState(process: ProcessRecord, session: SessionUser): Analysi
     savedAt: "",
     signedAt: "",
     signedBy: "",
+    technicalSignature: null,
+    fiscalSignature: null,
   };
 }
 
@@ -183,16 +205,25 @@ function normalizeFilePart(value: string) {
 export function UrbanAnalysisChecklistPanel({
   process,
   session,
+  municipalityId,
   municipalityName,
+  municipalityLogoUrl,
+  secretariat,
+  directorate,
+  municipalityAddress,
+  municipalityPhone,
+  municipalityEmail,
   departmentLabel,
 }: UrbanAnalysisChecklistPanelProps) {
-  const key = storageKey(process.id, session.id);
+  const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() => makeInitialState(process, session));
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(key);
+      const raw =
+        window.localStorage.getItem(key) ||
+        window.localStorage.getItem(legacyStorageKey(process.id, session.id));
       if (!raw) {
         setState(makeInitialState(process, session));
         return;
@@ -202,10 +233,18 @@ export function UrbanAnalysisChecklistPanel({
         ...makeInitialState(process, session),
         ...parsed,
         processId: process.id,
-        analystId: session.id,
-        analystName: session.name,
-        analystTitle: session.title || "Analista",
         items: { ...blankItems(), ...(parsed.items ?? {}) },
+        technicalSignature: parsed.technicalSignature ?? (
+          parsed.signedAt && parsed.signedBy
+            ? {
+                userId: parsed.analystId || session.id,
+                name: parsed.signedBy,
+                title: parsed.analystTitle || "Analista",
+                signedAt: parsed.signedAt,
+              }
+            : null
+        ),
+        fiscalSignature: parsed.fiscalSignature ?? null,
       });
     } catch {
       setState(makeInitialState(process, session));
