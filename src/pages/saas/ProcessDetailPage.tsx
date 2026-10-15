@@ -3048,6 +3048,115 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "historico" && (
+            <Card className={cardShell}>
+              <CardHeader className="border-b border-slate-100">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-slate-950">
+                      <Signature className="h-5 w-5 text-sky-700" />
+                      Assinaturas eletrônicas do processo
+                    </CardTitle>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Atos autenticados pelo SIGAPRO, vinculados ao signatário e ao conteúdo por código de verificação e hash SHA-256.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
+                    {electronicSignatures.filter((signature) => !signature.revokedAt).length} ativa(s)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5">
+                {electronicSignatures.length === 0 ? (
+                  <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm leading-6 text-slate-600">
+                    Nenhuma assinatura eletrônica registrada neste processo.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {electronicSignatures.map((signature) => {
+                      const entityLabel =
+                        signature.entityType === "process_document_review"
+                          ? "Aprovação de documento"
+                          : signature.entityType === "payment_guide_issue"
+                            ? "Emissão de guia"
+                            : signature.entityType === "process_dispatch"
+                              ? "Despacho"
+                              : signature.entityType === "analysis_conclusion"
+                                ? "Conclusão da análise"
+                                : "Documento oficial";
+                      const revoked = Boolean(signature.revokedAt);
+                      return (
+                        <div
+                          key={signature.id}
+                          className={`rounded-[20px] border p-4 ${
+                            revoked
+                              ? "border-rose-200 bg-rose-50/60"
+                              : "border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.045)]"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-sky-800">
+                                  {entityLabel}
+                                </span>
+                                {signature.departmentCode ? (
+                                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-700">
+                                    {signature.departmentCode}
+                                  </span>
+                                ) : null}
+                                {revoked ? (
+                                  <span className="rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-rose-800">
+                                    Revogada
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-800">
+                                    Válida
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-3 font-semibold text-slate-950">{signature.signerName}</p>
+                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {[
+                                  signature.signerTitle || signature.signerProfileLabel,
+                                  signature.departmentName,
+                                ].filter(Boolean).join(" • ") || "Identidade funcional registrada"}
+                              </p>
+                            </div>
+                            <div className="text-right text-xs text-slate-500">
+                              <p>{signature.signedAt ? new Date(signature.signedAt).toLocaleString("pt-BR") : ""}</p>
+                              <p className="mt-1">{electronicSignatureLevelLabel(signature.assuranceLevel)}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+                            <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-slate-500">Código de verificação</p>
+                              <p className="mt-1 font-mono text-xs font-semibold text-slate-900">{signature.signatureCode}</p>
+                            </div>
+                            <div className="min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-slate-500">Fingerprint SHA-256</p>
+                              <p className="mt-1 break-all font-mono text-[10px] leading-5 text-slate-700">{signature.signatureFingerprint}</p>
+                            </div>
+                          </div>
+
+                          {signature.statement ? (
+                            <p className="mt-3 text-xs leading-5 text-slate-500">{signature.statement}</p>
+                          ) : null}
+                          {revoked && signature.revocationReason ? (
+                            <p className="mt-3 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs leading-5 text-rose-800">
+                              Motivo da revogação: {signature.revocationReason}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "historico" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
