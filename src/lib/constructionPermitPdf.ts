@@ -119,6 +119,7 @@ export function buildConstructionPermitPdfBlob({
   technicalProfile,
 }: ConstructionPermitPdfInput) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const form = permit.formData;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 14;
   const contentWidth = pageWidth - margin * 2;
@@ -189,25 +190,25 @@ export function buildConstructionPermitPdfBlob({
   pdf.text("1. TITULAR E RESPONSÁVEL TÉCNICO", margin, y);
   y += 4;
 
-  drawField(pdf, margin, y, half, "Proprietário / titular", process.ownerName);
+  drawField(pdf, margin, y, half, "Proprietário / titular", form?.ownerName || process.ownerName);
   drawField(
     pdf,
     margin + half + colGap,
     y,
     half,
     "Documento do titular",
-    valueOrFallback(process.ownerDocument),
+    valueOrFallback(form?.ownerDocument || process.ownerDocument),
   );
   y += 22;
 
-  drawField(pdf, margin, y, half, "Responsável técnico", process.technicalLead);
+  drawField(pdf, margin, y, half, "Responsável técnico", form?.technicalLead || process.technicalLead);
   drawField(
     pdf,
     margin + half + colGap,
     y,
     half,
     "Registro profissional",
-    valueOrFallback(technicalProfile?.registrationNumber),
+    valueOrFallback(form?.technicalRegistration || technicalProfile?.registrationNumber),
   );
   y += 27;
 
@@ -217,7 +218,7 @@ export function buildConstructionPermitPdfBlob({
   pdf.text("2. IDENTIFICAÇÃO DO IMÓVEL E DA OBRA", margin, y);
   y += 4;
 
-  drawField(pdf, margin, y, contentWidth, "Endereço do imóvel", process.address);
+  drawField(pdf, margin, y, contentWidth, "Endereço do imóvel", form?.propertyAddress || process.address);
   y += 22;
 
   drawField(
@@ -226,7 +227,7 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Inscrição imobiliária / IPTU",
-    valueOrFallback(process.property.iptu || process.property.registration),
+    valueOrFallback(form?.propertyRegistration || process.property.iptu || process.property.registration),
   );
   drawField(
     pdf,
@@ -234,7 +235,7 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Lote / quadra",
-    [process.property.lot, process.property.block].filter(Boolean).join(" / ") || "Não informado",
+    [form?.lot || process.property.lot, form?.block || process.property.block].filter(Boolean).join(" / ") || "Não informado",
   );
   y += 22;
 
@@ -244,7 +245,7 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Natureza da obra",
-    valueOrFallback(process.property.workType || process.type),
+    valueOrFallback(form?.workType || process.property.workType || process.type),
   );
   drawField(
     pdf,
@@ -252,7 +253,7 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Uso da edificação",
-    valueOrFallback(process.property.usage),
+    valueOrFallback(form?.usage || process.property.usage),
   );
   y += 22;
 
@@ -262,7 +263,11 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Área licenciada",
-    process.property.area > 0 ? `${process.property.area.toFixed(2)} m²` : "Não informada",
+    form?.areaM2
+      ? `${Number(String(form.areaM2).replace(",", ".")).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} m²`
+      : process.property.area > 0
+        ? `${process.property.area.toFixed(2)} m²`
+        : "Não informada",
   );
   drawField(
     pdf,
@@ -270,15 +275,20 @@ export function buildConstructionPermitPdfBlob({
     y,
     half,
     "Padrão construtivo",
-    valueOrFallback(process.property.constructionStandard),
+    valueOrFallback(form?.constructionStandard || process.property.constructionStandard),
   );
   y += 27;
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   textColor(pdf, color.blue);
-  pdf.text("3. CONDIÇÕES DA LICENÇA", margin, y);
+  pdf.text("3. OBJETO E CONDIÇÕES DA LICENÇA", margin, y);
   y += 4;
+
+  if (form?.licenseObject) {
+    drawField(pdf, margin, y, contentWidth, "Objeto do licenciamento", form.licenseObject, 20);
+    y += 24;
+  }
 
   fill(pdf, color.soft);
   draw(pdf, color.line);
@@ -291,6 +301,9 @@ export function buildConstructionPermitPdfBlob({
     "Este documento não substitui licenças, autorizações ou aprovações de outros órgãos quando exigíveis.",
     "O responsável técnico permanece responsável pelos serviços técnicos e pela execução conforme sua ART/RRT/TRT e atribuições profissionais.",
     "Qualquer alteração relevante do projeto aprovado deverá ser submetida à Prefeitura antes da execução.",
+    ...(form?.complementaryConditions?.trim()
+      ? [`Condição complementar: ${form.complementaryConditions.trim()}`]
+      : []),
   ];
   const conditionLines = pdf.splitTextToSize(
     conditions.map((item, index) => `${index + 1}. ${item}`).join("\n"),
