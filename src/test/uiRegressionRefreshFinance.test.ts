@@ -11,6 +11,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   const protocolDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
   const analystDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
   const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"), "utf8");
+  const financeDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/FinanceDeskPage.tsx"), "utf8");
 
   it("remove o atalho Ctrl K visível da busca", () => {
     expect(portal).not.toContain("Ctrl K");
@@ -110,6 +111,15 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(protocolDesk).toContain("handleConfirmProtocolPayment");
     expect(protocolDesk).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
+  });
+
+  it("mantém confirmação manual de pagamento somente no Financeiro", () => {
+    expect(financeDesk).toContain("canConfirmManualPayment");
+    expect(financeDesk).toContain('resolveSessionOperationalArea(session) === "financeiro"');
+    expect(financeDesk).toContain('session.role !== "prefeitura_admin"');
+    expect(financeDesk).toContain("Confirmar pagamento manualmente");
+    expect(financeDesk).toContain("handleManualPaymentConfirmation");
+    expect(financeDesk).toContain("markGuideAsPaid(processId, session.name, guideKind)");
   });
 
   it("não deixa referência quebrada na rota de protocolos financeiros", () => {
