@@ -21,6 +21,11 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("fiscalOfficial");
   });
 
+  it("builds the protocol label from the string field and never from the whole process object", () => {
+    expect(checklist).toContain("protocol: formatOfficialProcessNumber(process.protocol)");
+    expect(checklist).not.toContain("protocol: formatOfficialProcessNumber(process),");
+  });
+
   it("binds the signature to the exact checklist payload", () => {
     expect(checklist).toContain("buildChecklistSignaturePayload");
     expect(checklist).toContain("stableSignatureStringify");
