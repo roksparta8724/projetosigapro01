@@ -6,7 +6,6 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import eSignArtifactHandler from "./api/e-sign-artifact";
 
 dns.setDefaultResultOrder("verbatim");
 
@@ -193,11 +192,9 @@ function createR2DevApiPlugin(): Plugin {
         }
 
         if (req.url.startsWith("/api/e-sign-artifact") && req.method === "POST") {
-          if (readEnvValue("E_SIGNATURE_SERVER_SECRET").length >= 32) {
-            await eSignArtifactHandler(req as any, res as any);
-            return;
-          }
-
+          // Em localhost, assinatura SEMPRE usa o endpoint oficial do SIGAPRO.
+          // Isso elimina divergência de secret, banco, Neon Auth ou função antiga
+          // entre VS Code e Vercel.
           const body = await readJsonBody(req);
           const targetBase =
             readEnvValue("SIGAPRO_SIGNATURE_DEV_PROXY") ||
