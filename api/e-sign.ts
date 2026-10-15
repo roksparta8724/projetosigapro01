@@ -1,7 +1,6 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import {
   callDataApiRpc,
-  getDataApiUrl,
   readBearer,
   readEnv,
   type ApiReq,
