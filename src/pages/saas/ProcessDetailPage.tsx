@@ -496,6 +496,12 @@ export function ProcessDetailPage() {
   const canReviewDocuments =
     !isExternalProcessViewer &&
     canAnalyzeProcessDocument(session, process, effectiveScopeId);
+  const canUseMunicipalChecklist =
+    !isExternalProcessViewer &&
+    !isProtocolTrackingOnly &&
+    canAnalysisOperate &&
+    matchesOperationalScope(effectiveScopeId, process) &&
+    ["master_admin", "master_ops", "prefeitura_supervisor", "analista", "fiscal"].includes(session.role);
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
@@ -869,7 +875,7 @@ export function ProcessDetailPage() {
         (
           isExternalProcessViewer
             ? currentFlowIndex >= 4 || constructionPermit?.status === "emitido"
-            : constructionPaymentCompensated || Boolean(constructionPermit)
+            : canAnalysisOperate || constructionPaymentCompensated || Boolean(constructionPermit)
         ),
     },
     { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
@@ -1673,7 +1679,7 @@ export function ProcessDetailPage() {
           </CardContent>
         </Card>
 
-        {currentFlowIndex >= 4 || constructionPermit ? (
+        {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
           <Card className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
@@ -2302,19 +2308,37 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {activeTab === "analise" && canReviewDocuments && (
+          {activeTab === "analise" && canUseMunicipalChecklist && (
             <>
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
-                municipalityName={municipalityName}
+                municipalityId={effectiveScopeId || process.tenantId}
+                municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+                municipalityLogoUrl={
+                  tenantSettings?.headerLogoUrl ||
+                  tenantSettings?.logoUrl ||
+                  tenantSettings?.brasaoUrl ||
+                  ""
+                }
+                secretariat={tenantSettings?.secretariaResponsavel || "Secretaria responsável"}
+                directorate={
+                  tenantSettings?.diretoriaResponsavel ||
+                  getOrganizationPath(currentFolder) ||
+                  "Diretoria / Divisão de Urbanismo"
+                }
+                municipalityAddress={tenantSettings?.endereco || ""}
+                municipalityPhone={tenantSettings?.telefone || ""}
+                municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
               />
-              <AnalysisReadinessPanel
-                process={process}
-                ownerProfile={linkedOwnerProfile}
-                technicalProfile={linkedTechnicalProfile}
-              />
+              {canReviewDocuments ? (
+                <AnalysisReadinessPanel
+                  process={process}
+                  ownerProfile={linkedOwnerProfile}
+                  technicalProfile={linkedTechnicalProfile}
+                />
+              ) : null}
             </>
           )}
 
