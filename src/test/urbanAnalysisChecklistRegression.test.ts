@@ -77,10 +77,27 @@ describe("selected checklist statuses unmistakable", () => {
     expect(panel).toContain('data-analysis-metric="blue"');
     expect(panel).toContain("bg-emerald-600");
     expect(panel).toContain("bg-sky-600");
-    expect(panel).toContain("bg-amber-500");
+    expect(panel).toContain("bg-amber-600");
 
     expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V12");
     expect(polarity).toContain('[data-checklist-status="A"][aria-pressed="true"]');
     expect(polarity).toContain('[data-checklist-status="C"][aria-pressed="true"]');
+  });
+});
+
+
+describe("process contrast V16 regression", () => {
+  it("uses the final V16 contrast authority and full selected checklist labels", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(panel).toContain("sig-process-dark-header");
+    expect(panel).toContain("sig-checklist-status");
+    expect(panel).toContain("selected ? STATUS_META[status].label");
+    expect(permit).toContain("sig-process-dark-header");
+    expect(polarity).toContain("PROCESS VISIBILITY AUTHORITY V16");
+    expect(polarity).toContain(".sig-process-dark-header");
+    expect(polarity).toContain(".sig-checklist-status[data-selected=\"true\"]");
   });
 });
