@@ -42,11 +42,54 @@ function isInternalPath(pathname: string) {
   );
 }
 
+function collectSnapshotCss() {
+  let css = "";
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules;
+      if (!rules) continue;
+      for (const rule of Array.from(rules)) css += rule.cssText + "\n";
+    } catch {
+      // Folhas externas/CORS não entram no snapshot; estilos inline continuam válidos.
+    }
+  }
+  return css;
+}
+
+function buildRefreshVisualSnapshot(root: HTMLElement) {
+  const viewportWidth = Math.max(1, window.innerWidth);
+  const viewportHeight = Math.max(1, window.innerHeight);
+  const zoomValue = Number.parseFloat(document.documentElement.style.zoom || "1") || 1;
+  const css = collectSnapshotCss();
+  const html = root.innerHTML
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/\sautofocus(?:="[^"]*")?/gi, "");
+
+  const stageTop = -window.scrollY;
+  const stageLeft = -window.scrollX;
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + viewportWidth + '" height="' + viewportHeight + '" viewBox="0 0 ' + viewportWidth + ' ' + viewportHeight + '">' +
+      '<foreignObject x="0" y="0" width="100%" height="100%">' +
+        '<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:' + (viewportWidth / zoomValue) + 'px;min-height:' + (viewportHeight / zoomValue) + 'px;zoom:' + zoomValue + ';overflow:hidden;background:' +
+          (getComputedStyle(document.body).backgroundColor || 'var(--sig-initial-bg,#f5f7fb)') + ';">' +
+          '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style>' +
+          '<div style="position:relative;left:' + stageLeft + 'px;top:' + stageTop + 'px;">' + html + '</div>' +
+        '</div>' +
+      '</foreignObject>' +
+    '</svg>';
+
+  return { svg, viewportWidth, viewportHeight, zoomValue };
+}
+
 function persistRefreshContinuity() {
   if (!isInternalPath(window.location.pathname)) return;
+
   const userId = currentIdentity();
-  if (!userId) return;
+  const root = document.getElementById("root");
+  if (!userId || !root || root.innerHTML.length < 500) return;
+
   try {
+    const visual = buildRefreshVisualSnapshot(root);
     window.sessionStorage.setItem(
       CONTINUITY_KEY,
       JSON.stringify({
@@ -54,10 +97,11 @@ function persistRefreshContinuity() {
         location: currentLocationKey(),
         userId,
         savedAt: Date.now(),
+        ...visual,
       }),
     );
   } catch {
-    // Continuidade de rota/sessão é auxiliar e nunca pode afetar a UI.
+    // A continuidade visual nunca interfere na persistência oficial.
   }
 }
 
@@ -153,11 +197,17 @@ function bootApplication() {
   try {
     createRoot(rootElement).render(<App />);
 
-    // O F5 comum é tratado dentro da aplicação e não desmonta o documento.
-    // Num cold boot real, apenas neutralizamos animações no primeiro frame.
-    window.requestAnimationFrame(() => {
+    const releaseRefreshSnapshot = () => {
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-    });
+      document.getElementById("sigapro-refresh-snapshot")?.remove();
+    };
+
+    if (document.getElementById("sigapro-refresh-snapshot")) {
+      window.addEventListener("sigapro-app-stable", releaseRefreshSnapshot as EventListener, { once: true });
+      window.setTimeout(releaseRefreshSnapshot, 8000);
+    } else {
+      window.requestAnimationFrame(releaseRefreshSnapshot);
+    }
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
