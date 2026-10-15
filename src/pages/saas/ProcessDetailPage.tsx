@@ -260,6 +260,50 @@ export function ProcessDetailPage() {
     isMasterOperator || canAccessMunicipalArea(session, "analise");
   const canFinanceOperate =
     isMasterOperator || canAccessMunicipalArea(session, "financeiro");
+  const stableTabAccessRef = useRef<{
+    sessionId: string;
+    processId: string;
+    analysis: boolean;
+    finance: boolean;
+  } | null>(null);
+
+  const currentStableTabAccess =
+    stableTabAccessRef.current &&
+    stableTabAccessRef.current.sessionId === session.id &&
+    stableTabAccessRef.current.processId === (processId ?? "")
+      ? stableTabAccessRef.current
+      : {
+          sessionId: session.id,
+          processId: processId ?? "",
+          analysis: false,
+          finance: false,
+        };
+
+  const analysisAccessNow =
+    !planEntitlements.isResolving &&
+    planEntitlements.canUseModule("Analise tecnica") &&
+    canAnalysisOperate;
+  const financeAccessNow =
+    !planEntitlements.isResolving &&
+    planEntitlements.canUseModule("Financeiro") &&
+    canFinanceOperate;
+
+  if (
+    !stableTabAccessRef.current ||
+    stableTabAccessRef.current.sessionId !== currentStableTabAccess.sessionId ||
+    stableTabAccessRef.current.processId !== currentStableTabAccess.processId ||
+    (analysisAccessNow && !stableTabAccessRef.current.analysis) ||
+    (financeAccessNow && !stableTabAccessRef.current.finance)
+  ) {
+    stableTabAccessRef.current = {
+      ...currentStableTabAccess,
+      analysis: currentStableTabAccess.analysis || analysisAccessNow,
+      finance: currentStableTabAccess.finance || financeAccessNow,
+    };
+  }
+
+  const stableAnalysisAccess = stableTabAccessRef.current.analysis;
+  const stableFinanceAccess = stableTabAccessRef.current.finance;
   const isExternalSession =
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
@@ -306,11 +350,11 @@ export function ProcessDetailPage() {
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
   const setProcessTab = (tab: ProcessTab) => {
-    if (tab === "analise" && (!planEntitlements.canUseModule("Analise tecnica") || !canAnalysisOperate)) return;
+    if (tab === "analise" && !stableAnalysisAccess) return;
     if (
       tab === "financeiro" &&
       session.role !== "profissional_externo" &&
-      (!planEntitlements.canUseModule("Financeiro") || !canFinanceOperate)
+      !stableFinanceAccess
     ) return;
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("aba", tab);
@@ -860,8 +904,7 @@ export function ProcessDetailPage() {
       enabled:
         !isExternalProcessViewer &&
         !isProtocolTrackingOnly &&
-        planEntitlements.canUseModule("Analise tecnica") &&
-        canAnalysisOperate,
+        stableAnalysisAccess,
     },
     {
       key: "financeiro" as ProcessTab,
@@ -871,8 +914,7 @@ export function ProcessDetailPage() {
         (
           !isExternalProcessViewer &&
           !isProtocolTrackingOnly &&
-          planEntitlements.canUseModule("Financeiro") &&
-          canFinanceOperate
+          stableFinanceAccess
         ),
     },
     {
