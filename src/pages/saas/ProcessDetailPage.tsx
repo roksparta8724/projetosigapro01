@@ -246,6 +246,76 @@ function writeCachedProcessTabAccess(value: CachedProcessTabAccess) {
   }
 }
 
+const PROCESS_VISUAL_CACHE_PREFIX = "sigapro.process-view.v1:";
+
+type CachedProcessVisual = {
+  sessionId: string;
+  routeKey: string;
+  cachedAt: number;
+  process: ProcessRecord;
+};
+
+function processVisualCacheKey(sessionId: string, routeKey: string) {
+  return `${PROCESS_VISUAL_CACHE_PREFIX}${sessionId}:${routeKey}`;
+}
+
+function readCachedProcessVisual(sessionId: string, routeKey?: string): ProcessRecord | undefined {
+  if (
+    typeof window === "undefined" ||
+    !sessionId ||
+    sessionId === "unknown" ||
+    !routeKey
+  ) {
+    return undefined;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(processVisualCacheKey(sessionId, routeKey));
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as Partial<CachedProcessVisual>;
+    if (
+      parsed.sessionId !== sessionId ||
+      parsed.routeKey !== routeKey ||
+      typeof parsed.cachedAt !== "number" ||
+      Date.now() - parsed.cachedAt > 1000 * 60 * 30 ||
+      !parsed.process?.id
+    ) {
+      window.sessionStorage.removeItem(processVisualCacheKey(sessionId, routeKey));
+      return undefined;
+    }
+    return parsed.process as ProcessRecord;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCachedProcessVisual(sessionId: string, routeKey: string, process: ProcessRecord) {
+  if (
+    typeof window === "undefined" ||
+    !sessionId ||
+    sessionId === "unknown" ||
+    !routeKey ||
+    !process?.id
+  ) {
+    return;
+  }
+
+  try {
+    const payload: CachedProcessVisual = {
+      sessionId,
+      routeKey,
+      cachedAt: Date.now(),
+      process,
+    };
+    window.sessionStorage.setItem(
+      processVisualCacheKey(sessionId, routeKey),
+      JSON.stringify(payload),
+    );
+  } catch {
+    // Cache estritamente visual e limitado à aba atual.
+  }
+}
+
 export function ProcessDetailPage() {
   const { processId } = useParams();
   const navigate = useNavigate();
@@ -277,7 +347,27 @@ export function ProcessDetailPage() {
     shareIssProjectGuide,
     issuePaymentGuide,
   } = usePlatformData();
-  const process = resolveProcessFromRoute(processes, processId);
+  const liveProcess = resolveProcessFromRoute(processes, processId);
+  const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
+    readCachedProcessVisual(session.id, processId),
+  );
+  const process = liveProcess ?? cachedProcessVisual;
+
+  useEffect(() => {
+    if (!processId || !session.id || session.id === "unknown") return;
+
+    if (liveProcess) {
+      writeCachedProcessVisual(session.id, processId, liveProcess);
+      setCachedProcessVisual(liveProcess);
+      return;
+    }
+
+    const cached = readCachedProcessVisual(session.id, processId);
+    if (cached?.id !== cachedProcessVisual?.id) {
+      setCachedProcessVisual(cached);
+    }
+  }, [cachedProcessVisual?.id, liveProcess, processId, session.id]);
+
   const effectiveScopeId =
     process?.municipalityId ??
     process?.tenantId ??
@@ -556,9 +646,16 @@ export function ProcessDetailPage() {
 
   if (!process) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
-      // Não montar uma página intermediária durante a resolução do store.
-      // A continuidade visual permanece até o processo real estar disponível.
-      return null;
+      // F5 sem cache visual só acontece no primeiro acesso da rota.
+      // Mantemos o frame institucional real montado em vez de devolver null,
+      // evitando um root vazio/branco enquanto o store é resolvido.
+      return (
+        <PortalFrame eyebrow="Processo" title="Carregando processo">
+          <PageShell className="sig-process-detail-premium !max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
+            <div className="min-h-[420px]" aria-hidden="true" />
+          </PageShell>
+        </PortalFrame>
+      );
     }
 
     return (
