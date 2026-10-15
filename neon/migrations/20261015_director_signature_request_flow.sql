@@ -106,14 +106,16 @@ begin
       or lower(coalesce(_position,'')) ~ '(fiscal|diretor|diretora|secret[aá]ri)';
   elsif _slot = 'diretoria' then
     _allowed :=
-      lower(coalesce(_profile.tipo,'')) <> 'externo'
+      replace(lower(coalesce(_profile.tipo,'')), '''', '') <> 'externo'
+      and _role not in ('profissional_externo','professional_external','professional','profissional')
       and (
         _role in ('diretor','director','prefeitura_diretor','prefeitura_diretora')
         or lower(coalesce(_position,'')) ~ '(diretor|diretora)'
       );
   elsif _slot = 'secretaria' then
     _allowed :=
-      lower(coalesce(_profile.tipo,'')) <> 'externo'
+      replace(lower(coalesce(_profile.tipo,'')), '''', '') <> 'externo'
+      and _role not in ('profissional_externo','professional_external','professional','profissional')
       and (
         _role in ('secretario','secretaria','secretary','prefeitura_secretario','prefeitura_secretaria')
         or lower(coalesce(_position,'')) ~ '(secret[aá]ri)'
@@ -195,7 +197,8 @@ begin
    and tm.deleted_at is null
   left join public.roles r on r.id=tm.role_id
   where pr.id=_process_id
-    and lower(coalesce(p.tipo,'')) <> 'externo'
+    and replace(lower(coalesce(p.tipo,'')), '''', '') <> 'externo'
+    and lower(coalesce(p.role,'')) not in ('profissional_externo','professional_external','professional','profissional')
     and (
       lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
       or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
@@ -379,7 +382,8 @@ begin
   where p.municipality_id=_process.municipality_id
     and p.deleted_at is null
     and p.account_status='active'
-    and lower(coalesce(p.tipo,'')) <> 'externo'
+    and replace(lower(coalesce(p.tipo,'')), '''', '') <> 'externo'
+    and lower(coalesce(p.role,'')) not in ('profissional_externo','professional_external','professional','profissional')
     and (
       lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
       or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
