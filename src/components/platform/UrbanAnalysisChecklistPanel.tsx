@@ -1038,13 +1038,18 @@ export function UrbanAnalysisChecklistPanel({
       };
 
       const drawTableHeader = (title: string, y: number) => {
-        doc.setFillColor(226, 232, 240);
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(218, 226, 234);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(margin, y, contentW, 6.8, 1.4, 1.4, "FD");
+        doc.setFillColor(...blue);
+        doc.roundedRect(margin, y, 2.2, 6.8, 1, 1, "F");
+
         doc.setTextColor(...slate);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.7);
-        doc.roundedRect(margin, y, contentW, 6.5, 1.5, 1.5, "F");
-        doc.text(title.toUpperCase(), margin + 3, y + 4.4);
-        y += 6.5;
+        doc.setFontSize(6.4);
+        doc.text(title.toUpperCase(), margin + 4, y + 4.5);
+        y += 7.3;
 
         const headers = [
           ["Item", widths.item],
@@ -1057,16 +1062,19 @@ export function UrbanAnalysisChecklistPanel({
         ] as const;
 
         let x = margin;
-        doc.setFillColor(...navy);
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(5.2);
+        doc.setFillColor(248, 250, 252);
+        doc.setTextColor(51, 65, 85);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.1);
         headers.forEach(([label, width]) => {
-          doc.rect(x, y, width, 5.5, "F");
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(x, y, width, 5.6, "FD");
           doc.text(label, x + width / 2, y + 3.7, { align: "center" });
           x += width;
         });
 
-        return y + 5.5;
+        return y + 5.6;
       };
 
       const drawRow = (
@@ -1079,34 +1087,55 @@ export function UrbanAnalysisChecklistPanel({
           item.label,
           widths.desc - 3.2,
           compact ? 1 : 2,
-          compact ? 4.9 : 5.4,
+          compact ? 5.1 : 5.45,
         );
         const obs = fitLines(
           itemState.observation || "",
           widths.obs - 3.2,
           compact ? 1 : 2,
-          compact ? 4.8 : 5.2,
+          compact ? 4.9 : 5.2,
         );
         const lineCount = Math.max(desc.lines.length, obs.lines.length, 1);
-        const rowH = compact ? 5.6 : Math.max(5.8, 2.65 * lineCount + 2.3);
+        const rowH = compact ? 5.8 : Math.max(6, 2.55 * lineCount + 2.6);
+
+        const rowFill =
+          item.order % 2 === 0
+            ? ([250, 252, 254] as const)
+            : ([255, 255, 255] as const);
+
+        doc.setFillColor(...rowFill);
+        doc.rect(margin, y, contentW, rowH, "F");
+
+        doc.setDrawColor(214, 223, 232);
+        doc.setLineWidth(0.16);
+        doc.rect(margin, y, contentW, rowH, "S");
+
+        const columnWidths = [
+          widths.item,
+          widths.desc,
+          widths.a,
+          widths.ap,
+          widths.c,
+          widths.na,
+          widths.obs,
+        ];
+        let gridX = margin;
+        for (let index = 0; index < columnWidths.length - 1; index += 1) {
+          gridX += columnWidths[index];
+          doc.line(gridX, y, gridX, y + rowH);
+        }
 
         let x = margin;
-        doc.setDrawColor(...line);
-        doc.setLineWidth(0.18);
-        doc.setFillColor(255, 255, 255);
         doc.setTextColor(...slate);
         doc.setFont("helvetica", "normal");
-
-        doc.rect(x, y, widths.item, rowH, "FD");
-        doc.setFontSize(5.2);
-        doc.text(String(item.order), x + widths.item / 2, y + rowH / 2 + 1.6, {
+        doc.setFontSize(5.1);
+        doc.text(String(item.order), x + widths.item / 2, y + rowH / 2 + 1.45, {
           align: "center",
         });
         x += widths.item;
 
-        doc.rect(x, y, widths.desc, rowH, "FD");
         doc.setFontSize(desc.fontSize);
-        doc.text(desc.lines, x + 1.6, y + 3.5);
+        doc.text(desc.lines, x + 1.6, y + 3.65);
         x += widths.desc;
 
         for (const status of ["A", "AP", "C", "NA"] as const) {
@@ -1118,7 +1147,6 @@ export function UrbanAnalysisChecklistPanel({
                 : status === "C"
                   ? widths.c
                   : widths.na;
-          doc.rect(x, y, width, rowH, "FD");
 
           if (itemState.status === status) {
             const fill =
@@ -1131,27 +1159,29 @@ export function UrbanAnalysisChecklistPanel({
                     : ([71, 85, 105] as const);
             doc.setFillColor(...fill);
             doc.roundedRect(
-              x + width / 2 - 2.2,
-              y + rowH / 2 - 2.2,
-              4.4,
-              4.4,
-              1.1,
-              1.1,
+              x + width / 2 - 2.15,
+              y + rowH / 2 - 2.15,
+              4.3,
+              4.3,
+              1.25,
+              1.25,
               "F",
             );
             doc.setTextColor(255, 255, 255);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(5.5);
-            doc.text("X", x + width / 2, y + rowH / 2 + 1.6, { align: "center" });
+            doc.setFontSize(5.2);
+            doc.text("X", x + width / 2, y + rowH / 2 + 1.45, {
+              align: "center",
+            });
             doc.setTextColor(...slate);
             doc.setFont("helvetica", "normal");
           }
           x += width;
         }
 
-        doc.rect(x, y, widths.obs, rowH, "FD");
         doc.setFontSize(obs.fontSize);
-        doc.text(obs.lines, x + 1.6, y + 3.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(obs.lines, x + 1.6, y + 3.65);
 
         return y + rowH;
       };
