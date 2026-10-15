@@ -1700,7 +1700,9 @@ export function ProcessDetailPage() {
                     {constructionPermit?.permitNumber || "Em preparação"}
                   </p>
                 </div>
-                <FileBadge2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                <span data-summary-icon="permit" className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-100 text-sky-800 shadow-sm dark:border-sky-500/40 dark:bg-sky-950/70 dark:text-sky-100">
+                  <FileBadge2 className="h-4 w-4" />
+                </span>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {constructionPermit?.status === "emitido"
@@ -1831,8 +1833,8 @@ export function ProcessDetailPage() {
             <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-200/25 bg-[#0b5e93] text-white shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
-                    <FileStack className="h-6 w-6 text-sky-200" />
+                  <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/35 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
+                    <FileStack className="h-6 w-6 !text-white" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
@@ -3125,16 +3127,18 @@ export function ProcessDetailPage() {
                             <button
                               key={`org-destination-${department.id}`}
                               type="button"
+                              data-organogram-destination="true"
+                              data-selected={selected ? "true" : "false"}
                               onClick={() => setDispatchTo(department.id)}
                               className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                                 selected
-                                  ? "border-sky-300 bg-sky-100 text-sky-900 shadow-sm"
-                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-sky-200 hover:bg-sky-50"
+                                  ? "border-sky-400 bg-sky-100 text-sky-950 shadow-sm dark:border-sky-400 dark:bg-sky-950/70 dark:text-sky-100"
+                                  : "border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/35"
                               }`}
                               title={getOrganizationPath(department.name)}
                             >
                               {department.code?.trim() ? (
-                                <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] text-white">
+                                <span data-organogram-code="true" className="rounded-md border border-sky-300/25 bg-[#0b5e93] px-1.5 py-0.5 text-[9px] font-bold tracking-[0.08em] !text-white shadow-sm">
                                   {department.code.trim()}
                                 </span>
                               ) : null}
