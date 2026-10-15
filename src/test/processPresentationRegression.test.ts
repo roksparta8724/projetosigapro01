@@ -373,3 +373,31 @@ describe("process detail visibility lock v13", () => {
     expect(permit).toContain('data-permit-dark-header="true"');
   });
 });
+
+
+describe("process contrast v9", () => {
+  it("keeps every fixed dark process header light-on-dark without touching the topbar", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(detail).toContain("sig-process-dark-surface-v9");
+    expect(analysis).toContain("sig-process-dark-surface-v9");
+    expect(permit).toContain("sig-process-dark-surface-v9");
+    expect(css).toContain("PROCESS DETAIL CONTRAST FINAL V9");
+    expect(css).toContain(".sig-process-detail-premium .sig-process-dark-surface-v9");
+    expect(css).not.toContain(".sig-topbar");
+  });
+
+  it("makes selected technical checklist statuses unmistakable", () => {
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(analysis).toContain('data-selected={selected ? "true" : "false"}');
+    expect(analysis).toContain("bg-emerald-600 !text-white");
+    expect(analysis).toContain("bg-sky-600 !text-white");
+    expect(analysis).toContain("bg-amber-600 !text-white");
+    expect(css).toContain('button[data-checklist-status="A"][data-selected="true"]');
+  });
+});
