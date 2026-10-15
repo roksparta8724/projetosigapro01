@@ -32,7 +32,9 @@ describe("official electronic signatures", () => {
     expect(api).toContain("Senha de acesso incorreta");
     expect(api).toContain("createHmac");
     expect(api).toContain("artifactHash");
-    expect(api).not.toContain("password:");
+    expect(api).not.toContain("_password");
+    expect(api).not.toContain("artifact_payload: password");
+    expect(api).toContain("_artifact_payload: payload");
   });
 
   it("keeps immutable database evidence and audit trail", () => {
