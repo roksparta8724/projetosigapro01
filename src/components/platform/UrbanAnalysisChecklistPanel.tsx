@@ -1348,6 +1348,7 @@ export function UrbanAnalysisChecklistPanel({
         label: string,
         signature: ChecklistSignature | null | undefined,
         official: boolean,
+        requested = false,
       ) => {
         const h = 39;
         if (official && signature) {
@@ -1425,7 +1426,11 @@ export function UrbanAnalysisChecklistPanel({
           doc.setTextColor(...muted);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(5.8);
-          doc.text("ASSINATURA PENDENTE", x + 13, y + 5.7);
+          doc.text(
+            requested ? "ASSINATURA SOLICITADA" : "ASSINATURA PENDENTE",
+            x + 13,
+            y + 5.7,
+          );
 
           doc.setTextColor(...slate);
           doc.setFontSize(6.2);
@@ -1434,9 +1439,11 @@ export function UrbanAnalysisChecklistPanel({
           doc.setFont("helvetica", "normal");
           doc.setTextColor(...muted);
           doc.setFontSize(5.4);
-          const pendingMessage = signature
-            ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
-            : "Aguardando assinatura eletrônica com senha de acesso.";
+          const pendingMessage = requested
+            ? "Solicitação registrada pelo analista. Aguardando assinatura eletrônica da Diretoria."
+            : signature
+              ? "Há um registro antigo nesta ficha, mas ele ainda não foi validado com senha."
+              : "Aguardando assinatura eletrônica com senha de acesso.";
           doc.text(
             doc.splitTextToSize(pendingMessage, w - 10).slice(0, 3),
             x + 5,
@@ -1558,21 +1565,32 @@ export function UrbanAnalysisChecklistPanel({
       );
 
       const signatureY = resultY + 30;
+      const signatureCardW = 60;
+      const signatureGap = 5;
       drawSignatureCard(
         margin,
         signatureY,
-        92,
+        signatureCardW,
         "Análise técnica",
         state.technicalSignature,
         technicalOfficial,
       );
       drawSignatureCard(
-        margin + 98,
+        margin + signatureCardW + signatureGap,
         signatureY,
-        92,
+        signatureCardW,
         "Conferência fiscal",
         state.fiscalSignature,
         fiscalOfficial,
+      );
+      drawSignatureCard(
+        margin + (signatureCardW + signatureGap) * 2,
+        signatureY,
+        signatureCardW,
+        "Diretoria",
+        state.directorSignature,
+        directorOfficial,
+        directorRequestPending,
       );
 
       drawFooter(2);
@@ -1580,11 +1598,15 @@ export function UrbanAnalysisChecklistPanel({
       const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
       doc.save(fileName);
       setNotice(
-        fiscalOfficial
-          ? "PDF oficial gerado em 2 páginas com as assinaturas eletrônicas registradas."
-          : technicalOfficial
-            ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada; a conferência fiscal permanece pendente."
-            : "PDF oficial gerado em 2 páginas. As assinaturas eletrônicas pendentes permanecem identificadas no documento.",
+        directorOfficial
+          ? "PDF oficial gerado em 2 páginas com a assinatura da Diretoria registrada."
+          : directorRequestPending
+            ? "PDF oficial gerado em 2 páginas. A solicitação da Diretoria aparece como pendente até o diretor assinar."
+            : fiscalOfficial
+              ? "PDF oficial gerado em 2 páginas com as assinaturas eletrônicas registradas."
+              : technicalOfficial
+                ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada; as demais assinaturas permanecem identificadas."
+                : "PDF oficial gerado em 2 páginas. As assinaturas eletrônicas pendentes permanecem identificadas no documento.",
       );
     } catch (error) {
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
