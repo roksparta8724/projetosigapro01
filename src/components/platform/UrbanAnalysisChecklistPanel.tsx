@@ -411,8 +411,9 @@ export function UrbanAnalysisChecklistPanel({
 
         const technical = snapshot.signers.find((item) => item.slot === "analise_tecnica");
         const fiscal = snapshot.signers.find((item) => item.slot === "conferencia_fiscal");
+        const director = snapshot.signers.find((item) => item.slot === "diretoria");
 
-        if (!technical && !fiscal) return;
+        if (!technical && !fiscal && !director) return;
 
         setState((current) => {
           const currentPayload = buildChecklistSignaturePayload(current, process, municipalityId);
@@ -425,6 +426,7 @@ export function UrbanAnalysisChecklistPanel({
               ...current,
               technicalSignature: null,
               fiscalSignature: null,
+              directorSignature: null,
               signedAt: "",
               signedBy: "",
             };
@@ -464,6 +466,19 @@ export function UrbanAnalysisChecklistPanel({
                   official: true,
                 }
               : current.fiscalSignature,
+            directorSignature: director
+              ? {
+                  userId: director.profile_id || "",
+                  name: director.name || "Diretor(a)",
+                  title: director.title || director.role || "Diretor(a)",
+                  signedAt: director.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
+                  verificationCode,
+                  evidenceHash,
+                  registration: director.registration ?? null,
+                  authMethod: director.auth_method || "password_reauth",
+                  official: true,
+                }
+              : current.directorSignature,
           };
 
           window.localStorage.setItem(key, JSON.stringify(next));
@@ -479,6 +494,27 @@ export function UrbanAnalysisChecklistPanel({
       active = false;
     };
   }, [key, process.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    void getProcessArtifactSignatureRequest(
+      process.id,
+      ANALYSIS_ARTIFACT_KEY,
+      "diretoria",
+    )
+      .then((snapshot) => {
+        if (active) setDirectorRequest(snapshot);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Diretoria] Falha ao carregar solicitação de assinatura.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [process.id, state.directorSignature?.signedAt, state.technicalSignature?.evidenceHash]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
@@ -499,6 +535,9 @@ export function UrbanAnalysisChecklistPanel({
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
   const canSignFiscal =
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "fiscal"].includes(session.role);
+  const isDirectorProfile =
+    /diretor|diretora|director/i.test(session.role || "") ||
+    /diretor|diretora/i.test(session.title || "");
   const technicalOfficial = Boolean(
     state.technicalSignature?.official &&
     state.technicalSignature?.verificationCode &&
@@ -509,7 +548,21 @@ export function UrbanAnalysisChecklistPanel({
     state.fiscalSignature?.verificationCode &&
     state.fiscalSignature?.authMethod === "password_reauth",
   );
-  const isFullySigned = technicalOfficial && fiscalOfficial;
+  const directorOfficial = Boolean(
+    state.directorSignature?.official &&
+    state.directorSignature?.verificationCode &&
+    state.directorSignature?.authMethod === "password_reauth",
+  );
+  const directorRequestPending =
+    directorRequest.request?.status === "pending" &&
+    directorRequest.request?.artifact_hash === state.technicalSignature?.evidenceHash;
+  const canRequestDirector =
+    technicalOfficial &&
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+  const isFullySigned =
+    technicalOfficial &&
+    fiscalOfficial &&
+    (!directorRequest.request || directorOfficial);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
     ...next,
@@ -517,6 +570,7 @@ export function UrbanAnalysisChecklistPanel({
     signedBy: "",
     technicalSignature: null,
     fiscalSignature: null,
+    directorSignature: null,
   });
 
   const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
