@@ -1145,3 +1145,137 @@ html body #root .sig-main-shell .sig-process-detail-premium
 }
 
 /* ===== END PROCESS DETAIL VISIBILITY LOCK V12 ===== */
+
+
+/* ==========================================================================
+   PROCESS ANALYSIS + PERMIT READABILITY LOCK V13 — 2026-10-15
+   Loaded after index.css. Process detail only; topbar/sidebar remain untouched.
+   ========================================================================== */
+
+/* Dark premium headers must always use bright copy and icons. */
+html body #root .sig-main-shell .sig-process-detail-premium
+:is(
+  [data-urban-analysis-sheet="true"] [data-premium-process-dark-header="analysis"],
+  [data-construction-permit-panel="true"] [data-premium-process-dark-header="permit"]
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  filter:none !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+:is(
+  [data-urban-analysis-sheet="true"] [data-premium-process-dark-header="analysis"],
+  [data-construction-permit-panel="true"] [data-premium-process-dark-header="permit"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,a) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+:is(
+  [data-urban-analysis-sheet="true"] [data-premium-process-dark-header="analysis"],
+  [data-construction-permit-panel="true"] [data-premium-process-dark-header="permit"]
+) :is(svg,svg *) {
+  color:#eaf6ff !important;
+  stroke:currentColor !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-analysis-header-copy="true"] > p:last-child,
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-permit-header-copy="true"] > p:last-child {
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+
+/* Header metrics use saturated fills and white typography. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric] :is(p,span,strong) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="blue"] {
+  background:linear-gradient(145deg,#075985 0%,#0b7fba 100%) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="emerald"] {
+  background:linear-gradient(145deg,#056249 0%,#059669 100%) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="amber"] {
+  background:linear-gradient(145deg,#7a4c05 0%,#b77908 100%) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric="cyan"] {
+  background:linear-gradient(145deg,#0b6077 0%,#0e879f 100%) !important;
+}
+
+/* Checklist status: selected choices are visually unmistakable. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] {
+  font-weight:900 !important;
+  transform:translateY(-1px) scale(1.03) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] :is(span,svg,svg *) {
+  color:inherit !important;
+  -webkit-text-fill-color:inherit !important;
+  stroke:currentColor !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"][data-row-status="A"] {
+  box-shadow:inset 4px 0 0 #10b981 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"][data-row-status="AP"] {
+  box-shadow:inset 4px 0 0 #0ea5e9 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"][data-row-status="C"] {
+  box-shadow:inset 4px 0 0 #f59e0b !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-row="true"][data-row-status="NA"] {
+  box-shadow:inset 4px 0 0 #64748b !important;
+}
+
+/* Summary cards: strict polarity, including the blue permit summary. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#526174 !important;
+  -webkit-text-fill-color:#526174 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,small,label,.sig-label,.sig-field-help,
+  .text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-permit-summary-card="true"] [data-primary-action="process"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* Permit body cards remain readable according to current process theme. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  color:#0f172a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-construction-permit-panel="true"] [data-workspace-surface="adaptive"] {
+  color:#f8fbff !important;
+}
+
+/* ===== END PROCESS ANALYSIS + PERMIT READABILITY LOCK V13 ===== */
