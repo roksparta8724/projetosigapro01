@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleAlert,
   ClipboardCheck,
   FileDown,
   FileText,
@@ -11,6 +12,7 @@ import {
   Save,
   Signature,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +27,7 @@ import {
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import {
+  ArtifactSignatureError,
   getProcessArtifactSignatures,
   signProcessArtifactWithPassword,
   type ArtifactSignerSlot,
@@ -79,6 +82,15 @@ type AnalysisChecklistState = {
 
 const ANALYSIS_ARTIFACT_TYPE = "urban_analysis_checklist";
 const ANALYSIS_ARTIFACT_KEY = "urban-analysis-checklist";
+
+type SignatureFlowStage = "idle" | "signing" | "verifying";
+type SignatureFlowError = {
+  message: string;
+  stage?: string;
+  code?: string;
+} | null;
+
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 function stableSignatureStringify(value: unknown): string {
   if (value === undefined) return "null";
@@ -309,7 +321,8 @@ export function UrbanAnalysisChecklistPanel({
   const [signatureDialog, setSignatureDialog] = useState<"technical" | "fiscal" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
-  const [signatureError, setSignatureError] = useState("");
+  const [signatureStage, setSignatureStage] = useState<SignatureFlowStage>("idle");
+  const [signatureError, setSignatureError] = useState<SignatureFlowError>(null);
 
   useEffect(() => {
     // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
@@ -494,55 +507,104 @@ export function UrbanAnalysisChecklistPanel({
     }
 
     setSignaturePassword("");
-    setSignatureError("");
+    setSignatureError(null);
     setSignatureDialog(kind);
   };
 
   const confirmElectronicSignature = async () => {
     if (!signatureDialog || !signaturePassword) {
-      setSignatureError("Informe sua senha de acesso.");
+      setSignatureError({ message: "Informe sua senha de acesso." });
       return;
     }
 
+    const kind = signatureDialog;
     const slot: ArtifactSignerSlot =
-      signatureDialog === "technical" ? "analise_tecnica" : "conferencia_fiscal";
+      kind === "technical" ? "analise_tecnica" : "conferencia_fiscal";
+    const payload = buildChecklistSignaturePayload(state, process, municipalityId);
 
     setSignatureBusy(true);
-    setSignatureError("");
+    setSignatureStage("signing");
+    setSignatureError(null);
 
     try {
-      const result = await signProcessArtifactWithPassword({
-        processId: process.id,
-        artifactType: ANALYSIS_ARTIFACT_TYPE,
-        artifactKey: ANALYSIS_ARTIFACT_KEY,
-        signerSlot: slot,
-        password: signaturePassword,
-        payload: buildChecklistSignaturePayload(state, process, municipalityId),
-      });
+      try {
+        await signProcessArtifactWithPassword({
+          processId: process.id,
+          artifactType: ANALYSIS_ARTIFACT_TYPE,
+          artifactKey: ANALYSIS_ARTIFACT_KEY,
+          signerSlot: slot,
+          password: signaturePassword,
+          payload,
+        });
+      } catch (error) {
+        // Idempotência real: se o servidor concluiu a gravação e a resposta se
+        // perdeu, uma segunda tentativa retorna 409. Nesse caso confirmamos no
+        // banco e tratamos como sucesso, sem duplicar assinatura.
+        if (
+          !(error instanceof ArtifactSignatureError) ||
+          error.code !== "SIGNATURE_ALREADY_EXISTS"
+        ) {
+          throw error;
+        }
+      }
 
-      const signedAt = result.signature?.signed_at || new Date().toISOString();
-      const signer = result.signature?.signer;
-      const verificationCode = result.signature?.verification_code;
-      const evidenceHash = result.signature?.artifact_hash;
+      setSignatureStage("verifying");
+
+      let snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+      let verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
+
+      for (let attempt = 0; attempt < 3 && (!snapshot.block || !verifiedSigner); attempt += 1) {
+        await wait(220 + attempt * 180);
+        snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+        verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
+      }
+
+      const signedPayload = snapshot.block?.payload ?? {};
+      const payloadMatches =
+        stableSignatureStringify(payload) === stableSignatureStringify(signedPayload);
+
+      if (
+        !snapshot.block ||
+        !verifiedSigner ||
+        !snapshot.block.verification_code ||
+        !snapshot.block.artifact_hash ||
+        !payloadMatches
+      ) {
+        throw new ArtifactSignatureError(
+          "A assinatura não foi confirmada integralmente no banco oficial. Nenhum sucesso visual foi aplicado.",
+          {
+            stage: "verification",
+            code: "SIGNATURE_READBACK_FAILED",
+          },
+        );
+      }
+
+      const signedAt =
+        verifiedSigner.signed_at ||
+        snapshot.block.completed_at ||
+        new Date().toISOString();
+      const verificationCode = snapshot.block.verification_code;
+      const evidenceHash = snapshot.block.artifact_hash;
 
       const signature: ChecklistSignature = {
-        userId: signer?.profile_id || session.id,
-        name: signer?.name || session.name,
+        userId: verifiedSigner.profile_id || session.id,
+        name: verifiedSigner.name || session.name,
         title:
-          signer?.title ||
+          verifiedSigner.title ||
+          verifiedSigner.role ||
           session.title ||
-          (signatureDialog === "technical" ? "Analista Técnico" : "Fiscal de Obras"),
+          (kind === "technical" ? "Analista Técnico" : "Fiscal de Obras"),
         signedAt,
         verificationCode,
         evidenceHash,
-        registration: signer?.registration ?? null,
-        authMethod: "password_reauth",
+        registration: verifiedSigner.registration ?? null,
+        authMethod: verifiedSigner.auth_method || "password_reauth",
         official: true,
       };
 
       const now = new Date().toISOString();
       const next: AnalysisChecklistState =
-        signatureDialog === "technical"
+        kind === "technical"
           ? {
               ...state,
               analystId: session.id,
@@ -562,17 +624,32 @@ export function UrbanAnalysisChecklistPanel({
 
       persistState(next);
       setSignaturePassword("");
+      setSignatureStage("idle");
       setSignatureDialog(null);
       setNotice(
-        signatureDialog === "technical"
-          ? `Análise técnica assinada eletronicamente. Código de verificação: ${verificationCode || "registrado"}.`
-          : `Conferência fiscal assinada eletronicamente. Código de verificação: ${verificationCode || "registrado"}.`,
+        kind === "technical"
+          ? `Análise técnica assinada e confirmada no banco oficial. Código: ${verificationCode}.`
+          : `Conferência fiscal assinada e confirmada no banco oficial. Código: ${verificationCode}.`,
       );
     } catch (error) {
       setSignaturePassword("");
-      setSignatureError(
-        error instanceof Error ? error.message : "Não foi possível concluir a assinatura eletrônica.",
-      );
+      setSignatureStage("idle");
+      if (error instanceof ArtifactSignatureError) {
+        setSignatureError({
+          message: error.message,
+          stage: error.stage,
+          code: error.code,
+        });
+      } else {
+        setSignatureError({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível concluir a assinatura eletrônica.",
+          stage: "client",
+          code: "SIGNATURE_FLOW_ERROR",
+        });
+      }
     } finally {
       setSignatureBusy(false);
     }
@@ -1295,7 +1372,7 @@ export function UrbanAnalysisChecklistPanel({
             if (!open && !signatureBusy) {
               setSignatureDialog(null);
               setSignaturePassword("");
-              setSignatureError("");
+              setSignatureError(null);
             }
           }}
         >
@@ -1355,7 +1432,7 @@ export function UrbanAnalysisChecklistPanel({
                   onClick={() => {
                     setSignatureDialog(null);
                     setSignaturePassword("");
-                    setSignatureError("");
+                    setSignatureError(null);
                   }}
                 >
                   Cancelar
