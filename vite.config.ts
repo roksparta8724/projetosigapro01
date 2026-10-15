@@ -6,6 +6,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import eSignArtifactHandler from "./api/e-sign-artifact";
 
 dns.setDefaultResultOrder("verbatim");
 
@@ -188,6 +189,38 @@ function createR2DevApiPlugin(): Plugin {
             pid: process.pid,
             port: 8080,
           }));
+          return;
+        }
+
+        if (req.url.startsWith("/api/e-sign-artifact") && req.method === "POST") {
+          if (readEnvValue("E_SIGNATURE_SERVER_SECRET").length >= 32) {
+            await eSignArtifactHandler(req as any, res as any);
+            return;
+          }
+
+          const body = await readJsonBody(req);
+          const targetBase =
+            readEnvValue("SIGAPRO_SIGNATURE_DEV_PROXY") ||
+            "https://projetosigapro01-git-fix-analise-d2ff63-roksparta8724s-projects.vercel.app";
+          const targetUrl = new URL("/api/e-sign-artifact", targetBase);
+          const authorization = String(req.headers.authorization || "");
+
+          const response = await fetch(targetUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Origin: targetUrl.origin,
+              ...(authorization ? { Authorization: authorization } : {}),
+            },
+            body: JSON.stringify(body),
+          });
+
+          const responseBody = await response.text();
+          res.statusCode = response.status;
+          res.setHeader("Content-Type", response.headers.get("content-type") || "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(responseBody);
           return;
         }
 
