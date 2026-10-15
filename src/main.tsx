@@ -46,9 +46,7 @@ function persistRefreshContinuity() {
   if (!isInternalPath(window.location.pathname)) return;
 
   const userId = currentIdentity();
-  const root = document.getElementById("root");
-  if (!userId || !root || root.getAttribute("data-sigapro-continuity") === "true") return;
-  if (root.innerHTML.length < 500) return;
+  if (!userId) return;
 
   try {
     window.sessionStorage.setItem(
@@ -57,7 +55,6 @@ function persistRefreshContinuity() {
         host: window.location.host,
         location: currentLocationKey(),
         userId,
-        html: root.innerHTML,
         savedAt: Date.now(),
       }),
     );
@@ -114,8 +111,6 @@ function renderBootstrapFailure(error: unknown) {
   const root = document.getElementById("root");
   if (!root) return;
 
-  root.removeAttribute("data-sigapro-continuity");
-
   const message =
     import.meta.env.DEV && error instanceof Error && error.message
       ? error.message
@@ -160,10 +155,13 @@ function bootApplication() {
   try {
     createRoot(rootElement).render(<App />);
 
-    // React assume a raiz no mesmo frame de commit. Removemos apenas a trava
-    // de interacao da copia visual anterior; nao existe overlay para desmontar.
+    // O primeiro paint do React deve ser estavel: durante o bootstrap inicial
+    // nenhuma transicao/animacao de card pode disputar layout com a hidratacao
+    // dos dados em cache. Liberamos movimento apenas depois de dois frames.
     window.requestAnimationFrame(() => {
-      rootElement.removeAttribute("data-sigapro-continuity");
+      window.requestAnimationFrame(() => {
+        document.documentElement.removeAttribute("data-sigapro-initial-render");
+      });
     });
 
     scheduleLocalCacheMaintenance();
