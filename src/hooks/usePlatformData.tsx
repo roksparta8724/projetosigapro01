@@ -1149,41 +1149,22 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const handleSoftRefresh = () => {
-      void refreshRemoteStore().catch((error) => {
-        console.error("[SIGAPRO][SoftRefresh] Falha ao atualizar dados em segundo plano.", error);
-      });
+      // F5 visualmente estável: não substituir o store, não remontar cards,
+      // não recalcular tema/permissões e não alterar a guia ativa.
+      // As mutações do sistema continuam sincronizando o Neon pelos próprios fluxos.
+      window.dispatchEvent(new CustomEvent("sigapro-soft-refresh-complete"));
     };
 
     window.addEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
     return () => {
       window.removeEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
     };
-  }, [authenticatedUserId]);
+  }, []);
 
-
-  useEffect(() => {
-    if (!authenticatedUserId || !hasBackendEnv) return;
-
-    let lastRefreshAt = 0;
-    const refreshOnFocus = () => {
-      const now = Date.now();
-      if (now - lastRefreshAt < 1500) return;
-      lastRefreshAt = now;
-      void refreshRemoteStore().catch((error) => {
-        console.error("[SIGAPRO][Store] Falha na atualização automática", error);
-      });
-    };
-    const refreshOnVisibility = () => {
-      if (document.visibilityState === "visible") refreshOnFocus();
-    };
-
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", refreshOnVisibility);
-    return () => {
-      window.removeEventListener("focus", refreshOnFocus);
-      document.removeEventListener("visibilitychange", refreshOnVisibility);
-    };
-  }, [authenticatedUserId]);
+  // Não atualize o store inteiro em focus/visibility: esse padrão substituía
+  // simultaneamente processos, plano, tema e permissões, causando cards,
+  // cores e abas piscarem. Dados remotos são atualizados por bootstrap e
+  // pelas operações que realmente modificam o processo.
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {
     setStore((current) => {
