@@ -7892,3 +7892,160 @@ html body .sig-main-shell :is(
 }
 
 /* ===== END PROCESS FORMS / SHEETS CONTRAST CONTRACT V1 ===== */
+
+
+/* ===== PROCESS DETAIL CONTRAST + CHECKLIST VISIBILITY V2 ===== */
+/* Escopo restrito ao processo aberto: não altera topbar, menu global ou páginas externas. */
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] {
+  color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] svg,
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] svg * {
+  color: #eaf6ff !important;
+  stroke: currentColor !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .text-slate-200,
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .text-slate-300,
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .text-sky-100,
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .text-cyan-100 {
+  color: #dceeff !important;
+  -webkit-text-fill-color: #dceeff !important;
+}
+
+/* Métricas dentro dos cabeçalhos escuros nunca podem virar cartões brancos apagados. */
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .sig-command-metric {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .sig-command-metric :is(p,span,strong) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-premium-process-dark-header] .sig-command-metric svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Cards-resumo: fundo claro => texto escuro; fundo inverso => texto claro. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,.sig-label,.sig-field-help,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  h1,h2,h3,h4,p,span,strong,.sig-label,.sig-field-help,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-process-summary-card="true"] :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #c9d8e8 !important;
+  -webkit-text-fill-color: #c9d8e8 !important;
+}
+
+/* Alvará: cabeçalho escuro sempre legível; conteúdo claro/escuro coerente com o tema. */
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header] {
+  color: #ffffff !important;
+  background-image: linear-gradient(135deg,#061a2c 0%,#0b456a 58%,#0b78a8 100%) !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header] :is(
+  h1,h2,h3,h4,p,span,strong,label
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body .sig-main-shell .sig-process-detail-premium [data-construction-permit-panel="true"] > [data-premium-process-dark-header] svg {
+  color: #eaf6ff !important;
+  stroke: currentColor !important;
+}
+
+/* Tabela técnica: seleção precisa ser inequívoca. */
+html body .sig-main-shell [data-urban-analysis-sheet="true"] button[data-checklist-status][aria-pressed="false"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  box-shadow: none !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-urban-analysis-sheet="true"] button[data-checklist-status][aria-pressed="false"] {
+  background: #0b1b2b !important;
+  border-color: #3b536b !important;
+  color: #b9c9d8 !important;
+  -webkit-text-fill-color: #b9c9d8 !important;
+}
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="A"][aria-pressed="true"],
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="A"][data-selected="true"] {
+  background: #059669 !important;
+  border-color: #047857 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(16,185,129,.18), 0 7px 18px rgba(5,150,105,.24) !important;
+}
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="AP"][aria-pressed="true"],
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="AP"][data-selected="true"] {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(14,165,233,.18), 0 7px 18px rgba(2,132,199,.24) !important;
+}
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="C"][aria-pressed="true"],
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="C"][data-selected="true"] {
+  background: #f59e0b !important;
+  border-color: #d97706 !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.20), 0 7px 18px rgba(217,119,6,.24) !important;
+}
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="NA"][aria-pressed="true"],
+html body .sig-main-shell [data-urban-analysis-sheet="true"] [data-checklist-status="NA"][data-selected="true"] {
+  background: #475569 !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(100,116,139,.18), 0 7px 18px rgba(51,65,85,.22) !important;
+}
+
+/* Inputs/linhas da ficha: leitura forte nos dois temas. */
+html body [data-layout-mode="default"] .sig-main-shell [data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell [data-urban-analysis-sheet="true"] [data-analysis-row="true"] :is(p,span) {
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-urban-analysis-sheet="true"] [data-analysis-row="true"] {
+  background: #0f2032 !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-urban-analysis-sheet="true"] [data-analysis-row="true"] :is(p,span) {
+  color: #e8f0f8 !important;
+  -webkit-text-fill-color: #e8f0f8 !important;
+}
+
+/* Realce adicional do card Alvará no resumo, preservando legibilidade. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-summary-sky {
+  box-shadow: inset 0 4px 0 #0284c7, 0 16px 38px rgba(2,132,199,0.14) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-summary-sky {
+  box-shadow: inset 0 4px 0 #38bdf8, 0 18px 42px rgba(2,132,199,0.18) !important;
+}
+
+/* ===== END PROCESS DETAIL CONTRAST + CHECKLIST VISIBILITY V2 ===== */
