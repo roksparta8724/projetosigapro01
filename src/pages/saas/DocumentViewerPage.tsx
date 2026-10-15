@@ -19,9 +19,11 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
+  canAccessMunicipalArea,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
+  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -88,13 +90,19 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
-      canAccessProcess(session, process, effectiveScopeId) &&
       session.role !== "prefeitura_admin" &&
+      canAccessProcess(session, process, effectiveScopeId) &&
       (
         session.role === "master_admin" ||
         session.role === "master_ops" ||
         session.role === "prefeitura_supervisor" ||
-        session.role === "analista"
+        (
+          canAccessMunicipalArea(session, "analise") &&
+          (
+            isProcessOwnedBySessionDepartment(session, process) ||
+            process.analysis?.assignedProfileId === session.id
+          )
+        )
       ),
   );
 
