@@ -52,9 +52,9 @@ describe("theme contrast authority", () => {
     expect(main.indexOf('import "./styles/surface-polarity.css"')).toBeGreaterThan(
       main.indexOf('import "./index.css"'),
     );
-    expect(surfacePolarity).toContain(
-      "PROCESS THEME CONTRAST AUTHORITY V7 — ALL THEMES 2026-10-14",
-    );
+    expect(surfacePolarity).toContain("Surface Polarity Contract V8");
+    expect(surfacePolarity).toContain("FINAL PROCESS POLARITY LOCK V10");
+    expect(surfacePolarity).toContain("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
   });
 
   it("covers every configured dark preset with inverse-main semantics", () => {
@@ -75,8 +75,9 @@ describe("theme contrast authority", () => {
     });
 
     expect(portal).toContain('data-theme-family={inverseMainTheme ? "dark" : "light"}');
-    expect(surfacePolarity).toContain('[data-theme-family="dark"]');
-    expect(surfacePolarity).toContain('[data-theme-family="light"]');
+    expect(portal).toContain('data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}');
+    expect(surfacePolarity).toContain('[data-layout-mode="inverse-main"]');
+    expect(surfacePolarity).toContain('[data-layout-mode="default"]');
   });
 
   it("meets strong contrast thresholds on every light and dark preset background", () => {
@@ -119,18 +120,18 @@ describe("theme contrast authority", () => {
     });
 
     expect(surfacePolarity).toContain('[data-process-premium-card="true"]');
-    expect(surfacePolarity).toContain('background:linear-gradient(180deg,#11263d 0%,#091827 100%)');
-    expect(surfacePolarity).toContain('color:#f8fafc !important');
-    expect(surfacePolarity).toContain('background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%)');
-    expect(surfacePolarity).toContain('color:#0f172a !important');
+    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#123454 0%,#081a2b 100%)");
+    expect(surfacePolarity).toContain("color: #f8fbff !important");
+    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#ffffff 0%,#f4f9ff 100%)");
+    expect(surfacePolarity).toContain("color: #0b1726 !important");
   });
 
   it("keeps the dark document command center bright in every theme", () => {
     expect(processDetail).toContain('id="sig-process-document-command-center"');
     expect(processDetail).toContain('data-premium-inverse-surface="true"');
     expect(surfacePolarity).toContain("#sig-process-document-command-center");
-    expect(surfacePolarity).toContain("color:#ffffff !important");
-    expect(surfacePolarity).toContain("color:#e0f2fe !important");
+    expect(surfacePolarity).toContain("color: #ffffff !important");
+    expect(surfacePolarity).toContain("color: #e8f7ff !important");
   });
 
   it("keeps primary process/document actions white on saturated buttons", () => {
@@ -138,28 +139,26 @@ describe("theme contrast authority", () => {
     expect(processDetail).toContain('data-primary-action="document"');
     expect(surfacePolarity).toContain('[data-primary-action="process"]');
     expect(surfacePolarity).toContain('[data-primary-action="document"]');
-    expect(surfacePolarity).toContain("stroke:#ffffff !important");
+    expect(surfacePolarity).toContain("stroke: #ffffff !important");
   });
 
-  it("does not recolor topbar or sidebar from the V7 process contract", () => {
-    const v7Start = surfacePolarity.indexOf(
-      "PROCESS THEME CONTRAST AUTHORITY V7 — ALL THEMES 2026-10-14",
-    );
-    expect(v7Start).toBeGreaterThanOrEqual(0);
+  it("does not recolor topbar or sidebar from the final process contracts", () => {
+    const v10Start = surfacePolarity.indexOf("FINAL PROCESS POLARITY LOCK V10");
+    expect(v10Start).toBeGreaterThanOrEqual(0);
 
-    const v7 = surfacePolarity.slice(v7Start);
-    expect(v7).not.toContain(".sig-premium-topbar");
-    expect(v7).not.toContain(".sig-topbar-portal-host");
-    expect(v7).not.toContain(".sig-sidebar-shell");
-    expect(v7).toContain("Topbar/sidebar are deliberately not referenced in V7.");
+    const finalContracts = surfacePolarity.slice(v10Start);
+    expect(finalContracts).not.toContain(".sig-premium-topbar");
+    expect(finalContracts).not.toContain(".sig-topbar-portal-host");
+    expect(finalContracts).not.toContain(".sig-sidebar-shell");
+    expect(finalContracts).not.toContain(".sig-footer");
   });
 
   it("keeps reusable adaptive cards governed by semantic surface polarity", () => {
     expect(baseCard).toContain('data-surface="adaptive-card"');
     expect(tableCard).toContain('data-surface="adaptive-card"');
-    expect(surfacePolarity).toContain("SIGAPRO AUTHORITATIVE SURFACE POLARITY - 2026-10-14");
-    expect(surfacePolarity).toContain('[data-surface-tone="light"]');
-    expect(surfacePolarity).toContain('[data-surface-tone="dark"]');
+    expect(surfacePolarity).toContain("Surface Polarity Contract V8");
+    expect(surfacePolarity).toContain('[data-surface="adaptive-card"]');
+    expect(surfacePolarity).toContain('[data-surface="semantic-card"]');
   });
 
   it("leaves original theme variables and topbar color computation intact", () => {
