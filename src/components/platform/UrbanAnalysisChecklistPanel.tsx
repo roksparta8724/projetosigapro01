@@ -782,6 +782,23 @@ export function UrbanAnalysisChecklistPanel({
       y + 58,
     );
 
+    if (isFullySigned && state.technicalSignature?.verificationCode && state.technicalSignature?.evidenceHash) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(
+        `SIGAPRO • assinatura eletrônica por senha • código ${state.technicalSignature.verificationCode}`,
+        margin + 4,
+        y + 63,
+      );
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `SHA-256 da ficha: ${state.technicalSignature.evidenceHash}`,
+        margin + 4,
+        y + 67,
+      );
+    }
+
     if (!isFullySigned) {
       doc.setTextColor(148, 163, 184);
       doc.setFont("helvetica", "bold");
