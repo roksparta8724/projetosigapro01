@@ -83,22 +83,22 @@ const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: 
   A: {
     label: "De acordo",
     short: "A",
-    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_6px_16px_rgba(5,150,105,0.28)] ring-2 ring-emerald-200/80 dark:border-emerald-400 dark:bg-emerald-500 dark:!text-slate-950 dark:ring-emerald-300/30",
+    classes: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-emerald-950/45 dark:text-emerald-200",
   },
   AP: {
     label: "Apresentar",
     short: "AP",
-    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_6px_16px_rgba(2,132,199,0.28)] ring-2 ring-sky-200/80 dark:border-sky-400 dark:bg-sky-500 dark:!text-slate-950 dark:ring-sky-300/30",
+    classes: "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/50 dark:bg-sky-950/45 dark:text-sky-200",
   },
   C: {
     label: "Corrigir",
     short: "C",
-    classes: "border-amber-600 bg-amber-500 !text-slate-950 shadow-[0_6px_16px_rgba(217,119,6,0.28)] ring-2 ring-amber-200/80 dark:border-amber-300 dark:bg-amber-400 dark:!text-slate-950 dark:ring-amber-300/30",
+    classes: "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-950/45 dark:text-amber-200",
   },
   NA: {
     label: "Não se aplica",
     short: "N/A",
-    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_6px_16px_rgba(51,65,85,0.25)] ring-2 ring-slate-200/80 dark:border-slate-400 dark:bg-slate-300 dark:!text-slate-950 dark:ring-slate-300/30",
+    classes: "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
   },
 };
 
@@ -581,7 +581,7 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
-    <section data-analysis-section="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
+    <section data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
       <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
@@ -596,23 +596,7 @@ export function UrbanAnalysisChecklistPanel({
         {items.map((item) => {
           const itemState = state.items[item.id] ?? { status: "", observation: "" };
           return (
-            <div
-              key={item.id}
-              data-analysis-row="true"
-              data-row-status={itemState.status || "pending"}
-              className={cn(
-                "grid gap-3 border-l-4 px-4 py-4 transition xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center",
-                itemState.status === "A"
-                  ? "border-l-emerald-500 bg-emerald-50/35 dark:bg-emerald-950/10"
-                  : itemState.status === "AP"
-                    ? "border-l-sky-500 bg-sky-50/35 dark:bg-sky-950/10"
-                    : itemState.status === "C"
-                      ? "border-l-amber-500 bg-amber-50/40 dark:bg-amber-950/10"
-                      : itemState.status === "NA"
-                        ? "border-l-slate-500 bg-slate-50/70 dark:bg-slate-800/25"
-                        : "border-l-transparent hover:bg-slate-50/70 dark:hover:bg-slate-800/35",
-              )}
-            >
+            <div key={item.id} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {item.order}
@@ -627,20 +611,16 @@ export function UrbanAnalysisChecklistPanel({
                     <button
                       key={status}
                       type="button"
-                      data-checklist-status={status}
-                      data-selected={selected ? "true" : "false"}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
+                        "inline-flex h-8 items-center justify-center rounded-xl border px-2.5 text-[10px] font-bold transition",
                         selected
                           ? STATUS_META[status].classes
-                          : "border-slate-300 bg-white text-slate-600 shadow-sm hover:-translate-y-px hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
+                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                       )}
-                      aria-pressed={selected}
                       title={STATUS_META[status].label}
                     >
-                      {selected ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : null}
-                      <span>{STATUS_META[status].short}</span>
+                      {STATUS_META[status].short}
                     </button>
                   );
                 })}
@@ -650,7 +630,7 @@ export function UrbanAnalysisChecklistPanel({
                 value={itemState.observation}
                 onChange={(event) => updateItem(item.id, { observation: event.target.value })}
                 placeholder="Observação do analista..."
-                className="h-10 rounded-xl border-slate-300 bg-white text-sm font-medium text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:ring-sky-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="h-10 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
             </div>
           );
@@ -661,13 +641,13 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="analysis" data-process-dark-header="true" className="border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b4266_54%,#0a78a8_100%)] px-5 py-5 !text-white shadow-inner md:px-6">
+      <CardHeader data-force-card-contrast="dark" className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
-              <ClipboardCheck className="h-6 w-6 !text-white" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
+              <ClipboardCheck className="h-6 w-6" />
             </div>
-            <div data-analysis-header-copy="true" className="min-w-0">
+            <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
               <CardTitle className="mt-1 text-xl font-bold !text-white">Ficha Oficial de Análise do Processo</CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
@@ -677,20 +657,20 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[430px]">
-            <div data-analysis-metric="blue" className="rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(3,105,161,0.24)]">
+            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Avaliados</p>
               <p className="mt-1 text-xl font-bold !text-white">{counts.evaluated}/{counts.total}</p>
             </div>
-            <div data-analysis-metric="emerald" className="rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.22)]">
+            <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.12] px-3 py-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">De acordo</p>
               <p className="mt-1 text-xl font-bold !text-emerald-50">{counts.a}</p>
             </div>
-            <div data-analysis-metric="amber" className="rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.22)]">
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.12] px-3 py-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
               <p className="mt-1 text-xl font-bold !text-amber-50">{pendingCorrectionCount}</p>
             </div>
-            <div data-analysis-metric="cyan" className="rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.22)]">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Progresso</p>
+            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Progresso</p>
               <p className="mt-1 text-xl font-bold !text-white">{progress}%</p>
             </div>
           </div>
@@ -788,7 +768,7 @@ export function UrbanAnalysisChecklistPanel({
         <div data-analysis-legend="true" data-force-card-contrast="adaptive" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900">
           <span className="font-bold text-slate-700 dark:text-slate-200">Legenda:</span>
           {(Object.keys(STATUS_META) as Array<Exclude<ChecklistStatus, "">>).map((status) => (
-            <span key={status} data-checklist-status={status} data-selected="true" className={cn("rounded-full border px-2.5 py-1 font-semibold", STATUS_META[status].classes)}>
+            <span key={status} className={cn("rounded-full border px-2.5 py-1 font-semibold", STATUS_META[status].classes)}>
               {STATUS_META[status].short} = {STATUS_META[status].label}
             </span>
           ))}
@@ -797,7 +777,7 @@ export function UrbanAnalysisChecklistPanel({
         {renderSection("Engenharia", "Conferência documental e técnica do projeto.", ENGINEERING_ITEMS)}
         {renderSection("Aprovações externas", "Órgãos e documentos complementares exigidos conforme o caso.", EXTERNAL_ITEMS)}
 
-        <section data-analysis-conclusion="true" data-force-card-contrast="adaptive" className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
+        <section data-force-card-contrast="adaptive" className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
           <div>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
@@ -862,7 +842,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
-        <section data-analysis-validation="true" data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+        <section data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
@@ -885,7 +865,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            <div data-analysis-signature-card="technical" className={cn(
+            <div className={cn(
               "rounded-[20px] border p-4",
               state.technicalSignature
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
@@ -913,8 +893,7 @@ export function UrbanAnalysisChecklistPanel({
               {canSignTechnical ? (
                 <Button
                   type="button"
-                  data-premium-dark-action="true"
-                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold !text-white shadow-[0_8px_18px_rgba(3,105,161,0.24)] hover:bg-sky-800 [&_*]:!text-white"
+                  className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
                   onClick={signTechnicalEvaluation}
                 >
                   <Signature className="mr-2 h-4 w-4" />
@@ -923,7 +902,7 @@ export function UrbanAnalysisChecklistPanel({
               ) : null}
             </div>
 
-            <div data-analysis-signature-card="fiscal" className={cn(
+            <div className={cn(
               "rounded-[20px] border p-4",
               state.fiscalSignature
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
@@ -982,7 +961,6 @@ export function UrbanAnalysisChecklistPanel({
               </Button>
               <Button
                 type="button"
-                data-premium-dark-action="true"
                 className="rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-110 [&_*]:!text-white"
                 onClick={generatePdf}
               >
