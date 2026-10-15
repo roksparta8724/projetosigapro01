@@ -518,3 +518,217 @@ html body #root .sig-main-shell :is(
 }
 
 /* End Process Card Stability Lock V9 */
+
+
+/* ==========================================================================
+   PROCESS DETAIL VISIBILITY LOCK V13 — FINAL AUTHORITY
+   Loaded after index.css. Scope is STRICTLY the opened process workspace.
+   It does NOT touch topbar, sidebar, footer, theme picker or other pages.
+   ========================================================================== */
+
+/* Dark process headers: white copy/icons, no inherited dark foreground. */
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  #sig-process-document-command-center,
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"]
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  #sig-process-document-command-center,
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd,a) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  #sig-process-document-command-center,
+  [data-analysis-dark-header="true"],
+  [data-permit-dark-header="true"]
+) :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+
+/* Vivid dark-header icon tiles. */
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-premium-header-icon="true"],
+  [data-analysis-header-icon="true"],
+  [data-permit-header-icon="true"]
+) {
+  background:linear-gradient(145deg,#075985 0%,#0b82b8 100%) !important;
+  border-color:rgba(186,230,253,.48) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium :is(
+  [data-premium-header-icon="true"],
+  [data-analysis-header-icon="true"],
+  [data-permit-header-icon="true"]
+) :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Document command metrics always use bright copy on vivid backgrounds. */
+html body #root .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-command-metric],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-command-metric] :is(p,span,strong,small),
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-metric] :is(p,span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+/* Dark-header utility action cannot become a white empty pill. */
+html body #root .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-dark-header-action="true"] {
+  background:#0a3552 !important;
+  border-color:rgba(186,230,253,.40) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+#sig-process-document-command-center [data-dark-header-action="true"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Checklist states: selected must be unmistakable, without resizing the row. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status] {
+  min-width:38px !important;
+  height:36px !important;
+  border-radius:11px !important;
+  font-weight:800 !important;
+  transform:none !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="A"][data-selected="true"] {
+  background:#059669 !important;
+  border-color:#047857 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(16,185,129,.24),0 8px 20px rgba(5,150,105,.30) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="AP"][data-selected="true"] {
+  background:#0284c7 !important;
+  border-color:#0369a1 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(14,165,233,.24),0 8px 20px rgba(2,132,199,.30) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="C"][data-selected="true"] {
+  background:#d97706 !important;
+  border-color:#b45309 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.24),0 8px 20px rgba(217,119,6,.30) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][data-selected="true"] {
+  background:#334155 !important;
+  border-color:#1e293b !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:0 0 0 3px rgba(100,116,139,.24),0 8px 20px rgba(51,65,85,.30) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="true"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Light checklist choices = dark text. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] button[data-checklist-status][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+}
+
+/* Dispatch organogram: dark code pills always get white letters. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-code="true"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-code="true"] * {
+  background:#075985 !important;
+  border-color:#38bdf8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#d5e0eb !important;
+  color:#1e293b !important;
+  -webkit-text-fill-color:#1e293b !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] [data-organogram-destination="true"][data-selected="true"] {
+  background:#e0f2fe !important;
+  border-color:#0ea5e9 !important;
+  color:#082f49 !important;
+  -webkit-text-fill-color:#082f49 !important;
+  box-shadow:0 0 0 3px rgba(14,165,233,.18),0 8px 18px rgba(14,165,233,.16) !important;
+}
+
+/* Technical signature dark action = white text/icon. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-signature-action="technical"] {
+  background:#082f49 !important;
+  border-color:#0ea5e9 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-urban-analysis-sheet="true"] [data-analysis-signature-action="technical"] :is(span,svg,svg *) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+
+/* Light adaptive cards inside the process remain dark-copy in the light theme. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-dispatch-organogram="true"],
+  [data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+) {
+  color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-dispatch-organogram="true"],
+  [data-construction-permit-panel="true"] [data-workspace-surface="adaptive"]
+) :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium :is(
+  [data-analysis-identity="true"],
+  [data-analysis-mini-card="true"],
+  [data-dispatch-organogram="true"]
+) :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#53657a !important;
+  -webkit-text-fill-color:#53657a !important;
+}
+
+/* PROCESS DETAIL VISIBILITY LOCK V13 END */
