@@ -1537,7 +1537,7 @@ export function ProcessDetailPage() {
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
         <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
       </PageStatsRow>
-      <Card className={`${cardShell} sig-process-flow-card`}>
+      <Card data-process-flow-card="true" className={`${cardShell} sig-process-flow-card`}>
         <CardContent className="p-6">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-lg font-medium text-slate-900">{formatOfficialProcessNumber(process.protocol)}</p>
@@ -1551,7 +1551,7 @@ export function ProcessDetailPage() {
             {" • "}Entrada: {process.timeline[0]?.at || protocolGuide?.issuedAt || "sem data"}
           </p>
 
-          <div className="mt-6 rounded-[8px] border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-5">
+          <div data-process-flow-track="true" className="mt-6 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-5 shadow-inner dark:border-slate-700 dark:bg-slate-950/55">
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))]">
               {flowSteps.map((step, index) => (
                 <div key={step.key} className="relative">
@@ -1623,7 +1623,7 @@ export function ProcessDetailPage() {
       </Card>
 
       <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]">
-        <Card className={`${cardShell} sig-premium-summary-card sig-summary-blue h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="blue" className={`${cardShell} sig-premium-summary-card sig-summary-blue h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -1639,7 +1639,7 @@ export function ProcessDetailPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card sig-summary-emerald h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="emerald" className={`${cardShell} sig-premium-summary-card sig-summary-emerald h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
@@ -1669,7 +1669,7 @@ export function ProcessDetailPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card className={`${cardShell} sig-premium-summary-card sig-summary-violet h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="violet" className={`${cardShell} sig-premium-summary-card sig-summary-violet h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
@@ -1680,7 +1680,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1713,7 +1713,7 @@ export function ProcessDetailPage() {
           </Card>
         ) : null}
         {!isExternalProcessViewer ? (
-          <Card className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
+          <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
               <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
@@ -1816,7 +1816,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader id="sig-process-document-command-center" data-premium-inverse-surface="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-premium-inverse-surface="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#163a56] shadow-inner">
