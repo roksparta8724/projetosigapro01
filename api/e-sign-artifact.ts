@@ -1,15 +1,16 @@
-import { createHash, createHmac, randomBytes } from "node:crypto";
-import {
-  callDataApiRpc,
-  readBearer,
-  readEnv,
-  type ApiReq,
-} from "../server/municipal-storage";
+import { createHash, randomBytes } from "node:crypto";
 
+type ApiReq = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
 
 const VALIDATED_NEON_AUTH_URL =
   "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth";
+const VALIDATED_NEON_DATA_API_URL =
+  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+
+// Somente o hash SHA-256 fica no código/banco. A chave real permanece exclusivamente no Vercel.
+const EXPECTED_SIGNATURE_SECRET_HASH =
+  "b90c8fd07d7b6232b4043961d8b9cb65e289628ce7b6b759fc7997d93c0533cd";
 
 type ArtifactContext = {
   auth_subject?: string;
@@ -25,6 +26,33 @@ type ArtifactContext = {
   tenant_id?: string;
   municipality_id?: string | null;
 };
+
+function readEnv(key: string) {
+  const raw = process.env[key];
+  if (!raw) return "";
+  return String(raw).replace(/^['"]|['"]$/g, "").trim();
+}
+
+function readBearer(req: ApiReq) {
+  const raw = String(req.headers.authorization || "");
+  return /^Bearer\s+(.+)$/i.exec(raw)?.[1]?.trim() || "";
+}
+
+function getDataApiUrl() {
+  return (
+    readEnv("R2_AUTH_DATA_API_URL") ||
+    readEnv("VITE_NEON_DATA_API_URL") ||
+    VALIDATED_NEON_DATA_API_URL
+  ).replace(/\/+$/, "");
+}
+
+function getNeonAuthUrl() {
+  return (
+    readEnv("NEON_AUTH_URL") ||
+    readEnv("VITE_NEON_AUTH_URL") ||
+    VALIDATED_NEON_AUTH_URL
+  ).replace(/\/+$/, "");
+}
 
 function normalizeErrorMessage(value: unknown): string {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -55,6 +83,7 @@ function fail(
   fallback: string,
 ) {
   json(res, status, {
+    ok: false,
     error: normalizeErrorMessage(error) || fallback,
     stage,
     code,
@@ -62,10 +91,22 @@ function fail(
 }
 
 async function readJsonBody(req: ApiReq) {
-  if (req.body && typeof req.body === "object") return req.body as Record<string, unknown>;
+  if (req.body && typeof req.body === "object") {
+    return req.body as Record<string, unknown>;
+  }
+
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body) as Record<string, unknown>;
+    } catch {
+      throw new Error("Requisição inválida.");
+    }
+  }
+
   return new Promise<Record<string, unknown>>((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
+
     req.on("data", (chunk) => {
       const part = Buffer.from(chunk);
       total += part.length;
@@ -75,6 +116,7 @@ async function readJsonBody(req: ApiReq) {
       }
       chunks.push(part);
     });
+
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
@@ -83,12 +125,12 @@ async function readJsonBody(req: ApiReq) {
         reject(new Error("Requisição inválida."));
       }
     });
+
     req.on("error", reject);
   });
 }
 
 function normalizeOrigin(req: ApiReq) {
-  const forwardedProto = String(req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
   const host = String(req.headers.host || "").trim().toLowerCase();
   const originHeader = String(req.headers.origin || "").trim();
 
@@ -102,32 +144,35 @@ function normalizeOrigin(req: ApiReq) {
 
   if (!host || !allowedHost) return "";
 
-  const derived = `${forwardedProto === "http" ? "http" : "https"}://${host}`;
-  if (!originHeader) return derived;
+  if (!originHeader) return "https://sigapromunicipal.com.br";
 
   try {
     const origin = new URL(originHeader);
-    return origin.host.toLowerCase() === host ? origin.origin : "";
+    const originHost = origin.host.toLowerCase();
+    const allowedOrigin =
+      originHost === host ||
+      originHost === "sigapromunicipal.com.br" ||
+      originHost === "www.sigapromunicipal.com.br" ||
+      originHost.endsWith(".sigapromunicipal.com.br") ||
+      originHost.startsWith("localhost:") ||
+      originHost.startsWith("127.0.0.1:");
+
+    return allowedOrigin ? origin.origin : "";
   } catch {
     return "";
   }
-}
-
-function getNeonAuthUrl() {
-  return (
-    readEnv("NEON_AUTH_URL") ||
-    readEnv("VITE_NEON_AUTH_URL") ||
-    VALIDATED_NEON_AUTH_URL
-  ).replace(/\/+$/, "");
 }
 
 function stableStringify(value: unknown): string {
   if (value === undefined) return "null";
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(",")}}`;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
 }
 
 function extractClientIp(req: ApiReq) {
@@ -144,39 +189,122 @@ function findReauthenticatedIdentity(payload: unknown) {
   const dataUser = data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null;
   const sessionUser = session.user && typeof session.user === "object" ? (session.user as Record<string, unknown>) : null;
   const user = directUser || dataUser || sessionUser || {};
+
   return {
     id: String(user.id || source.userId || data.userId || "").trim(),
     email: String(user.email || source.email || data.email || "").trim().toLowerCase(),
   };
 }
 
-async function reauthenticateWithPassword(email: string, password: string, origin: string) {
-  const response = await fetch(`${getNeonAuthUrl()}/sign-in/email`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Origin: origin,
-      "Cache-Control": "no-store",
-    },
-    body: JSON.stringify({ email, password }),
-  });
+async function callDataApiRpc<T>(
+  bearer: string,
+  fn: string,
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; payload: T | null; error: string }> {
+  try {
+    const response = await fetch(`${getDataApiUrl()}/rpc/${fn}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      cache: "no-store",
+      body: JSON.stringify(body),
+    });
 
-  const payload = await response.json().catch(() => null);
-  return {
-    ok: response.ok,
-    status: response.status,
-    identity: findReauthenticatedIdentity(payload),
-    error: normalizeErrorMessage(payload),
-  };
+    const raw = await response.text();
+    let payload: unknown = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = null;
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      payload: payload as T | null,
+      error: normalizeErrorMessage(payload) || (!response.ok ? raw.slice(0, 500) : ""),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 503,
+      payload: null,
+      error: error instanceof Error ? error.message : "Neon Data API indisponível.",
+    };
+  }
+}
+
+async function reauthenticateWithPassword(email: string, password: string) {
+  try {
+    const response = await fetch(`${getNeonAuthUrl()}/sign-in/email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Origin: readEnv("E_SIGNATURE_AUTH_ORIGIN") || "https://sigapromunicipal.com.br",
+        "Cache-Control": "no-store",
+      },
+      cache: "no-store",
+      body: JSON.stringify({
+        email,
+        password,
+        rememberMe: false,
+      }),
+    });
+
+    const raw = await response.text();
+    let payload: unknown = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = null;
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      identity: findReauthenticatedIdentity(payload),
+      error: normalizeErrorMessage(payload) || (!response.ok ? raw.slice(0, 500) : ""),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 503,
+      identity: { id: "", email: "" },
+      error: error instanceof Error ? error.message : "Neon Auth indisponível.",
+    };
+  }
+}
+
+function validateServerSecret() {
+  const secret = readEnv("E_SIGNATURE_SERVER_SECRET");
+  if (secret.length < 32) {
+    return { ok: false as const, secret: "", error: "Chave de assinatura ausente." };
+  }
+
+  const fingerprint = createHash("sha256").update(secret, "utf8").digest("hex");
+  if (fingerprint !== EXPECTED_SIGNATURE_SECRET_HASH) {
+    return { ok: false as const, secret: "", error: "Chave de assinatura fora de sincronismo." };
+  }
+
+  return { ok: true as const, secret, error: "" };
 }
 
 export default async function handler(req: ApiReq, res: Res) {
   if (req.method === "GET") {
-    json(res, 200, {
-      ok: true,
+    const serverSecret = validateServerSecret();
+    json(res, serverSecret.ok ? 200 : 503, {
+      ok: serverSecret.ok,
       service: "sigapro-electronic-signature",
-      version: 1,
+      version: 2,
+      checks: {
+        serverKey: serverSecret.ok,
+        neonAuth: Boolean(getNeonAuthUrl()),
+        neonDataApi: Boolean(getDataApiUrl()),
+      },
     });
     return;
   }
@@ -186,48 +314,60 @@ export default async function handler(req: ApiReq, res: Res) {
     return;
   }
 
+  const requestId = randomBytes(9).toString("base64url");
+
   try {
-    if (!readBearer(req)) {
+    const bearer = readBearer(req);
+    if (!bearer) {
       fail(res, 401, "session", "SESSION_EXPIRED", null, "Sua sessão expirou. Entre novamente para assinar.");
       return;
     }
 
-    const origin = normalizeOrigin(req);
-    if (!origin) {
+    if (!normalizeOrigin(req)) {
       fail(res, 403, "origin", "ORIGIN_NOT_ALLOWED", null, "Origem não autorizada para assinatura eletrônica.");
+      return;
+    }
+
+    const serverSecret = validateServerSecret();
+    if (!serverSecret.ok) {
+      fail(res, 503, "configuration", "SIGNATURE_KEY_MISMATCH", serverSecret.error, "Serviço de assinatura não configurado.");
       return;
     }
 
     const body = await readJsonBody(req);
     const processId = typeof body.processId === "string" ? body.processId.trim() : "";
-    const artifactType = typeof body.artifactType === "string" ? body.artifactType.trim() : "";
-    const artifactKey = typeof body.artifactKey === "string" ? body.artifactKey.trim() : "";
-    const signerSlot = typeof body.signerSlot === "string" ? body.signerSlot.trim() : "";
+    const artifactType = typeof body.artifactType === "string" ? body.artifactType.trim().toLowerCase() : "";
+    const artifactKey = typeof body.artifactKey === "string" ? body.artifactKey.trim().toLowerCase() : "";
+    const signerSlot = typeof body.signerSlot === "string" ? body.signerSlot.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
     const payload = body.payload;
 
     if (!/^[0-9a-f-]{36}$/i.test(processId)) {
-      json(res, 400, { error: "Processo inválido para assinatura." });
+      fail(res, 400, "request", "PROCESS_INVALID", null, "Processo inválido para assinatura.");
       return;
     }
+
     if (!artifactType || !artifactKey || !signerSlot) {
-      json(res, 400, { error: "Etapa de assinatura inválida." });
+      fail(res, 400, "request", "SIGNATURE_STEP_INVALID", null, "Etapa de assinatura inválida.");
       return;
     }
+
     if (!password || password.length > 512) {
-      json(res, 400, { error: "Informe sua senha de acesso para confirmar a assinatura." });
+      fail(res, 400, "password", "PASSWORD_REQUIRED", null, "Informe sua senha de acesso para confirmar a assinatura.");
       return;
     }
+
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      json(res, 400, { error: "Conteúdo da ficha inválido para assinatura." });
+      fail(res, 400, "request", "ARTIFACT_INVALID", null, "Conteúdo da ficha inválido para assinatura.");
       return;
     }
 
     const contextResult = await callDataApiRpc<ArtifactContext>(
-      req,
+      bearer,
       "get_process_artifact_signature_context_v1",
       { _process_id: processId, _signer_slot: signerSlot },
     );
+
     if (!contextResult.ok || !contextResult.payload) {
       fail(
         res,
@@ -249,10 +389,8 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
-    const authOrigin =
-      readEnv("E_SIGNATURE_AUTH_ORIGIN") ||
-      "https://sigapromunicipal.com.br";
-    const reauth = await reauthenticateWithPassword(email, password, authOrigin);
+    const reauth = await reauthenticateWithPassword(email, password);
+
     if (!reauth.ok) {
       if (reauth.status === 400 || reauth.status === 401 || reauth.status === 403) {
         fail(res, 401, "password", "PASSWORD_REAUTH_FAILED", null, "Senha de acesso incorreta. A assinatura não foi realizada.");
@@ -280,38 +418,14 @@ export default async function handler(req: ApiReq, res: Res) {
 
     const canonicalPayload = stableStringify(payload);
     const artifactHash = createHash("sha256").update(canonicalPayload, "utf8").digest("hex");
-
-    const secret = readEnv("E_SIGNATURE_SERVER_SECRET");
-    if (secret.length < 32) {
-      fail(res, 503, "proof", "SIGNATURE_SECRET_MISSING", null, "Assinatura eletrônica ainda não foi habilitada neste ambiente.");
-      return;
-    }
-
     const epoch = Math.floor(Date.now() / 1000);
     const nonce = randomBytes(24).toString("base64url");
     const ip = extractClientIp(req);
     const userAgent = String(req.headers["user-agent"] || "").slice(0, 1000);
-    const userAgentHash = createHash("sha256").update(userAgent, "utf8").digest("hex");
-
-    const canonicalProof = [
-      authSubject,
-      processId,
-      artifactType.toLowerCase(),
-      artifactKey.toLowerCase(),
-      artifactHash,
-      signerSlot.toLowerCase(),
-      String(epoch),
-      nonce,
-      ip,
-      userAgentHash,
-    ].join("|");
-
-    const proofKey = createHash("sha256").update(secret, "utf8").digest("hex");
-    const proof = createHmac("sha256", proofKey).update(canonicalProof, "utf8").digest("hex");
 
     const signResult = await callDataApiRpc<Record<string, unknown>>(
-      req,
-      "sign_process_artifact_v1",
+      bearer,
+      "sign_process_artifact_v2",
       {
         _process_id: processId,
         _artifact_type: artifactType,
@@ -319,7 +433,7 @@ export default async function handler(req: ApiReq, res: Res) {
         _artifact_hash: artifactHash,
         _artifact_payload: payload,
         _signer_slot: signerSlot,
-        _server_proof: proof,
+        _server_secret: serverSecret.secret,
         _nonce: nonce,
         _reauthenticated_at_epoch: epoch,
         _ip: ip,
@@ -328,7 +442,7 @@ export default async function handler(req: ApiReq, res: Res) {
       },
     );
 
-    if (!signResult.ok) {
+    if (!signResult.ok || !signResult.payload) {
       const message = signResult.error || "Não foi possível concluir a assinatura eletrônica.";
       fail(
         res,
@@ -343,6 +457,7 @@ export default async function handler(req: ApiReq, res: Res) {
 
     json(res, 200, {
       ok: true,
+      requestId,
       signature: signResult.payload,
       artifact: {
         type: artifactType,
