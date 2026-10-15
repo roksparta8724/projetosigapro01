@@ -128,7 +128,7 @@ declare
   _municipality_id uuid;
   _profile public.profiles%rowtype;
   _department public.departments%rowtype;
-  _membership public.tenant_memberships%rowtype;
+  _membership jsonb := '{}'::jsonb;
   _signed_at timestamptz := now();
   _signature_code text;
   _fingerprint text;
@@ -203,7 +203,7 @@ begin
     select * into _department from public.departments where id=_profile.department_id;
   end if;
 
-  select tm.* into _membership
+  select to_jsonb(tm) into _membership
   from public.tenant_memberships tm
   where tm.profile_id=_profile_id
     and tm.tenant_id=_tenant_id
@@ -243,8 +243,8 @@ begin
     _tenant_id,_municipality_id,_process_id,_entity_type,_entity_id,_document_version,
     _profile_id,_legacy_user_id,coalesce(nullif(btrim(_profile.full_name),''),'Usuario'),
     coalesce(public.current_role_code(),_profile.role),
-    nullif(btrim(_membership.profile_label),''),
-    coalesce(nullif(btrim(_membership.position_title),''),nullif(btrim(_profile.professional_type),'')),
+    nullif(btrim(_membership->>'profile_label'),''),
+    coalesce(nullif(btrim(_membership->>'position_title'),''),nullif(btrim(_profile.professional_type),'')),
     _department.id,nullif(btrim(_department.code),''),nullif(btrim(_department.name),''),
     'password','simple_password',lower(_content_sha256),_signature_code,_fingerprint,
     nullif(btrim(_statement),''),_auth_iat,_signed_at
