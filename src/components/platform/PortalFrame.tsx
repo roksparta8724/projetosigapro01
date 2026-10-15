@@ -103,6 +103,18 @@ function normalizeLayoutThemeOverride(theme: LayoutThemeOverride | null): Layout
   };
 }
 
+function readEffectiveThemeCache(): LayoutThemeOverride | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem("sigapro.effective-theme.v1");
+    if (!raw) return null;
+    return normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride);
+  } catch {
+    return null;
+  }
+}
+
+
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
@@ -276,12 +288,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       return null;
     }
   });
+  const [effectiveThemeCache, setEffectiveThemeCache] = useState<LayoutThemeOverride | null>(
+    () => readEffectiveThemeCache(),
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const isConfigPage = location.pathname.startsWith("/configuracoes");
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
-  const { municipality, tenantSettingsCompat, theme: municipalityTheme, name: municipalityName, scopeId } = useMunicipality();
+  const {
+    municipality,
+    tenantSettingsCompat,
+    theme: municipalityTheme,
+    name: municipalityName,
+    scopeId,
+    loading: municipalityLoading,
+  } = useMunicipality();
   const {
     loading,
     dataError,
@@ -409,20 +431,33 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         (preset.inverseMain ? preset.background === municipalityTheme.background : true),
     ) ??
     defaultSigaproThemePreset;
+  const stableMunicipalityTheme =
+    municipalityLoading && effectiveThemeCache
+      ? {
+          primary: effectiveThemeCache.primary || municipalityTheme.primary,
+          accent: effectiveThemeCache.accent || municipalityTheme.accent,
+        }
+      : municipalityTheme;
+
   const primaryColor =
     appliedTheme?.primary ||
+    stableMunicipalityTheme.primary ||
     municipalityTheme.primary ||
     ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) ||
     resolvedThemePreset.primary ||
     "#123f32";
   const accentColor =
     appliedTheme?.accent ||
-    municipalityTheme.accent ||
+    stableMunicipalityTheme.accent ||
     ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) ||
     resolvedThemePreset.accent ||
     "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
-  const pageBackground = appliedTheme?.background || resolvedThemePreset.background || "#f3faf7";
+  const pageBackground =
+    appliedTheme?.background ||
+    (municipalityLoading ? effectiveThemeCache?.background : undefined) ||
+    resolvedThemePreset.background ||
+    "#f3faf7";
   const sidebarFill = darken(primaryColor, 9);
   const topbarFill = darken(primaryColor, -5);
   const topbarHighlight = darken(primaryColor, -11);
@@ -895,12 +930,23 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (municipalityLoading) return;
+
+    const effectiveTheme: LayoutThemeOverride = {
+      primary: primaryColor,
+      accent: accentColor,
+      background: pageBackground,
+      inverseMain: inverseMainTheme,
+    };
+
     try {
       window.localStorage.setItem("sigapro.last-page-background.v1", pageBackground);
+      window.localStorage.setItem("sigapro.effective-theme.v1", JSON.stringify(effectiveTheme));
+      setEffectiveThemeCache(effectiveTheme);
     } catch {
       // Persistencia visual e opcional; nunca bloquear a interface.
     }
-  }, [pageBackground]);
+  }, [accentColor, inverseMainTheme, municipalityLoading, pageBackground, primaryColor]);
 
   const applyLayoutTheme = (theme: LayoutThemeOverride | null) => {
     const normalizedTheme = normalizeLayoutThemeOverride(theme);
