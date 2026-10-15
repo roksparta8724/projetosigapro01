@@ -1395,6 +1395,7 @@ export async function loadRemotePlatformStore() {
                 : "pendente",
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
             issuedAt: guide.last_reissued_at ?? guide.created_at ?? undefined,
+            paidAt: guide.paid_at ?? undefined,
             expiresAt: undefined,
             requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
             requestedAt: guide.requested_at ? String(guide.requested_at) : undefined,
