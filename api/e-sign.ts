@@ -22,8 +22,10 @@ type SignatureContext = {
   title?: string;
   registration?: string | null;
   process_id?: string;
+  municipality_id?: string;
   document_id?: string;
   document_title?: string;
+  file_path?: string;
   document_hash?: string;
   document_version?: number;
 };
