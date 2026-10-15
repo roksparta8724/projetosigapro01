@@ -19,6 +19,7 @@ import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
+import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -2203,11 +2204,19 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "analise" && canReviewDocuments && (
-            <AnalysisReadinessPanel
-              process={process}
-              ownerProfile={linkedOwnerProfile}
-              technicalProfile={linkedTechnicalProfile}
-            />
+            <>
+              <UrbanAnalysisChecklistPanel
+                process={process}
+                session={session}
+                municipalityName={municipalityName}
+                departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
+              />
+              <AnalysisReadinessPanel
+                process={process}
+                ownerProfile={linkedOwnerProfile}
+                technicalProfile={linkedTechnicalProfile}
+              />
+            </>
           )}
 
           {!isExternalProcessViewer && activeTab === "analise" && (
