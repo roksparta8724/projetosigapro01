@@ -492,10 +492,15 @@ export function ProcessDetailPage() {
     !isExternalProcessViewer &&
     session.role !== "prefeitura_admin" &&
     (
-      session.role === "master_admin" ||
-      session.role === "master_ops" ||
+      isMasterOperator ||
       session.role === "prefeitura_supervisor" ||
-      session.role === "analista"
+      (
+        canAnalysisOperate &&
+        (
+          isProcessOwnedBySessionDepartment(session, process) ||
+          process.analysis?.assignedProfileId === session.id
+        )
+      )
     );
   const visibleDocumentRows =
     isProtocolTrackingOnly
