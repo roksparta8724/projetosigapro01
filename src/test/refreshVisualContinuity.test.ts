@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 describe("F5, logout and topbar visual continuity", () => {
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
   const main = readFileSync(resolve(process.cwd(), "src/main.tsx"), "utf8");
-  const app = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
   const auth = readFileSync(resolve(process.cwd(), "src/hooks/useAuthGateway.tsx"), "utf8");
   const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
   const bootstrap = readFileSync(resolve(process.cwd(), "src/hooks/useAppBootstrap.tsx"), "utf8");
@@ -45,8 +44,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v1")');
     expect(html).toContain('document.documentElement.style.setProperty("--sig-initial-bg", initialBackground)');
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
-    expect(app).toContain("document.documentElement.style.zoom = zoom");
-    expect(app).not.toContain('document.documentElement.style.zoom = ""');
+    expect(html).toContain('document.documentElement.setAttribute("data-page-zoom"');
   });
 
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
