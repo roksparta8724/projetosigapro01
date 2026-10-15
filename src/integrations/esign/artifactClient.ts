@@ -59,6 +59,43 @@ export type SignProcessArtifactResult = {
   };
 };
 
+function normalizeApiError(value: unknown): string {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["message", "error_description", "detail", "details", "hint", "code"]) {
+    const candidate = normalizeApiError(record[key]);
+    if (candidate) return candidate;
+  }
+
+  const nested = normalizeApiError(record.error);
+  if (nested) return nested;
+
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized && serialized !== "{}" ? serialized : "";
+  } catch {
+    return "";
+  }
+}
+
+async function readApiResponse(response: Response) {
+  const raw = await response.text();
+  if (!raw) return {} as Record<string, unknown>;
+
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {
+      error:
+        response.status === 401 || response.status === 403
+          ? "A requisição de assinatura foi bloqueada antes de chegar ao SIGAPRO."
+          : raw.slice(0, 600),
+    };
+  }
+}
+
 async function authHeaders() {
   try {
     const sessionResult = await backendClient?.auth?.getSession?.();
@@ -92,12 +129,25 @@ export async function signProcessArtifactWithPassword(input: {
     body: JSON.stringify(input),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as SignProcessArtifactResult & {
-    error?: string;
+  const rawPayload = await readApiResponse(response);
+  const payload = rawPayload as SignProcessArtifactResult & {
+    error?: unknown;
+    message?: unknown;
+    code?: unknown;
+    stage?: unknown;
   };
 
   if (!response.ok) {
-    throw new Error(payload.error || "Não foi possível concluir a assinatura eletrônica.");
+    const message =
+      normalizeApiError(payload.error) ||
+      normalizeApiError(payload.message) ||
+      "Não foi possível concluir a assinatura eletrônica.";
+    const stage = normalizeApiError(payload.stage);
+    const code = normalizeApiError(payload.code);
+    const suffix = [stage ? `etapa: ${stage}` : "", code ? `código: ${code}` : ""]
+      .filter(Boolean)
+      .join(" • ");
+    throw new Error(suffix ? `${message} (${suffix})` : message);
   }
 
   return payload;
