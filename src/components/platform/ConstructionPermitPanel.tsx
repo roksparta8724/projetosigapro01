@@ -309,7 +309,7 @@ export function ConstructionPermitPanel({
 
   return (
     <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit" data-process-dark-header="true" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 !text-white shadow-inner dark:border-slate-700">
+      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit" data-process-dark-header="true" className="sig-process-dark-header border-b border-white/10 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 !text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_34px_rgba(2,34,57,0.20)] dark:border-slate-700">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
@@ -401,7 +401,7 @@ export function ConstructionPermitPanel({
           <>
             <div data-permit-status-grid="true" className="grid gap-3 md:grid-cols-3">
               <div
-                data-permit-status-card="true"
+                data-permit-status-card="true" data-process-readable-card="true"
                 data-tone={issPaymentConfirmed ? "emerald" : "amber"}
                 className={
                   issPaymentConfirmed
@@ -432,7 +432,7 @@ export function ConstructionPermitPanel({
               </div>
 
               <div
-                data-permit-status-card="true"
+                data-permit-status-card="true" data-process-readable-card="true"
                 data-tone={allDocumentsApproved ? "emerald" : "amber"}
                 className={
                   allDocumentsApproved
@@ -453,7 +453,7 @@ export function ConstructionPermitPanel({
                 </p>
               </div>
 
-              <div data-permit-status-card="true" data-tone="sky" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-950/30">
+              <div data-permit-status-card="true" data-process-readable-card="true" data-tone="sky" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-950/30">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-sky-700 dark:text-sky-300" />
                   <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-600 dark:text-slate-300">
@@ -471,7 +471,7 @@ export function ConstructionPermitPanel({
             </div>
 
             {!permit ? (
-              <div data-permit-prep="true" className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
+              <div data-permit-prep="true" data-process-readable-card="true" className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="font-semibold text-slate-950 dark:text-white">
@@ -493,7 +493,7 @@ export function ConstructionPermitPanel({
                 </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  <div data-permit-prerequisite-card="true" data-tone={issPaymentConfirmed ? "emerald" : "amber"} className={issPaymentConfirmed
+                  <div data-permit-prerequisite-card="true" data-process-readable-card="true" data-tone={issPaymentConfirmed ? "emerald" : "amber"} className={issPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito financeiro</p>
@@ -501,7 +501,7 @@ export function ConstructionPermitPanel({
                       {issPaymentConfirmed ? "ISSQN / Projeto compensado" : "Aguardando compensação do ISSQN / Projeto"}
                     </p>
                   </div>
-                  <div data-permit-prerequisite-card="true" data-tone={allDocumentsApproved ? "emerald" : "amber"} className={allDocumentsApproved
+                  <div data-permit-prerequisite-card="true" data-process-readable-card="true" data-tone={allDocumentsApproved ? "emerald" : "amber"} className={allDocumentsApproved
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito técnico</p>
@@ -674,7 +674,7 @@ export function ConstructionPermitPanel({
                 </div>
 
                 {isIssued ? (
-                  <div data-permit-issued-card="true" className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                  <div data-permit-issued-card="true" data-process-readable-card="true" className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
