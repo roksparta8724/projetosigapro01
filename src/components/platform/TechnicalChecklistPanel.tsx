@@ -38,7 +38,7 @@ export function TechnicalChecklistPanel({
   };
 
   return (
-    <Card className="rounded-[28px] border-slate-200">
+    <Card data-technical-checklist="true" data-force-card-contrast="adaptive" className="rounded-[28px] border-slate-200">
       <CardHeader className="space-y-2">
         <CardTitle className="sig-fit-title max-w-[34ch] text-base font-semibold leading-tight text-slate-900">
           {title}
@@ -46,7 +46,7 @@ export function TechnicalChecklistPanel({
         <p className="sig-fit-copy max-w-[62ch] text-sm leading-6 text-slate-500">{subtitle}</p>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent data-workspace-surface="adaptive" className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-400/16 dark:bg-emerald-400/10">
             <p className="text-xs uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-200">Itens conformes</p>
@@ -64,7 +64,7 @@ export function TechnicalChecklistPanel({
 
         <div className="space-y-3">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div key={item.id} data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="sig-fit-title text-base font-semibold leading-tight text-slate-900" title={item.title}>
