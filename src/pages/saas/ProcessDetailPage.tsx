@@ -1852,19 +1852,19 @@ export function ProcessDetailPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
-                  <div className="sig-command-metric rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
+                  <div data-command-metric="blue" className="sig-command-metric rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
                     <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
                   </div>
-                  <div className="sig-command-metric rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.20)]">
+                  <div data-command-metric="emerald" className="sig-command-metric rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
                     <p className="mt-1 text-xl font-bold !text-emerald-50">{approvedDocumentCount}</p>
                   </div>
-                  <div className="sig-command-metric rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.20)]">
+                  <div data-command-metric="amber" className="sig-command-metric rounded-2xl border border-amber-300/40 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
                     <p className="mt-1 text-xl font-bold !text-amber-50">{communicateDocumentCount + awaitingReviewDocumentCount}</p>
                   </div>
-                  <div className="sig-command-metric rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.20)]">
+                  <div data-command-metric="cyan" className="sig-command-metric rounded-2xl border border-cyan-300/35 bg-[#0a6c86] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Conferência</p>
                     <p className="mt-1 text-xl font-bold !text-white">{documentReviewProgress}%</p>
                   </div>
