@@ -21,6 +21,10 @@ describe("official electronic signatures", () => {
     resolve(process.cwd(), "neon/migrations/20261015_process_artifact_e_signatures_v2.sql"),
     "utf8",
   );
+  const directorRequestMigration = readFileSync(
+    resolve(process.cwd(), "neon/migrations/20261015_director_signature_request_flow.sql"),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -112,6 +116,26 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain("Gerar PDF rascunho");
     expect(checklist).not.toContain("PDF premium de rascunho");
     expect(checklist).not.toContain("RASCUNHO - aguardando conferência fiscal");
+  });
+
+  it("lets the analyst request the director signature and exposes it in the official PDF", () => {
+    expect(checklist).toContain("requestDirectorSignature");
+    expect(checklist).toContain("Solicitar assinatura do Diretor");
+    expect(checklist).toContain("Assinar como Diretor");
+    expect(checklist).toContain('"diretoria"');
+    expect(checklist).toContain("state.directorSignature");
+    expect(checklist).toContain('"Diretoria"');
+    expect(checklist).toContain("ASSINATURA SOLICITADA");
+  });
+
+  it("binds director signing to a formal pending request for the exact signed artifact", () => {
+    expect(directorRequestMigration).toContain("process_signature_requests");
+    expect(directorRequestMigration).toContain("request_process_artifact_signature_v1");
+    expect(directorRequestMigration).toContain("get_process_artifact_signature_request_v1");
+    expect(directorRequestMigration).toContain("trg_enforce_process_signature_request");
+    expect(directorRequestMigration).toContain("artifact_hash=_block.evidence_hash");
+    expect(directorRequestMigration).toContain("status='stale'");
+    expect(directorRequestMigration).toContain("Assinatura da Diretoria solicitada");
   });
 
   it("keeps immutable database evidence and audit trail", () => {
