@@ -26,6 +26,17 @@ type ArtifactContext = {
   municipality_id?: string | null;
 };
 
+function normalizeErrorMessage(value: unknown): string {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  for (const key of ["message", "error_description", "detail", "details", "hint", "code"]) {
+    const nested = normalizeErrorMessage(record[key]);
+    if (nested) return nested;
+  }
+  return normalizeErrorMessage(record.error);
+}
+
 function json(res: Res, status: number, body: unknown) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -33,6 +44,21 @@ function json(res: Res, status: number, body: unknown) {
   res.setHeader("Pragma", "no-cache");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(body));
+}
+
+function fail(
+  res: Res,
+  status: number,
+  stage: string,
+  code: string,
+  error: unknown,
+  fallback: string,
+) {
+  json(res, status, {
+    error: normalizeErrorMessage(error) || fallback,
+    stage,
+    code,
+  });
 }
 
 async function readJsonBody(req: ApiReq) {
@@ -137,7 +163,12 @@ async function reauthenticateWithPassword(email: string, password: string, origi
   });
 
   const payload = await response.json().catch(() => null);
-  return { ok: response.ok, identity: findReauthenticatedIdentity(payload) };
+  return {
+    ok: response.ok,
+    status: response.status,
+    identity: findReauthenticatedIdentity(payload),
+    error: normalizeErrorMessage(payload),
+  };
 }
 
 export default async function handler(req: ApiReq, res: Res) {
@@ -148,13 +179,13 @@ export default async function handler(req: ApiReq, res: Res) {
 
   try {
     if (!readBearer(req)) {
-      json(res, 401, { error: "Sua sessão expirou. Entre novamente para assinar." });
+      fail(res, 401, "session", "SESSION_EXPIRED", null, "Sua sessão expirou. Entre novamente para assinar.");
       return;
     }
 
     const origin = normalizeOrigin(req);
     if (!origin) {
-      json(res, 403, { error: "Origem não autorizada para assinatura eletrônica." });
+      fail(res, 403, "origin", "ORIGIN_NOT_ALLOWED", null, "Origem não autorizada para assinatura eletrônica.");
       return;
     }
 
@@ -189,9 +220,14 @@ export default async function handler(req: ApiReq, res: Res) {
       { _process_id: processId, _signer_slot: signerSlot },
     );
     if (!contextResult.ok || !contextResult.payload) {
-      json(res, contextResult.status || 403, {
-        error: contextResult.error || "Não foi possível validar sua atribuição para assinar.",
-      });
+      fail(
+        res,
+        contextResult.status || 403,
+        "authorization",
+        "SIGNER_CONTEXT_DENIED",
+        contextResult.error,
+        "Não foi possível validar sua atribuição para assinar.",
+      );
       return;
     }
 
@@ -200,7 +236,7 @@ export default async function handler(req: ApiReq, res: Res) {
     const authSubject = String(context.auth_subject || "").trim();
 
     if (!email || !authSubject) {
-      json(res, 403, { error: "A conta atual não possui identidade válida para assinatura." });
+      fail(res, 403, "identity", "SIGNER_IDENTITY_INVALID", null, "A conta atual não possui identidade válida para assinatura.");
       return;
     }
 
@@ -209,7 +245,18 @@ export default async function handler(req: ApiReq, res: Res) {
       "https://sigapromunicipal.com.br";
     const reauth = await reauthenticateWithPassword(email, password, authOrigin);
     if (!reauth.ok) {
-      json(res, 401, { error: "Senha de acesso incorreta. A assinatura não foi realizada." });
+      if (reauth.status === 400 || reauth.status === 401 || reauth.status === 403) {
+        fail(res, 401, "password", "PASSWORD_REAUTH_FAILED", null, "Senha de acesso incorreta. A assinatura não foi realizada.");
+      } else {
+        fail(
+          res,
+          503,
+          "password",
+          "AUTH_SERVICE_UNAVAILABLE",
+          reauth.error,
+          "O serviço de autenticação não respondeu corretamente. Tente novamente.",
+        );
+      }
       return;
     }
 
@@ -218,7 +265,7 @@ export default async function handler(req: ApiReq, res: Res) {
       (reauth.identity.email && reauth.identity.email === email);
 
     if (!identityMatches) {
-      json(res, 403, { error: "A senha confirmada não pertence ao usuário desta sessão." });
+      fail(res, 403, "identity", "PASSWORD_IDENTITY_MISMATCH", null, "A senha confirmada não pertence ao usuário desta sessão.");
       return;
     }
 
@@ -227,7 +274,7 @@ export default async function handler(req: ApiReq, res: Res) {
 
     const secret = readEnv("E_SIGNATURE_SERVER_SECRET");
     if (secret.length < 32) {
-      json(res, 503, { error: "Assinatura eletrônica ainda não foi habilitada neste ambiente." });
+      fail(res, 503, "proof", "SIGNATURE_SECRET_MISSING", null, "Assinatura eletrônica ainda não foi habilitada neste ambiente.");
       return;
     }
 
@@ -274,7 +321,14 @@ export default async function handler(req: ApiReq, res: Res) {
 
     if (!signResult.ok) {
       const message = signResult.error || "Não foi possível concluir a assinatura eletrônica.";
-      json(res, /já assinou|já possui/i.test(message) ? 409 : signResult.status || 400, { error: message });
+      fail(
+        res,
+        /já assinou|já possui/i.test(message) ? 409 : signResult.status || 400,
+        "database",
+        /já assinou|já possui/i.test(message) ? "SIGNATURE_ALREADY_EXISTS" : "SIGNATURE_RPC_FAILED",
+        message,
+        "Não foi possível concluir a assinatura eletrônica.",
+      );
       return;
     }
 
@@ -288,8 +342,13 @@ export default async function handler(req: ApiReq, res: Res) {
       },
     });
   } catch (error) {
-    json(res, 500, {
-      error: error instanceof Error ? error.message : "Falha ao realizar a assinatura eletrônica.",
-    });
+    fail(
+      res,
+      500,
+      "server",
+      "SIGNATURE_SERVER_ERROR",
+      error,
+      "Falha ao realizar a assinatura eletrônica.",
+    );
   }
 }
