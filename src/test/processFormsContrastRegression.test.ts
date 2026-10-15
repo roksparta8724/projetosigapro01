@@ -48,3 +48,47 @@ describe("process forms and worksheet contrast", () => {
     expect(checklist).toContain('data-workspace-surface="adaptive"');
   });
 });
+
+
+describe("analysis and Alvara premium V11 contract", () => {
+  it("locks the final V11 visual contract without touching app chrome", () => {
+    const css = read("src/styles/surface-polarity.css");
+    const start = css.lastIndexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
+    const block = css.slice(start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(block).toContain('[data-urban-analysis-sheet="true"]');
+    expect(block).toContain('[data-construction-permit-panel="true"]');
+    expect(block).toContain('[data-permit-summary-card="true"]');
+    expect(block).toContain('[data-analysis-section="true"]');
+    expect(block).not.toContain(".sig-premium-topbar");
+    expect(block).not.toContain(".sig-topbar-shell");
+    expect(block).not.toContain(".sig-sidebar");
+    expect(block).not.toContain(".sig-footer");
+  });
+
+  it("marks analysis worksheet sections and signatures explicitly", () => {
+    const sheet = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+
+    expect(sheet).toContain('data-analysis-section="true"');
+    expect(sheet).toContain('data-analysis-row="true"');
+    expect(sheet).toContain('data-analysis-conclusion="true"');
+    expect(sheet).toContain('data-analysis-validation="true"');
+    expect(sheet).toContain('data-analysis-signature-card="technical"');
+    expect(sheet).toContain('data-analysis-signature-card="fiscal"');
+  });
+
+  it("marks Alvara cards explicitly so light/dark contrast cannot drift", () => {
+    const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+
+    expect(permit).toContain('data-permit-status-grid="true"');
+    expect(permit).toContain('data-permit-status-card="true"');
+    expect(permit).toContain('data-permit-prerequisite-card="true"');
+    expect(permit).toContain('data-permit-detail-card="true"');
+    expect(permit).toContain('data-permit-signature-card="analyst"');
+    expect(permit).toContain('data-permit-signature-card="director"');
+    expect(permit).toContain('data-permit-dialog-section="true"');
+    expect(detail).toContain('data-permit-summary-card="true"');
+  });
+});
