@@ -6905,15 +6905,16 @@ html body .sig-main-shell #sig-process-document-command-center .sig-command-metr
 }
 
 /* 2) Adaptive cards switch foreground/background together with SIGAPRO's own theme state. */
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"],
-html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="default"] .sig-main-shell [data-process-document-card="true"] {
   background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
   background-color: #ffffff !important;
   border-color: #d6e1ec !important;
   color: #0f172a !important;
   box-shadow: 0 12px 30px rgba(15,23,42,.075) !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(
   h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
 ):not([data-ui="badge"]),
 html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
@@ -6922,7 +6923,7 @@ html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-car
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"] :is(
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(
   .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
 ):not([data-ui="badge"]),
 html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-card="true"] :is(
@@ -6932,15 +6933,16 @@ html body [data-layout-mode="default"] .sig-main-shell [data-process-premium-car
   -webkit-text-fill-color: #526174 !important;
 }
 
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"],
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-document-card="true"] {
   background: linear-gradient(180deg,#11283f 0%,#0a1928 100%) !important;
   background-color: #0a1928 !important;
   border-color: #2d4c67 !important;
   color: #f8fbff !important;
   box-shadow: 0 16px 38px rgba(0,0,0,.28) !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(
   h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
 ):not([data-ui="badge"]),
 html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
@@ -6949,7 +6951,7 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premiu
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"] :is(
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"] :is(
   .text-slate-600,.text-slate-500,.text-slate-400,.sig-subtitle,.sig-meta,.sig-label
 ):not([data-ui="badge"]),
 html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premium-card="true"] :is(
@@ -6965,62 +6967,62 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell [data-process-premiu
 }
 
 /* 3) Semantic KPI cards stay vivid while preserving correct foreground. */
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] {
   color: #172033 !important;
   -webkit-text-fill-color: #172033 !important;
   box-shadow: 0 10px 24px rgba(15,23,42,.06) !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="emerald"] {
   background: linear-gradient(180deg,#ecfdf5 0%,#dcfce7 100%) !important;
   border-color: #86efac !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="amber"] {
   background: linear-gradient(180deg,#fffbeb 0%,#fef3c7 100%) !important;
   border-color: #fcd34d !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="sky"] {
   background: linear-gradient(180deg,#f0f9ff 0%,#dff4ff 100%) !important;
   border-color: #7dd3fc !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="neutral"] {
   background: linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%) !important;
   border-color: #cbd5e1 !important;
 }
-html body [data-layout-mode="default"] .sig-main-shell [data-surface="semantic-card"] :is(
+html body [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] :is(
   h1,h2,h3,h4,h5,h6,p,span,strong,small,label
 ) {
   color: #172033 !important;
   -webkit-text-fill-color: #172033 !important;
 }
 
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
   box-shadow: 0 14px 30px rgba(0,0,0,.22) !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="emerald"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="emerald"] {
   background: linear-gradient(145deg,#0b4537 0%,#08745a 100%) !important;
   border-color: rgba(52,211,153,.40) !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="amber"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="amber"] {
   background: linear-gradient(145deg,#563b08 0%,#8b5e08 100%) !important;
   border-color: rgba(251,191,36,.40) !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="sky"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="sky"] {
   background: linear-gradient(145deg,#0b3858 0%,#0d638f 100%) !important;
   border-color: rgba(56,189,248,.40) !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"][data-tone="neutral"] {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"][data-tone="neutral"] {
   background: linear-gradient(145deg,#1a2c40 0%,#263e55 100%) !important;
   border-color: #3a5a73 !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] :is(
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] :is(
   h1,h2,h3,h4,h5,h6,p,span,strong,small,label
 ) {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
 }
-html body [data-layout-mode="inverse-main"] .sig-main-shell [data-surface="semantic-card"] svg {
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="semantic-card"] svg {
   color: #e0f2fe !important;
   stroke: currentColor !important;
 }
