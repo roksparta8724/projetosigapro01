@@ -653,7 +653,23 @@ export function FinanceDeskPage() {
         {section === "pagamentos" ? (
           <PageMainGrid>
             <PageMainContent>
-              <TableCard title="Pagamentos" description="Situação de baixa, confirmação e acompanhamento das guias emitidas." icon={Banknote}>
+              <TableCard
+                title="Pagamentos"
+                description="Situação de baixa, confirmação e acompanhamento das guias emitidas."
+                icon={Banknote}
+              >
+                {manualPaymentStatus ? (
+                  <div
+                    className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+                      manualPaymentStatus.startsWith("Pagamento confirmado")
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200"
+                        : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/40 dark:bg-rose-950/35 dark:text-rose-200"
+                    }`}
+                  >
+                    {manualPaymentStatus}
+                  </div>
+                ) : null}
+
                 <div className="space-y-3">
                   {pendingGuides.length === 0 ? (
                     <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
@@ -680,15 +696,57 @@ export function FinanceDeskPage() {
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-800" title={process.ownerName}>{process.ownerName}</p>
                             <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={guide.code}>{guide.code}</p>
                           </div>
-                          <div className="grid w-full gap-2 text-sm text-slate-600 sm:grid-cols-2 2xl:w-auto 2xl:min-w-[560px] 2xl:grid-cols-4">
-                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
-                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
-                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
-                            <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
-                              <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
-                                Conferir
-                              </Link>
+                          <div className="w-full 2xl:w-auto 2xl:min-w-[620px]">
+                            <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 2xl:grid-cols-4">
+                              <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Valor: {formatCurrency(guide.amount)}</div>
+                              <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
+                              <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
+                              <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
+                                <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
+                                  Conferir
+                                </Link>
+                              </div>
                             </div>
+
+                            {canConfirmManualPayment ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-bold text-white shadow-[0_8px_20px_rgba(5,150,105,0.22)] hover:bg-emerald-700"
+                                    disabled={manualPaymentBusyKey === process.id + ":" + guide.kind}
+                                  >
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    {manualPaymentBusyKey === process.id + ":" + guide.kind
+                                      ? "Confirmando pagamento..."
+                                      : "Confirmar pagamento manualmente"}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-[24px] border-slate-200">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirmar pagamento?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta ação marcará a guia {guide.code} como compensada no processo{" "}
+                                      {formatOfficialProcessNumber(process.protocol)}. Use somente para teste
+                                      ou quando o Financeiro tiver conferido o recolhimento.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-full">
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="rounded-full bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+                                      onClick={() =>
+                                        void handleManualPaymentConfirmation(process.id, guide.kind)
+                                      }
+                                    >
+                                      Confirmar pagamento
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : null}
                           </div>
                         </div>
                       </div>
