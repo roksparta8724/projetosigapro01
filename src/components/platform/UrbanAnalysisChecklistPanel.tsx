@@ -866,106 +866,138 @@ export function UrbanAnalysisChecklistPanel({
       };
 
       const drawHeader = (pageNumber: number, compact = false) => {
-        const headerH = compact ? 26 : 29;
-        doc.setFillColor(...navy);
-        doc.roundedRect(margin, 8, contentW, headerH, 3, 3, "F");
+        const headerH = 31;
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(214, 223, 232);
+        doc.setLineWidth(0.25);
+        doc.roundedRect(margin, 8, contentW, headerH, 2.6, 2.6, "FD");
+
+        doc.setFillColor(...blue);
+        doc.roundedRect(margin, 8, 3.2, headerH, 1.6, 1.6, "F");
 
         if (logoDataUrl) {
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(margin + 4, 11, 20, 20, 2.2, 2.2, "F");
           try {
             doc.addImage(
               logoDataUrl,
               pdfImageFormat(logoDataUrl),
-              margin + 6,
-              12.5,
-              16,
-              17,
+              margin + 7,
+              10.5,
+              19,
+              19,
               undefined,
               "FAST",
             );
           } catch {
-            // O documento continua íntegro mesmo se um navegador não decodificar a imagem.
+            // Mantém a identificação textual se o navegador não decodificar a imagem.
           }
         }
 
-        const copyX = logoDataUrl ? margin + 28 : margin + 6;
-        doc.setTextColor(255, 255, 255);
+        const copyX = logoDataUrl ? margin + 31 : margin + 8;
+        doc.setTextColor(...slate);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(compact ? 10.2 : 11);
-        doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), copyX, 15);
+        doc.setFontSize(10.5);
+        doc.text((municipalityName || "Prefeitura Municipal").toUpperCase(), copyX, 14.8);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.5);
-        doc.text((secretariat || "Secretaria responsável").toUpperCase(), copyX, 20);
+        doc.setTextColor(...muted);
+        doc.setFontSize(5.9);
         doc.text(
-          (directorate || departmentLabel || "Diretoria de Urbanismo").toUpperCase(),
+          doc.splitTextToSize(currentSecretariat.toUpperCase(), 104).slice(0, 1),
           copyX,
-          24.5,
+          19.4,
         );
+        doc.text(currentDirectorate.toUpperCase(), copyX, 23.6);
 
-        if (!compact) {
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(7.3);
-          doc.text("FICHA OFICIAL DE ANÁLISE DE PROCESSO", copyX, 29.5);
-        }
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...blue);
+        doc.setFontSize(compact ? 6.5 : 7);
+        doc.text("FICHA OFICIAL DE ANÁLISE DE PROCESSO", copyX, 29.2);
 
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(pageW - margin - 34, 13, 28, 8.5, 4.2, 4.2, "F");
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(pageW - margin - 34, 12, 28, 8, 4, 4, "FD");
         doc.setTextColor(...navy);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.2);
-        doc.text(`PÁGINA ${pageNumber}/${totalPages}`, pageW - margin - 20, 18.4, {
+        doc.setFontSize(5.9);
+        doc.text(`PÁGINA ${pageNumber}/${totalPages}`, pageW - margin - 20, 17.2, {
           align: "center",
         });
 
-        doc.setTextColor(226, 232, 240);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.6);
-        doc.text(formatOfficialProcessNumber(process.protocol), pageW - margin - 6, 29.3, {
-          align: "right",
-        });
+        doc.setFontSize(5.2);
+        doc.setTextColor(...muted);
+        doc.text(protocolLabel, pageW - margin - 6, 27.2, { align: "right" });
+
+        const contact = [currentAddress, currentPhone, municipalityEmail]
+          .filter(Boolean)
+          .join("  •  ");
+        if (contact) {
+          doc.setTextColor(100, 116, 139);
+          doc.setFontSize(4.9);
+          doc.text(
+            doc.splitTextToSize(contact, 170).slice(0, 1),
+            margin + 4,
+            42.5,
+          );
+        }
       };
 
       const drawProcessSummary = (y: number) => {
-        doc.setDrawColor(...line);
-        doc.setFillColor(...light);
-        doc.roundedRect(margin, y, contentW, 22, 2.2, 2.2, "FD");
+        const h = 31;
+        doc.setDrawColor(218, 226, 234);
+        doc.setFillColor(250, 252, 254);
+        doc.roundedRect(margin, y, contentW, h, 2.2, 2.2, "FD");
 
         const leftX = margin + 4;
-        const rightX = margin + 102;
-        doc.setTextColor(...muted);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(5.3);
-        doc.text("PROCESSO", leftX, y + 5);
-        doc.text("PROPRIETÁRIO", rightX, y + 5);
+        const rightX = margin + 100;
 
-        doc.setTextColor(...slate);
-        doc.setFontSize(7.2);
-        doc.text(formatOfficialProcessNumber(process.protocol), leftX, y + 10);
-        doc.text(
-          doc.splitTextToSize(process.ownerName || "Não informado", 82).slice(0, 1),
+        const drawField = (
+          label: string,
+          value: string,
+          x: number,
+          labelY: number,
+          width: number,
+        ) => {
+          doc.setTextColor(100, 116, 139);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(4.8);
+          doc.text(label, x, labelY);
+
+          doc.setTextColor(...slate);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6);
+          doc.text(
+            doc.splitTextToSize(value || "Não informado", width).slice(0, 1),
+            x,
+            labelY + 4.1,
+          );
+        };
+
+        drawField("PROCESSO", protocolLabel, leftX, y + 5, 84);
+        drawField(
+          "PROPRIETÁRIO",
+          process.ownerName || "Não informado",
           rightX,
-          y + 10,
+          y + 5,
+          86,
         );
 
-        doc.setTextColor(...muted);
-        doc.setFontSize(5.3);
-        doc.text("PROJETO", leftX, y + 15);
-        doc.text("RESPONSÁVEL TÉCNICO", rightX, y + 15);
-
-        doc.setTextColor(...slate);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.3);
-        doc.text(
-          doc.splitTextToSize(process.title || "Não informado", 82).slice(0, 1),
-          leftX,
-          y + 19.5,
-        );
-        doc.text(
-          doc.splitTextToSize(process.technicalLead || "Não informado", 82).slice(0, 1),
+        drawField("PROJETO", process.title || "Não informado", leftX, y + 14, 84);
+        drawField(
+          "RESPONSÁVEL TÉCNICO",
+          process.technicalLead || "Não informado",
           rightX,
-          y + 19.5,
+          y + 14,
+          86,
+        );
+
+        drawField("IMÓVEL", process.address || "Não informado", leftX, y + 23, 84);
+        drawField(
+          "ANÁLISE / FOLHA",
+          `${analysisDateLabel}  •  Folha ${state.sheetNumber || "1"}`,
+          rightX,
+          y + 23,
+          86,
         );
       };
 
