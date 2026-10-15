@@ -29,6 +29,7 @@ describe("F5, logout and topbar visual continuity", () => {
   it("intercepts browser reload itself with the Navigation API before document teardown", () => {
     expect(html).toContain("window.navigation");
     expect(html).toContain('event.navigationType !== "reload"');
+    expect(html).not.toContain('event.userInitiated !== true');
     expect(html).toContain("event.userInitiated !== true");
     expect(html).toContain("event.canIntercept");
     expect(html).toContain("event.intercept({");
