@@ -17,6 +17,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { ConstructionPermitPanel } from "@/components/platform/ConstructionPermitPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
@@ -25,6 +26,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { useConstructionPermit } from "@/hooks/useConstructionPermit";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
   listRecoverableProcessFiles,
@@ -247,6 +249,7 @@ export function ProcessDetailPage() {
     status: organizationStatus,
     getPath: getOrganizationPath,
   } = useMunicipalOrganogram(effectiveScopeId);
+  const constructionPermit = useConstructionPermit(effectiveScopeId, process?.id);
   const isMasterOperator =
     session.role === "master_admin" ||
     session.role === "master_ops";
@@ -683,11 +686,18 @@ export function ProcessDetailPage() {
     .toLocaleLowerCase("pt-BR");
 
   const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
+  const constructionPaymentCompensated =
+    issuedConstructionGuide?.status === "compensada";
   let currentFlowIndex = 0;
-  if (isFinalProcessStatus) {
+  if (isFinalProcessStatus || constructionPermit?.status === "emitido") {
+    currentFlowIndex = 5;
+  } else if (constructionPaymentCompensated) {
+    // Após a baixa financeira o processo já retornou para a Análise Urbanística:
+    // Financeiro é etapa concluída; a próxima entrega é o Alvará de Construção.
     currentFlowIndex = 4;
   } else if (
     constructionGuideSentExternally &&
+    issuedConstructionGuide?.status !== "compensada" &&
     (issuedConstructionGuide || /financ|tesour|arrecad|tribut/.test(normalizedCurrentFolder))
   ) {
     currentFlowIndex = 3;
@@ -705,6 +715,7 @@ export function ProcessDetailPage() {
     "Pagamento inicial",
     "Análise Urbanística",
     "Financeiro",
+    "Alvará de Construção",
     "Conclusão",
   ];
   const flowSteps = flowLabels.map((label, index) => ({
@@ -2269,7 +2280,11 @@ export function ProcessDetailPage() {
                           : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
                       }`}
                     >
-                      {constructionGuideSentExternally ? "Enviada ao profissional" : "Aguardando revisão e envio"}
+                      {constructionGuide.status === "compensada"
+                        ? "Pagamento compensado"
+                        : constructionGuideSentExternally
+                          ? "Enviada ao profissional"
+                          : "Aguardando revisão e envio"}
                     </Badge>
                   ) : null}
                 </div>
@@ -2522,15 +2537,50 @@ export function ProcessDetailPage() {
                         ? "text-emerald-700 dark:text-emerald-300"
                         : "text-amber-700 dark:text-amber-300"
                     }`}>
-                      {constructionGuideSentExternally
-                        ? "Liberada ao profissional e encaminhada ao Financeiro"
-                        : "Ainda em Análise Urbanística — aguardando liberação manual"}
+                      {constructionGuide.status === "compensada"
+                        ? "Pagamento compensado — processo retornado à Análise Urbanística"
+                        : constructionGuideSentExternally
+                          ? "Liberada ao profissional e encaminhada ao Financeiro"
+                          : "Ainda em Análise Urbanística — aguardando liberação manual"}
                     </p>
                   </div>
                 </div>
               ) : null}
             </CardContent>
           </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "analise" && (
+            <ConstructionPermitPanel
+              process={process}
+              session={session}
+              sessionUsers={sessionUsers}
+              municipalityId={effectiveScopeId || process.tenantId}
+              municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+              secretariat={tenantSettings?.secretariaResponsavel}
+              directorate={tenantSettings?.diretoriaResponsavel || "Diretoria de Planejamento Urbano"}
+              technicalProfile={linkedTechnicalProfile}
+              issPaymentConfirmed={constructionGuide?.status === "compensada"}
+              issPaidAt={constructionGuide?.paidAt}
+              allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
+            />
+          )}
+
+          {isExternalProcessViewer && activeTab === "resumo" && (
+            <ConstructionPermitPanel
+              process={process}
+              session={session}
+              sessionUsers={sessionUsers}
+              municipalityId={effectiveScopeId || process.tenantId}
+              municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+              secretariat={tenantSettings?.secretariaResponsavel}
+              directorate={tenantSettings?.diretoriaResponsavel || "Diretoria de Planejamento Urbano"}
+              technicalProfile={linkedTechnicalProfile}
+              issPaymentConfirmed={constructionGuide?.status === "compensada"}
+              issPaidAt={constructionGuide?.paidAt}
+              allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
+              externalView
+            />
           )}
 
           {isExternalProcessViewer && session.role === "profissional_externo" && activeTab === "financeiro" && (
