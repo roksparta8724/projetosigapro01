@@ -68,6 +68,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
           try {
             const transientKeys = [
               "sigapro.platform.session.v1",
+              "sigapro.bootstrap.neon-browser.v1",
               "sigapro-platform-store",
               "sigapro-platform-store.v2",
               "sigapro:legacy-process-reconciliation-pending",
