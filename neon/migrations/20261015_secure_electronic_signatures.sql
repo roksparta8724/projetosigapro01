@@ -163,7 +163,11 @@ begin
     raise exception 'Este perfil não possui permissão para assinar documentos.';
   end if;
 
-  select coalesce(nullif(btrim(tm.position_title), ''), nullif(btrim(r.label), ''))
+  select coalesce(
+      nullif(btrim(to_jsonb(tm)->>'position_title'), ''),
+      nullif(btrim(to_jsonb(tm)->>'profile_label'), ''),
+      nullif(btrim(r.label), '')
+    )
     into _position
   from public.tenant_memberships tm
   left join public.roles r on r.id = tm.role_id
