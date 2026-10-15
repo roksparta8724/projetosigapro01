@@ -34,6 +34,7 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
+  canAnalyzeProcessDocument,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -233,7 +234,14 @@ export function ProcessDetailPage() {
     shareIssProjectGuide,
     issuePaymentGuide,
   } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const process = resolveProcessFromRoute(processes, processId);
+  const effectiveScopeId =
+    process?.municipalityId ??
+    process?.tenantId ??
+    municipality?.id ??
+    scopeId ??
+    session.tenantId ??
+    null;
   const {
     departments: organizationDepartments,
     status: organizationStatus,
@@ -304,8 +312,6 @@ export function ProcessDetailPage() {
     navigate({ pathname: location.pathname, search: nextParams.toString() }, { replace: true, preventScrollReset: true });
     setActiveTab(tab);
   };
-
-  const process = resolveProcessFromRoute(processes, processId);
 
   useEffect(() => {
     if (!process) return;
@@ -490,12 +496,7 @@ export function ProcessDetailPage() {
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments =
     !isExternalProcessViewer &&
-    session.role !== "prefeitura_admin" &&
-    (
-      isMasterOperator ||
-      session.role === "prefeitura_supervisor" ||
-      (session.role === "analista" && canAnalysisOperate)
-    );
+    canAnalyzeProcessDocument(session, process, effectiveScopeId);
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
