@@ -1417,9 +1417,50 @@ export function UrbanAnalysisChecklistPanel({
                 A assinatura vincula sua identidade, cargo/função, data e hora, hash SHA-256 da ficha, código de verificação e trilha de auditoria.
               </div>
 
+              {signatureBusy ? (
+                <div className="rounded-2xl border border-sky-200 bg-[linear-gradient(135deg,#f0f9ff_0%,#ffffff_70%)] p-4 dark:border-sky-500/30 dark:bg-none dark:bg-sky-950/25">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-950 dark:text-white">
+                        {signatureStage === "verifying"
+                          ? "Confirmando no banco oficial"
+                          : "Validando identidade e registrando assinatura"}
+                      </p>
+                      <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                        {signatureStage === "verifying"
+                          ? "Conferindo hash, código de verificação e assinante antes de concluir."
+                          : "Sua senha está sendo revalidada e a evidência eletrônica está sendo registrada com segurança."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {signatureError ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200">
-                  {signatureError}
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-4 dark:border-rose-500/30 dark:bg-rose-950/30">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                      <CircleAlert className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-rose-900 dark:text-rose-100">
+                        Não foi possível concluir a assinatura
+                      </p>
+                      <p className="mt-1 text-sm leading-5 text-rose-800 dark:text-rose-200">
+                        {signatureError.message}
+                      </p>
+                      {signatureError.stage || signatureError.code ? (
+                        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-rose-600/80 dark:text-rose-300/80">
+                          {[signatureError.stage ? `etapa: ${signatureError.stage}` : "", signatureError.code ? `código: ${signatureError.code}` : ""]
+                            .filter(Boolean)
+                            .join(" • ")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
@@ -1443,8 +1484,16 @@ export function UrbanAnalysisChecklistPanel({
                   disabled={signatureBusy || !signaturePassword}
                   onClick={() => void confirmElectronicSignature()}
                 >
-                  <Signature className="mr-2 h-4 w-4" />
-                  {signatureBusy ? "Validando e assinando..." : "Confirmar com minha senha"}
+                  {signatureBusy ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Signature className="mr-2 h-4 w-4" />
+                  )}
+                  {signatureBusy
+                    ? signatureStage === "verifying"
+                      ? "Confirmando assinatura..."
+                      : "Validando e assinando..."
+                    : "Confirmar com minha senha"}
                 </Button>
               </div>
             </div>
