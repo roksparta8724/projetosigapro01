@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleAlert,
   ClipboardCheck,
+  Building2,
   FileDown,
   FileText,
   PenLine,
@@ -13,6 +14,7 @@ import {
   Signature,
   ShieldCheck,
   Loader2,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,8 +30,11 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ArtifactSignatureError,
+  getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
+  requestProcessArtifactSignature,
   signProcessArtifactWithPassword,
+  type ArtifactSignatureRequestSnapshot,
   type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
 
@@ -78,6 +83,7 @@ type AnalysisChecklistState = {
   signedBy: string;
   technicalSignature?: ChecklistSignature | null;
   fiscalSignature?: ChecklistSignature | null;
+  directorSignature?: ChecklistSignature | null;
 };
 
 const ANALYSIS_ARTIFACT_TYPE = "urban_analysis_checklist";
@@ -297,6 +303,7 @@ function makeInitialState(process: ProcessRecord, session: SessionUser): Analysi
     signedBy: "",
     technicalSignature: null,
     fiscalSignature: null,
+    directorSignature: null,
   };
 }
 
@@ -331,6 +338,7 @@ function readInitialChecklistState(
           : null
       ),
       fiscalSignature: parsed.fiscalSignature ?? null,
+      directorSignature: parsed.directorSignature ?? null,
     };
   } catch {
     return empty;
@@ -371,12 +379,17 @@ export function UrbanAnalysisChecklistPanel({
     readInitialChecklistState(key, process, session),
   );
   const [notice, setNotice] = useState("");
-  const [signatureDialog, setSignatureDialog] = useState<"technical" | "fiscal" | null>(null);
+  const [signatureDialog, setSignatureDialog] = useState<"technical" | "fiscal" | "director" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureStage, setSignatureStage] = useState<SignatureFlowStage>("idle");
   const [signatureError, setSignatureError] = useState<SignatureFlowError>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [directorRequest, setDirectorRequest] = useState<ArtifactSignatureRequestSnapshot>({
+    request: null,
+    candidate_count: 0,
+  });
+  const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
     () => resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl),
     [municipalityLogoUrl, municipalityName],
