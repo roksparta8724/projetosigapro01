@@ -104,8 +104,8 @@ describe("premium document center and direct PDF analysis", () => {
     expect(detail).toContain("documentDeliveryProgress");
     expect(detail).toContain("documentReviewProgress");
     expect(detail).toContain("Abrir documento");
-    expect(detail).toContain("Abrir documento");
-    expect(detail).toContain("Use “Analisar / marcar PDF” para marca-texto");
+    expect(detail).toContain("Abrir documento e analisar");
+    expect(detail).toContain("?ferramenta=highlight");
   });
 });
 
@@ -127,9 +127,9 @@ describe("theme-safe premium process and document cards", () => {
     expect(protocol).toContain("dark:bg-slate-900");
     expect(analysis).toContain("dark:bg-slate-900");
     expect(external).toContain("dark:bg-slate-900");
-    expect(css).toContain("SIGAPRO PROCESS PREMIUM VISUAL CONTRACT 2026-10-14");
-    expect(css).toContain(".sig-process-detail-premium .sig-process-card");
-    expect(css).toContain(".sig-premium-command-surface");
+    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14");
+    expect(css).toContain('[data-surface="fixed-dark"]');
+    expect(css).toContain("#sig-process-document-command-center");
     expect(css).toContain(".sig-primary-process-action");
   });
 });
@@ -143,7 +143,7 @@ describe("external process primary action hierarchy", () => {
 
     expect(flowIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThan(flowIndex);
-    expect(external).toContain("h-16 w-full");
+    expect(external).toContain("h-14 w-full");
     expect(external).toContain("sig-primary-process-action");
     expect(external).toContain("!text-white");
   });
@@ -159,9 +159,9 @@ describe("topbar and process-card contrast isolation", () => {
     expect(portal).toContain("const topbarFill = darken(primaryColor, -5)");
     expect(portal).toContain("const topbarHighlight = darken(primaryColor, -11)");
     expect(portal).toContain("const topbarDepth = darken(primaryColor, 2)");
-    expect(css).toContain("SIGAPRO PROCESS PREMIUM VISUAL CONTRACT 2026-10-14");
-    expect(css).toContain(".sig-process-detail-premium");
-    expect(css).not.toContain("SIGAPRO TOPBAR RESTORE + CARD CONTRAST HARD GUARD");
+    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14");
+    expect(css).not.toContain(".sig-premium-topbar");
+    expect(css).not.toContain(".sig-topbar-shell");
     expect(detail).toContain("sig-process-detail-premium");
     expect(detail).toContain('data-process-document-card="true"');
     expect(detail).toContain("sig-primary-document-action");
@@ -190,13 +190,13 @@ describe("strict process surface contrast root", () => {
     const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
-    const contrastRoot = css.slice(css.indexOf("PROCESS SURFACE CONTRAST ROOT V3"));
+    const contrastRoot = css.slice(css.indexOf("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14"));
     expect(contrastRoot).toContain("#sig-process-document-command-center");
     expect(contrastRoot).toContain(".sig-command-metric-blue");
     expect(contrastRoot).toContain(".sig-command-metric-emerald");
     expect(contrastRoot).toContain(".sig-command-metric-amber");
-    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
-    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"]');
     expect(contrastRoot).toContain('[data-municipal-organogram="true"]');
     expect(contrastRoot).not.toContain(".sig-premium-topbar");
     expect(contrastRoot).not.toContain(".sig-topbar-shell");
@@ -229,8 +229,8 @@ describe("authoritative process surface polarity file", () => {
     expect(main.indexOf('import "./styles/surface-polarity.css"')).toBeGreaterThan(
       main.indexOf('import "./index.css"'),
     );
-    expect(polarity).toContain("PROCESS DETAIL AUTHORITATIVE POLARITY V6");
-    expect(polarity).toContain(".sig-process-detail-premium");
+    expect(polarity).toContain("Surface Polarity Contract V8");
+    expect(polarity).toContain("#sig-process-document-command-center");
     expect(polarity).toContain('[data-layout-mode="default"]');
     expect(polarity).toContain('[data-layout-mode="inverse-main"]');
     expect(polarity).toContain('color:#ffffff !important');
@@ -243,12 +243,12 @@ describe("canonical process surface contract", () => {
   it("keeps one scoped source of truth for light and dark process cards", () => {
     const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
-    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT — CANONICAL");
+    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14");
     expect(css).not.toContain("PROCESS SURFACE CONTRAST ROOT V3");
     expect(css).not.toContain("THEME + PROCESS CONTRAST FINAL CONTRACT");
     expect(css).not.toContain("FINAL SURFACE POLARITY LOCK");
-    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
-    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium .sig-process-card');
+    expect(css).toContain('[data-layout-mode="default"] .sig-main-shell [data-surface="adaptive-card"]');
+    expect(css).toContain('[data-layout-mode="inverse-main"] .sig-main-shell [data-surface="adaptive-card"]');
     expect(css).toContain("#sig-process-document-command-center");
     expect(css).toContain("color: #ffffff !important");
   });
