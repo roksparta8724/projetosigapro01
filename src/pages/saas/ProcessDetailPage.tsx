@@ -1634,7 +1634,7 @@ export function ProcessDetailPage() {
       </Card>
 
       <div className="mt-6 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr))]">
-        <Card data-process-summary-card="true" data-summary-tone="blue" className={`${cardShell} sig-premium-summary-card sig-summary-blue h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="blue" className={`${cardShell} sig-process-readable-card sig-premium-summary-card sig-summary-blue h-full`}>
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusTone(process.status)}>
@@ -1650,7 +1650,7 @@ export function ProcessDetailPage() {
             </p>
           </CardContent>
         </Card>
-        <Card data-process-summary-card="true" data-summary-tone="emerald" className={`${cardShell} sig-premium-summary-card sig-summary-emerald h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="emerald" className={`${cardShell} sig-process-readable-card sig-premium-summary-card sig-summary-emerald h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
@@ -1680,7 +1680,7 @@ export function ProcessDetailPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card data-process-summary-card="true" data-summary-tone="violet" className={`${cardShell} sig-premium-summary-card sig-summary-violet h-full`}>
+        <Card data-process-summary-card="true" data-summary-tone="violet" className={`${cardShell} sig-process-readable-card sig-premium-summary-card sig-summary-violet h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
@@ -1691,7 +1691,7 @@ export function ProcessDetailPage() {
         </Card>
 
         {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
-          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
+          <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-process-readable-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-process-readable-card sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1727,7 +1727,7 @@ export function ProcessDetailPage() {
           </Card>
         ) : null}
         {!isExternalProcessViewer ? (
-          <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
+          <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-process-readable-card sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
               <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
