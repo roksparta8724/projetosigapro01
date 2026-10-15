@@ -148,6 +148,71 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var raw = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
+          var sessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          if (!raw || !sessionRaw) return;
+
+          var snapshot = JSON.parse(raw);
+          var session = JSON.parse(sessionRaw);
+          var userId =
+            session &&
+            session.id &&
+            session.accountStatus !== "blocked" &&
+            session.accountStatus !== "inactive"
+              ? String(session.id)
+              : "";
+          var locationKey =
+            window.location.pathname + window.location.search + window.location.hash;
+
+          var valid =
+            snapshot &&
+            snapshot.host === window.location.host &&
+            snapshot.location === locationKey &&
+            snapshot.userId === userId &&
+            userId &&
+            typeof snapshot.svg === "string" &&
+            snapshot.svg.length > 1000 &&
+            typeof snapshot.savedAt === "number" &&
+            Date.now() - snapshot.savedAt < 1000 * 60 * 5;
+
+          if (!valid) {
+            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
+            return;
+          }
+
+          var holder = document.createElement("div");
+          holder.id = "sigapro-refresh-snapshot";
+          holder.setAttribute("aria-hidden", "true");
+          holder.setAttribute("inert", "");
+          holder.style.position = "fixed";
+          holder.style.inset = "0";
+          holder.style.zIndex = "2147483646";
+          holder.style.pointerEvents = "none";
+          holder.style.overflow = "hidden";
+          holder.style.background = "var(--sig-initial-bg,#f5f7fb)";
+
+          var image = document.createElement("img");
+          image.alt = "";
+          image.draggable = false;
+          image.style.display = "block";
+          image.style.width = "100vw";
+          image.style.height = "100vh";
+          image.style.objectFit = "fill";
+          image.style.userSelect = "none";
+          image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(snapshot.svg);
+
+          holder.appendChild(image);
+          document.body.appendChild(holder);
+        } catch (_) {
+          try {
+            window.sessionStorage.removeItem("sigapro.refresh.continuity.v1");
+          } catch (_) {}
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
