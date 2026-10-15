@@ -10,6 +10,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
 import type { Permission, SessionUser } from "@/lib/platform";
+import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
 
 export function PermissionRoute({
   permission,
@@ -47,6 +48,12 @@ export function PermissionRoute({
     (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
 
   if (isInitialAccessResolution) {
+    // F5/reload da MESMA conta e MESMA rota: nunca desmontar a árvore real.
+    // A identidade continua sendo revalidada pelo bootstrap em segundo plano.
+    if (hasValidRefreshContinuity()) {
+      return <>{children}</>;
+    }
+
     const documentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
@@ -58,8 +65,7 @@ export function PermissionRoute({
       );
     }
 
-    // Nas demais rotas autenticadas, a continuidade visual preserva a tela
-    // anterior sem introduzir uma página intermediária.
+    // Cold start real sem continuidade: não liberar conteúdo antes da identidade.
     return null;
   }
 
