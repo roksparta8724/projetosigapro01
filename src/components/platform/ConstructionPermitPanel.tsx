@@ -195,10 +195,6 @@ export function ConstructionPermitPanel({
     userCanSignPermitAsAnalyst(session, process);
   const isIssued = permit?.status === "emitido";
 
-  if (externalView && !isIssued) {
-    return null;
-  }
-
   const openPdf = () => {
     if (!permit) return;
     openConstructionPermitPdf({
@@ -363,28 +359,45 @@ export function ConstructionPermitPanel({
       </CardHeader>
 
       <CardContent className="space-y-5 p-5 md:p-6">
-        {externalView && permit ? (
-          <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                  {permit.permitNumber}
-                </p>
-                <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
-                  Alvará assinado pela Análise Técnica e pela Diretoria
-                  responsável.
-                </p>
+        {externalView ? (
+          permit && isIssued ? (
+            <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                    {permit.permitNumber}
+                  </p>
+                  <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
+                    Alvará assinado pela Análise Técnica e pela Diretoria responsável.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={openPdf}
+                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Abrir Alvará em PDF
+                </Button>
               </div>
-              <Button
-                type="button"
-                onClick={openPdf}
-                className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
-              >
-                <FileDown className="mr-2 h-4 w-4" />
-                Visualizar Alvará em PDF
-              </Button>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-[20px] border border-sky-200 bg-sky-50 p-5 dark:border-sky-500/30 dark:bg-sky-950/30">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                  <Clock3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-950 dark:text-white">
+                    Alvará em preparação pela Prefeitura
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    O pagamento da etapa anterior foi concluído e o processo está na fase de preparação do Alvará de Construção. O preenchimento e as assinaturas são internos; o PDF final aparecerá aqui assim que for emitido.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
         ) : (
           <>
             <div className="grid gap-3 md:grid-cols-3">
