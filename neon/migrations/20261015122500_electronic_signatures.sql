@@ -556,6 +556,53 @@ begin
 end;
 $$;
 
+create or replace function public.approve_process_document_signed_v2(
+  _document_id uuid,
+  _statement text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public'
+set row_security to 'off'
+as $
+declare
+  _process_id uuid;
+  _version integer;
+  _file_hash text;
+  _signature jsonb;
+  _review jsonb;
+begin
+  perform public.require_recent_password_auth_v1(180);
+
+  select d.process_id,d.version,lower(d.file_hash)
+    into _process_id,_version,_file_hash
+  from public.process_documents d
+  where d.id=_document_id and coalesce(d.is_valid,true)=true;
+
+  if _process_id is null then raise exception 'Documento nao encontrado'; end if;
+  if coalesce(_file_hash,'') !~ '^[0-9a-f]{64}
+grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
+grant execute on function public.approve_process_document_signed_v1(uuid,text,text) to authenticated;
+grant execute on function public.approve_process_document_signed_v2(uuid,text) to authenticated;
+grant execute on function public.issue_process_payment_guide_signed_v1(uuid,text,date,text,text) to authenticated;
+grant execute on function public.create_process_dispatch_signed_v1(uuid,text,text,text,timestamptz,text,text,text,text,text) to authenticated;
+grant execute on function public.issue_process_payment_guide_signed_v2(uuid,text,date,text) to authenticated;
+grant execute on function public.create_process_dispatch_signed_v2(uuid,text,text,text,timestamptz,text,text,text,text) to authenticated;
+ then
+    raise exception 'Documento sem hash SHA-256 oficial para assinatura';
+  end if;
+
+  _signature := public.create_electronic_signature_v1(
+    _process_id,'process_document_review',_document_id::text,_file_hash,_version,
+    coalesce(_statement,'Aprovação documental')
+  );
+  _review := public.review_process_document(_document_id,'aprovado');
+
+  return jsonb_build_object('signature',_signature,'review',_review);
+end;
+$;
+
 grant execute on function public.create_electronic_signature_v1(uuid,text,text,text,integer,text) to authenticated;
 grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
 grant execute on function public.approve_process_document_signed_v1(uuid,text,text) to authenticated;
