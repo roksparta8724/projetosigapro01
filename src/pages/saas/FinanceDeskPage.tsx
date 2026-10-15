@@ -6,12 +6,14 @@
   Landmark,
   ReceiptText,
   Scale,
+  Signature,
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { FeeTableManager } from "@/components/platform/FeeTableManager";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -47,6 +49,7 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { issueRemotePaymentGuideWithSignature } from "@/integrations/backend/platform";
 
 type FinanceSection =
   | "visao-geral"
@@ -60,7 +63,7 @@ type FinanceSection =
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, issuePaymentGuide } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings, saveInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
@@ -74,6 +77,8 @@ export function FinanceDeskPage() {
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
   const [constructionGuideBusyId, setConstructionGuideBusyId] = useState("");
+  const [signatureTargetProcessId, setSignatureTargetProcessId] = useState<string | null>(null);
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const currentUnit = session.department || session.title || "Financeiro";
   const canConfigureWorkflow =
     session.role === "prefeitura_admin" ||
@@ -177,23 +182,41 @@ export function FinanceDeskPage() {
     }
   };
 
-  const handleIssueConstructionGuide = async (processId: string) => {
+  const handleIssueConstructionGuide = (processId: string) => {
     if (!financeCanIssueConstructionGuide) {
       setConstructionGuideStatus("O administrador da Prefeitura não autorizou a emissão desta guia pelo Financeiro.");
       return;
+    }
+    setConstructionGuideStatus("");
+    setSignatureTargetProcessId(processId);
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedConstructionGuide = async (password: string) => {
+    const processId = signatureTargetProcessId;
+    if (!processId) {
+      throw new Error("Nenhum processo selecionado para emissão.");
     }
 
     setConstructionGuideBusyId(processId);
     setConstructionGuideStatus("");
     try {
-      await issuePaymentGuide(processId, session.name, "iss_obra");
-      setConstructionGuideStatus("Guia de ISSQN / Projeto emitida pelo Financeiro e vinculada ao processo.");
-    } catch (error) {
+      await issueRemotePaymentGuideWithSignature({
+        processId,
+        guideKind: "iss_obra",
+        password,
+        statement: "Emissão da Guia de ISSQN / Projeto pelo Setor Financeiro.",
+      });
+      await refreshRemoteStore();
       setConstructionGuideStatus(
-        error instanceof Error
-          ? `Não foi possível emitir a guia: ${error.message}`
-          : "Não foi possível emitir a guia no banco oficial.",
+        "Guia de ISSQN / Projeto emitida e assinada eletronicamente pelo Financeiro.",
       );
+      setSignatureDialogOpen(false);
+      setSignatureTargetProcessId(null);
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível emitir e assinar a guia.");
     } finally {
       setConstructionGuideBusyId("");
     }
@@ -536,9 +559,10 @@ export function FinanceDeskPage() {
                                 type="button"
                                 className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
                                 disabled={constructionGuideBusyId === process.id}
-                                onClick={() => void handleIssueConstructionGuide(process.id)}
+                                onClick={() => handleIssueConstructionGuide(process.id)}
                               >
-                                {constructionGuideBusyId === process.id ? "Emitindo..." : "Emitir ISSQN / Projeto"}
+                                <Signature className="mr-2 h-4 w-4" />
+                                {constructionGuideBusyId === process.id ? "Assinando..." : "Emitir e assinar ISSQN"}
                               </Button>
                             </div>
                           </div>
@@ -912,6 +936,25 @@ export function FinanceDeskPage() {
           </TableCard>
         ) : null}
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !constructionGuideBusyId) setSignatureTargetProcessId(null);
+        }}
+        title="Emitir e assinar Guia de ISSQN / Projeto"
+        subject={
+          signatureTargetProcessId
+            ? formatOfficialProcessNumber(
+                allProcesses.find((process) => process.id === signatureTargetProcessId)?.protocol || "",
+              )
+            : "Processo municipal"
+        }
+        statement="Confirmo a emissão desta Guia de ISSQN / Projeto pelo Setor Financeiro com os dados oficiais registrados no processo."
+        busy={Boolean(constructionGuideBusyId)}
+        onConfirm={confirmSignedConstructionGuide}
+      />
     </PortalFrame>
   );
 }
