@@ -1148,6 +1148,20 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   };
 
   useEffect(() => {
+    const handleSoftRefresh = () => {
+      void refreshRemoteStore().catch((error) => {
+        console.error("[SIGAPRO][SoftRefresh] Falha ao atualizar dados em segundo plano.", error);
+      });
+    };
+
+    window.addEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
+    return () => {
+      window.removeEventListener("sigapro-soft-refresh", handleSoftRefresh as EventListener);
+    };
+  }, [authenticatedUserId]);
+
+
+  useEffect(() => {
     if (!authenticatedUserId || !hasBackendEnv) return;
 
     let lastRefreshAt = 0;
