@@ -1831,7 +1831,7 @@ export function ProcessDetailPage() {
 
           {activeTab === "documentos" && (
           <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
-            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h3]:!text-white [&_p]:!text-white [&_svg]:!text-white">
+            <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-process-dark-surface-v9 sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-white [&_p]:!text-white [&_span]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/35 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
