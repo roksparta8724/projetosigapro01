@@ -297,6 +297,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!session?.id || session.id === "unknown") return;
+    if (loading || planEntitlements.isResolving) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("sigapro-app-stable"));
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, planEntitlements.isResolving, session?.id, location.pathname]);
+
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
