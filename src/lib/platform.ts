@@ -507,6 +507,7 @@ export type InstitutionScopedSettings = InstitutionSettings & { institutionId?: 
 export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final";
 
 export interface PaymentGuideEntry {
+  id?: string;
   kind: PaymentGuideKind;
   label: string;
   code: string;
