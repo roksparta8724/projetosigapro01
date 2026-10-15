@@ -469,7 +469,7 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog','public','extensions'
 set row_security to 'off'
-as $
+as $$
 declare
   _issued jsonb;
   _guide_id text;
@@ -505,7 +505,7 @@ begin
 
   return _issued || jsonb_build_object('electronic_signature',_signature);
 end;
-$;
+$$;
 
 create or replace function public.create_process_dispatch_signed_v2(
   _process_id uuid,
@@ -523,7 +523,7 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog','public','extensions'
 set row_security to 'off'
-as $
+as $$
 declare
   _dispatch_result jsonb;
   _dispatch_id text;
@@ -554,7 +554,7 @@ begin
 
   return _dispatch_result || jsonb_build_object('electronic_signature',_signature);
 end;
-$;
+$$;
 
 grant execute on function public.create_electronic_signature_v1(uuid,text,text,text,integer,text) to authenticated;
 grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
