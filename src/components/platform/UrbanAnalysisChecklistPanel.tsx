@@ -80,6 +80,40 @@ type AnalysisChecklistState = {
 const ANALYSIS_ARTIFACT_TYPE = "urban_analysis_checklist";
 const ANALYSIS_ARTIFACT_KEY = "urban-analysis-checklist";
 
+function stableSignatureStringify(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableSignatureStringify).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableSignatureStringify(record[key])}`)
+    .join(",")}}`;
+}
+
+function buildChecklistSignaturePayload(
+  state: AnalysisChecklistState,
+  process: ProcessRecord,
+  municipalityId: string,
+): Record<string, unknown> {
+  return {
+    schema: "sigapro.urban-analysis-checklist.v2",
+    processId: process.id,
+    protocol: formatOfficialProcessNumber(process),
+    municipalityId,
+    analysisDate: state.analysisDate,
+    sheetNumber: state.sheetNumber,
+    analystId: state.analystId,
+    analystName: state.analystName,
+    analystTitle: state.analystTitle,
+    items: state.items,
+    routing: state.routing,
+    routingOther: state.routingOther,
+    conclusion: state.conclusion,
+    communiquePages: state.communiquePages,
+  };
+}
+
 type UrbanAnalysisChecklistPanelProps = {
   process: ProcessRecord;
   session: SessionUser;
@@ -300,6 +334,24 @@ export function UrbanAnalysisChecklistPanel({
         if (!technical && !fiscal) return;
 
         setState((current) => {
+          const currentPayload = buildChecklistSignaturePayload(current, process, municipalityId);
+          const signedPayload = snapshot.block?.payload ?? {};
+          const payloadMatches =
+            stableSignatureStringify(currentPayload) === stableSignatureStringify(signedPayload);
+
+          if (!payloadMatches) {
+            const next: AnalysisChecklistState = {
+              ...current,
+              technicalSignature: null,
+              fiscalSignature: null,
+              signedAt: "",
+              signedBy: "",
+            };
+            window.localStorage.setItem(key, JSON.stringify(next));
+            setNotice("A ficha foi alterada após a última assinatura eletrônica. Uma nova assinatura é necessária.");
+            return next;
+          }
+
           const verificationCode = snapshot.block?.verification_code;
           const evidenceHash = snapshot.block?.artifact_hash;
 
@@ -449,23 +501,6 @@ export function UrbanAnalysisChecklistPanel({
     setSignatureDialog(kind);
   };
 
-  const buildSignaturePayload = (): Record<string, unknown> => ({
-    schema: "sigapro.urban-analysis-checklist.v2",
-    processId: process.id,
-    protocol: formatOfficialProcessNumber(process),
-    municipalityId,
-    analysisDate: state.analysisDate,
-    sheetNumber: state.sheetNumber,
-    analystId: state.analystId,
-    analystName: state.analystName,
-    analystTitle: state.analystTitle,
-    items: state.items,
-    routing: state.routing,
-    routingOther: state.routingOther,
-    conclusion: state.conclusion,
-    communiquePages: state.communiquePages,
-  });
-
   const confirmElectronicSignature = async () => {
     if (!signatureDialog || !signaturePassword) {
       setSignatureError("Informe sua senha de acesso.");
@@ -485,7 +520,7 @@ export function UrbanAnalysisChecklistPanel({
         artifactKey: ANALYSIS_ARTIFACT_KEY,
         signerSlot: slot,
         password: signaturePassword,
-        payload: buildSignaturePayload(),
+        payload: buildChecklistSignaturePayload(state, process, municipalityId),
       });
 
       const signedAt = result.signature?.signed_at || new Date().toISOString();
