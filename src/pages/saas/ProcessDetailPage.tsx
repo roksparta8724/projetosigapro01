@@ -494,13 +494,7 @@ export function ProcessDetailPage() {
     (
       isMasterOperator ||
       session.role === "prefeitura_supervisor" ||
-      (
-        canAnalysisOperate &&
-        (
-          isProcessOwnedBySessionDepartment(session, process) ||
-          process.analysis?.assignedProfileId === session.id
-        )
-      )
+      (session.role === "analista" && canAnalysisOperate)
     );
   const visibleDocumentRows =
     isProtocolTrackingOnly
@@ -1998,7 +1992,7 @@ export function ProcessDetailPage() {
                             type="button"
                             onClick={() => openViewer(document.id)}
                             className="block max-w-full text-left font-semibold text-slate-950 hover:text-sky-700 hover:underline dark:text-slate-100 dark:hover:text-sky-300"
-                            title="Abrir documento em nova guia"
+                            title={canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento"}
                           >
                             {document.label}
                           </button>
@@ -2011,7 +2005,7 @@ export function ProcessDetailPage() {
                           disabled={!document.uploaded}
                           onClick={() => document.uploaded && openViewer(document.id)}
                           className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-400 dark:enabled:hover:text-sky-300"
-                          title={document.uploaded ? "Abrir documento em nova guia" : undefined}
+                          title={document.uploaded ? (canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento") : undefined}
                         >
                           {document.fileName || "Arquivo ainda não enviado"}
                           {document.mimeType ? ` • ${document.mimeType}` : ""}
