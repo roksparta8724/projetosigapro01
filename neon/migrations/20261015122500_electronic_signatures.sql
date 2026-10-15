@@ -217,7 +217,7 @@ begin
     upper(substr(replace(gen_random_uuid()::text,'-',''),1,12));
 
   _fingerprint := encode(
-    digest(
+    extensions.digest(
       concat_ws('|',
         _signature_code,
         lower(_content_sha256),
