@@ -424,7 +424,7 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog', 'public', 'private', 'extensions'
 set row_security to 'off'
-as $
+as $$
 declare
   _ctx jsonb;
   _subject text;
@@ -445,68 +445,7 @@ declare
   _ip_inet inet;
 begin
   _document_hash := lower(nullif(btrim(_content_hash),''));
-  if _document_hash is null or _document_hash !~ '^[0-9a-f]{64}
-returns jsonb
-language sql
-stable
-security definer
-set search_path to 'pg_catalog', 'public'
-set row_security to 'off'
-as $$
-  select jsonb_build_object(
-    'valid', true,
-    'verification_code', sb.verification_code,
-    'document', jsonb_build_object(
-      'title', pd.title,
-      'version', pd.version,
-      'hash', sb.evidence_hash
-    ),
-    'process', jsonb_build_object(
-      'protocol', pr.protocol_number,
-      'title', pr.title
-    ),
-    'municipality', jsonb_build_object(
-      'name', m.name
-    ),
-    'signed_at', sb.completed_at,
-    'signers', coalesce((
-      select jsonb_agg(jsonb_build_object(
-        'name', s.signer_name,
-        'role', s.signer_role,
-        'title', s.signer_title,
-        'registration', s.signer_registration,
-        'signed_at', s.signed_at,
-        'document_hash', s.document_hash,
-        'auth_method', s.auth_method
-      ) order by s.signer_order)
-      from public.signatures s
-      where s.signature_block_id = sb.id
-        and s.status = 'concluido'
-    ), '[]'::jsonb)
-  )
-  from public.signature_blocks sb
-  join public.process_documents pd on pd.id = sb.document_id
-  join public.processes pr on pr.id = sb.process_id
-  left join public.municipalities m on m.id = sb.municipality_id
-  where upper(sb.verification_code) = upper(btrim(_verification_code))
-    and sb.status = 'concluido'
-  limit 1
-$$;
-
-revoke all on function public.get_signature_context_v1(uuid) from public;
-revoke all on function public.sign_process_document_v1(uuid,text,text,bigint,text,text,text) from public;
-revoke all on function public.sign_process_document_v1(uuid,text,text,bigint,text,text,text) from authenticated;
-revoke all on function public.sign_process_document_v2(uuid,text,text,text,bigint,text,text,text) from public;
-grant execute on function public.get_signature_context_v1(uuid) to authenticated;
-grant execute on function public.sign_process_document_v2(uuid,text,text,text,bigint,text,text,text) to authenticated;
-
-revoke all on function public.verify_signature_receipt_v1(text) from public;
-grant execute on function public.verify_signature_receipt_v1(text) to anonymous, authenticated;
-
-commit;
-
-notify pgrst, 'reload schema';
- then
+  if _document_hash is null or _document_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'Hash SHA-256 do conteúdo inválido.';
   end if;
 
@@ -693,7 +632,7 @@ notify pgrst, 'reload schema';
     'evidence_version', 2
   );
 end;
-$;
+$$;
 
 create or replace function public.verify_signature_receipt_v1(_verification_code text)
 returns jsonb
@@ -745,8 +684,10 @@ $$;
 
 revoke all on function public.get_signature_context_v1(uuid) from public;
 revoke all on function public.sign_process_document_v1(uuid,text,text,bigint,text,text,text) from public;
+revoke all on function public.sign_process_document_v1(uuid,text,text,bigint,text,text,text) from authenticated;
+revoke all on function public.sign_process_document_v2(uuid,text,text,text,bigint,text,text,text) from public;
 grant execute on function public.get_signature_context_v1(uuid) to authenticated;
-grant execute on function public.sign_process_document_v1(uuid,text,text,bigint,text,text,text) to authenticated;
+grant execute on function public.sign_process_document_v2(uuid,text,text,text,bigint,text,text,text) to authenticated;
 
 revoke all on function public.verify_signature_receipt_v1(text) from public;
 grant execute on function public.verify_signature_receipt_v1(text) to anonymous, authenticated;
