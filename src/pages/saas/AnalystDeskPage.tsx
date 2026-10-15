@@ -8,6 +8,7 @@
   ListTodo,
   Search,
   Send,
+  Signature,
   Stamp,
   TimerReset,
   Users2,
@@ -16,6 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -48,6 +50,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { createRemoteProcessDispatchWithSignature } from "@/integrations/backend/platform";
 
 type AnalystSection =
   | "visao-geral"
@@ -99,10 +102,10 @@ export function AnalystDeskPage() {
     processes: allProcesses,
     updateProcessStatus,
     startProcessAnalysis,
-    dispatchProcess,
     createRequirement,
     documentTemplates,
     getInstitutionSettings,
+    refreshRemoteStore,
   } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
@@ -113,6 +116,15 @@ export function AnalystDeskPage() {
   const [section, setSection] = useState<AnalystSection>("visao-geral");
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [pendingSignedDispatch, setPendingSignedDispatch] = useState<{
+    processId: string;
+    from: string;
+    to: string;
+    subject: string;
+    dueDate: string;
+    successMessage: string;
+  } | null>(null);
   const currentUnit =
     session.role === "analista"
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
@@ -304,6 +316,51 @@ export function AnalystDeskPage() {
       ).slice(0, 5),
     [dispatchRows],
   );
+
+  const requestSignedDispatch = (input: {
+    processId: string;
+    from: string;
+    to: string;
+    subject: string;
+    dueDate: string;
+    successMessage: string;
+  }) => {
+    if (actionBusy) return;
+    setActionStatus("");
+    setPendingSignedDispatch(input);
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedDispatch = async (password: string) => {
+    const dispatch = pendingSignedDispatch;
+    if (!dispatch) throw new Error("Nenhum despacho pendente de assinatura.");
+
+    setActionBusy(`signed-dispatch-${dispatch.processId}`);
+    setActionStatus("");
+    try {
+      await createRemoteProcessDispatchWithSignature({
+        processId: dispatch.processId,
+        fromDepartment: dispatch.from,
+        toDepartment: dispatch.to,
+        subject: dispatch.subject,
+        dueAt: dispatch.dueDate ? `${dispatch.dueDate}T23:59:59` : null,
+        visibility: "interno",
+        priority: "media",
+        password,
+        statement: `Despacho técnico para ${dispatch.to}: ${dispatch.subject}`,
+      });
+      await refreshRemoteStore();
+      setActionStatus(`${dispatch.successMessage} Despacho assinado eletronicamente.`);
+      setSignatureDialogOpen(false);
+      setPendingSignedDispatch(null);
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível registrar e assinar o despacho.");
+    } finally {
+      setActionBusy("");
+    }
+  };
 
   const runAnalystAction = async (
     key: string,
@@ -523,20 +580,14 @@ export function AnalystDeskPage() {
                       className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                       disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                       onClick={() =>
-                        void runAnalystAction(
-                          `iptu-${process.id}`,
-                          "Processo encaminhado ao IPTU/Fiscal para emissão do ISSQN.",
-                          () =>
-                            dispatchProcess({
-                              processId: process.id,
-                              actor: session.name,
-                              from: "Análise Urbanística",
-                              to: "Setor de IPTU / Fiscal",
-                              subject: "Conferência fiscal e emissão da guia de ISSQN",
-                              dueDate: isoDateAfterDays(3),
-                              visibility: "interno",
-                            }),
-                        )
+                        requestSignedDispatch({
+                          processId: process.id,
+                          from: "Análise Urbanística",
+                          to: "Setor de IPTU / Fiscal",
+                          subject: "Conferência fiscal e emissão da guia de ISSQN",
+                          dueDate: isoDateAfterDays(3),
+                          successMessage: "Processo encaminhado ao IPTU/Fiscal para emissão do ISSQN.",
+                        })
                       }
                     >
                       <Send className="mr-2 h-4 w-4 text-sky-200" />
@@ -550,22 +601,16 @@ export function AnalystDeskPage() {
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                     disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
-                      void runAnalystAction(
-                        `finance-${process.id}`,
-                        "Processo encaminhado ao Financeiro para fechamento e taxa final.",
-                        () =>
-                          dispatchProcess({
-                            processId: process.id,
-                            actor: session.name,
-                            from: "Análise Urbanística",
-                            to: "Financeiro",
-                            subject:
-                              dispatchTemplate?.title ||
-                              "Parecer técnico concluído — conferência financeira e taxa final",
-                            dueDate: isoDateAfterDays(3),
-                            visibility: "interno",
-                          }),
-                      )
+                      requestSignedDispatch({
+                        processId: process.id,
+                        from: "Análise Urbanística",
+                        to: "Financeiro",
+                        subject:
+                          dispatchTemplate?.title ||
+                          "Parecer técnico concluído — conferência financeira e taxa final",
+                        dueDate: isoDateAfterDays(3),
+                        successMessage: "Processo encaminhado ao Financeiro para fechamento e taxa final.",
+                      })
                     }
                   >
                     <Send className="mr-2 h-4 w-4 text-sky-200" />
@@ -1206,6 +1251,29 @@ export function AnalystDeskPage() {
           </PageMainGrid>
         )}
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !actionBusy) setPendingSignedDispatch(null);
+        }}
+        title="Assinar e efetivar despacho"
+        subject={
+          pendingSignedDispatch
+            ? `${formatOfficialProcessNumber(
+                allProcesses.find((process) => process.id === pendingSignedDispatch.processId)?.protocol || "",
+              )} • ${pendingSignedDispatch.from} → ${pendingSignedDispatch.to}`
+            : "Despacho técnico"
+        }
+        statement={
+          pendingSignedDispatch
+            ? `Confirmo o despacho "${pendingSignedDispatch.subject}" para ${pendingSignedDispatch.to}.`
+            : "Confirmo o despacho técnico."
+        }
+        busy={Boolean(actionBusy)}
+        onConfirm={confirmSignedDispatch}
+      />
     </PortalFrame>
   );
 }
