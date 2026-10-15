@@ -2198,16 +2198,14 @@ export async function issueRemotePaymentGuideWithSignature(input: {
   guideKind: "iss_obra" | "aprovacao_final";
   dueDate?: string | null;
   password: string;
-  contentSha256: string;
   statement?: string;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
   await revalidateCurrentPasswordForSignature(input.password);
-  const { data, error } = await db.rpc("issue_process_payment_guide_signed_v1", {
+  const { data, error } = await db.rpc("issue_process_payment_guide_signed_v2", {
     _process_id: input.processId,
     _guide_kind: input.guideKind,
     _due_date: input.dueDate || null,
-    _content_sha256: input.contentSha256,
     _statement: input.statement ?? "Emissão de guia municipal",
   });
   if (error) throw new Error(formatDatabaseError(error));
@@ -2224,12 +2222,11 @@ export async function createRemoteProcessDispatchWithSignature(input: {
   priority?: "baixa" | "media" | "alta" | "critica";
   assignedTo?: string | null;
   password: string;
-  contentSha256: string;
   statement?: string;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
   await revalidateCurrentPasswordForSignature(input.password);
-  const { data, error } = await db.rpc("create_process_dispatch_signed_v1", {
+  const { data, error } = await db.rpc("create_process_dispatch_signed_v2", {
     _process_id: input.processId,
     _from_department: input.fromDepartment,
     _to_department: input.toDepartment,
@@ -2238,7 +2235,6 @@ export async function createRemoteProcessDispatchWithSignature(input: {
     _visibility: input.visibility || "interno",
     _priority: input.priority || "media",
     _assigned_to: input.assignedTo || null,
-    _content_sha256: input.contentSha256,
     _statement: input.statement ?? "Despacho interdepartamental",
   });
   if (error) throw new Error(formatDatabaseError(error));
