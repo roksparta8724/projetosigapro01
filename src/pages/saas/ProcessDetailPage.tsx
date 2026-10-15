@@ -868,7 +868,7 @@ export function ProcessDetailPage() {
         !isProtocolTrackingOnly &&
         (
           isExternalProcessViewer
-            ? constructionPermit?.status === "emitido"
+            ? currentFlowIndex >= 4 || constructionPermit?.status === "emitido"
             : constructionPaymentCompensated || Boolean(constructionPermit)
         ),
     },
@@ -1666,12 +1666,46 @@ export function ProcessDetailPage() {
         <Card className={`${cardShell} sig-premium-summary-card sig-summary-violet h-full`}>
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
-            <p className="mt-3 text-lg font-medium leading-7 text-slate-900">
+            <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
               {uploadedCount}/{process.documents.length}
             </p>
             <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
+
+        {currentFlowIndex >= 4 || constructionPermit ? (
+          <Card className={`${cardShell} sig-premium-summary-card h-full border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#edf7ff_100%)] dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0c2235_0%,#0b1d2e_100%)]`}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="sig-label">Alvará de Construção</p>
+                  <p className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
+                    {constructionPermit?.permitNumber || "Em preparação"}
+                  </p>
+                </div>
+                <FileBadge2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {constructionPermit?.status === "emitido"
+                  ? "Documento final emitido e disponível no processo."
+                  : isExternalProcessViewer
+                    ? "A Prefeitura está preparando o Alvará desta obra."
+                    : "Preencha os dados do Alvará, revise a prévia e siga para as assinaturas."}
+              </p>
+              <Button
+                type="button"
+                className="mt-4 w-full rounded-xl bg-sky-700 font-semibold text-white hover:bg-sky-800"
+                onClick={() => setProcessTab("alvara")}
+              >
+                {constructionPermit?.status === "emitido"
+                  ? "Abrir Alvará"
+                  : isExternalProcessViewer
+                    ? "Acompanhar Alvará"
+                    : "Preencher / revisar Alvará"}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
         {!isExternalProcessViewer ? (
           <Card className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
