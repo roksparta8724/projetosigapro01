@@ -391,41 +391,39 @@ begin
       or lower(coalesce(p.role,'')) ~ '(diretor|director)'
     );
 
-  if _created then
-    insert into public.notifications(
-      user_id, related_project_id, title, message, type, is_read, created_at, profile_id
-    )
-    select
-      p.user_id,
-      _process.id,
-      'Assinatura da Diretoria solicitada',
-      concat(
-        'O processo ',
-        coalesce(_process.protocol_number, _process.id::text),
-        ' aguarda sua assinatura eletrônica na ficha de análise.'
-      ),
-      'signature_request',
-      false,
-      clock_timestamp(),
-      p.id
-    from public.profiles p
-    left join public.tenant_memberships tm
-      on tm.profile_id=p.id
-     and tm.tenant_id=_process.tenant_id
-     and tm.is_active=true
-     and tm.deleted_at is null
-    left join public.roles r on r.id=tm.role_id
-    where p.municipality_id=_process.municipality_id
-      and p.deleted_at is null
-      and p.account_status='active'
-      and lower(coalesce(p.tipo,'')) <> 'externo'
-      and (
-        lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
-        or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
-        or lower(coalesce(r.code::text,'')) ~ '(diretor|director)'
-        or lower(coalesce(p.role,'')) ~ '(diretor|director)'
-      );
+  if _candidate_count = 1 then
+    update public.process_signature_requests r
+    set assigned_profile_id = candidate.profile_id
+    from (
+      select p.id as profile_id
+      from public.profiles p
+      left join public.tenant_memberships tm
+        on tm.profile_id=p.id
+       and tm.tenant_id=_process.tenant_id
+       and tm.is_active=true
+       and tm.deleted_at is null
+      left join public.roles rr on rr.id=tm.role_id
+      where p.municipality_id=_process.municipality_id
+        and p.deleted_at is null
+        and p.account_status='active'
+        and replace(lower(coalesce(p.tipo,'')), '''', '') <> 'externo'
+        and lower(coalesce(p.role,'')) not in ('profissional_externo','professional_external','professional','profissional')
+        and (
+          lower(coalesce(tm.position_title,'')) ~ '(diretor|diretora)'
+          or lower(coalesce(tm.profile_label,'')) ~ '(diretor|diretora)'
+          or lower(coalesce(rr.code::text,'')) ~ '(diretor|director)'
+          or lower(coalesce(p.role,'')) ~ '(diretor|director)'
+        )
+      limit 1
+    ) candidate
+    where r.id=_request.id;
 
+    select * into _request
+    from public.process_signature_requests
+    where id=_request.id;
+  end if;
+
+  if _created then
     insert into public.process_audit_entries(
       tenant_id, municipality_id, process_id,
       actor_user_id, actor_profile_id,
@@ -495,8 +493,9 @@ begin
       and r.artifact_hash=_block.evidence_hash
       and r.signer_slot='diretoria'
       and r.status='pending'
+      and (r.assigned_profile_id is null or r.assigned_profile_id=new.signer_profile_id)
   ) then
-    raise exception 'A assinatura da Diretoria ainda não foi solicitada pelo analista.';
+    raise exception 'A assinatura da Diretoria ainda não foi solicitada para este diretor ou para esta versão.';
   end if;
 
   return new;
@@ -530,12 +529,6 @@ begin
     and artifact_hash=_block.evidence_hash
     and signer_slot='diretoria'
     and status='pending';
-
-  update public.notifications
-  set is_read=true
-  where related_project_id=_block.process_id
-    and type='signature_request'
-    and coalesce(is_read,false)=false;
 
   return new;
 end;
