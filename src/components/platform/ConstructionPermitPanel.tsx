@@ -309,7 +309,7 @@ export function ConstructionPermitPanel({
 
   return (
     <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 !text-white shadow-inner dark:border-slate-700">
+      <CardHeader data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="permit" data-process-dark-header="true" className="border-b border-slate-700/40 bg-[linear-gradient(135deg,#061a2c_0%,#0b456a_58%,#0b78a8_100%)] px-5 py-5 !text-white shadow-inner dark:border-slate-700">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
