@@ -7225,3 +7225,36 @@ html body .sig-main-shell :is([data-primary-action="process"],[data-primary-acti
 }
 
 /* ===== END SIGAPRO CONTRAST HARD STOP ===== */
+
+
+/* ===== FINAL LOCAL CONTRAST OVERRIDE — DO NOT MOVE ABOVE ADAPTIVE RULES ===== */
+/* Must remain the LAST rules in this file. Dark local surfaces always win. */
+html body .sig-main-shell #sig-process-document-command-center,
+html body .sig-main-shell #sig-process-document-command-center *,
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"],
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"] *,
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"] *,
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-code="true"],
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-code="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell #sig-process-document-command-center svg,
+html body .sig-main-shell .sig-process-detail-premium [data-contrast-surface="dark"] svg,
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-unit-chip="true"] svg,
+html body .sig-main-shell .sig-process-detail-premium [data-organogram-code="true"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Explicit primary action foreground wins over theme text utilities. */
+html body .sig-main-shell [data-primary-action="process"],
+html body .sig-main-shell [data-primary-action="process"] *,
+html body .sig-main-shell [data-primary-action="document"],
+html body .sig-main-shell [data-primary-action="document"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
