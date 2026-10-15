@@ -275,10 +275,10 @@ export function ProcessDetailPage() {
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
-  type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "historico";
+  type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "alvara" | "historico";
   const [activeTab, setActiveTab] = useState<ProcessTab>(() => {
     const requested = new URLSearchParams(location.search).get("aba");
-    return requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"].includes(requested)
+    return requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
   });
@@ -338,7 +338,7 @@ export function ProcessDetailPage() {
     if (!processId || openedProcessRef.current === processId) return;
     openedProcessRef.current = processId;
     const requested = new URLSearchParams(location.search).get("aba");
-    const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "historico"].includes(requested)
+    const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
     setActiveTab(isProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
@@ -347,7 +347,7 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!processId) return;
     const requested = new URLSearchParams(location.search).get("aba");
-    if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "historico"].includes(requested)) return;
+    if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)) return;
     setActiveTab(isProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
   }, [location.search, isProtocolTrackingOnly, processId]);
 
@@ -861,11 +861,22 @@ export function ProcessDetailPage() {
           canFinanceOperate
         ),
     },
+    {
+      key: "alvara" as ProcessTab,
+      label: constructionPermit?.status === "emitido" ? "Alvará emitido" : "Alvará de Construção",
+      enabled:
+        !isProtocolTrackingOnly &&
+        (
+          isExternalProcessViewer
+            ? constructionPermit?.status === "emitido"
+            : constructionPaymentCompensated || Boolean(constructionPermit)
+        ),
+    },
     { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
     { key: "resumo" as ProcessTab, label: "Resumo", enabled: true },
   ].filter((item) => item.enabled);
 
-  const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab);
+  const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
@@ -2593,7 +2604,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {!isExternalProcessViewer && activeTab === "analise" && (
+          {activeTab === "alvara" && (
             <ConstructionPermitPanel
               process={process}
               session={session}
@@ -2606,23 +2617,7 @@ export function ProcessDetailPage() {
               issPaymentConfirmed={constructionGuide?.status === "compensada"}
               issPaidAt={constructionGuide?.paidAt}
               allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
-            />
-          )}
-
-          {isExternalProcessViewer && activeTab === "resumo" && (
-            <ConstructionPermitPanel
-              process={process}
-              session={session}
-              sessionUsers={sessionUsers}
-              municipalityId={effectiveScopeId || process.tenantId}
-              municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
-              secretariat={tenantSettings?.secretariaResponsavel}
-              directorate={tenantSettings?.diretoriaResponsavel || "Diretoria de Planejamento Urbano"}
-              technicalProfile={linkedTechnicalProfile}
-              issPaymentConfirmed={constructionGuide?.status === "compensada"}
-              issPaidAt={constructionGuide?.paidAt}
-              allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
-              externalView
+              externalView={isExternalProcessViewer}
             />
           )}
 
