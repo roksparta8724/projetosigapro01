@@ -13,22 +13,24 @@ describe("F5, logout and topbar visual continuity", () => {
   it("never injects stale application HTML before React takes ownership of the root", () => {
     expect(html).not.toContain('root.setAttribute("data-sigapro-continuity", "true")');
     expect(html).not.toContain("root.innerHTML = snapshot.html");
-    expect(html).not.toContain('overlay.id = "sigapro-refresh-snapshot"');
+    expect(html).toContain('holder.id = "sigapro-refresh-snapshot"');
     expect(html).not.toContain("sigapro-snapshot-page");
     expect(html).toContain('data-sigapro-initial-render');
     expect(main).toContain('const CONTINUITY_KEY = "sigapro.refresh.continuity.v1"');
     expect(main).toContain("persistRefreshContinuity");
-    expect(main).not.toContain("sanitizeContinuityHtml(root.innerHTML)");
+    expect(main).toContain("buildRefreshVisualSnapshot(root)");
     expect(main).toContain('removeAttribute("data-sigapro-initial-render")');
-    expect(main).not.toContain('window.addEventListener("sigapro-app-stable"');
+    expect(main).toContain('window.addEventListener("sigapro-app-stable"');
     expect(main).not.toContain("waitForStableFrame");
     expect(main).not.toContain("window.scrollTo");
   });
 
-  it("never uses a cloned DOM overlay because it changes scale and colors", () => {
-    expect(html).not.toContain('overlay.id = "sigapro-refresh-snapshot"');
-    expect(html).not.toContain("overlay.innerHTML = snapshot.html");
-    expect(main).not.toContain("sanitizeContinuityHtml(root.innerHTML)");
+  it("uses an isolated rendered viewport snapshot for hard reload continuity", () => {
+    expect(html).toContain('holder.id = "sigapro-refresh-snapshot"');
+    expect(html).toContain('image.src = "data:image/svg+xml;charset=utf-8,"');
+    expect(html).toContain('holder.style.zoom = String(1 / snapshotZoom)');
+    expect(main).toContain("buildRefreshVisualSnapshot(root)");
+    expect(main).toContain("collectSnapshotCss()");
     expect(main).toContain('document.getElementById("sigapro-refresh-snapshot")');
   });
 
