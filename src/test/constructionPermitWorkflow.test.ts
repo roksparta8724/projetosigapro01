@@ -11,6 +11,7 @@ describe("construction permit workflow", () => {
 
     expect(detail).toContain('issuedConstructionGuide?.status === "compensada"');
     expect(detail).toContain("Alvará de Construção");
+    expect(detail).toContain('key: "alvara" as ProcessTab');
     expect(detail).toContain("currentFlowIndex = 4");
     expect(detail).toContain(
       "Pagamento compensado pelo Financeiro. Esta etapa foi concluída",
