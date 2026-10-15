@@ -8,6 +8,11 @@ describe("official electronic signatures", () => {
     "utf8",
   );
   const api = readFileSync(resolve(process.cwd(), "api/e-sign-artifact.ts"), "utf8");
+  const client = readFileSync(
+    resolve(process.cwd(), "src/integrations/esign/artifactClient.ts"),
+    "utf8",
+  );
+  const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const migration = readFileSync(
     resolve(process.cwd(), "neon/migrations/20261015_process_artifact_e_signatures.sql"),
     "utf8",
@@ -30,6 +35,26 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("buildChecklistSignaturePayload");
     expect(checklist).toContain("stableSignatureStringify");
     expect(checklist).toContain("A ficha foi alterada após a última assinatura eletrônica");
+  });
+
+  it("uses the unprotected official custom domain for localhost signing", () => {
+    expect(viteConfig).toContain('"https://sigapromunicipal.com.br"');
+    expect(viteConfig).not.toContain("projetosigapro01-git-fix-analise-d2ff63-roksparta8724s-projects.vercel.app");
+    expect(viteConfig).toContain('stage: "dev_proxy"');
+  });
+
+  it("never renders object Object when an API or platform error is structured JSON", () => {
+    expect(client).toContain("normalizeApiError");
+    expect(client).toContain("readApiResponse");
+    expect(client).not.toContain("throw new Error(payload.error ||");
+  });
+
+  it("returns a precise stage and code for every critical server failure", () => {
+    expect(api).toContain("SIGNER_CONTEXT_DENIED");
+    expect(api).toContain("PASSWORD_REAUTH_FAILED");
+    expect(api).toContain("AUTH_SERVICE_UNAVAILABLE");
+    expect(api).toContain("SIGNATURE_RPC_FAILED");
+    expect(api).toContain("SIGNATURE_SERVER_ERROR");
   });
 
   it("reauthenticates against Neon Auth and never persists the password", () => {
