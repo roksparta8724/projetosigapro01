@@ -488,10 +488,6 @@ export function ProcessDetailPage() {
     : false;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const canProtocolConfirmPayment =
-    protocolGuide?.status === "pendente" &&
-    process.status === "pagamento_pendente" &&
-    canProtocolOperate;
   const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
   const canReviewDocuments =
     !isExternalProcessViewer &&
@@ -538,6 +534,11 @@ export function ProcessDetailPage() {
   const constructionGuide = visiblePaymentGuides.find(
     (guide) => guide.kind === "iss_obra",
   );
+  const canFinanceConfirmConstructionPayment =
+    Boolean(constructionGuide) &&
+    constructionGuide?.status === "pendente" &&
+    canFinanceOperate &&
+    constructionGuideSentExternally;
   const canManageIssuedIssGuide =
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
@@ -958,14 +959,6 @@ export function ProcessDetailPage() {
     }
   };
 
-  const handleConfirmProtocolPayment = () => {
-    void runProcessAction(
-      "confirm-protocol-payment",
-      () => markGuideAsPaid(process.id, session.name, "protocolo"),
-      "Pagamento da guia de protocolo confirmado. O processo foi liberado para a próxima etapa.",
-    );
-  };
-
   const getConstructionGuideInput = () => {
     const areaM2 = Number(String(constructionAreaInput).replace(",", "."));
     if (!Number.isFinite(areaM2) || areaM2 <= 0) {
@@ -1034,6 +1027,28 @@ export function ProcessDetailPage() {
       "finance-issue-construction-guide",
       () => issuePaymentGuide(process.id, session.name, "iss_obra"),
       "Guia de ISSQN / Projeto emitida pelo Financeiro e vinculada ao processo.",
+    );
+  };
+
+  const handleConfirmConstructionPayment = () => {
+    if (!constructionGuide) return;
+    if (!constructionGuideSentExternally) {
+      setProcessActionStatus(
+        "A Guia de ISSQN / Projeto ainda não foi liberada ao profissional. O Financeiro só pode dar baixa depois da liberação oficial.",
+      );
+      return;
+    }
+    if (!canFinanceOperate) {
+      setProcessActionStatus(
+        "Somente o Setor Financeiro pode confirmar o pagamento da Guia de ISSQN / Projeto.",
+      );
+      return;
+    }
+
+    void runProcessAction(
+      "confirm-construction-payment",
+      () => markGuideAsPaid(process.id, session.name, "iss_obra"),
+      "Pagamento da Guia de ISSQN / Projeto confirmado pelo Financeiro.",
     );
   };
 
@@ -2584,7 +2599,7 @@ export function ProcessDetailPage() {
                       ? "Nesta Prefeitura, a Análise Urbanística confirma os dados da obra e o Financeiro faz a emissão da guia."
                       : constructionGuideIssuerMode === "ambos"
                         ? "Nesta Prefeitura, a guia pode ser emitida pela Análise Urbanística ou pelo Financeiro, conforme o encaminhamento do processo."
-                        : "Nesta Prefeitura, a guia é gerada na Análise Urbanística e só chega ao Financeiro depois da liberação manual ao profissional."}
+                        : "Nesta Prefeitura, a guia é gerada na Análise Urbanística e só chega ao Financeiro depois da liberação manual ao profissional. A baixa do pagamento da obra é responsabilidade do Financeiro."}
                   </p>
                 </div>
                 <Badge
@@ -2650,10 +2665,23 @@ export function ProcessDetailPage() {
                           <Eye className="mr-2 h-4 w-4" />
                           Visualizar guia
                         </Button>
-                        <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100" onClick={() => printGuide("iss_obra", true)}>
+                        <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("iss_obra", true)}>
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir guia
                         </Button>
+                        {canFinanceConfirmConstructionPayment ? (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                            disabled={processActionBusy === "confirm-construction-payment"}
+                            onClick={handleConfirmConstructionPayment}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {processActionBusy === "confirm-construction-payment"
+                              ? "Confirmando..."
+                              : "Confirmar pagamento da obra"}
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
