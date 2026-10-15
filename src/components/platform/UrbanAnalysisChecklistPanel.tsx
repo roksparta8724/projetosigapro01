@@ -596,7 +596,23 @@ export function UrbanAnalysisChecklistPanel({
         {items.map((item) => {
           const itemState = state.items[item.id] ?? { status: "", observation: "" };
           return (
-            <div key={item.id} data-analysis-row="true" className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center">
+            <div
+              key={item.id}
+              data-analysis-row="true"
+              data-row-status={itemState.status || "pending"}
+              className={cn(
+                "grid gap-3 border-l-4 px-4 py-4 transition xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center",
+                itemState.status === "A"
+                  ? "border-l-emerald-500 bg-emerald-50/35 dark:bg-emerald-950/10"
+                  : itemState.status === "AP"
+                    ? "border-l-sky-500 bg-sky-50/35 dark:bg-sky-950/10"
+                    : itemState.status === "C"
+                      ? "border-l-amber-500 bg-amber-50/40 dark:bg-amber-950/10"
+                      : itemState.status === "NA"
+                        ? "border-l-slate-500 bg-slate-50/70 dark:bg-slate-800/25"
+                        : "border-l-transparent hover:bg-slate-50/70 dark:hover:bg-slate-800/35",
+              )}
+            >
               <div className="flex min-w-0 items-start gap-3">
                 <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {item.order}
@@ -612,17 +628,19 @@ export function UrbanAnalysisChecklistPanel({
                       key={status}
                       type="button"
                       data-checklist-status={status}
+                      data-selected={selected ? "true" : "false"}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
-                        "inline-flex h-9 min-w-10 items-center justify-center rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
+                        "inline-flex h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-extrabold transition-all duration-150",
                         selected
                           ? STATUS_META[status].classes
-                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
+                          : "border-slate-300 bg-white text-slate-600 shadow-sm hover:-translate-y-px hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
                       )}
                       aria-pressed={selected}
                       title={STATUS_META[status].label}
                     >
-                      {STATUS_META[status].short}
+                      {selected ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : null}
+                      <span>{STATUS_META[status].short}</span>
                     </button>
                   );
                 })}
@@ -632,7 +650,7 @@ export function UrbanAnalysisChecklistPanel({
                 value={itemState.observation}
                 onChange={(event) => updateItem(item.id, { observation: event.target.value })}
                 placeholder="Observação do analista..."
-                className="h-10 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="h-10 rounded-xl border-slate-300 bg-white text-sm font-medium text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:ring-sky-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
           );
@@ -649,7 +667,7 @@ export function UrbanAnalysisChecklistPanel({
             <div data-premium-header-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/30 bg-[#0b5e93] !text-white shadow-[0_8px_20px_rgba(2,132,199,0.25)]">
               <ClipboardCheck className="h-6 w-6 !text-white" />
             </div>
-            <div className="min-w-0">
+            <div data-analysis-header-copy="true" className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
               <CardTitle className="mt-1 text-xl font-bold !text-white">Ficha Oficial de Análise do Processo</CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
