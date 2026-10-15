@@ -155,16 +155,13 @@ export function buildConstructionPermitPdfBlob({
   pdf.text(permit.permitNumber, pageWidth - margin, 32, { align: "right" });
 
   if (permit.status !== "emitido") {
-    pdf.saveGraphicsState();
-    pdf.setGState(new pdf.GState({ opacity: 0.08 }));
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(40);
-    textColor(pdf, color.amber);
-    pdf.text("RASCUNHO • SEM VALIDADE", pageWidth / 2, 155, {
+    textColor(pdf, [226, 232, 240]);
+    pdf.text("RASCUNHO - SEM VALIDADE", pageWidth / 2, 155, {
       align: "center",
       angle: 35,
     });
-    pdf.restoreGraphicsState();
   }
 
   let y = 56;
