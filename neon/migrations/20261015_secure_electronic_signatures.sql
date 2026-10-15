@@ -47,7 +47,7 @@ create or replace function private.block_signature_mutation()
 returns trigger
 language plpgsql
 security definer
-set search_path to 'pg_catalog', 'public', 'private'
+set search_path to 'pg_catalog', 'public', 'private', 'extensions'
 as $$
 begin
   raise exception 'Assinatura eletrônica concluída é imutável.';
@@ -207,7 +207,7 @@ create or replace function public.sign_process_document_v1(
 returns jsonb
 language plpgsql
 security definer
-set search_path to 'pg_catalog', 'public', 'private'
+set search_path to 'pg_catalog', 'public', 'private', 'extensions'
 set row_security to 'off'
 as $$
 declare
@@ -258,7 +258,7 @@ begin
     raise exception 'Assinatura eletrônica ainda não foi habilitada no ambiente.';
   end if;
 
-  _ua_hash := encode(digest(convert_to(coalesce(_user_agent,''),'UTF8'),'sha256'),'hex');
+  _ua_hash := encode(extensions.digest(convert_to(coalesce(_user_agent,''),'UTF8'),'sha256'),'hex');
   _canonical := concat_ws('|',
     _subject,
     _document_id::text,
@@ -268,7 +268,7 @@ begin
     _ua_hash
   );
   _expected_proof := encode(
-    hmac(convert_to(_canonical,'UTF8'), convert_to(_secret,'UTF8'), 'sha256'),
+    extensions.hmac(convert_to(_canonical,'UTF8'), convert_to(_secret,'UTF8'), 'sha256'),
     'hex'
   );
 
@@ -313,7 +313,7 @@ begin
     _ip_inet,
     left(coalesce(_user_agent,''), 1000),
     'SIGAPRO/Neon Auth',
-    upper(substr(encode(gen_random_bytes(12),'hex'),1,20)),
+    upper(substr(encode(extensions.gen_random_bytes(12),'hex'),1,20)),
     _signed_at
   )
   on conflict (document_id) where document_id is not null
