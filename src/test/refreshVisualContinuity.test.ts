@@ -13,22 +13,22 @@ describe("F5, logout and topbar visual continuity", () => {
   it("never injects stale application HTML before React takes ownership of the root", () => {
     expect(html).not.toContain('root.setAttribute("data-sigapro-continuity", "true")');
     expect(html).not.toContain("root.innerHTML = snapshot.html");
-    expect(html).toContain('overlay.id = "sigapro-refresh-snapshot"');
+    expect(html).not.toContain('overlay.id = "sigapro-refresh-snapshot"');
     expect(html).not.toContain("sigapro-snapshot-page");
     expect(html).toContain('data-sigapro-initial-render');
     expect(main).toContain('const CONTINUITY_KEY = "sigapro.refresh.continuity.v1"');
     expect(main).toContain("persistRefreshContinuity");
-    expect(main).toContain("sanitizeContinuityHtml(root.innerHTML)");
+    expect(main).not.toContain("sanitizeContinuityHtml(root.innerHTML)");
     expect(main).toContain('removeAttribute("data-sigapro-initial-render")');
-    expect(main).toContain('window.addEventListener("sigapro-app-stable"');
+    expect(main).not.toContain('window.addEventListener("sigapro-app-stable"');
     expect(main).not.toContain("waitForStableFrame");
     expect(main).not.toContain("window.scrollTo");
   });
 
-  it("keeps the exact previous frame visible during unavoidable hard reloads", () => {
-    expect(html).toContain('overlay.style.position = "fixed"');
-    expect(html).toContain('overlay.innerHTML = snapshot.html');
-    expect(html).toContain('overlay.setAttribute("inert", "")');
+  it("never uses a cloned DOM overlay because it changes scale and colors", () => {
+    expect(html).not.toContain('overlay.id = "sigapro-refresh-snapshot"');
+    expect(html).not.toContain("overlay.innerHTML = snapshot.html");
+    expect(main).not.toContain("sanitizeContinuityHtml(root.innerHTML)");
     expect(main).toContain('document.getElementById("sigapro-refresh-snapshot")');
   });
 
