@@ -26,26 +26,16 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(main).not.toContain("sigapro-app-stable");
   });
 
-  it("intercepts browser reload itself with the Navigation API before document teardown", () => {
-    expect(html).toContain("window.navigation");
-    expect(html).toContain('event.navigationType !== "reload"');
-    expect(html).not.toContain('event.userInitiated !== true');
-    expect(html).toContain("event.userInitiated !== true");
-    expect(html).toContain("event.canIntercept");
-    expect(html).toContain("event.intercept({");
-    expect(html).toContain('dispatchSoftRefresh("navigation-api")');
-  });
-
-  it("hard-blocks F5 and normal reload shortcuts before the application boots", () => {
-    expect(html).toContain('key === "f5"');
-    expect(html).toContain('code === "f5"');
-    expect(html).toContain("keyCode === 116");
-    expect(html).toContain("event.preventDefault()");
-    expect(html).toContain("event.stopImmediatePropagation()");
-    expect(html).toContain("event.returnValue = false");
-    expect(html).toContain('window.addEventListener(type, blockDocumentReload, true)');
-    expect(html).toContain('document.addEventListener(type, blockDocumentReload, true)');
-    expect(html).toContain('new CustomEvent("sigapro-soft-refresh"');
+  it("uses browser-native cross-document continuity without any custom refresh shell", () => {
+    expect(html).toContain("@view-transition");
+    expect(html).toContain("navigation: auto");
+    expect(html).toContain("::view-transition-old(root)");
+    expect(html).toContain("::view-transition-new(root)");
+    expect(html).not.toContain("window.navigation");
+    expect(html).not.toContain("dispatchSoftRefresh");
+    expect(html).not.toContain("blockKeyboardReload");
+    expect(html).not.toContain("sigapro-soft-refresh");
+    expect(main).toContain('"pageswap"');
   });
 
   it("locks background and zoom before first paint and never clears zoom on teardown", () => {
