@@ -35,4 +35,11 @@ describe("urban analysis workflow regressions", () => {
     expect(analystDesk).toContain("Responsável pela análise");
     expect(analystDesk).toContain("Continuar análise");
   });
+
+  it("keeps the analysis queue renderable after premium action changes", () => {
+    const lucideImport = analystDesk.match(/import\s*\{[\s\S]*?\}\s*from\s*"lucide-react";/)?.[0] || "";
+    expect(lucideImport).toContain("Eye");
+    expect(analystDesk).toContain("<Eye");
+    expect(analystDesk).toContain("Abrir processo");
+  });
 });
