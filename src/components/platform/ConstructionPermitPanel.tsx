@@ -65,6 +65,7 @@ type ConstructionPermitPanelProps = {
   issPaidAt?: string;
   allDocumentsApproved: boolean;
   externalView?: boolean;
+  organogramTrail?: Array<{ code: string; name: string }>;
 };
 
 function permitStatusLabel(record: ConstructionPermitRecord | null) {
@@ -87,6 +88,7 @@ export function ConstructionPermitPanel({
   issPaidAt,
   allDocumentsApproved,
   externalView = false,
+  organogramTrail = [],
 }: ConstructionPermitPanelProps) {
   const [permit, setPermit] = useState<ConstructionPermitRecord | null>(() =>
     readLocalConstructionPermit(municipalityId, process.id),
@@ -332,6 +334,26 @@ export function ConstructionPermitPanel({
                 Documento final do licenciamento, preparado após a análise
                 técnica e a compensação da Guia de ISSQN / Projeto.
               </p>
+
+              {organogramTrail.length > 0 ? (
+                <div data-dark-organogram-trail="true" className="mt-3 flex flex-wrap items-center gap-2">
+                  {organogramTrail.map((unit, index) => (
+                    <div key={`permit-org-${unit.code}-${unit.name}`} className="flex items-center gap-2">
+                      {index > 0 ? <span className="!text-sky-200/80">›</span> : null}
+                      <span
+                        data-dark-organogram-code="true"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-black tracking-[0.10em] !text-white shadow-sm backdrop-blur-sm"
+                        title={unit.name}
+                      >
+                        <span className="!text-white">{unit.code}</span>
+                        <span className="hidden font-semibold tracking-normal !text-sky-100 sm:inline">
+                          {unit.name}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
