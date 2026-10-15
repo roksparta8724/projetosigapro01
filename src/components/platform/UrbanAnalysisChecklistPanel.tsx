@@ -596,7 +596,11 @@ export function UrbanAnalysisChecklistPanel({
         {items.map((item) => {
           const itemState = state.items[item.id] ?? { status: "", observation: "" };
           return (
-            <div key={item.id} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center">
+            <div
+              key={item.id}
+              data-analysis-row="true"
+              className="grid gap-3 px-4 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/35 xl:grid-cols-[minmax(0,1.45fr)_auto_minmax(280px,0.9fr)] xl:items-center"
+            >
               <div className="flex min-w-0 items-start gap-3">
                 <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {item.order}
@@ -611,6 +615,9 @@ export function UrbanAnalysisChecklistPanel({
                     <button
                       key={status}
                       type="button"
+                      data-checklist-status={status}
+                      data-selected={selected ? "true" : "false"}
+                      aria-pressed={selected}
                       onClick={() => updateItem(item.id, { status: selected ? "" : status })}
                       className={cn(
                         "inline-flex h-8 items-center justify-center rounded-xl border px-2.5 text-[10px] font-bold transition",
@@ -641,13 +648,17 @@ export function UrbanAnalysisChecklistPanel({
 
   return (
     <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
-      <CardHeader data-force-card-contrast="dark" className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
+      <CardHeader
+        data-force-card-contrast="dark"
+        data-premium-process-dark-header="analysis"
+        className="border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] md:px-6"
+      >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-inner">
               <ClipboardCheck className="h-6 w-6" />
             </div>
-            <div className="min-w-0">
+            <div data-analysis-header-copy="true" className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
               <CardTitle className="mt-1 text-xl font-bold !text-white">Ficha Oficial de Análise do Processo</CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
@@ -657,20 +668,20 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[430px]">
-            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
+            <div data-analysis-metric="blue" className="rounded-2xl border border-sky-300/35 bg-[#075985] px-3 py-3 shadow-[0_8px_20px_rgba(2,132,199,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Avaliados</p>
               <p className="mt-1 text-xl font-bold !text-white">{counts.evaluated}/{counts.total}</p>
             </div>
-            <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.12] px-3 py-3">
+            <div data-analysis-metric="emerald" className="rounded-2xl border border-emerald-300/35 bg-[#056249] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">De acordo</p>
               <p className="mt-1 text-xl font-bold !text-emerald-50">{counts.a}</p>
             </div>
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.12] px-3 py-3">
+            <div data-analysis-metric="amber" className="rounded-2xl border border-amber-300/35 bg-[#8a5b08] px-3 py-3 shadow-[0_8px_20px_rgba(217,119,6,0.22)]">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-amber-100">Pendências</p>
               <p className="mt-1 text-xl font-bold !text-amber-50">{pendingCorrectionCount}</p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/[0.10] px-3 py-3">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Progresso</p>
+            <div data-analysis-metric="cyan" className="rounded-2xl border border-cyan-300/35 bg-[#0a6077] px-3 py-3 shadow-[0_8px_20px_rgba(8,145,178,0.22)]">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-cyan-100">Progresso</p>
               <p className="mt-1 text-xl font-bold !text-white">{progress}%</p>
             </div>
           </div>
