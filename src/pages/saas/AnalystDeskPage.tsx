@@ -376,8 +376,8 @@ export function AnalystDeskPage() {
           const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
 
           return (
-            <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+            <div key={process.id} data-process-premium-card="true" data-surface="adaptive-card" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)]">
+              <div className="flex flex-wrap items-start justify-between gap-4 p-5">
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
@@ -408,14 +408,8 @@ export function AnalystDeskPage() {
                     tags={process.tags}
                     actor={session.name}
                     subjectLabel="processo"
-                    triggerClassName="h-8"
+                    triggerClassName="h-9"
                   />
-                  <Link
-                    to={`/processos/${process.id}`}
-                    className="sig-dark-action-btn inline-flex h-10 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-medium text-white"
-                  >
-                    Abrir processo
-                  </Link>
                 </div>
               </div>
 
@@ -605,6 +599,16 @@ export function AnalystDeskPage() {
                   </Button>
                 )}
 
+              </div>
+
+              <div className="mt-5 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35">
+                <Link
+                  to={`/processos/${process.id}`}
+                  data-primary-action="process"
+                  className="sig-primary-process-action inline-flex h-14 w-full items-center justify-center rounded-2xl px-6 text-[14px] font-bold !text-white [&_*]:!text-white"
+                >
+                  Abrir processo
+                </Link>
               </div>
             </div>
           );
