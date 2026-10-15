@@ -565,7 +565,7 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog','public'
 set row_security to 'off'
-as $
+as $$
 declare
   _process_id uuid;
   _version integer;
@@ -580,16 +580,11 @@ begin
   from public.process_documents d
   where d.id=_document_id and coalesce(d.is_valid,true)=true;
 
-  if _process_id is null then raise exception 'Documento nao encontrado'; end if;
-  if coalesce(_file_hash,'') !~ '^[0-9a-f]{64}
-grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
-grant execute on function public.approve_process_document_signed_v1(uuid,text,text) to authenticated;
-grant execute on function public.approve_process_document_signed_v2(uuid,text) to authenticated;
-grant execute on function public.issue_process_payment_guide_signed_v1(uuid,text,date,text,text) to authenticated;
-grant execute on function public.create_process_dispatch_signed_v1(uuid,text,text,text,timestamptz,text,text,text,text,text) to authenticated;
-grant execute on function public.issue_process_payment_guide_signed_v2(uuid,text,date,text) to authenticated;
-grant execute on function public.create_process_dispatch_signed_v2(uuid,text,text,text,timestamptz,text,text,text,text) to authenticated;
- then
+  if _process_id is null then
+    raise exception 'Documento nao encontrado';
+  end if;
+
+  if coalesce(_file_hash,'') !~ '^[0-9a-f]{64}$' then
     raise exception 'Documento sem hash SHA-256 oficial para assinatura';
   end if;
 
@@ -601,11 +596,12 @@ grant execute on function public.create_process_dispatch_signed_v2(uuid,text,tex
 
   return jsonb_build_object('signature',_signature,'review',_review);
 end;
-$;
+$$;
 
 grant execute on function public.create_electronic_signature_v1(uuid,text,text,text,integer,text) to authenticated;
 grant execute on function public.list_process_electronic_signatures_v1(uuid) to authenticated;
 grant execute on function public.approve_process_document_signed_v1(uuid,text,text) to authenticated;
+grant execute on function public.approve_process_document_signed_v2(uuid,text) to authenticated;
 grant execute on function public.issue_process_payment_guide_signed_v1(uuid,text,date,text,text) to authenticated;
 grant execute on function public.create_process_dispatch_signed_v1(uuid,text,text,text,timestamptz,text,text,text,text,text) to authenticated;
 grant execute on function public.issue_process_payment_guide_signed_v2(uuid,text,date,text) to authenticated;
