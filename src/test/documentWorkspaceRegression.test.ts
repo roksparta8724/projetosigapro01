@@ -83,18 +83,16 @@ describe("annotation draft and professional handoff", () => {
     expect(analysis).toContain('"rejeitado"');
   });
 
-  it("opens from the process in the same SPA view with the signed URL already prepared", () => {
+  it("opens the document in exactly one dedicated browser tab", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
-    expect(detail).not.toContain("window.open(");
-    expect(detail).toContain("getSignedUrlForObjectStrict");
-    expect(detail).toContain("documentAccessUrl");
-    expect(detail).toContain("returnTo:");
-    expect(analysis).toContain("prefetchedDocumentAccessUrl");
+    expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
+    expect(detail).toContain("openedTab.opener = null");
+    expect(detail).toContain("openedTab.focus()");
   });
 });
 
@@ -116,16 +114,16 @@ describe("analyst document permission continuity", () => {
 
 
 describe("analyst PDF markup entry", () => {
-  it("routes every authorized analyst straight into markup without a temporary browser tab", () => {
+  it("routes every authorized analyst straight into markup in one maximized tab", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
     expect(viewer).toContain("analisar?ferramenta=highlight");
     expect(detail).toContain("openDocumentWorkspace");
-    expect(detail).toContain("getSignedUrlForObjectStrict");
-    expect(detail).toContain("navigate(");
-    expect(detail).not.toContain("window.open(");
+    expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
+    expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
