@@ -143,7 +143,7 @@ describe("external process primary action hierarchy", () => {
 
     expect(flowIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThan(flowIndex);
-    expect(external).toContain("h-14 w-full");
+    expect(external).toContain("h-16 w-full");
     expect(external).toContain("sig-primary-process-action");
     expect(external).toContain("!text-white");
   });
@@ -230,7 +230,7 @@ describe("authoritative process surface polarity file", () => {
       main.indexOf('import "./index.css"'),
     );
     expect(polarity).toContain("Surface Polarity Contract V8");
-    expect(polarity).toContain("FINAL PROCESS POLARITY LOCK V9");
+    expect(polarity).toContain("FINAL PROCESS POLARITY LOCK V10");
     expect(polarity).toContain("#sig-process-document-command-center");
     expect(polarity).toContain('[data-layout-mode="default"]');
     expect(polarity).toContain('[data-layout-mode="inverse-main"]');
@@ -273,7 +273,7 @@ describe("canonical process surface contract", () => {
 describe("final process contrast authority", () => {
   it("keeps the final polarity lock after every earlier rule and never targets topbar", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
-    const finalIndex = polarity.lastIndexOf("FINAL PROCESS POLARITY LOCK V9");
+    const finalIndex = polarity.lastIndexOf("FINAL PROCESS POLARITY LOCK V10");
     const commandIndex = polarity.lastIndexOf("#sig-process-document-command-center");
 
     expect(finalIndex).toBeGreaterThan(0);
