@@ -169,6 +169,7 @@ describe("AppBootstrapProvider Neon-first login", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
+    document.cookie = "sigapro_browser_session_v1=; Path=/; Max-Age=0; SameSite=Lax";
     vi.clearAllMocks();
   });
 
@@ -320,6 +321,70 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(neonMock.client.rpc.mock.calls.length).toBeGreaterThan(rpcCallsBeforeRemount);
     expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+  });
+
+  it("keeps the authenticated Neon session when only the browser tab is closed and reopened", async () => {
+    const first = render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(window.localStorage.getItem("sigapro.bootstrap.neon-browser.v1")).toBeTruthy();
+    expect(document.cookie).toContain("sigapro_browser_session_v1=1");
+
+    first.unmount();
+
+    // Fechar uma guia elimina sessionStorage, mas a sessão do navegador continua.
+    window.sessionStorage.clear();
+
+    const second = render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    expect(screen.getByTestId("auth-id")).toHaveTextContent(neonMock.authUser.id);
+    expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
+    expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
+
+    second.unmount();
+  });
+
+  it("requires a fresh login when a previous authenticated browser session is reopened without its session marker", async () => {
+    const first = render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in Neon" }));
+    expect(await screen.findByText("signed-in")).toBeInTheDocument();
+    expect(window.localStorage.getItem("sigapro.bootstrap.neon-browser.v1")).toBeTruthy();
+    first.unmount();
+
+    // Simula uma nova sessão do navegador após encerramento/reinicialização:
+    // localStorage permanece, mas sessionStorage e cookie de sessão desaparecem.
+    window.sessionStorage.clear();
+    document.cookie = "sigapro_browser_session_v1=; Path=/; Max-Age=0; SameSite=Lax";
+
+    render(
+      <AppBootstrapProvider>
+        <Probe />
+      </AppBootstrapProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(screen.getByTestId("auth-id")).toHaveTextContent("none");
+    expect(screen.getByTestId("role")).toHaveTextContent("none");
+    expect(window.localStorage.getItem("sigapro.bootstrap.neon-browser.v1")).toBeNull();
+    expect(neonMock.client.auth.signOut).toHaveBeenCalled();
   });
 
   it("uses the Neon password recovery contract with redirect token flow", async () => {
