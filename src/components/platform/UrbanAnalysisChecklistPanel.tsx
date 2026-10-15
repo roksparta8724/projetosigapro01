@@ -602,7 +602,9 @@ export function UrbanAnalysisChecklistPanel({
     );
   };
 
-  const openSignatureConfirmation = (kind: "technical" | "fiscal") => {
+  const openSignatureConfirmation = (
+    kind: "technical" | "fiscal" | "director",
+  ) => {
     if (kind === "technical") {
       if (!canSignTechnical) {
         setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
@@ -616,7 +618,7 @@ export function UrbanAnalysisChecklistPanel({
         setNotice("A análise técnica já possui assinatura eletrônica oficial nesta versão.");
         return;
       }
-    } else {
+    } else if (kind === "fiscal") {
       if (!canSignFiscal) {
         setNotice("Este perfil não possui atribuição para assinar a conferência fiscal.");
         return;
@@ -627,6 +629,23 @@ export function UrbanAnalysisChecklistPanel({
       }
       if (fiscalOfficial) {
         setNotice("A conferência fiscal já possui assinatura eletrônica oficial nesta versão.");
+        return;
+      }
+    } else {
+      if (!isDirectorProfile) {
+        setNotice("Este perfil não está cadastrado como Diretor(a) para realizar esta assinatura.");
+        return;
+      }
+      if (!technicalOfficial) {
+        setNotice("A análise técnica precisa estar assinada antes da assinatura da Diretoria.");
+        return;
+      }
+      if (!directorRequestPending) {
+        setNotice("A assinatura da Diretoria precisa ser solicitada pelo analista antes da assinatura.");
+        return;
+      }
+      if (directorOfficial) {
+        setNotice("A Diretoria já assinou eletronicamente esta versão.");
         return;
       }
     }
@@ -644,7 +663,11 @@ export function UrbanAnalysisChecklistPanel({
 
     const kind = signatureDialog;
     const slot: ArtifactSignerSlot =
-      kind === "technical" ? "analise_tecnica" : "conferencia_fiscal";
+      kind === "technical"
+        ? "analise_tecnica"
+        : kind === "fiscal"
+          ? "conferencia_fiscal"
+          : "diretoria";
     const payload = buildChecklistSignaturePayload(state, process, municipalityId);
 
     setSignatureBusy(true);
@@ -718,7 +741,11 @@ export function UrbanAnalysisChecklistPanel({
           verifiedSigner.title ||
           verifiedSigner.role ||
           session.title ||
-          (kind === "technical" ? "Analista Técnico" : "Fiscal de Obras"),
+          (kind === "technical"
+            ? "Analista Técnico"
+            : kind === "fiscal"
+              ? "Fiscal de Obras"
+              : "Diretor(a)"),
         signedAt,
         verificationCode,
         evidenceHash,
@@ -737,24 +764,42 @@ export function UrbanAnalysisChecklistPanel({
               analystTitle: signature.title,
               technicalSignature: signature,
               fiscalSignature: null,
+              directorSignature: null,
               signedBy: signature.name,
               signedAt,
               savedAt: now,
             }
-          : {
-              ...state,
-              fiscalSignature: signature,
-              savedAt: now,
-            };
+          : kind === "fiscal"
+            ? {
+                ...state,
+                fiscalSignature: signature,
+                savedAt: now,
+              }
+            : {
+                ...state,
+                directorSignature: signature,
+                savedAt: now,
+              };
 
       persistState(next);
       setSignaturePassword("");
       setSignatureStage("idle");
       setSignatureDialog(null);
+      if (kind === "director") {
+        const requestSnapshot = await getProcessArtifactSignatureRequest(
+          process.id,
+          ANALYSIS_ARTIFACT_KEY,
+          "diretoria",
+        );
+        setDirectorRequest(requestSnapshot);
+      }
+
       setNotice(
         kind === "technical"
           ? `Análise técnica assinada e confirmada no banco oficial. Código: ${verificationCode}.`
-          : `Conferência fiscal assinada e confirmada no banco oficial. Código: ${verificationCode}.`,
+          : kind === "fiscal"
+            ? `Conferência fiscal assinada e confirmada no banco oficial. Código: ${verificationCode}.`
+            : `Assinatura da Diretoria concluída e confirmada no banco oficial. Código: ${verificationCode}.`,
       );
     } catch (error) {
       setSignaturePassword("");
@@ -780,8 +825,40 @@ export function UrbanAnalysisChecklistPanel({
     }
   };
 
+  const requestDirectorSignature = async () => {
+    if (!canRequestDirector || !state.technicalSignature?.evidenceHash) {
+      setNotice("Conclua primeiro a assinatura técnica desta versão.");
+      return;
+    }
+
+    setDirectorRequestBusy(true);
+    try {
+      const snapshot = await requestProcessArtifactSignature({
+        processId: process.id,
+        artifactKey: ANALYSIS_ARTIFACT_KEY,
+        artifactHash: state.technicalSignature.evidenceHash,
+        signerSlot: "diretoria",
+      });
+      setDirectorRequest(snapshot);
+      setNotice(
+        snapshot.candidate_count > 0
+          ? "Solicitação de assinatura enviada à Diretoria. O diretor receberá a pendência e poderá assinar com a própria senha."
+          : "Solicitação registrada. Ainda não existe um perfil ativo identificado como Diretor(a) neste município; assim que o cargo for atribuído, a pendência ficará disponível.",
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível solicitar a assinatura da Diretoria.",
+      );
+    } finally {
+      setDirectorRequestBusy(false);
+    }
+  };
+
   const signTechnicalEvaluation = () => openSignatureConfirmation("technical");
   const signFiscalReview = () => openSignatureConfirmation("fiscal");
+  const signDirectorReview = () => openSignatureConfirmation("director");
 
   const renderSignatureEvidence = (
     signature: ChecklistSignature | null | undefined,
