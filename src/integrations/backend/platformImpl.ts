@@ -2378,6 +2378,85 @@ export async function verifyRemoteElectronicSignature(signatureCode: string) {
   return (data ?? {}) as Record<string, unknown>;
 }
 
+export async function getRemoteInternalSignaturePolicy(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_process_internal_signature_policy", {
+    p_process_id: processId,
+  });
+}
+
+export async function getRemoteTechnicalConclusionWorkspace(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_my_technical_conclusion_editor_v1", {
+    _process_id: processId,
+  });
+}
+
+export async function startRemoteTechnicalConclusion(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("start_process_technical_conclusion", {
+    p_process_id: processId,
+  });
+}
+
+export async function updateRemoteTechnicalConclusion(input: {
+  processId: string;
+  conclusionTypeId?: string | null;
+  conclusionText: string;
+  technicalBasis: string;
+  internalNotes: string;
+}) {
+  return callProcessRpc<Record<string, unknown>>("update_process_technical_conclusion", {
+    p_process_id: input.processId,
+    p_conclusion_type_id: input.conclusionTypeId || null,
+    p_conclusion_text: input.conclusionText,
+    p_technical_basis: input.technicalBasis,
+    p_internal_notes: input.internalNotes,
+  });
+}
+
+export async function submitRemoteTechnicalConclusionForApproval(
+  processId: string,
+  idempotencyKey: string,
+) {
+  return callProcessRpc<Record<string, unknown>>("submit_technical_conclusion_for_approval", {
+    p_process_id: processId,
+    p_idempotency_key: idempotencyKey,
+  });
+}
+
+export async function getRemoteSuperiorTechnicalConclusion(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_superior_technical_conclusion", {
+    p_process_id: processId,
+  });
+}
+
+export async function listRemoteSuperiorApprovalActions(processId: string) {
+  return callProcessRpc<Array<Record<string, unknown>>>("list_available_superior_approval_actions", {
+    p_process_id: processId,
+  });
+}
+
+export async function listRemoteRequiredProcessDocumentsForSignature(processId: string) {
+  return callProcessRpc<Array<Record<string, unknown>>>(
+    "list_my_required_process_documents_for_signature_v1",
+    { _process_id: processId },
+  );
+}
+
+export async function getRemoteFinalApprovalContext(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_final_approval_context", {
+    p_process_id: processId,
+  });
+}
+
+export async function finalizeRemoteApprovedProcess(
+  processId: string,
+  idempotencyKey: string,
+) {
+  return callProcessRpc<Record<string, unknown>>("finalize_approved_process", {
+    p_process_id: processId,
+    p_idempotency_key: idempotencyKey,
+  });
+}
+
 export async function approveRemoteProcessDocumentWithSignature(input: {
   documentId: string;
   password: string;
