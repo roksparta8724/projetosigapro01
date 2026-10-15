@@ -6,7 +6,28 @@ export type R2UploadResult = {
   publicUrl: string;
 };
 
-const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const rawApiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().trim().replace(/\/+$/, "");
+const isLocalBrowser =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
+const officialReadApiBase = "https://sigapromunicipal.com.br";
+
+function isLoopbackUrl(value: string) {
+  if (!value) return false;
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return ["localhost", "127.0.0.1", "::1"].includes(url.hostname.toLowerCase());
+  } catch {
+    return /(^|\/\/)(localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(value);
+  }
+}
+
+// Nunca permita que uma build oficial carregue uma API-base de desenvolvimento.
+// Isso elimina redirects/leitura apontando para localhost em produção.
+const apiBase =
+  !isLocalBrowser && isLoopbackUrl(rawApiBase)
+    ? ""
+    : rawApiBase;
 
 function buildApiUrl(path: string) {
   if (!apiBase) return path;
@@ -14,19 +35,61 @@ function buildApiUrl(path: string) {
   return `${apiBase}${normalized}`;
 }
 
-async function getAuthorizationHeaders() {
+function buildReadApiUrl(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+
+  // Em localhost a chamada permanece same-origin. O middleware do Vite decide:
+  // usa credenciais R2 locais quando existem; caso contrário, encaminha SOMENTE
+  // a leitura para a API oficial. Escritas nunca recebem esse fallback.
+  if (isLocalBrowser) return normalized;
+
+  if (apiBase) return `${apiBase}${normalized}`;
+  return normalized;
+}
+
+export async function resolveR2BearerToken(auth: any) {
   try {
-    const sessionResult = await backendClient?.auth?.getSession?.();
-    const session = sessionResult?.data?.session ?? null;
-    const token =
+    // Neon Auth exposes the JWT specifically for authenticated API calls.
+    // Prefer it over inferring a bearer token from the session object shape.
+    const directJwt = await auth?.getJWTToken?.();
+    const normalizedDirectJwt =
+      typeof directJwt === "string"
+        ? directJwt
+        : typeof directJwt?.data === "string"
+          ? directJwt.data
+          : typeof directJwt?.token === "string"
+            ? directJwt.token
+            : typeof directJwt?.data?.token === "string"
+              ? directJwt.data.token
+              : "";
+
+    if (normalizedDirectJwt) return normalizedDirectJwt;
+
+    const sessionResult = await auth?.getSession?.();
+    const session =
+      sessionResult?.data?.session ??
+      sessionResult?.data ??
+      null;
+
+    return (
       session?.access_token ||
       session?.accessToken ||
+      session?.jwt ||
       session?.token ||
-      "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
+      session?.session?.access_token ||
+      session?.session?.accessToken ||
+      session?.session?.jwt ||
+      session?.session?.token ||
+      ""
+    );
   } catch {
-    return {};
+    return "";
   }
+}
+
+async function getAuthorizationHeaders() {
+  const token = await resolveR2BearerToken(backendClient?.auth);
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function getPublicUrl(objectKey: string, baseOverride?: string) {
@@ -66,6 +129,52 @@ async function requestSignedUrl(path: string, input: { bucket: string; objectKey
   return response;
 }
 
+function isLocalBrowserRuntime() {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
+}
+
+async function requestSignedUrlWithLocalReadFallback(
+  path: string,
+  input: { bucket: string; objectKey: string; expiresIn?: number },
+) {
+  const primaryUrl = buildReadApiUrl(path);
+  const officialUrl = `${officialReadApiBase}${path.startsWith("/") ? path : `/${path}`}`;
+
+  try {
+    const response = await requestSignedUrl(primaryUrl, input);
+
+    if (isLocalBrowser && !response.ok) {
+      const payload = await response.clone().json().catch(() => ({})) as {
+        error?: string;
+        code?: string;
+      };
+      const diagnostic = `${payload.code || ""} ${payload.error || ""}`;
+      const localInfrastructureFailure =
+        /R2_CONFIG_MISSING|Variáveis R2 ausentes|Endpoint R2 não configurado|R2_READ_PROXY_ERROR|proxy local|credenciais.*R2/i.test(
+          diagnostic,
+        );
+
+      if (localInfrastructureFailure) {
+        return requestSignedUrl(officialUrl, input);
+      }
+    }
+
+    return response;
+  } catch (error) {
+    if (!isLocalBrowser) throw error;
+
+    const message = error instanceof Error ? error.message : String(error || "");
+    const localInfrastructureFailure =
+      /R2_CONFIG_MISSING|Variáveis R2 ausentes|Endpoint R2 não configurado|R2_READ_PROXY_ERROR|Falha ao alcançar o proxy local/i.test(
+        message,
+      );
+    if (!localInfrastructureFailure) throw error;
+
+    return requestSignedUrl(officialUrl, input);
+  }
+}
+
 export async function getSignedUrlForObject(input: {
   bucket: string;
   objectKey: string;
@@ -73,15 +182,15 @@ export async function getSignedUrlForObject(input: {
 }) {
   const allowPublicFallback =
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
+  const primaryUrl = buildReadApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+  let response = await requestSignedUrlWithLocalReadFallback(primaryUrl, { ...input, expiresIn });
 
   if (response.status === 404 && apiBase) {
     // fallback local quando VITE_R2_API_BASE aponta para outro host sem a rota
-    response = await requestSignedUrl("/api/r2-sign-get", input);
+    response = await requestSignedUrlWithLocalReadFallback("/api/r2-sign-get", input);
   }
 
   if (!response.ok) {
@@ -108,19 +217,39 @@ export async function getSignedUrlForObjectStrict(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
+  const primaryUrl = buildReadApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
+  let response: Response;
 
-  if (response.status === 404 && apiBase) {
+  try {
+    response = await requestSignedUrlWithLocalReadFallback(primaryUrl, { ...input, expiresIn });
+  } catch (error) {
+    throw new Error(
+      isLocalBrowserRuntime()
+        ? "Falha ao alcançar o proxy local de leitura do armazenamento. Reinicie o Vite e tente novamente."
+        : error instanceof Error
+          ? error.message
+          : "Falha ao gerar URL assinada.",
+    );
+  }
+
+  if (response.status === 404 && apiBase && !isLocalBrowserRuntime()) {
     response = await requestSignedUrl("/api/r2-sign-get", input);
   }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    const message = payload?.error || "Falha ao gerar URL assinada.";
+    const upstreamMessage =
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as { error?: unknown }).error || "")
+        : "";
+    const message =
+      upstreamMessage ||
+      (response.status === 401 || response.status === 403
+        ? "Sua sessão não autorizou a leitura segura deste documento. Entre novamente na conta e tente abrir o arquivo."
+        : `Falha ao gerar URL assinada (HTTP ${response.status}).`);
     throw new Error(message);
   }
 
@@ -128,7 +257,11 @@ export async function getSignedUrlForObjectStrict(input: {
     signedUrl?: string;
   };
 
-  return payload.signedUrl || "";
+  if (!payload.signedUrl) {
+    throw new Error("A API oficial não retornou a URL segura do documento.");
+  }
+
+  return payload.signedUrl;
 }
 
 async function fileToBase64(file: File) {
@@ -225,7 +358,7 @@ export type RecoverableProcessFile = {
 };
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
-  const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
+  const response = await fetch(buildReadApiUrl("/api/r2-list-user-files"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

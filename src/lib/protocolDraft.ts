@@ -33,6 +33,7 @@ export interface StoredUploadedFileItem {
   previewUrl?: string;
   storagePath?: string;
   fileSizeBytes?: number;
+  fileHash?: string;
 }
 
 export interface ProtocolDraftPayload {

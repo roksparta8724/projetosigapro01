@@ -16,7 +16,10 @@ import { isInternalRole } from "@/lib/platform";
 export function MunicipalOrganizationPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
-  const municipalityId = municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null;
+  const municipalityId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [status, setStatus] = useState("Carregando organograma...");
 
@@ -53,7 +56,7 @@ export function MunicipalOrganizationPage() {
         <PageHero
           eyebrow={municipalityName || municipality?.name || "Prefeitura"}
           title="Estrutura da Prefeitura"
-          description="Consulta institucional por siglas das secretarias, diretorias, departamentos, coordenadorias e setores. Nomes de servidores não são exibidos."
+          description="Visualize a hierarquia real das secretarias, diretorias, departamentos, coordenadorias e setores. Cada subunidade aparece dentro da estrutura superior cadastrada, sem expor nomes de servidores."
           icon={Network}
         />
 
@@ -65,7 +68,7 @@ export function MunicipalOrganizationPage() {
 
         <TableCard
           title="Organograma"
-          description="Visão institucional de consulta para toda a equipe municipal."
+          description="Estrutura institucional completa, com vínculos hierárquicos, siglas, nomes e contatos oficiais de cada unidade."
           icon={Network}
         >
           <MunicipalOrganizationChart departments={departments} />

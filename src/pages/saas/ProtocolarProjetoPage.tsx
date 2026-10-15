@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -29,10 +30,15 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
-import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
+import {
+  createRemoteExternalProcessV2,
+  createRemoteSignedExternalProcess,
+  registerRemoteExternalAccount,
+} from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
+import { sha256Bytes } from "@/lib/electronicSignature";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
@@ -132,7 +138,7 @@ export function ProtocolarProjetoPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments, processes } = usePlatformData();
+  const { refreshRemoteStore, getInstitutionSettings, getUserProfile, processes } = usePlatformData();
 
   const profile = getUserProfile(session.id);
   const profileFullName = profile?.fullName ?? "";
@@ -168,6 +174,9 @@ export function ProtocolarProjetoPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [files, setFiles] = useState<Record<string, UploadedFileItem[]>>({});
   const filesRef = useRef<Record<string, UploadedFileItem[]>>({});
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const protocolSignaturePasswordRef = useRef("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const uploadBusyRef = useRef(false);
   const [uploadingLabels, setUploadingLabels] = useState<Record<string, boolean>>({});
   const hasPendingDocumentUpload = Object.values(uploadingLabels).some(Boolean);
@@ -419,6 +428,7 @@ export function ProtocolarProjetoPage() {
               ...item,
               storagePath: uploaded.path,
               fileSizeBytes: item.file.size,
+              fileHash: uploaded.fileHash,
               // Mantém o preview local já carregado. Trocar o src pelo URL remoto
               // logo após o upload fazia imagem/iframe recarregar e o card "piscar".
               previewUrl: item.previewUrl || uploaded.publicUrl,
@@ -718,13 +728,30 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
+    const hashlessStoredUploads = documentItems.filter((item) =>
+      findFilesForLabel(item.label).some(
+        (file) => Boolean(file.storagePath) && !file.fileHash && !file.file,
+      ),
+    );
+    if (hashlessStoredUploads.length > 0) {
+      setStatus(
+        `Alguns arquivos de rascunho antigo ainda não possuem SHA-256 real: ${hashlessStoredUploads.map((item) => item.label).join(", ")}. Selecione esses arquivos novamente uma única vez para habilitar a assinatura eletrônica.`,
+      );
+      return;
+    }
+
+    if (session.role === "profissional_externo" && !protocolSignaturePasswordRef.current) {
+      setSignatureDialogOpen(true);
+      return;
+    }
+
     let documents = documentItems.flatMap((item) =>
       findFilesForLabel(item.label).map((file) => ({
         id: `doc-${crypto.randomUUID()}`,
         label: item.label,
         required: item.required,
         uploaded: true,
-        signed: normalizeLabel(item.label).includes("projeto arquitetonico"),
+        signed: false,
         version: 1,
         source: "profissional" as const,
         fileName: file.fileName,
@@ -732,6 +759,7 @@ export function ProtocolarProjetoPage() {
         sizeLabel: file.sizeLabel,
         fileSizeBytes: file.file?.size ?? file.fileSizeBytes,
         filePath: file.storagePath,
+        fileHash: file.fileHash,
         previewUrl: file.storagePath ? undefined : file.previewUrl,
       })),
     );
@@ -755,13 +783,22 @@ export function ProtocolarProjetoPage() {
       try {
         documents = await Promise.all(
           documents.map(async (document) => {
-            if (document.filePath) return document;
+            if (document.filePath && document.fileHash) return document;
 
             const originalFile = findFilesForLabel(document.label).find(
               (item) => item.fileName === document.fileName && item.file,
             )?.file;
 
             if (!originalFile) return document;
+
+            if (document.filePath) {
+              const fileHash = await originalFile.arrayBuffer().then((buffer) => sha256Bytes(buffer));
+              return {
+                ...document,
+                fileHash,
+                fileSizeBytes: originalFile.size,
+              };
+            }
 
             const uploaded = await uploadFileToStorage({
               bucket: "process-documents",
@@ -775,20 +812,23 @@ export function ProtocolarProjetoPage() {
             return {
               ...document,
               filePath: uploaded.path,
+              fileHash: uploaded.fileHash,
               fileSizeBytes: originalFile.size,
               previewUrl: uploaded.publicUrl,
             };
           }),
         );
 
-        const documentsWithoutStorage = documents.filter((document) => !document.filePath);
+        const documentsWithoutStorage = documents.filter(
+          (document) => !document.filePath || !/^[0-9a-f]{64}$/i.test(document.fileHash || ""),
+        );
         if (documentsWithoutStorage.length > 0) {
           throw new Error(
-            `Falha ao persistir no armazenamento: ${documentsWithoutStorage.map((document) => document.label).join(", ")}.`,
+            `Falha ao persistir documento com armazenamento e SHA-256 real: ${documentsWithoutStorage.map((document) => document.label).join(", ")}.`,
           );
         }
 
-        const remoteProcess = await createRemoteExternalProcessV2({
+        const processInput = {
           tenantId: effectiveScopeId,
           createdBy: session.id,
           title: form.titulo,
@@ -825,20 +865,25 @@ export function ProtocolarProjetoPage() {
             amount: tenantSettings?.taxaProtocolo ?? 35.24,
             dueDate: "",
           },
-        });
+        };
 
-        if (documents.length > 0) {
-          const syncResult = await appendProcessDocuments(
-            remoteProcess.process_id,
-            documents,
-            session.name,
+        const remoteProcess =
+          session.role === "profissional_externo"
+            ? await createRemoteSignedExternalProcess(
+                processInput,
+                protocolSignaturePasswordRef.current,
+              )
+            : await createRemoteExternalProcessV2(processInput);
+
+        if (
+          session.role === "profissional_externo" &&
+          (!remoteProcess.professional_signature_complete ||
+            !Array.isArray(remoteProcess.signatures) ||
+            remoteProcess.signatures.length !== documents.length)
+        ) {
+          throw new Error(
+            "O banco não confirmou a assinatura eletrônica de todos os documentos. O protocolo foi revertido automaticamente.",
           );
-
-          if (Number(syncResult.synced || 0) !== documents.length) {
-            throw new Error(
-              `O protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
-            );
-          }
         }
 
         const issuedAt = new Date().toISOString();
@@ -870,11 +915,13 @@ export function ProtocolarProjetoPage() {
             ? `Não foi possível concluir o protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
             : `Não foi possível concluir o protocolo: ${message}`,
         );
+        protocolSignaturePasswordRef.current = "";
         setSubmitting(false);
         return;
       }
     } else {
       setStatus("O banco oficial está indisponível. O protocolo não foi criado para evitar divergência de dados.");
+      protocolSignaturePasswordRef.current = "";
       setSubmitting(false);
       return;
     }
@@ -897,13 +944,14 @@ export function ProtocolarProjetoPage() {
       setSubmitting(false);
     }
 
+    protocolSignaturePasswordRef.current = "";
     navigate(`/processos/${remoteSeed.processId}`);
   };
 
   return (
     <PortalFrame eyebrow="Novo protocolo" title="Protocolar projeto">
       <PageShell>
-        <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
+        <form ref={formRef} className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
           <PageHero
             eyebrow="Abertura de novo protocolo"
             title="Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
@@ -1299,6 +1347,21 @@ export function ProtocolarProjetoPage() {
             </div>
           </SectionCard>
         </form>
+
+        <ElectronicSignatureDialog
+          open={signatureDialogOpen}
+          onOpenChange={setSignatureDialogOpen}
+          title="Assinar e protocolar documentos"
+          subject={`${uploadedDocumentCount} documento(s) serão vinculados ao protocolo com SHA-256 real e assinatura eletrônica do profissional responsável.`}
+          statement="Confirmo que os arquivos apresentados correspondem integralmente aos documentos enviados por mim neste protocolo e autorizo o registro da minha assinatura eletrônica em cada versão."
+          busy={submitting}
+          onConfirm={async (password) => {
+            protocolSignaturePasswordRef.current = password;
+            setSignatureDialogOpen(false);
+            await Promise.resolve();
+            formRef.current?.requestSubmit();
+          }}
+        />
       </PageShell>
     </PortalFrame>
   );

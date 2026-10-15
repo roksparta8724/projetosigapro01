@@ -42,8 +42,9 @@ describe("process document persistence regressions", () => {
 
   it("never embeds live PDF viewers inside process document cards", () => {
     expect(processDetail).toContain('data-process-document-card="true"');
-    expect(processDetail).toContain("/visualizar");
-    expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain("popup.location.replace(accessUrl)");
+    expect(processDetail).not.toContain("window.open(viewerUrl");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
     expect(processDetail).not.toContain('className="h-72 w-full"');
   });

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -8,6 +8,9 @@ import {
   resolvePlanEntitlements,
   type PlanModuleName,
 } from "@/lib/planEntitlements";
+
+const PLAN_RESOLUTION_TIMEOUT_MS = 6000;
+const resolutionStartedAtByIdentity = new Map<string, number>();
 
 export function usePlanEntitlements() {
   const {
@@ -20,16 +23,21 @@ export function usePlanEntitlements() {
   const {
     municipality,
     scopeId,
-    loading: municipalityLoading,
   } = useMunicipality();
   const { session } = usePlatformSession();
   const {
     authenticatedUserId,
     authenticatedProfileId,
     authenticatedMunicipalityId,
+    authenticatedEmail,
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
+
+  const authenticatedIdentityIds = [
+    authenticatedProfileId,
+    authenticatedUserId,
+  ].filter((value): value is string => Boolean(value));
 
   const authenticatedBusinessUserId =
     authenticatedProfileId || authenticatedUserId || "";
@@ -46,14 +54,17 @@ export function usePlanEntitlements() {
     ? sessionMunicipalityId || municipality?.id || scopeId || ""
     : sessionMunicipalityId;
 
-  const municipalityMatchesSession =
-    !municipality?.id ||
-    !sessionMunicipalityId ||
-    municipality.id === sessionMunicipalityId;
-
+  const normalizedAuthenticatedEmail = String(authenticatedEmail ?? "").trim().toLowerCase();
+  const normalizedSessionEmail = String(session.email ?? "").trim().toLowerCase();
   const identityMatchesAuth =
-    Boolean(authenticatedBusinessUserId) &&
-    session.id === authenticatedBusinessUserId;
+    (
+      Boolean(authenticatedIdentityIds.length) &&
+      authenticatedIdentityIds.includes(session.id)
+    ) ||
+    (
+      Boolean(normalizedAuthenticatedEmail) &&
+      normalizedAuthenticatedEmail === normalizedSessionEmail
+    );
 
   const municipalityMatchesAuth =
     isMaster ||
@@ -62,23 +73,27 @@ export function usePlanEntitlements() {
 
   // Mesmo o Master deve aguardar a confirmação da identidade real antes
   // de montar módulos. Plano comercial e Prefeitura são dispensados só depois.
+  const authIdentityMismatch =
+    !authLoading &&
+    authResolved &&
+    session.id !== "unknown" &&
+    !identityMatchesAuth;
+
+  const stableAuthenticatedIdentity =
+    session.id !== "unknown" &&
+    (
+      (Boolean(authenticatedProfileId) && session.id === authenticatedProfileId) ||
+      (Boolean(authenticatedUserId) && session.id === authenticatedUserId) ||
+      (
+        Boolean(normalizedAuthenticatedEmail) &&
+        normalizedAuthenticatedEmail === normalizedSessionEmail
+      )
+    );
+
   const authContextUnresolved =
     authLoading ||
-    !authResolved ||
-    !identityMatchesAuth ||
-    session.id === "unknown";
-
-  const isResolving =
-    authContextUnresolved ||
-    (!isMaster && (
-      !municipalityMatchesAuth ||
-      municipalityLoading ||
-      platformDataLoading ||
-      !sessionMunicipalityId ||
-      !municipalityMatchesSession ||
-      !dataReadyForCurrentUser ||
-      Boolean(dataError)
-    ));
+    session.id === "unknown" ||
+    (!authResolved && !stableAuthenticatedIdentity);
 
   const state = useMemo(
     () =>
@@ -89,17 +104,102 @@ export function usePlanEntitlements() {
       }),
     [municipalityId, planAssignments, plans],
   );
+  const hasCurrentMunicipalityEntitlement = Boolean(state.assignment && state.plan);
+
+  const terminalDataFailure =
+    Boolean(dataError) &&
+    !dataReadyForCurrentUser &&
+    !hasCurrentMunicipalityEntitlement;
+
+  const planDataPending =
+    !dataReadyForCurrentUser &&
+    !terminalDataFailure &&
+    platformDataLoading &&
+    !hasCurrentMunicipalityEntitlement;
+
+  const rawResolving =
+    !terminalDataFailure &&
+    !authIdentityMismatch &&
+    (
+      authContextUnresolved ||
+      (!isMaster && (
+        !municipalityMatchesAuth ||
+        !sessionMunicipalityId ||
+        planDataPending
+      ))
+    );
+
+  const resolutionKey = [
+    authenticatedBusinessUserId ||
+      normalizedAuthenticatedEmail ||
+      session.id ||
+      "anonymous",
+    authenticatedMunicipalityId ||
+      sessionMunicipalityId ||
+      "no-municipality",
+  ].join(":");
+  const [resolutionTimedOut, setResolutionTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!rawResolving) {
+      if (dataReadyForCurrentUser || terminalDataFailure || authIdentityMismatch) {
+        resolutionStartedAtByIdentity.delete(resolutionKey);
+      }
+      setResolutionTimedOut(false);
+      return;
+    }
+
+    const now = Date.now();
+    const startedAt =
+      resolutionStartedAtByIdentity.get(resolutionKey) ?? now;
+    resolutionStartedAtByIdentity.set(resolutionKey, startedAt);
+
+    const remaining = PLAN_RESOLUTION_TIMEOUT_MS - (now - startedAt);
+    if (remaining <= 0) {
+      setResolutionTimedOut(true);
+      return;
+    }
+
+    setResolutionTimedOut(false);
+    const timer = window.setTimeout(() => {
+      setResolutionTimedOut(true);
+    }, remaining);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    authIdentityMismatch,
+    dataReadyForCurrentUser,
+    rawResolving,
+    resolutionKey,
+    terminalDataFailure,
+  ]);
+
+  const isResolving = rawResolving && !resolutionTimedOut;
+
+  const resolutionFailed =
+    !isMaster &&
+    !authLoading &&
+    authResolved &&
+    (
+      terminalDataFailure ||
+      authIdentityMismatch ||
+      !municipalityMatchesAuth ||
+      resolutionTimedOut
+    );
 
   return useMemo(
     () => ({
       ...state,
       isMaster,
       isResolving,
+      resolutionFailed,
+      resolutionTimedOut,
+      authIdentityMismatch,
       dataError,
-      isConfigured: Boolean(state.assignment && state.plan),
+      isConfigured: hasCurrentMunicipalityEntitlement,
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [dataError, isMaster, isResolving, state],
+    [authIdentityMismatch, dataError, hasCurrentMunicipalityEntitlement, isMaster, isResolving, resolutionFailed, resolutionTimedOut, state],
   );
 }

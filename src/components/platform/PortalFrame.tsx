@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
@@ -72,6 +73,7 @@ import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 interface PortalFrameProps {
   title: string;
@@ -284,6 +286,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const {
     loading,
     dataError,
+    dataReadyForCurrentUser,
     refreshRemoteStore,
     institutions,
     sessionUsers,
@@ -296,8 +299,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
-  const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
+  const activeInstitutionId = isMasterUser
+    ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+    : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
+  const {
+    departments: portalOrganizationDepartments,
+    loading: portalOrganizationLoading,
+    error: portalOrganizationError,
+  } = useMunicipalOrganization();
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
   const { headerBranding, footerBranding, officialHeaderText, officialFooterText } = useInstitutionBranding(brandingTenantId);
   const resolvedHeaderLogoUrl = resolveBrandingLogoUrl(headerBranding as Record<string, unknown>, "header");
@@ -500,14 +510,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const dashboardSidebarItem = isAdministrativeSidebar
     ? visiblePrimaryItems.find((item) => item.to === "/dashboard") ?? null
     : null;
+  const protocolAdministrativeItem = isAdministrativeSidebar
+    ? visiblePrimaryItems.find((item) => item.to === "/prefeitura/protocolos") ?? null
+    : null;
   const administrativeItems = isAdministrativeSidebar
     ? [
         ...(dashboardSidebarItem ? [dashboardSidebarItem] : []),
         ...visibleManagementItems,
+        ...(protocolAdministrativeItem ? [protocolAdministrativeItem] : []),
       ]
     : [];
   const operationalItems = isAdministrativeSidebar
-    ? visiblePrimaryItems.filter((item) => item.to !== "/dashboard")
+    ? visiblePrimaryItems.filter(
+        (item) => item.to !== "/dashboard" && item.to !== "/prefeitura/protocolos",
+      )
     : visiblePrimaryItems;
   const sidebarGroups = [
     ...(isAdministrativeSidebar ? [{ title: "Administração", items: administrativeItems }] : []),
@@ -676,7 +692,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       editorSize: 320,
     };
   }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
-  const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
+  const externalSessionRole =
+    session.role === "profissional_externo" ||
+    session.role === "property_owner" ||
+    session.role === "proprietario_consulta";
+  const roleLabel = humanizeRoleLabel(
+    externalSessionRole
+      ? userProfile?.professionalType?.trim() || session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role]
+      : session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role],
+    "Usuário",
+  );
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
     maxLength: 30,
@@ -694,18 +719,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             : null;
   const defaultDepartmentOwnership =
     departmentOwnershipKey === "financeiro"
-      ? { secretaria: "Secretaria de Finanças", diretoria: "Diretoria Financeira" }
+      ? { secretaria: "Financeiro", diretoria: "Financeiro" }
       : departmentOwnershipKey === "protocolo"
-        ? { secretaria: "Secretaria de Administração", diretoria: "Diretoria de Protocolo" }
+        ? { secretaria: "Administração", diretoria: "Protocolo" }
         : departmentOwnershipKey === "analise"
-          ? {
-              secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
-              diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo",
-            }
+          ? { secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística" }
           : departmentOwnershipKey === "acesso_externo"
             ? {
-                secretaria: tenantSettings?.secretariaResponsavel || "Secretaria de Urbanismo",
-                diretoria: tenantSettings?.diretoriaResponsavel || "Diretoria de Atendimento e Aprovação",
+                secretaria: tenantSettings?.secretariaResponsavel || "Atendimento externo",
+                diretoria: tenantSettings?.diretoriaResponsavel || "Acesso externo",
               }
             : null;
   const configuredDepartmentOwnership =
@@ -720,6 +742,32 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           defaultDepartmentOwnership.diretoria,
       }
     : null;
+
+  const currentProcessOrganizationReference =
+    currentProcess?.processControl?.currentFolder ||
+    currentProcess?.dispatches?.[0]?.to ||
+    currentProcess?.sla?.currentStage ||
+    "";
+  const routeOrganizationReference =
+    currentProcessOrganizationReference ||
+    (departmentOwnershipKey === "protocolo"
+      ? "Protocolo"
+      : departmentOwnershipKey === "analise"
+        ? "Análise Urbanística"
+        : departmentOwnershipKey === "financeiro"
+          ? "Financeiro"
+          : session.department || activeDepartmentOwnership?.diretoria || "");
+  const portalOrganizationIdentity = resolveMunicipalUnitIdentity(
+    portalOrganizationDepartments,
+    routeOrganizationReference,
+  );
+  const portalOrganizationRoots = portalOrganizationDepartments.filter(
+    (department) => !department.parentDepartmentId,
+  );
+  const showPortalOrganizationContext =
+    Boolean(activeInstitutionId) &&
+    !isMasterUser;
+
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
@@ -732,9 +780,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       ? tenantSettings?.secretariaResponsavel?.trim() || "Identidade institucional ativa"
       : rawInstitutionDisplaySubtitle;
   const institutionFooterTitle =
+    activeDepartmentOwnership?.secretaria ||
     tenantSettings?.secretariaResponsavel ||
     officialHeaderText ||
     "Secretaria não informada";
+  const institutionFooterUnit =
+    activeDepartmentOwnership?.diretoria ||
+    tenantSettings?.diretoriaResponsavel ||
+    "Unidade municipal não informada";
   const institutionFooterCity =
     ("city" in (activeInstitution ?? {}) && activeInstitution?.city
       ? activeInstitution.city
@@ -899,8 +952,24 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       fallback: "Usuário",
       maxLength: 24,
     });
-    const profileRole = humanizeRoleLabel(profile?.professionalType?.trim() || roleLabels[item.role], "Usuário");
-    return `${profileName} - ${profileRole}`;
+    const itemIsExternal =
+      item.role === "profissional_externo" ||
+      item.role === "property_owner" ||
+      item.role === "proprietario_consulta";
+    const profileRole = humanizeRoleLabel(
+      itemIsExternal
+        ? profile?.professionalType?.trim() || item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role]
+        : item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role],
+      "Usuário",
+    );
+    const unitCode =
+      item.userType === "Externo" ||
+      item.role === "profissional_externo" ||
+      item.role === "property_owner" ||
+      item.role === "proprietario_consulta"
+        ? ""
+        : item.departmentCode?.trim() || "";
+    return `${unitCode ? `[${unitCode}] ` : ""}${profileName} - ${profileRole}`;
   };
   const applyMarkerToCurrentProcess = async (preset: MarkerPreset) => {
     if (!currentProcess || !preset.active || markerActionBusy) return;
@@ -1298,7 +1367,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               >
                 <DropdownMenuLabel className="min-w-0 px-3 py-3">
                   <p className="truncate text-sm font-semibold" title={fullUserName}>{displayUserName}</p>
-                  <p className="mt-1 truncate text-xs text-white/75">{roleLabel}</p>
+                  <div className="mt-1 flex min-w-0 items-center gap-2">
+                    {session.departmentCode && !externalSessionRole ? (
+                      <span className="shrink-0 rounded-full border border-sky-300/20 bg-sky-300/12 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100">
+                        {session.departmentCode}
+                      </span>
+                    ) : null}
+                    <p className="truncate text-xs text-white/75">{roleLabel}</p>
+                  </div>
                   {session.email ? <p className="mt-1 truncate text-xs text-white/65" title={session.email}>{displaySessionEmail}</p> : null}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/10" />
@@ -1878,9 +1954,21 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                           </span>
                         </div>
 
-                        <p className={cn("mt-2 inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-medium", darkTopbar ? "bg-white/10 text-slate-100" : "bg-slate-900/[0.045] text-slate-700")}>
-                          {roleLabel}
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {session.departmentCode && !externalSessionRole ? (
+                            <span className={cn(
+                              "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]",
+                              darkTopbar
+                                ? "border-sky-300/20 bg-sky-300/12 text-sky-100"
+                                : "border-sky-200 bg-sky-50 text-sky-800",
+                            )}>
+                              {session.departmentCode}
+                            </span>
+                          ) : null}
+                          <p className={cn("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-medium", darkTopbar ? "bg-white/10 text-slate-100" : "bg-slate-900/[0.045] text-slate-700")}>
+                            {roleLabel}
+                          </p>
+                        </div>
 
                         {session.email ? (
                           <p className={cn("sig-fit-copy mt-2 text-[12px] leading-5", darkTopbar ? "text-slate-300" : "text-slate-500")} title={session.email}>
@@ -2184,38 +2272,111 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              {activeDepartmentOwnership?.diretoria ? (
+              {showPortalOrganizationContext ? (
                 <div
-                  className="mt-4 overflow-hidden rounded-[10px] border shadow-sm"
+                  className="mt-4 overflow-hidden rounded-[18px] border shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
                   style={{
-                    borderColor: withAlpha(primaryColor, "0.24"),
-                    background: `linear-gradient(90deg, ${darken(primaryColor, 10)} 0%, ${primaryColor} 54%, ${activeBg} 100%)`,
+                    borderColor: withAlpha(primaryColor, "0.20"),
+                    background: "linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)",
                   }}
                 >
-                  <div className="px-5 py-2.5 md:px-6">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white">Estrutura do departamento</p>
-                  </div>
-                  <div className="grid gap-2 border-t border-white/10 px-5 py-4 md:grid-cols-2 md:px-6">
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Secretaria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.secretaria}</p>
+                  <div className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border"
+                        style={{
+                          borderColor: withAlpha(primaryColor, "0.18"),
+                          backgroundColor: withAlpha(primaryColor, "0.07"),
+                          color: primaryColor,
+                        }}
+                      >
+                        <Network className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Organograma municipal
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          {portalOrganizationIdentity.matched && portalOrganizationIdentity.codePath ? (
+                            <span
+                              className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]"
+                              style={{
+                                borderColor: withAlpha(primaryColor, "0.20"),
+                                backgroundColor: withAlpha(primaryColor, "0.07"),
+                                color: darken(primaryColor, 18),
+                              }}
+                            >
+                              {portalOrganizationIdentity.codePath}
+                            </span>
+                          ) : session.departmentCode && !currentProcessOrganizationReference && !externalSessionRole ? (
+                            <span
+                              className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]"
+                              style={{
+                                borderColor: withAlpha(primaryColor, "0.20"),
+                                backgroundColor: withAlpha(primaryColor, "0.07"),
+                                color: darken(primaryColor, 18),
+                              }}
+                            >
+                              {session.departmentCode}
+                            </span>
+                          ) : externalSessionRole && portalOrganizationRoots.length > 0 ? (
+                            portalOrganizationRoots.slice(0, 5).map((department) => (
+                              <span
+                                key={department.id}
+                                className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                                style={{
+                                  borderColor: withAlpha(primaryColor, "0.18"),
+                                  backgroundColor: withAlpha(primaryColor, "0.055"),
+                                  color: darken(primaryColor, 18),
+                                }}
+                                title={department.name}
+                              >
+                                {department.code || department.name}
+                              </span>
+                            ))
+                          ) : null}
+                          <p className="sig-fit-title text-sm font-semibold text-slate-950">
+                            {portalOrganizationIdentity.matched
+                              ? portalOrganizationIdentity.breadcrumb
+                              : externalSessionRole
+                                ? "Estrutura institucional da Prefeitura"
+                                : routeOrganizationReference || session.department || "Unidade municipal"}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {portalOrganizationIdentity.matched
+                            ? `Vínculo institucional confirmado no organograma • ${portalOrganizationDepartments.length} unidades ativas`
+                            : portalOrganizationLoading
+                              ? "Carregando estrutura institucional da Prefeitura..."
+                              : portalOrganizationError
+                                ? portalOrganizationError
+                                : externalSessionRole && portalOrganizationDepartments.length > 0
+                                  ? `Estrutura pública sincronizada • ${portalOrganizationDepartments.length} unidades ativas`
+                                  : "Unidade ainda não vinculada ao organograma municipal."}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">Diretoria</p>
-                      <p className="mt-1 text-sm font-medium text-white">{activeDepartmentOwnership.diretoria}</p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Prefeitura</p>
+                      <p className="mt-1 max-w-[320px] truncate text-xs font-medium text-slate-600" title={institutionDisplayName}>
+                        {institutionDisplayName}
+                      </p>
                     </div>
                   </div>
                 </div>
               ) : null}
             </header> : null}
 
-            {dataError && !loading ? (
+            {dataError && !loading && !dataReadyForCurrentUser ? (
               <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold">Dados oficiais temporariamente indisponíveis</p>
                     <p className="mt-1 text-sm leading-5 text-amber-800">
                       O SIGAPRO não está simulando dados locais. Aguarde a reconexão com o banco oficial antes de concluir operações.
+                    </p>
+                    <p className="mt-1.5 max-w-[1100px] break-words text-xs leading-5 text-amber-700">
+                      Diagnóstico: {dataError}
                     </p>
                   </div>
                   <Button
@@ -2266,7 +2427,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     {institutionFooterTitle}
                   </p>
                   <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo"}
+                    {institutionFooterUnit}
                   </p>
                 </div>
               </div>

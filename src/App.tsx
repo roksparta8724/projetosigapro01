@@ -46,6 +46,7 @@ import { LegislationPage } from "@/pages/saas/LegislationPage";
 import { ZoningPage } from "@/pages/saas/ZoningPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
+import { SignatureVerificationPage } from "@/pages/SignatureVerificationPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
@@ -89,7 +90,8 @@ const AppRoutes = () => {
     const isLandingRoute =
       pathname === "/" ||
       pathname === "/inicio" ||
-      pathname === "/apresentacao";
+      pathname === "/apresentacao" ||
+      pathname === "/verificar-assinatura";
     const isFullDocumentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
 
@@ -110,6 +112,7 @@ const AppRoutes = () => {
     pathname === "/acesso" ||
     pathname === "/criar-conta" ||
     pathname === "/recuperar-senha" ||
+    pathname === "/verificar-assinatura" ||
     pathname.startsWith("/cliente/");
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
@@ -134,6 +137,7 @@ const AppRoutes = () => {
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
+        <Route path="/verificar-assinatura" element={<SignatureVerificationPage />} />
         <Route
           path="/apresentacao"
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}

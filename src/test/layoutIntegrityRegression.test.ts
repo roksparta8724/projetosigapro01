@@ -171,15 +171,21 @@ describe("layout integrity regression", () => {
     );
   });
 
-  it("never leaves localhost on a silent white screen during bootstrap", () => {
+  it("mounts the real app immediately before localhost cache maintenance", () => {
     const main = read("src/main.tsx");
     const app = read("src/App.tsx");
 
-    expect(main).toContain('await import("./App.tsx")');
-    expect(main).toContain("renderBootstrapFailure");
+    expect(main).toContain('import App from "./App.tsx"');
+    expect(main).not.toContain('await import("./App.tsx")');
+    expect(main).not.toContain("renderBootstrapFailure");
     expect(main).toContain("navigator.serviceWorker.getRegistrations()");
     expect(main).toContain("registration.unregister()");
     expect(main).toContain('name.startsWith("sigapro-enterprise-")');
+
+    const renderIndex = main.indexOf("createRoot(rootElement).render(<App />)");
+    const maintenanceIndex = main.indexOf("void clearLocalDevelopmentCaches()");
+    expect(renderIndex).toBeGreaterThanOrEqual(0);
+    expect(maintenanceIndex).toBeGreaterThan(renderIndex);
 
     const boundaryIndex = app.indexOf("<AppErrorBoundary>");
     const bootstrapIndex = app.indexOf("<AppBootstrapProvider>");

@@ -19,25 +19,42 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-function resolveR2Endpoint() {
-  const accountId = readEnv("R2_ACCOUNT_ID")
+function normalizeR2AccountId(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    const labels = url.hostname.toLowerCase().split(".");
+    const r2Index = labels.indexOf("r2");
+    if (r2Index > 0 && labels.slice(r2Index).join(".") === "r2.cloudflarestorage.com") {
+      return labels[r2Index - 1].replace(/[^a-z0-9]/g, "");
+    }
+  } catch {
+    // Pode ser somente o account id.
+  }
+
+  return raw
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
+}
 
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+function resolveR2Endpoint() {
+  const accountIdFromEnv = normalizeR2AccountId(readEnv("R2_ACCOUNT_ID"));
+  if (accountIdFromEnv && !/^sua_?account_?id$/i.test(accountIdFromEnv)) {
+    return `https://${accountIdFromEnv}.r2.cloudflarestorage.com`;
   }
 
   const rawEndpoint = readEnv("R2_ENDPOINT");
   if (!rawEndpoint) return "";
 
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
+  const accountIdFromEndpoint = normalizeR2AccountId(rawEndpoint);
+  if (accountIdFromEndpoint) {
+    return `https://${accountIdFromEndpoint}.r2.cloudflarestorage.com`;
   }
+
+  return "";
 }
 
 function extractMunicipalityId(objectKey: string) {
@@ -156,7 +173,11 @@ export default async function handler(req: Req, res: Res) {
     }
 
     if (!envOk) {
-      throw new Error("Variáveis R2 ausentes no ambiente.");
+      json(res, 503, {
+        error: "Armazenamento R2 oficial não configurado neste ambiente.",
+        code: "R2_CONFIG_MISSING",
+      });
+      return;
     }
 
     const client = new S3Client({
@@ -185,7 +206,7 @@ export default async function handler(req: Req, res: Res) {
       ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
       : rawMessage;
     console.error("[SIGAPRO][R2] Falha no sign-get", { error: rawMessage });
-    json(res, 500, {
+    json(res, signatureMismatch ? 502 : 500, {
       error: message,
       code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",
     });

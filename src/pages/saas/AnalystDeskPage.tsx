@@ -8,6 +8,7 @@
   ListTodo,
   Search,
   Send,
+  Signature,
   Stamp,
   TimerReset,
   Users2,
@@ -16,6 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -48,6 +50,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { createRemoteProcessDispatchWithSignature } from "@/integrations/backend/platform";
 
 type AnalystSection =
   | "visao-geral"
@@ -99,10 +102,10 @@ export function AnalystDeskPage() {
     processes: allProcesses,
     updateProcessStatus,
     startProcessAnalysis,
-    dispatchProcess,
     createRequirement,
     documentTemplates,
     getInstitutionSettings,
+    refreshRemoteStore,
   } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
@@ -113,6 +116,15 @@ export function AnalystDeskPage() {
   const [section, setSection] = useState<AnalystSection>("visao-geral");
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [pendingSignedDispatch, setPendingSignedDispatch] = useState<{
+    processId: string;
+    from: string;
+    to: string;
+    subject: string;
+    dueDate: string;
+    successMessage: string;
+  } | null>(null);
   const currentUnit =
     session.role === "analista"
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
@@ -305,6 +317,51 @@ export function AnalystDeskPage() {
     [dispatchRows],
   );
 
+  const requestSignedDispatch = (input: {
+    processId: string;
+    from: string;
+    to: string;
+    subject: string;
+    dueDate: string;
+    successMessage: string;
+  }) => {
+    if (actionBusy) return;
+    setActionStatus("");
+    setPendingSignedDispatch(input);
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedDispatch = async (password: string) => {
+    const dispatch = pendingSignedDispatch;
+    if (!dispatch) throw new Error("Nenhum despacho pendente de assinatura.");
+
+    setActionBusy(`signed-dispatch-${dispatch.processId}`);
+    setActionStatus("");
+    try {
+      await createRemoteProcessDispatchWithSignature({
+        processId: dispatch.processId,
+        fromDepartment: dispatch.from,
+        toDepartment: dispatch.to,
+        subject: dispatch.subject,
+        dueAt: dispatch.dueDate ? `${dispatch.dueDate}T23:59:59` : null,
+        visibility: "interno",
+        priority: "media",
+        password,
+        statement: `Despacho técnico para ${dispatch.to}: ${dispatch.subject}`,
+      });
+      await refreshRemoteStore();
+      setActionStatus(`${dispatch.successMessage} Despacho assinado eletronicamente.`);
+      setSignatureDialogOpen(false);
+      setPendingSignedDispatch(null);
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível registrar e assinar o despacho.");
+    } finally {
+      setActionBusy("");
+    }
+  };
+
   const runAnalystAction = async (
     key: string,
     successMessage: string,
@@ -377,7 +434,7 @@ export function AnalystDeskPage() {
           const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
 
           return (
-            <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div key={process.id} className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -523,20 +580,14 @@ export function AnalystDeskPage() {
                       className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                       disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                       onClick={() =>
-                        void runAnalystAction(
-                          `iptu-${process.id}`,
-                          "Processo encaminhado ao IPTU/Fiscal para emissão do ISSQN.",
-                          () =>
-                            dispatchProcess({
-                              processId: process.id,
-                              actor: session.name,
-                              from: "Análise Urbanística",
-                              to: "Setor de IPTU / Fiscal",
-                              subject: "Conferência fiscal e emissão da guia de ISSQN",
-                              dueDate: isoDateAfterDays(3),
-                              visibility: "interno",
-                            }),
-                        )
+                        requestSignedDispatch({
+                          processId: process.id,
+                          from: "Análise Urbanística",
+                          to: "Setor de IPTU / Fiscal",
+                          subject: "Conferência fiscal e emissão da guia de ISSQN",
+                          dueDate: isoDateAfterDays(3),
+                          successMessage: "Processo encaminhado ao IPTU/Fiscal para emissão do ISSQN.",
+                        })
                       }
                     >
                       <Send className="mr-2 h-4 w-4 text-sky-200" />
@@ -550,22 +601,16 @@ export function AnalystDeskPage() {
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
                     disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
-                      void runAnalystAction(
-                        `finance-${process.id}`,
-                        "Processo encaminhado ao Financeiro para fechamento e taxa final.",
-                        () =>
-                          dispatchProcess({
-                            processId: process.id,
-                            actor: session.name,
-                            from: "Análise Urbanística",
-                            to: "Financeiro",
-                            subject:
-                              dispatchTemplate?.title ||
-                              "Parecer técnico concluído — conferência financeira e taxa final",
-                            dueDate: isoDateAfterDays(3),
-                            visibility: "interno",
-                          }),
-                      )
+                      requestSignedDispatch({
+                        processId: process.id,
+                        from: "Análise Urbanística",
+                        to: "Financeiro",
+                        subject:
+                          dispatchTemplate?.title ||
+                          "Parecer técnico concluído — conferência financeira e taxa final",
+                        dueDate: isoDateAfterDays(3),
+                        successMessage: "Processo encaminhado ao Financeiro para fechamento e taxa final.",
+                      })
                     }
                   >
                     <Send className="mr-2 h-4 w-4 text-sky-200" />
@@ -631,7 +676,7 @@ export function AnalystDeskPage() {
           return (
             <div
               key={process.id}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
+              className="rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-950/35"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0 flex-1">
@@ -778,7 +823,7 @@ export function AnalystDeskPage() {
                       </div>
                     ) : (
                       urgentProtocols.slice(0, 4).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950">
@@ -812,7 +857,7 @@ export function AnalystDeskPage() {
                   >
                     <div className="space-y-3">
                       {handedOffFromAnalysis.slice(0, 5).map((process) => (
-                        <div key={process.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div key={process.id} className="flex flex-col gap-3 rounded-[20px] border border-slate-200/90 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] lg:flex-row lg:items-center lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="sig-fit-title text-sm font-semibold text-slate-950">
@@ -1131,24 +1176,24 @@ export function AnalystDeskPage() {
                 icon={Users2}
               >
                 <div className="sig-responsive-data-grid sig-responsive-data-grid-wide">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Tempo médio</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{averageSlaHours}h</p>
                     <p className="mt-1 text-sm text-slate-500">Média de horas restantes na fila</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">SLA vencido</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">
                       {processes.filter((item) => item.sla.breached).length}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">Itens que pedem reação imediata</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Carga atribuída</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{latestAssigned.length}</p>
                     <p className="mt-1 text-sm text-slate-500">Itens em nome do analista atual</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="rounded-[22px] border border-slate-200/90 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.055)]">
                     <p className="sig-label">Equipe monitorada</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{productivityByAnalyst.length}</p>
                     <p className="mt-1 text-sm text-slate-500">Responsáveis técnicos com carga ativa</p>
@@ -1206,6 +1251,29 @@ export function AnalystDeskPage() {
           </PageMainGrid>
         )}
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !actionBusy) setPendingSignedDispatch(null);
+        }}
+        title="Assinar e efetivar despacho"
+        subject={
+          pendingSignedDispatch
+            ? `${formatOfficialProcessNumber(
+                allProcesses.find((process) => process.id === pendingSignedDispatch.processId)?.protocol || "",
+              )} • ${pendingSignedDispatch.from} → ${pendingSignedDispatch.to}`
+            : "Despacho técnico"
+        }
+        statement={
+          pendingSignedDispatch
+            ? `Confirmo o despacho "${pendingSignedDispatch.subject}" para ${pendingSignedDispatch.to}.`
+            : "Confirmo o despacho técnico."
+        }
+        busy={Boolean(actionBusy)}
+        onConfirm={confirmSignedDispatch}
+      />
     </PortalFrame>
   );
 }

@@ -74,6 +74,8 @@ export interface SessionUser {
   accountStatus: AccountStatus;
   userType?: string;
   department?: string;
+  departmentId?: string | null;
+  departmentCode?: string;
   createdAt?: string;
   lastAccessAt?: string;
   blockedAt?: string | null;
@@ -505,6 +507,7 @@ export type InstitutionScopedSettings = InstitutionSettings & { institutionId?: 
 export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final";
 
 export interface PaymentGuideEntry {
+  id?: string;
   kind: PaymentGuideKind;
   label: string;
   code: string;
@@ -512,6 +515,7 @@ export interface PaymentGuideEntry {
   status: "pendente" | "compensada";
   dueDate: string;
   issuedAt?: string;
+  paidAt?: string;
   expiresAt?: string;
   requestedBy?: string;
   requestedAt?: string;
@@ -737,8 +741,11 @@ export interface TenantUserInput {
   fullName: string;
   email: string;
   role: UserRole;
+  profileLabel?: string;
   title: string;
   accessLevel: 1 | 2 | 3;
+  department?: string;
+  departmentId?: string | null;
 }
 
 export type InstitutionUserInput = TenantUserInput & {
@@ -2536,6 +2543,21 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   }
 
   return false;
+}
+
+export function canViewProcessDocuments(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
+    return false;
+  }
+
+  // Visualização é uma operação de acompanhamento, não de posse da etapa atual.
+  // Quem pode acompanhar legitimamente o processo deve poder abrir os documentos
+  // já protocolados daquele processo. Edição/análise continuam com regras próprias.
+  return canTrackProcess(session, process, scopeId);
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {

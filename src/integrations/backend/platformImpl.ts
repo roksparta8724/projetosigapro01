@@ -2,6 +2,8 @@ import { databaseClient as db } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { normalizeMunicipalUnit } from "@/lib/municipalOrganization";
+import type { ElectronicSignatureRecord } from "@/lib/electronicSignature";
 import {
   buildProcessDocuments,
   serializeMarker,
@@ -330,14 +332,20 @@ function resolveDepartmentBackedRole(
     .trim()
     .toLowerCase();
 
-  // Perfis externos nunca podem ser convertidos em funcionário municipal
-  // apenas porque o vínculo técnico possui um rótulo de departamento como
-  // "Profissional Externo" ou "Portal externo". A identidade externa é estável.
-  if (
+  const isExternalStoredRole =
     storedRole === "profissional_externo" ||
     storedRole === "property_owner" ||
-    storedRole === "proprietario_consulta"
-  ) {
+    storedRole === "proprietario_consulta";
+  const isExternalDepartment =
+    !normalizedDepartment ||
+    /(acesso externo|portal externo|profissional externo|proprietario|consulta externa)/.test(
+      normalizedDepartment,
+    );
+
+  // A identidade externa permanece externa somente quando a lotação também é
+  // realmente externa. Se a conta estiver vinculada a uma unidade municipal
+  // real (Protocolo, Urbanismo, Financeiro etc.), a lotação funcional prevalece.
+  if (isExternalStoredRole && isExternalDepartment) {
     return storedRole;
   }
 
@@ -1014,9 +1022,16 @@ export async function loadRemotePlatformStore() {
       membership.profile_id ??
       profile?.id ??
       membership.user_id;
+    const departmentRecord =
+      (profile?.department_id ? departmentById.get(profile.department_id) : undefined) ??
+      Array.from(departmentById.values()).find(
+        (department) =>
+          membership.department &&
+          normalizeMunicipalUnit(department.name) === normalizeMunicipalUnit(membership.department),
+      );
     const departmentName =
+      departmentRecord?.name ||
       membership.department ||
-      (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
       "";
     const profileRole = normalizeStoredRole(profile?.role);
     const roleSource =
@@ -1063,6 +1078,8 @@ export async function loadRemotePlatformStore() {
           ? "Externo"
           : "Interno"),
       department: departmentName,
+      departmentId: departmentRecord?.id ?? profile?.department_id ?? null,
+      departmentCode: departmentRecord?.code ?? "",
       createdAt: membership.created_at ? new Date(membership.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
@@ -1114,9 +1131,9 @@ export async function loadRemotePlatformStore() {
   for (const profile of profilesResult.data ?? []) {
     const canonicalUserId = (isNeonBackend ? profile.id : profile.user_id) ?? profile.id;
     if (!canonicalUserId || linkedUserIds.has(canonicalUserId) || profile.deleted_at) continue;
-    const departmentName =
-      (profile.department_id ? departmentById.get(profile.department_id)?.name : "") ||
-      "";
+    const departmentRecord =
+      profile.department_id ? departmentById.get(profile.department_id) : undefined;
+    const departmentName = departmentRecord?.name || "";
     const role = resolveDepartmentBackedRole(profile.role, departmentName);
     sessionUsers.push({
       id: canonicalUserId,
@@ -1131,6 +1148,8 @@ export async function loadRemotePlatformStore() {
       accountStatus: profile.account_status === "blocked" || profile.account_status === "inactive" ? profile.account_status : "active",
       userType: ["profissional_externo", "property_owner", "proprietario_consulta"].includes(role) ? "Externo" : "Interno",
       department: departmentName,
+      departmentId: departmentRecord?.id ?? profile.department_id ?? null,
+      departmentCode: departmentRecord?.code ?? "",
       createdAt: profile.created_at ? new Date(profile.created_at).toLocaleString("pt-BR") : "",
       lastAccessAt: (() => {
         const rawLastAccess =
@@ -1384,6 +1403,7 @@ export async function loadRemotePlatformStore() {
                 : "protocolo";
 
           return {
+            id: String(guide.id ?? ""),
             kind,
             label:
               kind === "iss_obra"
@@ -1402,6 +1422,7 @@ export async function loadRemotePlatformStore() {
                 : "pendente",
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
             issuedAt: guide.last_reissued_at ?? guide.created_at ?? undefined,
+            paidAt: guide.paid_at ? String(guide.paid_at) : undefined,
             expiresAt: undefined,
             requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
             requestedAt: guide.requested_at ? String(guide.requested_at) : undefined,
@@ -1851,6 +1872,7 @@ export async function createRemoteExternalProcessV2(
       source: document.source,
       fileName: document.fileName,
       filePath: document.filePath,
+      fileHash: document.fileHash,
       mimeType: document.mimeType,
       sizeLabel: document.sizeLabel,
       fileSizeBytes: document.fileSizeBytes,
@@ -1883,6 +1905,116 @@ export async function createRemoteExternalProcessV2(
 }
 
 
+
+export async function createRemoteSignedExternalProcess(
+  input: CreateProcessInput & {
+    guidePrefix?: string;
+    protocolPrefix?: string;
+    requestedProtocolNumber?: string | null;
+  },
+  password: string,
+) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+
+  const scopeId = normalizeUuid(input.tenantId);
+  if (!scopeId) {
+    throw new Error("Escopo municipal inválido para protocolar o processo.");
+  }
+
+  if (input.documents.length === 0) {
+    throw new Error("Inclua os documentos obrigatórios antes de assinar e protocolar.");
+  }
+
+  const invalidHash = input.documents.find(
+    (document) => !/^[0-9a-f]{64}$/i.test(document.fileHash || ""),
+  );
+  if (invalidHash) {
+    throw new Error(
+      `O arquivo "${invalidHash.fileName || invalidHash.label}" ainda não possui SHA-256 real. Selecione o arquivo novamente antes de assinar.`,
+    );
+  }
+
+  await revalidateCurrentPasswordForSignature(password);
+
+  const primaryGuide = input.remote?.guides?.find((guide) => guide.kind === "protocolo");
+  const payload = {
+    title: input.title,
+    type: input.type,
+    address: input.address,
+    iptu: input.property.iptu,
+    registration: input.property.registration || null,
+    lot: input.property.lot || null,
+    block: input.property.block || null,
+    area: input.property.area || null,
+    usage: input.property.usage || null,
+    workType: input.property.workType || null,
+    constructionStandard: input.property.constructionStandard || null,
+    ownerName: input.ownerName,
+    ownerDocument: input.ownerDocument,
+    technicalLead: input.technicalLead,
+    professionalDocument: input.professionalDocument || null,
+    professionalRegistration: input.professionalRegistration || null,
+    professionalType: input.professionalType || null,
+    professionalPhone: input.professionalPhone || null,
+    professionalEmail: input.professionalEmail || null,
+    professionalCompany: input.professionalCompany || null,
+    notes: input.notes || null,
+    amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
+    guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
+    guidePrefix: input.guidePrefix || "DAM",
+    documents: [],
+  };
+
+  const documents = input.documents.map((document) => ({
+    label: document.label,
+    required: document.required,
+    signed: false,
+    version: document.version,
+    source: document.source,
+    fileName: document.fileName,
+    filePath: document.filePath,
+    fileHash: document.fileHash,
+    mimeType: document.mimeType,
+    sizeLabel: document.sizeLabel,
+    fileSizeBytes: document.fileSizeBytes,
+    reviewStatus: document.reviewStatus ?? "pendente",
+    annotations: document.annotations ?? [],
+  }));
+
+  const { data, error } = await db.rpc("create_signed_external_process_v1", {
+    _tenant_id: scopeId,
+    _payload: payload,
+    _documents: documents,
+    _protocol_prefix: input.protocolPrefix || "PM",
+    _requested_protocol_number: input.requestedProtocolNumber || null,
+  });
+
+  if (error) throw new Error(formatDatabaseError(error));
+
+  return data as {
+    process_id: string;
+    protocol_number: string;
+    guide_number: string;
+    due_date: string;
+    amount: number;
+    documents: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      fileHash: string;
+      version: number;
+      inserted: boolean;
+    }>;
+    signatures: Array<{
+      id: string;
+      signatureCode: string;
+      contentSha256: string;
+      signedAt: string;
+    }>;
+    professional_signature_complete: boolean;
+    identity_saved?: boolean;
+  };
+}
 
 export async function getRemoteProcessPrivateIdentity(
   processId: string,
@@ -1942,12 +2074,12 @@ export async function appendRemoteProcessDocuments(
   processId: string,
   documents: ProcessDocument[],
 ) {
-  return callProcessRpc("append_process_documents", {
+  return callProcessRpc("append_process_documents_v2", {
     _process_id: processId,
     _documents: documents.map((document) => ({
       label: document.label,
       required: document.required,
-      signed: document.signed,
+      signed: false,
       version: document.version,
       source: document.source,
       fileName: document.fileName,
@@ -1956,7 +2088,6 @@ export async function appendRemoteProcessDocuments(
       mimeType: document.mimeType,
       sizeLabel: document.sizeLabel,
       fileSizeBytes: document.fileSizeBytes,
-      previewUrl: document.filePath ? undefined : document.previewUrl,
       reviewStatus: document.reviewStatus ?? "pendente",
       annotations: document.annotations ?? [],
     })),
@@ -2066,6 +2197,327 @@ export async function reviewRemoteProcessDocument(documentId: string, status: "a
     _document_id: documentId,
     _status: status,
   });
+}
+
+async function revalidateCurrentPasswordForSignature(password: string) {
+  const cleanPassword = password.trim();
+  if (!cleanPassword) {
+    throw new Error("Digite sua senha de acesso para assinar.");
+  }
+  if (!db?.auth) {
+    throw new Error("Serviço de autenticação indisponível para assinatura.");
+  }
+
+  const sessionResult = await db.auth.getSession();
+  const currentUser = sessionResult?.data?.session?.user ?? null;
+  const currentUserId = currentUser?.id ? String(currentUser.id) : "";
+  const currentEmail = String(currentUser?.email ?? "").trim().toLowerCase();
+
+  if (!currentUserId || !currentEmail) {
+    throw new Error("Sua sessão não está pronta para assinatura. Entre novamente na sua conta.");
+  }
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: currentEmail,
+    password: cleanPassword,
+  });
+
+  if (error || !data?.user) {
+    const raw = String(error?.message ?? "Senha inválida.");
+    throw new Error(
+      /invalid email or password|invalid credentials|password/i.test(raw)
+        ? "Senha de acesso incorreta. A assinatura não foi realizada."
+        : raw,
+    );
+  }
+
+  if (String(data.user.id) !== currentUserId) {
+    throw new Error("A identidade revalidada não corresponde ao usuário da sessão atual.");
+  }
+
+  return { userId: currentUserId, email: currentEmail };
+}
+
+function mapElectronicSignature(data: unknown): ElectronicSignatureRecord {
+  const record = (data ?? {}) as Record<string, unknown>;
+  return {
+    id: String(record.id ?? ""),
+    processId: String(record.processId ?? record.process_id ?? ""),
+    entityType: String(record.entityType ?? record.entity_type ?? ""),
+    entityId: String(record.entityId ?? record.entity_id ?? ""),
+    documentVersion:
+      record.documentVersion == null && record.document_version == null
+        ? null
+        : Number(record.documentVersion ?? record.document_version),
+    signerProfileId: String(record.signerProfileId ?? record.signer_profile_id ?? ""),
+    signerName: String(record.signerName ?? record.signer_name ?? ""),
+    signerRole: String(record.signerRole ?? record.signer_role ?? "") || null,
+    signerProfileLabel:
+      String(record.signerProfileLabel ?? record.signer_profile_label ?? "") || null,
+    signerTitle: String(record.signerTitle ?? record.signer_title ?? "") || null,
+    departmentId: String(record.departmentId ?? record.department_id ?? "") || null,
+    departmentCode: String(record.departmentCode ?? record.department_code ?? "") || null,
+    departmentName: String(record.departmentName ?? record.department_name ?? "") || null,
+    authMethod: (String(record.authMethod ?? record.auth_method ?? "password") ||
+      "password") as ElectronicSignatureRecord["authMethod"],
+    assuranceLevel: (String(
+      record.assuranceLevel ?? record.assurance_level ?? "simple_password",
+    ) || "simple_password") as ElectronicSignatureRecord["assuranceLevel"],
+    contentSha256: String(record.contentSha256 ?? record.content_sha256 ?? ""),
+    signatureCode: String(record.signatureCode ?? record.signature_code ?? ""),
+    signatureFingerprint: String(
+      record.signatureFingerprint ?? record.signature_fingerprint ?? "",
+    ),
+    statement: String(record.statement ?? "") || null,
+    signedAt: String(record.signedAt ?? record.signed_at ?? ""),
+    revokedAt: String(record.revokedAt ?? record.revoked_at ?? "") || null,
+    revocationReason:
+      String(record.revocationReason ?? record.revocation_reason ?? "") || null,
+  };
+}
+
+export async function listRemoteProcessElectronicSignatures(
+  processId: string,
+): Promise<ElectronicSignatureRecord[]> {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("list_process_electronic_signatures_v1", {
+    _process_id: processId,
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return Array.isArray(data) ? data.map(mapElectronicSignature) : [];
+}
+
+export async function signRemoteProfessionalProcessDocument(input: {
+  documentId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("sign_professional_process_document_v1", {
+    _document_id: input.documentId,
+    _statement:
+      input.statement ??
+      "Declaro a autoria e a integridade deste documento apresentado ao processo.",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return mapElectronicSignature(data);
+}
+
+export async function signAndFinalizeRemoteTechnicalConclusion(input: {
+  processId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "sign_and_finalize_process_technical_conclusion_electronic_v1",
+    {
+      _process_id: input.processId,
+      _statement: input.statement ?? "Assinatura da conclusão técnica",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function signRemoteRequiredProcessDocument(input: {
+  processId: string;
+  requirementId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "sign_required_process_document_electronic_v1",
+    {
+      _process_id: input.processId,
+      _requirement_id: input.requirementId,
+      _statement:
+        input.statement ?? "Assinatura obrigatória de documento administrativo",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function executeRemoteSuperiorApprovalWithSignature(input: {
+  processId: string;
+  transitionId: string;
+  decisionNote?: string;
+  idempotencyKey: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc(
+    "execute_signed_superior_approval_action_electronic_v1",
+    {
+      _process_id: input.processId,
+      _transition_id: input.transitionId,
+      _decision_note: input.decisionNote ?? "",
+      _idempotency_key: input.idempotencyKey,
+      _statement:
+        input.statement ??
+        "Decisão administrativa superior assinada eletronicamente",
+    },
+  );
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function verifyRemoteElectronicSignature(signatureCode: string) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  const { data, error } = await db.rpc("verify_electronic_signature_v1", {
+    _signature_code: signatureCode.trim(),
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return (data ?? {}) as Record<string, unknown>;
+}
+
+export async function getRemoteInternalSignaturePolicy(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_process_internal_signature_policy", {
+    p_process_id: processId,
+  });
+}
+
+export async function getRemoteTechnicalConclusionWorkspace(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_my_technical_conclusion_editor_v1", {
+    _process_id: processId,
+  });
+}
+
+export async function startRemoteTechnicalConclusion(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("start_process_technical_conclusion", {
+    p_process_id: processId,
+  });
+}
+
+export async function updateRemoteTechnicalConclusion(input: {
+  processId: string;
+  conclusionTypeId?: string | null;
+  conclusionText: string;
+  technicalBasis: string;
+  internalNotes: string;
+}) {
+  return callProcessRpc<Record<string, unknown>>("update_process_technical_conclusion", {
+    p_process_id: input.processId,
+    p_conclusion_type_id: input.conclusionTypeId || null,
+    p_conclusion_text: input.conclusionText,
+    p_technical_basis: input.technicalBasis,
+    p_internal_notes: input.internalNotes,
+  });
+}
+
+export async function submitRemoteTechnicalConclusionForApproval(
+  processId: string,
+  idempotencyKey: string,
+) {
+  return callProcessRpc<Record<string, unknown>>("submit_technical_conclusion_for_approval", {
+    p_process_id: processId,
+    p_idempotency_key: idempotencyKey,
+  });
+}
+
+export async function getRemoteSuperiorTechnicalConclusion(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_superior_technical_conclusion", {
+    p_process_id: processId,
+  });
+}
+
+export async function listRemoteSuperiorApprovalActions(processId: string) {
+  return callProcessRpc<Array<Record<string, unknown>>>("list_signed_superior_approval_actions", {
+    p_process_id: processId,
+  });
+}
+
+export async function listRemoteRequiredProcessDocumentsForSignature(processId: string) {
+  return callProcessRpc<Array<Record<string, unknown>>>(
+    "list_my_required_process_documents_for_signature_v1",
+    { _process_id: processId },
+  );
+}
+
+export async function getRemoteFinalApprovalContext(processId: string) {
+  return callProcessRpc<Record<string, unknown>>("get_final_approval_context", {
+    p_process_id: processId,
+  });
+}
+
+export async function finalizeRemoteApprovedProcess(
+  processId: string,
+  idempotencyKey: string,
+) {
+  return callProcessRpc<Record<string, unknown>>("finalize_approved_process", {
+    p_process_id: processId,
+    p_idempotency_key: idempotencyKey,
+  });
+}
+
+export async function approveRemoteProcessDocumentWithSignature(input: {
+  documentId: string;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("approve_process_document_signed_v2", {
+    _document_id: input.documentId,
+    _statement: input.statement ?? "Aprovação documental",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function issueRemotePaymentGuideWithSignature(input: {
+  processId: string;
+  guideKind: "iss_obra" | "aprovacao_final";
+  dueDate?: string | null;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("issue_process_payment_guide_signed_v2", {
+    _process_id: input.processId,
+    _guide_kind: input.guideKind,
+    _due_date: input.dueDate || null,
+    _statement: input.statement ?? "Emissão de guia municipal",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
+}
+
+export async function createRemoteProcessDispatchWithSignature(input: {
+  processId: string;
+  fromDepartment: string;
+  toDepartment: string;
+  subject: string;
+  dueAt?: string | null;
+  visibility?: "interno" | "externo" | "misto";
+  priority?: "baixa" | "media" | "alta" | "critica";
+  assignedTo?: string | null;
+  password: string;
+  statement?: string;
+}) {
+  if (!db) throw new Error("Banco oficial indisponível.");
+  await revalidateCurrentPasswordForSignature(input.password);
+  const { data, error } = await db.rpc("create_process_dispatch_signed_v2", {
+    _process_id: input.processId,
+    _from_department: input.fromDepartment,
+    _to_department: input.toDepartment,
+    _subject: input.subject,
+    _due_at: input.dueAt || null,
+    _visibility: input.visibility || "interno",
+    _priority: input.priority || "media",
+    _assigned_to: input.assignedTo || null,
+    _statement: input.statement ?? "Despacho interdepartamental",
+  });
+  if (error) throw new Error(formatDatabaseError(error));
+  return data as Record<string, unknown>;
 }
 
 export async function annotateRemoteProcessDocument(input: {
@@ -2855,11 +3307,25 @@ function mapMunicipalDepartment(row: Record<string, unknown>): MunicipalDepartme
 export async function listRemoteMunicipalDepartments(municipalityId: string) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
   // A RPC aplica o isolamento institucional da Prefeitura no banco.
-  const { data, error } = await db.rpc("list_municipal_departments_v1", {
+  const { data, error } = await db.rpc("list_internal_municipal_departments_v1", {
     _municipality_id: municipalityId,
   });
   if (error) throw new Error(error.message || "Não foi possível carregar o organograma.");
   return (data ?? []).map((row) => mapMunicipalDepartment(row as Record<string, unknown>));
+}
+
+export async function listRemotePublicMunicipalDepartments(municipalityId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+
+  const { data, error } = await db.rpc("list_public_municipal_departments_v1", {
+    _municipality_id: municipalityId,
+  });
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar a estrutura institucional.");
+  }
+  return (data ?? []).map((row) =>
+    mapMunicipalDepartment(row as Record<string, unknown>),
+  );
 }
 
 export async function upsertRemoteMunicipalDepartment(input: {
@@ -2968,6 +3434,7 @@ export async function linkExistingMunicipalStaff(input: {
   role: SessionUser["role"];
   name: string;
   title: string;
+  profileLabel?: string;
   accessLevel: 1 | 2 | 3;
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
@@ -3001,6 +3468,7 @@ export async function linkExistingMunicipalStaff(input: {
     role: input.role,
     name: input.name,
     title: input.title,
+    profileLabel: input.profileLabel ?? "",
     accessLevel: input.accessLevel,
     accountStatus: "active",
   });

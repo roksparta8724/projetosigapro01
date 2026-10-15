@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 
 type PrefeituraData = {
   nome: string;
@@ -11,6 +12,7 @@ type PrefeituraData = {
   cep?: string;
   telefone?: string;
   logoUrl?: string;
+  logoObjectKey?: string;
   cadastroTitulo?: string;
 };
 
@@ -32,6 +34,17 @@ type TaxaItem = {
   juros?: number;
   correcao?: number;
   total: number;
+};
+
+type ElectronicSignatureData = {
+  signerName: string;
+  signerTitle?: string;
+  departmentCode?: string;
+  departmentName?: string;
+  signedAt: string;
+  signatureCode: string;
+  signatureFingerprint: string;
+  assuranceLabel?: string;
 };
 
 type GuiaData = {
@@ -57,6 +70,7 @@ type GuiaData = {
   valorCobrado?: number;
   autenticacaoMecanica?: string;
   referencia?: string;
+  assinaturaEletronica?: ElectronicSignatureData;
 };
 
 export type GuiaRecolhimentoOficialProps = {
@@ -66,6 +80,51 @@ export type GuiaRecolhimentoOficialProps = {
   itens: TaxaItem[];
   className?: string;
 };
+
+function GuideInstitutionLogo({
+  source,
+  municipalityName,
+  className,
+  compact = false,
+}: {
+  source?: string;
+  municipalityName?: string;
+  className?: string;
+  compact?: boolean;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const normalizedSource = String(source || "").trim();
+  const initials = String(municipalityName || "Prefeitura")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => !/^(de|da|do|das|dos|e)$/i.test(word))
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 4)
+    .toUpperCase() || "PM";
+
+  if (!normalizedSource || failed) {
+    return (
+      <div
+        className="dam-logo-fallback"
+        style={compact ? { width: 26, height: 26 } : undefined}
+        role="img"
+        aria-label={`Brasão de ${municipalityName || "Prefeitura"} indisponível`}
+      >
+        <span className="dam-logo-fallback-mark">{initials}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={normalizedSource}
+      alt={`Brasão de ${municipalityName || "Prefeitura"}`}
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 function formatCurrency(value?: number) {
   return Number(value || 0).toLocaleString("pt-BR", {
@@ -214,14 +273,29 @@ function getStyles() {
     }
 
     .dam-logo-fallback {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #000000;
+      width: 38px;
+      height: 38px;
+      border: 1px solid #111827;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 6px;
+      background: #ffffff;
+      color: #111827;
+      text-align: center;
+      padding: 2px;
+      box-sizing: border-box;
+    }
+
+    .dam-logo-fallback-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
       line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .dam-header-center {
@@ -723,6 +797,47 @@ function getStyles() {
       box-sizing: border-box;
     }
 
+    .dam-electronic-signature {
+      margin-top: 3px;
+      border: 1px solid #000000;
+      display: grid;
+      grid-template-columns: 22mm minmax(0, 1fr);
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+
+    .dam-electronic-signature-badge {
+      border-right: 1px solid #000000;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 6.5px;
+      line-height: 1.25;
+      font-weight: 800;
+      text-transform: uppercase;
+      box-sizing: border-box;
+    }
+
+    .dam-electronic-signature-body {
+      padding: 4px 5px;
+      font-size: 6.5px;
+      line-height: 1.35;
+      box-sizing: border-box;
+    }
+
+    .dam-electronic-signature-body strong {
+      font-size: 7px;
+    }
+
+    .dam-electronic-signature-code {
+      margin-top: 2px;
+      font-family: "Courier New", monospace;
+      font-size: 6px;
+      overflow-wrap: anywhere;
+    }
+
     .dam-auth {
       padding: 3px 4px;
       box-sizing: border-box;
@@ -1057,15 +1172,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-top">
             <div className="dam-header">
               <div className="dam-logo-box">
-                {prefeitura.logoUrl ? (
-                  <img
-                    src={prefeitura.logoUrl}
-                    alt="Logo da Prefeitura"
-                    className="dam-logo"
-                  />
-                ) : (
-                  <div className="dam-logo-fallback">LOGO</div>
-                )}
+                <GuideInstitutionLogo
+                  source={prefeitura.logoUrl}
+                  municipalityName={prefeitura.nome}
+                  className="dam-logo"
+                />
               </div>
 
               <div className="dam-header-center">
@@ -1275,9 +1386,42 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
+            {guia.assinaturaEletronica ? (
+              <div className="dam-electronic-signature">
+                <div className="dam-electronic-signature-badge">
+                  Assinatura
+                  <br />
+                  Eletrônica
+                </div>
+                <div className="dam-electronic-signature-body">
+                  Documento assinado eletronicamente por{" "}
+                  <strong>{guia.assinaturaEletronica.signerName}</strong>
+                  {guia.assinaturaEletronica.signerTitle
+                    ? `, ${guia.assinaturaEletronica.signerTitle}`
+                    : ""}
+                  {guia.assinaturaEletronica.departmentName
+                    ? `, ${[
+                        guia.assinaturaEletronica.departmentCode,
+                        guia.assinaturaEletronica.departmentName,
+                      ].filter(Boolean).join(" — ")}`
+                    : ""}
+                  , em {new Date(guia.assinaturaEletronica.signedAt).toLocaleString("pt-BR")}.
+                  <div className="dam-electronic-signature-code">
+                    Código: {guia.assinaturaEletronica.signatureCode}
+                    {" • "}
+                    SHA-256: {guia.assinaturaEletronica.signatureFingerprint}
+                  </div>
+                  <div className="dam-electronic-signature-code">
+                    {guia.assinaturaEletronica.assuranceLabel || "Assinatura eletrônica autenticada por login e senha no SIGAPRO"}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="dam-warning-row">
-              ** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O
-              VENCIMENTO **
+              {guia.assinaturaEletronica
+                ? "** DOCUMENTO ELETRÔNICO ASSINADO NO SIGAPRO — CONFIRA O CÓDIGO DE VERIFICAÇÃO **"
+                : "** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O VENCIMENTO **"}
             </div>
 
             <div className="dam-observation-row">
@@ -1308,13 +1452,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-bottom">
             <div className="dam-receipt-header">
               <div className="dam-receipt-logo">
-                {prefeitura.logoUrl ? (
-                  <img src={prefeitura.logoUrl} alt="Logo da Prefeitura" />
-                ) : (
-                  <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
-                    LOGO
-                  </div>
-                )}
+                <GuideInstitutionLogo
+                  source={prefeitura.logoUrl}
+                  municipalityName={prefeitura.nome}
+                  compact
+                />
               </div>
 
               <div className="dam-receipt-center">
@@ -1471,11 +1613,124 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   );
 });
 
+async function blobToDataUrl(blob: Blob) {
+  if (!blob.type.startsWith("image/")) return "";
+  return await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(blob);
+  });
+}
+
+export function deriveBrandingObjectKey(source?: string) {
+  const value = String(source || "").trim();
+  if (!value || value.startsWith("data:")) return "";
+
+  try {
+    const baseOrigin =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "http://localhost";
+    const url = new URL(value, baseOrigin);
+    const path = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+    const municipalityMatch = path.match(
+      /(municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g))$/i,
+    );
+    if (municipalityMatch?.[1]) return municipalityMatch[1];
+
+    const platformMatch = path.match(
+      /(platform\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g))$/i,
+    );
+    return platformMatch?.[1] || "";
+  } catch {
+    return "";
+  }
+}
+
+async function embedGuideImage(source?: string, objectKey?: string) {
+  const key =
+    String(objectKey || "").trim() ||
+    deriveBrandingObjectKey(source);
+
+  if (key) {
+    try {
+      // Nunca reaproveita URL assinada antiga: com objectKey disponível,
+      // solicita uma URL R2 nova antes de renderizar/imprimir a guia.
+      const bucket =
+        (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
+        "sigapro-logos";
+      const signedUrl = await getSignedUrlForObjectStrict({
+        bucket,
+        objectKey: key,
+        expiresIn: 900,
+      });
+      const response = await fetch(signedUrl, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (response.ok) {
+        return await blobToDataUrl(await response.blob());
+      }
+    } catch {
+      // No localhost o endpoint de assinatura do R2 pode não ter as variáveis
+      // server-side. Nesse caso, tente a logo já resolvida pelo branding antes
+      // de cair para o fallback visual.
+    }
+  }
+
+  const url = String(source || "").trim();
+  if (!url || url.startsWith("data:")) return url;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (/localhost|127\.0\.0\.1/i.test(parsed.hostname) && !/localhost|127\.0\.0\.1/i.test(window.location.hostname)) {
+      return "";
+    }
+    const response = await fetch(parsed.toString(), {
+      credentials: "include",
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return "";
+    return await blobToDataUrl(await response.blob());
+  } catch {
+    return "";
+  }
+}
+
+function renderGuideOpeningState(popup: Window, title: string) {
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#ffffff}
+  </style>
+</head>
+<body></body>
+</html>`);
+  popup.document.close();
+}
+
 export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...props} />);
+  const staticLogo = String(props.prefeitura.logoUrl || "").trim();
+  const safeProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    prefeitura: {
+      ...props.prefeitura,
+      // HTML estático não hidrata onError. Nunca deixa URL remota quebrada
+      // na guia: só aceita imagem incorporada; caso contrário usa o fallback
+      // institucional renderizado no próprio HTML.
+      logoUrl: /^data:image\//i.test(staticLogo) ? staticLogo : "",
+    },
+  };
+  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...safeProps} />);
   const title = options?.title || props.guia.numeroGuia;
   const autoPrint = options?.autoPrint ?? true;
 
@@ -1497,16 +1752,44 @@ export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const html = buildGuiaRecolhimentoOficialHtml(props, options);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const previewUrl = URL.createObjectURL(blob);
-  const popup = window.open(previewUrl, "_blank");
-  if (!popup) {
-    URL.revokeObjectURL(previewUrl);
-    return;
+  const title = options?.title || props.guia.numeroGuia;
+  const popup = window.open("", "_blank");
+  if (!popup) return;
+
+  try {
+    popup.opener = null;
+  } catch {
+    // Alguns navegadores não permitem alterar opener; a guia continua funcional.
   }
+
+  renderGuideOpeningState(popup, title);
   popup.focus();
-  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+
+  void (async () => {
+    const embeddedLogo = await embedGuideImage(
+      props.prefeitura.logoUrl,
+      props.prefeitura.logoObjectKey,
+    );
+    const resolvedProps: GuiaRecolhimentoOficialProps = {
+      ...props,
+      prefeitura: {
+        ...props.prefeitura,
+        logoUrl: embeddedLogo,
+      },
+    };
+
+    const html = buildGuiaRecolhimentoOficialHtml(resolvedProps, options);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const previewUrl = URL.createObjectURL(blob);
+
+    try {
+      popup.location.replace(previewUrl);
+    } catch {
+      popup.location.href = previewUrl;
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+  })();
 }
 
 

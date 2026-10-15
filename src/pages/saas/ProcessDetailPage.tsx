@@ -1,5 +1,5 @@
 ﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileCheck2, FileKey2, FileStack, LogOut, Maximize2, MessageSquareMore, Network, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
+import { SignedApprovalWorkflowPanel } from "@/components/platform/SignedApprovalWorkflowPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -19,18 +21,21 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import {
+  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  createRemoteProcessDispatchWithSignature,
   getRemoteProcessPrivateIdentity,
-  listRemoteMunicipalDepartments,
+  issueRemotePaymentGuideWithSignature,
+  listRemoteProcessElectronicSignatures,
   saveRemoteProcessPrivateIdentity,
-  type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
 import {
   calculateIssGuideAmount,
@@ -59,6 +64,11 @@ import {
   workTypeCatalog,
 } from "@/lib/platform";
 import { validateBrazilianTaxId } from "@/lib/processIdentityValidation";
+import {
+  electronicSignatureLevelLabel,
+  type ElectronicSignatureRecord,
+} from "@/lib/electronicSignature";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 function officialMunicipalityLabel(value: string | null | undefined) {
   const label = String(value || "").trim().replace(/^Prefeitura(?:\s+Municipal)?\s+(?:de|do|da)?\s*/i, "");
@@ -170,15 +180,22 @@ export function ProcessDetailPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
       : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
-  const [organizationDepartments, setOrganizationDepartments] = useState<MunicipalDepartmentRecord[]>([]);
-  const [organizationStatus, setOrganizationStatus] = useState("");
+  const {
+    departments: organizationDepartments,
+    loading: organizationLoading,
+    error: organizationError,
+  } = useMunicipalOrganization();
+  const organizationStatus = organizationLoading
+    ? "Carregando organograma..."
+    : organizationError;
   const [privateIdentity, setPrivateIdentity] = useState<ProcessPrivateIdentityRecord | null>(null);
+  const [electronicSignatures, setElectronicSignatures] = useState<ElectronicSignatureRecord[]>([]);
   const [privateIdentityLoading, setPrivateIdentityLoading] = useState(false);
   const [privateIdentityStatus, setPrivateIdentityStatus] = useState("");
   const [isEditingPrivateIdentity, setIsEditingPrivateIdentity] = useState(false);
@@ -186,39 +203,22 @@ export function ProcessDetailPage() {
     EMPTY_PROCESS_IDENTITY_FORM,
   );
 
-  useEffect(() => {
-    let active = true;
-    if (!effectiveScopeId || !isInternalRole(session.role)) {
-      setOrganizationDepartments([]);
-      setOrganizationStatus("");
-      return () => {
-        active = false;
-      };
+  const reloadElectronicSignatures = async () => {
+    if (!processId) {
+      setElectronicSignatures([]);
+      return;
     }
+    try {
+      setElectronicSignatures(await listRemoteProcessElectronicSignatures(processId));
+    } catch {
+      setElectronicSignatures([]);
+    }
+  };
 
-    setOrganizationStatus("Carregando organograma...");
-    void listRemoteMunicipalDepartments(effectiveScopeId)
-      .then((rows) => {
-        if (!active) return;
-        setOrganizationDepartments(
-          rows
-            .filter((item) => item.isActive)
-            .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
-        );
-        setOrganizationStatus("");
-      })
-      .catch((error) => {
-        if (!active) return;
-        setOrganizationDepartments([]);
-        setOrganizationStatus(
-          error instanceof Error ? error.message : "Não foi possível carregar o organograma municipal.",
-        );
-      });
+  useEffect(() => {
+    void reloadElectronicSignatures();
+  }, [processId]);
 
-    return () => {
-      active = false;
-    };
-  }, [effectiveScopeId, session.role]);
   const isMasterOrMunicipalAdmin =
     session.role === "master_admin" ||
     session.role === "master_ops" ||
@@ -268,6 +268,22 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [pendingSignatureAction, setPendingSignatureAction] = useState<
+    | {
+        kind: "issue-guide-analysis";
+        guideInput: { processId: string; areaM2: number; usage: string; workType: string };
+      }
+    | { kind: "issue-guide-finance" }
+    | {
+        kind: "dispatch";
+        toDepartment: string;
+        subject: string;
+        dueDate: string;
+        visibility: "interno" | "externo" | "misto";
+      }
+    | null
+  >(null);
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
@@ -565,13 +581,17 @@ export function ProcessDetailPage() {
           item.message.includes(guideCode),
       ),
     );
-  const visiblePaymentGuides = isExternalProcessViewer
-    ? paymentGuides.filter(
-        (guide) => guide.kind === "protocolo" || isGuideSharedExternally(guide.code),
-      )
-    : paymentGuides;
+  // Toda guia oficialmente emitida e persistida em payment_guides integra o
+  // financeiro do processo e deve permanecer visível ao responsável externo.
+  // O compartilhamento explícito continua sendo usado para comunicação/notificação,
+  // não como condição para esconder uma cobrança já existente.
+  const visiblePaymentGuides = paymentGuides;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
+  const paidPaymentGuides = visiblePaymentGuides.filter((guide) => guide.status === "compensada");
+  const openPaymentGuides = visiblePaymentGuides.filter((guide) => guide.status !== "compensada");
+  const paidPaymentTotal = paidPaymentGuides.reduce((total, guide) => total + guide.amount, 0);
+  const openPaymentTotal = openPaymentGuides.reduce((total, guide) => total + guide.amount, 0);
   const canProtocolConfirmPayment =
     protocolGuide?.status === "pendente" &&
     process.status === "pagamento_pendente" &&
@@ -652,15 +672,41 @@ export function ProcessDetailPage() {
       entry.category === "financeiro" &&
       /guia.*(issqn|iss).*emitida/i.test(`${entry.title} ${entry.detail}`),
   );
+  const looksLikeUuid = (value: string | null | undefined) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      String(value ?? "").trim(),
+    );
+  const resolveProcessActorName = (
+    rawValue: string | null | undefined,
+    profileId?: string | null,
+  ) => {
+    const raw = String(rawValue ?? "").trim();
+    const identityId =
+      String(profileId ?? "").trim() ||
+      (looksLikeUuid(raw) ? raw : "");
+    const linkedSessionUser = identityId
+      ? sessionUsers.find((user) => user.id === identityId)
+      : undefined;
+    const linkedProfile = identityId ? getUserProfile(identityId) : undefined;
+    return (
+      linkedProfile?.fullName?.trim() ||
+      linkedSessionUser?.name?.trim() ||
+      (!looksLikeUuid(raw) ? raw : "") ||
+      ""
+    );
+  };
   const constructionGuideRequester =
-    constructionGuide?.requestedBy ||
-    constructionGuideRequest?.requestedBy ||
-    process.analysis?.assignedTo ||
-    "";
+    resolveProcessActorName(
+      constructionGuide?.requestedBy ||
+        constructionGuideRequest?.requestedBy ||
+        process.analysis?.assignedTo ||
+        "",
+    );
   const constructionGuideIssuer =
-    constructionGuide?.issuedBy ||
-    constructionGuideIssueAudit?.actor ||
-    "";
+    resolveProcessActorName(
+      constructionGuide?.issuedBy || constructionGuideIssueAudit?.actor || "",
+      constructionGuideIssueAudit?.actorProfileId,
+    );
   const constructionGuideIssuerMode =
     tenantSettings?.constructionGuideIssuerMode ?? "analise";
   const analysisCanIssueConstructionGuide =
@@ -681,8 +727,6 @@ export function ProcessDetailPage() {
     constructionUsageInput,
     tenantSettings,
   );
-  const displayGuide = constructionGuide ?? protocolGuide;
-
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
       return {
@@ -744,45 +788,11 @@ export function ProcessDetailPage() {
   const canViewCompleteTransit =
     !isProtocolTrackingOnly &&
     (isInternalRole(session.role) || processTransitVisibility === "completo");
-  const organizationById = new Map(
-    organizationDepartments.map((department) => [department.id, department]),
-  );
+  const getOrganizationIdentity = (departmentName: string) =>
+    resolveMunicipalUnitIdentity(organizationDepartments, departmentName);
 
-  const getOrganizationPath = (departmentName: string) => {
-    const normalized = departmentName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-
-    const matched = organizationDepartments.find((department) => {
-      const name = department.name
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLocaleLowerCase("pt-BR");
-      const code = department.code.trim().toLocaleLowerCase("pt-BR");
-      return name === normalized || (code && code === normalized);
-    });
-
-    if (!matched) return departmentName;
-
-    const chain: MunicipalDepartmentRecord[] = [];
-    let current: MunicipalDepartmentRecord | undefined = matched;
-    const visited = new Set<string>();
-
-    while (current && !visited.has(current.id)) {
-      visited.add(current.id);
-      chain.unshift(current);
-      current = current.parentDepartmentId
-        ? organizationById.get(current.parentDepartmentId)
-        : undefined;
-    }
-
-    return chain
-      .map((item) => item.code?.trim() ? `${item.code.trim()} — ${item.name}` : item.name)
-      .join(" › ");
-  };
+  const getOrganizationPath = (departmentName: string) =>
+    getOrganizationIdentity(departmentName).breadcrumb;
 
   const organizationDestinations = organizationDepartments.filter(
     (department) => department.isActive,
@@ -793,7 +803,8 @@ export function ProcessDetailPage() {
     process.status === "analise_tecnica" && /^(protocolo|an[aá]lise t[eé]cnica)$/i.test(rawCurrentFolder.trim())
       ? URBAN_ANALYSIS_DEPARTMENT
       : rawCurrentFolder;
-  const currentOrganizationPath = getOrganizationPath(currentFolder);
+  const currentOrganizationIdentity = getOrganizationIdentity(currentFolder);
+  const currentOrganizationPath = currentOrganizationIdentity.breadcrumb;
 
   const protocolDepartment = organizationDepartments.find((department) =>
     /protocolo|triagem|recep[cç][aã]o/i.test(department.name),
@@ -801,11 +812,30 @@ export function ProcessDetailPage() {
   const administrationDepartment = organizationDepartments.find((department) =>
     /administra[cç][aã]o|administrativo|secretaria de administra[cç][aã]o/i.test(department.name),
   );
-  const protocolOrganizationPath = protocolDepartment
-    ? getOrganizationPath(protocolDepartment.name)
+  const protocolOrganizationIdentity = protocolDepartment
+    ? getOrganizationIdentity(protocolDepartment.name)
     : administrationDepartment
-      ? `${getOrganizationPath(administrationDepartment.name)} › Protocolo`
-      : "Administração › Protocolo";
+      ? {
+          ...getOrganizationIdentity(administrationDepartment.name),
+          codePath: [getOrganizationIdentity(administrationDepartment.name).codePath, "PROT"].filter(Boolean).join(" / "),
+          breadcrumb: `${getOrganizationPath(administrationDepartment.name)} › Protocolo`,
+          detailedPath: `${getOrganizationIdentity(administrationDepartment.name).detailedPath} › PROT — Protocolo`,
+          code: "PROT",
+          name: "Protocolo",
+          departmentId: null,
+          matched: false,
+        }
+      : {
+          matched: false,
+          departmentId: null,
+          code: "PROT",
+          name: "Protocolo",
+          codePath: "ADM / PROT",
+          breadcrumb: "Administração › Protocolo",
+          detailedPath: "ADM — Administração › PROT — Protocolo",
+        };
+  const protocolOrganizationPath = protocolOrganizationIdentity.breadcrumb;
+  const analysisOrganizationIdentity = getOrganizationIdentity(URBAN_ANALYSIS_DEPARTMENT);
 
   const normalizedCurrentFolder = currentFolder
     .normalize("NFD")
@@ -943,8 +973,26 @@ export function ProcessDetailPage() {
   const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
+    const selectedGuideSignature = selectedGuide.id
+      ? electronicSignatures.find(
+          (signature) =>
+            signature.entityType === "payment_guide_issue" &&
+            signature.entityId === selectedGuide.id &&
+            !signature.revokedAt,
+        )
+      : undefined;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
+    const selectedGuideIssuer =
+      resolveProcessActorName(
+        selectedGuide.issuedBy,
+        selectedGuide.kind === "iss_obra"
+          ? constructionGuideIssueAudit?.actorProfileId
+          : null,
+      ) ||
+      constructionGuideIssuer ||
+      session.name ||
+      "Emissor municipal";
     // Nunca fabricar código bancário. A DAM só exibe linha digitável/PIX
     // quando vier de integração oficial de arrecadação da Prefeitura.
     const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -953,7 +1001,16 @@ export function ProcessDetailPage() {
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+        logoUrl:
+          municipalityBranding?.headerLogoUrl ||
+          municipalityBranding?.logoUrl ||
+          tenantSettings?.logoUrl ||
+          tenantSettings?.brasaoUrl ||
+          "",
+        logoObjectKey:
+          municipalityBranding?.headerLogoObjectKey ||
+          municipalityBranding?.footerLogoObjectKey ||
+          "",
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
@@ -968,7 +1025,7 @@ export function ProcessDetailPage() {
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
-        funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+        funcionarioResponsavel: selectedGuideIssuer,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
@@ -977,8 +1034,8 @@ export function ProcessDetailPage() {
             : undefined,
         funcionarioEmissor:
           selectedGuide.kind === "iss_obra"
-            ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
-            : selectedGuide.issuedBy,
+            ? constructionGuideIssuer || selectedGuideIssuer
+            : selectedGuideIssuer,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
@@ -993,6 +1050,23 @@ export function ProcessDetailPage() {
         valorCobrado: selectedGuide.amount,
         autenticacaoMecanica: "",
         referencia: getGuideReference(selectedGuide.kind),
+        assinaturaEletronica: selectedGuideSignature
+          ? {
+              signerName: selectedGuideSignature.signerName,
+              signerTitle:
+                selectedGuideSignature.signerTitle ||
+                selectedGuideSignature.signerProfileLabel ||
+                undefined,
+              departmentCode: selectedGuideSignature.departmentCode || undefined,
+              departmentName: selectedGuideSignature.departmentName || undefined,
+              signedAt: selectedGuideSignature.signedAt,
+              signatureCode: selectedGuideSignature.signatureCode,
+              signatureFingerprint: selectedGuideSignature.signatureFingerprint,
+              assuranceLabel: electronicSignatureLevelLabel(
+                selectedGuideSignature.assuranceLevel,
+              ),
+            }
+          : undefined,
       },
       itens: [
         {
@@ -1139,15 +1213,8 @@ export function ProcessDetailPage() {
     }
     const input = getConstructionGuideInput();
     if (!input) return;
-
-    void runProcessAction(
-      "generate-construction-guide",
-      async () => {
-        await updateIssProjectGuideData(input);
-        await issuePaymentGuide(process.id, session.name, "iss_obra");
-      },
-      "Guia de ISSQN / Projeto gerada. Ela já está disponível no Financeiro para controle e pode ser enviada ao profissional.",
-    );
+    setPendingSignatureAction({ kind: "issue-guide-analysis", guideInput: input });
+    setSignatureDialogOpen(true);
   };
 
   const handleForwardConstructionGuideToFinance = () => {
@@ -1173,11 +1240,8 @@ export function ProcessDetailPage() {
       setProcessActionStatus("O administrador desta Prefeitura definiu que a guia deve ser emitida pela Análise Urbanística.");
       return;
     }
-    void runProcessAction(
-      "finance-issue-construction-guide",
-      () => issuePaymentGuide(process.id, session.name, "iss_obra"),
-      "Guia de ISSQN / Projeto emitida pelo Financeiro e vinculada ao processo.",
-    );
+    setPendingSignatureAction({ kind: "issue-guide-finance" });
+    setSignatureDialogOpen(true);
   };
 
   const handleReviseConstructionGuide = async () => {
@@ -1278,27 +1342,109 @@ export function ProcessDetailPage() {
       return;
     }
 
-    const ok = await runProcessAction(
-      "dispatch",
-      () =>
-        dispatchProcess({
-          processId: process.id,
-          actor: session.name,
-          from: currentFolder.trim(),
-          to: selectedDestination.name,
-          subject: dispatchSubject.trim(),
-          dueDate: dispatchDueDate,
-          visibility: dispatchVisibility,
-        }),
-      "Despacho registrado no processo.",
-    );
-    if (ok) {
+    setPendingSignatureAction({
+      kind: "dispatch",
+      toDepartment: selectedDestination.name,
+      subject: dispatchSubject.trim(),
+      dueDate: dispatchDueDate,
+      visibility: dispatchVisibility,
+    });
+    setSignatureDialogOpen(true);
+  };
+  const signatureDialogCopy = (() => {
+    if (!pendingSignatureAction) {
+      return {
+        title: "Assinar eletronicamente",
+        subject: formatOfficialProcessTitle(process),
+        statement: "Confirmo este ato no processo.",
+      };
+    }
+    if (pendingSignatureAction.kind === "dispatch") {
+      const destination = getOrganizationIdentity(pendingSignatureAction.toDepartment);
+      return {
+        title: "Assinar e efetivar despacho",
+        subject: `${currentOrganizationIdentity.codePath || currentFolder} → ${destination.codePath || destination.name}`,
+        statement: `Confirmo o despacho "${pendingSignatureAction.subject}" de ${currentOrganizationPath} para ${destination.breadcrumb}.`,
+      };
+    }
+    return {
+      title: "Assinar emissão da Guia de ISSQN / Projeto",
+      subject: formatOfficialProcessTitle(process),
+      statement:
+        "Confirmo a emissão desta Guia de ISSQN / Projeto com os dados oficiais atualmente registrados no processo.",
+    };
+  })();
+
+  const confirmPendingElectronicSignature = async (password: string) => {
+    if (!pendingSignatureAction) {
+      throw new Error("Nenhum ato pendente de assinatura.");
+    }
+
+    if (pendingSignatureAction.kind === "issue-guide-analysis") {
+      const ok = await runProcessAction(
+        "generate-construction-guide",
+        async () => {
+          await updateIssProjectGuideData(pendingSignatureAction.guideInput);
+          await issueRemotePaymentGuideWithSignature({
+            processId: process.id,
+            guideKind: "iss_obra",
+            password,
+            statement: "Emissão da Guia de ISSQN / Projeto pela Análise Urbanística.",
+          });
+          await refreshRemoteStore();
+          await reloadElectronicSignatures();
+        },
+        "Guia de ISSQN / Projeto emitida e assinada eletronicamente.",
+      );
+      if (!ok) throw new Error("Não foi possível emitir e assinar a guia.");
+    } else if (pendingSignatureAction.kind === "issue-guide-finance") {
+      const ok = await runProcessAction(
+        "finance-issue-construction-guide",
+        async () => {
+          await issueRemotePaymentGuideWithSignature({
+            processId: process.id,
+            guideKind: "iss_obra",
+            password,
+            statement: "Emissão da Guia de ISSQN / Projeto pelo Financeiro.",
+          });
+          await refreshRemoteStore();
+          await reloadElectronicSignatures();
+        },
+        "Guia de ISSQN / Projeto emitida e assinada eletronicamente pelo Financeiro.",
+      );
+      if (!ok) throw new Error("Não foi possível emitir e assinar a guia.");
+    } else {
+      const action = pendingSignatureAction;
+      const ok = await runProcessAction(
+        "dispatch",
+        async () => {
+          await createRemoteProcessDispatchWithSignature({
+            processId: process.id,
+            fromDepartment: currentFolder.trim(),
+            toDepartment: action.toDepartment,
+            subject: action.subject,
+            dueAt: action.dueDate ? `${action.dueDate}T23:59:59` : null,
+            visibility: action.visibility,
+            password,
+            statement: `Despacho para ${action.toDepartment}: ${action.subject}`,
+          });
+          await refreshRemoteStore();
+          await reloadElectronicSignatures();
+        },
+        "Despacho registrado e assinado eletronicamente.",
+      );
+      if (!ok) throw new Error("Não foi possível registrar e assinar o despacho.");
+
       setDispatchTo("");
       setDispatchSubject("");
       setDispatchDueDate("");
       setDispatchVisibility("interno");
     }
+
+    setPendingSignatureAction(null);
+    setSignatureDialogOpen(false);
   };
+
   const updateTransitVisibility = (visibility: ProcessTransitVisibility) => {
     void runProcessAction(
       "transit-visibility",
@@ -1312,12 +1458,66 @@ export function ProcessDetailPage() {
     );
   };
   const openViewer = (documentId: string) => {
-    const viewerUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/visualizar`;
-    window.open(viewerUrl, "_blank", "noopener,noreferrer");
+    const selectedDocument = process.documents.find((item) => item.id === documentId);
+    if (!selectedDocument) {
+      setProcessActionStatus("Documento não encontrado neste processo.");
+      return;
+    }
+
+    if (!selectedDocument.filePath && selectedDocument.previewUrl) {
+      window.open(selectedDocument.previewUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!selectedDocument.filePath) {
+      setProcessActionStatus("Este documento não possui arquivo disponível para visualização.");
+      return;
+    }
+
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      setProcessActionStatus("O navegador bloqueou a nova guia. Permita pop-ups para abrir o documento.");
+      return;
+    }
+
+    try {
+      popup.opener = null;
+      popup.document.documentElement.style.background = "#111827";
+      popup.document.body.style.margin = "0";
+      popup.document.body.style.background = "#111827";
+    } catch {
+      // A guia continua válida mesmo quando o navegador restringe o acesso inicial ao documento.
+    }
+
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    void getSignedUrlForObjectStrict({
+      bucket,
+      objectKey: selectedDocument.filePath,
+      expiresIn: 3600,
+    })
+      .then((accessUrl) => {
+        if (!accessUrl || popup.closed) return;
+        try {
+          popup.location.replace(accessUrl);
+        } catch {
+          popup.location.href = accessUrl;
+        }
+      })
+      .catch((error) => {
+        if (!popup.closed) popup.close();
+        setProcessActionStatus(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível abrir o documento armazenado.",
+        );
+      });
   };
 
   const openAnalysisViewer = (documentId: string) => {
-    const analysisUrl = `${window.location.origin}/processos/${process.id}/documentos/${documentId}/analisar`;
+    const analysisUrl = `/processos/${process.id}/documentos/${documentId}/analisar`;
     window.open(analysisUrl, "_blank", "noopener,noreferrer");
   };
   const handleViewerClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -1588,7 +1788,14 @@ export function ProcessDetailPage() {
         <StatCard label="Etapa atual" value={currentFlowStatusLabel} description={displayOrganizationPath} icon={Workflow} tone="blue" valueClassName="text-xl md:text-2xl" />
         <StatCard label="Documentos enviados" value={String(uploadedCount)} description="Arquivos presentes no processo" icon={FileStack} tone="emerald" />
         <StatCard label="Exigências visíveis" value={String(visibleRequirements.length)} description="Pendências e devolutivas desta vista" icon={ShieldAlert} tone="amber" />
-        <StatCard label="Guia inicial" value={protocolGuide ? formatCurrency(protocolGuide.amount) : "Não emitida"} description="Controle financeiro do protocolo" icon={FileKey2} tone="default" valueClassName="text-xl md:text-2xl" />
+        <StatCard
+          label="Guias financeiras"
+          value={String(visiblePaymentGuides.length)}
+          description={`${paidPaymentGuides.length} paga(s) • ${openPaymentGuides.length} em aberto`}
+          icon={FileKey2}
+          tone="default"
+          valueClassName="text-xl md:text-2xl"
+        />
       </PageStatsRow>
       <Card className={cardShell}>
         <CardContent className="p-6">
@@ -1683,27 +1890,25 @@ export function ProcessDetailPage() {
         </Card>
         <Card className={`${cardShell} sig-premium-summary-card h-full`}>
           <CardContent className="p-5">
-            <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
-            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
-            {canProtocolConfirmPayment ? (
-              <Button
-                type="button"
-                className="mt-3 rounded-full bg-emerald-700 px-5 !text-white hover:bg-emerald-800"
-                disabled={processActionBusy === "confirm-protocol-payment"}
-                onClick={handleConfirmProtocolPayment}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
-              </Button>
-            ) : null}
-            {constructionGuide ? (
-              <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={() => printGuide("iss_obra", false)}>
-                <Eye className="mr-2 h-4 w-4" />
-                Visualizar guia
-              </Button>
-            ) : null}
+            <p className="sig-label">Situação financeira</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-50">
+                {paidPaymentGuides.length} paga(s)
+              </Badge>
+              <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900 hover:bg-amber-50">
+                {openPaymentGuides.length} em aberto
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Total pago</p>
+                <p className="mt-1 text-base font-semibold text-emerald-700">{formatCurrency(paidPaymentTotal)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Total em aberto</p>
+                <p className="mt-1 text-base font-semibold text-amber-800">{formatCurrency(openPaymentTotal)}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card className={`${cardShell} sig-premium-summary-card h-full`}>
@@ -1726,6 +1931,112 @@ export function ProcessDetailPage() {
           </Card>
         ) : null}
       </div>
+
+      {(activeTab === "resumo" || activeTab === "financeiro" || activeTab === "historico") && visiblePaymentGuides.length > 0 ? (
+        <Card className={`${cardShell} mt-5`}>
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-slate-950">
+                  <FileKey2 className="h-5 w-5 text-sky-700" />
+                  Guias de pagamento do processo
+                </CardTitle>
+                <p className="mt-1 text-sm text-slate-600">
+                  Situação real carregada do financeiro municipal: guias compensadas permanecem no histórico e cobranças pendentes continuam destacadas em aberto.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-50">
+                  {paidPaymentGuides.length} paga(s)
+                </Badge>
+                <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900 hover:bg-amber-50">
+                  {openPaymentGuides.length} em aberto
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="grid gap-4 lg:grid-cols-2">
+              {visiblePaymentGuides.map((guide) => {
+                const isPaid = guide.status === "compensada";
+                const guideTitle =
+                  guide.kind === "protocolo"
+                    ? "Guia de protocolo"
+                    : guide.kind === "iss_obra"
+                      ? "ISSQN da obra"
+                      : "Aprovação final";
+                return (
+                  <article
+                    key={`${guide.kind}-${guide.code}`}
+                    className={`rounded-[20px] border p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] ${
+                      isPaid
+                        ? "border-emerald-200 bg-emerald-50/55"
+                        : "border-amber-200 bg-amber-50/55"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{guideTitle}</p>
+                        <p className="mt-1 truncate text-base font-semibold text-slate-950" title={guide.code}>{guide.code}</p>
+                      </div>
+                      <Badge className={`rounded-full border px-3 py-1 ${
+                        isPaid
+                          ? "border-emerald-200 bg-white text-emerald-800 hover:bg-white"
+                          : "border-amber-200 bg-white text-amber-900 hover:bg-white"
+                      }`}>
+                        {isPaid ? "Paga / compensada" : "Em aberto"}
+                      </Badge>
+                    </div>
+
+                    <p className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
+                      {formatCurrency(guide.amount)}
+                    </p>
+
+                    <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/80 bg-white/75 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                        <p className="mt-1 font-medium text-slate-800">{guide.dueDate || "Não informado"}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/80 bg-white/75 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{isPaid ? "Pagamento" : "Situação"}</p>
+                        <p className="mt-1 font-medium text-slate-800">
+                          {isPaid
+                            ? guide.paidAt
+                              ? new Date(guide.paidAt).toLocaleString("pt-BR")
+                              : "Compensado"
+                            : "Aguardando pagamento"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" className="rounded-full bg-white" onClick={() => printGuide(guide.kind, false)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Visualizar
+                      </Button>
+                      <Button type="button" variant="outline" className="rounded-full bg-white" onClick={() => printGuide(guide.kind, true)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir
+                      </Button>
+                      {guide.kind === "protocolo" && canProtocolConfirmPayment ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-emerald-700 px-5 !text-white hover:bg-emerald-800"
+                          disabled={processActionBusy === "confirm-protocol-payment"}
+                          onClick={handleConfirmProtocolPayment}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {processActionBusy === "confirm-protocol-payment" ? "Confirmando..." : "Confirmar pagamento recebido"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {(activeTab === "resumo" || activeTab === "historico") ? (
       <div className="mt-4 grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))]">
@@ -2301,6 +2612,16 @@ export function ProcessDetailPage() {
             />
           )}
 
+          {!isExternalProcessViewer && activeTab === "analise" ? (
+            <SignedApprovalWorkflowPanel
+              processId={process.id}
+              onChanged={async () => {
+                await refreshRemoteStore();
+                await reloadElectronicSignatures();
+              }}
+            />
+          ) : null}
+
           {!isExternalProcessViewer && activeTab === "analise" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
@@ -2738,6 +3059,115 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "historico" && (
+            <Card className={cardShell}>
+              <CardHeader className="border-b border-slate-100">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-slate-950">
+                      <Signature className="h-5 w-5 text-sky-700" />
+                      Assinaturas eletrônicas do processo
+                    </CardTitle>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Atos autenticados pelo SIGAPRO, vinculados ao signatário e ao conteúdo por código de verificação e hash SHA-256.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
+                    {electronicSignatures.filter((signature) => !signature.revokedAt).length} ativa(s)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5">
+                {electronicSignatures.length === 0 ? (
+                  <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm leading-6 text-slate-600">
+                    Nenhuma assinatura eletrônica registrada neste processo.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {electronicSignatures.map((signature) => {
+                      const entityLabel =
+                        signature.entityType === "process_document_review"
+                          ? "Aprovação de documento"
+                          : signature.entityType === "payment_guide_issue"
+                            ? "Emissão de guia"
+                            : signature.entityType === "process_dispatch"
+                              ? "Despacho"
+                              : signature.entityType === "analysis_conclusion"
+                                ? "Conclusão da análise"
+                                : "Documento oficial";
+                      const revoked = Boolean(signature.revokedAt);
+                      return (
+                        <div
+                          key={signature.id}
+                          className={`rounded-[20px] border p-4 ${
+                            revoked
+                              ? "border-rose-200 bg-rose-50/60"
+                              : "border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.045)]"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-sky-800">
+                                  {entityLabel}
+                                </span>
+                                {signature.departmentCode ? (
+                                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-700">
+                                    {signature.departmentCode}
+                                  </span>
+                                ) : null}
+                                {revoked ? (
+                                  <span className="rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-rose-800">
+                                    Revogada
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-800">
+                                    Válida
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-3 font-semibold text-slate-950">{signature.signerName}</p>
+                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {[
+                                  signature.signerTitle || signature.signerProfileLabel,
+                                  signature.departmentName,
+                                ].filter(Boolean).join(" • ") || "Identidade funcional registrada"}
+                              </p>
+                            </div>
+                            <div className="text-right text-xs text-slate-500">
+                              <p>{signature.signedAt ? new Date(signature.signedAt).toLocaleString("pt-BR") : ""}</p>
+                              <p className="mt-1">{electronicSignatureLevelLabel(signature.assuranceLevel)}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+                            <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-slate-500">Código de verificação</p>
+                              <p className="mt-1 font-mono text-xs font-semibold text-slate-900">{signature.signatureCode}</p>
+                            </div>
+                            <div className="min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-slate-500">Fingerprint SHA-256</p>
+                              <p className="mt-1 break-all font-mono text-[10px] leading-5 text-slate-700">{signature.signatureFingerprint}</p>
+                            </div>
+                          </div>
+
+                          {signature.statement ? (
+                            <p className="mt-3 text-xs leading-5 text-slate-500">{signature.statement}</p>
+                          ) : null}
+                          {revoked && signature.revocationReason ? (
+                            <p className="mt-3 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs leading-5 text-rose-800">
+                              Motivo da revogação: {signature.revocationReason}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "historico" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 pb-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2764,6 +3194,11 @@ export function ProcessDetailPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
                       Onde está agora
                     </p>
+                    {currentOrganizationIdentity.codePath ? (
+                      <div className="mt-2 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800 shadow-sm">
+                        {currentOrganizationIdentity.codePath}
+                      </div>
+                    ) : null}
                     <p className="mt-2 text-base font-bold text-slate-950">
                       {currentOrganizationPath}
                     </p>
@@ -2780,6 +3215,23 @@ export function ProcessDetailPage() {
                 </div>
               </div>
 
+              {!isExternalProcessViewer ? (
+                <div className={`flex items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-xs ${
+                  organizationDepartments.length > 0
+                    ? "border-emerald-200 bg-emerald-50/70 text-emerald-800"
+                    : "border-amber-200 bg-amber-50 text-amber-900"
+                }`}>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Network className="h-4 w-4 shrink-0" />
+                    <span className="truncate font-medium">
+                      {organizationDepartments.length > 0
+                        ? `Organograma municipal sincronizado • ${organizationDepartments.length} unidades ativas`
+                        : organizationStatus || "Organograma municipal não carregado"}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="relative">
                 <div className="absolute bottom-5 left-[19px] top-5 w-px bg-slate-200" />
 
@@ -2793,7 +3245,12 @@ export function ProcessDetailPage() {
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                           Entrada do processo
                         </p>
-                        <p className="mt-1 font-semibold text-slate-950">{protocolOrganizationPath}</p>
+                        {protocolOrganizationIdentity.codePath ? (
+                          <div className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-700">
+                            {protocolOrganizationIdentity.codePath}
+                          </div>
+                        ) : null}
+                        <p className="mt-2 font-semibold text-slate-950">{protocolOrganizationPath}</p>
                         <p className="mt-1 text-sm text-slate-600">
                           Processo recebido e registrado oficialmente pela unidade de Protocolo.
                         </p>
@@ -2819,8 +3276,13 @@ export function ProcessDetailPage() {
                           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
                             Análise Urbanística
                           </p>
-                          <p className="mt-1 font-semibold text-slate-950">
-                            {getOrganizationPath(URBAN_ANALYSIS_DEPARTMENT)}
+                          {analysisOrganizationIdentity.codePath ? (
+                            <div className="mt-1 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-800">
+                              {analysisOrganizationIdentity.codePath}
+                            </div>
+                          ) : null}
+                          <p className="mt-2 font-semibold text-slate-950">
+                            {analysisOrganizationIdentity.breadcrumb}
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
                             Processo recebido pela mesa técnica
@@ -2841,6 +3303,8 @@ export function ProcessDetailPage() {
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
                     const isLast = index === transitSteps.length - 1;
+                    const destinationIdentity = getOrganizationIdentity(dispatch.to);
+                    const originIdentity = getOrganizationIdentity(dispatch.from);
                     return (
                       <div key={dispatch.id} className="relative flex gap-4 pb-5">
                         <div className={`z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white shadow-sm ${
@@ -2857,12 +3321,23 @@ export function ProcessDetailPage() {
                               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                                 {isLast ? "Unidade atual" : "Encaminhado para"}
                               </p>
-                              <p className="mt-1 font-semibold text-slate-950">
-                                {getOrganizationPath(dispatch.to)}
+                              {destinationIdentity.codePath ? (
+                                <div className="mt-1 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                                  {destinationIdentity.codePath}
+                                </div>
+                              ) : null}
+                              <p className="mt-2 font-semibold text-slate-950">
+                                {destinationIdentity.breadcrumb}
                               </p>
-                              <p className="mt-2 text-sm text-slate-600">
-                                Origem: <span className="font-medium text-slate-800">{getOrganizationPath(dispatch.from)}</span>
-                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                                <span>Origem:</span>
+                                {originIdentity.codePath ? (
+                                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700">
+                                    {originIdentity.codePath}
+                                  </span>
+                                ) : null}
+                                <span className="font-medium text-slate-800">{originIdentity.breadcrumb}</span>
+                              </div>
                               {dispatch.subject ? (
                                 <p className="mt-1 text-sm text-slate-500">{dispatch.subject}</p>
                               ) : null}
@@ -2900,7 +3375,12 @@ export function ProcessDetailPage() {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
                         Unidade atual
                       </p>
-                      <p className="mt-1 font-semibold text-slate-950">
+                      {currentOrganizationIdentity.codePath ? (
+                        <div className="mt-1 inline-flex rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                          {currentOrganizationIdentity.codePath}
+                        </div>
+                      ) : null}
+                      <p className="mt-2 font-semibold text-slate-950">
                         {currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
@@ -2923,7 +3403,7 @@ export function ProcessDetailPage() {
                       </p>
                     </div>
                     <Badge variant="outline" className="rounded-full">
-                      Origem: {currentOrganizationPath}
+                      Origem: {currentOrganizationIdentity.codePath ? `${currentOrganizationIdentity.codePath} · ` : ""}{currentOrganizationPath}
                     </Badge>
                   </div>
 
@@ -2943,7 +3423,10 @@ export function ProcessDetailPage() {
                           .filter((department) => department.name !== currentFolder)
                           .map((department) => (
                             <SelectItem key={department.id} value={department.id}>
-                              {getOrganizationPath(department.name)}
+                              {(() => {
+                                const identity = getOrganizationIdentity(department.name);
+                                return `${identity.codePath ? `[${identity.codePath}] ` : ""}${identity.breadcrumb}`;
+                              })()}
                             </SelectItem>
                           ))}
                       </SelectContent>
@@ -3102,6 +3585,19 @@ export function ProcessDetailPage() {
         </DialogContent>
       </Dialog>
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !processActionBusy) setPendingSignatureAction(null);
+        }}
+        title={signatureDialogCopy.title}
+        subject={signatureDialogCopy.subject}
+        statement={signatureDialogCopy.statement}
+        busy={Boolean(processActionBusy)}
+        onConfirm={confirmPendingElectronicSignature}
+      />
     </PortalFrame>
   );
 }

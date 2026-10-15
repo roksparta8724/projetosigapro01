@@ -7,6 +7,7 @@ import {
   Highlighter,
   MessageSquareText,
   MousePointer2,
+  Signature,
   XCircle,
   ZoomIn,
   ZoomOut,
@@ -18,10 +19,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganization } from "@/hooks/useMunicipalOrganization";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { approveRemoteProcessDocumentWithSignature } from "@/integrations/backend/platform";
 import {
   canAccessMunicipalArea,
   canAccessProcess,
@@ -30,6 +34,7 @@ import {
   isInternalRole,
   isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
+import { resolveMunicipalUnitIdentity } from "@/lib/municipalOrganization";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
 type DraftAnnotation = {
@@ -49,12 +54,16 @@ export function DocumentAnalysisPage() {
   const { processId, documentId } = useParams();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes, addDocumentAnnotation, reviewProcessDocument, createRequirement } = usePlatformData();
+  const { processes, addDocumentAnnotation, reviewProcessDocument, createRequirement, refreshRemoteStore } = usePlatformData();
   const process = processId ? getProcessById(processId, processes) : undefined;
   const document = process?.documents.find((item) => item.id === documentId);
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.role === "master_admin" || session.role === "master_ops"
+      ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+      : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const [accessUrl, setAccessUrl] = useState("");
   const [accessError, setAccessError] = useState("");
+  const { departments: organizationDepartments } = useMunicipalOrganization();
   const [tool, setTool] = useState<AnalysisTool>("navigate");
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -62,6 +71,7 @@ export function DocumentAnalysisPage() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
   const [status, setStatus] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [localReviewStatus, setLocalReviewStatus] = useState<"pendente" | "aprovado" | "rejeitado">(
     document?.reviewStatus === "aprovado"
       ? "aprovado"
@@ -81,6 +91,15 @@ export function DocumentAnalysisPage() {
     canAccessProcess(session, process, effectiveScopeId) &&
     isProcessOwnedBySessionDepartment(session, process) &&
     canAccessMunicipalArea(session, "analise");
+
+  const organizationIdentity = resolveMunicipalUnitIdentity(
+    organizationDepartments,
+    process?.processControl?.currentFolder ||
+      process?.dispatches?.[0]?.to ||
+      process?.sla?.currentStage ||
+      session.department ||
+      "",
+  );
 
   useEffect(() => {
     setLocalReviewStatus(
@@ -248,25 +267,50 @@ export function DocumentAnalysisPage() {
     }
   };
 
-  const approveDocument = async () => {
+  const approveDocument = () => {
     if (!process || !document) return;
+    if (!accessUrl) {
+      setStatus(
+        accessError ||
+          "O arquivo precisa estar disponível para calcular sua integridade antes da assinatura.",
+      );
+      return;
+    }
+    setStatus("");
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedDocumentApproval = async (password: string) => {
+    if (!process || !document || !accessUrl) {
+      throw new Error("Documento indisponível para assinatura.");
+    }
+
     setBusy("review-aprovado");
     setStatus("");
     try {
-      await reviewProcessDocument(
-        process.id,
-        document.id,
-        "aprovado",
-        session.name,
+      const result = await approveRemoteProcessDocumentWithSignature({
+        documentId: document.id,
+        password,
+        statement: `Aprovo o documento "${document.label}" na versão ${Number(document.version || 1)} após análise técnica.`,
+      });
+
+      const signature = (result?.signature ?? {}) as Record<string, unknown>;
+      const signatureCode = String(
+        signature.signatureCode ?? signature.signature_code ?? "",
       );
+
+      await refreshRemoteStore();
       setLocalReviewStatus("aprovado");
-      setStatus("Documento aprovado e registrado no processo.");
-    } catch (error) {
+      setSignatureDialogOpen(false);
       setStatus(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível registrar a aprovação.",
+        signatureCode
+          ? `Documento aprovado e assinado eletronicamente. Código de verificação: ${signatureCode}.`
+          : "Documento aprovado e assinado eletronicamente.",
       );
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível aprovar e assinar o documento.");
     } finally {
       setBusy("");
     }
@@ -345,13 +389,25 @@ export function DocumentAnalysisPage() {
               <FileText className="h-4 w-4" />
               Análise documental
             </div>
-            <h1 className="mt-1 truncate text-lg font-semibold text-white">
-              {document.label}
-            </h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-lg font-semibold text-white">
+                {document.label}
+              </h1>
+              {organizationIdentity.codePath ? (
+                <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-100">
+                  {organizationIdentity.codePath}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-xs text-slate-400">
               {formatOfficialProcessNumber(process.protocol)}
               {document.fileName ? ` • ${document.fileName}` : ""}
             </p>
+            {organizationIdentity.matched ? (
+              <p className="mt-1 text-[11px] text-slate-500">
+                {organizationIdentity.breadcrumb}
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -704,8 +760,8 @@ export function DocumentAnalysisPage() {
                     disabled={busy.startsWith("review-")}
                     onClick={() => void approveDocument()}
                   >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    {busy === "review-aprovado" ? "Aprovando..." : "Aprovar documento"}
+                    <Signature className="mr-2 h-4 w-4" />
+                    {busy === "review-aprovado" ? "Assinando..." : "Aprovar e assinar"}
                   </Button>
                 </div>
 
@@ -766,6 +822,20 @@ export function DocumentAnalysisPage() {
           ) : null}
         </aside>
       </main>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={setSignatureDialogOpen}
+        title="Aprovar e assinar documento"
+        subject={document ? `${document.label} • versão ${Number(document.version || 1)}` : "Documento do processo"}
+        statement={
+          document
+            ? `Confirmo que analisei o documento "${document.label}" e aprovo esta versão no processo ${formatOfficialProcessNumber(process?.protocol || "")}.`
+            : "Confirmo a aprovação documental."
+        }
+        busy={busy === "review-aprovado"}
+        onConfirm={confirmSignedDocumentApproval}
+      />
     </div>
   );
 }

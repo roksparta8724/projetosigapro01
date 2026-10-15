@@ -12,6 +12,7 @@ export interface UploadedFileItem {
   file?: File;
   storagePath?: string;
   fileSizeBytes?: number;
+  fileHash?: string;
 }
 
 interface FileDropZoneProps {

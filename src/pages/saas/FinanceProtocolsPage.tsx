@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHero } from "@/components/platform/PageHero";
 import {
   PageMainContent,
@@ -29,14 +28,9 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
-function buildBarcodeValue(protocol: string, guideNumber: string, amount: number) {
-  const base = `${protocol.replace(/\D/g, "")}${guideNumber.replace(/\D/g, "")}${Math.round(amount * 100)}`;
-  return base.padEnd(44, "7").slice(0, 44);
-}
-
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
@@ -100,8 +94,6 @@ export function FinanceProtocolsPage() {
       ({ process, guide }) => process.id === processId && guide.kind === guideKind,
     );
     if (!match) return;
-    const barcode = buildBarcodeValue(match.process.protocol, match.guide.code, match.guide.amount);
-
     openGuiaRecolhimentoOficialWindow(
       {
         prefeitura: {
@@ -114,7 +106,16 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+          logoUrl:
+            municipalityBranding?.headerLogoUrl ||
+            municipalityBranding?.logoUrl ||
+            tenantSettings?.logoUrl ||
+            tenantSettings?.brasaoUrl ||
+            "",
+          logoObjectKey:
+            municipalityBranding?.headerLogoObjectKey ||
+            municipalityBranding?.footerLogoObjectKey ||
+            "",
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
@@ -135,8 +136,8 @@ export function FinanceProtocolsPage() {
           descontos: 0,
           outrosAcrescimos: 0,
           valorCobrado: match.guide.amount,
-          linhaDigitavel: barcode,
-          codigoBarras: barcode,
+          linhaDigitavel: "",
+          codigoBarras: "",
           qrCodePixUrl: "",
           autenticacaoMecanica: "",
         },
@@ -219,13 +220,13 @@ export function FinanceProtocolsPage() {
               title="Lista de processos e guias"
               description="Consulte, imprima a DAM e confirme os recolhimentos de ISSQN da obra e aprovação final."
             >
-              <Card className="rounded-[24px] border-slate-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-slate-900">Lista de processos e guias</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {paymentGuides.map(({ process, guide }) => {
-                    const pixPayload = `PIX|${tenantSettings?.beneficiarioArrecadacao || "Prefeitura"}|${tenantSettings?.chavePix || "nao-configurado"}|${guide.code}|${process.protocol}|${guide.amount.toFixed(2).replace(".", ",")}`;
+              <div className="space-y-4">
+                {paymentGuides.length === 0 ? (
+                  <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm leading-6 text-slate-600">
+                    Nenhuma guia de ISSQN ou aprovação final foi emitida para esta Prefeitura.
+                  </div>
+                ) : paymentGuides.map(({ process, guide }) => {
+                    const officialPixKey = tenantSettings?.chavePix?.trim() || "";
 
                     return (
                       <div
@@ -270,28 +271,39 @@ export function FinanceProtocolsPage() {
                           </Badge>
                         </div>
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                          <div className="sig-finance-pix-surface rounded-[16px] border border-[#d8e4f1] bg-[#f8fbff] px-4 py-3 text-sm font-normal leading-snug text-[#123860]">
-                            <p className="sig-label">PIX copia e cola</p>
-                            <div className="sig-finance-pix-code mt-2 max-w-full overflow-hidden rounded-xl border border-[#d8e4f1] bg-white/80">
-  <p className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5" title={pixPayload}>
-    {pixPayload}
-  </p>
-</div>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-xl border-[#d8e4f1]"
-                            onClick={() => copyPixPayload(pixPayload)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {officialPixKey ? (
+                          <>
+                            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                              <div className="sig-finance-pix-surface rounded-[16px] border border-[#d8e4f1] bg-[#f8fbff] px-4 py-3 text-sm font-normal leading-snug text-[#123860]">
+                                <p className="sig-label">Chave PIX institucional cadastrada</p>
+                                <div className="sig-finance-pix-code mt-2 max-w-full overflow-hidden rounded-xl border border-[#d8e4f1] bg-white/80">
+                                  <p className="overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-xs leading-5" title={officialPixKey}>
+                                    {officialPixKey}
+                                  </p>
+                                </div>
+                                <p className="mt-2 text-xs leading-5 text-slate-500">
+                                  Esta é somente a chave cadastrada pela Prefeitura. O SIGAPRO não fabrica BR Code, QR Code ou linha digitável.
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-xl border-[#d8e4f1]"
+                                onClick={() => copyPixPayload(officialPixKey)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
 
-                        {copiedPayload === pixPayload ? (
-                          <p className="mt-2 text-xs text-emerald-700">Código copiado com sucesso.</p>
-                        ) : null}
+                            {copiedPayload === officialPixKey ? (
+                              <p className="mt-2 text-xs text-emerald-700">Chave PIX copiada com sucesso.</p>
+                            ) : null}
+                          </>
+                        ) : (
+                          <div className="mt-4 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                            Nenhum PIX oficial foi configurado para esta Prefeitura. Use somente o meio de arrecadação homologado pelo Município.
+                          </div>
+                        )}
 
                         <div className="mt-4 flex flex-wrap gap-3">
                           <Button
@@ -328,8 +340,7 @@ export function FinanceProtocolsPage() {
                       </div>
                     );
                   })}
-                </CardContent>
-              </Card>
+              </div>
             </SectionCard>
           </PageMainContent>
         </PageMainGrid>

@@ -88,27 +88,45 @@ function mapMunicipality(record: Record<string, unknown>): Municipality {
   };
 }
 
+function isTemporarySignedAssetUrl(value: string) {
+  return /[?&](?:X-Amz-|x-amz-)(?:Algorithm|Credential|Date|Expires|Signature|SignedHeaders)=/i.test(value);
+}
+
+function canonicalBrandingUrl(url: string, objectKey: string) {
+  if (!url) return "";
+  // Quando existe chave R2 permanente, nunca confiar em uma URL S3 assinada
+  // persistida no banco. Ela expira; o objectKey deve gerar uma URL nova.
+  if (objectKey && isTemporarySignedAssetUrl(url)) return "";
+  return url;
+}
+
 export function mapMunicipalityBranding(record: Record<string, unknown>): MunicipalityBranding {
   const readString = (key: string) => typeof record[key] === "string" ? record[key] as string : "";
+  const legacyObjectKey = readString("logo_object_key");
+  const headerObjectKey = readString("header_logo_object_key") || legacyObjectKey;
+  const footerObjectKey = readString("footer_logo_object_key") || legacyObjectKey;
   const hasVariantLogo = Boolean(
     readString("header_logo_url") || readString("footer_logo_url") ||
-    readString("header_logo_object_key") || readString("footer_logo_object_key"),
+    headerObjectKey || footerObjectKey,
   );
-  const headerLogoUrl = hasVariantLogo ? readString("header_logo_url") : readString("logo_url");
-  const footerLogoUrl = hasVariantLogo ? readString("footer_logo_url") : readString("logo_url");
+  const rawLegacyLogoUrl = readString("logo_url");
+  const rawHeaderLogoUrl = hasVariantLogo ? readString("header_logo_url") : rawLegacyLogoUrl;
+  const rawFooterLogoUrl = hasVariantLogo ? readString("footer_logo_url") : rawLegacyLogoUrl;
+  const headerLogoUrl = canonicalBrandingUrl(rawHeaderLogoUrl, headerObjectKey);
+  const footerLogoUrl = canonicalBrandingUrl(rawFooterLogoUrl, footerObjectKey);
+  const logoUrl = canonicalBrandingUrl(
+    rawLegacyLogoUrl,
+    headerObjectKey || footerObjectKey || legacyObjectKey,
+  );
 
   return {
     id: readString("id"),
     municipalityId: readString("municipality_id"),
-    logoUrl: readString("logo_url"),
+    logoUrl,
     headerLogoUrl,
     footerLogoUrl,
-    headerLogoObjectKey: hasVariantLogo
-      ? readString("header_logo_object_key")
-      : readString("logo_object_key"),
-    footerLogoObjectKey: hasVariantLogo
-      ? readString("footer_logo_object_key")
-      : readString("logo_object_key"),
+    headerLogoObjectKey: headerObjectKey,
+    footerLogoObjectKey: footerObjectKey,
     headerLogoFileName: readString("header_logo_file_name"),
     footerLogoFileName: readString("footer_logo_file_name"),
     headerLogoMimeType: readString("header_logo_mime_type") || readString("logo_mime_type"),

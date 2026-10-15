@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
 import "./index.css";
 
 const LEGACY_REFRESH_KEYS = [
@@ -48,56 +49,23 @@ async function clearLocalDevelopmentCaches() {
   }
 }
 
-function renderBootstrapFailure(error: unknown) {
-  console.error("[SIGAPRO][Bootstrap] Falha ao carregar a aplicação.", error);
+clearLegacyRefreshArtifacts();
 
-  const root = document.getElementById("root");
-  if (!root) return;
-
-  const message =
-    import.meta.env.DEV && error instanceof Error && error.message
-      ? error.message
-      : "O navegador não conseguiu iniciar a aplicação. Atualize a página para tentar novamente.";
-
-  root.innerHTML = `
-    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f5f7fb;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a">
-      <section style="width:min(620px,100%);border:1px solid #e2e8f0;border-radius:24px;background:#fff;padding:28px;box-shadow:0 24px 60px rgba(15,23,42,.10)">
-        <div style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#b91c1c">Inicialização protegida</div>
-        <h1 style="margin:10px 0 0;font-size:22px;line-height:1.25">O SIGAPRO encontrou uma falha ao iniciar</h1>
-        <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#475569">A interface foi preservada para não deixar uma tela branca. O erro técnico está abaixo para diagnóstico local.</p>
-        <pre style="margin:18px 0 0;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;border-radius:16px;background:#0f172a;color:#f8fafc;padding:16px;font-size:12px;line-height:1.55">${String(message).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
-        <button type="button" onclick="window.location.reload()" style="margin-top:18px;border:0;border-radius:999px;background:#123f32;color:#fff;padding:11px 18px;font-size:13px;font-weight:700;cursor:pointer">Atualizar tela</button>
-      </section>
-    </main>
-  `;
+if ("scrollRestoration" in window.history) {
+  // A posição do F5 pertence ao navegador. Nunca force scroll em loop.
+  window.history.scrollRestoration = "auto";
 }
 
-async function bootApplication() {
-  clearLegacyRefreshArtifacts();
-
-  if ("scrollRestoration" in window.history) {
-    // A posição do F5 pertence ao navegador. Não force scroll em loop.
-    window.history.scrollRestoration = "auto";
-  }
-
-  // Em localhost, resíduos de preview/produção não podem controlar o Vite.
-  await clearLocalDevelopmentCaches();
-
-  const rootElement = document.getElementById("root");
-  if (!rootElement) {
-    renderBootstrapFailure(new Error("Elemento #root não encontrado."));
-    return;
-  }
-
-  try {
-    const { default: App } = await import("./App.tsx");
-    createRoot(rootElement).render(<App />);
-  } catch (error) {
-    renderBootstrapFailure(error);
-  }
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Elemento #root não encontrado.");
 }
 
-void bootApplication();
+// O shell real precisa montar no primeiro ciclo de JavaScript.
+// Limpeza de cache/Service Worker em localhost é manutenção de fundo e nunca
+// pode atrasar topbar, menu, rodapé ou a rota atual durante F5.
+createRoot(rootElement).render(<App />);
+void clearLocalDevelopmentCaches();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

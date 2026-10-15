@@ -1,4 +1,5 @@
 import { deleteFile, uploadFile } from "@/integrations/r2/client";
+import { sha256Bytes } from "@/lib/electronicSignature";
 
 type MunicipalityFileBucket = "process-documents" | "profile-assets" | "institutional-branding";
 
@@ -70,11 +71,15 @@ export async function uploadFileToStorage(input: {
     ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
     : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
 
-  const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
+  const [uploaded, fileHash] = await Promise.all([
+    uploadFile({ bucket, objectKey, file: input.file }),
+    input.file.arrayBuffer().then((buffer) => sha256Bytes(buffer)),
+  ]);
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
     persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`,
+    fileHash,
   };
 }
 

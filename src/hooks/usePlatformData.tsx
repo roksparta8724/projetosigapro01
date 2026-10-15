@@ -51,6 +51,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  assignRemoteProfileDepartment,
   appendRemoteProcessDocuments,
   completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
@@ -202,7 +203,22 @@ interface PlatformDataState {
     processId: string,
     documents: ProcessDocument[],
     actor: string,
-  ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
+  ) => Promise<{
+    process_id: string;
+    synced: number;
+    inserted: number;
+    updated: number;
+    stored: number;
+    reused?: number;
+    documents?: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      fileHash: string;
+      version: number;
+      inserted: boolean;
+    }>;
+  }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
   addDocumentAnnotation: (
     processId: string,
@@ -820,6 +836,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,
+    authenticatedProfileId,
+    authResolved,
     loading: authLoading,
   } = useAuthGateway();
   const initialStateRef = useRef<ReturnType<typeof getInitialPlatformStoreState> | null>(null);
@@ -855,7 +873,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     let active = true;
 
     const bootstrap = async () => {
-      if (authLoading) return;
+      // Não iniciar o carregamento oficial no meio da restauração do token.
+      // Uma leitura antecipada podia falhar com 401/403, manter dataError antigo
+      // e deixar plano/organograma presos mesmo depois da sessão ficar válida.
+      const authenticatedBusinessIdentityReady =
+        authResolved || Boolean(authenticatedProfileId);
+      if (authLoading || !authenticatedBusinessIdentityReady) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
@@ -1105,7 +1128,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, [authenticatedUserId, authLoading]);
+  }, [authenticatedUserId, authenticatedProfileId, authLoading, authResolved]);
 
   const refreshRemoteStore = async () => {
     if (!authenticatedUserId || !hasBackendEnv) {
@@ -1705,8 +1728,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           role: input.role,
           name: input.fullName,
           title: input.title,
+          profileLabel: input.profileLabel ?? "",
           accessLevel: input.accessLevel,
         });
+        const assignedDepartment =
+          input.departmentId !== undefined
+            ? await assignRemoteProfileDepartment({
+                municipalityId: input.tenantId,
+                profileId: saved.userId,
+                departmentId: input.departmentId ?? null,
+              })
+            : null;
+
         const user: SessionUser = {
           id: saved.userId,
           tenantId: input.tenantId,
@@ -1714,8 +1747,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           email: saved.email,
           name: saved.name,
           role: saved.role,
+          profileLabel: saved.profileLabel ?? input.profileLabel ?? "",
           title: saved.title,
-          department: saved.title,
+          department:
+            assignedDepartment?.department_name ??
+            input.department?.trim() ??
+            "",
           accessLevel: saved.accessLevel,
           accountStatus: saved.accountStatus,
           userType: saved.userType,
@@ -2057,6 +2094,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           inserted: number;
           updated: number;
           stored: number;
+          reused?: number;
+          documents?: Array<{
+            id: string;
+            label: string;
+            filePath: string;
+            fileHash: string;
+            version: number;
+            inserted: boolean;
+          }>;
         };
         await refreshRemoteStore();
         return result;

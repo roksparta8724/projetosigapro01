@@ -19,14 +19,16 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(portal).not.toContain("Ctrl K");
   });
 
-  it("mostra a estrutura configurada do departamento atual no banner", () => {
+  it("mostra o organograma real da unidade atual no shell global", () => {
     expect(portal).toContain("departmentOwnershipKey");
     expect(portal).toContain("activeDepartmentOwnership");
-    expect(portal).toContain("Estrutura do departamento");
-    expect(portal).toContain("Secretaria de Finanças");
-    expect(portal).toContain("Diretoria Financeira");
-    expect(portal).toContain("Secretaria de Administração");
-    expect(portal).toContain("Diretoria de Protocolo");
+    expect(portal).toContain("Organograma municipal");
+    expect(portal).toContain("portalOrganizationIdentity.codePath");
+    expect(portal).toContain("portalOrganizationIdentity.breadcrumb");
+    expect(portal).toContain("Vínculo institucional confirmado no organograma");
+    expect(portal).toContain('secretaria: "Administração", diretoria: "Protocolo"');
+    expect(portal).toContain('secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística"');
+    expect(portal).toContain('secretaria: "Financeiro", diretoria: "Financeiro"');
     expect(portal).not.toContain(">Diretoria responsável<");
   });
 
@@ -112,6 +114,18 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
   });
 
+  it("embute o brasão no HTML da guia antes de abrir o blob de impressão", () => {
+    expect(guide).toContain("async function embedGuideImage");
+    expect(guide).toContain('url.startsWith("data:")');
+    expect(guide).toContain("reader.readAsDataURL(blob)");
+    expect(guide).toContain("logoUrl: embeddedLogo");
+    expect(guide).toContain('window.open("", "_blank")');
+    expect(guide).toContain("popup.location.replace(previewUrl)");
+    expect(guide).toContain("function GuideInstitutionLogo");
+    expect(guide).toContain("Brasão");
+    expect(guide).toContain("onError={() => setFailed(true)}");
+  });
+
   it("não fabrica código bancário ou PIX e preserva a identidade real do emissor da ISSQN", () => {
     expect(processDetail).not.toContain('.padEnd(44, "7")');
     expect(processDetail).not.toContain("const pixPayload");
@@ -122,7 +136,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(platform).toContain("canFollowUpIssuedIssGuide");
     expect(platform).toContain("audit.actorProfileId === session.id");
     expect(backend).toContain("actorProfileId: entry.actor_profile_id ?? undefined");
-    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
   });
 
   it("não deixa referência quebrada na rota de protocolos financeiros", () => {

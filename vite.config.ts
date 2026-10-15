@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -12,6 +13,53 @@ const REQUIRED_ENV = [
   "R2_BUCKET_LOGOS",
   "R2_BUCKET_DOCUMENTOS",
 ] as const;
+
+function resolvePrimaryWorktreeEnvDir() {
+  const explicit = String(process.env.SIGAPRO_DEV_ENV_SOURCE || "").trim();
+  if (explicit && existsSync(explicit)) return path.resolve(explicit);
+
+  const gitEntry = path.resolve(process.cwd(), ".git");
+  if (!existsSync(gitEntry)) return "";
+
+  try {
+    if (!statSync(gitEntry).isFile()) return "";
+    const raw = readFileSync(gitEntry, "utf8").trim();
+    const match = raw.match(/^gitdir:\s*(.+)$/i);
+    if (!match?.[1]) return "";
+
+    const linkedGitDir = path.resolve(process.cwd(), match[1].trim());
+    const worktreesDir = path.dirname(linkedGitDir);
+    const primaryGitDir = path.dirname(worktreesDir);
+    if (path.basename(primaryGitDir).toLowerCase() !== ".git") return "";
+
+    const primaryWorktree = path.dirname(primaryGitDir);
+    return existsSync(primaryWorktree) ? primaryWorktree : "";
+  } catch {
+    return "";
+  }
+}
+
+function loadDevelopmentEnvWithWorktreeFallback(mode: string) {
+  const current = loadEnv(mode, process.cwd(), "");
+  if (mode !== "development") return current;
+
+  const primaryWorktree = resolvePrimaryWorktreeEnvDir();
+  if (!primaryWorktree || path.resolve(primaryWorktree) === path.resolve(process.cwd())) {
+    return current;
+  }
+
+  const fallback = loadEnv(mode, primaryWorktree, "");
+  const merged = { ...fallback, ...current };
+
+  if (Object.keys(fallback).length > 0) {
+    console.log("[SIGAPRO][DevEnv] configuração local herdada da worktree principal", {
+      source: primaryWorktree,
+      current: process.cwd(),
+    });
+  }
+
+  return merged;
+}
 
 function readEnvValue(key: string) {
   const raw = process.env[key];
@@ -28,26 +76,42 @@ function assertEnv() {
   }
 }
 
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
+function hasCompleteLocalR2Env() {
+  return REQUIRED_ENV.every((key) => Boolean(readEnvValue(key)));
+}
 
-  const rawEndpoint = readEnvValue("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+function normalizeR2AccountId(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    const labels = url.hostname.toLowerCase().split(".");
+    const r2Index = labels.indexOf("r2");
+    if (r2Index > 0 && labels.slice(r2Index).join(".") === "r2.cloudflarestorage.com") {
+      return labels[r2Index - 1].replace(/[^a-z0-9]/g, "");
     }
+  } catch {
+    // Pode ser somente o account id.
   }
 
-  const accountId = readEnvValue("R2_ACCOUNT_ID")
+  return raw
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
+}
 
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  const accountId = normalizeR2AccountId(readEnvValue("R2_ACCOUNT_ID"));
+  if (accountId && !/^(sua|seu)_?account_?id$/i.test(accountId)) {
     candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
+  }
+
+  const endpointAccountId = normalizeR2AccountId(readEnvValue("R2_ENDPOINT"));
+  if (endpointAccountId && !/^(sua|seu)_?account_?id$/i.test(endpointAccountId)) {
+    candidates.push(`https://${endpointAccountId}.r2.cloudflarestorage.com`);
   }
 
   return Array.from(new Set(candidates.filter(Boolean)));
@@ -135,6 +199,116 @@ function readJsonBody(req: import("http").IncomingMessage): Promise<Record<strin
   });
 }
 
+const OFFICIAL_READ_API_BASE = "https://sigapromunicipal.com.br";
+
+const READ_ONLY_R2_ROUTES = [
+  "/api/r2-sign-get",
+  "/api/r2-list-user-files",
+] as const;
+
+function isReadOnlyR2Route(url: string) {
+  return READ_ONLY_R2_ROUTES.some((route) => url.startsWith(route));
+}
+
+function isSafeBrandingObjectKey(objectKey: string) {
+  return (
+    /^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
+    /^municipalities\/[0-9a-f-]{36}\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey)
+  ) && !objectKey.includes("..");
+}
+
+async function proxyOfficialLogoSource(
+  req: import("http").IncomingMessage,
+  res: import("http").ServerResponse,
+) {
+  const body = await readJsonBody(req);
+  const objectKey = typeof body.objectKey === "string" ? body.objectKey.trim() : "";
+  if (!isSafeBrandingObjectKey(objectKey)) {
+    res.statusCode = 400;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Logo inválido.");
+    return;
+  }
+
+  const signResponse = await fetch(`${OFFICIAL_READ_API_BASE}/api/r2-sign-get`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(req.headers.authorization
+        ? { Authorization: String(req.headers.authorization) }
+        : {}),
+    },
+    body: JSON.stringify({
+      bucket: readEnvValue("R2_BUCKET_LOGOS") || "sigapro-logos",
+      objectKey,
+      expiresIn: 900,
+    }),
+  });
+
+  const signPayload = await signResponse.json().catch(() => ({})) as { signedUrl?: string; error?: string };
+  if (!signResponse.ok || !signPayload.signedUrl) {
+    res.statusCode = signResponse.status || 502;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end(signPayload.error || "Não foi possível gerar acesso ao logo.");
+    return;
+  }
+
+  const imageResponse = await fetch(signPayload.signedUrl, { cache: "no-store" });
+  if (!imageResponse.ok) {
+    res.statusCode = 502;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Não foi possível carregar o logo oficial.");
+    return;
+  }
+
+  const contentType = imageResponse.headers.get("content-type");
+  if (contentType && !contentType.startsWith("image/")) {
+    res.statusCode = 415;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("O arquivo de branding não é uma imagem.");
+    return;
+  }
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", contentType || "image/png");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(Buffer.from(await imageResponse.arrayBuffer()));
+}
+
+async function proxyOfficialReadApi(
+  req: import("http").IncomingMessage,
+  res: import("http").ServerResponse,
+) {
+  const targetPath = req.url || "/";
+  const body =
+    req.method === "GET" || req.method === "HEAD"
+      ? undefined
+      : JSON.stringify(await readJsonBody(req));
+
+  const response = await fetch(`${OFFICIAL_READ_API_BASE}${targetPath}`, {
+    method: req.method,
+    headers: {
+      "Content-Type": req.headers["content-type"] || "application/json",
+      ...(req.headers.authorization
+        ? { Authorization: String(req.headers.authorization) }
+        : {}),
+    },
+    body,
+    redirect: "manual",
+  });
+
+  res.statusCode = response.status;
+  const contentType = response.headers.get("content-type");
+  const cacheControl = response.headers.get("cache-control");
+  const location = response.headers.get("location");
+  if (contentType) res.setHeader("Content-Type", contentType);
+  if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+  if (location) res.setHeader("Location", location);
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  res.end(bytes);
+}
+
 function createR2DevApiPlugin(): Plugin {
   return {
     name: "sigapro-r2-dev-api",
@@ -142,6 +316,55 @@ function createR2DevApiPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url || !req.method || !req.url.startsWith("/api/")) {
           next();
+          return;
+        }
+
+        const isR2ApiRoute = [
+          "/api/r2-health",
+          "/api/r2-upload",
+          "/api/r2-delete",
+          "/api/r2-presign",
+          "/api/r2-master-logo-source",
+          ...READ_ONLY_R2_ROUTES,
+        ].some((route) => req.url?.startsWith(route));
+
+        // O middleware de desenvolvimento do R2 não deve sequestrar outras APIs
+        // locais (health, auth, integrações etc.). Sem isso, a ausência de R2
+        // fazia rotas não relacionadas falharem com "Variáveis R2 ausentes".
+        if (!isR2ApiRoute) {
+          next();
+          return;
+        }
+
+        // Desenvolvimento pode validar o R2 de forma independente da produção:
+        // - com env R2 completo, /r2-sign-get e o logo são resolvidos localmente;
+        // - sem env local, somente leituras são encaminhadas para a API oficial.
+        // Upload/delete nunca são encaminhados para produção.
+        const localR2Ready = hasCompleteLocalR2Env();
+
+        if (req.url.startsWith("/api/r2-master-logo-source") && !localR2Ready) {
+          try {
+            await proxyOfficialLogoSource(req, res);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha ao acessar o logo oficial.";
+            console.error("[SIGAPRO][R2] proxy local de logo:", error);
+            res.statusCode = 502;
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.end(message);
+          }
+          return;
+        }
+
+        if (req.url.startsWith("/api/r2-list-user-files") || (req.url.startsWith("/api/r2-sign-get") && !localR2Ready)) {
+          try {
+            await proxyOfficialReadApi(req, res);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha ao acessar a API oficial de leitura.";
+            console.error("[SIGAPRO][R2] proxy local de leitura:", error);
+            res.statusCode = 502;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: message, code: "R2_READ_PROXY_ERROR" }));
+          }
           return;
         }
 
@@ -377,9 +600,7 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-master-logo-source")) {
             const objectKey = body?.objectKey;
-            if (typeof objectKey !== "string" ||
-              !/^platform\/branding\/[a-zA-Z0-9/_-]+\.(png|webp|jpe?g)$/i.test(objectKey) ||
-              objectKey.includes("..")) {
+            if (typeof objectKey !== "string" || !isSafeBrandingObjectKey(objectKey)) {
               res.statusCode = 400;
               res.end("Logo inválido.");
               return;
@@ -433,7 +654,7 @@ function createR2DevApiPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const env = loadDevelopmentEnvWithWorktreeFallback(mode);
   for (const [key, value] of Object.entries(env)) {
     if (value !== undefined) {
       process.env[key] = value;

@@ -1,0 +1,405 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = process.cwd();
+const read = (path: string) => readFileSync(resolve(root, path), "utf8");
+
+describe("premium municipal workspace regression", () => {
+  const organization = read("src/components/platform/MunicipalOrganizationChart.tsx");
+  const organizationPage = read("src/pages/saas/MunicipalOrganizationPage.tsx");
+  const tenantAdmin = read("src/pages/saas/TenantAdminPage.tsx");
+  const shell = read("src/components/platform/PortalFrame.tsx");
+  const protocol = read("src/pages/saas/ProtocolDeskPage.tsx");
+  const analyst = read("src/pages/saas/AnalystDeskPage.tsx");
+  const finance = read("src/pages/saas/FinanceDeskPage.tsx");
+  const financeProtocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
+  const main = read("src/main.tsx");
+  const internalTabs = read("src/components/platform/InternalTabs.tsx");
+  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const documentViewer = read("src/pages/saas/DocumentViewerPage.tsx");
+  const documentAnalysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+  const fileDropZone = read("src/components/platform/FileDropZone.tsx");
+  const institutionalLogo = read("src/components/platform/InstitutionalLogo.tsx");
+  const officialGuide = read("src/components/GuiaRecolhimentoOficial.tsx");
+  const alternateOfficialGuide = read("src/components/platform/OfficialPaymentGuideDocument.tsx");
+  const backend = read("src/integrations/backend/platformImpl.ts");
+  const planModuleRoute = read("src/components/platform/PlanModuleRoute.tsx");
+  const platformData = read("src/hooks/usePlatformData.tsx");
+  const platform = read("src/lib/platform.ts");
+  const organizationResolver = read("src/lib/municipalOrganization.ts");
+  const entitlements = read("src/hooks/usePlanEntitlements.ts");
+  const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
+  const organizationHook = read("src/hooks/useMunicipalOrganization.ts");
+  const planEntitlements = read("src/hooks/usePlanEntitlements.ts");
+  const viteConfig = read("vite.config.ts");
+  const hierarchyMigration = read("neon/migrations/20261014041000_municipal_organization_hierarchy.sql");
+  const publicOrganizationMigration = read("neon/migrations/20261014042000_public_municipal_organization.sql");
+  const r2Client = read("src/integrations/r2/client.ts");
+  const app = read("src/App.tsx");
+  const externalControl = read("src/pages/saas/ExternalProcessControlPage.tsx");
+  const municipalityBackend = read("src/integrations/backend/municipalityImpl.ts");
+
+  it("renders the organogram from the real parent-child hierarchy", () => {
+    expect(organization).toContain("item.parentDepartmentId === department.id");
+    expect(organization).toContain("!item.parentDepartmentId || !activeIds.has(item.parentDepartmentId)");
+    expect(organization).toContain("unidade superior cadastrada no banco");
+    expect(organization).toContain("{department.name}");
+    expect(organization).toContain("getMunicipalDepartmentAcronym");
+    expect(organization).toContain("Vínculo circular detectado");
+    expect(organization).not.toContain("Estrutura institucional por siglas.");
+  });
+
+  it("prevents invalid self/descendant parent selections in organogram editing", () => {
+    expect(tenantAdmin).toContain("getDescendantDepartmentIds");
+    expect(tenantAdmin).toContain("forbiddenParentDepartmentIds");
+    expect(tenantAdmin).toContain("availableParentDepartments");
+    expect(tenantAdmin).toContain("Departamentos e setores ficam visualmente dentro da unidade superior cadastrada");
+  });
+
+  it("uses the authenticated municipality first for municipal employees", () => {
+    expect(organizationPage).toContain(
+      "session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null",
+    );
+    expect(tenantAdmin).toContain(
+      "session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null",
+    );
+  });
+
+  it("never labels internal municipal users by external professional type", () => {
+    expect(shell).toContain("const externalSessionRole");
+    expect(shell).toContain("session.profileLabel?.trim() || session.title?.trim() || roleLabels[session.role]");
+    expect(shell).toContain("const itemIsExternal");
+    expect(shell).toContain("item.profileLabel?.trim() || item.title?.trim() || roleLabels[item.role]");
+  });
+
+  it("treats real municipal department assignment as an internal role", () => {
+    expect(backend).toContain("const isExternalStoredRole");
+    expect(backend).toContain("const isExternalDepartment");
+    expect(backend).toContain("isExternalStoredRole && isExternalDepartment");
+    expect(backend).toContain("/(urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao)/");
+    expect(backend).toContain("/(finance|financa|fazenda|tesour|arrecad|tribut)/");
+    expect(backend).toContain("/(fiscaliz|postura)/");
+    expect(backend).toContain('return "setor_intersetorial"');
+  });
+
+  it("requires and persists municipal department when linking internal staff", () => {
+    expect(tenantAdmin).toContain("Departamento no organograma *");
+    expect(tenantAdmin).toContain("Selecione o departamento do funcionário no organograma");
+    expect(tenantAdmin).toContain("resolveMunicipalRoleFromDepartment");
+    expect(tenantAdmin).toContain("departmentId: selectedDepartment?.id ?? null");
+    expect(platform).toContain("departmentId?: string | null");
+    expect(platform).toContain("profileLabel?: string");
+    expect(platformData).toContain("assignRemoteProfileDepartment");
+    expect(platformData).not.toContain("department: saved.title");
+    expect(backend).toContain("profileLabel: input.profileLabel ??");
+  });
+
+  it("places Protocol under Administration in the administrative sidebar", () => {
+    expect(shell).toContain("const protocolAdministrativeItem");
+    expect(shell).toContain('item.to === "/prefeitura/protocolos"');
+    expect(shell).toContain("...(protocolAdministrativeItem ? [protocolAdministrativeItem] : [])");
+    expect(shell).toContain('item.to !== "/prefeitura/protocolos"');
+  });
+
+  it("uses one shared municipal organogram across the global shell", () => {
+    expect(shell).toContain('secretaria: "Administração", diretoria: "Protocolo"');
+    expect(shell).toContain('secretaria: "Urbanismo e Obras", diretoria: "Análise Urbanística"');
+    expect(shell).toContain('secretaria: "Financeiro", diretoria: "Financeiro"');
+    expect(shell).toContain("useMunicipalOrganization");
+    expect(shell).not.toContain("listRemoteMunicipalDepartments");
+    expect(shell).toContain("resolveMunicipalUnitIdentity");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("Vínculo institucional confirmado no organograma");
+    expect(shell).toContain("Estrutura institucional da Prefeitura");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+    expect(shell).toContain("const institutionFooterUnit");
+    expect(shell).toContain("{institutionFooterUnit}");
+  });
+
+  it("keeps the official platform loader free from missing department normalizers", () => {
+    expect(backend).toContain('import { normalizeMunicipalUnit } from "@/lib/municipalOrganization";');
+    expect(backend).toContain("normalizeMunicipalUnit(department.name)");
+    expect(backend).not.toContain("normalizeDepartmentIdentity(");
+  });
+
+  it("renders the municipal organogram context globally across internal pages", () => {
+    expect(shell).toContain("useMunicipalOrganization()");
+    expect(shell).toContain("showPortalOrganizationContext");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+    expect(shell).toContain("portalOrganizationIdentity.breadcrumb");
+  });
+
+  it("shows every real process guide with paid and open financial status", () => {
+    expect(processDetail).toContain("Guias de pagamento do processo");
+    expect(processDetail).toContain("paidPaymentGuides");
+    expect(processDetail).toContain("openPaymentGuides");
+    expect(processDetail).toContain("Paga / compensada");
+    expect(processDetail).toContain("Em aberto");
+    expect(processDetail).toContain("paidAt");
+    expect(processDetail).toContain("const visiblePaymentGuides = paymentGuides");
+    expect(processDetail).not.toContain("paymentGuides.filter(");
+    expect(backend).toContain("paidAt: guide.paid_at");
+  });
+
+  it("shows organogram codes and hierarchy on process dispatches", () => {
+    expect(organizationResolver).toContain("resolveMunicipalUnitIdentity");
+    expect(organizationResolver).toContain("codePath");
+    expect(organizationResolver).toContain("breadcrumb");
+    expect(processDetail).toContain("currentOrganizationIdentity.codePath");
+    expect(processDetail).toContain("protocolOrganizationIdentity.codePath");
+    expect(processDetail).toContain("analysisOrganizationIdentity.codePath");
+    expect(processDetail).toContain("destinationIdentity.codePath");
+    expect(processDetail).toContain("originIdentity.codePath");
+    expect(processDetail).toContain("Organograma municipal sincronizado");
+    expect(processDetail).toContain("Selecionar unidade de destino");
+  });
+
+  it("loads the organogram through profile-first RPCs for internal and external viewers", () => {
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_municipal_departments_v2"');
+  });
+
+  it("shows the organogram unit code on every internal staff profile and account identity", () => {
+    expect(platform).toContain("departmentId?: string | null");
+    expect(platform).toContain("departmentCode?: string");
+    expect(backend).toContain("departmentCode: departmentRecord?.code ??");
+    expect(tenantAdmin).toContain("const departmentCode");
+    expect(tenantAdmin).toContain('departmentCode || "SEM LOTAÇÃO"');
+    expect(tenantAdmin).toContain("{session.departmentCode}");
+    expect(shell).toContain("item.departmentCode?.trim()");
+    expect(shell).toContain("{session.departmentCode}");
+  });
+
+  it("shows the municipal organogram globally across internal and external portal pages", () => {
+    expect(shell).toContain("useMunicipalOrganization()");
+    expect(shell).toContain("const showPortalOrganizationContext");
+    expect(shell).toContain("Boolean(activeInstitutionId)");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("Estrutura pública sincronizada");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+  });
+
+  it("uses separate profile-first RPCs for internal and sanitized external organogram access", () => {
+    expect(backend).toContain("export async function listRemotePublicMunicipalDepartments");
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_municipal_departments_v1"');
+  });
+
+  it("never leaves localhost indefinitely on municipal access validation when backend env is missing", () => {
+    expect(planModuleRoute).toContain("hasBackendEnv");
+    expect(planModuleRoute).toContain("Ambiente local incompleto");
+    expect(planModuleRoute).toContain("Conexão oficial do SIGAPRO não configurada neste localhost");
+    expect(planModuleRoute.indexOf("if (!hasBackendEnv)")).toBeLessThan(
+      planModuleRoute.indexOf("if (entitlements.isResolving)"),
+    );
+  });
+
+  it("keeps operational desks on premium card surfaces", () => {
+    expect(protocol).toContain("shadow-[0_10px_24px_rgba(15,23,42,0.055)]");
+    expect(protocol).toContain("rounded-[22px]");
+    expect(analyst).toContain("shadow-[0_10px_24px_rgba(15,23,42,0.055)]");
+    expect(finance).toContain("shadow-[0_10px_24px_rgba(15,23,42,0.055)]");
+  });
+
+  it("never fabricates municipal PIX or barcode data in finance subpages", () => {
+    expect(financeProtocols).not.toContain("function buildBarcodeValue");
+    expect(financeProtocols).not.toContain(".padEnd(44");
+    expect(financeProtocols).not.toContain("const pixPayload");
+    expect(financeProtocols).not.toContain("PIX copia e cola");
+    expect(financeProtocols).toContain('linhaDigitavel: ""');
+    expect(financeProtocols).toContain('codigoBarras: ""');
+    expect(financeProtocols).toContain("Chave PIX institucional cadastrada");
+    expect(financeProtocols).toContain("Nenhum PIX oficial foi configurado");
+  });
+
+  it("never leaves the municipal access gate stuck after an official data failure", () => {
+    expect(planEntitlements).toContain("const terminalDataFailure");
+    expect(planEntitlements).toContain("!terminalDataFailure &&");
+    expect(planEntitlements).toContain("terminalDataFailure &&");
+    expect(planModuleRoute).toContain("Validação concluída com falha de conexão");
+    expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
+  });
+
+  it("keeps the global organogram tied to the authenticated municipality", () => {
+    expect(shell).toContain("session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null");
+    expect(shell).toContain("showPortalOrganizationContext");
+    expect(shell).toContain("Organograma municipal");
+    expect(shell).toContain("portalOrganizationIdentity.codePath");
+  });
+
+  it("never leaves module validation spinning forever after a terminal identity mismatch", () => {
+    expect(entitlements).toContain("const authIdentityMismatch");
+    expect(entitlements).toContain("!authIdentityMismatch");
+    expect(entitlements).toContain("terminalDataFailure ||");
+    expect(entitlements).toContain("authIdentityMismatch ||");
+  });
+
+  it("embeds the municipal logo before rendering the printable guide blob", () => {
+    expect(guide).toContain("async function embedGuideImage");
+    expect(guide).toContain("reader.readAsDataURL(blob)");
+    expect(guide).toContain("logoUrl: embeddedLogo");
+    expect(guide).toContain('window.open("", "_blank")');
+    expect(guide).toContain("popup.opener = null");
+  });
+
+  it("keeps F5 native and preserves tabs in the URL without scroll traps", () => {
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).not.toContain("window.scrollTo");
+    expect(main).not.toContain("persistVisualSnapshot");
+    expect(main).not.toContain("requestAnimationFrame(waitForStableFrame)");
+    expect(internalTabs).toContain("preventScrollReset: true");
+    expect(internalTabs).toContain('urlParam = "secao"');
+  });
+
+  it("keeps document uploads stable and opens secure documents directly", () => {
+    expect(fileDropZone).not.toContain("animate-pulse");
+    expect(fileDropZone).not.toContain("animate-bounce");
+    expect(fileDropZone).toContain("transition-colors duration-150");
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain('const popup = window.open("", "_blank")');
+    expect(processDetail).toContain("popup.location.replace(accessUrl)");
+    expect(processDetail).not.toContain("window.open(viewerUrl");
+    expect(processDetail).toContain('window.open(analysisUrl, "_blank", "noopener,noreferrer")');
+  });
+
+  it("reads existing R2 documents from the official signed API on localhost without copying secrets", () => {
+    expect(r2Client).toContain('const officialReadApiBase = "https://sigapromunicipal.com.br"');
+    expect(r2Client).toContain("function buildReadApiUrl");
+    expect(r2Client).toContain('buildReadApiUrl("/api/r2-sign-get")');
+    expect(r2Client).toContain('buildReadApiUrl("/api/r2-list-user-files")');
+    expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-upload")');
+    expect(r2Client).toContain('fetch(buildApiUrl("/api/r2-delete")');
+  });
+
+  it("never traps plan validation forever when the official store returns a terminal error", () => {
+    expect(planEntitlements).toContain("const terminalDataFailure");
+    expect(planEntitlements).toContain("Boolean(dataError)");
+    expect(planEntitlements).toContain("!terminalDataFailure &&");
+    expect(planEntitlements).toContain("const resolutionFailed");
+    expect(planEntitlements).toContain("terminalDataFailure &&");
+    expect(planModuleRoute).toContain("entitlements.resolutionFailed");
+    expect(planModuleRoute).toContain("A página não ficará mais presa em validação");
+    expect(planModuleRoute).toContain("Tentar novamente");
+  });
+
+  it("keeps local R2 validation scoped to R2 routes only", () => {
+    expect(viteConfig).toContain("const isR2ApiRoute");
+    expect(viteConfig).toContain('"/api/r2-sign-get"');
+    expect(viteConfig).toContain("if (!isR2ApiRoute)");
+    expect(viteConfig).toContain("next();");
+    expect(viteConfig.indexOf("if (!isR2ApiRoute)")).toBeLessThan(viteConfig.indexOf("assertEnv();"));
+  });
+
+  it("uses full organogram internally and a minimal tenant-safe organogram externally", () => {
+    expect(organizationHook).toContain('type OrganizationAccessMode = "full" | "public"');
+    expect(organizationHook).toContain("listRemoteMunicipalDepartments");
+    expect(organizationHook).toContain("listRemotePublicMunicipalDepartments");
+    expect(organizationHook).toContain('mode === "full"');
+    expect(backend).toContain("listRemotePublicMunicipalDepartments");
+    expect(hierarchyMigration).toContain("public.current_profile_id()");
+    expect(hierarchyMigration).toContain("p.role::text not in");
+    expect(publicOrganizationMigration).toContain("list_public_municipal_departments_v1");
+    expect(publicOrganizationMigration).not.toContain("description text");
+    expect(publicOrganizationMigration).not.toContain("email text");
+    expect(publicOrganizationMigration).not.toContain("phone text");
+    expect(publicOrganizationMigration).toContain("public.has_process_access");
+  });
+
+  it("keeps organogram identity visible in focused document workspaces through the shared loader", () => {
+    expect(documentViewer).toContain("useMunicipalOrganization");
+    expect(documentViewer).not.toContain("listRemoteMunicipalDepartments");
+    expect(documentViewer).toContain("resolveMunicipalUnitIdentity");
+    expect(documentViewer).toContain("organizationIdentity.codePath");
+    expect(documentAnalysis).toContain("useMunicipalOrganization");
+    expect(documentAnalysis).not.toContain("listRemoteMunicipalDepartments");
+    expect(documentAnalysis).toContain("resolveMunicipalUnitIdentity");
+    expect(documentAnalysis).toContain("organizationIdentity.codePath");
+  });
+
+  it("keeps institutional logos fully contained instead of stretching or cropping", () => {
+    expect(institutionalLogo).toContain("object-contain object-center");
+    expect(institutionalLogo).not.toContain("object-cover");
+  });
+
+  it("keeps a single canonical process detail route for internal and external users", () => {
+    const canonicalRouteCount = app.split('path="/processos/:processId"').length - 1;
+    expect(canonicalRouteCount).toBe(1);
+    expect(app).toContain("ProcessDetailPage");
+    expect(externalControl).toContain('to={`/processos/${process.id}`}');
+    expect(externalControl).not.toContain("<ProcessDetailPage");
+  });
+
+  it("uses one read-only process rule in the document viewer", () => {
+    expect(platform).toContain("export function canViewProcessDocuments");
+    expect(platform).toContain("return canTrackProcess(session, process, scopeId)");
+    expect(documentViewer).toContain("canViewProcessDocuments(session, process, effectiveScopeId)");
+    expect(documentViewer).not.toContain("canAccessProcess(session, process, effectiveScopeId)");
+    expect(documentViewer).not.toContain("Carregando documento com acesso seguro...");
+    expect(documentViewer).not.toContain(">Validando acesso ao documento<");
+    expect(documentViewer).toContain("window.location.replace(accessUrl)");
+  });
+
+  it("uses local R2 when configured and official fallback only for localhost read failures", () => {
+    expect(r2Client).toContain("if (isLocalBrowser) return normalized");
+    expect(r2Client).toContain("requestSignedUrlWithLocalReadFallback");
+    expect(r2Client).toContain("localInfrastructureFailure");
+    expect(r2Client).toContain("getSignedUrlForObjectStrict");
+    expect(r2Client).toContain("isLoopbackUrl");
+  });
+
+  it("waits for resolved Neon auth or confirmed profile before loading the official store", () => {
+    expect(platformData).toContain("authenticatedProfileId");
+    expect(platformData).toContain("authenticatedBusinessIdentityReady");
+    expect(platformData).toContain("authResolved || Boolean(authenticatedProfileId)");
+    expect(platformData).toContain("[authenticatedUserId, authenticatedProfileId, authLoading, authResolved]");
+  });
+
+  it("does not keep plan validation spinning after the authenticated profile is already confirmed", () => {
+    expect(planEntitlements).toContain("const stableAuthenticatedIdentity");
+    expect(planEntitlements).toContain("(!authResolved && !stableAuthenticatedIdentity)");
+  });
+
+  it("never reuses an expired signed branding URL when a permanent R2 object key exists", () => {
+    expect(municipalityBackend).toContain("function isTemporarySignedAssetUrl");
+    expect(municipalityBackend).toContain("function canonicalBrandingUrl");
+    expect(municipalityBackend).toContain("if (objectKey && isTemporarySignedAssetUrl(url)) return");
+    expect(municipalityBackend).toContain("const headerLogoUrl = canonicalBrandingUrl");
+    expect(municipalityBackend).toContain("const logoUrl = canonicalBrandingUrl");
+  });
+
+  it("never prints a raw profile UUID as the official guide issuer", () => {
+    expect(processDetail).toContain("const resolveProcessActorName");
+    expect(processDetail).toContain("looksLikeUuid");
+    expect(processDetail).toContain('"Emissor municipal"');
+    expect(processDetail).toContain("funcionarioResponsavel: selectedGuideIssuer");
+    expect(processDetail).not.toContain("funcionarioResponsavel: selectedGuide.issuedBy || session.name");
+  });
+
+  it("uses the administrator-configured municipality logo on every official guide without broken images", () => {
+    expect(processDetail).toContain("branding: municipalityBranding");
+    expect(processDetail).toContain("municipalityBranding?.headerLogoUrl");
+    expect(processDetail).toContain("municipalityBranding?.logoUrl");
+    expect(processDetail).toContain("logoObjectKey:");
+    expect(processDetail).toContain("municipalityBranding?.headerLogoObjectKey");
+    expect(financeProtocols).toContain("branding: municipalityBranding");
+    expect(financeProtocols).toContain("municipalityBranding?.headerLogoUrl");
+    expect(financeProtocols).toContain("municipalityBranding?.logoUrl");
+    expect(financeProtocols).toContain("logoObjectKey:");
+    expect(financeProtocols).toContain("municipalityBranding?.headerLogoObjectKey");
+    expect(officialGuide).toContain("function GuideInstitutionLogo");
+    expect(officialGuide).toContain("onError={() => setFailed(true)}");
+    expect(officialGuide).toContain('aria-label="Brasão institucional indisponível"');
+    expect(officialGuide).not.toContain('src={prefeitura.logoUrl}');
+    expect(officialGuide).toContain("getSignedUrlForObjectStrict");
+    expect(officialGuide).toContain("objectKey: key");
+    expect(officialGuide).toContain("Nunca reaproveita URL assinada antiga");
+    expect(viteConfig).toContain('"/api/r2-master-logo-source"');
+    expect(viteConfig).toContain('"/api/r2-sign-get"');
+    expect(officialGuide).not.toContain(">LOGO<");
+    expect(alternateOfficialGuide).not.toContain("BRASAO / LOGO");
+  });
+});

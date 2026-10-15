@@ -14,6 +14,7 @@ import {
   Layers3,
   Search,
   Send,
+  Signature,
   Store,
   Archive,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCard } from "@/components/platform/AlertCard";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -54,6 +56,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { createRemoteProcessDispatchWithSignature } from "@/integrations/backend/platform";
 
 type ProtocolSection =
   | "visao-geral"
@@ -90,8 +93,8 @@ export function ProtocolDeskPage() {
     getInstitutionSettings,
     markGuideAsPaid,
     updateProcessTriage,
-    dispatchProcess,
     getUserProfile,
+    refreshRemoteStore,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   // Funcionário municipal: a Prefeitura vinculada à sessão autenticada é a fonte
@@ -154,6 +157,8 @@ export function ProtocolDeskPage() {
   const [protocolQuery, setProtocolQuery] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [pendingSignedDispatchIds, setPendingSignedDispatchIds] = useState<string[]>([]);
   const [section, setSection] = useState<ProtocolSection>("visao-geral");
   const [processListQuery, setProcessListQuery] = useState("");
   const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
@@ -348,7 +353,7 @@ export function ProtocolDeskPage() {
     );
   };
 
-  const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
+  const dispatchSelectedToUrbanism = (sourceItems: ProcessRecord[]) => {
     const selected = sourceItems.filter(
       (process) =>
         selectedProcessIds.has(process.id) &&
@@ -361,32 +366,52 @@ export function ProtocolDeskPage() {
       return;
     }
 
-    setProtocolActionBusy("bulk-dispatch");
+    setProtocolActionStatus("");
+    setPendingSignedDispatchIds(selected.map((process) => process.id));
+    setSignatureDialogOpen(true);
+  };
+
+  const confirmSignedProtocolDispatch = async (password: string) => {
+    if (pendingSignedDispatchIds.length === 0) {
+      throw new Error("Nenhum processo selecionado para despacho.");
+    }
+
+    const targets = allProcesses.filter((process) =>
+      pendingSignedDispatchIds.includes(process.id),
+    );
+
+    setProtocolActionBusy(
+      pendingSignedDispatchIds.length > 1
+        ? "bulk-dispatch"
+        : `dispatch-${pendingSignedDispatchIds[0]}`,
+    );
     setProtocolActionStatus("");
 
     try {
-      for (const process of selected) {
-        await dispatchProcess({
+      for (const process of targets) {
+        await createRemoteProcessDispatchWithSignature({
           processId: process.id,
-          actor: session.name,
-          from: "Setor de Protocolo",
-          to: URBAN_ANALYSIS_DEPARTMENT,
+          fromDepartment: "Setor de Protocolo",
+          toDepartment: URBAN_ANALYSIS_DEPARTMENT,
           subject: "Encaminhamento para análise urbanística",
-          dueDate: "",
+          dueAt: null,
           visibility: "misto",
           priority: "media",
+          password,
+          statement: "Despacho formal do Protocolo para Análise Urbanística.",
         });
       }
+      await refreshRemoteStore();
       setSelectedProcessIds(new Set());
       setProtocolActionStatus(
-        `${selected.length} processo(s) despachado(s) para ${URBAN_ANALYSIS_DEPARTMENT}.`,
+        `${targets.length} processo(s) despachado(s) e assinado(s) eletronicamente para ${URBAN_ANALYSIS_DEPARTMENT}.`,
       );
+      setSignatureDialogOpen(false);
+      setPendingSignedDispatchIds([]);
     } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível concluir o despacho em lote: ${error.message}`
-          : "Não foi possível concluir o despacho em lote.",
-      );
+      throw error instanceof Error
+        ? error
+        : new Error("Não foi possível concluir e assinar o despacho.");
     } finally {
       setProtocolActionBusy("");
     }
@@ -444,10 +469,11 @@ export function ProtocolDeskPage() {
                     variant="outline"
                     className="h-10 rounded-xl"
                     disabled={protocolActionBusy === "bulk-dispatch"}
-                    onClick={() => void dispatchSelectedToUrbanism(visibleItems)}
+                    onClick={() => dispatchSelectedToUrbanism(visibleItems)}
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {protocolActionBusy === "bulk-dispatch" ? "Despachando..." : "Despachar"}
+                    <Signature className="mr-2 h-4 w-4" />
+                    {protocolActionBusy === "bulk-dispatch" ? "Assinando..." : "Despachar e assinar"}
                   </Button>
                   <Button
                     type="button"
@@ -479,8 +505,8 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {visibleItems.map((process, index) => {
+          <div className="grid gap-3">
+            {visibleItems.map((process) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
               const missingRequired = getMissingRequiredDocuments(process);
@@ -497,9 +523,9 @@ export function ProtocolDeskPage() {
               return (
                 <div
                   key={process.id}
-                  className={`${index > 0 ? "border-t border-slate-200" : ""} ${selected ? "bg-sky-50/50" : "bg-white"}`}
+                  className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_10px_24px_rgba(15,23,42,0.055)] transition-[border-color,box-shadow,transform] duration-200 ${selected ? "border-sky-300 ring-2 ring-sky-100 shadow-[0_14px_30px_rgba(14,165,233,0.12)]" : "border-slate-200/90 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.075)]"}`}
                 >
-                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                  <div className="flex min-h-[76px] items-center gap-3 px-4 py-3.5 sm:px-5">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -514,7 +540,7 @@ export function ProtocolDeskPage() {
                       onClick={() => toggleProcessExpanded(process.id)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-slate-200 bg-slate-50 text-slate-600 shadow-sm">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
 
@@ -553,13 +579,13 @@ export function ProtocolDeskPage() {
                       </span>
                     </button>
 
-                    <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl">
+                    <Button asChild variant="outline" className="h-10 shrink-0 rounded-full border-slate-300 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
                       <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
                     </Button>
                   </div>
 
                   {expanded ? (
-                    <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-5">
+                    <div className="border-t border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] px-4 py-4 sm:px-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
@@ -591,9 +617,10 @@ export function ProtocolDeskPage() {
                               type="button"
                               className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
                               disabled={protocolActionBusy === `dispatch-${process.id}`}
-                              onClick={() => void handleDispatchToUrbanism(process)}
+                              onClick={() => handleDispatchToUrbanism(process)}
                             >
-                              {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              <Signature className="mr-2 h-4 w-4" />
+                              {protocolActionBusy === `dispatch-${process.id}` ? "Assinando..." : "Despachar e assinar"}
                             </Button>
                           ) : null}
                         </div>
@@ -714,39 +741,15 @@ export function ProtocolDeskPage() {
     }
   };
 
-  const handleDispatchToUrbanism = async (process: ProcessRecord) => {
+  const handleDispatchToUrbanism = (process: ProcessRecord) => {
     if (process.status !== "pagamento_confirmado") {
       setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
       return;
     }
 
-    const busyKey = `dispatch-${process.id}`;
-    setProtocolActionBusy(busyKey);
     setProtocolActionStatus("");
-
-    try {
-      await dispatchProcess({
-        processId: process.id,
-        actor: session.name,
-        from: "Setor de Protocolo",
-        to: URBAN_ANALYSIS_DEPARTMENT,
-        subject: "Encaminhamento para análise urbanística",
-        dueDate: "",
-        visibility: "misto",
-        priority: "media",
-      });
-      setProtocolActionStatus(
-        `${formatOfficialProcessNumber(process.protocol)} despachado para ${URBAN_ANALYSIS_DEPARTMENT}.`,
-      );
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível despachar o processo: ${error.message}`
-          : "Não foi possível despachar o processo para o Urbanismo.",
-      );
-    } finally {
-      setProtocolActionBusy("");
-    }
+    setPendingSignedDispatchIds([process.id]);
+    setSignatureDialogOpen(true);
   };
 
   const renderSearchPanel = ({
@@ -1342,6 +1345,35 @@ export function ProtocolDeskPage() {
           </PageMainGrid>
         ) : null}
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !protocolActionBusy) setPendingSignedDispatchIds([]);
+        }}
+        title={
+          pendingSignedDispatchIds.length > 1
+            ? "Assinar despachos em lote"
+            : "Assinar e efetivar despacho"
+        }
+        subject={
+          pendingSignedDispatchIds.length > 1
+            ? `${pendingSignedDispatchIds.length} processos • Protocolo → ${URBAN_ANALYSIS_DEPARTMENT}`
+            : pendingSignedDispatchIds[0]
+              ? `${formatOfficialProcessNumber(
+                  allProcesses.find((process) => process.id === pendingSignedDispatchIds[0])?.protocol || "",
+                )} • Protocolo → ${URBAN_ANALYSIS_DEPARTMENT}`
+              : "Despacho do Protocolo"
+        }
+        statement={
+          pendingSignedDispatchIds.length > 1
+            ? `Confirmo o despacho formal de ${pendingSignedDispatchIds.length} processos para ${URBAN_ANALYSIS_DEPARTMENT}. Cada processo receberá seu próprio registro de assinatura.`
+            : `Confirmo o despacho formal deste processo para ${URBAN_ANALYSIS_DEPARTMENT}.`
+        }
+        busy={Boolean(protocolActionBusy)}
+        onConfirm={confirmSignedProtocolDispatch}
+      />
     </PortalFrame>
   );
 }
