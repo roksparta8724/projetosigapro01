@@ -98,10 +98,7 @@
         var navigationApi = window.navigation;
         if (navigationApi && typeof navigationApi.addEventListener === "function") {
           navigationApi.addEventListener("navigate", function (event) {
-            if (
-              event.navigationType !== "reload" ||
-              event.userInitiated !== true
-            ) {
+            if (event.navigationType !== "reload") {
               return;
             }
 
@@ -112,6 +109,9 @@
               return;
             }
 
+            // Intercepta QUALQUER reload same-origin: F5, Ctrl+R, botão Atualizar
+            // e location.reload(). Não dependemos de userInitiated porque Chrome/
+            // Edge podem reportar esse campo de forma diferente entre atalhos e UI.
             if (event.canIntercept && typeof event.intercept === "function") {
               event.intercept({
                 focusReset: "manual",
@@ -124,6 +124,8 @@
               return;
             }
 
+            // Última barreira: se o navegador expuser o evento como cancelável,
+            // bloqueia o unload em vez de aceitar um frame vazio.
             if (event.cancelable) {
               event.preventDefault();
               dispatchSoftRefresh("navigation-api-cancel");
