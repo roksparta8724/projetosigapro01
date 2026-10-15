@@ -12,6 +12,7 @@ import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from 
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { ElectronicSignatureDialog } from "@/components/platform/ElectronicSignatureDialog";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -29,7 +30,9 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  createRemoteProcessDispatchWithSignature,
   getRemoteProcessPrivateIdentity,
+  issueRemotePaymentGuideWithSignature,
   saveRemoteProcessPrivateIdentity,
 } from "@/integrations/backend/platform";
 import {
@@ -172,7 +175,7 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
-  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, dispatchProcess, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, issuePaymentGuide } = usePlatformData();
+  const { processes, institutions, sessionUsers, sendProcessMessage, getInstitutionSettings, getUserProfile, addDocumentAnnotation, createRequirement, respondRequirement, completeRequirement, setProcessTransitVisibility, markGuideAsPaid, appendProcessDocuments, requestConstructionPaymentGuide, updateIssProjectGuideData, reviseIssProjectGuide, shareIssProjectGuide, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId =
     session.role === "master_admin" || session.role === "master_ops"
       ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
@@ -242,6 +245,22 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [pendingSignatureAction, setPendingSignatureAction] = useState<
+    | {
+        kind: "issue-guide-analysis";
+        guideInput: { processId: string; areaM2: number; usage: string; workType: string };
+      }
+    | { kind: "issue-guide-finance" }
+    | {
+        kind: "dispatch";
+        toDepartment: string;
+        subject: string;
+        dueDate: string;
+        visibility: "interno" | "externo" | "misto";
+      }
+    | null
+  >(null);
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
@@ -1146,15 +1165,8 @@ export function ProcessDetailPage() {
     }
     const input = getConstructionGuideInput();
     if (!input) return;
-
-    void runProcessAction(
-      "generate-construction-guide",
-      async () => {
-        await updateIssProjectGuideData(input);
-        await issuePaymentGuide(process.id, session.name, "iss_obra");
-      },
-      "Guia de ISSQN / Projeto gerada. Ela já está disponível no Financeiro para controle e pode ser enviada ao profissional.",
-    );
+    setPendingSignatureAction({ kind: "issue-guide-analysis", guideInput: input });
+    setSignatureDialogOpen(true);
   };
 
   const handleForwardConstructionGuideToFinance = () => {
@@ -1180,11 +1192,8 @@ export function ProcessDetailPage() {
       setProcessActionStatus("O administrador desta Prefeitura definiu que a guia deve ser emitida pela Análise Urbanística.");
       return;
     }
-    void runProcessAction(
-      "finance-issue-construction-guide",
-      () => issuePaymentGuide(process.id, session.name, "iss_obra"),
-      "Guia de ISSQN / Projeto emitida pelo Financeiro e vinculada ao processo.",
-    );
+    setPendingSignatureAction({ kind: "issue-guide-finance" });
+    setSignatureDialogOpen(true);
   };
 
   const handleReviseConstructionGuide = async () => {
@@ -1285,27 +1294,106 @@ export function ProcessDetailPage() {
       return;
     }
 
-    const ok = await runProcessAction(
-      "dispatch",
-      () =>
-        dispatchProcess({
-          processId: process.id,
-          actor: session.name,
-          from: currentFolder.trim(),
-          to: selectedDestination.name,
-          subject: dispatchSubject.trim(),
-          dueDate: dispatchDueDate,
-          visibility: dispatchVisibility,
-        }),
-      "Despacho registrado no processo.",
-    );
-    if (ok) {
+    setPendingSignatureAction({
+      kind: "dispatch",
+      toDepartment: selectedDestination.name,
+      subject: dispatchSubject.trim(),
+      dueDate: dispatchDueDate,
+      visibility: dispatchVisibility,
+    });
+    setSignatureDialogOpen(true);
+  };
+  const signatureDialogCopy = (() => {
+    if (!pendingSignatureAction) {
+      return {
+        title: "Assinar eletronicamente",
+        subject: formatOfficialProcessTitle(process),
+        statement: "Confirmo este ato no processo.",
+      };
+    }
+    if (pendingSignatureAction.kind === "dispatch") {
+      const destination = getOrganizationIdentity(pendingSignatureAction.toDepartment);
+      return {
+        title: "Assinar e efetivar despacho",
+        subject: `${currentOrganizationIdentity.codePath || currentFolder} → ${destination.codePath || destination.name}`,
+        statement: `Confirmo o despacho "${pendingSignatureAction.subject}" de ${currentOrganizationPath} para ${destination.breadcrumb}.`,
+      };
+    }
+    return {
+      title: "Assinar emissão da Guia de ISSQN / Projeto",
+      subject: formatOfficialProcessTitle(process),
+      statement:
+        "Confirmo a emissão desta Guia de ISSQN / Projeto com os dados oficiais atualmente registrados no processo.",
+    };
+  })();
+
+  const confirmPendingElectronicSignature = async (password: string) => {
+    if (!pendingSignatureAction) {
+      throw new Error("Nenhum ato pendente de assinatura.");
+    }
+
+    if (pendingSignatureAction.kind === "issue-guide-analysis") {
+      const ok = await runProcessAction(
+        "generate-construction-guide",
+        async () => {
+          await updateIssProjectGuideData(pendingSignatureAction.guideInput);
+          await issueRemotePaymentGuideWithSignature({
+            processId: process.id,
+            guideKind: "iss_obra",
+            password,
+            statement: "Emissão da Guia de ISSQN / Projeto pela Análise Urbanística.",
+          });
+          await refreshRemoteStore();
+        },
+        "Guia de ISSQN / Projeto emitida e assinada eletronicamente.",
+      );
+      if (!ok) throw new Error("Não foi possível emitir e assinar a guia.");
+    } else if (pendingSignatureAction.kind === "issue-guide-finance") {
+      const ok = await runProcessAction(
+        "finance-issue-construction-guide",
+        async () => {
+          await issueRemotePaymentGuideWithSignature({
+            processId: process.id,
+            guideKind: "iss_obra",
+            password,
+            statement: "Emissão da Guia de ISSQN / Projeto pelo Financeiro.",
+          });
+          await refreshRemoteStore();
+        },
+        "Guia de ISSQN / Projeto emitida e assinada eletronicamente pelo Financeiro.",
+      );
+      if (!ok) throw new Error("Não foi possível emitir e assinar a guia.");
+    } else {
+      const action = pendingSignatureAction;
+      const ok = await runProcessAction(
+        "dispatch",
+        async () => {
+          await createRemoteProcessDispatchWithSignature({
+            processId: process.id,
+            fromDepartment: currentFolder.trim(),
+            toDepartment: action.toDepartment,
+            subject: action.subject,
+            dueAt: action.dueDate ? `${action.dueDate}T23:59:59` : null,
+            visibility: action.visibility,
+            password,
+            statement: `Despacho para ${action.toDepartment}: ${action.subject}`,
+          });
+          await refreshRemoteStore();
+        },
+        "Despacho registrado e assinado eletronicamente.",
+      );
+      if (!ok) throw new Error("Não foi possível registrar e assinar o despacho.");
+
       setDispatchTo("");
       setDispatchSubject("");
       setDispatchDueDate("");
       setDispatchVisibility("interno");
     }
+
+    setPendingSignatureAction(null);
+    setSignatureDialogOpen(false);
   };
+
   const updateTransitVisibility = (visibility: ProcessTransitVisibility) => {
     void runProcessAction(
       "transit-visibility",
@@ -3327,6 +3415,19 @@ export function ProcessDetailPage() {
         </DialogContent>
       </Dialog>
       </PageShell>
+
+      <ElectronicSignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={(open) => {
+          setSignatureDialogOpen(open);
+          if (!open && !processActionBusy) setPendingSignatureAction(null);
+        }}
+        title={signatureDialogCopy.title}
+        subject={signatureDialogCopy.subject}
+        statement={signatureDialogCopy.statement}
+        busy={Boolean(processActionBusy)}
+        onConfirm={confirmPendingElectronicSignature}
+      />
     </PortalFrame>
   );
 }
