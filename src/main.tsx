@@ -42,11 +42,19 @@ function isInternalPath(pathname: string) {
   );
 }
 
+function sanitizeContinuityHtml(html: string) {
+  return html
+    .replace(/\sid="[^"]*"/gi, "")
+    .replace(/\sname="[^"]*"/gi, "")
+    .replace(/\sautofocus(?:="[^"]*")?/gi, "");
+}
+
 function persistRefreshContinuity() {
   if (!isInternalPath(window.location.pathname)) return;
 
   const userId = currentIdentity();
-  if (!userId) return;
+  const root = document.getElementById("root");
+  if (!userId || !root || root.innerHTML.length < 500) return;
 
   try {
     window.sessionStorage.setItem(
@@ -55,11 +63,14 @@ function persistRefreshContinuity() {
         host: window.location.host,
         location: currentLocationKey(),
         userId,
+        html: sanitizeContinuityHtml(root.innerHTML),
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
         savedAt: Date.now(),
       }),
     );
   } catch {
-    // Continuidade visual e uma melhoria progressiva; nunca bloquear o app.
+    // Continuidade visual é progressiva; quota/storage nunca bloqueiam o app.
   }
 }
 
@@ -75,8 +86,7 @@ function clearLegacyRefreshArtifacts() {
   document.documentElement.removeAttribute("data-sigapro-booting");
   document.documentElement.removeAttribute("data-sigapro-internal");
 
-  const legacyOverlay = document.getElementById("sigapro-refresh-snapshot");
-  legacyOverlay?.remove();
+  // O overlay atual de continuidade só é removido após o app real sinalizar estabilidade.
 }
 
 async function clearLocalDevelopmentCaches() {
@@ -155,14 +165,20 @@ function bootApplication() {
   try {
     createRoot(rootElement).render(<App />);
 
-    // O primeiro paint do React deve ser estavel: durante o bootstrap inicial
-    // nenhuma transicao/animacao de card pode disputar layout com a hidratacao
-    // dos dados em cache. Liberamos movimento apenas depois de dois frames.
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        document.documentElement.removeAttribute("data-sigapro-initial-render");
-      });
-    });
+    const finishVisualHandoff = () => {
+      document.documentElement.removeAttribute("data-sigapro-initial-render");
+      const overlay = document.getElementById("sigapro-refresh-snapshot");
+      if (overlay) {
+        overlay.remove();
+      }
+      window.removeEventListener("sigapro-app-stable", finishVisualHandoff as EventListener);
+    };
+
+    window.addEventListener("sigapro-app-stable", finishVisualHandoff as EventListener, { once: true });
+
+    // Segurança: em caso de falha inesperada no bootstrap, não deixar a cópia
+    // visual presa para sempre. O limite é longo o bastante para evitar flashes.
+    window.setTimeout(finishVisualHandoff, 8000);
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
