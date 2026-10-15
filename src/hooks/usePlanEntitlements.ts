@@ -91,8 +91,8 @@ export function usePlanEntitlements() {
       )
     );
 
-  const hasWarmPlanContext =
-    platformDataSource === "warm" &&
+  const hasStablePlanContext =
+    (platformDataSource === "warm" || platformDataSource === "remote") &&
     hasStableCachedSession &&
     (isMaster || Boolean(sessionMunicipalityId));
 
@@ -102,8 +102,8 @@ export function usePlanEntitlements() {
       !municipalityMatchesAuth ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
-      (!dataReadyForCurrentUser && !hasWarmPlanContext) ||
-      Boolean(dataError && !dataReadyForCurrentUser && !hasWarmPlanContext)
+      (!dataReadyForCurrentUser && !hasStablePlanContext) ||
+      Boolean(dataError && !dataReadyForCurrentUser && !hasStablePlanContext)
     ));
 
   // Carregamentos de fundo da Prefeitura ou do store não podem desmontar uma
