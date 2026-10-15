@@ -415,3 +415,22 @@ describe("dispatch organogram polarity v14", () => {
     expect(polarity).toContain('[data-organogram-destination="true"][data-selected="false"]');
   });
 });
+
+
+describe("blue process headers keep organogram context and readable contrast", () => {
+  it("shows official organogram acronyms inside every blue process header", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(detail).toContain("currentOrganizationTrail");
+    expect(detail).toContain('data-dark-organogram-trail="true"');
+    expect(analysis).toContain("organogramTrail");
+    expect(analysis).toContain('data-dark-organogram-code="true"');
+    expect(permit).toContain("organogramTrail");
+    expect(permit).toContain('data-dark-organogram-code="true"');
+    expect(css).toContain("PROCESS DARK HEADERS + ORGANOGRAM ACRONYMS V10");
+    expect(css).toContain("[data-premium-process-dark-header]");
+  });
+});
