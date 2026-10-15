@@ -640,7 +640,7 @@ export function UrbanAnalysisChecklistPanel({
   );
 
   return (
-    <Card className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
+    <Card data-urban-analysis-sheet="true" className="overflow-hidden rounded-[28px] border-slate-200 bg-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
       <CardHeader data-force-card-contrast="dark" className="border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#0d3b5e_54%,#0f628f_100%)] px-5 py-5 text-white md:px-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-start gap-4">
@@ -681,8 +681,8 @@ export function UrbanAnalysisChecklistPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#0b1320_100%)] md:p-6">
-        <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+      <CardContent data-workspace-surface="adaptive" className="space-y-5 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#0b1320_100%)] md:p-6">
+        <section data-analysis-identity="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="grid gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-5 py-5 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0d2032_0%,#10283d_100%)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
               {municipalityLogoUrl ? (
@@ -735,17 +735,17 @@ export function UrbanAnalysisChecklistPanel({
         </section>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
             <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
             <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{process.title}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Usuário em conferência</p>
             <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{session.name}</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{session.title || "Servidor municipal"}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data da análise</p>
             <Input
               type="date"
@@ -754,7 +754,7 @@ export function UrbanAnalysisChecklistPanel({
               className="mt-2 h-9 rounded-xl border-slate-200 bg-slate-50 text-sm dark:border-slate-700 dark:bg-slate-950"
             />
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Folha / revisão</p>
             <Input
               value={state.sheetNumber}
@@ -765,7 +765,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900">
+        <div data-analysis-legend="true" data-force-card-contrast="adaptive" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900">
           <span className="font-bold text-slate-700 dark:text-slate-200">Legenda:</span>
           {(Object.keys(STATUS_META) as Array<Exclude<ChecklistStatus, "">>).map((status) => (
             <span key={status} className={cn("rounded-full border px-2.5 py-1 font-semibold", STATUS_META[status].classes)}>
@@ -777,7 +777,7 @@ export function UrbanAnalysisChecklistPanel({
         {renderSection("Engenharia", "Conferência documental e técnica do projeto.", ENGINEERING_ITEMS)}
         {renderSection("Aprovações externas", "Órgãos e documentos complementares exigidos conforme o caso.", EXTERNAL_ITEMS)}
 
-        <section className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
+        <section data-force-card-contrast="adaptive" className="grid gap-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2">
           <div>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
@@ -842,7 +842,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
+        <section data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
