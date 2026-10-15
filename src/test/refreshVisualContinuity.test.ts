@@ -52,7 +52,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(platformData).toContain("contextUserId: warmStore.userId");
     expect(platformData).toContain('source === "warm"');
     expect(planEntitlements).toContain("hasStableCachedSession");
-    expect(planEntitlements).toContain("hasWarmPlanContext");
+    expect(planEntitlements).toContain("hasStablePlanContext");
     expect(planEntitlements).toContain("explicitIdentityMismatch");
   });
 
