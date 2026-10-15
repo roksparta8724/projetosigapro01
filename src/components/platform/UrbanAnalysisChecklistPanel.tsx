@@ -1906,9 +1906,9 @@ export function UrbanAnalysisChecklistPanel({
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
-              <p className="mt-1 text-base font-bold text-slate-950 dark:text-white">Assinatura técnica + conferência fiscal</p>
+              <p className="mt-1 text-base font-bold text-slate-950 dark:text-white">Assinaturas da análise, fiscalização e Diretoria</p>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
-                O analista conclui a avaliação técnica. Em seguida, o Fiscal de Obras confere a ficha e registra a segunda assinatura. Qualquer alteração posterior invalida as assinaturas e reabre a conferência.
+                O analista conclui a avaliação e pode solicitar formalmente a assinatura da Diretoria. O diretor recebe a pendência, confirma com a própria senha e a assinatura passa a integrar o PDF oficial. Qualquer alteração da ficha invalida as assinaturas vinculadas à versão anterior.
               </p>
             </div>
             <div className={cn(
@@ -1920,11 +1920,17 @@ export function UrbanAnalysisChecklistPanel({
                   : "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300",
             )}>
               {isFullySigned ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Signature className="h-3.5 w-3.5" />}
-              {isFullySigned ? "Ficha concluída" : technicalOfficial ? "Aguardando Fiscal" : "Em elaboração"}
+              {isFullySigned
+                ? "Ficha concluída"
+                : directorRequestPending
+                  ? "Aguardando Diretoria"
+                  : technicalOfficial
+                    ? "Em validação"
+                    : "Em elaboração"}
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <div className="mt-5 grid gap-3 xl:grid-cols-3">
             <div className={cn(
               "rounded-[20px] border p-4",
               technicalOfficial
@@ -2046,6 +2052,100 @@ export function UrbanAnalysisChecklistPanel({
                 </Button>
               ) : null}
             </div>
+
+            <div className={cn(
+              "rounded-[20px] border p-4",
+              directorOfficial
+                ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                : directorRequestPending
+                  ? "border-sky-200 bg-sky-50/70 dark:border-sky-500/30 dark:bg-sky-950/25"
+                  : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  directorOfficial
+                    ? "bg-emerald-600 text-white"
+                    : directorRequestPending
+                      ? "bg-sky-700 text-white"
+                      : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+                )}>
+                  {directorOfficial ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Building2 className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">3ª assinatura</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Diretoria responsável</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {state.directorSignature
+                      ? `${state.directorSignature.name} · ${state.directorSignature.title} · ${new Date(state.directorSignature.signedAt).toLocaleString("pt-BR")}`
+                      : directorRequestPending
+                        ? `Solicitada por ${directorRequest.request?.requested_by_name || "Analista"} em ${directorRequest.request?.requested_at ? new Date(directorRequest.request.requested_at).toLocaleString("pt-BR") : "data registrada"}.`
+                        : technicalOfficial
+                          ? "O analista pode solicitar a assinatura eletrônica da Diretoria."
+                          : "Disponível depois da assinatura técnica eletrônica."}
+                    {directorRequestPending && directorRequest.candidate_count === 0 ? (
+                      <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">
+                        Nenhum perfil ativo está identificado como Diretor(a) neste município.
+                      </span>
+                    ) : null}
+                    {directorOfficial && state.directorSignature?.verificationCode ? (
+                      <span className="mt-1 block font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        Código: {state.directorSignature.verificationCode}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+              </div>
+
+              {renderSignatureEvidence(
+                state.directorSignature,
+                directorOfficial,
+                "Diretoria",
+              )}
+
+              {canRequestDirector && !directorOfficial ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 w-full rounded-xl border-sky-300 bg-sky-50 font-semibold text-sky-800 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-950/30 dark:text-sky-200"
+                  disabled={!technicalOfficial || directorRequestBusy || directorRequestPending}
+                  onClick={() => void requestDirectorSignature()}
+                >
+                  {directorRequestBusy ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : directorRequestPending ? (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  {directorRequestBusy
+                    ? "Enviando solicitação..."
+                    : directorRequestPending
+                      ? "Solicitação enviada à Diretoria"
+                      : "Solicitar assinatura do Diretor"}
+                </Button>
+              ) : null}
+
+              {isDirectorProfile ? (
+                <Button
+                  type="button"
+                  className="mt-3 w-full rounded-xl bg-[#082f49] font-bold !text-white shadow-[0_9px_22px_rgba(8,47,73,0.20)] hover:bg-[#0b4568] [&_*]:!text-white"
+                  disabled={!directorRequestPending || directorOfficial}
+                  onClick={signDirectorReview}
+                >
+                  <Signature className="mr-2 h-4 w-4" />
+                  {directorOfficial
+                    ? "Assinatura da Diretoria concluída"
+                    : directorRequestPending
+                      ? "Assinar como Diretor"
+                      : "Aguardando solicitação do analista"}
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
@@ -2114,7 +2214,9 @@ export function UrbanAnalysisChecklistPanel({
                 <p className="font-bold">
                   {signatureDialog === "technical"
                     ? "Assinatura da análise técnica"
-                    : "Assinatura da conferência fiscal"}
+                    : signatureDialog === "fiscal"
+                      ? "Assinatura da conferência fiscal"
+                      : "Assinatura da Diretoria"}
                 </p>
                 <p className="mt-1">
                   Informe a mesma senha usada para entrar no SIGAPRO. A senha será revalidada no Neon Auth e não será armazenada no processo.
