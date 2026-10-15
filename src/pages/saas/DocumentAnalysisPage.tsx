@@ -31,9 +31,11 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
+  canAccessMunicipalArea,
   canAccessProcess,
   formatOfficialProcessNumber,
   getProcessById,
+  isProcessOwnedBySessionDepartment,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -118,16 +120,28 @@ export function DocumentAnalysisPage() {
       ? `sigapro:document-review-draft:${session.id}:${process.id}:${document.id}`
       : "";
 
+  const isMasterAnalysisOperator =
+    session.role === "master_admin" || session.role === "master_ops";
+  const isAnalysisSupervisor = session.role === "prefeitura_supervisor";
+  const isCurrentAnalysisOwner =
+    !!process &&
+    (
+      isProcessOwnedBySessionDepartment(session, process) ||
+      process.analysis?.assignedProfileId === session.id
+    );
+
   const canUseAnalysis =
     !!process &&
     !!document &&
-    canAccessProcess(session, process, effectiveScopeId) &&
     session.role !== "prefeitura_admin" &&
+    canAccessProcess(session, process, effectiveScopeId) &&
     (
-      session.role === "master_admin" ||
-      session.role === "master_ops" ||
-      session.role === "prefeitura_supervisor" ||
-      session.role === "analista"
+      isMasterAnalysisOperator ||
+      isAnalysisSupervisor ||
+      (
+        canAccessMunicipalArea(session, "analise") &&
+        isCurrentAnalysisOwner
+      )
     );
 
   useEffect(() => {
