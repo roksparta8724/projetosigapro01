@@ -17,6 +17,10 @@ describe("official electronic signatures", () => {
     resolve(process.cwd(), "neon/migrations/20261015_process_artifact_e_signatures.sql"),
     "utf8",
   );
+  const migrationV2 = readFileSync(
+    resolve(process.cwd(), "neon/migrations/20261015_process_artifact_e_signatures_v2.sql"),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -67,6 +71,21 @@ describe("official electronic signatures", () => {
     expect(api).not.toContain("_password");
     expect(api).not.toContain("artifact_payload: password");
     expect(api).toContain("_artifact_payload: payload");
+  });
+
+  it("confirms the signature by reading it back from the official database before visual success", () => {
+    expect(checklist).toContain("SIGNATURE_READBACK_FAILED");
+    expect(checklist).toContain("getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)");
+    expect(checklist).toContain("payloadMatches");
+    expect(checklist).toContain("Nenhum sucesso visual foi aplicado");
+  });
+
+  it("uses a server-only key fingerprint in v2 and never depends on the legacy HMAC secret table", () => {
+    expect(api).toContain("sign_process_artifact_v2");
+    expect(api).toContain("EXPECTED_SIGNATURE_SECRET_HASH");
+    expect(migrationV2).toContain("sign_process_artifact_v2");
+    expect(migrationV2).toContain("b90c8fd07d7b6232b4043961d8b9cb65e289628ce7b6b759fc7997d93c0533cd");
+    expect(migrationV2).not.toContain("select secret_value");
   });
 
   it("keeps immutable database evidence and audit trail", () => {
