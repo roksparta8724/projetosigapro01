@@ -12,16 +12,23 @@ const isLocalNeonRuntime =
   typeof window !== "undefined" &&
   ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
 
+const explicitNeonAuthUrl = String(import.meta.env.VITE_NEON_AUTH_URL || "").trim();
+const explicitNeonDataApiUrl = String(import.meta.env.VITE_NEON_DATA_API_URL || "").trim();
+
 const NEON_AUTH_URL = String(
-  isNeonProduction || isLocalNeonRuntime
-    ? VALIDATED_NEON_AUTH_URL
-    : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
+  isLocalNeonRuntime && explicitNeonAuthUrl
+    ? explicitNeonAuthUrl
+    : isNeonProduction || isLocalNeonRuntime
+      ? VALIDATED_NEON_AUTH_URL
+      : explicitNeonAuthUrl || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
 ).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
-  isNeonProduction || isLocalNeonRuntime
-    ? VALIDATED_NEON_DATA_API_URL
-    : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
+  isLocalNeonRuntime && explicitNeonDataApiUrl
+    ? explicitNeonDataApiUrl
+    : isNeonProduction || isLocalNeonRuntime
+      ? VALIDATED_NEON_DATA_API_URL
+      : explicitNeonDataApiUrl || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
 ).replace(/\/+$/, "");
 
 export const hasNeonBackendEnv = Boolean(
