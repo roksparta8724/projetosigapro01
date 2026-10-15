@@ -307,3 +307,43 @@ describe("authoritative V12 process-only contrast", () => {
     expect(detail).toContain("sig-summary-sky");
   });
 });
+
+
+describe("process analysis premium contrast contract v7", () => {
+  it("keeps every dark process header bright and every adaptive summary card theme-safe", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(detail).toContain('id="sig-process-document-command-center"');
+    expect(detail).toContain('data-command-header-copy="true"');
+    expect(analysis).toContain('data-premium-process-dark-header="analysis"');
+    expect(analysis).toContain('data-analysis-metric="blue"');
+    expect(permit).toContain('data-premium-process-dark-header="permit"');
+    expect(permit).toContain('data-permit-header-status="true"');
+    expect(css).toContain("PROCESS DETAIL PREMIUM CONTRACT V7");
+    expect(css).toContain("#sig-process-document-command-center");
+  });
+
+  it("makes technical checklist selections unmistakable", () => {
+    const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+
+    expect(analysis).toContain("data-checklist-status={status}");
+    expect(analysis).toContain('data-selected={selected ? "true" : "false"}');
+    expect(analysis).toContain("aria-pressed={selected}");
+    expect(css).toContain('button[data-checklist-status="A"][data-selected="true"]');
+    expect(css).toContain('button[data-checklist-status="C"][data-selected="true"]');
+  });
+
+  it("keeps dispatch compact and uses the municipal organogram as the destination control", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+
+    expect(detail).toContain('data-dispatch-panel="true"');
+    expect(detail).toContain('data-dispatch-organogram="true"');
+    expect(detail).toContain("overflow-x-auto");
+    expect(detail).toContain('data-organogram-destination="true"');
+    expect(detail).toContain('data-premium-dark-action="true"');
+  });
+});
