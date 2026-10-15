@@ -848,7 +848,7 @@ export function ProcessDetailPage() {
     { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: !isProtocolTrackingOnly },
     {
       key: "analise" as ProcessTab,
-      label: "Análise Urbanística",
+      label: "Análise / Ficha técnica",
       enabled:
         !isExternalProcessViewer &&
         !isProtocolTrackingOnly &&
