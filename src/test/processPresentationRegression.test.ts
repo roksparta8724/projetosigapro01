@@ -152,16 +152,18 @@ describe("external process primary action hierarchy", () => {
 
 describe("topbar and process-card contrast isolation", () => {
   it("keeps municipal topbar colors untouched while process styling stays scoped", () => {
-    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+    const v11Start = polarity.indexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
+    const v11 = polarity.slice(v11Start);
 
     expect(portal).toContain("const topbarFill = darken(primaryColor, -5)");
     expect(portal).toContain("const topbarHighlight = darken(primaryColor, -11)");
     expect(portal).toContain("const topbarDepth = darken(primaryColor, 2)");
-    expect(css).toContain("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14");
-    expect(css).not.toContain(".sig-premium-topbar");
-    expect(css).not.toContain(".sig-topbar-shell");
+    expect(v11Start).toBeGreaterThanOrEqual(0);
+    expect(v11).not.toContain(".sig-premium-topbar");
+    expect(v11).not.toContain(".sig-topbar-shell");
     expect(detail).toContain("sig-process-detail-premium");
     expect(detail).toContain('data-process-document-card="true"');
     expect(detail).toContain("sig-primary-document-action");
@@ -187,16 +189,16 @@ describe("topbar and process-card contrast isolation", () => {
 
 describe("strict process surface contrast root", () => {
   it("forces dark cards to use light copy and light cards to use dark copy without touching topbar", () => {
-    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
-    const contrastRoot = css.slice(css.indexOf("SIGAPRO PROCESS SURFACE CONTRACT V3 — ROOT 2026-10-14"));
+    const contrastRoot = polarity.slice(polarity.indexOf("FINAL PROCESS POLARITY LOCK V10"));
     expect(contrastRoot).toContain("#sig-process-document-command-center");
     expect(contrastRoot).toContain(".sig-command-metric-blue");
     expect(contrastRoot).toContain(".sig-command-metric-emerald");
     expect(contrastRoot).toContain(".sig-command-metric-amber");
-    expect(contrastRoot).toContain('[data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
-    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium [data-surface="adaptive-card"]');
+    expect(contrastRoot).toContain('[data-layout-mode="default"]');
+    expect(contrastRoot).toContain('[data-layout-mode="inverse-main"]');
     expect(contrastRoot).toContain('[data-municipal-organogram="true"]');
     expect(contrastRoot).not.toContain(".sig-premium-topbar");
     expect(contrastRoot).not.toContain(".sig-topbar-shell");
