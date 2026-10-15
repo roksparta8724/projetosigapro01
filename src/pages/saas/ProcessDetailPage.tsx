@@ -304,6 +304,21 @@ export function ProcessDetailPage() {
 
   const stableAnalysisAccess = stableTabAccessRef.current.analysis;
   const stableFinanceAccess = stableTabAccessRef.current.finance;
+  const requestedTabForContinuity = new URLSearchParams(location.search).get("aba");
+  const analysisTabVisible =
+    stableAnalysisAccess ||
+    (
+      planEntitlements.isResolving &&
+      requestedTabForContinuity === "analise" &&
+      canAnalysisOperate
+    );
+  const financeTabVisible =
+    stableFinanceAccess ||
+    (
+      planEntitlements.isResolving &&
+      requestedTabForContinuity === "financeiro" &&
+      canFinanceOperate
+    );
   const isExternalSession =
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
@@ -904,7 +919,7 @@ export function ProcessDetailPage() {
       enabled:
         !isExternalProcessViewer &&
         !isProtocolTrackingOnly &&
-        stableAnalysisAccess,
+        analysisTabVisible,
     },
     {
       key: "financeiro" as ProcessTab,
@@ -914,7 +929,7 @@ export function ProcessDetailPage() {
         (
           !isExternalProcessViewer &&
           !isProtocolTrackingOnly &&
-          stableFinanceAccess
+          financeTabVisible
         ),
     },
     {
