@@ -141,7 +141,7 @@ export function ElectronicSignatureDialog({
 
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <KeyRound className="h-3.5 w-3.5" />
-            Para esta modalidade, cada assinatura exige nova confirmação de senha.
+            Cada operação de assinatura exige nova confirmação de senha. Quando a tela declarar um lote, a confirmação vale somente para os itens explicitamente informados naquele ato.
           </div>
         </div>
 
