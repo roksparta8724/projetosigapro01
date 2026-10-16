@@ -255,11 +255,17 @@ export function LegislationPage() {
                 title="Ações rápidas"
                 description="Acessos diretos para leitura ou apoio administrativo."
                 actions={[
-                  { id: "pd", label: "Abrir Plano Diretor", icon: BookOpenText, href: items[0].fileUrl || "#" },
-                  { id: "uso", label: "Abrir uso do solo", icon: ScrollText, href: items[1].fileUrl || "#" },
-                  { id: "leis", label: "Abrir leis complementares", icon: Landmark, href: items[2].fileUrl || "#" },
+                  ...(items[0].fileUrl
+                    ? [{ id: "pd", label: "Abrir Plano Diretor", icon: BookOpenText, onClick: () => openOfficialDocument(items[0]) }]
+                    : []),
+                  ...(items[1].fileUrl
+                    ? [{ id: "uso", label: "Abrir uso do solo", icon: ScrollText, onClick: () => openOfficialDocument(items[1]) }]
+                    : []),
+                  ...(items[2].fileUrl
+                    ? [{ id: "leis", label: "Abrir leis complementares", icon: Landmark, onClick: () => openOfficialDocument(items[2]) }]
+                    : []),
                   { id: "zoneamento", label: "Abrir zoneamento", icon: Layers3, href: "/legislacao/zoneamento" },
-                ].filter((item) => item.href !== "#")}
+                ]}
               />
 
               <SectionCard
