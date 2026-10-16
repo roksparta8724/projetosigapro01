@@ -1276,9 +1276,8 @@ export function UrbanAnalysisChecklistPanel({
         return y + 5.6;
       };
 
-      const drawRow = (
+      const measureRowLayout = (
         item: ChecklistTemplateItem,
-        y: number,
         compact = false,
       ) => {
         const itemState = state.items[item.id] ?? { status: "", observation: "" };
@@ -1296,6 +1295,16 @@ export function UrbanAnalysisChecklistPanel({
         );
         const lineCount = Math.max(desc.lines.length, obs.lines.length, 1);
         const rowH = compact ? 5.8 : Math.max(6, 2.55 * lineCount + 2.6);
+
+        return { itemState, desc, obs, rowH };
+      };
+
+      const drawRow = (
+        item: ChecklistTemplateItem,
+        y: number,
+        compact = false,
+      ) => {
+        const { itemState, desc, obs, rowH } = measureRowLayout(item, compact);
 
         const rowFill =
           item.order % 2 === 0
@@ -1394,6 +1403,40 @@ export function UrbanAnalysisChecklistPanel({
         let y = drawTableHeader(title, startY);
         for (const item of items) y = drawRow(item, y, compact);
         return y;
+      };
+
+      const TABLE_HEADER_HEIGHT = 12.9;
+
+      const takeRowsThatFit = (
+        items: ChecklistTemplateItem[],
+        startY: number,
+        maxBottomY: number,
+        compact = false,
+      ) => {
+        let y = startY + TABLE_HEADER_HEIGHT;
+        let count = 0;
+
+        for (const item of items) {
+          const { rowH } = measureRowLayout(item, compact);
+          if (y + rowH > maxBottomY) break;
+          y += rowH;
+          count += 1;
+        }
+
+        return {
+          fit: items.slice(0, count),
+          rest: items.slice(count),
+          endY: y,
+        };
+      };
+
+      const engineeringSectionTitle = (items: ChecklistTemplateItem[]) => {
+        const first = items[0]?.order;
+        const last = items[items.length - 1]?.order;
+        if (!first || !last) return "Engenharia";
+        return first === last
+          ? `Engenharia - Item ${first}`
+          : `Engenharia - Itens ${first} a ${last}`;
       };
 
       const drawSignatureCard = (
@@ -1507,13 +1550,27 @@ export function UrbanAnalysisChecklistPanel({
         }
       };
 
-      // Página 1 - dados principais + primeiros 20 itens de Engenharia.
+      // Distribuição adaptativa: ocupa profissionalmente a 1ª página sem
+      // estourar o rodapé. O restante continua na 2ª página.
+      const page1TableStartY = 82;
+      const page1RowsBottomY = 273;
+      const page1Split = takeRowsThatFit(
+        ENGINEERING_ITEMS,
+        page1TableStartY,
+        page1RowsBottomY,
+        false,
+      );
+      const page1Engineering =
+        page1Split.fit.length > 0 ? page1Split.fit : ENGINEERING_ITEMS.slice(0, 20);
+      const page2Engineering =
+        page1Split.fit.length > 0 ? page1Split.rest : ENGINEERING_ITEMS.slice(20);
+
       drawHeader(1);
       drawProcessSummary(47);
       let y = drawSectionRows(
-        "Engenharia - Itens 1 a 20",
-        ENGINEERING_ITEMS.slice(0, 20),
-        82,
+        engineeringSectionTitle(page1Engineering),
+        page1Engineering,
+        page1TableStartY,
       );
 
       doc.setTextColor(...muted);
@@ -1522,11 +1579,12 @@ export function UrbanAnalysisChecklistPanel({
       doc.text(
         "Legenda: A = De acordo   AP = Apresentar   C = Corrigir   N/A = Não se aplica",
         margin,
-        Math.min(y + 5.5, 281),
+        Math.min(y + 5.5, 280.5),
       );
       drawFooter(1);
 
-      // Página 2 - conclusão dos itens + externas + resultado + assinaturas.
+      // Página 2 - somente o que realmente não coube na primeira página,
+      // seguido das aprovações, resultado, assinaturas e retirada.
       doc.addPage();
       drawHeader(2, true);
       doc.setFillColor(250, 252, 254);
@@ -1551,15 +1609,22 @@ export function UrbanAnalysisChecklistPanel({
         { align: "right" },
       );
 
-      y = drawSectionRows(
-        "Engenharia - Itens 21 a 31",
-        ENGINEERING_ITEMS.slice(20),
-        61,
-        true,
-      );
-      y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y + 4, true);
+      y = 61;
+      if (page2Engineering.length > 0) {
+        y = drawSectionRows(
+          engineeringSectionTitle(page2Engineering),
+          page2Engineering,
+          y,
+          true,
+        );
+        y += 4;
+      }
 
-      const resultY = Math.max(y + 4, 170);
+      y = drawSectionRows("Aprovações externas", EXTERNAL_ITEMS, y, true);
+
+      // Mantém a metade inferior da 2ª página visualmente equilibrada e
+      // reserva espaço fixo para resultado, assinaturas e retirada.
+      const resultY = Math.max(y + 4, 148);
       doc.setFillColor(...light);
       doc.setDrawColor(...line);
       doc.roundedRect(margin, resultY, contentW, 25, 2.2, 2.2, "FD");
