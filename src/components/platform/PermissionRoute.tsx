@@ -169,7 +169,6 @@ export function PermissionRoute({
 
   const isAdminOnlyMunicipalPath =
     location.pathname === "/prefeitura" ||
-    location.pathname.startsWith("/prefeitura/organograma") ||
     location.pathname.startsWith("/configuracoes");
 
   const requiredOperationalArea =
