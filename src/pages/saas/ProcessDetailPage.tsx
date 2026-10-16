@@ -3142,7 +3142,7 @@ export function ProcessDetailPage() {
                           </CardTitle>
                         </div>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                          Esta cobrança pertence ao licenciamento atual. Habite-se não faz parte deste processo e, quando implantado, terá protocolo próprio.
+                          Esta cobrança pertence ao licenciamento atual. Habite-se não participa deste processo: ele possui protocolo, documentos e workflow próprios.
                         </p>
                       </div>
                       <Badge
@@ -3664,7 +3664,7 @@ export function ProcessDetailPage() {
             <CardContent className="space-y-5 pt-5">
               {!approvalPaymentRequired ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
-                  Esta Prefeitura não exige a guia de aprovação/Alvará neste workflow. O Habite-se, quando implantado, será aberto em protocolo próprio e independente.
+                  Esta Prefeitura não exige a guia de aprovação/Alvará neste workflow. O Habite-se é aberto em protocolo próprio e independente.
                 </div>
               ) : (
                 <>
