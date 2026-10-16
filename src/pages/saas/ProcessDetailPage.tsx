@@ -3315,6 +3315,166 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
+          {!isExternalProcessViewer && activeTab === "financeiro" && (
+          <Card className={cardShell}>
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <FileBadge2 className="h-5 w-5 text-violet-700 dark:text-violet-300" />
+                    Guia de Pagamento - Aprovação / Alvará
+                  </CardTitle>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    Cálculo: área aprovada × valor de referência do m² para o tipo de obra e acabamento × alíquota municipal, somado à taxa fixa do Alvará quando configurada. Habite-se não pertence a este fluxo.
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`rounded-full font-semibold ${
+                    !approvalPaymentRequired
+                      ? "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                      : approvalGuide?.status === "compensada"
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        : approvalGuide
+                          ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                          : constructionPaymentCompensated && allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements
+                            ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300"
+                            : "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                  }`}
+                >
+                  {!approvalPaymentRequired
+                    ? "Cobrança desativada"
+                    : approvalGuide?.status === "compensada"
+                      ? "Pagamento confirmado"
+                      : approvalGuide
+                        ? "Aguardando pagamento"
+                        : constructionPaymentCompensated && allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements
+                          ? "Pronta para emissão"
+                          : "Aguardando pré-requisitos"}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pt-5">
+              {!approvalPaymentRequired ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+                  Esta Prefeitura não exige a guia de aprovação/Alvará neste workflow. O Habite-se, quando implantado, será aberto em protocolo próprio e independente.
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Área aprovada</p>
+                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                        {approvalGuidePreview.areaM2.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Tipo / acabamento</p>
+                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                        {process.property.usage || "Não informado"} • {constructionStandardLabel}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Referência do m²</p>
+                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                        {formatCurrency(approvalGuidePreview.baseValueM2)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Alíquota</p>
+                      <p className="mt-2 font-semibold text-slate-950 dark:text-slate-100">
+                        {approvalGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatCurrency(approvalGuidePreview.licenseUnitValue)} / m² efetivo
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/30 dark:bg-violet-950/30">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700 dark:text-violet-300">Total da guia</p>
+                      <p className="mt-2 font-bold text-slate-950 dark:text-white">
+                        {formatCurrency(approvalGuide?.amount ?? approvalGuidePreview.totalAmount)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Alvará fixo: {formatCurrency(approvalGuidePreview.permitFee)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/30">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                          {approvalGuide
+                            ? `${approvalGuide.code} • ${formatCurrency(approvalGuide.amount)}`
+                            : `${formatCurrency(approvalGuidePreview.licenseAmount)} de taxa de licença + ${formatCurrency(approvalGuidePreview.permitFee)} de Alvará`}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                          {approvalGuide
+                            ? `Vencimento: ${approvalGuide.dueDate || "não informado"}. A guia emitida preserva o valor oficial gravado no processo.`
+                            : "A emissão usa a tabela financeira oficial da Prefeitura e grava o valor calculado no processo."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {approvalGuide ? (
+                          <>
+                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", false)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Visualizar guia
+                            </Button>
+                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", true)}>
+                              <Printer className="mr-2 h-4 w-4" />
+                              Imprimir guia
+                            </Button>
+                            {approvalGuide.status !== "compensada" && canFinanceOperate ? (
+                              <Button
+                                type="button"
+                                className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                                disabled={processActionBusy === "confirm-approval-payment"}
+                                onClick={() => void handleConfirmApprovalPayment()}
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                {processActionBusy === "confirm-approval-payment"
+                                  ? "Confirmando..."
+                                  : "Confirmar pagamento"}
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-violet-700 px-6 !text-white shadow-sm hover:bg-violet-800 [&_*]:!text-white"
+                            disabled={
+                              processActionBusy === "generate-approval-guide" ||
+                              !constructionPaymentCompensated ||
+                              !allAnalysisDocumentsApproved ||
+                              hasOpenAnalysisRequirements ||
+                              !canAnalysisOperate ||
+                              !ownsCurrentProcessStage ||
+                              approvalGuidePreview.totalAmount <= 0
+                            }
+                            onClick={handleGenerateApprovalGuide}
+                          >
+                            <FileKey2 className="mr-2 h-4 w-4" />
+                            {processActionBusy === "generate-approval-guide"
+                              ? "Emitindo..."
+                              : "Emitir guia de aprovação / Alvará"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {!approvalGuide && approvalGuidePreview.totalAmount <= 0 ? (
+                      <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
+                        Configure a tabela oficial do tipo de obra, acabamento, alíquota e taxa do Alvará no Financeiro antes da emissão.
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+          )}
+
           {activeTab === "historico" && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 pb-4">
