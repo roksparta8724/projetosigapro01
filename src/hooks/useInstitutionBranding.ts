@@ -36,6 +36,9 @@ const getCachedMasterFooterUrl = () =>
 function isUsableBrandingUrl(value: string | null | undefined) {
   const raw = String(value || "").trim();
   if (!raw) return false;
+  // Referências persistentes privadas (r2:) são fonte de dados, não URL de <img>.
+  // Elas precisam ser assinadas antes de chegar ao componente visual.
+  if (raw.startsWith("r2:")) return false;
   try {
     const url = new URL(raw, typeof window !== "undefined" ? window.location.origin : "https://sigapromunicipal.com.br");
     const amzDate = url.searchParams.get("X-Amz-Date");
@@ -419,17 +422,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.logoUrl ||
       "";
     const brandingUrl = isUsableBrandingUrl(rawHeaderUrl) ? rawHeaderUrl : "";
-    const hasPersistedHeaderIdentity = Boolean(
-      scopedMunicipalityBranding?.headerLogoObjectKey ||
-      scopedMunicipalityBranding?.logoObjectKey ||
-      scopedMunicipalityBranding?.headerLogoUrl ||
-      scopedMunicipalityBranding?.logoUrl,
-    );
     const institutionalFallback =
       (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
-      (!hasPersistedHeaderIdentity
-        ? municipalityLogoFallback(scopedMunicipality?.name || institution?.name)
-        : "");
+      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantHeaderLogo =
       resolvedTenantHeaderLogoUrl ||
       brandingUrl ||
@@ -493,19 +488,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.logoUrl ||
       "";
     const brandingUrl = isUsableBrandingUrl(rawFooterUrl) ? rawFooterUrl : "";
-    const hasPersistedFooterIdentity = Boolean(
-      scopedMunicipalityBranding?.footerLogoObjectKey ||
-      scopedMunicipalityBranding?.logoObjectKey ||
-      scopedMunicipalityBranding?.headerLogoObjectKey ||
-      scopedMunicipalityBranding?.footerLogoUrl ||
-      scopedMunicipalityBranding?.logoUrl ||
-      scopedMunicipalityBranding?.headerLogoUrl,
-    );
     const institutionalFallback =
       (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
-      (!hasPersistedFooterIdentity
-        ? municipalityLogoFallback(scopedMunicipality?.name || institution?.name)
-        : "");
+      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantFooterLogo =
       resolvedTenantFooterLogoUrl ||
       brandingUrl ||
