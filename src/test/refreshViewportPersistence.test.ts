@@ -17,7 +17,8 @@ describe("refresh viewport persistence", () => {
 
   it("keeps continuity inside the real root instead of overlaying the application", () => {
     expect(main).toContain("persistRefreshContinuity");
-    expect(main).toContain("CONTINUITY_KEY");
+    expect(main).toContain('const CONTINUITY_KEY = "sigapro.refresh.continuity.v1"');
+    expect(main).toContain("window.sessionStorage.setItem");
     expect(main).not.toContain("persistVisualSnapshot");
     expect(main).not.toContain("snapshot.html");
   });
