@@ -420,11 +420,12 @@ export function ConstructionPermitPanel({
 
   const savePermitForm = async (
     closeAfterSave = true,
+    manageBusy = true,
   ): Promise<ConstructionPermitRecord | null> => {
     const localDraft = buildDraftFromForm();
     if (!localDraft) return null;
 
-    setWorkflowBusy("save");
+    if (manageBusy) setWorkflowBusy("save");
     try {
       const official = await saveOfficialConstructionPermitDraft({
         processId: process.id,
@@ -457,7 +458,7 @@ export function ConstructionPermitPanel({
       );
       return null;
     } finally {
-      setWorkflowBusy(null);
+      if (manageBusy) setWorkflowBusy(null);
     }
   };
 
@@ -471,7 +472,7 @@ export function ConstructionPermitPanel({
 
     setWorkflowBusy("request");
     try {
-      const saved = await savePermitForm(false);
+      const saved = await savePermitForm(false, false);
       if (!saved) return;
 
       const official = await requestOfficialPermitDirectorSignature(process.id);
@@ -510,7 +511,7 @@ export function ConstructionPermitPanel({
 
     setWorkflowBusy("manual");
     try {
-      const saved = await savePermitForm(false);
+      const saved = await savePermitForm(false, false);
       if (!saved) return;
 
       const official = await markOfficialPermitForManualSignature(process.id);
@@ -715,15 +716,15 @@ export function ConstructionPermitPanel({
                 Preencher Alvará
               </Button>
             ) : null}
-            {permit ? (
+            {canPreview ? (
               <Button
                 type="button"
-                onClick={openPdf}
+                onClick={() => openPdf(permit, manualSignatureSelected)}
                 data-premium-dark-action="true"
                 className="h-9 rounded-full border border-cyan-200/40 bg-[#0e7490] px-4 text-[12px] font-bold !text-white shadow-[0_8px_18px_rgba(8,145,178,0.22)] hover:bg-[#0891b2]"
               >
                 <Eye className="mr-2 h-4 w-4" />
-                Visualizar Alvará
+                {directorOfficial ? "Abrir PDF oficial" : "Abrir PDF para assinatura"}
               </Button>
             ) : null}
           </div>
@@ -903,9 +904,13 @@ export function ConstructionPermitPanel({
                             ? `${permit.directorSignature.name} • ${new Date(
                                 permit.directorSignature.signedAt,
                               ).toLocaleString("pt-BR")}`
-                            : permitReadyForSignature
-                              ? "Aguardando Diretor"
-                              : "Disponível após a conclusão das etapas obrigatórias"}
+                            : manualSignatureSelected
+                              ? "PDF preparado para assinatura à caneta"
+                              : directorRequestPending
+                                ? "Solicitação eletrônica enviada à Diretoria"
+                                : permitReadyForSignature
+                                  ? "Escolha assinatura eletrônica ou assinatura à caneta"
+                                  : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
                         {permit.directorSignature?.verificationCode ? (
                           <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
@@ -914,7 +919,9 @@ export function ConstructionPermitPanel({
                         ) : null}
                       </div>
                     </div>
-                    {!directorOfficial ? (
+                    {!directorOfficial &&
+                    directorRequestPending &&
+                    userCanSignPermitAsDirector(session) ? (
                       <Button
                         type="button"
                         className="mt-4 rounded-full bg-violet-700 px-5 text-white hover:bg-violet-800"
@@ -922,7 +929,19 @@ export function ConstructionPermitPanel({
                         onClick={signAsDirector}
                       >
                         <Signature className="mr-2 h-4 w-4" />
-                        Assinar como Diretor
+                        Assinar eletronicamente como Diretor
+                      </Button>
+                    ) : null}
+
+                    {manualSignatureSelected && !directorOfficial ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 rounded-full border-sky-300 text-sky-800 dark:border-sky-500/40 dark:text-sky-200"
+                        onClick={() => openPdf(permit, true)}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Abrir PDF para assinatura à caneta
                       </Button>
                     ) : null}
 
@@ -1008,7 +1027,7 @@ export function ConstructionPermitPanel({
                         Alvará de Construção
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
-                        O formulário abre sobre o processo, já preenchido com os dados existentes. Revise os dados e gere o PDF do Alvará; a emissão oficial ocorre com a assinatura da Diretoria.
+                        Revise e salve os dados. Depois escolha: solicitar a assinatura eletrônica da Diretoria ou gerar o PDF para o Diretor assinar à caneta. Se o Secretário assinar eletronicamente, a assinatura dele aparecerá automaticamente no Alvará.
                       </DialogDescription>
                     </div>
                   </div>
@@ -1126,28 +1145,64 @@ export function ConstructionPermitPanel({
                 </div>
 
                 <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-950">
-                  <Button type="button" variant="outline" className="rounded-full" onClick={() => setFillOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-full" onClick={() => savePermitForm(false)}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Salvar rascunho
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-full border-sky-300 text-sky-800 dark:border-sky-500/40 dark:text-sky-200" onClick={() => savePermitForm(true)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Salvar e visualizar
-                  </Button>
-                  <Button
-                    type="button"
-                    className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
-                    onClick={() => {
-                      const next = savePermitForm(false);
-                      if (next) openPdf(next);
-                    }}
-                  >
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Gerar PDF do Alvará
-                  </Button>
+                  <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={Boolean(workflowBusy)}
+                        onClick={() => setFillOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={Boolean(workflowBusy)}
+                        onClick={() => void savePermitForm(true)}
+                      >
+                        {workflowBusy === "save" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Salvar rascunho
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
+                        disabled={!permitReadyForSignature || Boolean(workflowBusy)}
+                        onClick={() => void requestDirectorSignature()}
+                      >
+                        {workflowBusy === "request" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="mr-2 h-4 w-4" />
+                        )}
+                        Solicitar assinatura eletrônica
+                      </Button>
+
+                      <Button
+                        type="button"
+                        className="rounded-full bg-sky-700 px-5 font-bold text-white hover:bg-sky-800"
+                        disabled={!permitReadyForSignature || Boolean(workflowBusy)}
+                        onClick={() => void generateManualSignaturePdf()}
+                      >
+                        {workflowBusy === "manual" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="mr-2 h-4 w-4" />
+                        )}
+                        Gerar PDF para assinatura à caneta
+                      </Button>
+                    </div>
+                  </div>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
