@@ -53,7 +53,6 @@ import {
   ArtifactSignatureError,
   getProcessArtifactSignatures,
   signProcessArtifactWithPassword,
-  type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
 import type { ProcessRecord, SessionUser, UserProfile } from "@/lib/platform";
 
@@ -79,8 +78,14 @@ type ConstructionPermitPanelProps = {
 
 function permitStatusLabel(record: ConstructionPermitRecord | null) {
   if (!record) return "Ainda não preparado";
-  if (record.status === "emitido") return "Alvará emitido";
-  if (record.status === "aguardando_diretor") return "Aguardando Diretor";
+  const directorOfficial = Boolean(
+    record.directorSignature?.official &&
+    record.directorSignature?.verificationCode,
+  );
+  if (directorOfficial) return "Alvará emitido";
+  if (record.status === "aguardando_diretor" || record.directorSignature) {
+    return "Aguardando confirmação da Diretoria";
+  }
   return "Em preparação";
 }
 
@@ -253,22 +258,30 @@ export function ConstructionPermitPanel({
     userCanSignPermitAsAnalyst(session, process);
   const permitReadyForSignature =
     issPaymentConfirmed && allDocumentsApproved;
+  const directorOfficial = Boolean(
+    permit?.directorSignature?.official &&
+    permit?.directorSignature?.verificationCode,
+  );
+  const secretaryOfficial = Boolean(
+    permit?.secretarySignature?.official &&
+    permit?.secretarySignature?.verificationCode,
+  );
   const canSignDirector =
     Boolean(permit) &&
     permitReadyForSignature &&
-    !permit?.directorSignature &&
+    !directorOfficial &&
     !externalView &&
     userCanSignPermitAsDirector(session);
   const canSignSecretary =
-    Boolean(permit?.directorSignature) &&
-    !permit?.secretarySignature &&
+    directorOfficial &&
+    !secretaryOfficial &&
     !externalView &&
     userCanSignPermitAsSecretary(session);
   const canPreview = Boolean(permit);
   const canEditForm =
     canStartDraft &&
-    !permit?.directorSignature;
-  const isIssued = Boolean(permit?.directorSignature) || permit?.status === "emitido";
+    !directorOfficial;
+  const isIssued = directorOfficial;
 
   const openPdf = (record: ConstructionPermitRecord | null = permit) => {
     if (!record) return;
@@ -399,7 +412,7 @@ export function ConstructionPermitPanel({
       return;
     }
 
-    const slot: ArtifactSignerSlot =
+    const slot: "diretoria" | "secretaria" =
       signatureDialog === "director" ? "diretoria" : "secretaria";
 
     setSignatureBusy(true);
@@ -704,10 +717,10 @@ export function ConstructionPermitPanel({
               </div>
             ) : (
               <>
-                <div className={permit.secretarySignature ? "grid gap-3 lg:grid-cols-2" : "grid gap-3"}>
+                <div className={secretaryOfficial ? "grid gap-3 lg:grid-cols-2" : "grid gap-3"}>
                   <div
                     className={
-                      permit.directorSignature
+                      directorOfficial
                         ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
                         : "rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
                     }
@@ -736,7 +749,7 @@ export function ConstructionPermitPanel({
                         ) : null}
                       </div>
                     </div>
-                    {!permit.directorSignature ? (
+                    {!directorOfficial ? (
                       <Button
                         type="button"
                         className="mt-4 rounded-full bg-violet-700 px-5 text-white hover:bg-violet-800"
@@ -761,7 +774,7 @@ export function ConstructionPermitPanel({
                     ) : null}
                   </div>
 
-                  {permit.secretarySignature ? (
+                  {secretaryOfficial ? (
                     <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
