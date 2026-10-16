@@ -82,10 +82,16 @@ export function InstitutionalLogo({
   const isMaster = branding.tenantId === "master";
   const context = `${variant}:${branding.tenantId}`;
   const requestedUrl = resolveAssetUrl(branding.logoUrl);
-  const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : "");
+  const municipalFallbackUrl = resolveAssetUrl(branding.fallbackLogoUrl);
+  const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
+  const secondaryUrl = isMaster
+    ? SIGAPRO_OFFICIAL_LOGO
+    : municipalFallbackUrl && !sameAssetResource(municipalFallbackUrl, primaryUrl)
+      ? municipalFallbackUrl
+      : "";
   const imageUrl = failedSources.includes(primaryUrl)
-    ? isMaster && primaryUrl !== SIGAPRO_OFFICIAL_LOGO && !failedSources.includes(SIGAPRO_OFFICIAL_LOGO)
-      ? SIGAPRO_OFFICIAL_LOGO
+    ? secondaryUrl && !failedSources.includes(secondaryUrl)
+      ? secondaryUrl
       : ""
     : primaryUrl;
 
