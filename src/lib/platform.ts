@@ -377,7 +377,15 @@ export interface MunicipalApprovalRateProfile {
   label: string;
   usage: string;
   standard: string;
+  /**
+   * Valor de referência do metro quadrado para o tipo/padrão.
+   * A taxa de licença é calculada aplicando a alíquota municipal sobre este valor.
+   */
   rate: number;
+  /**
+   * Taxa fixa do Alvará para esta combinação. Quando ausente, usa a taxa fixa geral.
+   */
+  permitFee?: number;
 }
 
 export interface InstitutionAdminContact {
@@ -431,6 +439,11 @@ export interface TenantSettings {
   issRateProfiles?: MunicipalIssRateProfile[];
   issStageEnabled?: boolean;
   taxaAprovacaoFinal: number;
+  /**
+   * Alíquota aplicada sobre (área × valor de referência do m²) na guia de aprovação.
+   * Campo Limpo Paulista utiliza 5% no modelo informado.
+   */
+  approvalAliquotPercent?: number;
   finalApprovalFeeEnabled?: boolean;
   constructionGuideIssuerMode?: "analise" | "financeiro" | "ambos";
   approvalRateProfiles?: MunicipalApprovalRateProfile[];
@@ -790,7 +803,7 @@ export function getGuideLabel(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Guia de ISSQN / Projeto";
     case "aprovacao_final":
-      return "Guia de Recolhimento da Obra";
+      return "Guia de Pagamento - Aprovação / Alvará";
   }
 }
 
@@ -801,7 +814,7 @@ export function getGuideReference(kind: PaymentGuideKind) {
     case "iss_obra":
       return "ISSQN / Projeto calculado pela metragem e pelo uso da edificação";
     case "aprovacao_final":
-      return "Guia de Recolhimento da Obra gerada após aprovação técnica";
+      return "Aprovação do projeto e emissão do Alvará; Habite-se possui protocolo próprio";
   }
 }
 
@@ -812,7 +825,7 @@ export function getGuideObservation(kind: PaymentGuideKind) {
     case "iss_obra":
       return "Documento de arrecadação municipal de ISSQN / Projeto, calculado pela metragem e pelo uso da edificação conforme a tabela oficial da Prefeitura.";
     case "aprovacao_final":
-      return "Documento de arrecadação municipal gerado após a aprovação técnica, conforme o workflow definido pela Prefeitura e as regras financeiras oficiais.";
+      return "Guia de aprovação do projeto e Alvará. A taxa de licença considera área, tipo de obra, padrão de acabamento e alíquota municipal. Habite-se é um protocolo separado.";
   }
 }
 
@@ -897,8 +910,13 @@ export function isIssFeeConfigured(settings?: TenantSettings | null) {
 }
 
 export function isFinalApprovalFeeConfigured(settings?: TenantSettings | null) {
+  const aliquot = Number(settings?.approvalAliquotPercent ?? 5);
   return Boolean(
-    (settings?.approvalRateProfiles ?? []).some((profile) => Number(profile.rate) > 0) ||
+    (settings?.approvalRateProfiles ?? []).some(
+      (profile) =>
+        (Number(profile.rate) > 0 && aliquot > 0) ||
+        Number(profile.permitFee ?? 0) > 0,
+    ) ||
     Number(settings?.taxaAprovacaoFinal ?? 0) > 0,
   );
 }
@@ -936,16 +954,60 @@ export function resolveApprovalRateProfile(
   );
 }
 
+export interface ApprovalGuideBreakdown {
+  areaM2: number;
+  usage: string;
+  standard: string;
+  baseValueM2: number;
+  aliquotPercent: number;
+  licenseUnitValue: number;
+  licenseAmount: number;
+  permitFee: number;
+  totalAmount: number;
+  profile?: MunicipalApprovalRateProfile | null;
+}
+
+export function calculateApprovalGuideBreakdown(
+  area: number,
+  usage: string | null | undefined,
+  standard: string | null | undefined,
+  settings?: TenantSettings | null,
+): ApprovalGuideBreakdown {
+  const profile = resolveApprovalRateProfile(usage, standard, settings);
+  const areaM2 = Math.max(0, Number(area || 0));
+  const baseValueM2 = Math.max(0, Number(profile?.rate ?? 0));
+  const aliquotPercent = Math.max(0, Number(settings?.approvalAliquotPercent ?? 5));
+  const permitFee = Math.max(
+    0,
+    Number(profile?.permitFee ?? settings?.taxaAprovacaoFinal ?? 0),
+  );
+  const licenseUnitValue = Number(
+    (baseValueM2 * (aliquotPercent / 100)).toFixed(4),
+  );
+  const licenseAmount = Number((areaM2 * licenseUnitValue).toFixed(2));
+  const totalAmount = Number((permitFee + licenseAmount).toFixed(2));
+
+  return {
+    areaM2,
+    usage: usage ?? "",
+    standard: standard ?? "medio",
+    baseValueM2,
+    aliquotPercent,
+    licenseUnitValue,
+    licenseAmount,
+    permitFee,
+    totalAmount,
+    profile,
+  };
+}
+
 export function calculateApprovalGuideAmount(
   area: number,
   usage: string | null | undefined,
   standard: string | null | undefined,
   settings?: TenantSettings | null,
 ) {
-  const profile = resolveApprovalRateProfile(usage, standard, settings);
-  const fallbackFixed = settings?.taxaAprovacaoFinal ?? 0;
-  if (!profile) return Number(fallbackFixed.toFixed(2));
-  return Number(((area || 0) * profile.rate).toFixed(2));
+  return calculateApprovalGuideBreakdown(area, usage, standard, settings).totalAmount;
 }
 
 
