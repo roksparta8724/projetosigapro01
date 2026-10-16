@@ -338,6 +338,46 @@ begin
 end;
 $$;
 
+create or replace function private.complete_construction_permit_signature()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public','private'
+set row_security to 'off'
+as $
+declare
+  _block public.signature_blocks%rowtype;
+begin
+  if new.status <> 'concluido' then
+    return new;
+  end if;
+
+  select * into _block
+  from public.signature_blocks
+  where id=new.signature_block_id;
+
+  if _block.id is null or _block.artifact_type <> 'construction_permit' then
+    return new;
+  end if;
+
+  if new.signer_slot='diretoria' then
+    update public.process_construction_permits
+    set status='signed',
+        signature_mode='electronic',
+        updated_at=clock_timestamp()
+    where process_id=_block.process_id;
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists trg_complete_construction_permit_signature on public.signatures;
+create trigger trg_complete_construction_permit_signature
+after insert on public.signatures
+for each row
+execute function private.complete_construction_permit_signature();
+
 revoke all on function public.get_construction_permit_v1(uuid) from public;
 revoke all on function public.save_construction_permit_draft_v1(uuid,text,jsonb) from public;
 revoke all on function public.request_construction_permit_director_signature_v1(uuid) from public;
