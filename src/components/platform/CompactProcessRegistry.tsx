@@ -51,7 +51,7 @@ function currentFlowLabel(process: ProcessRecord) {
 
 function latestMovementAt(process: ProcessRecord) {
   const timelineAt = process.timeline?.[0]?.at;
-  return timelineAt || process.analysis?.startedAt || process.createdAt || "";
+  return timelineAt || process.analysis?.startedAt || "";
 }
 
 export function CompactProcessRegistry({
