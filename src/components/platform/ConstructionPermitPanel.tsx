@@ -191,6 +191,62 @@ export function ConstructionPermitPanel({
       );
   }, [municipalityId, process.id]);
 
+  useEffect(() => {
+    if (!permit) return;
+    let active = true;
+
+    void getProcessArtifactSignatures(process.id, "construction-permit")
+      .then((snapshot) => {
+        if (!active || !snapshot.block) return;
+
+        let next = permit;
+        const director = snapshot.signers.find((item) => item.slot === "diretoria");
+        const secretary = snapshot.signers.find((item) => item.slot === "secretaria");
+
+        if (director && !next.directorSignature?.official) {
+          next = applyConstructionPermitOfficialSignature(next, "diretoria", {
+            profileId: director.profile_id || "",
+            name: director.name || "Diretor(a)",
+            role: director.title || director.role || "Diretor(a)",
+            signedAt: director.signed_at || snapshot.block.completed_at || new Date().toISOString(),
+            verificationCode: snapshot.block.verification_code,
+            evidenceHash: snapshot.block.artifact_hash,
+            registration: director.registration ?? null,
+            authMethod: director.auth_method || "password_reauth",
+            official: true,
+          });
+        }
+
+        if (secretary && !next.secretarySignature?.official) {
+          next = applyConstructionPermitOfficialSignature(next, "secretaria", {
+            profileId: secretary.profile_id || "",
+            name: secretary.name || "Secretário(a)",
+            role: secretary.title || secretary.role || "Secretário(a)",
+            signedAt: secretary.signed_at || snapshot.block.completed_at || new Date().toISOString(),
+            verificationCode: snapshot.block.verification_code,
+            evidenceHash: snapshot.block.artifact_hash,
+            registration: secretary.registration ?? null,
+            authMethod: secretary.auth_method || "password_reauth",
+            official: true,
+          });
+        }
+
+        if (next !== permit) setPermit(next);
+      })
+      .catch((error) => {
+        console.error("[SIGAPRO][Alvará] Falha ao carregar assinaturas oficiais.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    permit?.directorSignature?.official,
+    permit?.secretarySignature?.official,
+    permit?.updatedAt,
+    process.id,
+  ]);
+
   const selectedDirector =
     directors.find((item) => item.id === selectedDirectorId) ?? directors[0];
   const canStartDraft =
@@ -503,7 +559,7 @@ export function ConstructionPermitPanel({
                     {permit.permitNumber}
                   </p>
                   <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
-                    Alvará assinado pela Análise Técnica e pela Diretoria responsável.
+                    Alvará assinado eletronicamente pela Diretoria responsável.
                   </p>
                 </div>
                 <Button
@@ -595,7 +651,7 @@ export function ConstructionPermitPanel({
                 <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
                   {isIssued
                     ? "Alvará concluído"
-                    : permit?.analystSignature
+                    : permit
                       ? "Assinatura do Diretor"
                       : "Preparar Alvará"}
                 </p>
@@ -610,7 +666,7 @@ export function ConstructionPermitPanel({
                       O Alvará pode ser preparado antecipadamente em rascunho.
                     </p>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                      O analista já pode conferir e preencher todos os dados do documento. A assinatura técnica e a emissão final permanecem bloqueadas até o pagamento do ISSQN / Projeto estar compensado e a análise documental estar concluída.
+                      O analista já pode conferir e preencher todos os dados do documento. A assinatura da Diretoria e a emissão final permanecem bloqueadas até o pagamento do ISSQN / Projeto estar compensado e a análise documental estar concluída.
                     </p>
                   </div>
                   <Button
@@ -645,122 +701,7 @@ export function ConstructionPermitPanel({
               </div>
             ) : (
               <>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                          Número do alvará
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
-                          {permit.permitNumber}
-                        </p>
-                      </div>
-                      <FileBadge2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
-                    </div>
-                    <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      O PDF em rascunho recebe marca d’água “SEM VALIDADE”. Ela
-                      só desaparece depois das duas assinaturas.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {canEditForm ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-full"
-                          onClick={openPermitForm}
-                        >
-                          <ClipboardPenLine className="mr-2 h-4 w-4" />
-                          Editar preenchimento
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        disabled={!canPreview}
-                        onClick={openPdf}
-                      >
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Visualizar guia do Alvará
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      Diretor responsável
-                    </p>
-                    {directors.length > 0 ? (
-                      <Select
-                        value={selectedDirectorId}
-                        onValueChange={setSelectedDirectorId}
-                      >
-                        <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-900">
-                          <SelectValue placeholder="Selecionar Diretor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {directors.map((director) => (
-                            <SelectItem key={director.id} value={director.id}>
-                              {director.name} • {director.title || "Diretor"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
-                        Nenhum usuário com cargo de Diretor/Diretora de
-                        Planejamento Urbano ou Obras está cadastrado nesta
-                        Prefeitura. O sistema não cria assinatura fictícia.
-                      </div>
-                    )}
-                    {selectedDirector ? (
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        Assinatura prevista: {selectedDirector.name} •{" "}
-                        {selectedDirector.title || selectedDirector.profileLabel}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <div
-                    className={
-                      permit.analystSignature
-                        ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
-                        : "rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
-                    }
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                        <UserCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-950 dark:text-white">
-                          Assinatura da Análise Técnica
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {permit.analystSignature
-                            ? `${permit.analystSignature.name} • ${new Date(
-                                permit.analystSignature.signedAt,
-                              ).toLocaleString("pt-BR")}`
-                            : "Pendente"}
-                        </p>
-                      </div>
-                    </div>
-                    {!permit.analystSignature ? (
-                      <Button
-                        type="button"
-                        className="mt-4 rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
-                        disabled={!canSignAnalyst}
-                        onClick={signAsAnalyst}
-                      >
-                        <Signature className="mr-2 h-4 w-4" />
-                        Assinar como Analista
-                      </Button>
-                    ) : null}
-                  </div>
-
+                <div className={permit.secretarySignature ? "grid gap-3 lg:grid-cols-2" : "grid gap-3"}>
                   <div
                     className={
                       permit.directorSignature
@@ -781,13 +722,18 @@ export function ConstructionPermitPanel({
                             ? `${permit.directorSignature.name} • ${new Date(
                                 permit.directorSignature.signedAt,
                               ).toLocaleString("pt-BR")}`
-                            : permit.analystSignature
+                            : permitReadyForSignature
                               ? "Aguardando Diretor"
-                              : "Disponível após a assinatura técnica"}
+                              : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
+                        {permit.directorSignature?.verificationCode ? (
+                          <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                            Código: {permit.directorSignature.verificationCode}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
-                    {!permit.directorSignature && permit.analystSignature ? (
+                    {!permit.directorSignature ? (
                       <Button
                         type="button"
                         className="mt-4 rounded-full bg-violet-700 px-5 text-white hover:bg-violet-800"
@@ -798,7 +744,44 @@ export function ConstructionPermitPanel({
                         Assinar como Diretor
                       </Button>
                     ) : null}
+
+                    {canSignSecretary ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3 rounded-full border-sky-300 text-sky-800 dark:border-sky-500/40 dark:text-sky-200"
+                        onClick={signAsSecretary}
+                      >
+                        <Signature className="mr-2 h-4 w-4" />
+                        Assinar também como Secretário
+                      </Button>
+                    ) : null}
                   </div>
+
+                  {permit.secretarySignature ? (
+                    <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                          <BadgeCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-950 dark:text-white">
+                            Assinatura da Secretaria
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {permit.secretarySignature.name} • {new Date(
+                              permit.secretarySignature.signedAt,
+                            ).toLocaleString("pt-BR")}
+                          </p>
+                          {permit.secretarySignature.verificationCode ? (
+                            <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                              Código: {permit.secretarySignature.verificationCode}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {isIssued ? (
@@ -812,8 +795,7 @@ export function ConstructionPermitPanel({
                           </p>
                         </div>
                         <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
-                          As duas assinaturas foram registradas e o PDF final
-                          está disponível no processo.
+                          A assinatura obrigatória da Diretoria foi registrada e o PDF oficial está disponível no processo.
                         </p>
                       </div>
                       <Button
@@ -845,7 +827,7 @@ export function ConstructionPermitPanel({
                         Alvará de Construção
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
-                        O formulário abre sobre o processo, já preenchido com os dados existentes. Revise, ajuste o necessário e salve o rascunho antes das assinaturas.
+                        O formulário abre sobre o processo, já preenchido com os dados existentes. Revise os dados e gere o PDF do Alvará; a emissão oficial ocorre com a assinatura da Diretoria.
                       </DialogDescription>
                     </div>
                   </div>
@@ -970,9 +952,33 @@ export function ConstructionPermitPanel({
                     <Save className="mr-2 h-4 w-4" />
                     Salvar rascunho
                   </Button>
-                  <Button type="button" className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800" onClick={() => savePermitForm(true)}>
+                  <Button type="button" variant="outline" className="rounded-full border-sky-300 text-sky-800 dark:border-sky-500/40 dark:text-sky-200" onClick={() => savePermitForm(true)}>
                     <Eye className="mr-2 h-4 w-4" />
-                    Salvar e visualizar Alvará
+                    Salvar e visualizar
+                  </Button>
+                  <Button type="button" className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800" onClick={() => {
+                    savePermitForm(false);
+                    const record =
+                      permit ??
+                      createConstructionPermitDraft(process, municipalityId, {
+                        ...formData,
+                        technicalRegistration:
+                          formData.technicalRegistration ||
+                          technicalProfile?.registrationNumber ||
+                          "",
+                      });
+                    const next = updateConstructionPermitFormData(record, {
+                      ...formData,
+                      technicalRegistration:
+                        formData.technicalRegistration ||
+                        technicalProfile?.registrationNumber ||
+                        "",
+                    });
+                    setPermit(next);
+                    openPdf(next);
+                  }}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Gerar PDF do Alvará
                   </Button>
                 </DialogFooter>
               </DialogContent>
