@@ -57,8 +57,9 @@ describe("municipal legislation assets", () => {
 
   it("shows the official zoning PDF in the zoning workspace", () => {
     expect(zoning).toContain("Documento oficial do zoneamento");
-    expect(zoning).toContain("institutionSettings?.zoneamentoArquivoUrl");
-    expect(zoning).toContain("institutionSettings?.zoneamentoArquivoNome");
+    expect(zoning).toContain("liveInstitutionSettings?.zoneamentoArquivoUrl");
+    expect(zoning).toContain("institutionSettingsCompat?.zoneamentoArquivoUrl");
+    expect(zoning).toContain("liveInstitutionSettings?.zoneamentoArquivoNome");
     expect(zoning).toContain("openZoningDocument");
     expect(zoning).toContain("getSignedUrlForObjectStrict");
     expect(zoning).toContain("Abrir guia");
@@ -81,6 +82,18 @@ describe("municipal legislation assets", () => {
     expect(r2UploadApi).toContain('if (value === "process-documents") return documents');
     expect(legislation).toContain('bucket: "process-documents"');
     expect(zoning).toContain('bucket: "process-documents"');
+  });
+
+  it("refreshes the municipality bundle and prefers live legal attachments after saving", () => {
+    expect(settings).toContain("bootstrap.refreshMunicipalityBundle(savedTenantId)");
+    expect(settings).toContain("sigapro-municipality-settings-updated");
+    expect(legislation).toContain("const liveSettings = getInstitutionSettings");
+    expect(legislation).toContain(
+      "liveSettings.usoSoloArquivoUrl || base.usoSoloArquivoUrl",
+    );
+    expect(legislation).toContain(
+      "liveSettings.zoneamentoArquivoUrl || base.zoneamentoArquivoUrl",
+    );
   });
 
   it("shows an explicit official-storage state in upload cards", () => {
