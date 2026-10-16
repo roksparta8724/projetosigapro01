@@ -392,6 +392,66 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    if (artifactType === "construction_permit" && signerSlot === "diretoria") {
+      const permitResult = await callDataApiRpc<{
+        permit?: { status?: string; signature_mode?: string } | null;
+      }>(
+        bearer,
+        "get_construction_permit_v1",
+        { _process_id: processId },
+      );
+
+      const permitState = permitResult.payload?.permit;
+      if (
+        !permitResult.ok ||
+        !permitState ||
+        permitState.status !== "awaiting_director" ||
+        permitState.signature_mode !== "electronic"
+      ) {
+        fail(
+          res,
+          409,
+          "authorization",
+          "PERMIT_DIRECTOR_REQUEST_REQUIRED",
+          permitResult.error,
+          "O Analista Técnico precisa solicitar a assinatura eletrônica da Diretoria antes desta assinatura.",
+        );
+        return;
+      }
+    }
+
+    if (artifactType === "construction_permit" && signerSlot === "secretaria") {
+      const signatureState = await callDataApiRpc<{
+        signers?: Array<{ slot?: string; status?: string }>;
+      }>(
+        bearer,
+        "get_process_artifact_signatures_v1",
+        {
+          _process_id: processId,
+          _artifact_key: artifactKey,
+        },
+      );
+
+      const directorSigned = Boolean(
+        signatureState.ok &&
+        signatureState.payload?.signers?.some(
+          (item) => item.slot === "diretoria" && item.status === "concluido",
+        ),
+      );
+
+      if (!directorSigned) {
+        fail(
+          res,
+          409,
+          "authorization",
+          "PERMIT_DIRECTOR_SIGNATURE_REQUIRED",
+          signatureState.error,
+          "A assinatura opcional da Secretaria só pode ser registrada depois da assinatura eletrônica da Diretoria.",
+        );
+        return;
+      }
+    }
+
     const contextResult = await callDataApiRpc<ArtifactContext>(
       bearer,
       "get_process_artifact_signature_context_v1",
