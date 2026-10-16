@@ -60,4 +60,15 @@ describe("finance process accounting ledger", () => {
     expect(desk).toContain("controlSettledValue");
     expect(desk).toContain("Protocolos em aberto");
   });
+
+  it("shows every emitted guide in an ordered grid while preserving protocol responsibility", () => {
+    expect(desk).toContain("issuedGuideRows");
+    expect(desk).toContain("[...controlGuides].sort");
+    expect(desk).toContain("bIssued - aIssued");
+    expect(desk).toContain("lg:grid-cols-2 2xl:grid-cols-3");
+    expect(desk).toContain("Baixa operacional: Protocolo");
+    expect(desk).toContain("Controle: Financeiro");
+    expect(desk).toContain('title="Guias emitidas"');
+    expect(desk).not.toContain("guidesByIssueDate");
+  });
 });
