@@ -185,8 +185,8 @@ export function ZoningPage() {
     institutionSettingsCompat ??
     getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const zoningFileName =
-    institutionSettings?.usoSoloArquivoNome?.trim() || "Zoneamento municipal";
-  const zoningFileUrl = institutionSettings?.usoSoloArquivoUrl?.trim() || "";
+    institutionSettings?.zoneamentoArquivoNome?.trim() || "Zoneamento municipal";
+  const zoningFileUrl = institutionSettings?.zoneamentoArquivoUrl?.trim() || "";
   const canManageRules =
     can(session, "manage_tenant_users") ||
     session.role === "master_admin" ||
@@ -468,7 +468,7 @@ export function ZoningPage() {
                 PDF de zoneamento ainda não vinculado
               </p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Anexe a Lei de Uso e Ocupação do Solo / Zoneamento no Acervo legal municipal para que o documento apareça aqui automaticamente.
+                Anexe o PDF específico de Zoneamento no Acervo legal municipal. A Lei de Uso e Ocupação do Solo permanece como outro documento independente.
               </p>
             </div>
           )}
