@@ -10,6 +10,7 @@ import {
   documentTemplates as seedDocumentTemplates,
   getMasterMetrics,
   isFinalApprovalFeeConfigured,
+  isOccupancyPermitProcessType,
   isIssFeeConfigured,
   normalizeOwnerDocument,
   normalizeSessionUserScope,
@@ -1980,6 +1981,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
         const process = store.processes.find((item) => item.id === processId);
         if (!process) throw new Error("Processo não encontrado.");
+
+        if (isOccupancyPermitProcessType(process.type)) {
+          throw new Error(
+            "Habite-se possui protocolo e workflow próprios. Não é permitido emitir ISSQN / Projeto nem guia de aprovação / Alvará dentro deste processo.",
+          );
+        }
 
         const settings = store.tenantSettings.find(
           (item) => item.tenantId === (process.municipalityId ?? process.tenantId),
