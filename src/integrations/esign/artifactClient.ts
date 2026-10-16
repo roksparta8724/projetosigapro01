@@ -42,7 +42,7 @@ export type ArtifactSignatureRequest = {
   status: "pending" | "completed" | "cancelled" | "stale" | string;
   signer_slot: ArtifactSignerSlot | string;
   artifact_key: string;
-  artifact_hash: string;
+  artifact_hash?: string | null;
   requested_at: string;
   requested_by_profile_id?: string | null;
   requested_by_name?: string | null;
@@ -264,7 +264,7 @@ export async function requestProcessArtifactSignature(input: {
     {
       _process_id: input.processId,
       _artifact_key: input.artifactKey,
-      _artifact_hash: input.artifactHash,
+      _artifact_hash: input.artifactHash || "",
       _signer_slot: input.signerSlot,
     },
   );
@@ -312,7 +312,7 @@ export async function getProcessArtifactWithdrawal(
 export async function saveProcessArtifactWithdrawal(input: {
   processId: string;
   artifactKey: string;
-  artifactHash: string;
+  artifactHash?: string;
   withdrawnByName: string;
   withdrawnAt: string;
 }): Promise<ArtifactWithdrawalSnapshot & { ok?: boolean }> {
