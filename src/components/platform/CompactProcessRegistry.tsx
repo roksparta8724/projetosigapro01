@@ -2,7 +2,6 @@ import {
   Archive,
   ArchiveRestore,
   Clock3,
-  Eye,
   Flag,
   History,
   Send,
@@ -29,6 +28,7 @@ type CompactProcessRegistryProps = {
   emptyMessage?: string;
   showArchiveAction?: boolean;
   canDispatchProcess?: (process: ProcessRecord) => boolean;
+  detailPathSuffix?: string;
 };
 
 function formatDateTime(value?: string | null) {
@@ -51,8 +51,7 @@ function currentFlowLabel(process: ProcessRecord) {
 }
 
 function latestMovementAt(process: ProcessRecord) {
-  const timelineAt = process.timeline?.[0]?.at;
-  return timelineAt || process.analysis?.startedAt || "";
+  return process.timeline?.[0]?.at || process.analysis?.startedAt || "";
 }
 
 export function CompactProcessRegistry({
@@ -62,21 +61,25 @@ export function CompactProcessRegistry({
   emptyMessage = "Nenhum processo encontrado.",
   showArchiveAction = true,
   canDispatchProcess = () => true,
+  detailPathSuffix = "",
 }: CompactProcessRegistryProps) {
   if (processes.length === 0) {
     return (
-      <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50/80 px-5 py-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+      <div className="rounded-[16px] border border-dashed border-slate-300 bg-slate-50/80 px-5 py-7 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-950/50">
-      <div className="hidden min-h-11 grid-cols-[42px_minmax(190px,1.25fr)_minmax(170px,1fr)_minmax(145px,.9fr)_minmax(135px,.8fr)_130px_154px] items-center gap-3 border-b border-slate-200 bg-slate-50/95 px-4 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 lg:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+    <div
+      data-sei-process-registry="true"
+      className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-950/50"
+    >
+      <div className="hidden min-h-9 grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 lg:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
         <span className="text-center">Marc.</span>
         <span>Processo</span>
-        <span>Interessado / imóvel</span>
+        <span>Interessado / assunto</span>
         <span>Unidade atual</span>
         <span>Responsável</span>
         <span>Movimento</span>
@@ -89,30 +92,32 @@ export function CompactProcessRegistry({
           const archived = archivedProcessIds.includes(process.id);
           const flow = currentFlowLabel(process);
           const analyst = process.analysis?.assignedTo || process.technicalLead || "Não atribuído";
+          const detailPath = `/processos/${process.id}${detailPathSuffix}`;
 
           return (
             <div
               key={process.id}
+              data-sei-process-row="true"
               className={cn(
-                "group grid gap-3 px-4 py-3.5 transition hover:bg-sky-50/45 lg:grid-cols-[42px_minmax(190px,1.25fr)_minmax(170px,1fr)_minmax(145px,.9fr)_minmax(135px,.8fr)_130px_154px] lg:items-center dark:hover:bg-sky-950/15",
+                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 lg:grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] lg:items-center dark:hover:bg-sky-950/15",
                 archived && "bg-slate-50/70 opacity-80 dark:bg-slate-900/35",
               )}
             >
               <div className="flex items-center gap-2 lg:justify-center">
-                <span className="lg:hidden text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                <span className="lg:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
                   Marcador
                 </span>
                 {marker ? (
                   <span
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-sm"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border"
                     style={{
-                      borderColor: `${marker.color || "#2563eb"}40`,
-                      backgroundColor: `${marker.color || "#2563eb"}12`,
+                      borderColor: `${marker.color || "#2563eb"}42`,
+                      backgroundColor: `${marker.color || "#2563eb"}10`,
                     }}
                     title={marker.label}
                   >
                     <Flag
-                      className="h-4 w-4"
+                      className="h-3 w-3"
                       style={{
                         color: marker.color || "#2563eb",
                         fill: marker.color || "#2563eb",
@@ -121,114 +126,105 @@ export function CompactProcessRegistry({
                   </span>
                 ) : (
                   <span
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600"
                     title="Sem marcador"
                   >
-                    <Flag className="h-4 w-4" />
+                    <Flag className="h-3 w-3" />
                   </span>
                 )}
               </div>
 
               <div className="min-w-0">
                 <Link
-                  to={`/processos/${process.id}`}
-                  className="block truncate text-[13px] font-black text-sky-800 underline-offset-4 hover:underline dark:text-sky-300"
-                  title={formatOfficialProcessNumber(process.protocol)}
+                  to={detailPath}
+                  data-sei-process-link="true"
+                  className="inline-flex max-w-full items-center gap-1.5 truncate text-[12px] font-black text-[#075985] underline decoration-sky-300/70 decoration-1 underline-offset-[3px] hover:text-[#0369a1] hover:decoration-sky-600 dark:text-sky-300 dark:decoration-sky-500/50"
+                  title={`Abrir ${formatOfficialProcessNumber(process.protocol)}`}
                 >
                   {formatOfficialProcessNumber(process.protocol)}
                 </Link>
-                <p
-                  className="mt-1 truncate text-[12px] font-semibold text-slate-800 dark:text-slate-100"
-                  title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                >
-                  {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className={cn("h-5 rounded-full px-2 text-[9px] font-bold", statusTone(process.status))}>
+                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-[18px] shrink-0 rounded-full px-1.5 text-[8px] font-bold",
+                      statusTone(process.status),
+                    )}
+                  >
                     {statusLabel(process.status)}
                   </Badge>
                   {marker ? (
                     <span
-                      className="inline-flex max-w-[150px] items-center rounded-full border px-2 py-0.5 text-[9px] font-bold"
-                      style={{
-                        borderColor: `${marker.color || "#2563eb"}35`,
-                        color: marker.color || "#2563eb",
-                        backgroundColor: `${marker.color || "#2563eb"}0d`,
-                      }}
+                      className="max-w-[105px] truncate text-[9px] font-semibold"
+                      style={{ color: marker.color || "#2563eb" }}
                       title={marker.label}
                     >
-                      <span className="truncate">{marker.label}</span>
+                      {marker.label}
                     </span>
                   ) : null}
                 </div>
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-start gap-2">
-                  <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <div className="flex min-w-0 items-center gap-2">
+                  <UserRound className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   <div className="min-w-0">
-                    <p className="truncate text-[12px] font-semibold text-slate-800 dark:text-slate-100" title={process.ownerName}>
+                    <p
+                      className="truncate text-[11px] font-semibold text-slate-800 dark:text-slate-100"
+                      title={process.ownerName}
+                    >
                       {process.ownerName || "Interessado não informado"}
                     </p>
-                    <p className="mt-1 truncate text-[11px] text-slate-500 dark:text-slate-400" title={process.address}>
-                      {process.address || "Endereço não informado"}
+                    <p
+                      className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400"
+                      title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                    >
+                      {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-start gap-2">
-                  <Workflow className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-300" />
-                  <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-slate-700 dark:text-slate-200" title={flow}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Workflow className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-300" />
+                  <p
+                    className="truncate text-[10.5px] font-semibold text-slate-700 dark:text-slate-200"
+                    title={flow}
+                  >
                     {flow}
                   </p>
                 </div>
               </div>
 
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200" title={analyst}>
+                <p
+                  className="truncate text-[10.5px] font-semibold text-slate-700 dark:text-slate-200"
+                  title={analyst}
+                >
                   {analyst}
-                </p>
-                <p className="mt-1 text-[10px] text-slate-400">
-                  {process.analysis?.startedAt ? "Análise registrada" : "Responsável técnico"}
                 </p>
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                  <Clock3 className="h-3.5 w-3.5 shrink-0" />
-                  <span>{formatDateTime(latestMovementAt(process))}</span>
+                <div className="flex items-center gap-1.5 text-[9.5px] font-medium text-slate-500 dark:text-slate-400">
+                  <Clock3 className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{formatDateTime(latestMovementAt(process))}</span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                <Button
-                  asChild
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-xl px-2.5 text-[10px] font-bold"
-                  title="Abrir processo"
-                >
-                  <Link to={`/processos/${process.id}`}>
-                    <Eye className="mr-1.5 h-3.5 w-3.5" />
-                    Abrir
-                  </Link>
-                </Button>
-
+              <div className="flex items-center justify-end gap-1">
                 {canDispatchProcess(process) ? (
                   <Button
                     asChild
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 rounded-xl border-sky-200 bg-sky-50 px-2.5 text-[10px] font-bold text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200"
-                    title="Abrir área de despacho"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg text-sky-700 hover:bg-sky-100 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                    title="Despachar processo"
                   >
                     <Link to={`/processos/${process.id}?aba=historico#despacho`}>
-                      <Send className="mr-1.5 h-3.5 w-3.5" />
-                      Despachar
+                      <Send className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
                 ) : null}
@@ -238,7 +234,7 @@ export function CompactProcessRegistry({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-xl"
+                  className="h-7 w-7 rounded-lg"
                   title="Ver histórico"
                 >
                   <Link to={`/processos/${process.id}?aba=historico`}>
@@ -251,7 +247,7 @@ export function CompactProcessRegistry({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-xl"
+                    className="h-7 w-7 rounded-lg"
                     onClick={() => onToggleArchive(process.id, !archived)}
                     title={archived ? "Restaurar na lista" : "Arquivar da minha lista"}
                   >
