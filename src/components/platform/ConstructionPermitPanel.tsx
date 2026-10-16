@@ -10,9 +10,11 @@ import {
   FileDown,
   Loader2,
   PenLine,
+  Plus,
   Printer,
   Send,
   Save,
+  Trash2,
   ShieldCheck,
   Signature,
 } from "lucide-react";
@@ -77,6 +79,16 @@ type ConstructionPermitPanelProps = {
   externalView?: boolean;
   organogramTrail?: Array<{ code: string; name: string }>;
 };
+
+function permitFormTitle(workType?: string | null) {
+  const raw = String(workType || "");
+  if (/regulariza/i.test(raw)) return "Alvará de Regularização";
+  if (/demoli/i.test(raw)) return "Alvará de Demolição";
+  if (/reforma/i.test(raw)) return "Alvará de Reforma";
+  if (/amplia/i.test(raw)) return "Alvará de Ampliação";
+  if (/terraplen|movimenta.*terra/i.test(raw)) return "Alvará de Terraplenagem";
+  return "Alvará de Construção";
+}
 
 function permitStatusLabel(record: ConstructionPermitRecord | null) {
   if (!record) return "Ainda não preparado";
@@ -318,6 +330,52 @@ export function ConstructionPermitPanel({
     canStartDraft &&
     !directorOfficial;
   const isIssued = directorOfficial;
+  const isRegularizationForm = /regulariza/i.test(formData.workType || "");
+  const regularizationAreas = formData.regularizationAreas ?? [];
+  const regularizationAreaTotal = regularizationAreas.reduce((total, item) => {
+    const parsed = Number(String(item.areaM2 || "").replace(",", "."));
+    return Number.isFinite(parsed) ? total + parsed : total;
+  }, 0);
+
+  const updateRegularizationArea = (
+    index: number,
+    field: "description" | "areaM2",
+    value: string,
+  ) => {
+    setFormData((current) => {
+      const rows = [...(current.regularizationAreas ?? [])];
+      const currentRow = rows[index] ?? {
+        id: `area-${Date.now()}-${index}`,
+        description: "",
+        areaM2: "",
+      };
+      rows[index] = { ...currentRow, [field]: value };
+      return { ...current, regularizationAreas: rows };
+    });
+  };
+
+  const addRegularizationArea = () => {
+    setFormData((current) => ({
+      ...current,
+      regularizationAreas: [
+        ...(current.regularizationAreas ?? []),
+        {
+          id: `area-${Date.now()}-${(current.regularizationAreas ?? []).length}`,
+          description: "",
+          areaM2: "",
+        },
+      ],
+    }));
+  };
+
+  const removeRegularizationArea = (index: number) => {
+    setFormData((current) => ({
+      ...current,
+      regularizationAreas: (current.regularizationAreas ?? []).filter(
+        (_, rowIndex) => rowIndex !== index,
+      ),
+    }));
+  };
 
   const openPdf = (
     record: ConstructionPermitRecord | null = permit,
@@ -356,7 +414,11 @@ export function ConstructionPermitPanel({
   const buildDraftFromForm = (): ConstructionPermitRecord | null => {
     if (!canEditForm && !canStartDraft) return null;
 
-    const area = Number(String(formData.areaM2).replace(",", "."));
+    const enteredArea = Number(String(formData.areaM2).replace(",", "."));
+    const effectiveArea =
+      isRegularizationForm && regularizationAreaTotal > 0
+        ? regularizationAreaTotal
+        : enteredArea;
     if (!formData.ownerName.trim()) {
       setStatus("Informe o proprietário/titular do Alvará.");
       return null;
@@ -369,13 +431,36 @@ export function ConstructionPermitPanel({
       setStatus("Informe o endereço do imóvel.");
       return null;
     }
-    if (!Number.isFinite(area) || area <= 0) {
-      setStatus("Informe uma área licenciada válida.");
+    if (!Number.isFinite(effectiveArea) || effectiveArea <= 0) {
+      setStatus(
+        isRegularizationForm
+          ? "Informe a área total ou detalhe as áreas a regularizar."
+          : "Informe uma área licenciada válida.",
+      );
       return null;
     }
     if (!formData.usage.trim() || !formData.workType.trim()) {
       setStatus("Informe o uso da edificação e a natureza da obra.");
       return null;
+    }
+
+    if (isRegularizationForm) {
+      if (!String(formData.propertyRegistryNumber || "").trim()) {
+        setStatus("Informe a matrícula do imóvel para o Alvará de Regularização.");
+        return null;
+      }
+      if (!String(formData.technicalResponsibilityNumber || "").trim()) {
+        setStatus("Informe o número da ART, RRT ou TRT do responsável técnico.");
+        return null;
+      }
+      const validRegularizationAreas = regularizationAreas.filter((item) => {
+        const parsed = Number(String(item.areaM2 || "").replace(",", "."));
+        return item.description.trim() && Number.isFinite(parsed) && parsed > 0;
+      });
+      if (validRegularizationAreas.length === 0) {
+        setStatus("Inclua ao menos uma edificação/área a regularizar.");
+        return null;
+      }
     }
 
     const base =
@@ -390,6 +475,10 @@ export function ConstructionPermitPanel({
 
     const next = updateConstructionPermitFormData(base, {
       ...formData,
+      areaM2:
+        isRegularizationForm && regularizationAreaTotal > 0
+          ? regularizationAreaTotal.toFixed(2).replace(".", ",")
+          : formData.areaM2,
       technicalRegistration:
         formData.technicalRegistration ||
         technicalProfile?.registrationNumber ||
@@ -1084,7 +1173,7 @@ export function ConstructionPermitPanel({
                         Preenchimento oficial
                       </p>
                       <DialogTitle className="mt-1 text-xl font-bold !text-white">
-                        Alvará de Construção
+                        {permitFormTitle(formData.workType || process.property.workType || process.type)}
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
                         Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura à caneta. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
@@ -1139,6 +1228,10 @@ export function ConstructionPermitPanel({
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">CPF / CNPJ</label>
                           <Input value={formData.ownerDocument} onChange={(event) => setFormData((current) => ({ ...current, ownerDocument: event.target.value }))} className="h-11 rounded-xl" />
                         </div>
+                        <div className="md:col-span-2">
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Endereço do proprietário / titular</label>
+                          <Input value={formData.ownerAddress || ""} onChange={(event) => setFormData((current) => ({ ...current, ownerAddress: event.target.value }))} className="h-11 rounded-xl" placeholder="Endereço completo do titular, quando diferente do imóvel" />
+                        </div>
                         <div>
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Responsável técnico</label>
                           <Input value={formData.technicalLead} onChange={(event) => setFormData((current) => ({ ...current, technicalLead: event.target.value }))} className="h-11 rounded-xl" />
@@ -1146,6 +1239,14 @@ export function ConstructionPermitPanel({
                         <div>
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">CREA / CAU / CFT</label>
                           <Input value={formData.technicalRegistration} onChange={(event) => setFormData((current) => ({ ...current, technicalRegistration: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Documento de responsabilidade</label>
+                          <Input value={formData.technicalResponsibilityType || ""} onChange={(event) => setFormData((current) => ({ ...current, technicalResponsibilityType: event.target.value }))} className="h-11 rounded-xl" placeholder="ART, RRT ou TRT" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Nº ART / RRT / TRT</label>
+                          <Input value={formData.technicalResponsibilityNumber || ""} onChange={(event) => setFormData((current) => ({ ...current, technicalResponsibilityNumber: event.target.value }))} className="h-11 rounded-xl" />
                         </div>
                       </div>
                     </section>
@@ -1158,6 +1259,18 @@ export function ConstructionPermitPanel({
                         <div className="md:col-span-2 xl:col-span-4">
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Endereço do imóvel</label>
                           <Input value={formData.propertyAddress} onChange={(event) => setFormData((current) => ({ ...current, propertyAddress: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div className="xl:col-span-2">
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Bairro</label>
+                          <Input value={formData.neighborhood || ""} onChange={(event) => setFormData((current) => ({ ...current, neighborhood: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Cidade</label>
+                          <Input value={formData.city || ""} onChange={(event) => setFormData((current) => ({ ...current, city: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">CEP</label>
+                          <Input value={formData.postalCode || ""} onChange={(event) => setFormData((current) => ({ ...current, postalCode: event.target.value }))} className="h-11 rounded-xl" />
                         </div>
                         <div>
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Inscrição imobiliária / IPTU</label>
@@ -1172,8 +1285,36 @@ export function ConstructionPermitPanel({
                           <Input value={formData.block} onChange={(event) => setFormData((current) => ({ ...current, block: event.target.value }))} className="h-11 rounded-xl" />
                         </div>
                         <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Área licenciada (m²)</label>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Área licenciada / total (m²)</label>
                           <Input value={formData.areaM2} onChange={(event) => setFormData((current) => ({ ...current, areaM2: event.target.value }))} className="h-11 rounded-xl" inputMode="decimal" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Matrícula do imóvel</label>
+                          <Input value={formData.propertyRegistryNumber || ""} onChange={(event) => setFormData((current) => ({ ...current, propertyRegistryNumber: event.target.value }))} className="h-11 rounded-xl" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Cartório / C.R.I.</label>
+                          <Input value={formData.propertyRegistryOffice || ""} onChange={(event) => setFormData((current) => ({ ...current, propertyRegistryOffice: event.target.value }))} className="h-11 rounded-xl" placeholder="Ex.: 2º C.R.I. de Jundiaí" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Área do terreno (m²)</label>
+                          <Input value={formData.landAreaM2 || ""} onChange={(event) => setFormData((current) => ({ ...current, landAreaM2: event.target.value }))} className="h-11 rounded-xl" inputMode="decimal" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Testada (m)</label>
+                          <Input value={formData.frontageM || ""} onChange={(event) => setFormData((current) => ({ ...current, frontageM: event.target.value }))} className="h-11 rounded-xl" inputMode="decimal" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Nº de habitações</label>
+                          <Input value={formData.housingUnits || ""} onChange={(event) => setFormData((current) => ({ ...current, housingUnits: event.target.value }))} className="h-11 rounded-xl" inputMode="numeric" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Nº de pavimentos</label>
+                          <Input value={formData.floors || ""} onChange={(event) => setFormData((current) => ({ ...current, floors: event.target.value }))} className="h-11 rounded-xl" inputMode="numeric" />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Nº de banheiros</label>
+                          <Input value={formData.bathrooms || ""} onChange={(event) => setFormData((current) => ({ ...current, bathrooms: event.target.value }))} className="h-11 rounded-xl" inputMode="numeric" />
                         </div>
                         <div className="xl:col-span-2">
                           <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Natureza da obra</label>
@@ -1189,6 +1330,61 @@ export function ConstructionPermitPanel({
                         </div>
                       </div>
                     </section>
+
+
+                    {isRegularizationForm ? (
+                      <section className="rounded-[22px] border border-sky-200 bg-gradient-to-br from-white to-sky-50/60 p-5 shadow-sm dark:border-sky-700/50 dark:from-slate-950 dark:to-sky-950/20">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                              Edificação - regularização
+                            </p>
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                              Detalhe as áreas que compõem o total a regularizar. Esses itens serão impressos no Alvará oficial.
+                            </p>
+                          </div>
+                          <Button type="button" variant="outline" size="sm" className="rounded-full border-sky-300 bg-white" onClick={addRegularizationArea}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Adicionar área
+                          </Button>
+                        </div>
+
+                        <div className="mt-4 space-y-2">
+                          {regularizationAreas.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-sky-200 bg-white/80 px-4 py-4 text-xs text-slate-500 dark:border-sky-800 dark:bg-slate-950/60 dark:text-slate-400">
+                              Nenhuma área detalhada. Inclua residência, garagem, varanda coberta, área gourmet, circulação coberta ou outra edificação pertinente.
+                            </div>
+                          ) : (
+                            regularizationAreas.map((item, index) => (
+                              <div key={item.id || index} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[1fr_180px_44px] dark:border-slate-700 dark:bg-slate-950">
+                                <Input
+                                  value={item.description}
+                                  onChange={(event) => updateRegularizationArea(index, "description", event.target.value)}
+                                  className="h-10 rounded-lg"
+                                  placeholder="Descrição da edificação / área"
+                                />
+                                <Input
+                                  value={item.areaM2}
+                                  onChange={(event) => updateRegularizationArea(index, "areaM2", event.target.value)}
+                                  className="h-10 rounded-lg"
+                                  placeholder="Área (m²)"
+                                  inputMode="decimal"
+                                />
+                                <Button type="button" variant="outline" size="icon" className="h-10 w-10 rounded-lg" onClick={() => removeRegularizationArea(index)} aria-label="Remover área">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex justify-end">
+                          <Badge className="rounded-full bg-sky-900 px-4 py-1.5 text-white">
+                            Total detalhado: {regularizationAreaTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²
+                          </Badge>
+                        </div>
+                      </section>
+                    ) : null}
 
                     <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                       <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
