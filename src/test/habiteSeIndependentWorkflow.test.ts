@@ -20,6 +20,10 @@ describe("Habite-se independent workflow", () => {
     expect(protocolPage).toContain('mode?: ProtocolEntryMode');
     expect(protocolPage).toContain('const isHabiteSeMode = mode === "habite-se"');
     expect(protocolPage).toContain('"PROCESSO DE HABITE-SE INDEPENDENTE"');
+    expect(protocolPage).toContain("standardProcessTypes");
+    expect(protocolPage).toContain(
+      "Habite-se é um protocolo independente. Use a opção Solicitar Habite-se",
+    );
   });
 
   it("requires an explicit link to the prior approval and permit", () => {
