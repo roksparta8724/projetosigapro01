@@ -40,7 +40,6 @@ import {
   getChecklistTemplate,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
-  isProcessOwnedBySessionDepartment,
   matchesOperationalScope,
   parseMarker,
   statusLabel,
