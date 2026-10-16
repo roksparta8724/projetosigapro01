@@ -126,9 +126,16 @@ function SoftInfoCard({
   );
 }
 
-export function ProtocolarProjetoPage() {
+export type ProtocolEntryMode = "projeto" | "habite-se";
+
+export function ProtocolarProjetoPage({
+  mode = "projeto",
+}: {
+  mode?: ProtocolEntryMode;
+} = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isHabiteSeMode = mode === "habite-se";
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -178,6 +185,9 @@ export function ProtocolarProjetoPage() {
   const [draftNumber, setDraftNumber] = useState(createDraftNumber());
   const [form, setForm] = useState<ProtocolDraftForm>({
     ...defaultProtocolDraftForm,
+    tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
+    tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
+    padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
     profissional: profileFullName || session.name,
     profissionalDocumento: profile?.cpfCnpj || "",
     tipoProfissional: profile?.professionalType || "",
@@ -216,6 +226,12 @@ export function ProtocolarProjetoPage() {
       setForm({
         ...defaultProtocolDraftForm,
         ...draft.form,
+        tipo: isHabiteSeMode
+          ? (draft.form.modalidadeHabiteSe === "parcial" ? "Carta de Habite-se Parcial" : "Habite-se")
+          : draft.form.tipo,
+        tipoObra: isHabiteSeMode ? "Conclusão da obra" : draft.form.tipoObra,
+        padraoConstrutivo: isHabiteSeMode ? "" : draft.form.padraoConstrutivo,
+        modalidadeHabiteSe: draft.form.modalidadeHabiteSe || "integral",
         profissional: draft.form.profissional || profileFullName || session.name,
         profissionalDocumento: draft.form.profissionalDocumento || profile?.cpfCnpj || "",
         tipoProfissional: draft.form.tipoProfissional || profile?.professionalType || "",
@@ -251,6 +267,9 @@ export function ProtocolarProjetoPage() {
     replaceFiles({});
     setForm({
       ...defaultProtocolDraftForm,
+      tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
+      tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
+      padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
       profissional: profileFullName || session.name,
       registro: profileRegistrationNumber,
       telefone: profilePhone,
@@ -270,6 +289,7 @@ export function ProtocolarProjetoPage() {
     resumeDraftNumber,
     session.id,
     session.tenantId,
+    isHabiteSeMode,
   ]);
 
   // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
@@ -297,9 +317,13 @@ export function ProtocolarProjetoPage() {
     session.name,
   ]);
 
+  const effectiveProcessType = isHabiteSeMode
+    ? (form.modalidadeHabiteSe === "parcial" ? "Carta de Habite-se Parcial" : "Habite-se")
+    : form.tipo;
+
   const checklistTemplate = useMemo(
-    () => getChecklistTemplate(form.tipo, effectiveScopeId),
-    [form.tipo, effectiveScopeId],
+    () => getChecklistTemplate(effectiveProcessType, effectiveScopeId),
+    [effectiveProcessType, effectiveScopeId],
   );
 
   const documentItems = useMemo<UploadDocumentItem[]>(
@@ -358,16 +382,39 @@ export function ProtocolarProjetoPage() {
   const activeTab = getExternalTabByPath(location.pathname);
 
   const protocolSummary = useMemo(
-    () => [
-      { label: "Pré-protocolo", value: draftNumber },
-      { label: "Projeto", value: form.titulo || "Não preenchido" },
-      { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
-      { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
-      { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
-      { label: "Proprietário", value: form.proprietario || "Não preenchido" },
-      { label: "Imóvel", value: form.endereco || "Não preenchido" },
+    () =>
+      isHabiteSeMode
+        ? [
+            { label: "Pré-protocolo", value: draftNumber },
+            { label: "Serviço", value: effectiveProcessType },
+            { label: "Processo de aprovação", value: form.processoAprovacao || "Não informado" },
+            { label: "Alvará de origem", value: form.numeroAlvara || "Não informado" },
+            { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
+            { label: "Proprietário", value: form.proprietario || "Não preenchido" },
+            { label: "Imóvel", value: form.endereco || "Não preenchido" },
+          ]
+        : [
+            { label: "Pré-protocolo", value: draftNumber },
+            { label: "Projeto", value: form.titulo || "Não preenchido" },
+            { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
+            { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
+            { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
+            { label: "Proprietário", value: form.proprietario || "Não preenchido" },
+            { label: "Imóvel", value: form.endereco || "Não preenchido" },
+          ],
+    [
+      draftNumber,
+      effectiveProcessType,
+      form.endereco,
+      form.numeroAlvara,
+      form.processoAprovacao,
+      form.profissional,
+      form.proprietario,
+      form.tipoObra,
+      form.titulo,
+      form.tipo,
+      isHabiteSeMode,
     ],
-    [draftNumber, form.endereco, form.profissional, form.proprietario, form.tipoObra, form.titulo, form.tipo],
   );
 
   const statusCards = useMemo(
@@ -672,7 +719,21 @@ export function ProtocolarProjetoPage() {
       return;
     }
 
-    if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula) {
+    if (isHabiteSeMode) {
+      if (
+        !form.processoAprovacao.trim() ||
+        !form.numeroAlvara.trim() ||
+        !form.endereco.trim() ||
+        !form.iptu.trim() ||
+        !form.matricula.trim() ||
+        !(Number(String(form.area).replace(",", ".")) > 0)
+      ) {
+        setStatus(
+          "Para o Habite-se, informe o processo de aprovação anterior, o número do Alvará, o imóvel e a área efetivamente concluída.",
+        );
+        return;
+      }
+    } else if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula) {
       setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra e os dados do imóvel.");
       return;
     }
@@ -791,8 +852,10 @@ export function ProtocolarProjetoPage() {
         const remoteProcess = await createRemoteExternalProcessV2({
           tenantId: effectiveScopeId,
           createdBy: session.id,
-          title: form.titulo,
-          type: form.tipo,
+          title: isHabiteSeMode
+            ? (form.titulo.trim() || `${effectiveProcessType} - ${form.endereco.trim()}`)
+            : form.titulo,
+          type: effectiveProcessType,
           address: form.endereco,
           ownerName: form.proprietario,
           ownerDocument: form.documento,
@@ -803,8 +866,19 @@ export function ProtocolarProjetoPage() {
           professionalPhone: form.telefone,
           professionalEmail: form.email,
           professionalCompany: form.empresaProfissional,
-          tags: [form.uso || "sem classificacao", tenantSettings?.secretariaResponsavel || "urbanismo"],
-          notes: form.observacoes,
+          tags: isHabiteSeMode
+            ? ["habite-se", form.modalidadeHabiteSe, form.uso || "sem classificacao", tenantSettings?.secretariaResponsavel || "urbanismo"]
+            : [form.uso || "sem classificacao", tenantSettings?.secretariaResponsavel || "urbanismo"],
+          notes: isHabiteSeMode
+            ? [
+                "PROCESSO DE HABITE-SE INDEPENDENTE",
+                `Processo de aprovação de origem: ${form.processoAprovacao.trim()}`,
+                `Alvará de origem: ${form.numeroAlvara.trim()}`,
+                `Modalidade: ${form.modalidadeHabiteSe === "parcial" ? "Habite-se parcial" : "Habite-se integral"}`,
+                form.dataConclusaoObra.trim() ? `Conclusão informada: ${form.dataConclusaoObra.trim()}` : "",
+                form.observacoes.trim(),
+              ].filter(Boolean).join(" | ")
+            : form.observacoes,
           property: {
             registration: form.matricula,
             iptu: form.iptu,
@@ -812,8 +886,8 @@ export function ProtocolarProjetoPage() {
             block: form.quadra,
             area: Number(form.area || 0),
             usage: form.uso,
-            workType: form.tipoObra,
-            constructionStandard: form.padraoConstrutivo,
+            workType: isHabiteSeMode ? "Conclusão da obra" : form.tipoObra,
+            constructionStandard: isHabiteSeMode ? "" : form.padraoConstrutivo,
           },
           documents,
           guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
@@ -901,13 +975,24 @@ export function ProtocolarProjetoPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Novo protocolo" title="Protocolar projeto">
+    <PortalFrame
+      eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
+      title={isHabiteSeMode ? "Solicitar Habite-se" : "{isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto"}"}
+    >
       <PageShell>
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
           <PageHero
-            eyebrow="Abertura de novo protocolo"
-            title="Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
-            description="Preencha e confira seus próprios dados profissionais, os dados do proprietário, o imóvel e os documentos. Nada é tratado como dado interno da Prefeitura nesta abertura."
+            eyebrow={isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo"}
+            title={
+              isHabiteSeMode
+                ? "Abra o Habite-se como um novo processo, separado da aprovação do projeto"
+                : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
+            }
+            description={
+              isHabiteSeMode
+                ? "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos de conclusão e gere um novo número de protocolo. Nenhuma etapa financeira ou documental do processo de aprovação é reaproveitada automaticamente."
+                : "Preencha e confira seus próprios dados profissionais, os dados do proprietário, o imóvel e os documentos. Nada é tratado como dado interno da Prefeitura nesta abertura."
+            }
             icon={FilePlus2}
             actions={
               <div className="flex flex-wrap gap-2">
@@ -1018,9 +1103,69 @@ export function ProtocolarProjetoPage() {
             </div>
           </SectionCard>
 
+          {isHabiteSeMode ? (
+            <SectionCard
+              title="Vínculo com a aprovação anterior"
+              description="O Habite-se nasce com protocolo próprio, mas deve apontar claramente para o processo e o Alvará que autorizaram a obra."
+              icon={FileStack}
+              contentClassName="space-y-5"
+            >
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-100">
+                Este pedido não continua o processo de aprovação. O sistema criará um novo protocolo de Habite-se, com checklist, análise, exigências, histórico e decisão próprios.
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Processo de aprovação / regularização de origem *</Label>
+                  <Input
+                    value={form.processoAprovacao}
+                    onChange={(event) => setField("processoAprovacao", event.target.value)}
+                    placeholder="Ex.: Processo nº 11150/2026"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número do Alvará de origem *</Label>
+                  <Input
+                    value={form.numeroAlvara}
+                    onChange={(event) => setField("numeroAlvara", event.target.value)}
+                    placeholder="Informe o número do Alvará"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Modalidade do pedido</Label>
+                  <Select
+                    value={form.modalidadeHabiteSe}
+                    onValueChange={(value) =>
+                      setField("modalidadeHabiteSe", value as ProtocolDraftForm["modalidadeHabiteSe"])
+                    }
+                  >
+                    <SelectTrigger className="bg-white dark:bg-slate-950">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="integral">Habite-se integral</SelectItem>
+                      <SelectItem value="parcial">Habite-se parcial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de conclusão informada</Label>
+                  <Input
+                    type="date"
+                    value={form.dataConclusaoObra}
+                    onChange={(event) => setField("dataConclusaoObra", event.target.value)}
+                  />
+                </div>
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
-            title="Dados do projeto e do imóvel"
-            description="Preencha os dados essenciais para vincular o protocolo ao responsável, ao proprietário e ao imóvel."
+            title={isHabiteSeMode ? "Dados da edificação concluída" : "Dados do projeto e do imóvel"}
+            description={isHabiteSeMode
+              ? "Registre o imóvel e a área efetivamente concluída que serão objeto da análise do Habite-se."
+              : "Preencha os dados essenciais para vincular o protocolo ao responsável, ao proprietário e ao imóvel."}
             icon={Landmark}
             contentClassName="space-y-5"
           >
@@ -1031,30 +1176,47 @@ export function ProtocolarProjetoPage() {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de processo</Label>
-                <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
-                <datalist id="sigapro-process-types">
-                  {processTypeCatalog.map((type) => (
-                    <option key={type} value={type} />
-                  ))}
-                </datalist>
+                {isHabiteSeMode ? (
+                  <>
+                    <Input value={effectiveProcessType} readOnly className="bg-slate-50 font-semibold dark:bg-slate-900" />
+                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      Tipo bloqueado para impedir que o Habite-se seja confundido com aprovação de projeto.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
+                    <datalist id="sigapro-process-types">
+                      {processTypeCatalog.map((type) => (
+                        <option key={type} value={type} />
+                      ))}
+                    </datalist>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Natureza da obra *</Label>
-                <Select value={form.tipoObra} onValueChange={(value) => setField("tipoObra", value)}>
-                  <SelectTrigger className="bg-white dark:bg-slate-950">
-                    <SelectValue placeholder="Selecione: construção nova, reforma, ampliação..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workTypeCatalog.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>{isHabiteSeMode ? "Finalidade do protocolo" : "Natureza da obra *"}</Label>
+                {isHabiteSeMode ? (
+                  <Input value="Conclusão da obra / Habite-se" readOnly className="bg-slate-50 font-semibold dark:bg-slate-900" />
+                ) : (
+                  <Select value={form.tipoObra} onValueChange={(value) => setField("tipoObra", value)}>
+                    <SelectTrigger className="bg-white dark:bg-slate-950">
+                      <SelectValue placeholder="Selecione: construção nova, reforma, ampliação..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workTypeCatalog.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Esta informação acompanha o processo desde o protocolo e será conferida na Análise Urbanística.
+                  {isHabiteSeMode
+                    ? "Este processo trata exclusivamente da conclusão/ocupação da obra e não reabre a aprovação do projeto."
+                    : "Esta informação acompanha o processo desde o protocolo e será conferida na Análise Urbanística."}
                 </p>
               </div>
               <div className="space-y-2">
@@ -1085,7 +1247,7 @@ export function ProtocolarProjetoPage() {
                 <Input value={form.matricula} onChange={(event) => setField("matricula", event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Área em m²</Label>
+                <Label>{isHabiteSeMode ? "Área concluída em m² *" : "Área em m²"}</Label>
                 <Input value={form.area} onChange={(event) => setField("area", event.target.value)} />
               </div>
             </div>
@@ -1100,19 +1262,32 @@ export function ProtocolarProjetoPage() {
                 <Input value={form.quadra} onChange={(event) => setField("quadra", event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Padrão construtivo</Label>
-                <Input
-                  list="padroes-construtivos"
-                  value={form.padraoConstrutivo}
-                  onChange={(event) => setField("padraoConstrutivo", event.target.value)}
-                  placeholder="Médio"
-                />
-                <datalist id="padroes-construtivos">
-                  <option value="luxo" />
-                  <option value="primeira" />
-                  <option value="medio" />
-                  <option value="economico" />
-                </datalist>
+                {isHabiteSeMode ? (
+                  <>
+                    <Label>Modalidade</Label>
+                    <Input
+                      value={form.modalidadeHabiteSe === "parcial" ? "Habite-se parcial" : "Habite-se integral"}
+                      readOnly
+                      className="bg-slate-50 font-semibold dark:bg-slate-900"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Label>Padrão construtivo</Label>
+                    <Input
+                      list="padroes-construtivos"
+                      value={form.padraoConstrutivo}
+                      onChange={(event) => setField("padraoConstrutivo", event.target.value)}
+                      placeholder="Médio"
+                    />
+                    <datalist id="padroes-construtivos">
+                      <option value="luxo" />
+                      <option value="primeira" />
+                      <option value="medio" />
+                      <option value="economico" />
+                    </datalist>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1290,7 +1465,7 @@ export function ProtocolarProjetoPage() {
                 {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
               </Button>
               <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting || hasPendingDocumentUpload}>
-                {submitting ? "Protocolando projeto..." : "Protocolar projeto"}
+                {submitting ? "Protocolando projeto..." : "{isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto"}"}
               </Button>
             </div>
           </SectionCard>
