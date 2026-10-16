@@ -8,6 +8,8 @@ describe("municipal branding runtime resilience", () => {
   const tenant = read("src/hooks/useTenant.tsx");
   const branding = read("src/hooks/useInstitutionBranding.ts");
   const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
+  const logo = read("src/components/platform/InstitutionalLogo.tsx");
+  const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
     expect(tenant).toContain("branding?.headerLogoObjectKey");
@@ -25,7 +27,8 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain('bucket: "institutional-branding"');
     expect(branding).toContain("getSignedUrlForObjectStrict");
     expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
-    expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("base.brasaoUrl");
   });
 
   it("keeps the municipal logo selected in the working environment ahead of the generic tenant logo", () => {
@@ -53,11 +56,20 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
-  it("never replaces a configured municipal object key with the generic municipality fallback", () => {
-    expect(branding).toContain("hasPersistedHeaderIdentity");
-    expect(branding).toContain("hasPersistedFooterIdentity");
-    expect(branding).toContain("!hasPersistedHeaderIdentity");
-    expect(branding).toContain("!hasPersistedFooterIdentity");
+  it("never replaces the configured municipal logo with a coat-of-arms or generic fallback", () => {
+    expect(branding).toContain("resolvedTenantHeaderLogoUrl");
+    expect(branding).toContain("resolvedTenantFooterLogoUrl");
+    expect(branding).not.toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("institutionalFallback");
+    expect(branding).not.toContain("base.brasaoUrl");
+  });
+
+  it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
+    expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2"');
+    expect(logo).toContain("data-logo-variant={variant}");
+    expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
+    expect(surface).toContain("object-fit:contain !important");
+    expect(surface).toContain("transform:none !important");
   });
 
   it("edits exactly the runtime-resolved municipal logo in the frame editor", () => {
