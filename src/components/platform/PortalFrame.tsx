@@ -105,7 +105,7 @@ function normalizeLayoutThemeOverride(theme: LayoutThemeOverride | null): Layout
 function readEffectiveThemeCache(): LayoutThemeOverride | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem("sigapro.effective-theme.v1");
+    const raw = window.localStorage.getItem("sigapro.effective-theme.v2");
     if (!raw) return null;
     return normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride);
   } catch {
@@ -281,7 +281,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const [themeOverride, setThemeOverride] = useState<LayoutThemeOverride | null>(() => {
     if (typeof window === "undefined") return null;
     try {
-      const raw = window.localStorage.getItem("sigapro-layout-theme");
+      const raw = window.localStorage.getItem("sigapro-layout-theme.v2");
       return raw ? normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride) : null;
     } catch {
       return null;
@@ -381,10 +381,19 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   }, [canonicalSignedInUser, navigate, session]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      // V1 could contain an old per-origin dark theme (especially on localhost).
+      // It is intentionally ignored after the visual contract was unified with
+      // the official municipality theme.
+      window.localStorage.removeItem("sigapro-layout-theme");
+      window.localStorage.removeItem("sigapro.effective-theme.v1");
+      window.localStorage.removeItem("sigapro.last-page-background.v1");
+    }
+
     const syncTheme = () => {
       if (typeof window === "undefined") return;
       try {
-        const raw = window.localStorage.getItem("sigapro-layout-theme");
+        const raw = window.localStorage.getItem("sigapro-layout-theme.v2");
         setThemeOverride(raw ? normalizeLayoutThemeOverride(JSON.parse(raw) as LayoutThemeOverride) : null);
       } catch {
         setThemeOverride(null);
@@ -932,8 +941,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     };
 
     try {
-      window.localStorage.setItem("sigapro.last-page-background.v1", pageBackground);
-      window.localStorage.setItem("sigapro.effective-theme.v1", JSON.stringify(effectiveTheme));
+      window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground);
+      window.localStorage.setItem("sigapro.effective-theme.v2", JSON.stringify(effectiveTheme));
       setEffectiveThemeCache(effectiveTheme);
     } catch {
       // Persistencia visual e opcional; nunca bloquear a interface.
@@ -951,9 +960,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7",
       );
       if (normalizedTheme?.primary || normalizedTheme?.accent || normalizedTheme?.background) {
-        window.localStorage.setItem("sigapro-layout-theme", JSON.stringify(normalizedTheme));
+        window.localStorage.setItem("sigapro-layout-theme.v2", JSON.stringify(normalizedTheme));
       } else {
-        window.localStorage.removeItem("sigapro-layout-theme");
+        window.localStorage.removeItem("sigapro-layout-theme.v2");
       }
       window.dispatchEvent(new Event("sigapro-theme-change"));
     } catch {
