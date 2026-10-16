@@ -2004,6 +2004,7 @@ export function ConfiguracoesPage() {
     files: UploadedFileItem[],
     folder: string,
     savedTenantId: string,
+    bucket: "institutional-branding" | "process-documents" = "institutional-branding",
   ): Promise<UploadedFileItem[]> => {
     if (files.length === 0) return [];
 
@@ -2023,23 +2024,37 @@ export function ConfiguracoesPage() {
     }
 
     const uploaded = await uploadFileToStorage({
-      bucket: "institutional-branding",
+      bucket,
       tenantId: savedTenantId,
       userId: session.id,
       file: item.file,
       folder,
     });
 
-    if (!uploaded.publicUrl) {
+    if (bucket === "institutional-branding" && !uploaded.publicUrl) {
       throw new Error(
-        `O arquivo "${item.fileName}" foi enviado, mas o armazenamento não retornou uma URL pública para consulta institucional.`,
+        `O arquivo "${item.fileName}" foi enviado, mas o domínio público dos ativos institucionais não está configurado.`,
       );
     }
+
+    const physicalBucket =
+      bucket === "process-documents"
+        ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
+        : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+
+    const previewUrl =
+      uploaded.publicUrl ||
+      (await getSignedUrlForObjectStrict({
+        bucket: physicalBucket,
+        objectKey: uploaded.path,
+        expiresIn: 21600,
+      }));
 
     return [
       {
         ...item,
-        previewUrl: uploaded.publicUrl,
+        previewUrl,
+        persistentRef: uploaded.publicUrl || `r2:${uploaded.path}`,
         storagePath: uploaded.path,
         file: undefined,
         fileSizeBytes: item.fileSizeBytes ?? item.file.size,
@@ -2087,6 +2102,7 @@ export function ConfiguracoesPage() {
         planoDiretorFiles,
         "legislation/plano-diretor",
         savedTenantId,
+        "process-documents",
       );
       setPlanoDiretorFiles(nextPlanoDiretorFiles);
 
@@ -2094,6 +2110,7 @@ export function ConfiguracoesPage() {
         usoSoloFiles,
         "legislation/uso-solo",
         savedTenantId,
+        "process-documents",
       );
       setUsoSoloFiles(nextUsoSoloFiles);
 
@@ -2101,6 +2118,7 @@ export function ConfiguracoesPage() {
         leisFiles,
         "legislation/leis-complementares",
         savedTenantId,
+        "process-documents",
       );
       setLeisFiles(nextLeisFiles);
 
@@ -2119,15 +2137,15 @@ export function ConfiguracoesPage() {
       const nextSettings: TenantSettings = {
         ...baseSettings,
         tenantId: savedTenantId,
-        brasaoUrl: nextBrasaoFiles[0]?.previewUrl ?? "",
-        bandeiraUrl: nextBandeiraFiles[0]?.previewUrl ?? "",
-        imagemHeroUrl: nextHeroFiles[0]?.previewUrl ?? "",
+        brasaoUrl: nextBrasaoFiles[0]?.persistentRef ?? nextBrasaoFiles[0]?.previewUrl ?? "",
+        bandeiraUrl: nextBandeiraFiles[0]?.persistentRef ?? nextBandeiraFiles[0]?.previewUrl ?? "",
+        imagemHeroUrl: nextHeroFiles[0]?.persistentRef ?? nextHeroFiles[0]?.previewUrl ?? "",
         planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
-        planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.previewUrl ?? "",
+        planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.persistentRef ?? nextPlanoDiretorFiles[0]?.previewUrl ?? "",
         usoSoloArquivoNome: nextUsoSoloFiles[0]?.fileName ?? "",
-        usoSoloArquivoUrl: nextUsoSoloFiles[0]?.previewUrl ?? "",
+        usoSoloArquivoUrl: nextUsoSoloFiles[0]?.persistentRef ?? nextUsoSoloFiles[0]?.previewUrl ?? "",
         leisArquivoNome: nextLeisFiles[0]?.fileName ?? "",
-        leisArquivoUrl: nextLeisFiles[0]?.previewUrl ?? "",
+        leisArquivoUrl: nextLeisFiles[0]?.persistentRef ?? nextLeisFiles[0]?.previewUrl ?? "",
       };
 
       if (hasBackendEnv) {
