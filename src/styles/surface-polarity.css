@@ -1198,3 +1198,71 @@ button.sig-protocol-marker[data-protocol-marker-active="true"]
   opacity:1 !important;
 }
 /* PROTOCOLO MARKER ATIVO V16 END */
+
+
+/* ==========================================================================
+   ANALISE / FICHA TECNICA — LEGENDA DE STATUS V17 — 2026-10-16
+   Escopo exato da legenda mostrada na ficha técnica. Os chips possuem fundo
+   saturado e TODO o texto interno permanece branco em qualquer tema.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  font-weight:800 !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"] :is(
+  span,strong,small,b,em
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"][data-analysis-legend-status="A"] {
+  background:#047857 !important;
+  background-color:#047857 !important;
+  border-color:#065f46 !important;
+  box-shadow:0 4px 10px rgba(4,120,87,.20) !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"][data-analysis-legend-status="AP"] {
+  background:#0369a1 !important;
+  background-color:#0369a1 !important;
+  border-color:#075985 !important;
+  box-shadow:0 4px 10px rgba(3,105,161,.20) !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"][data-analysis-legend-status="C"] {
+  background:#b45309 !important;
+  background-color:#b45309 !important;
+  border-color:#92400e !important;
+  box-shadow:0 4px 10px rgba(180,83,9,.20) !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"][data-analysis-legend-status="NA"] {
+  background:#334155 !important;
+  background-color:#334155 !important;
+  border-color:#1e293b !important;
+  box-shadow:0 4px 10px rgba(51,65,85,.22) !important;
+}
+/* ANALISE / FICHA TECNICA — LEGENDA DE STATUS V17 END */
