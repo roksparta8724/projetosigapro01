@@ -79,6 +79,72 @@ function compactHash(hash?: string | null) {
   return `${value.slice(0, 20)}...${value.slice(-12)}`;
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function normalizePermitFileName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildPermitTabTitle(
+  permitDocumentTitle: string,
+  permitNumber: string,
+  processProtocol: string,
+) {
+  const title = permitDocumentTitle
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+
+  return `${title} • ${permitNumber} • ${processProtocol} • SIGAPRO`;
+}
+
+function buildPermitFileName(
+  permitDocumentTitle: string,
+  permitNumber: string,
+  processProtocol: string,
+) {
+  const base = normalizePermitFileName(
+    `${permitDocumentTitle}-${permitNumber}-${processProtocol}`,
+  );
+  return `${base || "alvara-municipal"}.pdf`;
+}
+
+function writePdfShell(opened: Window, title: string, message: string) {
+  opened.document.open();
+  opened.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a}
+    #sigapro-pdf-shell{width:100%;height:100%;display:flex;flex-direction:column}
+    #sigapro-pdf-status{padding:14px 18px;background:#fff;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700}
+    #sigapro-pdf-frame{flex:1;width:100%;border:0;background:#f8fafc}
+  </style>
+</head>
+<body>
+  <div id="sigapro-pdf-shell">
+    <div id="sigapro-pdf-status">${escapeHtml(message)}</div>
+    <iframe id="sigapro-pdf-frame" title="${escapeHtml(title)}"></iframe>
+  </div>
+</body>
+</html>`);
+  opened.document.close();
+  opened.document.title = title;
+}
+
 async function loadImageDataUrl(url?: string | null) {
   const normalized = String(url || "").trim();
   if (!normalized) return null;
@@ -303,6 +369,14 @@ export async function buildConstructionPermitPdfBlob({
   const permitDocumentTitle = buildPermitDocumentTitle(
     form?.workType || process.property.workType || process.type,
   );
+
+  pdf.setProperties({
+    title: `${permitDocumentTitle} - ${permit.permitNumber} - ${process.protocol}`,
+    subject: `${permitDocumentTitle} do processo ${process.protocol}`,
+    author: municipalityName || "Prefeitura Municipal",
+    creator: "SIGAPRO Municipal",
+    keywords: "SIGAPRO, alvará, prefeitura, processo municipal",
+  });
 
   // Cabeçalho institucional claro e premium.
   fill(pdf, color.white);
@@ -588,31 +662,71 @@ export async function buildConstructionPermitPdfBlob({
 }
 
 export async function openConstructionPermitPdf(input: ConstructionPermitPdfInput) {
-  const opened = window.open("", "_blank", "noopener,noreferrer");
+  const permitDocumentTitle = buildPermitDocumentTitle(
+    input.permit.formData?.workType ||
+      input.process.property.workType ||
+      input.process.type,
+  );
+  const tabTitle = buildPermitTabTitle(
+    permitDocumentTitle,
+    input.permit.permitNumber,
+    input.process.protocol,
+  );
+  const fileName = buildPermitFileName(
+    permitDocumentTitle,
+    input.permit.permitNumber,
+    input.process.protocol,
+  );
+
+  const opened = window.open(
+    "",
+    `sigapro-alvara-${input.process.id}`,
+    "noopener,noreferrer",
+  );
+
   if (opened) {
     opened.opener = null;
-    opened.document.title = "Gerando Alvará...";
-    opened.document.body.innerHTML =
-      '<div style="font-family:Arial,sans-serif;padding:32px;color:#0f172a">Gerando PDF oficial do Alvará...</div>';
+    writePdfShell(opened, tabTitle, "Gerando PDF oficial do Alvará...");
   }
 
   try {
     const blob = await buildConstructionPermitPdfBlob(input);
-    const url = URL.createObjectURL(blob);
+    const namedBlob = new File([blob], fileName, { type: "application/pdf" });
+    const url = URL.createObjectURL(namedBlob);
 
     if (opened) {
-      opened.location.replace(url);
+      opened.document.title = tabTitle;
+      const status = opened.document.getElementById("sigapro-pdf-status");
+      const frame = opened.document.getElementById(
+        "sigapro-pdf-frame",
+      ) as HTMLIFrameElement | null;
+
+      if (status) status.remove();
+      if (frame) {
+        frame.src = url;
+        frame.title = tabTitle;
+      } else {
+        writePdfShell(opened, tabTitle, "");
+        const fallbackFrame = opened.document.getElementById(
+          "sigapro-pdf-frame",
+        ) as HTMLIFrameElement | null;
+        if (fallbackFrame) fallbackFrame.src = url;
+      }
+
+      opened.document.title = tabTitle;
+      opened.focus();
     } else {
       const fallback = document.createElement("a");
       fallback.href = url;
-      fallback.target = "_blank";
+      fallback.download = fileName;
       fallback.rel = "noopener noreferrer";
       fallback.click();
     }
 
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
   } catch (error) {
     if (opened) {
+      opened.document.title = `Erro • ${tabTitle}`;
       opened.document.body.innerHTML =
         '<div style="font-family:Arial,sans-serif;padding:32px;color:#991b1b">Não foi possível gerar o PDF do Alvará.</div>';
     }
