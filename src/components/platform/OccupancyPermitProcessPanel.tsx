@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -321,7 +322,7 @@ function StatusBox({
   detail,
 }: {
   done: boolean;
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   detail: string;
 }) {
