@@ -29,6 +29,10 @@ describe("official electronic signatures", () => {
     resolve(process.cwd(), "neon/migrations/20261015_analysis_withdrawal_record.sql"),
     "utf8",
   );
+  const withdrawalDirectMigration = readFileSync(
+    resolve(process.cwd(), "neon/migrations/20261016_analysis_withdrawal_direct_table.sql"),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -171,12 +175,25 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("!bg-white !text-slate-950");
     expect(checklist).toContain("caret-sky-600");
     expect(checklist).toContain("[color-scheme:light]");
+    expect(checklist).toContain("focus:!bg-sky-700");
+    expect(checklist).toContain("focus:!text-white");
+    expect(checklist).toContain("focus:[&::-webkit-datetime-edit]:!text-white");
     expect(checklist).toContain("getProcessArtifactWithdrawal");
     expect(checklist).toContain("pdfWithdrawalRecord");
     expect(checklist).toContain("____________________________________________");
     expect(checklist).toContain("____/____/________");
     expect(checklist).not.toContain('Retirada por: ${withdrawalMatchesCurrentVersion ? withdrawalRecord?.withdrawn_by_name : "Não registrada"}');
     expect(checklist).not.toContain(': "Não registrada"');
+  });
+
+  it("persists pickup through the protected table instead of the stale RPC schema cache", () => {
+    expect(client).toContain('.from("process_artifact_withdrawals")');
+    expect(client).toContain('.upsert(row, { onConflict: "process_id,artifact_key" })');
+    expect(client).not.toContain('"upsert_process_artifact_withdrawal_v1"');
+    expect(withdrawalDirectMigration).toContain("enable row level security");
+    expect(withdrawalDirectMigration).toContain("process_artifact_withdrawals_insert");
+    expect(withdrawalDirectMigration).toContain("trg_prepare_process_artifact_withdrawal_v1");
+    expect(withdrawalDirectMigration).toContain("trg_audit_process_artifact_withdrawal_v1");
   });
 
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
