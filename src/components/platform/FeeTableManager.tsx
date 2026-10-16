@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { evaluateMunicipalFeeRules, type CalculationContext } from "@/lib/calculationEngine";
+import { type CalculationContext } from "@/lib/calculationEngine";
 import { type MunicipalFeeRule, type MunicipalFeeTable } from "@/lib/govtech";
 import {
   calculateApprovalGuideAmount,
@@ -115,7 +115,6 @@ export function FeeTableManager({
   onSave,
   statusMessage,
 }: FeeTableManagerProps) {
-  const preview = evaluateMunicipalFeeRules(rules, sampleContext);
   const [draft, setDraft] = useState({
     taxaProtocolo: values?.taxaProtocolo ?? 35.24,
     taxaIssPorMetroQuadrado: values?.taxaIssPorMetroQuadrado ?? 0,
@@ -201,10 +200,10 @@ export function FeeTableManager({
               Simulação
             </div>
             <p className="break-words text-lg font-semibold leading-tight text-slate-900">
-              {formatCurrency(preview.total)}
+              {formatCurrency(simulation.protocolo + simulation.iss + simulation.aprovacao)}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Pré-visualização do cálculo no contexto atual.
+              Soma simulada de protocolo, ISSQN e aprovação/Alvará no contexto atual.
             </p>
           </div>
         </div>
