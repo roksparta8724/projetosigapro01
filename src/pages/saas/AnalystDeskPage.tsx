@@ -2,6 +2,7 @@
   Archive,
   ArchiveRestore,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Download,
   Eye,
@@ -143,6 +144,7 @@ export function AnalystDeskPage() {
   const archiveStorageKey = `sigapro:analysis-archive:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -388,10 +390,26 @@ export function AnalystDeskPage() {
           const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
           const analysisStarted = Boolean(process.analysis?.startedAt);
           const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
+          const isExpanded = expandedProcessId === process.id;
 
           return (
-            <div key={process.id} data-process-premium-card="true" data-surface="adaptive-card" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)]">
-              <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+            <div
+              key={process.id}
+              data-process-premium-card="true"
+              data-surface="adaptive-card"
+              data-expanded={isExpanded ? "true" : "false"}
+              className={`overflow-hidden rounded-[20px] border bg-white transition-[border-color,box-shadow] duration-200 ${
+                isExpanded
+                  ? "border-sky-300 shadow-[0_14px_34px_rgba(7,89,133,0.10)]"
+                  : "border-slate-200 shadow-[0_7px_20px_rgba(15,23,42,0.05)] hover:border-sky-200 hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]"
+              }`}
+              onClick={(event) => {
+                const target = event.target as HTMLElement;
+                if (target.closest("a,button,input,select,textarea,[role='button']")) return;
+                setExpandedProcessId((current) => (current === process.id ? null : process.id));
+              }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -414,8 +432,16 @@ export function AnalystDeskPage() {
                     ) : null}
                   </div>
 
-                  <p className="mt-2 text-sm font-medium text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                  <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500" title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}>
+                  <p
+                    className="mt-1.5 line-clamp-1 text-sm font-semibold text-slate-900"
+                    title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                  >
+                    {formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                  </p>
+                  <p
+                    className="sig-fit-copy mt-0.5 line-clamp-1 text-xs leading-5 text-slate-500"
+                    title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}
+                  >
                     {process.address} • IPTU {process.property.iptu} • Matrícula {process.property.registration}
                   </p>
                 </div>
@@ -453,10 +479,34 @@ export function AnalystDeskPage() {
                       )}
                     </Button>
                   ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`h-9 rounded-xl border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
+                      isExpanded ? "border-sky-300 bg-sky-50 text-sky-800" : ""
+                    }`}
+                    onClick={() =>
+                      setExpandedProcessId((current) =>
+                        current === process.id ? null : process.id,
+                      )
+                    }
+                    aria-expanded={isExpanded}
+                    aria-controls={`analysis-process-details-${process.id}`}
+                  >
+                    <span>{isExpanded ? "Recolher" : "Ver detalhes"}</span>
+                    <ChevronDown
+                      className={`ml-1.5 h-4 w-4 transition-transform duration-200 ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
                 </div>
               </div>
 
-              <div className="sig-responsive-data-grid mx-5 mt-4">
+              {isExpanded ? (
+                <div id={`analysis-process-details-${process.id}`}>
+              <div className="sig-responsive-data-grid mx-5 mt-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Responsável pela análise</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
@@ -654,6 +704,8 @@ export function AnalystDeskPage() {
                   Abrir processo
                 </Link>
               </div>
+                </div>
+              ) : null}
             </div>
           );
         })
@@ -664,7 +716,7 @@ export function AnalystDeskPage() {
   const renderProcessRegistry = () => (
     <div className="space-y-3">
       <div className="flex min-h-8 items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-[11px] font-medium text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-        Abra o processo pelo número sublinhado ou pelo botão “Abrir processo”. Arquivar organiza apenas a sua lista e não altera o processo oficial.
+        Clique em um card para expandir somente o processo que deseja analisar. O número sublinhado e o botão “Abrir processo” continuam abrindo o processo oficial.
       </div>
 
       {renderQueue(
