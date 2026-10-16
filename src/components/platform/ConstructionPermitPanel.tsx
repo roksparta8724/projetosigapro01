@@ -301,29 +301,31 @@ export function ConstructionPermitPanel({
     setFillOpen(true);
   };
 
-  const savePermitForm = (openPreviewAfterSave = false) => {
-    if (!canEditForm && !canStartDraft) return;
+  const savePermitForm = (
+    openPreviewAfterSave = false,
+  ): ConstructionPermitRecord | null => {
+    if (!canEditForm && !canStartDraft) return null;
 
     const area = Number(String(formData.areaM2).replace(",", "."));
     if (!formData.ownerName.trim()) {
       setStatus("Informe o proprietário/titular do Alvará.");
-      return;
+      return null;
     }
     if (!formData.technicalLead.trim()) {
       setStatus("Informe o responsável técnico.");
-      return;
+      return null;
     }
     if (!formData.propertyAddress.trim()) {
       setStatus("Informe o endereço do imóvel.");
-      return;
+      return null;
     }
     if (!Number.isFinite(area) || area <= 0) {
       setStatus("Informe uma área licenciada válida.");
-      return;
+      return null;
     }
     if (!formData.usage.trim() || !formData.workType.trim()) {
       setStatus("Informe o uso da edificação e a natureza da obra.");
-      return;
+      return null;
     }
 
     const base =
@@ -357,6 +359,8 @@ export function ConstructionPermitPanel({
     if (openPreviewAfterSave) {
       openPdf(next);
     }
+
+    return next;
   };
 
   const preparePermit = () => {
@@ -956,29 +960,104 @@ export function ConstructionPermitPanel({
                     <Eye className="mr-2 h-4 w-4" />
                     Salvar e visualizar
                   </Button>
-                  <Button type="button" className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800" onClick={() => {
-                    savePermitForm(false);
-                    const record =
-                      permit ??
-                      createConstructionPermitDraft(process, municipalityId, {
-                        ...formData,
-                        technicalRegistration:
-                          formData.technicalRegistration ||
-                          technicalProfile?.registrationNumber ||
-                          "",
-                      });
-                    const next = updateConstructionPermitFormData(record, {
-                      ...formData,
-                      technicalRegistration:
-                        formData.technicalRegistration ||
-                        technicalProfile?.registrationNumber ||
-                        "",
-                    });
-                    setPermit(next);
-                    openPdf(next);
-                  }}>
+                  <Button
+                    type="button"
+                    className="rounded-full bg-sky-700 px-5 text-white hover:bg-sky-800"
+                    onClick={() => {
+                      const next = savePermitForm(false);
+                      if (next) openPdf(next);
+                    }}
+                  >
                     <FileDown className="mr-2 h-4 w-4" />
                     Gerar PDF do Alvará
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={Boolean(signatureDialog)}
+              onOpenChange={(open) => {
+                if (signatureBusy) return;
+                if (!open) {
+                  setSignatureDialog(null);
+                  setSignaturePassword("");
+                  setSignatureError("");
+                }
+              }}
+            >
+              <DialogContent className="z-[100] max-w-lg overflow-hidden rounded-[26px] border-slate-200 bg-white p-0 shadow-[0_30px_90px_rgba(15,23,42,0.30)] dark:border-slate-700 dark:bg-slate-950">
+                <DialogHeader className="border-b border-slate-200 bg-[linear-gradient(135deg,#071b2e_0%,#0b456a_58%,#0d6c9f_100%)] px-6 py-5 text-left dark:border-slate-700">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white">
+                      <Signature className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] !text-sky-100">
+                        Assinatura eletrônica
+                      </p>
+                      <DialogTitle className="mt-1 text-lg font-bold !text-white">
+                        {signatureDialog === "director"
+                          ? "Assinatura da Diretoria"
+                          : "Assinatura da Secretaria"}
+                      </DialogTitle>
+                      <DialogDescription className="mt-1 !text-slate-200">
+                        Confirme com sua senha de acesso. O SIGAPRO registrará a identidade, data, código de verificação e SHA-256 da versão assinada.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-4 px-6 py-5">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+                      Senha de acesso
+                    </label>
+                    <Input
+                      type="password"
+                      value={signaturePassword}
+                      onChange={(event) => setSignaturePassword(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && signaturePassword && !signatureBusy) {
+                          void confirmElectronicSignature();
+                        }
+                      }}
+                      autoComplete="current-password"
+                      className="mt-2 h-11 rounded-xl"
+                      placeholder="Digite sua senha"
+                      disabled={signatureBusy}
+                    />
+                  </div>
+
+                  {signatureError ? (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200">
+                      {signatureError}
+                    </div>
+                  ) : null}
+                </div>
+
+                <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={signatureBusy}
+                    onClick={() => {
+                      setSignatureDialog(null);
+                      setSignaturePassword("");
+                      setSignatureError("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-full bg-sky-700 px-5 font-bold text-white hover:bg-sky-800"
+                    disabled={signatureBusy || !signaturePassword}
+                    onClick={() => void confirmElectronicSignature()}
+                  >
+                    <Signature className="mr-2 h-4 w-4" />
+                    {signatureBusy ? "Validando e assinando..." : "Confirmar com minha senha"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
