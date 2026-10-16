@@ -15,6 +15,10 @@ export interface ProtocolDraftForm {
   uso: string;
   tipoObra: string;
   padraoConstrutivo: string;
+  processoAprovacao: string;
+  numeroAlvara: string;
+  dataConclusaoObra: string;
+  modalidadeHabiteSe: "integral" | "parcial";
   observacoes: string;
   profissional: string;
   profissionalDocumento: string;
@@ -61,6 +65,10 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   uso: "",
   tipoObra: "",
   padraoConstrutivo: "medio",
+  processoAprovacao: "",
+  numeroAlvara: "",
+  dataConclusaoObra: "",
+  modalidadeHabiteSe: "integral",
   observacoes: "",
   profissional: "",
   profissionalDocumento: "",
