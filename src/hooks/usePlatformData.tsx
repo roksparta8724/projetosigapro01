@@ -1992,10 +1992,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("A tabela de ISSQN ainda não foi configurada pela Prefeitura.");
         }
         if (guideKind === "aprovacao_final" && settings?.finalApprovalFeeEnabled === false) {
-          throw new Error("A taxa final de aprovação está desativada nas regras financeiras desta Prefeitura.");
+          throw new Error("A guia de aprovação / Alvará está desativada nas regras financeiras desta Prefeitura.");
         }
         if (guideKind === "aprovacao_final" && !isFinalApprovalFeeConfigured(settings)) {
-          throw new Error("A tabela da taxa final ainda não foi configurada pela Prefeitura.");
+          throw new Error("A tabela oficial da aprovação / Alvará ainda não foi configurada pela Prefeitura.");
         }
 
         await issueRemoteProcessPaymentGuide({
