@@ -742,6 +742,9 @@ export function ConfiguracoesPage() {
       ? [{ id: "leis-complementares", fileName: settings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.leisArquivoUrl }]
       : [],
   );
+  const [institutionalAssetsSaving, setInstitutionalAssetsSaving] = useState(false);
+  const [institutionalAssetsStatus, setInstitutionalAssetsStatus] = useState("");
+
 
   // bundle remoto agora vem do AppBootstrap/MunicipalityProvider
 
