@@ -38,18 +38,24 @@ import {
   CONSTRUCTION_PERMIT_EVENT,
   buildConstructionPermitFormData,
   createConstructionPermitDraft,
+  applyConstructionPermitOfficialSignature,
   getMunicipalDirectorCandidates,
   readLocalConstructionPermit,
-  signConstructionPermitAsAnalyst,
-  signConstructionPermitAsDirector,
   userCanSignPermitAsAnalyst,
   userCanSignPermitAsDirector,
+  userCanSignPermitAsSecretary,
   updateConstructionPermitFormData,
   writeLocalConstructionPermit,
   type ConstructionPermitFormData,
   type ConstructionPermitRecord,
 } from "@/lib/constructionPermit";
 import { openConstructionPermitPdf } from "@/lib/constructionPermitPdf";
+import {
+  ArtifactSignatureError,
+  getProcessArtifactSignatures,
+  signProcessArtifactWithPassword,
+  type ArtifactSignerSlot,
+} from "@/integrations/esign/artifactClient";
 import type { ProcessRecord, SessionUser, UserProfile } from "@/lib/platform";
 
 type ConstructionPermitPanelProps = {
@@ -58,6 +64,10 @@ type ConstructionPermitPanelProps = {
   sessionUsers: SessionUser[];
   municipalityId: string;
   municipalityName: string;
+  municipalityLogoUrl?: string;
+  municipalityAddress?: string;
+  municipalityPhone?: string;
+  municipalityEmail?: string;
   secretariat?: string;
   directorate?: string;
   technicalProfile?: UserProfile;
@@ -72,7 +82,7 @@ function permitStatusLabel(record: ConstructionPermitRecord | null) {
   if (!record) return "Ainda não preparado";
   if (record.status === "emitido") return "Alvará emitido";
   if (record.status === "aguardando_diretor") return "Aguardando Diretor";
-  return "Rascunho técnico";
+  return "Em preparação";
 }
 
 export function ConstructionPermitPanel({
@@ -81,6 +91,10 @@ export function ConstructionPermitPanel({
   sessionUsers,
   municipalityId,
   municipalityName,
+  municipalityLogoUrl,
+  municipalityAddress,
+  municipalityPhone,
+  municipalityEmail,
   secretariat,
   directorate,
   technicalProfile,
@@ -94,6 +108,10 @@ export function ConstructionPermitPanel({
     readLocalConstructionPermit(municipalityId, process.id),
   );
   const [status, setStatus] = useState("");
+  const [signatureDialog, setSignatureDialog] = useState<"director" | "secretary" | null>(null);
+  const [signaturePassword, setSignaturePassword] = useState("");
+  const [signatureBusy, setSignatureBusy] = useState(false);
+  const [signatureError, setSignatureError] = useState("");
   const [fillOpen, setFillOpen] = useState(false);
   const [formData, setFormData] = useState<ConstructionPermitFormData>(() => ({
     ...buildConstructionPermitFormData(process),
@@ -180,28 +198,33 @@ export function ConstructionPermitPanel({
     userCanSignPermitAsAnalyst(session, process);
   const permitReadyForSignature =
     issPaymentConfirmed && allDocumentsApproved;
-  const canSignAnalyst =
+  const canSignDirector =
     Boolean(permit) &&
     permitReadyForSignature &&
-    !permit?.analystSignature &&
-    canStartDraft;
-  const canSignDirector =
-    Boolean(permit?.analystSignature) &&
     !permit?.directorSignature &&
     !externalView &&
     userCanSignPermitAsDirector(session);
+  const canSignSecretary =
+    Boolean(permit?.directorSignature) &&
+    !permit?.secretarySignature &&
+    !externalView &&
+    userCanSignPermitAsSecretary(session);
   const canPreview = Boolean(permit);
   const canEditForm =
     canStartDraft &&
-    !permit?.analystSignature;
-  const isIssued = permit?.status === "emitido";
+    !permit?.directorSignature;
+  const isIssued = Boolean(permit?.directorSignature) || permit?.status === "emitido";
 
-  const openPdf = () => {
-    if (!permit) return;
-    openConstructionPermitPdf({
-      permit,
+  const openPdf = (record: ConstructionPermitRecord | null = permit) => {
+    if (!record) return;
+    void openConstructionPermitPdf({
+      permit: record,
       process,
       municipalityName,
+      municipalityLogoUrl,
+      municipalityAddress,
+      municipalityPhone,
+      municipalityEmail,
       secretariat,
       directorate,
       technicalProfile,
@@ -276,14 +299,7 @@ export function ConstructionPermitPanel({
     );
 
     if (openPreviewAfterSave) {
-      openConstructionPermitPdf({
-        permit: next,
-        process,
-        municipalityName,
-        secretariat,
-        directorate,
-        technicalProfile,
-      });
+      openPdf(next);
     }
   };
 
@@ -291,23 +307,113 @@ export function ConstructionPermitPanel({
     openPermitForm();
   };
 
-  const signAsAnalyst = () => {
-    if (!permit || !canSignAnalyst) return;
-    const next = signConstructionPermitAsAnalyst(permit, session);
-    setPermit(next);
-    setStatus(
-      "Assinatura técnica registrada. O Alvará agora aguarda a assinatura do Diretor responsável.",
-    );
+  const buildPermitSignaturePayload = (record: ConstructionPermitRecord) => ({
+    schema: "sigapro.construction-permit.v1",
+    processId: process.id,
+    protocol: process.protocol,
+    municipalityId,
+    permitNumber: record.permitNumber,
+    formData: record.formData ?? buildConstructionPermitFormData(process),
+  });
+
+  const openSignatureConfirmation = (kind: "director" | "secretary") => {
+    if (!permit) return;
+
+    if (kind === "director") {
+      if (!canSignDirector) {
+        setStatus("Somente o Diretor responsável pode assinar o Alvará depois da conclusão das etapas obrigatórias.");
+        return;
+      }
+    } else if (!canSignSecretary) {
+      setStatus("A assinatura da Secretaria é opcional e só pode ser registrada por um perfil de Secretário(a) após a Diretoria.");
+      return;
+    }
+
+    setSignaturePassword("");
+    setSignatureError("");
+    setSignatureDialog(kind);
   };
 
-  const signAsDirector = () => {
-    if (!permit || !canSignDirector) return;
-    const next = signConstructionPermitAsDirector(permit, session);
-    setPermit(next);
-    setStatus(
-      "Assinatura da Diretoria registrada. O Alvará foi concluído e liberado como documento final.",
-    );
+  const confirmElectronicSignature = async () => {
+    if (!permit || !signatureDialog || !signaturePassword) {
+      setSignatureError("Informe sua senha de acesso.");
+      return;
+    }
+
+    const slot: ArtifactSignerSlot =
+      signatureDialog === "director" ? "diretoria" : "secretaria";
+
+    setSignatureBusy(true);
+    setSignatureError("");
+
+    try {
+      await signProcessArtifactWithPassword({
+        processId: process.id,
+        artifactType: "construction_permit",
+        artifactKey: "construction-permit",
+        signerSlot: slot,
+        password: signaturePassword,
+        payload: buildPermitSignaturePayload(permit),
+      });
+
+      const snapshot = await getProcessArtifactSignatures(
+        process.id,
+        "construction-permit",
+      );
+      const signer = snapshot.signers.find((item) => item.slot === slot);
+
+      if (!snapshot.block || !signer) {
+        throw new ArtifactSignatureError(
+          "A assinatura foi enviada, mas ainda não pôde ser confirmada no banco oficial.",
+          { stage: "verification", code: "PERMIT_SIGNATURE_READBACK_FAILED" },
+        );
+      }
+
+      const signature = {
+        profileId: signer.profile_id || session.id,
+        name: signer.name || session.name,
+        role:
+          signer.title ||
+          signer.role ||
+          (signatureDialog === "director" ? "Diretor(a)" : "Secretário(a)"),
+        signedAt:
+          signer.signed_at ||
+          snapshot.block.completed_at ||
+          new Date().toISOString(),
+        verificationCode: snapshot.block.verification_code,
+        evidenceHash: snapshot.block.artifact_hash,
+        registration: signer.registration ?? null,
+        authMethod: signer.auth_method || "password_reauth",
+        official: true,
+      };
+
+      const next = applyConstructionPermitOfficialSignature(
+        permit,
+        slot,
+        signature,
+      );
+      setPermit(next);
+      setSignatureDialog(null);
+      setSignaturePassword("");
+      setStatus(
+        signatureDialog === "director"
+          ? "Assinatura eletrônica da Diretoria concluída. O Alvará foi emitido e o PDF oficial já está disponível."
+          : "Assinatura eletrônica da Secretaria registrada. Ela passará a aparecer automaticamente no Alvará.",
+      );
+    } catch (error) {
+      setSignaturePassword("");
+      setSignatureError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir a assinatura eletrônica.",
+      );
+    } finally {
+      setSignatureBusy(false);
+    }
   };
+
+  const signAsDirector = () => openSignatureConfirmation("director");
+  const signAsSecretary = () => openSignatureConfirmation("secretary");
 
   return (
     <Card data-construction-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
