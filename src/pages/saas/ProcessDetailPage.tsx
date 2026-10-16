@@ -34,6 +34,7 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  calculateApprovalGuideBreakdown,
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
@@ -1129,6 +1130,63 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
+    const approvalBreakdown =
+      selectedGuide.kind === "aprovacao_final"
+        ? calculateApprovalGuideBreakdown(
+            selectedGuide.areaM2 ?? process.property.area,
+            selectedGuide.usage || process.property.usage,
+            selectedGuide.constructionStandard || process.property.constructionStandard || "medio",
+            tenantSettings,
+          )
+        : null;
+    const canItemizeApproval =
+      Boolean(approvalBreakdown) &&
+      Math.abs(Number(approvalBreakdown?.totalAmount ?? 0) - Number(selectedGuide.amount || 0)) < 0.02;
+    const guideItems: GuiaRecolhimentoOficialProps["itens"] =
+      selectedGuide.kind === "aprovacao_final" && approvalBreakdown && canItemizeApproval
+        ? [
+            {
+              ano: year,
+              divida: `Alvará de ${selectedGuide.usage || process.property.usage || "Construção"}`,
+              tabela: tenantSettings?.guiaPrefixo || "DAM",
+              sb: "",
+              pc: "",
+              principal: approvalBreakdown.permitFee,
+              multa: 0,
+              juros: 0,
+              correcao: 0,
+              total: approvalBreakdown.permitFee,
+            },
+            {
+              ano: year,
+              divida: `${approvalBreakdown.areaM2.toLocaleString("pt-BR")} m² de aprovação • ${selectedGuide.usage || process.property.usage || "Obra"} • ${selectedGuide.constructionStandard || process.property.constructionStandard || "Padrão"} • ${approvalBreakdown.aliquotPercent.toLocaleString("pt-BR")}%`,
+              tabela: `R$ ${approvalBreakdown.licenseUnitValue.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              })}/m²`,
+              sb: "",
+              pc: "",
+              principal: approvalBreakdown.licenseAmount,
+              multa: 0,
+              juros: 0,
+              correcao: 0,
+              total: approvalBreakdown.licenseAmount,
+            },
+          ]
+        : [
+            {
+              ano: year,
+              divida: selectedGuide.label,
+              tabela: tenantSettings?.guiaPrefixo || "DAM",
+              sb: "",
+              pc: "",
+              principal: selectedGuide.amount,
+              multa: 0,
+              juros: 0,
+              correcao: 0,
+              total: selectedGuide.amount,
+            },
+          ];
     // Não construir códigos de barras ou linhas digitáveis artificiais.
     // Uma DAM só pode mostrar código bancário validado pela integração arrecadadora.
     const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -1178,20 +1236,7 @@ export function ProcessDetailPage() {
         autenticacaoMecanica: "",
         referencia: getGuideReference(selectedGuide.kind),
       },
-      itens: [
-        {
-          ano: year,
-          divida: selectedGuide.label,
-          tabela: tenantSettings?.guiaPrefixo || "DAM",
-          sb: "",
-          pc: "",
-          principal: selectedGuide.amount,
-          multa: 0,
-          juros: 0,
-          correcao: 0,
-          total: selectedGuide.amount,
-        },
-      ],
+      itens: guideItems,
     };
     openGuiaRecolhimentoOficialWindow(
       guideDocument,
