@@ -755,22 +755,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       }
     : null;
 
-  const departmentOrganogramHint =
-    location.pathname.startsWith("/prefeitura/financeiro/iptu")
-      ? "Cadastro Imobiliário / IPTU"
-      : location.pathname.startsWith("/prefeitura/financeiro")
-        ? canonicalSignedInUser?.department || session.department || "Financeiro"
-        : location.pathname.startsWith("/prefeitura/protocolos")
-          ? canonicalSignedInUser?.department || session.department || "Protocolo"
-          : location.pathname.startsWith("/prefeitura/analise")
-            ? canonicalSignedInUser?.department || session.department || "Análise Urbanística"
-            : location.pathname.startsWith("/externo") || location.pathname.startsWith("/proprietario")
-              ? ""
-              : canonicalSignedInUser?.department ||
-                session.department ||
-                activeDepartmentOwnership?.diretoria ||
-                activeDepartmentOwnership?.secretaria ||
-                "";
   const rawInstitutionDisplaySubtitle =
     activeDepartmentOwnership?.secretaria ||
     officialHeaderText ||
