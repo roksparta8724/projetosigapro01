@@ -222,6 +222,8 @@ export function InternalSectionNav({
               type="button"
               onClick={() => onChange(item.value)}
               data-nav-active={active ? "true" : "false"}
+              data-contrast-card={active ? "dark" : "light"}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "sig-nav-item flex min-h-[68px] min-w-[210px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left transition duration-200 md:min-w-0 md:rounded-[18px]",
                 active
