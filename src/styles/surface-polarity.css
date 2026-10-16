@@ -1396,3 +1396,70 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell
   -webkit-text-fill-color:#f8fafc !important;
 }
 /* FICHA TECNICA — NITIDEZ TIPOGRAFICA V18 END */
+
+
+/* ==========================================================================
+   FICHA TECNICA — CONTRASTE + NITIDEZ FINAL V19 — 2026-10-16
+   Corrige exatamente a legenda/status da análise técnica. Texto de chip
+   saturado permanece branco e sem efeitos que deixem a tipografia "embaçada".
+   ========================================================================== */
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"] {
+  text-rendering:auto !important;
+  filter:none !important;
+  opacity:1 !important;
+  transform:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"],
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  text-shadow:none !important;
+  transform:none !important;
+  text-rendering:auto !important;
+  -webkit-font-smoothing:auto !important;
+  font-synthesis:none !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"] {
+  font-size:12px !important;
+  line-height:1.15 !important;
+  font-weight:800 !important;
+  letter-spacing:0 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"],
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] * {
+  text-rendering:auto !important;
+  filter:none !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"]
+:is(.sig-analysis-crisp-label,.sig-analysis-crisp-value,.sig-analysis-crisp-help,input) {
+  -webkit-font-smoothing:auto !important;
+  font-synthesis:none !important;
+}
+/* FICHA TECNICA — CONTRASTE + NITIDEZ FINAL V19 END */
