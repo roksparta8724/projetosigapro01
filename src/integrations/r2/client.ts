@@ -28,6 +28,35 @@ function buildApiCandidates(path: string) {
   );
 }
 
+function normalizeClientBucket(value: string) {
+  const normalized = String(value || "").trim();
+  const configuredDocuments = String(
+    import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "",
+  ).trim();
+  const configuredLogos = String(
+    import.meta.env.VITE_R2_BUCKET_LOGOS || "",
+  ).trim();
+
+  if (
+    normalized === "process-documents" ||
+    normalized === "sigapro-documentos" ||
+    (configuredDocuments && normalized === configuredDocuments)
+  ) {
+    return "process-documents";
+  }
+
+  if (
+    normalized === "institutional-branding" ||
+    normalized === "profile-assets" ||
+    normalized === "sigapro-logos" ||
+    (configuredLogos && normalized === configuredLogos)
+  ) {
+    return "institutional-branding";
+  }
+
+  return normalized;
+}
+
 async function getAuthorizationHeaders() {
   try {
     const sessionResult = await backendClient?.auth?.getSession?.();
@@ -64,6 +93,7 @@ export function getObjectKeyFromPublicUrl(publicUrl: string) {
 }
 
 async function requestSignedUrl(path: string, input: { bucket: string; objectKey: string; expiresIn?: number }) {
+  const bucket = normalizeClientBucket(input.bucket);
   const response = await fetch(path, {
     method: "POST",
     headers: {
@@ -71,7 +101,7 @@ async function requestSignedUrl(path: string, input: { bucket: string; objectKey
       ...(await getAuthorizationHeaders()),
     },
     body: JSON.stringify({
-      bucket: input.bucket,
+      bucket,
       objectKey: input.objectKey,
       expiresIn: input.expiresIn,
     }),
@@ -206,7 +236,7 @@ export async function uploadFile(input: {
 
     console.warn("[SIGAPRO][R2] upload iniciado", {
       endpoint: "/api/r2-upload",
-      bucket: input.bucket,
+      bucket: normalizeClientBucket(input.bucket),
       objectKey: input.objectKey,
       fileName: input.file.name,
       fileSize: input.file.size,
@@ -220,7 +250,7 @@ export async function uploadFile(input: {
         ...(await getAuthorizationHeaders()),
       },
       body: JSON.stringify({
-        bucket: input.bucket,
+        bucket: normalizeClientBucket(input.bucket),
         objectKey: input.objectKey,
         contentType: input.file.type || "application/octet-stream",
         fileName: input.file.name,
@@ -299,7 +329,10 @@ export async function deleteFile(input: { bucket: string; objectKey: string }) {
       "Content-Type": "application/json",
       ...(await getAuthorizationHeaders()),
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      bucket: normalizeClientBucket(input.bucket),
+    }),
   });
 
   if (!response.ok) {
