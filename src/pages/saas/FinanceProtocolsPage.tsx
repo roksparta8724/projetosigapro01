@@ -466,6 +466,7 @@ export function FinanceProtocolsPage() {
                     return (
                       <article
                         key={process.id}
+                        data-process-premium-card="true"
                         data-finance-process-ledger="true"
                         data-expanded={isExpanded ? "true" : "false"}
                         className={`overflow-hidden rounded-[24px] border bg-white transition-[border-color,box-shadow] duration-200 dark:bg-slate-950 ${
