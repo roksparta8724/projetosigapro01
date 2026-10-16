@@ -45,7 +45,7 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
 import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { getObjectKeyFromPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   getMasterInstitutionBranding,
