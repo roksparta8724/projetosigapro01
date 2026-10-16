@@ -3085,33 +3085,216 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "alvara" && (
-            <ConstructionPermitPanel
-              process={process}
-              session={session}
-              sessionUsers={sessionUsers}
-              municipalityId={effectiveScopeId || process.tenantId}
-              municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
-              municipalityLogoUrl={
-                tenantSettings?.brasaoUrl ||
-                tenantSettings?.headerLogoUrl ||
-                tenantSettings?.logoUrl ||
-                ""
-              }
-              municipalityAddress={tenantSettings?.endereco || ""}
-              municipalityPhone={tenantSettings?.telefone || ""}
-              municipalityEmail={tenantSettings?.email || ""}
-              secretariat={tenantSettings?.secretariaResponsavel}
-              directorate={tenantSettings?.diretoriaResponsavel || "Divisão de Análise e Aprovação de Projetos - DAAP"}
-              technicalProfile={linkedTechnicalProfile}
-              issPaymentConfirmed={constructionGuide?.status === "compensada"}
-              issPaidAt={constructionGuide?.paidAt}
-              approvalPaymentRequired={approvalPaymentRequired}
-              approvalPaymentConfirmed={approvalPaymentConfirmed}
-              approvalPaidAt={approvalGuide?.paidAt}
-              allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
-              externalView={isExternalProcessViewer}
-              organogramTrail={currentOrganizationTrail}
-            />
+            <>
+              {!isExternalProcessViewer && approvalPaymentRequired ? (
+                <Card className={`${cardShell} overflow-hidden border-violet-200 dark:border-violet-500/30`}>
+                  <CardHeader className="border-b border-violet-100 bg-[linear-gradient(135deg,#f8f7ff_0%,#eef4ff_100%)] dark:border-violet-500/20 dark:bg-[linear-gradient(135deg,#17152b_0%,#10243a_100%)]">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-5 w-5 text-violet-700 dark:text-violet-300" />
+                          <CardTitle className="text-slate-950 dark:text-white">
+                            Pagamento da aprovação / Alvará
+                          </CardTitle>
+                        </div>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                          Esta cobrança pertence ao licenciamento atual. Habite-se não faz parte deste processo e, quando implantado, terá protocolo próprio.
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`w-fit rounded-full font-semibold ${
+                          approvalGuide?.status === "compensada"
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : approvalGuide
+                              ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
+                              : constructionPaymentCompensated &&
+                                  allAnalysisDocumentsApproved &&
+                                  !hasOpenAnalysisRequirements &&
+                                  Boolean(process.property.constructionStandard) &&
+                                  Boolean(approvalGuidePreview.profile) &&
+                                  approvalGuidePreview.baseValueM2 > 0
+                                ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300"
+                                : "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                        }`}
+                      >
+                        {approvalGuide?.status === "compensada"
+                          ? "Pagamento compensado"
+                          : approvalGuide
+                            ? "Aguardando Financeiro"
+                            : constructionPaymentCompensated &&
+                                allAnalysisDocumentsApproved &&
+                                !hasOpenAnalysisRequirements &&
+                                Boolean(process.property.constructionStandard) &&
+                                Boolean(approvalGuidePreview.profile) &&
+                                approvalGuidePreview.baseValueM2 > 0
+                              ? "Pronta para emissão"
+                              : "Aguardando pré-requisitos"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4 p-5">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Área aprovada</p>
+                        <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">
+                          {approvalGuidePreview.areaM2.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Tipo / acabamento</p>
+                        <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">
+                          {process.property.usage || "Não informado"} • {constructionStandardLabel}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Referência oficial</p>
+                        <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">
+                          {approvalGuidePreview.baseValueM2 > 0
+                            ? `${formatCurrency(approvalGuidePreview.baseValueM2)} / m²`
+                            : "Não configurada"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Alíquota</p>
+                        <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">
+                          {approvalGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {approvalGuidePreview.baseValueM2 > 0
+                            ? `${formatCurrency(approvalGuidePreview.licenseUnitValue)} / m² efetivo`
+                            : "Aguardando tabela"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/30 dark:bg-violet-950/30">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-violet-700 dark:text-violet-300">Total</p>
+                        <p className="mt-2 text-base font-black text-slate-950 dark:text-white">
+                          {formatCurrency(approvalGuide?.amount ?? approvalGuidePreview.totalAmount)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          Alvará fixo: {formatCurrency(approvalGuidePreview.permitFee)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-2xl border p-4 ${
+                      approvalGuide?.status === "compensada"
+                        ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                        : approvalGuide
+                          ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-950/25"
+                          : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/30"
+                    }`}>
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                            {approvalGuide?.status === "compensada"
+                              ? "Pagamento compensado — Alvará liberado para assinatura"
+                              : approvalGuide
+                                ? `Guia ${approvalGuide.code} emitida — aguardando compensação pelo Financeiro`
+                                : "Emita a guia após a conclusão técnica e a compensação do ISSQN / Projeto."}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            {approvalGuide
+                              ? `Valor oficial gravado: ${formatCurrency(approvalGuide.amount)} • Vencimento: ${approvalGuide.dueDate || "não informado"}.`
+                              : "Fórmula: taxa fixa do Alvará + (área × valor oficial do m² por tipo/acabamento × alíquota)."}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {approvalGuide ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => printGuide("aprovacao_final", false)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Visualizar guia
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => printGuide("aprovacao_final", true)}
+                              >
+                                <Printer className="mr-2 h-4 w-4" />
+                                Imprimir guia
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              type="button"
+                              className="rounded-full bg-violet-700 px-6 !text-white shadow-sm hover:bg-violet-800 [&_*]:!text-white"
+                              disabled={
+                                processActionBusy === "generate-approval-guide" ||
+                                !constructionPaymentCompensated ||
+                                !allAnalysisDocumentsApproved ||
+                                hasOpenAnalysisRequirements ||
+                                !canAnalysisOperate ||
+                                !ownsCurrentProcessStage ||
+                                !process.property.constructionStandard ||
+                                !approvalGuidePreview.profile ||
+                                approvalGuidePreview.baseValueM2 <= 0 ||
+                                approvalGuidePreview.totalAmount <= 0
+                              }
+                              onClick={handleGenerateApprovalGuide}
+                            >
+                              <FileKey2 className="mr-2 h-4 w-4" />
+                              {processActionBusy === "generate-approval-guide"
+                                ? "Emitindo..."
+                                : "Emitir guia de aprovação / Alvará"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {!approvalGuide && !process.property.constructionStandard ? (
+                        <p className="mt-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          Informe o padrão de acabamento da obra (Luxo, Primeira, Médio ou Econômico) antes do cálculo.
+                        </p>
+                      ) : null}
+                      {!approvalGuide &&
+                      process.property.constructionStandard &&
+                      (!approvalGuidePreview.profile || approvalGuidePreview.baseValueM2 <= 0) ? (
+                        <p className="mt-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          Cadastre no Financeiro o valor oficial do m² para esta combinação de tipo de obra e acabamento.
+                        </p>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              <ConstructionPermitPanel
+                process={process}
+                session={session}
+                sessionUsers={sessionUsers}
+                municipalityId={effectiveScopeId || process.tenantId}
+                municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+                municipalityLogoUrl={
+                  tenantSettings?.brasaoUrl ||
+                  tenantSettings?.headerLogoUrl ||
+                  tenantSettings?.logoUrl ||
+                  ""
+                }
+                municipalityAddress={tenantSettings?.endereco || ""}
+                municipalityPhone={tenantSettings?.telefone || ""}
+                municipalityEmail={tenantSettings?.email || ""}
+                secretariat={tenantSettings?.secretariaResponsavel}
+                directorate={tenantSettings?.diretoriaResponsavel || "Divisão de Análise e Aprovação de Projetos - DAAP"}
+                technicalProfile={linkedTechnicalProfile}
+                issPaymentConfirmed={constructionGuide?.status === "compensada"}
+                issPaidAt={constructionGuide?.paidAt}
+                approvalPaymentRequired={approvalPaymentRequired}
+                approvalPaymentConfirmed={approvalPaymentConfirmed}
+                approvalPaidAt={approvalGuide?.paidAt}
+                allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
+                externalView={isExternalProcessViewer}
+                organogramTrail={currentOrganizationTrail}
+              />
+            </>
           )}
 
           {isExternalProcessViewer && session.role === "profissional_externo" && activeTab === "financeiro" && (
