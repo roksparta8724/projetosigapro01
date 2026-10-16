@@ -135,25 +135,25 @@ export function MunicipalProcessRegistryPage() {
           <StatCard
             label="Processos"
             value={String(municipalityProcesses.length)}
-            helper="Registros do município"
+            description="Registros do município"
             icon={ScrollText}
           />
           <StatCard
             label="Em andamento"
             value={String(activeCount)}
-            helper="Fluxo operacional ativo"
+            description="Fluxo operacional ativo"
             icon={ListChecks}
           />
           <StatCard
             label="Concluídos"
             value={String(completedCount)}
-            helper="Finalizados ou encerrados"
+            description="Finalizados ou encerrados"
             icon={ListChecks}
           />
           <StatCard
             label="Com marcador"
             value={String(markedCount)}
-            helper="Marcador operacional único"
+            description="Marcador operacional único"
             icon={ListChecks}
           />
         </PageStatsRow>
