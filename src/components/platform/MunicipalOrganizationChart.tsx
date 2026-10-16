@@ -102,6 +102,9 @@ function UnitNode({
 
   return (
     <article
+      data-organogram-node="true"
+      data-organogram-root={isRoot ? "true" : "false"}
+      data-unit-type={(department.unitType || "unidade").toLocaleLowerCase("pt-BR")}
       className={cn(
         "relative overflow-hidden border transition-shadow",
         isRoot
@@ -120,6 +123,7 @@ function UnitNode({
       <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
         <div className="flex items-start gap-3">
           <div
+            data-organogram-icon="true"
             className={cn(
               "flex shrink-0 items-center justify-center border",
               identity.iconTone,
@@ -134,6 +138,7 @@ function UnitNode({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span
+                data-organogram-level-badge="true"
                 className={cn(
                   "inline-flex min-w-11 items-center justify-center rounded-lg border px-2 py-1 text-[10px] font-black tracking-[0.12em]",
                   identity.tone,
@@ -142,12 +147,16 @@ function UnitNode({
               >
                 {identity.short}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <span
+                data-organogram-level-label="true"
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+              >
                 {identity.label}
               </span>
             </div>
 
             <p
+              data-organogram-acronym="true"
               className={cn(
                 "mt-2 font-black tracking-[-0.02em] text-slate-950",
                 isRoot ? "text-[22px] leading-7" : "text-[16px] leading-6",
@@ -157,6 +166,7 @@ function UnitNode({
               {acronym}
             </p>
             <p
+              data-organogram-name="true"
               className={cn(
                 "mt-0.5 truncate text-slate-500",
                 isRoot ? "text-xs" : "text-[11px]",
@@ -170,6 +180,7 @@ function UnitNode({
           {onEdit ? (
             <button
               type="button"
+              data-organogram-edit="true"
               onClick={() => onEdit(department)}
               className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
             >
@@ -180,6 +191,7 @@ function UnitNode({
 
         {children.length > 0 ? (
           <div
+            data-organogram-children="true"
             className={cn(
               "mt-4 space-y-2.5 border-l",
               isRoot ? "ml-5 border-slate-300 pl-4" : "ml-4 border-slate-200 pl-3",
@@ -227,8 +239,11 @@ export function MunicipalOrganizationChart({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div data-municipal-organogram="true">
+      <div
+        data-organogram-toolbar="true"
+        className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="flex items-center gap-2 text-sm text-slate-700">
           <Network className="h-4 w-4 text-sky-700" />
           <span>
@@ -241,6 +256,8 @@ export function MunicipalOrganizationChart({
             return (
               <span
                 key={type}
+                data-organogram-legend="true"
+                data-unit-type={type}
                 className={cn(
                   "rounded-lg border px-2 py-1 text-[9px] font-black tracking-[0.1em]",
                   identity.tone,
