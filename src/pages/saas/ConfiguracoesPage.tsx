@@ -67,6 +67,7 @@ function imageFiles(url: string, label: string): UploadedFileItem[] {
           mimeType: "image/*",
           sizeLabel: "imagem salva",
           previewUrl: url,
+          persistentRef: url,
           storagePath: getObjectKeyFromPublicUrl(url) || "remote",
         },
       ]
@@ -122,6 +123,35 @@ function isRenderablePreviewUrl(value?: string | null) {
     value.startsWith("data:") ||
     value.startsWith("blob:")
   );
+}
+
+function storedInstitutionalDocument(
+  url: string | null | undefined,
+  fileName: string | null | undefined,
+  fallbackName: string,
+  id: string,
+): UploadedFileItem[] {
+  const persistentRef = url?.trim() || "";
+  if (!persistentRef) return [];
+
+  const privateObjectKey = persistentRef.startsWith("r2:")
+    ? persistentRef.slice(3).trim()
+    : "";
+
+  return [
+    {
+      id,
+      fileName: fileName?.trim() || fallbackName,
+      mimeType: "application/pdf",
+      sizeLabel: "arquivo salvo",
+      previewUrl: isRenderablePreviewUrl(persistentRef) ? persistentRef : undefined,
+      persistentRef,
+      storagePath:
+        privateObjectKey ||
+        getObjectKeyFromPublicUrl(persistentRef) ||
+        "remote",
+    },
+  ];
 }
 
 export function ConfiguracoesPage() {
@@ -728,20 +758,29 @@ export function ConfiguracoesPage() {
   const [brasaoFiles, setBrasaoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.brasaoUrl ?? "", "brasao"));
   const [bandeiraFiles, setBandeiraFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.bandeiraUrl ?? "", "bandeira"));
   const [heroFiles, setHeroFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.imagemHeroUrl ?? "", "imagem institucional"));
-  const [planoDiretorFiles, setPlanoDiretorFiles] = useState<UploadedFileItem[]>(
-    settings?.planoDiretorArquivoUrl
-      ? [{ id: "plano-diretor", fileName: settings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.planoDiretorArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.planoDiretorArquivoUrl) || "remote" }]
-      : [],
+  const [planoDiretorFiles, setPlanoDiretorFiles] = useState<UploadedFileItem[]>(() =>
+    storedInstitutionalDocument(
+      settings?.planoDiretorArquivoUrl,
+      settings?.planoDiretorArquivoNome,
+      "plano-diretor.pdf",
+      "plano-diretor",
+    ),
   );
-  const [usoSoloFiles, setUsoSoloFiles] = useState<UploadedFileItem[]>(
-    settings?.usoSoloArquivoUrl
-      ? [{ id: "uso-solo", fileName: settings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.usoSoloArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.usoSoloArquivoUrl) || "remote" }]
-      : [],
+  const [usoSoloFiles, setUsoSoloFiles] = useState<UploadedFileItem[]>(() =>
+    storedInstitutionalDocument(
+      settings?.usoSoloArquivoUrl,
+      settings?.usoSoloArquivoNome,
+      "uso-e-ocupacao-do-solo.pdf",
+      "uso-solo",
+    ),
   );
-  const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(
-    settings?.leisArquivoUrl
-      ? [{ id: "leis-complementares", fileName: settings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.leisArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.leisArquivoUrl) || "remote" }]
-      : [],
+  const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(() =>
+    storedInstitutionalDocument(
+      settings?.leisArquivoUrl,
+      settings?.leisArquivoNome,
+      "leis-complementares.pdf",
+      "leis-complementares",
+    ),
   );
   const [institutionalAssetsSaving, setInstitutionalAssetsSaving] = useState(false);
   const [institutionalAssetsStatus, setInstitutionalAssetsStatus] = useState("");
@@ -855,15 +894,24 @@ export function ConfiguracoesPage() {
     setBandeiraFiles((current) => (sameFileList(current, nextBandeiraFiles) ? current : nextBandeiraFiles));
     setHeroFiles((current) => (sameFileList(current, nextHeroFiles) ? current : nextHeroFiles));
 
-    const nextPlanoDiretorFiles = nextSettings?.planoDiretorArquivoUrl
-      ? [{ id: "plano-diretor", fileName: nextSettings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.planoDiretorArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.planoDiretorArquivoUrl) || "remote" }]
-      : [];
-    const nextUsoSoloFiles = nextSettings?.usoSoloArquivoUrl
-      ? [{ id: "uso-solo", fileName: nextSettings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.usoSoloArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.usoSoloArquivoUrl) || "remote" }]
-      : [];
-    const nextLeisFiles = nextSettings?.leisArquivoUrl
-      ? [{ id: "leis-complementares", fileName: nextSettings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.leisArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.leisArquivoUrl) || "remote" }]
-      : [];
+    const nextPlanoDiretorFiles = storedInstitutionalDocument(
+      nextSettings?.planoDiretorArquivoUrl,
+      nextSettings?.planoDiretorArquivoNome,
+      "plano-diretor.pdf",
+      "plano-diretor",
+    );
+    const nextUsoSoloFiles = storedInstitutionalDocument(
+      nextSettings?.usoSoloArquivoUrl,
+      nextSettings?.usoSoloArquivoNome,
+      "uso-e-ocupacao-do-solo.pdf",
+      "uso-solo",
+    );
+    const nextLeisFiles = storedInstitutionalDocument(
+      nextSettings?.leisArquivoUrl,
+      nextSettings?.leisArquivoNome,
+      "leis-complementares.pdf",
+      "leis-complementares",
+    );
     setPlanoDiretorFiles((current) =>
       sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
     );
