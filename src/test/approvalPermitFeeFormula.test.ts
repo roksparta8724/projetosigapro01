@@ -87,4 +87,26 @@ describe("guia de aprovação e Alvará", () => {
     expect(migration).not.toContain("when 'aprovacao_final' then 'deferido'");
     expect(migration).not.toContain("habite-se e aprovacao final");
   });
+
+  it("deixa a Análise emitir a guia dentro da aba Alvará e bloqueia a assinatura até a compensação", () => {
+    const processDetail = readFileSync(
+      resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
+      "utf8",
+    );
+    const permitPanel = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/platform/ConstructionPermitPanel.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(processDetail).toContain("Pagamento da aprovação / Alvará");
+    expect(processDetail).toContain("Emitir guia de aprovação / Alvará");
+    expect(processDetail).toContain("Aguardando compensação pelo Financeiro");
+    expect(processDetail).toContain("approvalPaymentRequired={approvalPaymentRequired}");
+    expect(processDetail).toContain("approvalPaymentConfirmed={approvalPaymentConfirmed}");
+    expect(permitPanel).toContain("financialPrerequisitesConfirmed");
+    expect(permitPanel).toContain("!approvalPaymentRequired || approvalPaymentConfirmed");
+  });
 });
