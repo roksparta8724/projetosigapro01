@@ -46,12 +46,14 @@ describe("official construction permit workflow", () => {
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
   });
 
-  it("keeps secretary signature optional and renders it only when actually signed", () => {
+  it("keeps secretary electronic signature optional and reserves a clean secretary line in the manual PDF", () => {
     expect(permitLib).toContain("secretarySignature");
     expect(panel).toContain("Assinar também como Secretário");
     expect(panel).toContain("secretaryOfficial");
-    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial");
+    expect(permitPdf).toContain("const showManualAuthorityLines");
+    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial || showManualAuthorityLines");
     expect(permitPdf).toContain("Secretaria municipal");
+    expect(permitPdf).toContain("Secretário(a) Municipal");
   });
 
   it("requires password-confirmed electronic signing and verification evidence", () => {
@@ -59,8 +61,21 @@ describe("official construction permit workflow", () => {
     expect(panel).toContain('type="password"');
     expect(panel).toContain("Confirmar com minha senha");
     expect(panel).toContain("getProcessArtifactSignatures");
-    expect(permitPdf).toContain("ASSINATURA ELETRÔNICA VÁLIDA");
+    expect(permitPdf).toContain("VALIDAÇÃO MUNICIPAL");
+    expect(permitPdf).toContain("Código:");
     expect(permitPdf).toContain("SHA-256:");
+  });
+
+  it("keeps signature workflow instructions out of the official PDF", () => {
+    expect(permitPdf).not.toContain("ASSINATURA MANUAL");
+    expect(permitPdf).not.toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
+    expect(permitPdf).not.toContain("Pronto para assinatura da Diretoria à caneta");
+    expect(permitPdf).not.toContain("assinatura manual da Diretoria");
+    expect(permitPdf).not.toContain("A assinatura da Secretaria é complementar");
+    expect(permitPdf).toContain("ALVARÁ DE CONSTRUÇÃO");
+    expect(permitPdf).toContain("Diretor(a) Responsável");
+    expect(permitPdf).toContain("Secretário(a) Municipal");
+    expect(permitPdf).toContain("Processo Administrativo");
   });
 
   it("builds a light premium municipal PDF with crest and contact data", () => {
