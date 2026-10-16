@@ -444,8 +444,19 @@ export function FinanceDeskPage() {
         <PageHeader
           eyebrow="Operação financeira"
           title="Guias, pagamentos e conciliação"
-          description="Organize a arrecadação municipal com visão executiva e operação financeira clara."
+          description="Organize a arrecadação municipal com visão executiva, protocolos em aberto e contabilidade individual por processo."
           icon={Wallet}
+          actions={
+            <Button
+              asChild
+              className="rounded-full bg-[#075985] font-bold text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:bg-[#064c70]"
+            >
+              <Link to="/prefeitura/financeiro/protocolos">
+                Controle por processo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          }
         />
 
         <InternalTabs
