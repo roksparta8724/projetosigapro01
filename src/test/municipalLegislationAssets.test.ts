@@ -19,11 +19,15 @@ describe("municipal legislation assets", () => {
     expect(settings).toContain("persistentRef");
     expect(settings).toContain("Salvar arquivos oficiais");
     expect(settings).toContain("Acervo legal municipal");
+    expect(settings).toContain('title="Zoneamento"');
+    expect(settings).toContain("zoneamentoFiles");
   });
 
   it("saves official legal references in municipal settings", () => {
     expect(backend).toContain("plano_diretor_arquivo_url");
     expect(backend).toContain("uso_solo_arquivo_url");
+    expect(backend).toContain("zoneamento_arquivo_url");
+    expect(backend).toContain("zoning_map_file_url");
     expect(backend).toContain("leis_arquivo_url");
     expect(backend).toContain("coat_of_arms_url");
     expect(backend).toContain("bandeira_url");
@@ -33,9 +37,10 @@ describe("municipal legislation assets", () => {
   it("restores legal references after refresh", () => {
     expect(municipality).toContain("general.plano_diretor_arquivo_url");
     expect(municipality).toContain("general.uso_solo_arquivo_url");
+    expect(municipality).toContain("general.zoneamento_arquivo_url");
+    expect(municipality).toContain("general.zoning_map_file_url");
     expect(municipality).toContain("general.leis_arquivo_url");
     expect(municipality).toContain("general.plan_file_url");
-    expect(municipality).toContain("general.zoning_file_url");
   });
 
   it("opens the official PDF in a dedicated browser tab, including private R2 files", () => {
@@ -48,7 +53,8 @@ describe("municipal legislation assets", () => {
 
   it("shows the official zoning PDF in the zoning workspace", () => {
     expect(zoning).toContain("Documento oficial do zoneamento");
-    expect(zoning).toContain("institutionSettings?.usoSoloArquivoUrl");
+    expect(zoning).toContain("institutionSettings?.zoneamentoArquivoUrl");
+    expect(zoning).toContain("institutionSettings?.zoneamentoArquivoNome");
     expect(zoning).toContain("openZoningDocument");
     expect(zoning).toContain("getSignedUrlForObjectStrict");
     expect(zoning).toContain("Abrir guia");
