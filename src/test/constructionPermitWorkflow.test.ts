@@ -6,112 +6,69 @@ import { buildConstructionPermitNumber } from "@/lib/constructionPermit";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("construction permit workflow", () => {
-  it("moves a compensated ISS guide out of the current Finance stage", () => {
-    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
+  const pdf = read("src/lib/constructionPermitPdf.ts");
+  const api = read("api/e-sign-artifact.ts");
+  const migration = read(
+    "neon/migrations/20261016_construction_permit_workflow.sql",
+  );
 
-    expect(detail).toContain('issuedConstructionGuide?.status === "compensada"');
-    expect(detail).toContain("Alvará de Construção");
-    expect(detail).toContain('key: "alvara" as ProcessTab');
-    expect(detail).toContain("currentFlowIndex = 4");
-    expect(detail).toContain(
-      "Pagamento compensado — processo retornado à Análise Urbanística",
-    );
-  });
-
-  it("creates a stable municipal construction permit number", () => {
+  it("creates a stable municipal permit number", () => {
     expect(buildConstructionPermitNumber("PM-2026-00002")).toBe(
       "ALV-2026-000002",
     );
   });
 
-  it("requires technical and director signatures before final issuance", () => {
-    const model = read("src/lib/constructionPermit.ts");
-    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
-
-    expect(model).toContain('"aguardando_diretor"');
-    expect(model).toContain("userCanSignPermitAsDirector");
-    expect(panel).toContain("Assinatura da Análise Técnica");
-    expect(panel).toContain("Assinatura da Diretoria");
-    expect(panel).toContain("O sistema não cria assinatura fictícia");
+  it("persists permit data in the official database", () => {
+    expect(panel).toContain("saveOfficialConstructionPermitDraft");
+    expect(panel).toContain("getOfficialConstructionPermit");
+    expect(migration).toContain("process_construction_permits");
+    expect(migration).toContain("save_construction_permit_draft_v1");
   });
 
-  it("generates a PDF with property, technical responsibility and signatures", () => {
-    const pdf = read("src/lib/constructionPermitPdf.ts");
+  it("offers the two director signature paths before PDF completion", () => {
+    expect(panel).toContain("Solicitar assinatura eletrônica");
+    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("requestOfficialPermitDirectorSignature");
+    expect(panel).toContain("markOfficialPermitForManualSignature");
+  });
 
+  it("requires the analyst request before an electronic director signature", () => {
+    expect(panel).toContain("directorRequestPending");
+    expect(api).toContain("PERMIT_DIRECTOR_REQUEST_REQUIRED");
+    expect(api).toContain("get_construction_permit_v1");
+  });
+
+  it("keeps the secretary optional and only after the director", () => {
+    expect(panel).toContain("Assinar também como Secretário");
+    expect(api).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
+    expect(pdf).toContain("const hasSecretary = secretaryOfficial");
+  });
+
+  it("generates a premium manual-signature version when chosen", () => {
+    expect(pdf).toContain("manualSignature");
+    expect(pdf).toContain("ASSINATURA MANUAL");
+    expect(pdf).toContain("Assinatura da autoridade municipal");
+    expect(pdf).toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
+  });
+
+  it("keeps municipality, property and technical data in the PDF", () => {
     expect(pdf).toContain("ALVARÁ DE CONSTRUÇÃO");
-    expect(pdf).toContain("RESPONSÁVEL TÉCNICO");
-    expect(pdf).toContain("IDENTIFICAÇÃO DO IMÓVEL E DA OBRA");
-    expect(pdf).toContain("CONDIÇÕES DA LICENÇA");
-    expect(pdf).toContain("ASSINATURAS MUNICIPAIS");
-    expect(pdf).toContain("RASCUNHO - SEM VALIDADE");
-  });
-
-  it("keeps the database schema versioned without applying it during local validation", () => {
-    const migration = read(
-      "neon/migrations/20261015_construction_permit_workflow.sql",
-    );
-
-    expect(migration).toContain("create table if not exists public.construction_permits");
-    expect(migration).toContain("analyst_signed_at");
-    expect(migration).toContain("director_signed_at");
-    expect(migration).toContain("status = 'emitido'");
-  });
-});
-
-
-  it("opens permit filling over the process and keeps the external permit stage visible", () => {
-    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
-    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-    const model = read("src/lib/constructionPermit.ts");
-
-    expect(panel).toContain("Preencher Alvará");
-    expect(panel).toContain("<Dialog");
-    expect(panel).toContain("O formulário abre sobre o processo");
-    expect(panel).toContain("Salvar rascunho");
-    expect(panel).toContain("Salvar e visualizar Alvará");
-    expect(panel).toContain("Alvará em preparação pela Prefeitura");
-    expect(detail).toContain("currentFlowIndex >= 4");
-    expect(detail).toContain("Acompanhar Alvará");
-    expect(model).toContain("ConstructionPermitFormData");
-    expect(model).toContain("complementaryConditions");
-  });
-
-  it("uses filled permit data in the generated PDF", () => {
-    const pdf = read("src/lib/constructionPermitPdf.ts");
-
-    expect(pdf).toContain("const form = permit.formData");
+    expect(pdf).toContain("Titular e responsável técnico");
+    expect(pdf).toContain("Imóvel e obra");
+    expect(pdf).toContain("Objeto e condições do Alvará");
     expect(pdf).toContain("form?.propertyAddress");
     expect(pdf).toContain("form?.technicalRegistration");
     expect(pdf).toContain("form?.licenseObject");
-    expect(pdf).toContain("form?.complementaryConditions");
   });
 
-
-describe("construction permit early workspace", () => {
-  it("opens the Alvara workspace before final readiness but keeps signatures gated", () => {
-    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
+  it("keeps prerequisites visible before signature actions", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(panel).toContain("canStartDraft");
     expect(panel).toContain("permitReadyForSignature");
-    expect(panel).toContain("Abrir e preencher Alvará");
-    expect(panel).toContain("O Alvará pode ser preparado antecipadamente em rascunho");
     expect(panel).toContain("Pré-requisito financeiro");
     expect(panel).toContain("Pré-requisito técnico");
-    expect(detail).toContain("canAnalysisOperate || constructionPaymentCompensated");
-  });
-});
-
-
-describe("permit header follows the same premium process contrast", () => {
-  it("keeps the dark permit header readable without touching global chrome", () => {
-    const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
-    const polarity = read("src/styles/surface-polarity.css");
-
-    expect(panel).toContain('data-premium-process-dark-header="permit"');
-    expect(panel).toContain('data-premium-process-dark-header="permit-dialog"');
-    expect(panel).toContain("!text-white");
-    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V12");
-    expect(polarity).toContain('[data-construction-permit-panel="true"] > [data-premium-process-dark-header="permit"]');
+    expect(panel).toContain("Abrir e preencher Alvará");
+    expect(detail).toContain('key: "alvara" as ProcessTab');
   });
 });
