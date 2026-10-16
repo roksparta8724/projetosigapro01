@@ -74,6 +74,13 @@ describe("municipal legislation assets", () => {
     expect(r2Client).toContain("requestSignedUrlWithFallback");
   });
 
+  it("normalizes browser bucket names before requesting signed URLs", () => {
+    expect(r2Client).toContain("function normalizeClientBucket");
+    expect(r2Client).toContain('return "process-documents"');
+    expect(r2Client).toContain('return "institutional-branding"');
+    expect(r2Client).toContain("bucket = normalizeClientBucket(input.bucket)");
+  });
+
   it("resolves physical storage buckets only on the server", () => {
     expect(r2Storage).toContain('? "process-documents"');
     expect(r2Storage).toContain(': "institutional-branding"');
