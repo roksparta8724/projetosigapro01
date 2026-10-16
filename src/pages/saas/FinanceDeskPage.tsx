@@ -205,7 +205,7 @@ export function FinanceDeskPage() {
       return;
     }
     if (enabled && key === "finalApprovalFeeEnabled" && !finalFeeConfigured) {
-      setWorkflowStatus("Configure e salve a tabela oficial da taxa final antes de ativar esta etapa.");
+      setWorkflowStatus("Configure e salve a tabela oficial da guia de aprovação/Alvará antes de ativar esta etapa.");
       return;
     }
 
@@ -382,7 +382,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida ISSQN / Projeto e a etapa posterior de Habite-se conforme as regras financeiras da Prefeitura.",
+      "Consolida protocolo, ISSQN / Projeto e a guia de aprovação/Alvará. Habite-se possui protocolo próprio e não integra este fluxo.",
     currency: "BRL",
     active: true,
   };
@@ -415,12 +415,12 @@ export function FinanceDeskPage() {
     ).map((profile) => ({
       id: `rule-aprovacao-${profile.id}`,
       tableId: feeTable.id,
-      code: `HAB_${profile.id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`,
-      label: `Habite-se ${profile.label}`,
+      code: `APR_${profile.id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`,
+      label: `Aprovação / Alvará • ${profile.label}`,
       kind: "per_square_meter" as const,
       rate: profile.rate,
       processType: "licenciamento",
-      occupancyPermit: true,
+      occupancyPermit: false,
       constructionStandard: profile.standard,
     }))),
   ];
