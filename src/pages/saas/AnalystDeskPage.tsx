@@ -15,9 +15,8 @@
   Workflow,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -110,8 +109,11 @@ export function AnalystDeskPage() {
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [section, setSection] = useState<AnalystSection>("visao-geral");
+  const [section, setSection] = useState<AnalystSection>(() =>
+    searchParams.get("secao") === "fila" ? "fila" : "visao-geral",
+  );
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
   const currentUnit =
@@ -152,6 +154,13 @@ export function AnalystDeskPage() {
       setArchivedProcessIds([]);
     }
   }, [archiveStorageKey]);
+
+  useEffect(() => {
+    const requested = searchParams.get("secao");
+    if (requested === "fila") {
+      setSection("fila");
+    }
+  }, [searchParams]);
 
   const setProcessArchived = (processId: string, archived: boolean) => {
     setArchivedProcessIds((current) => {
@@ -356,7 +365,11 @@ export function AnalystDeskPage() {
     { value: "indicadores", label: "Indicadores e SLA", helper: "Carga, prazo e produtividade" },
   ] as const;
 
-  const renderQueue = (items = queue, emptyMessage = "Nenhum processo encontrado com os filtros atuais.") => (
+  const renderQueue = (
+    items = queue,
+    emptyMessage = "Nenhum processo encontrado com os filtros atuais.",
+    allowArchiveAction = false,
+  ) => (
     <div className="space-y-4">
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
@@ -382,9 +395,13 @@ export function AnalystDeskPage() {
               <div className="flex flex-wrap items-start justify-between gap-4 p-5">
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="sig-fit-title text-base font-semibold leading-6 text-slate-950" title={formatOfficialProcessNumber(process.protocol)}>
+                    <Link
+                      to={`/processos/${process.id}?aba=analise`}
+                      className="sig-fit-title inline-flex text-base font-semibold leading-6 text-[#075985] underline decoration-sky-300/70 underline-offset-[3px] hover:text-[#0369a1] hover:decoration-sky-600 dark:text-sky-300"
+                      title={`Abrir ${formatOfficialProcessNumber(process.protocol)}`}
+                    >
                       {formatOfficialProcessNumber(process.protocol)}
-                    </p>
+                    </Link>
                     <Badge variant="outline" className={statusTone(process.status)}>
                       {statusLabel(process.status)}
                     </Badge>
@@ -412,6 +429,31 @@ export function AnalystDeskPage() {
                     subjectLabel="processo"
                     triggerClassName="h-9"
                   />
+                  {allowArchiveAction ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      onClick={() =>
+                        setProcessArchived(
+                          process.id,
+                          !archivedProcessIds.includes(process.id),
+                        )
+                      }
+                      title={
+                        archivedProcessIds.includes(process.id)
+                          ? "Restaurar na lista"
+                          : "Arquivar da minha lista"
+                      }
+                    >
+                      {archivedProcessIds.includes(process.id) ? (
+                        <ArchiveRestore className="h-4 w-4" />
+                      ) : (
+                        <Archive className="h-4 w-4" />
+                      )}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
@@ -603,12 +645,13 @@ export function AnalystDeskPage() {
 
               </div>
 
-              <div className="mt-5 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35">
+              <div className="mt-5 flex justify-end border-t border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/35">
                 <Link
                   to={`/processos/${process.id}`}
                   data-primary-action="process"
-                  className="sig-primary-process-action inline-flex h-14 w-full items-center justify-center rounded-2xl px-6 text-[14px] font-bold !text-white [&_*]:!text-white"
+                  className="sig-primary-process-action inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-5 text-[12px] font-bold !text-white shadow-[0_8px_20px_rgba(7,89,133,0.22)] transition hover:-translate-y-px hover:brightness-105 sm:w-[190px] [&_*]:!text-white"
                 >
+                  <Eye className="h-4 w-4 shrink-0 !text-white" />
                   Abrir processo
                 </Link>
               </div>
@@ -622,21 +665,16 @@ export function AnalystDeskPage() {
   const renderProcessRegistry = () => (
     <div className="space-y-3">
       <div className="flex min-h-8 items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-[11px] font-medium text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-        Clique no número do processo para abrir a ficha completa. Arquivar organiza apenas a sua lista e não altera o processo oficial.
+        Abra o processo pelo número sublinhado ou pelo botão “Abrir processo”. Arquivar organiza apenas a sua lista e não altera o processo oficial.
       </div>
 
-      <CompactProcessRegistry
-        processes={processRegistry}
-        archivedProcessIds={archivedProcessIds}
-        onToggleArchive={setProcessArchived}
-        canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
-        detailPathSuffix="?aba=analise"
-        emptyMessage={
-          showArchived
-            ? "Nenhum processo arquivado nesta lista."
-            : "Nenhum processo da Análise encontrado com os filtros atuais."
-        }
-      />
+      {renderQueue(
+        processRegistry,
+        showArchived
+          ? "Nenhum processo arquivado nesta lista."
+          : "Nenhum processo da Análise encontrado com os filtros atuais.",
+        true,
+      )}
     </div>
   );
 
