@@ -38,6 +38,8 @@ jobs:
           src/test/productionParityCriticalRegression.test.ts
           src/test/serviceWorker.test.ts
           src/test/municipalLegislationAssets.test.ts
+          src/test/municipalBrandingRuntime.test.ts
+          src/test/tenantAdminPremiumWorkspace.test.ts
           src/test/constructionPermitWorkflow.test.ts
           src/test/constructionPermitOfficialFlow.test.ts
           src/test/protocolMarkerContrastRegression.test.ts
