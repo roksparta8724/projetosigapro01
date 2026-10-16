@@ -839,7 +839,7 @@ export function ProcessDetailPage() {
   const approvalGuidePreview = calculateApprovalGuideBreakdown(
     process.property.area,
     process.property.usage,
-    process.property.constructionStandard || "medio",
+    process.property.constructionStandard,
     tenantSettings,
   );
   const displayGuide = approvalGuide ?? constructionGuide ?? protocolGuide;
@@ -1156,7 +1156,7 @@ export function ProcessDetailPage() {
         ? calculateApprovalGuideBreakdown(
             selectedGuide.areaM2 ?? process.property.area,
             selectedGuide.usage || process.property.usage,
-            selectedGuide.constructionStandard || process.property.constructionStandard || "medio",
+            selectedGuide.constructionStandard || process.property.constructionStandard,
             tenantSettings,
           )
         : null;
@@ -1414,6 +1414,18 @@ export function ProcessDetailPage() {
     if (!allAnalysisDocumentsApproved || hasOpenAnalysisRequirements) {
       setProcessActionStatus(
         "Conclua a análise documental e todas as exigências antes de emitir a guia de aprovação/Alvará.",
+      );
+      return;
+    }
+    if (!process.property.constructionStandard?.trim()) {
+      setProcessActionStatus(
+        "Informe o padrão de acabamento da obra (Luxo, Primeira, Médio ou Econômico) antes de calcular a aprovação/Alvará.",
+      );
+      return;
+    }
+    if (!approvalGuidePreview.profile || approvalGuidePreview.baseValueM2 <= 0) {
+      setProcessActionStatus(
+        "A Prefeitura ainda não cadastrou o valor oficial do m² para este tipo de obra e padrão de acabamento.",
       );
       return;
     }
@@ -3451,6 +3463,9 @@ export function ProcessDetailPage() {
                               hasOpenAnalysisRequirements ||
                               !canAnalysisOperate ||
                               !ownsCurrentProcessStage ||
+                              !process.property.constructionStandard ||
+                              !approvalGuidePreview.profile ||
+                              approvalGuidePreview.baseValueM2 <= 0 ||
                               approvalGuidePreview.totalAmount <= 0
                             }
                             onClick={handleGenerateApprovalGuide}
@@ -3463,9 +3478,14 @@ export function ProcessDetailPage() {
                         )}
                       </div>
                     </div>
-                    {!approvalGuide && approvalGuidePreview.totalAmount <= 0 ? (
+                    {!approvalGuide &&
+                    (!process.property.constructionStandard ||
+                      !approvalGuidePreview.profile ||
+                      approvalGuidePreview.baseValueM2 <= 0) ? (
                       <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
-                        Configure a tabela oficial do tipo de obra, acabamento, alíquota e taxa do Alvará no Financeiro antes da emissão.
+                        {!process.property.constructionStandard
+                          ? "O padrão de acabamento precisa estar definido no cadastro da obra antes do cálculo."
+                          : "Configure a tabela oficial do tipo de obra, acabamento, alíquota e taxa do Alvará no Financeiro antes da emissão."}
                       </p>
                     ) : null}
                   </div>
