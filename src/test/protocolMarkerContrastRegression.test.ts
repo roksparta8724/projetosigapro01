@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 describe("protocol marker active contrast", () => {
   const protocol = read("src/pages/saas/ProtocolDeskPage.tsx");
   const css = read("src/index.css");
+  const surfacePolarity = read("src/styles/surface-polarity.css");
   const pageLayout = read("src/components/platform/PageLayout.tsx");
 
   it("treats the selected protocol filter as a marker, not as a navigation card", () => {
@@ -23,16 +24,19 @@ describe("protocol marker active contrast", () => {
     expect(protocol).toContain("<CheckCircle2");
   });
 
-  it("forces readable light copy and icon only on the active marker", () => {
+  it("forces white copy and icon from the last-loaded surface contract", () => {
     expect(css).toContain("PROTOCOL MARKER ACTIVE CONTRAST — 2026-10-16");
-    expect(css).toContain('.sig-protocol-marker[data-protocol-marker-active="true"]');
-    expect(css).toContain("color: #ffffff !important");
-    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
-    expect(css).toContain(
-      '.sig-protocol-marker[data-protocol-marker-active="true"] :is(',
+    expect(surfacePolarity).toContain(
+      "PROTOCOLO > TODOS OS PROTOCOLOS > MARCADOR ATIVO V16",
     );
-    expect(css).toContain("stroke: #dbeafe !important");
-    expect(css).toContain("background: rgba(255,255,255,0.16) !important");
+    expect(surfacePolarity).toContain(
+      'button.sig-protocol-marker[data-protocol-marker-active="true"]',
+    );
+    expect(surfacePolarity).toContain(".sig-protocol-marker-label");
+    expect(surfacePolarity).toContain(".sig-protocol-marker-count");
+    expect(surfacePolarity).toContain("color:#ffffff !important");
+    expect(surfacePolarity).toContain("stroke:#ffffff !important");
+    expect(surfacePolarity).toContain("-webkit-text-fill-color:#ffffff !important");
   });
 
   it("does not keep the previous broad navigation-card interpretation", () => {
