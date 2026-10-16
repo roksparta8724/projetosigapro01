@@ -522,7 +522,7 @@ export function UrbanAnalysisChecklistPanel({
 
         setWithdrawalRecord(record);
         setWithdrawalName(record.withdrawn_by_name || "");
-        setWithdrawalDate(record.withdrawn_at || "");
+        setWithdrawalDate(record.withdrawn_at ? record.withdrawn_at.slice(0, 10) : "");
       })
       .catch((error) => {
         if (!active) return;
@@ -863,7 +863,17 @@ export function UrbanAnalysisChecklistPanel({
         withdrawnAt: withdrawalDate,
       });
       setWithdrawalRecord(snapshot.withdrawal);
-      setNotice("Retirada em mãos registrada no processo.");
+      if (snapshot.withdrawal) {
+        setWithdrawalName(
+          snapshot.withdrawal.withdrawn_by_name || withdrawalName.trim(),
+        );
+        setWithdrawalDate(
+          snapshot.withdrawal.withdrawn_at
+            ? snapshot.withdrawal.withdrawn_at.slice(0, 10)
+            : withdrawalDate,
+        );
+      }
+      setNotice("Registrado");
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -963,7 +973,11 @@ export function UrbanAnalysisChecklistPanel({
         if (latestWithdrawal.withdrawal) {
           setWithdrawalRecord(latestWithdrawal.withdrawal);
           setWithdrawalName(latestWithdrawal.withdrawal.withdrawn_by_name || "");
-          setWithdrawalDate(latestWithdrawal.withdrawal.withdrawn_at || "");
+          setWithdrawalDate(
+            latestWithdrawal.withdrawal.withdrawn_at
+              ? latestWithdrawal.withdrawal.withdrawn_at.slice(0, 10)
+              : "",
+          );
         }
       } catch (error) {
         console.error("[SIGAPRO][PDF] Não foi possível atualizar a retirada antes do PDF.", error);
@@ -1631,9 +1645,14 @@ export function UrbanAnalysisChecklistPanel({
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...muted);
       doc.setFontSize(5.1);
-      const pdfWithdrawalName = pdfWithdrawalRecord?.withdrawn_by_name?.trim() || "";
-      const pdfWithdrawalDate = pdfWithdrawalRecord?.withdrawn_at
-        ? pdfWithdrawalRecord.withdrawn_at.split("-").reverse().join("/")
+      const pdfWithdrawalName =
+        pdfWithdrawalRecord?.withdrawn_by_name?.trim() ||
+        withdrawalName.trim();
+      const pdfWithdrawalDateSource =
+        pdfWithdrawalRecord?.withdrawn_at?.slice(0, 10) ||
+        withdrawalDate;
+      const pdfWithdrawalDate = pdfWithdrawalDateSource
+        ? pdfWithdrawalDateSource.split("-").reverse().join("/")
         : "";
 
       doc.text(
@@ -1652,15 +1671,7 @@ export function UrbanAnalysisChecklistPanel({
 
       const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
       doc.save(fileName);
-      setNotice(
-        directorOfficial
-          ? "PDF oficial gerado em 2 páginas com as assinaturas do Analista Técnico e da Diretoria."
-          : directorRequestPending
-            ? "PDF oficial gerado em 2 páginas. A assinatura da Diretoria permanece solicitada."
-            : technicalOfficial
-              ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada e a Diretoria permanece pendente."
-              : "PDF oficial gerado em 2 páginas. As assinaturas pendentes permanecem identificadas no documento.",
-      );
+      setNotice("Registrado");
     } catch (error) {
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
       setNotice(
@@ -2189,7 +2200,7 @@ export function UrbanAnalysisChecklistPanel({
                   value={withdrawalName}
                   onChange={(event) => setWithdrawalName(event.target.value)}
                   placeholder="Nome completo de quem retirou"
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-700 selection:text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
+                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
@@ -2201,7 +2212,7 @@ export function UrbanAnalysisChecklistPanel({
                   type="date"
                   value={withdrawalDate}
                   onChange={(event) => setWithdrawalDate(event.target.value)}
-                  className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-700 selection:text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
+                  className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-datetime-edit-day-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-day-field:focus]:!text-white [&::-webkit-datetime-edit-month-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-month-field:focus]:!text-white [&::-webkit-datetime-edit-year-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-year-field:focus]:!text-white [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-text]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
