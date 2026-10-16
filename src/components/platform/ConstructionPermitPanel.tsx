@@ -75,6 +75,9 @@ type ConstructionPermitPanelProps = {
   technicalProfile?: UserProfile;
   issPaymentConfirmed: boolean;
   issPaidAt?: string;
+  approvalPaymentRequired: boolean;
+  approvalPaymentConfirmed: boolean;
+  approvalPaidAt?: string;
   allDocumentsApproved: boolean;
   externalView?: boolean;
   organogramTrail?: Array<{ code: string; name: string }>;
@@ -125,6 +128,9 @@ export function ConstructionPermitPanel({
   technicalProfile,
   issPaymentConfirmed,
   issPaidAt,
+  approvalPaymentRequired,
+  approvalPaymentConfirmed,
+  approvalPaidAt,
   allDocumentsApproved,
   externalView = false,
   organogramTrail = [],
@@ -294,8 +300,11 @@ export function ConstructionPermitPanel({
   const canStartDraft =
     !externalView &&
     userCanSignPermitAsAnalyst(session, process);
+  const financialPrerequisitesConfirmed =
+    issPaymentConfirmed &&
+    (!approvalPaymentRequired || approvalPaymentConfirmed);
   const permitReadyForSignature =
-    issPaymentConfirmed && allDocumentsApproved;
+    financialPrerequisitesConfirmed && allDocumentsApproved;
   const directorOfficial = Boolean(
     permit?.directorSignature?.official &&
     permit?.directorSignature?.verificationCode,
@@ -542,7 +551,7 @@ export function ConstructionPermitPanel({
 
     if (!permitReadyForSignature) {
       setStatus(
-        "Conclua a análise documental e confirme a compensação do ISSQN / Projeto antes de solicitar a assinatura da Diretoria.",
+        "Conclua a análise documental e confirme a compensação de todas as guias financeiras exigidas antes de solicitar a assinatura da Diretoria.",
       );
       return;
     }
@@ -581,7 +590,7 @@ export function ConstructionPermitPanel({
   const generateManualSignaturePdf = async () => {
     if (!permitReadyForSignature) {
       setStatus(
-        "Conclua a análise documental e confirme a compensação do ISSQN / Projeto antes de gerar o Alvará para assinatura manual.",
+        "Conclua a análise documental e confirme a compensação de todas as guias financeiras exigidas antes de gerar o Alvará para assinatura manual.",
       );
       return;
     }
@@ -753,7 +762,7 @@ export function ConstructionPermitPanel({
               </CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
                 Documento final do licenciamento, preparado após a análise
-                técnica e a compensação da Guia de ISSQN / Projeto.
+                técnica e a compensação das etapas financeiras exigidas para o Alvará.
               </p>
 
               {organogramTrail.length > 0 ? (
@@ -842,7 +851,7 @@ export function ConstructionPermitPanel({
                     Alvará em preparação pela Prefeitura
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    O pagamento da etapa anterior foi concluído e o processo está na fase de preparação do Alvará de Construção. O preenchimento e as assinaturas são internos; o PDF final aparecerá aqui assim que for emitido.
+                    As etapas anteriores do licenciamento estão em conferência pela Prefeitura. O preenchimento e as assinaturas do Alvará são internos; o PDF final aparecerá aqui assim que for emitido.
                   </p>
                 </div>
               </div>
@@ -850,7 +859,7 @@ export function ConstructionPermitPanel({
           )
         ) : (
           <>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div
                 className={
                   issPaymentConfirmed
@@ -876,6 +885,37 @@ export function ConstructionPermitPanel({
                 {issPaidAt ? (
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {new Date(issPaidAt).toLocaleString("pt-BR")}
+                  </p>
+                ) : null}
+              </div>
+
+              <div
+                className={
+                  !approvalPaymentRequired || approvalPaymentConfirmed
+                    ? "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/30"
+                    : "rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-950/30"
+                }
+              >
+                <div className="flex items-center gap-2">
+                  {!approvalPaymentRequired || approvalPaymentConfirmed ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+                  ) : (
+                    <Clock3 className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                  )}
+                  <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-600 dark:text-slate-300">
+                    Aprovação / Alvará
+                  </p>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                  {!approvalPaymentRequired
+                    ? "Cobrança não exigida"
+                    : approvalPaymentConfirmed
+                      ? "Pagamento compensado"
+                      : "Pagamento ainda pendente"}
+                </p>
+                {approvalPaymentRequired && approvalPaidAt ? (
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {new Date(approvalPaidAt).toLocaleString("pt-BR")}
                   </p>
                 ) : null}
               </div>
@@ -925,7 +965,7 @@ export function ConstructionPermitPanel({
                       O Alvará pode ser preparado antecipadamente em rascunho.
                     </p>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                      O analista já pode conferir e preencher todos os dados do documento. A assinatura da Diretoria e a emissão final permanecem bloqueadas até o pagamento do ISSQN / Projeto estar compensado e a análise documental estar concluída.
+                      O analista já pode conferir e preencher todos os dados do documento. A assinatura da Diretoria e a emissão final permanecem bloqueadas até a análise documental estar concluída e todas as guias exigidas para o Alvará estarem compensadas.
                     </p>
                   </div>
                   <Button
@@ -939,13 +979,25 @@ export function ConstructionPermitPanel({
                   </Button>
                 </div>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
                   <div className={issPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito financeiro</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">ISSQN / Projeto</p>
                     <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
-                      {issPaymentConfirmed ? "ISSQN / Projeto compensado" : "Aguardando compensação do ISSQN / Projeto"}
+                      {issPaymentConfirmed ? "Pagamento compensado" : "Aguardando compensação"}
+                    </p>
+                  </div>
+                  <div className={!approvalPaymentRequired || approvalPaymentConfirmed
+                    ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
+                    : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Aprovação / Alvará</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                      {!approvalPaymentRequired
+                        ? "Cobrança não exigida"
+                        : approvalPaymentConfirmed
+                          ? "Pagamento compensado"
+                          : "Aguardando emissão ou compensação"}
                     </p>
                   </div>
                   <div className={allDocumentsApproved
