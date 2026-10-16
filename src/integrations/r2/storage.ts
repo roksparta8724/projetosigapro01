@@ -66,9 +66,12 @@ export async function uploadFileToStorage(input: {
   const safeName = sanitizeFileName(input.file.name);
   const folder = normalizeFolder(input.folder, input.bucket);
   const objectKey = `municipalities/${scopeId}/${folder}/${safeUserId}/${crypto.randomUUID()}-${safeName}`;
-  const bucket = input.bucket === "process-documents"
-    ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
-    : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+  const bucket =
+    input.bucket === "process-documents"
+      ? "process-documents"
+      : input.bucket === "profile-assets"
+        ? "profile-assets"
+        : "institutional-branding";
 
   const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
   return {
@@ -86,9 +89,12 @@ export async function deleteFileFromStorage(input: {
   const objectKey = input.objectKey?.trim();
   if (!objectKey) return;
 
-  const bucket = input.bucket === "process-documents"
-    ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
-    : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+  const bucket =
+    input.bucket === "process-documents"
+      ? "process-documents"
+      : input.bucket === "profile-assets"
+        ? "profile-assets"
+        : "institutional-branding";
 
   await deleteFile({ bucket, objectKey });
 }
