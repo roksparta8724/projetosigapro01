@@ -27,8 +27,8 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain('bucket: "institutional-branding"');
     expect(branding).toContain("getSignedUrlForObjectStrict");
     expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
-    expect(branding).not.toContain("municipalityLogoFallback");
-    expect(branding).not.toContain("base.brasaoUrl");
+    expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).toContain("base.brasaoUrl");
   });
 
   it("keeps the municipal logo selected in the working environment ahead of the generic tenant logo", () => {
@@ -56,12 +56,14 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
-  it("never replaces the configured municipal logo with a coat-of-arms or generic fallback", () => {
+  it("keeps the configured object-key logo authoritative and only falls back when it cannot be resolved", () => {
     expect(branding).toContain("resolvedTenantHeaderLogoUrl");
     expect(branding).toContain("resolvedTenantFooterLogoUrl");
-    expect(branding).not.toContain("municipalityLogoFallback");
-    expect(branding).not.toContain("institutionalFallback");
-    expect(branding).not.toContain("base.brasaoUrl");
+    expect(branding).toContain("hasPersistedHeaderIdentity");
+    expect(branding).toContain("hasPersistedFooterIdentity");
+    expect(branding).toContain("institutionalFallback");
+    expect(branding).toContain("base.brasaoUrl");
+    expect(branding).toContain("municipalityLogoFallback");
   });
 
   it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
