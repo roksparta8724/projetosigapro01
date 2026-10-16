@@ -167,6 +167,18 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain("withdrawn_by_name: state");
   });
 
+  it("keeps pickup inputs readable and prints the latest saved pickup without 'Não registrada'", () => {
+    expect(checklist).toContain("!bg-white !text-slate-950");
+    expect(checklist).toContain("caret-sky-600");
+    expect(checklist).toContain("[color-scheme:light]");
+    expect(checklist).toContain("getProcessArtifactWithdrawal");
+    expect(checklist).toContain("pdfWithdrawalRecord");
+    expect(checklist).toContain("____________________________________________");
+    expect(checklist).toContain("____/____/________");
+    expect(checklist).not.toContain('Retirada por: ${withdrawalMatchesCurrentVersion ? withdrawalRecord?.withdrawn_by_name : "Não registrada"}');
+    expect(checklist).not.toContain(': "Não registrada"');
+  });
+
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
     expect(directorRequestMigration).toContain("process_signature_requests");
     expect(directorRequestMigration).toContain("request_process_artifact_signature_v1");
