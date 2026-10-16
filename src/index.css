@@ -9696,3 +9696,43 @@ html body [data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][
   background: #0369a1;
   color: #ffffff;
 }
+
+
+/* ===== PROTOCOL MARKER ACTIVE CONTRAST — 2026-10-16 =====
+   This is a filter marker, not a navigation card. Only the currently selected
+   marker becomes a dark "you are here" chip; labels, counter and icon stay legible. */
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] {
+  background: linear-gradient(135deg, #0f172a 0%, #111827 100%) !important;
+  background-color: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 7px 16px rgba(15,23,42,0.22) !important;
+}
+
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] .sig-protocol-marker-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] .sig-protocol-marker-count {
+  background: rgba(255,255,255,0.16) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] .sig-protocol-marker-icon,
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] svg {
+  color: #dbeafe !important;
+  stroke: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="false"] .sig-protocol-marker-count {
+  background: rgba(255,255,255,0.82);
+  color: #475569;
+}
