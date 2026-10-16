@@ -3178,7 +3178,6 @@ export async function saveRemoteInstitutionSettings(
     municipality_id: remoteTenantId,
     logo_url: settings.logoUrl || null,
     coat_of_arms_url: settings.brasaoUrl || null,
-    flag_url: settings.bandeiraUrl || null,
     // logo por variante
     header_logo_url: settings.headerLogoUrl || null,
     header_logo_object_key: settings.headerLogoObjectKey || null,
