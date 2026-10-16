@@ -689,107 +689,96 @@ export function FinanceDeskPage() {
                   Nenhuma guia emitida encontrada.
                 </div>
               ) : (
-                <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-                  {issuedGuideRows.map(({ process, guide }, index) => {
-                    const isProtocolGuide = guide.kind === "protocolo";
-                    const issuedLabel = guide.issuedAt
-                      ? new Date(guide.issuedAt).toLocaleDateString("pt-BR")
-                      : "Não informada";
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/45">
+                  <div className="hidden min-h-9 grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+                    <span>#</span>
+                    <span>Guia</span>
+                    <span>Processo</span>
+                    <span>Emissão</span>
+                    <span>Vencimento</span>
+                    <span>Responsabilidade</span>
+                    <span className="text-right">Valor</span>
+                    <span aria-hidden="true" />
+                  </div>
 
-                    return (
-                      <article
-                        key={`${process.id}-${guide.kind}-${guide.code}`}
-                        className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-950/55"
-                      >
-                        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {issuedGuideRows.map(({ process, guide }, index) => {
+                      const isProtocolGuide = guide.kind === "protocolo";
+                      const issuedLabel = guide.issuedAt
+                        ? new Date(guide.issuedAt).toLocaleDateString("pt-BR")
+                        : "Não informada";
+
+                      return (
+                        <Link
+                          key={`${process.id}-${guide.kind}-${guide.code}`}
+                          to={`/processos/${process.id}?aba=financeiro`}
+                          className="group grid min-h-[58px] grid-cols-[34px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
+                        >
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+
                           <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-950 px-2 text-[10px] font-black tracking-[0.08em] text-white dark:bg-white dark:text-slate-950">
-                                {String(index + 1).padStart(2, "0")}
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span
+                                className="truncate text-xs font-black text-slate-950 group-hover:text-sky-800 dark:text-white dark:group-hover:text-sky-300"
+                                title={guide.code}
+                              >
+                                {guide.code}
                               </span>
                               <Badge
                                 variant="outline"
                                 className={
                                   guide.status === "compensada"
-                                    ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                    : "rounded-full border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
+                                    ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                    : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
                                 }
                               >
                                 {guide.status === "compensada" ? "Compensada" : "Pendente"}
                               </Badge>
                             </div>
-                            <p
-                              className="mt-3 truncate text-sm font-black tracking-[0.01em] text-slate-950 dark:text-white"
-                              title={guide.code}
-                            >
-                              {guide.code}
-                            </p>
-                            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
                               {guide.label}
                             </p>
+
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 lg:hidden">
+                              <span>{formatOfficialProcessNumber(process.protocol)}</span>
+                              <span>Emissão: {issuedLabel}</span>
+                              <span>Venc.: {guide.dueDate || "Não informado"}</span>
+                              <span>{formatCurrency(guide.amount)}</span>
+                            </div>
                           </div>
 
-                          <div className="shrink-0 rounded-2xl bg-slate-50 px-3 py-2 text-right dark:bg-slate-900">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.11em] text-slate-400">
-                              Valor
-                            </p>
-                            <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
-                              {formatCurrency(guide.amount)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 px-4 py-4">
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-[0.11em] text-slate-400">
-                              Processo
-                            </p>
-                            <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
+                          <div className="hidden min-w-0 lg:block">
+                            <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
                               {formatOfficialProcessNumber(process.protocol)}
                             </p>
-                            <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400" title={process.ownerName}>
+                            <p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400" title={process.ownerName}>
                               {process.ownerName}
                             </p>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/80">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.09em] text-slate-400">
-                                Emissão
-                              </p>
-                              <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                {issuedLabel}
-                              </p>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/80">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.09em] text-slate-400">
-                                Vencimento
-                              </p>
-                              <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                {guide.dueDate || "Não informado"}
-                              </p>
-                            </div>
-                          </div>
+                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                            {issuedLabel}
+                          </span>
 
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2.5 dark:border-slate-800">
-                            <div className="min-w-0">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.09em] text-slate-400">
-                                Responsabilidade operacional
-                              </p>
-                              <p className="mt-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
-                              </p>
-                            </div>
-                            <Button asChild variant="outline" size="sm" className="shrink-0 rounded-full">
-                              <Link to={`/processos/${process.id}?aba=financeiro`}>
-                                Abrir
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                            {guide.dueDate || "Não informado"}
+                          </span>
+
+                          <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                            {isProtocolGuide ? "Baixa: Protocolo" : "Controle: Financeiro"}
+                          </span>
+
+                          <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white lg:block">
+                            {formatCurrency(guide.amount)}
+                          </span>
+
+                          <ArrowRight className="h-4 w-4 justify-self-end text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-sky-700 dark:group-hover:text-sky-300" />
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
