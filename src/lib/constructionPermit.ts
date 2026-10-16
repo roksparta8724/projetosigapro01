@@ -18,20 +18,40 @@ export type PermitSignature = {
   official?: boolean;
 };
 
+export interface ConstructionPermitAreaItem {
+  id: string;
+  description: string;
+  areaM2: string;
+}
+
 export interface ConstructionPermitFormData {
   ownerName: string;
   ownerDocument: string;
+  ownerAddress?: string;
   technicalLead: string;
   technicalRegistration: string;
+  technicalResponsibilityType?: string;
+  technicalResponsibilityNumber?: string;
   propertyAddress: string;
+  neighborhood?: string;
+  city?: string;
+  postalCode?: string;
   propertyRegistration: string;
+  propertyRegistryNumber?: string;
+  propertyRegistryOffice?: string;
   lot: string;
   block: string;
   areaM2: string;
+  landAreaM2?: string;
+  frontageM?: string;
+  housingUnits?: string;
+  floors?: string;
+  bathrooms?: string;
   usage: string;
   workType: string;
   constructionStandard: string;
   licenseObject: string;
+  regularizationAreas?: ConstructionPermitAreaItem[];
   complementaryConditions: string;
 }
 
@@ -75,19 +95,33 @@ export function buildConstructionPermitFormData(
   return {
     ownerName: process.ownerName || "",
     ownerDocument: process.ownerDocument || "",
+    ownerAddress: "",
     technicalLead: process.technicalLead || "",
     technicalRegistration: "",
+    technicalResponsibilityType: "",
+    technicalResponsibilityNumber: "",
     propertyAddress: process.address || "",
+    neighborhood: "",
+    city: "",
+    postalCode: "",
     propertyRegistration:
       process.property.iptu || process.property.registration || "",
+    propertyRegistryNumber: "",
+    propertyRegistryOffice: "",
     lot: process.property.lot || "",
     block: process.property.block || "",
     areaM2: process.property.area > 0 ? String(process.property.area) : "",
+    landAreaM2: "",
+    frontageM: "",
+    housingUnits: "",
+    floors: "",
+    bathrooms: "",
     usage: process.property.usage || "",
     workType: process.property.workType || process.type || "",
     constructionStandard: process.property.constructionStandard || "",
     licenseObject:
       process.property.workType || process.type || "Licenciamento da obra",
+    regularizationAreas: [],
     complementaryConditions: "",
   };
 }
