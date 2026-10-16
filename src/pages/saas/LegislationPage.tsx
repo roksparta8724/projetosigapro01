@@ -20,7 +20,7 @@ import { TableContainer } from "@/components/platform/TableContainer";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getLegislationOpenUrl } from "@/integrations/r2/client";
 
 type LegislationView = "visao-geral" | "plano-diretor" | "uso-solo" | "leis-complementares" | "referencias";
 
@@ -121,55 +121,11 @@ export function LegislationPage() {
   const openOfficialDocument = (item: LawItem) => {
     if (!item.fileUrl) return;
 
-    // A guia precisa nascer no clique do usuário para não ser bloqueada pelo navegador.
-    // Depois resolvemos, quando necessário, a URL assinada do arquivo privado.
-    const opened = window.open("", "_blank");
-    if (!opened) return;
+    const targetUrl = getLegislationOpenUrl(item.fileUrl);
+    if (!targetUrl) return;
 
-    try {
-      opened.opener = null;
-      opened.document.title = item.fileName || item.title || "Documento oficial";
-      opened.document.body.style.margin = "0";
-      opened.document.body.style.minHeight = "100vh";
-      opened.document.body.style.display = "grid";
-      opened.document.body.style.placeItems = "center";
-      opened.document.body.style.fontFamily = "system-ui, sans-serif";
-      opened.document.body.style.background = "#f8fafc";
-      opened.document.body.style.color = "#334155";
-      opened.document.body.textContent = "Carregando PDF oficial da Prefeitura...";
-    } catch {
-      // A navegação ainda pode prosseguir mesmo se o navegador bloquear a customização do about:blank.
-    }
-
-    const navigateOpenedTab = (url: string) => {
-      if (!url) throw new Error("URL do documento não disponível.");
-      opened.location.replace(url);
-      opened.focus();
-    };
-
-    if (!item.fileUrl.startsWith("r2:")) {
-      navigateOpenedTab(item.fileUrl);
-      return;
-    }
-
-    const objectKey = item.fileUrl.slice(3).trim();
-    void getSignedUrlForObjectStrict({
-      bucket: "process-documents",
-      objectKey,
-      expiresIn: 21600,
-    })
-      .then(navigateOpenedTab)
-      .catch((error) => {
-        try {
-          opened.document.title = "Falha ao abrir documento";
-          opened.document.body.textContent =
-            error instanceof Error
-              ? `Não foi possível abrir o PDF: ${error.message}`
-              : "Não foi possível abrir o PDF oficial.";
-        } catch {
-          // Sem ação: a guia já foi criada e o erro é somente de leitura.
-        }
-      });
+    const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
+    opened?.focus();
   };
 
   const renderDocumentPanel = (item: LawItem) => (
