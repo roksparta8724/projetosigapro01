@@ -256,12 +256,30 @@ export async function buildConstructionPermitPdfBlob({
       ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK)
       : null);
 
+  const isCampoLimpo = /campo\s+limpo\s+paulista/i.test(municipalityName);
+  const officialMunicipalityName =
+    /prefeitura/i.test(municipalityName)
+      ? municipalityName
+      : isCampoLimpo
+        ? "Prefeitura Municipal de Campo Limpo Paulista"
+        : `Prefeitura Municipal de ${municipalityName}`;
+
   const effectiveSecretariat =
-    secretariat ||
-    (/campo\s+limpo\s+paulista/i.test(municipalityName)
-      ? "Secretaria de Desenvolvimento Urbano, Habitação e Meio Ambiente"
-      : "Secretaria responsável");
+    !secretariat ||
+    /^secretaria\s+de\s+desenvolvimento\s+urbano$/i.test(secretariat.trim())
+      ? isCampoLimpo
+        ? "Secretaria de Desenvolvimento Urbano, Habitação e Meio Ambiente"
+        : secretariat || "Secretaria responsável"
+      : secretariat;
   const effectiveDirectorate = directorate || "Diretoria responsável";
+  const effectiveAddress =
+    municipalityAddress ||
+    (isCampoLimpo
+      ? "Avenida Adherbal da Costa Moreira, 255 - Jardim América - Campo Limpo Paulista/SP"
+      : "");
+  const effectivePhone =
+    municipalityPhone ||
+    (isCampoLimpo ? "(11) 4038-8300" : "");
   const directorOfficial = Boolean(
     permit.directorSignature?.official &&
     permit.directorSignature?.verificationCode,
@@ -299,7 +317,7 @@ export async function buildConstructionPermitPdfBlob({
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10.4);
   textColor(pdf, color.ink);
-  pdf.text(valueOrFallback(municipalityName, "Prefeitura Municipal").toUpperCase(), copyX, 14.7);
+  pdf.text(valueOrFallback(officialMunicipalityName, "Prefeitura Municipal").toUpperCase(), copyX, 14.7);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(5.6);
@@ -324,7 +342,7 @@ export async function buildConstructionPermitPdfBlob({
   textColor(pdf, color.navy);
   pdf.text(permit.permitNumber, pageWidth - margin - 25.5, 17.6, { align: "center" });
 
-  const contact = [municipalityAddress, municipalityPhone, municipalityEmail]
+  const contact = [effectiveAddress, effectivePhone, municipalityEmail]
     .filter(Boolean)
     .join("  •  ");
   if (contact) {
@@ -351,7 +369,7 @@ export async function buildConstructionPermitPdfBlob({
     directorOfficial
       ? "Alvará emitido"
       : manualSignature
-        ? "Preparado para assinatura manual"
+        ? "Pronto para assinatura da Diretoria à caneta"
         : "Aguardando assinatura da Diretoria",
   );
   y += 16;
