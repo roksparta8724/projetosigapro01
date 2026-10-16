@@ -18,6 +18,8 @@ create table if not exists public.process_artifact_withdrawals (
   recorded_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp()
 );
+alter table public.process_artifact_withdrawals
+  alter column artifact_hash drop not null;
 
 drop index if exists public.ux_process_artifact_withdrawals_version;
 
