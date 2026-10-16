@@ -1,6 +1,8 @@
 import {
   AlertCircle,
   Building2,
+  ExternalLink,
+  FileText,
   Layers3,
   MapPinned,
   PencilLine,
@@ -39,7 +41,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { useZoningRules } from "@/hooks/useZoningRules";
 import {
   ZONING_TYPE_OPTIONS,
@@ -174,8 +178,15 @@ function DetailMetricCard({
 
 export function ZoningPage() {
   const { session } = usePlatformSession();
-  const { municipality, scopeId } = useMunicipality();
+  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
+  const { getInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const institutionSettings =
+    institutionSettingsCompat ??
+    getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const zoningFileName =
+    institutionSettings?.usoSoloArquivoNome?.trim() || "Zoneamento municipal";
+  const zoningFileUrl = institutionSettings?.usoSoloArquivoUrl?.trim() || "";
   const canManageRules =
     can(session, "manage_tenant_users") ||
     session.role === "master_admin" ||
@@ -219,6 +230,65 @@ export function ZoningPage() {
   const activeCount = rules.filter((rule) => rule.status === "ativa").length;
   const inactiveCount = totalCount - activeCount;
   const configuredRulesCount = rules.reduce((acc, rule) => acc + countConfiguredZoningRules(rule), 0);
+
+  const openZoningDocument = () => {
+    if (!zoningFileUrl) return;
+
+    const opened = window.open("", "_blank");
+    if (!opened) {
+      toast.error("O navegador bloqueou a nova guia. Libere pop-ups para o SIGAPRO.");
+      return;
+    }
+
+    try {
+      opened.opener = null;
+      opened.document.title = zoningFileName;
+      opened.document.body.style.margin = "0";
+      opened.document.body.style.minHeight = "100vh";
+      opened.document.body.style.display = "grid";
+      opened.document.body.style.placeItems = "center";
+      opened.document.body.style.fontFamily = "system-ui, sans-serif";
+      opened.document.body.style.background = "#f8fafc";
+      opened.document.body.style.color = "#334155";
+      opened.document.body.textContent = "Carregando documento oficial de zoneamento...";
+    } catch {
+      // A guia continua válida mesmo que o navegador bloqueie a personalização do about:blank.
+    }
+
+    const navigateOpenedTab = (url: string) => {
+      if (!url) throw new Error("URL do documento de zoneamento não disponível.");
+      opened.location.replace(url);
+      opened.focus();
+    };
+
+    if (!zoningFileUrl.startsWith("r2:")) {
+      navigateOpenedTab(zoningFileUrl);
+      return;
+    }
+
+    const objectKey = zoningFileUrl.slice(3).trim();
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    void getSignedUrlForObjectStrict({
+      bucket,
+      objectKey,
+      expiresIn: 21600,
+    })
+      .then(navigateOpenedTab)
+      .catch((reason) => {
+        try {
+          opened.document.title = "Falha ao abrir zoneamento";
+          opened.document.body.textContent =
+            reason instanceof Error
+              ? `Não foi possível abrir o PDF de zoneamento: ${reason.message}`
+              : "Não foi possível abrir o PDF de zoneamento.";
+        } catch {
+          // A falha já fica restrita à guia de leitura.
+        }
+      });
+  };
 
   const openCreateDialog = () => {
     setForm(createEmptyForm());
@@ -352,6 +422,57 @@ export function ZoningPage() {
             tone="default"
           />
         </PageStatsRow>
+
+        <SectionCard
+          title="Documento oficial do zoneamento"
+          description="Base legal usada como referência para as zonas, parâmetros urbanísticos e análise técnica municipal."
+          icon={FileText}
+          actions={
+            zoningFileUrl ? (
+              <Button
+                type="button"
+                onClick={openZoningDocument}
+                className="sig-force-dark-action h-10 rounded-2xl bg-slate-950 px-4 !text-white hover:bg-slate-900"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Abrir guia
+              </Button>
+            ) : undefined
+          }
+        >
+          {zoningFileUrl ? (
+            <div className="flex flex-col gap-4 rounded-[22px] border border-sky-200 bg-[linear-gradient(145deg,#ffffff_0%,#f4f9ff_100%)] p-4 shadow-[0_12px_30px_rgba(14,165,233,0.06)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-950" title={zoningFileName}>
+                    {zoningFileName}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Documento oficial vinculado ao cadastro municipal de legislação.
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className="w-fit rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700"
+              >
+                Documento disponível
+              </Badge>
+            </div>
+          ) : (
+            <div className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50/70 p-5">
+              <p className="text-sm font-semibold text-slate-800">
+                PDF de zoneamento ainda não vinculado
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Anexe a Lei de Uso e Ocupação do Solo / Zoneamento no Acervo legal municipal para que o documento apareça aqui automaticamente.
+              </p>
+            </div>
+          )}
+        </SectionCard>
 
         {!effectiveScopeId ? (
           <SectionCard
