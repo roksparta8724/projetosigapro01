@@ -18,12 +18,13 @@ describe("municipal branding runtime resilience", () => {
     expect(tenant).toContain("document.createElement(\"link\")");
   });
 
-  it("renews municipality header/footer logos from object keys at runtime", () => {
-    expect(branding).toContain("resolvedTenantHeaderLogoUrl");
-    expect(branding).toContain("resolvedTenantFooterLogoUrl");
-    expect(branding).toContain('bucket: "institutional-branding"');
-    expect(branding).toContain("scopedMunicipalityBranding?.headerLogoObjectKey");
-    expect(branding).toContain("scopedMunicipalityBranding?.footerLogoObjectKey");
+  it("keeps the visible municipal logo priority stable instead of replacing it from the object key", () => {
+    expect(branding).toContain("const resolvedTenantHeaderLogo =\n      brandingUrl ||");
+    expect(branding).toContain("const resolvedTenantFooterLogo =\n      brandingUrl ||");
+    expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
+    expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("resolvedTenantHeaderLogoUrl");
+    expect(branding).not.toContain("resolvedTenantFooterLogoUrl");
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
