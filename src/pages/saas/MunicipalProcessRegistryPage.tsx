@@ -73,8 +73,8 @@ export function MunicipalProcessRegistryPage() {
       allProcesses
         .filter((process) => matchesOperationalScope(effectiveScopeId, process))
         .sort((a, b) => {
-          const aDate = Date.parse(a.timeline?.[0]?.at || a.analysis?.startedAt || a.createdAt || "1970-01-01");
-          const bDate = Date.parse(b.timeline?.[0]?.at || b.analysis?.startedAt || b.createdAt || "1970-01-01");
+          const aDate = Date.parse(a.timeline?.[0]?.at || a.analysis?.startedAt || "1970-01-01");
+          const bDate = Date.parse(b.timeline?.[0]?.at || b.analysis?.startedAt || "1970-01-01");
           return bDate - aDate;
         }),
     [allProcesses, effectiveScopeId],
