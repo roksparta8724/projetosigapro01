@@ -53,6 +53,19 @@ function valueOrFallback(value?: string | null, fallback = "Não informado") {
   return clean || fallback;
 }
 
+function buildPermitDocumentTitle(workType?: string | null) {
+  const raw = String(workType || "").trim();
+
+  if (/demoli/i.test(raw)) return "ALVARÁ DE DEMOLIÇÃO";
+  if (/reforma/i.test(raw)) return "ALVARÁ DE REFORMA";
+  if (/amplia/i.test(raw)) return "ALVARÁ DE AMPLIAÇÃO";
+  if (/regulariza/i.test(raw)) return "ALVARÁ DE REGULARIZAÇÃO";
+  if (/terraplen|movimenta.*terra/i.test(raw)) return "ALVARÁ DE TERRAPLENAGEM";
+  if (/constru/i.test(raw)) return "ALVARÁ DE CONSTRUÇÃO";
+
+  return "ALVARÁ DE CONSTRUÇÃO";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -287,6 +300,9 @@ export async function buildConstructionPermitPdfBlob({
     permit.secretarySignature?.official &&
     permit.secretarySignature?.verificationCode,
   );
+  const permitDocumentTitle = buildPermitDocumentTitle(
+    form?.workType || process.property.workType || process.type,
+  );
 
   // Cabeçalho institucional claro e premium.
   fill(pdf, color.white);
@@ -329,9 +345,14 @@ export async function buildConstructionPermitPdfBlob({
   pdf.text(effectiveDirectorate.toUpperCase(), copyX, 23.3);
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7.2);
+  pdf.setFontSize(10.8);
   textColor(pdf, color.blue);
-  pdf.text("ALVARÁ DE CONSTRUÇÃO", copyX, 29.2);
+  pdf.text(permitDocumentTitle, pageWidth / 2, 32.2, {
+    align: "center",
+  });
+  draw(pdf, [186, 230, 253]);
+  pdf.setLineWidth(0.7);
+  pdf.line(pageWidth / 2 - 27, 34.5, pageWidth / 2 + 27, 34.5);
 
   fill(pdf, [241, 245, 249]);
   draw(pdf, [226, 232, 240]);
@@ -364,10 +385,10 @@ export async function buildConstructionPermitPdfBlob({
     margin + half + gap,
     y,
     half,
-    "Situação",
+    "Situação do alvará",
     directorOfficial
-      ? "Alvará emitido"
-      : "Aguardando assinatura da Diretoria",
+      ? "Emitido"
+      : "Em fase de emissão",
   );
   y += 16;
 
@@ -533,7 +554,7 @@ export async function buildConstructionPermitPdfBlob({
   pdf.setFontSize(6.3);
   textColor(pdf, directorOfficial ? color.green : color.navy);
   pdf.text(
-    directorOfficial ? "ALVARÁ MUNICIPAL EMITIDO" : "ALVARÁ DE CONSTRUÇÃO",
+    directorOfficial ? "ALVARÁ MUNICIPAL EMITIDO" : permitDocumentTitle,
     margin + 4,
     y + 5.5,
   );
