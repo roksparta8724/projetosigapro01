@@ -679,15 +679,35 @@ export function ConfiguracoesPage() {
         if (!active || error) return;
         const remote = data ? mapMunicipalityBranding(data as Record<string, unknown>) : null;
         const resolveUrl = async (url: string, objectKey: string) => {
-          if (url || !objectKey) return url;
-          try {
-            return await getSignedUrlForObject({
-              bucket: (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos",
-              objectKey,
-            }) || "";
-          } catch {
-            return "";
+          const normalizedKey =
+            objectKey?.trim() ||
+            getObjectKeyFromPublicUrl(url || "") ||
+            "";
+
+          if (normalizedKey) {
+            try {
+              const publicUrl = getPublicUrl(normalizedKey);
+              if (publicUrl) return publicUrl;
+              const signedUrl = await getSignedUrlForObject({
+                bucket: "institutional-branding",
+                objectKey: normalizedKey,
+              });
+              if (signedUrl) return signedUrl;
+            } catch {
+              // Se a assinatura falhar, ainda tentamos um URL persistente não temporário.
+            }
           }
+
+          if (
+            url &&
+            !url.startsWith("blob:") &&
+            !url.startsWith("data:") &&
+            !/[?&]X-Amz-(?:Algorithm|Signature|Expires)=/i.test(url)
+          ) {
+            return url;
+          }
+
+          return "";
         };
         const [headerUrl, footerUrl] = await Promise.all([
           resolveUrl(remote?.headerLogoUrl || "", remote?.headerLogoObjectKey || ""),
@@ -2298,6 +2318,18 @@ export function ConfiguracoesPage() {
       }
 
       saveInstitutionSettings(nextSettings, { skipRemoteSync: hasBackendEnv });
+
+      if (hasBackendEnv) {
+        await bootstrap.refreshMunicipalityBundle(savedTenantId);
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("sigapro-municipality-settings-updated", {
+            detail: { municipalityId: savedTenantId },
+          }),
+        );
+      }
 
       setBrasaoFiles(nextBrasaoFiles);
       setBandeiraFiles(nextBandeiraFiles);
