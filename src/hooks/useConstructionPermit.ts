@@ -7,6 +7,50 @@ import {
 } from "@/lib/constructionPermit";
 import { getOfficialConstructionPermit } from "@/integrations/permits/constructionPermitClient";
 
+const PERMIT_STATUS_RANK: Record<ConstructionPermitRecord["status"], number> = {
+  rascunho: 0,
+  aguardando_diretor: 2,
+  assinatura_manual: 2,
+  emitido: 3,
+};
+
+export function mergeConstructionPermitMonotonic(
+  local: ConstructionPermitRecord | null,
+  official: ConstructionPermitRecord,
+): ConstructionPermitRecord {
+  if (!local) return official;
+
+  const localRank = PERMIT_STATUS_RANK[local.status] ?? 0;
+  const officialRank = PERMIT_STATUS_RANK[official.status] ?? 0;
+
+  // O banco remoto pode estar alguns instantes atrás do estado que acabou de ser
+  // preparado no navegador. O estágio do Alvará é monotônico: uma leitura tardia
+  // nunca pode transformar assinatura manual / Diretoria em rascunho.
+  const primary = localRank > officialRank ? local : official;
+  const secondary = primary === local ? official : local;
+
+  return {
+    ...secondary,
+    ...primary,
+    formData: primary.formData ?? secondary.formData,
+    analystSignature: primary.analystSignature ?? secondary.analystSignature,
+    directorSignature: primary.directorSignature ?? secondary.directorSignature,
+    secretarySignature: primary.secretarySignature ?? secondary.secretarySignature,
+    signatureMode: primary.signatureMode ?? secondary.signatureMode,
+    directorRequestedAt:
+      primary.directorRequestedAt ?? secondary.directorRequestedAt,
+    manualPdfPreparedAt:
+      primary.manualPdfPreparedAt ?? secondary.manualPdfPreparedAt,
+    issuedAt: primary.issuedAt ?? secondary.issuedAt,
+    preparedAt: primary.preparedAt || secondary.preparedAt,
+    updatedAt:
+      new Date(primary.updatedAt || primary.preparedAt).getTime() >=
+      new Date(secondary.updatedAt || secondary.preparedAt).getTime()
+        ? primary.updatedAt || primary.preparedAt
+        : secondary.updatedAt || secondary.preparedAt,
+  };
+}
+
 export function useConstructionPermit(
   municipalityId: string | null | undefined,
   processId: string | null | undefined,
@@ -29,12 +73,9 @@ export function useConstructionPermit(
     void getOfficialConstructionPermit(processId)
       .then((official) => {
         if (!active || !official) return;
-        const merged: ConstructionPermitRecord = {
-          ...official,
-          directorSignature: local?.directorSignature,
-          secretarySignature: local?.secretarySignature,
-          issuedAt: local?.issuedAt,
-        };
+        const latestLocal =
+          readLocalConstructionPermit(municipalityId, processId) ?? local;
+        const merged = mergeConstructionPermitMonotonic(latestLocal, official);
         writeLocalConstructionPermit(merged);
         setPermit(merged);
       })
