@@ -227,32 +227,32 @@ function drawSignature(
   const official = Boolean(signature?.official || signature?.verificationCode);
   fill(pdf, official ? ([240, 253, 250] as const) : ([250, 252, 254] as const));
   draw(pdf, official ? ([167, 243, 208] as const) : color.line);
-  pdf.roundedRect(x, y, width, 29, 2.5, 2.5, "FD");
+  pdf.roundedRect(x, y, width, 26, 2.5, 2.5, "FD");
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(5.4);
+  pdf.setFontSize(5.1);
   textColor(pdf, official ? color.green : color.muted);
   pdf.text(
     official ? "VALIDAÇÃO MUNICIPAL" : "AUTORIDADE MUNICIPAL",
     x + 4,
-    y + 5,
+    y + 4.3,
   );
 
-  pdf.setFontSize(6.3);
+  pdf.setFontSize(6);
   textColor(pdf, color.ink);
-  pdf.text(label.toUpperCase(), x + 4, y + 9.5);
+  pdf.text(label.toUpperCase(), x + 4, y + 8.2);
 
   if (signature) {
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.2);
+    pdf.setFontSize(6.8);
     pdf.text(
       (pdf.splitTextToSize(signature.name || "Responsável", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 14.2,
+      y + 12.3,
     );
 
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(5.7);
+    pdf.setFontSize(5.25);
     textColor(pdf, color.muted);
     const role = [signature.role, signature.registration ? `Registro ${signature.registration}` : ""]
       .filter(Boolean)
@@ -260,44 +260,44 @@ function drawSignature(
     pdf.text(
       (pdf.splitTextToSize(role || "Autoridade municipal", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 18.3,
+      y + 15.7,
     );
-    pdf.text(formatDate(signature.signedAt), x + 4, y + 22);
+    pdf.text(formatDate(signature.signedAt), x + 4, y + 18.8);
 
     if (signature.verificationCode) {
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(5.2);
+      pdf.setFontSize(4.9);
       textColor(pdf, color.green);
-      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 25.5);
+      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 21.8);
     }
     if (signature.evidenceHash) {
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(4.6);
+      pdf.setFontSize(4.25);
       textColor(pdf, color.muted);
-      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 28);
+      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 24.5);
     }
   } else if (manual) {
     draw(pdf, [100, 116, 139]);
     pdf.setLineWidth(0.35);
-    pdf.line(x + 10, y + 18.5, x + width - 10, y + 18.5);
+    pdf.line(x + 10, y + 16.2, x + width - 10, y + 16.2);
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(5.6);
+    pdf.setFontSize(5.35);
     textColor(pdf, color.muted);
     const authorityLabel = /secret/i.test(label)
       ? "Secretário(a) Municipal"
       : "Diretor(a) Responsável";
-    pdf.text(authorityLabel, x + width / 2, y + 22.7, {
+    pdf.text(authorityLabel, x + width / 2, y + 20.1, {
       align: "center",
     });
-    pdf.setFontSize(5.1);
-    pdf.text("Data: ____/____/________", x + width / 2, y + 26.7, {
+    pdf.setFontSize(4.9);
+    pdf.text("Data: ____/____/________", x + width / 2, y + 23.6, {
       align: "center",
     });
   } else {
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6.2);
+    pdf.setFontSize(5.8);
     textColor(pdf, color.muted);
-    pdf.text("Aguardando assinatura eletrônica da autoridade municipal.", x + 4, y + 15);
+    pdf.text("Aguardando assinatura eletrônica da autoridade municipal.", x + 4, y + 13.2);
   }
 }
 
@@ -1021,7 +1021,7 @@ export async function buildConstructionPermitPdfBlob({
       showManualDirectorLine,
     );
   }
-  y += 31;
+  y += 28;
 
   fill(
     pdf,
