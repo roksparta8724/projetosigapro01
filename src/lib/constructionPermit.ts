@@ -10,6 +10,11 @@ export type PermitSignature = {
   name: string;
   role: string;
   signedAt: string;
+  verificationCode?: string;
+  evidenceHash?: string;
+  registration?: string | null;
+  authMethod?: string;
+  official?: boolean;
 };
 
 export interface ConstructionPermitFormData {
@@ -38,8 +43,10 @@ export interface ConstructionPermitRecord {
   updatedAt: string;
   issuedAt?: string;
   formData?: ConstructionPermitFormData;
+  /** Registro legado mantido apenas para compatibilidade de dados antigos. */
   analystSignature?: PermitSignature;
   directorSignature?: PermitSignature;
+  secretarySignature?: PermitSignature;
 }
 
 const PREFIX = "sigapro:construction-permit:v1";
@@ -196,6 +203,15 @@ export function userCanSignPermitAsDirector(user: SessionUser) {
   );
 }
 
+export function userCanSignPermitAsSecretary(user: SessionUser) {
+  const position = `${user.title || ""} ${user.profileLabel || ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
+  return /\bsecretari[oa]\b/.test(position);
+}
+
 export function signConstructionPermitAsAnalyst(
   record: ConstructionPermitRecord,
   user: SessionUser,
@@ -230,8 +246,8 @@ export function signConstructionPermitAsDirector(
       role: user.title || user.profileLabel || "Diretor",
       signedAt: now,
     },
-    status: record.analystSignature ? "emitido" : "rascunho",
-    issuedAt: record.analystSignature ? now : record.issuedAt,
+    status: "emitido",
+    issuedAt: now,
     updatedAt: now,
   };
   writeLocalConstructionPermit(next);
@@ -248,6 +264,34 @@ export function updateConstructionPermitFormData(
     formData: { ...formData },
     updatedAt: new Date().toISOString(),
   };
+  writeLocalConstructionPermit(next);
+  return next;
+}
+
+
+export function applyConstructionPermitOfficialSignature(
+  record: ConstructionPermitRecord,
+  slot: "diretoria" | "secretaria",
+  signature: PermitSignature,
+): ConstructionPermitRecord {
+  const now = new Date().toISOString();
+  const next: ConstructionPermitRecord =
+    slot === "diretoria"
+      ? {
+          ...record,
+          directorSignature: signature,
+          status: "emitido",
+          issuedAt: record.issuedAt || signature.signedAt || now,
+          updatedAt: now,
+        }
+      : {
+          ...record,
+          secretarySignature: signature,
+          status: record.directorSignature ? "emitido" : record.status,
+          issuedAt: record.directorSignature ? record.issuedAt || now : record.issuedAt,
+          updatedAt: now,
+        };
+
   writeLocalConstructionPermit(next);
   return next;
 }
