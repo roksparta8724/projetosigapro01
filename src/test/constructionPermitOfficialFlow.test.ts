@@ -46,14 +46,15 @@ describe("official construction permit workflow", () => {
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
   });
 
-  it("keeps secretary signature optional and only prints it after an actual electronic signature", () => {
+  it("keeps secretary optional and only shows the secretary block when a secretary actually signs", () => {
     expect(permitLib).toContain("secretarySignature");
     expect(panel).toContain("Assinar também como Secretário");
     expect(panel).toContain("secretaryOfficial");
     expect(permitPdf).toContain("const showManualDirectorLine");
-    expect(permitPdf).toContain("if (secretaryOfficial)");
+    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial;");
+    expect(permitPdf).not.toContain("secretaryOfficial || showManual");
     expect(permitPdf).toContain("Secretaria municipal");
-    expect(permitPdf).not.toContain("const hasSecretary = secretaryOfficial || showManualAuthorityLines");
+    expect(permitPdf).toContain("Secretário(a) Municipal");
   });
 
   it("requires password-confirmed electronic signing and verification evidence", () => {
@@ -74,7 +75,7 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).not.toContain("A assinatura da Secretaria é complementar");
     expect(permitPdf).toContain("ALVARÁ DE CONSTRUÇÃO");
     expect(permitPdf).toContain("Diretor(a) Responsável");
-    expect(permitPdf).toContain("Diretor(a) Responsável");
+    expect(permitPdf).toContain("Secretário(a) Municipal");
     expect(permitPdf).toContain("Processo Administrativo");
   });
 
@@ -85,7 +86,27 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("effectiveAddress");
     expect(permitPdf).toContain("effectivePhone");
     expect(permitPdf).toContain("Prefeitura Municipal de Campo Limpo Paulista");
+    expect(permitPdf).toContain("Departamento de Urbanismo");
     expect(permitPdf).toContain("municipalityEmail");
     expect(permitPdf).not.toContain("RASCUNHO - SEM VALIDADE");
+  });
+
+  it("includes the official regularization data missing from the earlier permit and stays on one A4 page", () => {
+    expect(permitLib).toContain("propertyRegistryNumber");
+    expect(permitLib).toContain("technicalResponsibilityNumber");
+    expect(permitLib).toContain("regularizationAreas");
+    expect(panel).toContain("Matrícula do imóvel");
+    expect(panel).toContain("Área do terreno (m²)");
+    expect(panel).toContain("Testada (m)");
+    expect(panel).toContain("Nº de habitações");
+    expect(panel).toContain("Nº de pavimentos");
+    expect(panel).toContain("Nº de banheiros");
+    expect(panel).toContain("Nº ART / RRT / TRT");
+    expect(panel).toContain("Edificação - regularização");
+    expect(permitPdf).toContain("EDIFICAÇÃO / REGULARIZAÇÃO");
+    expect(permitPdf).toContain("Matrícula do imóvel / C.R.I.");
+    expect(permitPdf).toContain("Responsável técnico pelo projeto de regularização");
+    expect(permitPdf).toContain('format: "a4"');
+    expect(permitPdf).not.toContain("pdf.addPage(");
   });
 });
