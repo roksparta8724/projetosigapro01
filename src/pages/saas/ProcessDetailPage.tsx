@@ -2934,6 +2934,15 @@ export function ProcessDetailPage() {
               sessionUsers={sessionUsers}
               municipalityId={effectiveScopeId || process.tenantId}
               municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+              municipalityLogoUrl={
+                tenantSettings?.headerLogoUrl ||
+                tenantSettings?.logoUrl ||
+                tenantSettings?.brasaoUrl ||
+                ""
+              }
+              municipalityAddress={tenantSettings?.endereco || ""}
+              municipalityPhone={tenantSettings?.telefone || ""}
+              municipalityEmail={tenantSettings?.email || ""}
               secretariat={tenantSettings?.secretariaResponsavel}
               directorate={tenantSettings?.diretoriaResponsavel || "Divisão de Análise e Aprovação de Projetos - DAAP"}
               technicalProfile={linkedTechnicalProfile}
