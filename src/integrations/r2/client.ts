@@ -91,6 +91,15 @@ export function getLegislationOpenUrl(reference: string) {
   );
 }
 
+export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
+  const normalized = String(objectKey || "").trim().replace(/^\/+/, "");
+  if (!normalized) return "";
+
+  return buildApiUrl(
+    `/api/municipality-logo-open?objectKey=${encodeURIComponent(normalized)}`,
+  );
+}
+
 export function getObjectKeyFromPublicUrl(publicUrl: string) {
   if (!publicUrl) return "";
   const base = (import.meta.env.VITE_R2_PUBLIC_BASE_URL || "").toString().replace(/\/+$/, "");
