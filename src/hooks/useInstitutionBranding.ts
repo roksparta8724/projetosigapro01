@@ -9,7 +9,10 @@ import {
   defaultIssRateProfiles,
   type TenantSettings,
 } from "@/lib/platform";
-import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import {
+  getMunicipalityLogoOpenUrl,
+  getSignedUrlForObjectStrict,
+} from "@/integrations/r2/client";
 import { loadPlatformBranding } from "@/integrations/backend/platform";
 import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
@@ -347,14 +350,19 @@ export function useInstitutionBranding(tenantId?: string | null) {
     ) => {
       const raw = String(storedUrl || "").trim();
 
-      // Um URL persistente ainda válido é usado imediatamente.
+      // URL persistente válida continua sendo aceita para retrocompatibilidade.
       if (isUsableBrandingUrl(raw)) return raw;
 
-      // URL assinada expirada nunca é fonte de verdade. O object key persistente
-      // é usado para gerar uma nova URL temporária em localhost e produção.
-      const normalizedKey = String(objectKey || "").trim();
+      const normalizedKey = String(objectKey || "").trim().replace(/^\/+/, "");
       if (!normalizedKey) return "";
 
+      // Fonte primária: endpoint estável do SIGAPRO baseado no object key.
+      // Não expira, não depende da URL assinada salva no banco e mantém
+      // localhost e produção apontando para o MESMO arquivo institucional.
+      const stableProxyUrl = getMunicipalityLogoOpenUrl(normalizedKey);
+      if (stableProxyUrl) return stableProxyUrl;
+
+      // Fallback técnico para ambientes sem a rota serverless.
       try {
         return await getSignedUrlForObjectStrict({
           bucket: "institutional-branding",
