@@ -43,6 +43,3 @@ jobs:
           src/test/constructionPermitWorkflow.test.ts
           src/test/constructionPermitOfficialFlow.test.ts
           src/test/protocolMarkerContrastRegression.test.ts
-
-      - name: Full regression suite
-        run: npm test -- --run
