@@ -846,7 +846,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         : session.role === "proprietario_consulta" || session.role === "property_owner"
           ? "/proprietario"
           : isInternalRole(session.role)
-            ? "/prefeitura/processos"
+            ? canAccessMunicipalArea(session, "analise")
+              ? "/prefeitura/analise?secao=fila"
+              : canAccessMunicipalArea(session, "protocolos")
+                ? "/prefeitura/protocolos"
+                : canAccessMunicipalArea(session, "financeiro")
+                  ? "/prefeitura/financeiro"
+                  : "/prefeitura/processos"
             : "/prefeitura/protocolos";
 
   const resetMarkerEditor = () => {
@@ -1480,17 +1486,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     type="button"
                     onClick={() => navigate("/prefeitura/organograma")}
                     className={cn(
-                      "sig-topbar-organogram-button relative !w-auto gap-2 px-2.5",
+                      "sig-topbar-organogram-button relative",
                       topbarUtilityButtonClass,
                       topbarIconButton,
                     )}
-                    aria-label="Organograma"
+                    aria-label="Organograma municipal"
                     title="Organograma municipal"
                   >
                     <Network className={topbarUtilityIconClass} aria-hidden="true" />
-                    <span className="hidden text-[11px] font-bold tracking-[0.01em] text-white xl:inline">
-                      Organograma
-                    </span>
                   </button>
                 ) : null}
                 <button
