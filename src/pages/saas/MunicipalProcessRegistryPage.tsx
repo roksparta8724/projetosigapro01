@@ -18,6 +18,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   isInternalRole,
+  isProcessOwnedBySessionDepartment,
   matchesOperationalScope,
   statusLabel,
   type ProcessRecord,
@@ -210,6 +211,7 @@ export function MunicipalProcessRegistryPage() {
               processes={visibleProcesses}
               archivedProcessIds={archivedProcessIds}
               onToggleArchive={setProcessArchived}
+              canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
               emptyMessage={
                 showArchived
                   ? "Nenhum processo arquivado nesta lista."
