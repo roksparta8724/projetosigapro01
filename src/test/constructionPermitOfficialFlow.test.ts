@@ -76,7 +76,7 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("ALVARÁ DE CONSTRUÇÃO");
     expect(permitPdf).toContain("Diretor(a) Responsável");
     expect(permitPdf).toContain("Secretário(a) Municipal");
-    expect(permitPdf).toContain("Processo Administrativo");
+    expect(permitPdf).toContain("Processo administrativo");
   });
 
   it("builds a light premium municipal PDF with crest and contact data", () => {
