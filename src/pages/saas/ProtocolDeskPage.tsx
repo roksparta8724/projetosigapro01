@@ -1052,42 +1052,72 @@ export function ProtocolDeskPage() {
             description="Livro de registro permanente da Prefeitura: entradas presenciais e digitais continuam visíveis mesmo após seguirem para Urbanismo, Financeiro ou outra unidade."
             icon={ClipboardList}
           >
-            <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+            <div
+              className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4"
+              role="group"
+              aria-label="Marcadores de protocolos"
+            >
               <button
                 type="button"
                 onClick={() => setMarkerFilter("todos")}
-                className={`inline-flex h-8 items-center rounded-full border px-3 text-[11px] font-semibold transition ${
+                aria-pressed={markerFilter === "todos"}
+                data-protocol-marker-active={markerFilter === "todos" ? "true" : "false"}
+                className={`sig-protocol-marker inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold transition-all duration-200 ${
                   markerFilter === "todos"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_7px_16px_rgba(15,23,42,0.22)]"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
-                Todos
-                <span className="ml-2 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">
+                {markerFilter === "todos" ? (
+                  <CheckCircle2 className="sig-protocol-marker-icon h-3.5 w-3.5 shrink-0" />
+                ) : null}
+                <span className="sig-protocol-marker-label">Todos</span>
+                <span className="sig-protocol-marker-count rounded-full px-1.5 py-0.5 text-[10px] font-bold">
                   {processes.length}
                 </span>
               </button>
 
-              {protocolMarkerLinks.map((marker) => (
-                <button
-                  key={marker.id}
-                  type="button"
-                  onClick={() => setMarkerFilter(marker.id)}
-                  className="inline-flex h-8 max-w-[210px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold transition hover:-translate-y-px"
-                  style={{
-                    borderColor: markerFilter === marker.id ? marker.color : `${marker.color}55`,
-                    backgroundColor: markerFilter === marker.id ? `${marker.color}22` : `${marker.color}0f`,
-                    color: marker.color,
-                  }}
-                  title={marker.label}
-                >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: marker.color }} />
-                  <span className="truncate">{marker.label}</span>
-                  <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                    {marker.count}
-                  </span>
-                </button>
-              ))}
+              {protocolMarkerLinks.map((marker) => {
+                const markerActive = markerFilter === marker.id;
+
+                return (
+                  <button
+                    key={marker.id}
+                    type="button"
+                    onClick={() => setMarkerFilter(marker.id)}
+                    aria-pressed={markerActive}
+                    data-protocol-marker-active={markerActive ? "true" : "false"}
+                    className={`sig-protocol-marker inline-flex h-8 max-w-[210px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold transition-all duration-200 hover:-translate-y-px ${
+                      markerActive
+                        ? "border-slate-950 bg-slate-950 text-white shadow-[0_7px_16px_rgba(15,23,42,0.22)]"
+                        : ""
+                    }`}
+                    style={
+                      markerActive
+                        ? undefined
+                        : {
+                            borderColor: `${marker.color}55`,
+                            backgroundColor: `${marker.color}0f`,
+                            color: marker.color,
+                          }
+                    }
+                    title={marker.label}
+                  >
+                    {markerActive ? (
+                      <CheckCircle2 className="sig-protocol-marker-icon h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: marker.color }}
+                      />
+                    )}
+                    <span className="sig-protocol-marker-label truncate">{marker.label}</span>
+                    <span className="sig-protocol-marker-count rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+                      {marker.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {renderQueueList(
