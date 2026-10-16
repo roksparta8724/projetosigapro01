@@ -41,7 +41,7 @@ describe("municipal process registry", () => {
     expect(registry).toContain("process.tags?.[0]");
     expect(registry).not.toContain("MarkerSelector");
     expect(analyst).toContain("CompactProcessRegistry");
-    expect(analyst).toContain("marcador operacional do processo");
+    expect(analyst).toContain("Clique no número do processo para abrir a ficha completa");
   });
 
   it("moves the organogram to the topbar instead of rendering the page organogram strip", () => {
