@@ -67,6 +67,7 @@ function imageFiles(url: string, label: string): UploadedFileItem[] {
           mimeType: "image/*",
           sizeLabel: "imagem salva",
           previewUrl: url,
+          storagePath: getObjectKeyFromPublicUrl(url) || "remote",
         },
       ]
     : [];
@@ -729,17 +730,17 @@ export function ConfiguracoesPage() {
   const [heroFiles, setHeroFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.imagemHeroUrl ?? "", "imagem institucional"));
   const [planoDiretorFiles, setPlanoDiretorFiles] = useState<UploadedFileItem[]>(
     settings?.planoDiretorArquivoUrl
-      ? [{ id: "plano-diretor", fileName: settings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.planoDiretorArquivoUrl }]
+      ? [{ id: "plano-diretor", fileName: settings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.planoDiretorArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.planoDiretorArquivoUrl) || "remote" }]
       : [],
   );
   const [usoSoloFiles, setUsoSoloFiles] = useState<UploadedFileItem[]>(
     settings?.usoSoloArquivoUrl
-      ? [{ id: "uso-solo", fileName: settings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.usoSoloArquivoUrl }]
+      ? [{ id: "uso-solo", fileName: settings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.usoSoloArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.usoSoloArquivoUrl) || "remote" }]
       : [],
   );
   const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(
     settings?.leisArquivoUrl
-      ? [{ id: "leis-complementares", fileName: settings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.leisArquivoUrl }]
+      ? [{ id: "leis-complementares", fileName: settings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: settings.leisArquivoUrl, storagePath: getObjectKeyFromPublicUrl(settings.leisArquivoUrl) || "remote" }]
       : [],
   );
   const [institutionalAssetsSaving, setInstitutionalAssetsSaving] = useState(false);
@@ -855,13 +856,13 @@ export function ConfiguracoesPage() {
     setHeroFiles((current) => (sameFileList(current, nextHeroFiles) ? current : nextHeroFiles));
 
     const nextPlanoDiretorFiles = nextSettings?.planoDiretorArquivoUrl
-      ? [{ id: "plano-diretor", fileName: nextSettings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.planoDiretorArquivoUrl }]
+      ? [{ id: "plano-diretor", fileName: nextSettings.planoDiretorArquivoNome || "plano-diretor.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.planoDiretorArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.planoDiretorArquivoUrl) || "remote" }]
       : [];
     const nextUsoSoloFiles = nextSettings?.usoSoloArquivoUrl
-      ? [{ id: "uso-solo", fileName: nextSettings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.usoSoloArquivoUrl }]
+      ? [{ id: "uso-solo", fileName: nextSettings.usoSoloArquivoNome || "uso-solo.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.usoSoloArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.usoSoloArquivoUrl) || "remote" }]
       : [];
     const nextLeisFiles = nextSettings?.leisArquivoUrl
-      ? [{ id: "leis-complementares", fileName: nextSettings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.leisArquivoUrl }]
+      ? [{ id: "leis-complementares", fileName: nextSettings.leisArquivoNome || "leis-complementares.pdf", mimeType: "application/pdf", sizeLabel: "arquivo salvo", previewUrl: nextSettings.leisArquivoUrl, storagePath: getObjectKeyFromPublicUrl(nextSettings.leisArquivoUrl) || "remote" }]
       : [];
     setPlanoDiretorFiles((current) =>
       sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
