@@ -195,11 +195,14 @@ async function requireAuthenticatedProfile(req: Req) {
   }
 }
 
-function getAllowedBuckets() {
-  return new Set<string>([
-    readEnv("R2_BUCKET_LOGOS") || "sigapro-logos",
-    readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos",
-  ]);
+function resolveRequestedBucket(value: string) {
+  const logos = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+  const documents = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+
+  if (value === "process-documents") return documents;
+  if (value === "institutional-branding" || value === "profile-assets") return logos;
+  if (value === documents || value === logos) return value;
+  return "";
 }
 
 function buildPublicUrl(_bucket: string, objectKey: string) {
@@ -283,10 +286,19 @@ export default async function handler(req: Req, res: Res) {
       base64?: unknown;
     };
 
-    const { bucket, objectKey, contentType, base64, fileName } = body ?? {};
-    const allowedBuckets = getAllowedBuckets();
+    const {
+      bucket: requestedBucket,
+      objectKey,
+      contentType,
+      base64,
+      fileName,
+    } = body ?? {};
+    const bucket =
+      typeof requestedBucket === "string"
+        ? resolveRequestedBucket(requestedBucket)
+        : "";
 
-    if (typeof bucket !== "string" || !bucket || !allowedBuckets.has(bucket)) {
+    if (!bucket) {
       json(res, 400, { error: "Bucket inválido." });
       return;
     }
@@ -366,7 +378,8 @@ export default async function handler(req: Req, res: Res) {
       }));
 
       json(res, 200, {
-        bucket,
+        bucket: requestedBucket,
+        resolvedBucket: bucket,
         objectKey,
         publicUrl: "",
         storageProvider: "municipal_s3",
@@ -386,7 +399,8 @@ export default async function handler(req: Req, res: Res) {
     });
 
     json(res, 200, {
-      bucket,
+      bucket: requestedBucket,
+      resolvedBucket: bucket,
       objectKey,
       publicUrl: buildPublicUrl(bucket, objectKey),
       storageProvider: "sigapro_r2",
