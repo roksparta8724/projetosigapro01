@@ -196,6 +196,22 @@ describe("official electronic signatures", () => {
     expect(withdrawalDirectMigration).toContain("trg_audit_process_artifact_withdrawal_v1");
   });
 
+  it("prints pickup from DB or current form and keeps success feedback to only Registrado", () => {
+    expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_by_name?.trim()");
+    expect(checklist).toContain("withdrawalName.trim()");
+    expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_at?.slice(0, 10)");
+    expect(checklist).toContain("withdrawalDate");
+    expect(checklist).toContain('setNotice("Registrado")');
+    expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
+  });
+
+  it("forces white characters on the blue native date selection", () => {
+    expect(checklist).toContain("[&::-webkit-datetime-edit-day-field:focus]:!text-white");
+    expect(checklist).toContain("[&::-webkit-datetime-edit-month-field:focus]:!text-white");
+    expect(checklist).toContain("[&::-webkit-datetime-edit-year-field:focus]:!text-white");
+    expect(checklist).toContain("focus:[&::-webkit-datetime-edit-text]:!text-white");
+  });
+
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
     expect(directorRequestMigration).toContain("process_signature_requests");
     expect(directorRequestMigration).toContain("request_process_artifact_signature_v1");
