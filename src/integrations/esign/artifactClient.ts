@@ -293,19 +293,29 @@ export async function getProcessArtifactWithdrawal(
   processId: string,
   artifactKey: string,
 ): Promise<ArtifactWithdrawalSnapshot> {
-  const { data, error } = await backendClient.rpc(
-    "get_process_artifact_withdrawal_v1",
-    {
-      _process_id: processId,
-      _artifact_key: artifactKey,
-    },
-  );
+  const { data, error } = await backendClient
+    .from("process_artifact_withdrawals")
+    .select(
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+    )
+    .eq("process_id", processId)
+    .eq("artifact_key", artifactKey)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) || "Não foi possível carregar a retirada em mãos.",
+      {
+        stage: "withdrawal",
+        code: "WITHDRAWAL_READ_FAILED",
+      },
+    );
+  }
 
-  const raw = (data ?? {}) as Partial<ArtifactWithdrawalSnapshot>;
   return {
-    withdrawal: raw.withdrawal ?? null,
+    withdrawal: (data ?? null) as ArtifactWithdrawalRecord | null,
   };
 }
 
@@ -316,16 +326,21 @@ export async function saveProcessArtifactWithdrawal(input: {
   withdrawnByName: string;
   withdrawnAt: string;
 }): Promise<ArtifactWithdrawalSnapshot & { ok?: boolean }> {
-  const { data, error } = await backendClient.rpc(
-    "upsert_process_artifact_withdrawal_v1",
-    {
-      _process_id: input.processId,
-      _artifact_key: input.artifactKey,
-      _artifact_hash: input.artifactHash,
-      _withdrawn_by_name: input.withdrawnByName,
-      _withdrawn_at: input.withdrawnAt,
-    },
-  );
+  const row = {
+    process_id: input.processId,
+    artifact_key: input.artifactKey,
+    artifact_hash: input.artifactHash || null,
+    withdrawn_by_name: input.withdrawnByName,
+    withdrawn_at: input.withdrawnAt,
+  };
+
+  const { data, error } = await backendClient
+    .from("process_artifact_withdrawals")
+    .upsert(row, { onConflict: "process_id,artifact_key" })
+    .select(
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+    )
+    .single();
 
   if (error) {
     throw new ArtifactSignatureError(
@@ -337,9 +352,8 @@ export async function saveProcessArtifactWithdrawal(input: {
     );
   }
 
-  const raw = (data ?? {}) as Partial<ArtifactWithdrawalSnapshot & { ok?: boolean }>;
   return {
-    ok: raw.ok,
-    withdrawal: raw.withdrawal ?? null,
+    ok: true,
+    withdrawal: (data ?? null) as ArtifactWithdrawalRecord | null,
   };
 }
