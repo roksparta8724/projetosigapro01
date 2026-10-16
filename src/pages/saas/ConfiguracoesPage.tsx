@@ -1,5 +1,5 @@
 ﻿/* eslint-disable react-hooks/exhaustive-deps */
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -112,6 +112,9 @@ function sameFileList(a: UploadedFileItem[], b: UploadedFileItem[]) {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
     if (a[i]?.previewUrl !== b[i]?.previewUrl) return false;
+    if (a[i]?.persistentRef !== b[i]?.persistentRef) return false;
+    if (a[i]?.storagePath !== b[i]?.storagePath) return false;
+    if (a[i]?.fileName !== b[i]?.fileName) return false;
   }
   return true;
 }
@@ -927,7 +930,7 @@ export function ConfiguracoesPage() {
 
     const hydratePrivateDocument = async (
       files: UploadedFileItem[],
-      setFiles: React.Dispatch<React.SetStateAction<UploadedFileItem[]>>,
+      setFiles: Dispatch<SetStateAction<UploadedFileItem[]>>,
     ) => {
       const item = files[0];
       const persistentRef = item?.persistentRef?.trim() || "";
