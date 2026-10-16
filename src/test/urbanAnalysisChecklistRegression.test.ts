@@ -115,7 +115,7 @@ describe("technical analysis legend contrast", () => {
     expect(panel).toContain('data-analysis-legend="true"');
     expect(panel).toContain('data-analysis-legend-chip="true"');
     expect(panel).toContain("data-analysis-legend-status={status}");
-    expect(panel).toContain('className="!text-white"');
+    expect(panel).toContain("sig-analysis-legend-text");
 
     expect(polarity).toContain(
       "ANALISE / FICHA TECNICA — LEGENDA DE STATUS V17",
@@ -134,5 +134,25 @@ describe("technical analysis legend contrast", () => {
     );
     expect(polarity).toContain("color:#ffffff !important");
     expect(polarity).toContain("-webkit-text-fill-color:#ffffff !important");
+  });
+});
+
+
+describe("technical analysis typography sharpness", () => {
+  it("compensates the 85 percent app zoom only inside the technical sheet cards and legend", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(panel).toContain('data-analysis-crisp-card="true"');
+    expect(panel).toContain("sig-analysis-crisp-label");
+    expect(panel).toContain("sig-analysis-crisp-value");
+    expect(panel).toContain("sig-analysis-crisp-help");
+    expect(panel).toContain("sig-analysis-legend-text");
+
+    expect(polarity).toContain("FICHA TECNICA — NITIDEZ TIPOGRAFICA V18");
+    expect(polarity).toContain('html[data-page-zoom="85"]');
+    expect(polarity).toContain("text-shadow:none !important");
+    expect(polarity).toContain("filter:none !important");
+    expect(polarity).toContain("font-size:12px !important");
   });
 });
