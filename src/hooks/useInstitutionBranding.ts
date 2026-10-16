@@ -152,6 +152,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
+  const [resolvedTenantHeaderLogoUrl, setResolvedTenantHeaderLogoUrl] = useState("");
+  const [resolvedTenantFooterLogoUrl, setResolvedTenantFooterLogoUrl] = useState("");
 
   const requestedInstitutionId =
     tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
@@ -327,6 +329,75 @@ export function useInstitutionBranding(tenantId?: string | null) {
     });
   }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
 
+  useEffect(() => {
+    if (shouldUseMasterBranding || !resolvedInstitutionId) {
+      setResolvedTenantHeaderLogoUrl("");
+      setResolvedTenantFooterLogoUrl("");
+      return;
+    }
+
+    let active = true;
+
+    const resolvePersistedVariant = async (
+      objectKey: string | null | undefined,
+      storedUrl: string | null | undefined,
+    ) => {
+      const raw = String(storedUrl || "").trim();
+
+      // Um URL persistente ainda válido é usado imediatamente.
+      if (isUsableBrandingUrl(raw)) return raw;
+
+      // URL assinada expirada nunca é fonte de verdade. O object key persistente
+      // é usado para gerar uma nova URL temporária em localhost e produção.
+      const normalizedKey = String(objectKey || "").trim();
+      if (!normalizedKey) return "";
+
+      try {
+        return await getSignedUrlForObjectStrict({
+          bucket: "institutional-branding",
+          objectKey: normalizedKey,
+          expiresIn: 21600,
+        });
+      } catch {
+        return "";
+      }
+    };
+
+    void Promise.all([
+      resolvePersistedVariant(
+        scopedMunicipalityBranding?.headerLogoObjectKey ||
+          scopedMunicipalityBranding?.logoObjectKey,
+        scopedMunicipalityBranding?.headerLogoUrl ||
+          scopedMunicipalityBranding?.logoUrl,
+      ),
+      resolvePersistedVariant(
+        scopedMunicipalityBranding?.footerLogoObjectKey ||
+          scopedMunicipalityBranding?.logoObjectKey ||
+          scopedMunicipalityBranding?.headerLogoObjectKey,
+        scopedMunicipalityBranding?.footerLogoUrl ||
+          scopedMunicipalityBranding?.logoUrl ||
+          scopedMunicipalityBranding?.headerLogoUrl,
+      ),
+    ]).then(([headerUrl, footerUrl]) => {
+      if (!active) return;
+      setResolvedTenantHeaderLogoUrl(headerUrl);
+      setResolvedTenantFooterLogoUrl(footerUrl);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    resolvedInstitutionId,
+    scopedMunicipalityBranding?.footerLogoObjectKey,
+    scopedMunicipalityBranding?.footerLogoUrl,
+    scopedMunicipalityBranding?.headerLogoObjectKey,
+    scopedMunicipalityBranding?.headerLogoUrl,
+    scopedMunicipalityBranding?.logoObjectKey,
+    scopedMunicipalityBranding?.logoUrl,
+    shouldUseMasterBranding,
+  ]);
+
   const headerBranding = useMemo(() => {
     if (shouldUseMasterBranding) {
       const masterBranding = getMasterInstitutionBranding(masterBrandingState, "header");
@@ -352,8 +423,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantHeaderLogo =
-      brandingUrl ||
       (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvedTenantHeaderLogoUrl ||
+      brandingUrl ||
       (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
         ? stableTenantHeaderLogoRef.current.url
@@ -383,6 +455,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.headerLogoFileName,
     resolvedMasterHeaderLogoUrl,
+    resolvedTenantHeaderLogoUrl,
     shouldUseMasterBranding,
     scopedMunicipalityBranding?.headerLogoUrl,
     scopedMunicipalityBranding?.footerLogoUrl,
@@ -416,8 +489,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantFooterLogo =
-      brandingUrl ||
       (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvedTenantFooterLogoUrl ||
+      brandingUrl ||
       (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
         ? stableTenantFooterLogoRef.current.url
@@ -447,6 +521,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.footerLogoFileName,
     resolvedMasterFooterLogoUrl,
+    resolvedTenantFooterLogoUrl,
     shouldUseMasterBranding,
     scopedMunicipalityBranding?.footerLogoUrl,
     scopedMunicipalityBranding?.headerLogoUrl,
