@@ -2546,30 +2546,11 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   if (session.role === "property_owner" || session.role === "proprietario_consulta") return true;
   if (!isInternalRole(session.role)) return false;
 
-  if (isProcessOwnedBySessionDepartment(session, process)) return true;
-
-  const userDepartment = resolveSessionOperationalArea(session);
-  if (userDepartment === "protocolos") {
-    const originatedInProtocol =
-      process.dispatches.some((dispatch) =>
-        /protocolo|triagem|recep[cç][aã]o|administr/i.test(dispatch.from),
-      ) ||
-      process.triage.status === "concluido";
-    return originatedInProtocol;
-  }
-
-  if (userDepartment === "analise") {
-    // Depois que a Análise Urbanística encaminha o processo, ela perde a
-    // responsabilidade operacional, mas mantém acesso de acompanhamento aos
-    // processos que já passaram oficialmente pela mesa técnica.
-    return Boolean(
-      process.analysis?.startedAt ||
-      process.analysis?.assignedTo ||
-      process.analysis?.assignedProfileId,
-    );
-  }
-
-  return false;
+  // Leitura/acompanhamento municipal é transversal: todo servidor interno da
+  // mesma Prefeitura pode abrir a ficha do processo. A responsabilidade
+  // operacional continua restrita por canAccessProcess/getVisibleProcessesByScope,
+  // portanto ampliar a consulta não mistura as filas dos departamentos.
+  return true;
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
