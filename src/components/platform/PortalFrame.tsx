@@ -2334,6 +2334,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                         branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
                         variant="header"
+                        contextScope={isMasterUser ? "master" : "municipality"}
                         className="mx-auto md:mx-0"
                       />
                     </div>
@@ -2397,6 +2398,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
+                  contextScope={isMasterUser ? "master" : "municipality"}
                   className="mt-3"
                 />
               </div>
