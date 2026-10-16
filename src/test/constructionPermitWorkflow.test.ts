@@ -9,6 +9,7 @@ describe("construction permit workflow", () => {
   const panel = read("src/components/platform/ConstructionPermitPanel.tsx");
   const pdf = read("src/lib/constructionPermitPdf.ts");
   const api = read("api/e-sign-artifact.ts");
+  const detail = read("src/pages/saas/ProcessDetailPage.tsx");
   const migration = read(
     "neon/migrations/20261016_construction_permit_workflow.sql",
   );
@@ -83,9 +84,17 @@ describe("construction permit workflow", () => {
     expect(pdf).toContain("form?.regularizationAreas");
   });
 
-  it("keeps prerequisites visible before signature actions", () => {
-    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+  it("never visually regresses a process after the official Alvara reached issuance", () => {
+    expect(detail).toContain("const permitReachedIssuanceStage =");
+    expect(detail).toContain('constructionPermit?.status !== "rascunho"');
+    expect(detail).toContain("else if (permitReachedIssuanceStage)");
+    expect(detail).toContain("currentFlowIndex = 4");
+    expect(detail).toContain('"Alvará preparado para assinatura manual"');
+    expect(detail).toContain("const effectiveSlaStage =");
+    expect(detail).toContain("Alvará de Construção • assinatura manual");
+  });
 
+  it("keeps prerequisites visible before signature actions", () => {
     expect(panel).toContain("permitReadyForSignature");
     expect(panel).toContain("ISSQN / Projeto");
     expect(panel).toContain("Aprovação / Alvará");
