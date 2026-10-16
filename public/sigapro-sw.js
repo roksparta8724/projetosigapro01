@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sigapro-enterprise-v2";
+const CACHE_VERSION = "sigapro-enterprise-v3";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 
 self.addEventListener("install", (event) => {
