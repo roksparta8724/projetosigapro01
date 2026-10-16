@@ -123,6 +123,16 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain('doc.setFontSize(28);');
   });
 
+  it("balances the two-page PDF by filling page one before carrying rows to page two", () => {
+    expect(checklist).toContain("takeRowsThatFit");
+    expect(checklist).toContain("page1RowsBottomY = 273");
+    expect(checklist).toContain("page1Engineering");
+    expect(checklist).toContain("page2Engineering");
+    expect(checklist).toContain("engineeringSectionTitle");
+    expect(checklist).not.toContain('ENGINEERING_ITEMS.slice(0, 20)');
+    expect(checklist).not.toContain('"Engenharia - Itens 21 a 31"');
+  });
+
   it("shows the verified electronic signature as a premium evidence card on screen", () => {
     expect(checklist).toContain("renderSignatureEvidence");
     expect(checklist).toContain("Assinatura eletrônica válida");
