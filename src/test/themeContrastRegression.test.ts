@@ -53,8 +53,8 @@ describe("theme contrast authority", () => {
       main.indexOf('import "./index.css"'),
     );
     expect(surfacePolarity).toContain("Surface Polarity Contract V8");
-    expect(surfacePolarity).toContain("FINAL PROCESS POLARITY LOCK V10");
-    expect(surfacePolarity).toContain("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
+    expect(surfacePolarity).toContain("PROCESS DETAIL VISIBILITY LOCK V14");
+    expect(surfacePolarity).toContain("PROCESS DETAIL ADAPTIVE CARDS V15");
   });
 
   it("covers every configured dark preset with inverse-main semantics", () => {
@@ -131,7 +131,7 @@ describe("theme contrast authority", () => {
     expect(processDetail).toContain('data-premium-inverse-surface="true"');
     expect(surfacePolarity).toContain("#sig-process-document-command-center");
     expect(surfacePolarity).toContain("color: #ffffff !important");
-    expect(surfacePolarity).toContain("color: #e8f7ff !important");
+    expect(surfacePolarity).toContain("color: #e0f2fe !important");
   });
 
   it("keeps primary process/document actions white on saturated buttons", () => {
@@ -143,10 +143,10 @@ describe("theme contrast authority", () => {
   });
 
   it("does not recolor topbar or sidebar from the final process contracts", () => {
-    const v10Start = surfacePolarity.indexOf("FINAL PROCESS POLARITY LOCK V10");
-    expect(v10Start).toBeGreaterThanOrEqual(0);
+    const finalAuthorityStart = surfacePolarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    expect(finalAuthorityStart).toBeGreaterThanOrEqual(0);
 
-    const finalContracts = surfacePolarity.slice(v10Start);
+    const finalContracts = surfacePolarity.slice(finalAuthorityStart);
     expect(finalContracts).not.toContain(".sig-premium-topbar");
     expect(finalContracts).not.toContain(".sig-topbar-portal-host");
     expect(finalContracts).not.toContain(".sig-sidebar-shell");
