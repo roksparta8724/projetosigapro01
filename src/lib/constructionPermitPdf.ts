@@ -241,6 +241,14 @@ export async function buildConstructionPermitPdfBlob({
       ? "Secretaria de Desenvolvimento Urbano, Habitação e Meio Ambiente"
       : "Secretaria responsável");
   const effectiveDirectorate = directorate || "Diretoria responsável";
+  const directorOfficial = Boolean(
+    permit.directorSignature?.official &&
+    permit.directorSignature?.verificationCode,
+  );
+  const secretaryOfficial = Boolean(
+    permit.secretarySignature?.official &&
+    permit.secretarySignature?.verificationCode,
+  );
 
   // Cabeçalho institucional claro e premium.
   fill(pdf, color.white);
@@ -319,7 +327,7 @@ export async function buildConstructionPermitPdfBlob({
     y,
     half,
     "Situação",
-    permit.directorSignature
+    directorOfficial
       ? "Alvará emitido"
       : "Aguardando assinatura da Diretoria",
   );
@@ -445,7 +453,7 @@ export async function buildConstructionPermitPdfBlob({
   drawSectionTitle(pdf, margin, y, "Assinatura municipal", contentWidth);
   y += 9.5;
 
-  const hasSecretary = Boolean(permit.secretarySignature);
+  const hasSecretary = secretaryOfficial;
   if (hasSecretary) {
     drawSignature(pdf, margin, y, half, "Diretoria responsável", permit.directorSignature);
     drawSignature(
@@ -468,14 +476,14 @@ export async function buildConstructionPermitPdfBlob({
   }
   y += 38;
 
-  fill(pdf, permit.directorSignature ? ([240, 253, 250] as const) : ([255, 247, 237] as const));
-  draw(pdf, permit.directorSignature ? ([167, 243, 208] as const) : ([253, 186, 116] as const));
+  fill(pdf, directorOfficial ? ([240, 253, 250] as const) : ([255, 247, 237] as const));
+  draw(pdf, directorOfficial ? ([167, 243, 208] as const) : ([253, 186, 116] as const));
   pdf.roundedRect(margin, y, contentWidth, 16, 2.2, 2.2, "FD");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(6.3);
-  textColor(pdf, permit.directorSignature ? color.green : color.amber);
+  textColor(pdf, directorOfficial ? color.green : color.amber);
   pdf.text(
-    permit.directorSignature
+    directorOfficial
       ? "ALVARÁ MUNICIPAL EMITIDO"
       : "AGUARDANDO ASSINATURA ELETRÔNICA DA DIRETORIA",
     margin + 4,
