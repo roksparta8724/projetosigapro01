@@ -11,6 +11,7 @@ export interface UploadedFileItem {
   previewUrl?: string;
   file?: File;
   storagePath?: string;
+  persistentRef?: string;
   fileSizeBytes?: number;
 }
 
