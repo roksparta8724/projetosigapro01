@@ -64,6 +64,13 @@ describe("official electronic signatures", () => {
     expect(client).not.toContain("throw new Error(payload.error ||");
   });
 
+  it("enforces analyst-and-director-only signing for the municipal analysis checklist", () => {
+    expect(api).toContain("SIGNER_SLOT_NOT_ALLOWED_FOR_ARTIFACT");
+    expect(api).toContain('artifactType === "urban_analysis_checklist"');
+    expect(api).toContain('"analise_tecnica", "diretoria"');
+    expect(api).toContain("somente o Analista Técnico e a Diretoria podem assinar");
+  });
+
   it("returns a precise stage and code for every critical server failure", () => {
     expect(api).toContain("SIGNER_CONTEXT_DENIED");
     expect(api).toContain("PASSWORD_REAUTH_FAILED");
