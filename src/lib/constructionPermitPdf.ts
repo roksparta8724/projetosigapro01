@@ -586,10 +586,9 @@ export async function buildConstructionPermitPdfBlob({
   drawSectionTitle(pdf, margin, y, "Assinatura municipal", contentWidth);
   y += 8.5;
 
-  const showManualAuthorityLines = manualSignature && !directorOfficial;
-  const hasSecretary = secretaryOfficial || showManualAuthorityLines;
+  const showManualDirectorLine = manualSignature && !directorOfficial;
 
-  if (hasSecretary) {
+  if (secretaryOfficial) {
     drawSignature(
       pdf,
       margin,
@@ -597,7 +596,7 @@ export async function buildConstructionPermitPdfBlob({
       half,
       "Diretoria responsável",
       permit.directorSignature,
-      showManualAuthorityLines,
+      showManualDirectorLine,
     );
     drawSignature(
       pdf,
@@ -606,7 +605,7 @@ export async function buildConstructionPermitPdfBlob({
       half,
       "Secretaria municipal",
       permit.secretarySignature,
-      showManualAuthorityLines && !secretaryOfficial,
+      false,
     );
   } else {
     drawSignature(
@@ -616,7 +615,7 @@ export async function buildConstructionPermitPdfBlob({
       contentWidth,
       "Diretoria responsável",
       permit.directorSignature,
-      false,
+      showManualDirectorLine,
     );
   }
   y += 32;
