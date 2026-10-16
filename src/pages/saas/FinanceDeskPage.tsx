@@ -586,7 +586,7 @@ export function FinanceDeskPage() {
         ) : null}
 
         {section === "guias" ? (
-          <TableCard title="Guias em controle financeiro" description="Guias geradas pelos setores responsáveis e recebidas automaticamente pelo Financeiro para acompanhamento e baixa." icon={ReceiptText}>
+          <TableCard title="Guias emitidas" description="Todas as guias vinculadas aos processos municipais, organizadas da emissão mais recente para a mais antiga. A responsabilidade de baixa continua respeitando o setor de origem." icon={ReceiptText}>
             <div className="space-y-3">
               {tenantSettings?.finalApprovalFeeEnabled !== false && !finalFeeConfigured ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
