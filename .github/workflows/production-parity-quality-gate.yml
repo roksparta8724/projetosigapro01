@@ -1,0 +1,43 @@
+name: Production parity quality gate
+
+on:
+  push:
+    branches:
+      - fix/analise-premium-cadastro-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: SaaS page runtime audit
+        run: npm run runtime:pages
+
+      - name: Production build
+        run: npm run build
+
+      - name: Critical parity regression tests
+        run: >
+          npx vitest run
+          src/test/productionParityCriticalRegression.test.ts
+          src/test/serviceWorker.test.ts
+          src/test/municipalLegislationAssets.test.ts
+          src/test/constructionPermitWorkflow.test.ts
+          src/test/constructionPermitOfficialFlow.test.ts
+          src/test/protocolMarkerContrastRegression.test.ts
