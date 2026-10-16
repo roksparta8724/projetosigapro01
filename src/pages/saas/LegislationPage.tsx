@@ -185,7 +185,7 @@ export function LegislationPage() {
                     onClick={() => openOfficialDocument(item)}
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
-                    Abrir PDF em nova guia
+                    Abrir guia
                   </Button>
                 </div>
               </div>
