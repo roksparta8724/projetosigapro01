@@ -485,6 +485,13 @@ begin
     raise exception 'Bloco de assinatura inválido.';
   end if;
 
+  -- A solicitação formal da Diretoria é obrigatória somente para a ficha de
+  -- análise urbanística. Outros documentos oficiais, como o Alvará, possuem
+  -- seu próprio fluxo de assinatura e não dependem dessa solicitação.
+  if _block.artifact_key <> 'urban-analysis-checklist' then
+    return new;
+  end if;
+
   if not exists (
     select 1
     from public.process_signature_requests r
@@ -519,6 +526,10 @@ begin
   select * into _block
   from public.signature_blocks
   where id=new.signature_block_id;
+
+  if _block.artifact_key <> 'urban-analysis-checklist' then
+    return new;
+  end if;
 
   update public.process_signature_requests
   set status='completed',
