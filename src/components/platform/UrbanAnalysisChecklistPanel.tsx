@@ -394,6 +394,7 @@ export function UrbanAnalysisChecklistPanel({
   const [withdrawalName, setWithdrawalName] = useState("");
   const [withdrawalDate, setWithdrawalDate] = useState("");
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
+  const [withdrawalSaveConfirmed, setWithdrawalSaveConfirmed] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
     () => resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl),
     [municipalityLogoUrl, municipalityName],
@@ -841,18 +842,22 @@ export function UrbanAnalysisChecklistPanel({
 
   const saveWithdrawalRecord = async () => {
     if (!canRecordWithdrawal) {
+      setWithdrawalSaveConfirmed(false);
       setNotice("Somente o Analista Técnico responsável pode registrar a retirada em mãos.");
       return;
     }
     if (!withdrawalName.trim()) {
+      setWithdrawalSaveConfirmed(false);
       setNotice("Informe o nome de quem retirou o documento em mãos.");
       return;
     }
     if (!withdrawalDate) {
+      setWithdrawalSaveConfirmed(false);
       setNotice("Informe a data da retirada.");
       return;
     }
 
+    setWithdrawalSaveConfirmed(false);
     setWithdrawalBusy(true);
     try {
       const snapshot = await saveProcessArtifactWithdrawal({
@@ -873,7 +878,8 @@ export function UrbanAnalysisChecklistPanel({
             : withdrawalDate,
         );
       }
-      setNotice("Registrado");
+      setNotice("");
+      setWithdrawalSaveConfirmed(true);
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -2198,7 +2204,10 @@ export function UrbanAnalysisChecklistPanel({
                 </label>
                 <Input
                   value={withdrawalName}
-                  onChange={(event) => setWithdrawalName(event.target.value)}
+                  onChange={(event) => {
+                    setWithdrawalName(event.target.value);
+                    setWithdrawalSaveConfirmed(false);
+                  }}
                   placeholder="Nome completo de quem retirou"
                   className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
@@ -2211,7 +2220,10 @@ export function UrbanAnalysisChecklistPanel({
                 <Input
                   type="date"
                   value={withdrawalDate}
-                  onChange={(event) => setWithdrawalDate(event.target.value)}
+                  onChange={(event) => {
+                    setWithdrawalDate(event.target.value);
+                    setWithdrawalSaveConfirmed(false);
+                  }}
                   className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-datetime-edit-day-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-day-field:focus]:!text-white [&::-webkit-datetime-edit-month-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-month-field:focus]:!text-white [&::-webkit-datetime-edit-year-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-year-field:focus]:!text-white [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-text]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
@@ -2270,6 +2282,13 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
+          {withdrawalSaveConfirmed ? (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+              Registrado
+            </div>
+          ) : null}
+
           {pendingCorrectionCount > 0 ? (
             <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -2279,7 +2298,7 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           ) : null}
 
-          {notice ? (
+          {notice && notice !== "Registrado" ? (
             <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/30 dark:text-sky-200">
               {notice}
             </div>
