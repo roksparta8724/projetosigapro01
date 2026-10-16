@@ -25,7 +25,8 @@ describe("municipal legislation assets", () => {
     expect(backend).toContain("uso_solo_arquivo_url");
     expect(backend).toContain("leis_arquivo_url");
     expect(backend).toContain("coat_of_arms_url");
-    expect(backend).toContain("flag_url");
+    expect(backend).toContain("bandeira_url");
+    expect(backend).not.toContain("flag_url: settings.bandeiraUrl");
   });
 
   it("restores legal references after refresh", () => {
