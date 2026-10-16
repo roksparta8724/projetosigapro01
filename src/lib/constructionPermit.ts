@@ -3,6 +3,7 @@ import type { ProcessRecord, SessionUser } from "@/lib/platform";
 export type ConstructionPermitStatus =
   | "rascunho"
   | "aguardando_diretor"
+  | "assinatura_manual"
   | "emitido";
 
 export type PermitSignature = {
@@ -43,6 +44,9 @@ export interface ConstructionPermitRecord {
   updatedAt: string;
   issuedAt?: string;
   formData?: ConstructionPermitFormData;
+  signatureMode?: "electronic" | "manual";
+  directorRequestedAt?: string;
+  manualPdfPreparedAt?: string;
   /** Registro legado mantido apenas para compatibilidade de dados antigos. */
   analystSignature?: PermitSignature;
   directorSignature?: PermitSignature;
