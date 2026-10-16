@@ -941,9 +941,7 @@ export function ConfiguracoesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const bucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
+    const bucket = "process-documents";
 
     const hydratePrivateDocument = async (
       files: UploadedFileItem[],
@@ -2168,15 +2166,15 @@ export function ConfiguracoesPage() {
       );
     }
 
-    const physicalBucket =
+    const previewBucket =
       bucket === "process-documents"
-        ? (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS || "sigapro-documentos")
-        : (import.meta.env.VITE_R2_BUCKET_LOGOS || "sigapro-logos");
+        ? "process-documents"
+        : "institutional-branding";
 
     const previewUrl =
       uploaded.publicUrl ||
       (await getSignedUrlForObjectStrict({
-        bucket: physicalBucket,
+        bucket: previewBucket,
         objectKey: uploaded.path,
         expiresIn: 21600,
       }));
