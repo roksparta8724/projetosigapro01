@@ -9696,3 +9696,60 @@ html body [data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][
   background: #0369a1;
   color: #ffffff;
 }
+
+
+/* ===== SIGAPRO ACTIVE DARK NAV CONTRAST — FINAL 2026-10-16 =====
+   Shared contract for every active navigation card that uses a dark surface.
+   This intentionally sits at the end of the stylesheet so no light-theme
+   normalizer can make active-card copy or icons dark again. */
+html body .sig-main-shell .sig-section-nav [data-nav-active="true"][data-contrast-card="dark"] {
+  background: linear-gradient(135deg, #0f3d68 0%, #24639a 100%) !important;
+  background-color: #0f3d68 !important;
+  border-color: rgba(147, 197, 253, 0.34) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 24px rgba(15, 23, 42, 0.24) !important;
+}
+
+html body .sig-main-shell .sig-section-nav [data-nav-active="true"][data-contrast-card="dark"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-section-nav [data-nav-active="true"][data-contrast-card="dark"] .sig-nav-item-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html body .sig-main-shell .sig-section-nav [data-nav-active="true"][data-contrast-card="dark"] .sig-nav-item-helper {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell .sig-section-nav [data-nav-active="true"][data-contrast-card="dark"] svg,
+html body .sig-main-shell [data-contrast-card="dark"] svg {
+  color: #dbeafe !important;
+  stroke: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html body .sig-main-shell [data-contrast-card="dark"] :is(
+  .text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
