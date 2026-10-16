@@ -203,22 +203,22 @@ const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: 
   A: {
     label: "De acordo",
     short: "A",
-    classes: "border-emerald-700 bg-emerald-600 !text-white shadow-[0_8px_18px_rgba(5,150,105,0.28)] hover:bg-emerald-600 dark:border-emerald-400 dark:bg-emerald-600 dark:!text-white",
+    classes: "border-emerald-700 bg-emerald-600 !text-white hover:bg-emerald-600 dark:border-emerald-400 dark:bg-emerald-600 dark:!text-white",
   },
   AP: {
     label: "Apresentar",
     short: "AP",
-    classes: "border-sky-700 bg-sky-600 !text-white shadow-[0_8px_18px_rgba(2,132,199,0.28)] hover:bg-sky-600 dark:border-sky-400 dark:bg-sky-600 dark:!text-white",
+    classes: "border-sky-700 bg-sky-600 !text-white hover:bg-sky-600 dark:border-sky-400 dark:bg-sky-600 dark:!text-white",
   },
   C: {
     label: "Corrigir",
     short: "C",
-    classes: "border-amber-700 bg-amber-600 !text-white shadow-[0_8px_18px_rgba(217,119,6,0.28)] hover:bg-amber-600 dark:border-amber-400 dark:bg-amber-600 dark:!text-white",
+    classes: "border-amber-700 bg-amber-600 !text-white hover:bg-amber-600 dark:border-amber-400 dark:bg-amber-600 dark:!text-white",
   },
   NA: {
     label: "Não se aplica",
     short: "N/A",
-    classes: "border-slate-800 bg-slate-700 !text-white shadow-[0_8px_18px_rgba(51,65,85,0.28)] hover:bg-slate-700 dark:border-slate-400 dark:bg-slate-700 dark:!text-white",
+    classes: "border-slate-800 bg-slate-700 !text-white hover:bg-slate-700 dark:border-slate-400 dark:bg-slate-700 dark:!text-white",
   },
 };
 
@@ -1952,18 +1952,18 @@ export function UrbanAnalysisChecklistPanel({
         </section>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Processo</p>
-            <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{process.protocol?.trim() || "Não informado"}</p>
-            <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{process.title}</p>
+          <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Processo</p>
+            <p className="sig-analysis-crisp-value mt-2 text-[15px] font-extrabold text-slate-950 dark:text-white">{process.protocol?.trim() || "Não informado"}</p>
+            <p className="sig-analysis-crisp-help mt-1 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">{process.title}</p>
           </div>
-          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Usuário em conferência</p>
-            <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{session.name}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{session.title || "Servidor municipal"}</p>
+          <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Usuário em conferência</p>
+            <p className="sig-analysis-crisp-value mt-2 text-[15px] font-extrabold text-slate-950 dark:text-white">{session.name}</p>
+            <p className="sig-analysis-crisp-help mt-1 text-[13px] font-medium text-slate-600 dark:text-slate-300">{session.title || "Servidor municipal"}</p>
           </div>
-          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data da análise</p>
+          <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Data da análise</p>
             <Input
               type="date"
               value={state.analysisDate}
@@ -1971,8 +1971,8 @@ export function UrbanAnalysisChecklistPanel({
               className="mt-2 h-9 rounded-xl border-slate-200 bg-slate-50 text-sm dark:border-slate-700 dark:bg-slate-950"
             />
           </div>
-          <div data-analysis-mini-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Folha / revisão</p>
+          <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Folha / revisão</p>
             <Input
               value={state.sheetNumber}
               onChange={(event) => setState((current) => invalidateSignature({ ...current, sheetNumber: event.target.value }))}
@@ -1982,19 +1982,19 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </div>
 
-        <div data-analysis-legend="true" data-force-card-contrast="adaptive" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900">
-          <span className="font-bold text-slate-700 dark:text-slate-200">Legenda:</span>
+        <div data-analysis-legend="true" data-force-card-contrast="adaptive" className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] dark:border-slate-700 dark:bg-slate-900">
+          <span className="sig-analysis-legend-heading font-extrabold text-slate-800 dark:text-slate-100">Legenda:</span>
           {(Object.keys(STATUS_META) as Array<Exclude<ChecklistStatus, "">>).map((status) => (
             <span
               key={status}
               data-analysis-legend-chip="true"
               data-analysis-legend-status={status}
               className={cn(
-                "rounded-full border px-2.5 py-1 font-semibold !text-white",
+                "rounded-full border px-3 py-1.5 font-extrabold leading-none !text-white shadow-none",
                 STATUS_META[status].classes,
               )}
             >
-              <span className="!text-white">
+              <span className="sig-analysis-legend-text !text-white">
                 {STATUS_META[status].short} = {STATUS_META[status].label}
               </span>
             </span>
