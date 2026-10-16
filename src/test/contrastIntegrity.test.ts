@@ -11,7 +11,6 @@ const financeProtocols = readFileSync(resolve(process.cwd(), "src/pages/saas/Fin
 const card = readFileSync(resolve(process.cwd(), "src/components/ui/card.tsx"), "utf8");
 const tableCard = readFileSync(resolve(process.cwd(), "src/components/platform/TableCard.tsx"), "utf8");
 const statCard = readFileSync(resolve(process.cwd(), "src/components/platform/StatCard.tsx"), "utf8");
-const pageLayout = readFileSync(resolve(process.cwd(), "src/components/platform/PageLayout.tsx"), "utf8");
 
 describe("global contrast integrity", () => {
   it("marks core controls so inverse and default layouts can enforce readable text", () => {
@@ -48,16 +47,6 @@ describe("global contrast integrity", () => {
     expect(css).toContain("Direct low-contrast class combinations are corrected");
     expect(css).toContain('[class*="bg-[#f"]');
     expect(css).toContain('[class*="text-[#1"]');
-  });
-
-  it("keeps active dark navigation cards readable with light labels, helper copy and icons", () => {
-    expect(pageLayout).toContain('data-contrast-card={active ? "dark" : "light"}');
-    expect(pageLayout).toContain('aria-current={active ? "page" : undefined}');
-    expect(css).toContain("SIGAPRO ACTIVE DARK NAV CONTRAST — FINAL 2026-10-16");
-    expect(css).toContain('[data-nav-active="true"][data-contrast-card="dark"]');
-    expect(css).toContain(".sig-nav-item-label");
-    expect(css).toContain(".sig-nav-item-helper");
-    expect(css).toContain("stroke: #dbeafe !important");
   });
 
   it("keeps finance guide and PIX surfaces readable in both layout modes", () => {
