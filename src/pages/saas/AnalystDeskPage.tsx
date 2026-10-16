@@ -632,6 +632,7 @@ export function AnalystDeskPage() {
         archivedProcessIds={archivedProcessIds}
         onToggleArchive={setProcessArchived}
         canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
+        detailPathSuffix="?aba=analise"
         emptyMessage={
           showArchived
             ? "Nenhum processo arquivado nesta lista."
