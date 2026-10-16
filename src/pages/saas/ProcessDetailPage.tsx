@@ -1033,8 +1033,31 @@ export function ProcessDetailPage() {
   const currentFlowStatusLabel =
     isFinalProcessStatus
       ? statusLabel(process.status)
-      : flowLabels[currentFlowIndex] || statusLabel(process.status);
-  const displayOrganizationPath = currentOrganizationPath;
+      : permitReachedIssuanceStage && !isHabiteSeProcess
+        ? "Alvará de Construção"
+        : flowLabels[currentFlowIndex] || statusLabel(process.status);
+
+  const displayOrganizationPath =
+    permitReachedIssuanceStage && !isHabiteSeProcess
+      ? constructionPermit?.status === "assinatura_manual"
+        ? "Alvará de Construção • assinatura manual"
+        : constructionPermit?.status === "aguardando_diretor"
+          ? "Alvará de Construção • aguardando Diretoria"
+          : constructionPermit?.status === "emitido"
+            ? "Alvará de Construção • emitido"
+            : "Alvará de Construção"
+      : currentOrganizationPath;
+
+  const effectiveSlaStage =
+    permitReachedIssuanceStage && !isHabiteSeProcess
+      ? constructionPermit?.status === "assinatura_manual"
+        ? "Alvará preparado para assinatura manual"
+        : constructionPermit?.status === "aguardando_diretor"
+          ? "Alvará aguardando assinatura da Diretoria"
+          : constructionPermit?.status === "emitido"
+            ? "Alvará emitido"
+            : "Alvará de Construção"
+      : process.sla.currentStage;
 
   // "Sair do processo" sempre volta para uma área que o usuário pode acessar.
   // A unidade atual do PROCESSO nunca deve decidir a pasta do USUÁRIO:
@@ -2176,7 +2199,7 @@ export function ProcessDetailPage() {
           <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
-              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={process.sla.currentStage}>{process.sla.currentStage}</p>
+              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
               <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
               {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
             </CardContent>
