@@ -3,6 +3,7 @@ import {
   AlertCircle,
   CheckCircle2,
   CreditCard,
+  FileCheck2,
   FilePlus2,
   FolderKanban,
   History,
@@ -81,6 +82,12 @@ export function ExternalPortalPage() {
                 <Link to="/externo/protocolar">
                   <FilePlus2 className="mr-2 h-4 w-4" />
                   Novo protocolo
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100">
+                <Link to="/externo/habite-se">
+                  <FileCheck2 className="mr-2 h-4 w-4" />
+                  Solicitar Habite-se
                 </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full">
@@ -162,6 +169,12 @@ export function ExternalPortalPage() {
                 <Link to="/externo/protocolar">
                   <FilePlus2 className="mr-2 h-4 w-4" />
                   Novo protocolo
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start rounded-2xl border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100">
+                <Link to="/externo/habite-se">
+                  <FileCheck2 className="mr-2 h-4 w-4" />
+                  Novo protocolo de Habite-se
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start rounded-2xl">
