@@ -120,12 +120,8 @@ export function LegislationPage() {
     }
 
     const objectKey = item.fileUrl.slice(3).trim();
-    const bucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
-
     void getSignedUrlForObjectStrict({
-      bucket,
+      bucket: "process-documents",
       objectKey,
       expiresIn: 21600,
     })
