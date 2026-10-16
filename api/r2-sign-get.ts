@@ -45,11 +45,14 @@ function extractMunicipalityId(objectKey: string) {
   return match?.[1] || "";
 }
 
-function getAllowedBuckets() {
-  return new Set<string>([
-    readEnv("R2_BUCKET_LOGOS") || "sigapro-logos",
-    readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos",
-  ]);
+function resolveRequestedBucket(value: string) {
+  const logos = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+  const documents = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+
+  if (value === "process-documents") return documents;
+  if (value === "institutional-branding" || value === "profile-assets") return logos;
+  if (value === documents || value === logos) return value;
+  return "";
 }
 
 function setCors(res: Res) {
@@ -114,10 +117,13 @@ export default async function handler(req: Req, res: Res) {
       expiresIn?: unknown;
     };
 
-    const { bucket, objectKey, expiresIn } = body ?? {};
-    const allowedBuckets = getAllowedBuckets();
+    const { bucket: requestedBucket, objectKey, expiresIn } = body ?? {};
+    const bucket =
+      typeof requestedBucket === "string"
+        ? resolveRequestedBucket(requestedBucket)
+        : "";
 
-    if (typeof bucket !== "string" || !bucket || !allowedBuckets.has(bucket)) {
+    if (!bucket) {
       json(res, 400, { error: "Bucket inválido." });
       return;
     }
@@ -148,7 +154,8 @@ export default async function handler(req: Req, res: Res) {
       );
       json(res, 200, {
         signedUrl,
-        bucket,
+        bucket: requestedBucket,
+        resolvedBucket: bucket,
         objectKey,
         storageProvider: "municipal_s3",
       });
@@ -177,7 +184,7 @@ export default async function handler(req: Req, res: Res) {
       { expiresIn: ttl },
     );
 
-    json(res, 200, { signedUrl, bucket, objectKey, storageProvider: "sigapro_r2" });
+    json(res, 200, { signedUrl, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "Erro ao gerar link de leitura.";
     const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
