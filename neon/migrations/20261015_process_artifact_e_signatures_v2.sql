@@ -122,6 +122,7 @@ begin
 
     _title := case _type
       when 'urban_analysis_checklist' then 'Ficha de análise técnica municipal'
+      when 'construction_permit' then 'Alvará de Construção'
       when 'process_document' then 'Documento do processo'
       else 'Artefato eletrônico do processo'
     end;
