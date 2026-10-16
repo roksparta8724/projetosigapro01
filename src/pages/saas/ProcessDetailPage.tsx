@@ -2017,7 +2017,13 @@ export function ProcessDetailPage() {
         </Card>
         <Card data-process-summary-card="true" data-summary-tone="emerald" className={`${cardShell} sig-premium-summary-card sig-summary-emerald h-full`}>
           <CardContent className="p-5">
-            <p className="sig-label">{constructionGuide ? "Guia de ISSQN / Projeto" : "Guia de protocolo"}</p>
+            <p className="sig-label">
+              {approvalGuide
+                ? "Guia de aprovação / Alvará"
+                : constructionGuide
+                  ? "Guia de ISSQN / Projeto"
+                  : "Guia de protocolo"}
+            </p>
             <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
             <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
@@ -2027,7 +2033,7 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", false)}
+                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   Visualizar guia
@@ -2036,7 +2042,7 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", true)}
+                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
                 >
                   <Printer className="mr-2 h-4 w-4" />
                   Imprimir guia
@@ -3087,6 +3093,9 @@ export function ProcessDetailPage() {
               technicalProfile={linkedTechnicalProfile}
               issPaymentConfirmed={constructionGuide?.status === "compensada"}
               issPaidAt={constructionGuide?.paidAt}
+              approvalPaymentRequired={approvalPaymentRequired}
+              approvalPaymentConfirmed={approvalPaymentConfirmed}
+              approvalPaidAt={approvalGuide?.paidAt}
               allDocumentsApproved={allAnalysisDocumentsApproved && !hasOpenAnalysisRequirements}
               externalView={isExternalProcessViewer}
               organogramTrail={currentOrganizationTrail}
