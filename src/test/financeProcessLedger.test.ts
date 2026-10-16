@@ -37,6 +37,21 @@ describe("finance process accounting ledger", () => {
     expect(protocols).toContain("!isProtocolGuide");
   });
 
+  it("keeps finance protocol cards compact and expands only the selected process", () => {
+    expect(protocols).toContain("expandedProcessId");
+    expect(protocols).toContain('data-expanded={isExpanded ? "true" : "false"}');
+    expect(protocols).toContain("Ver detalhes");
+    expect(protocols).toContain("Recolher");
+    expect(protocols).toContain('finance-process-details-');
+    expect(protocols).toContain("current === process.id ? null : process.id");
+  });
+
+  it("forces active finance filters to use white text and icons on the dark background", () => {
+    expect(protocols).toContain("!text-white");
+    expect(protocols).toContain("[&_svg]:!text-white");
+    expect(protocols).toContain("[&_*]:!text-white");
+  });
+
   it("gives the finance overview portfolio-level values, not only ISSQN guide counts", () => {
     expect(desk).toContain("controlGuides");
     expect(desk).toContain("openProcessCount");
