@@ -28,6 +28,24 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain("municipalityLogoFallback");
   });
 
+  it("keeps the municipal logo selected in the working environment ahead of the generic tenant logo", () => {
+    const headerBlock = branding.slice(
+      branding.indexOf("const resolvedTenantHeaderLogo ="),
+      branding.indexOf("if (resolvedTenantHeaderLogo)", branding.indexOf("const resolvedTenantHeaderLogo =")),
+    );
+    const footerBlock = branding.slice(
+      branding.indexOf("const resolvedTenantFooterLogo ="),
+      branding.indexOf("if (resolvedTenantFooterLogo)", branding.indexOf("const resolvedTenantFooterLogo =")),
+    );
+
+    expect(headerBlock.indexOf("resolvedTenantHeaderLogoUrl")).toBeLessThan(
+      headerBlock.indexOf("isUsableBrandingUrl(base.logoUrl)"),
+    );
+    expect(footerBlock.indexOf("resolvedTenantFooterLogoUrl")).toBeLessThan(
+      footerBlock.indexOf("isUsableBrandingUrl(base.logoUrl)"),
+    );
+  });
+
   it("uses the same resolved logo in the configuration preview without replacing a newly selected file", () => {
     expect(settings).toContain("headerBranding.logoUrl");
     expect(settings).toContain("footerBranding.logoUrl");
