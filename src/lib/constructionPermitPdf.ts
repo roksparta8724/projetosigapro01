@@ -227,32 +227,32 @@ function drawSignature(
   const official = Boolean(signature?.official || signature?.verificationCode);
   fill(pdf, official ? ([240, 253, 250] as const) : ([250, 252, 254] as const));
   draw(pdf, official ? ([167, 243, 208] as const) : color.line);
-  pdf.roundedRect(x, y, width, 29, 2.5, 2.5, "FD");
+  pdf.roundedRect(x, y, width, 26, 2.5, 2.5, "FD");
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(5.4);
+  pdf.setFontSize(5.1);
   textColor(pdf, official ? color.green : color.muted);
   pdf.text(
     official ? "VALIDAÇÃO MUNICIPAL" : "AUTORIDADE MUNICIPAL",
     x + 4,
-    y + 5,
+    y + 4.3,
   );
 
-  pdf.setFontSize(6.3);
+  pdf.setFontSize(6);
   textColor(pdf, color.ink);
-  pdf.text(label.toUpperCase(), x + 4, y + 9.5);
+  pdf.text(label.toUpperCase(), x + 4, y + 8.2);
 
   if (signature) {
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.2);
+    pdf.setFontSize(6.8);
     pdf.text(
       (pdf.splitTextToSize(signature.name || "Responsável", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 14.2,
+      y + 12.3,
     );
 
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(5.7);
+    pdf.setFontSize(5.25);
     textColor(pdf, color.muted);
     const role = [signature.role, signature.registration ? `Registro ${signature.registration}` : ""]
       .filter(Boolean)
@@ -260,44 +260,44 @@ function drawSignature(
     pdf.text(
       (pdf.splitTextToSize(role || "Autoridade municipal", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 18.3,
+      y + 15.7,
     );
-    pdf.text(formatDate(signature.signedAt), x + 4, y + 22);
+    pdf.text(formatDate(signature.signedAt), x + 4, y + 18.8);
 
     if (signature.verificationCode) {
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(5.2);
+      pdf.setFontSize(4.9);
       textColor(pdf, color.green);
-      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 25.5);
+      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 21.8);
     }
     if (signature.evidenceHash) {
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(4.6);
+      pdf.setFontSize(4.25);
       textColor(pdf, color.muted);
-      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 28);
+      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 24.5);
     }
   } else if (manual) {
     draw(pdf, [100, 116, 139]);
     pdf.setLineWidth(0.35);
-    pdf.line(x + 10, y + 18.5, x + width - 10, y + 18.5);
+    pdf.line(x + 10, y + 16.2, x + width - 10, y + 16.2);
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(5.6);
+    pdf.setFontSize(5.35);
     textColor(pdf, color.muted);
     const authorityLabel = /secret/i.test(label)
       ? "Secretário(a) Municipal"
       : "Diretor(a) Responsável";
-    pdf.text(authorityLabel, x + width / 2, y + 22.7, {
+    pdf.text(authorityLabel, x + width / 2, y + 20.1, {
       align: "center",
     });
-    pdf.setFontSize(5.1);
-    pdf.text("Data: ____/____/________", x + width / 2, y + 26.7, {
+    pdf.setFontSize(4.9);
+    pdf.text("Data: ____/____/________", x + width / 2, y + 23.6, {
       align: "center",
     });
   } else {
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(6.2);
+    pdf.setFontSize(5.8);
     textColor(pdf, color.muted);
-    pdf.text("Aguardando assinatura eletrônica da autoridade municipal.", x + 4, y + 15);
+    pdf.text("Aguardando assinatura eletrônica da autoridade municipal.", x + 4, y + 13.2);
   }
 }
 
@@ -318,29 +318,24 @@ export async function buildConstructionPermitPdfBlob({
   const form = permit.formData;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 11;
+  const margin = 10;
   const contentWidth = pageWidth - margin * 2;
-  const gap = 4;
-  const half = (contentWidth - gap) / 2;
-
-  const logoUrl =
-    municipalityLogoUrl ||
-    (/campo\s+limpo\s+paulista/i.test(municipalityName)
-      ? CAMPO_LIMPO_BRASAO_FALLBACK
-      : "");
-  const logoDataUrl =
-    (await loadImageDataUrl(logoUrl)) ||
-    (/campo\s+limpo\s+paulista/i.test(municipalityName)
-      ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK)
-      : null);
+  const gap = 3;
 
   const isCampoLimpo = /campo\s+limpo\s+paulista/i.test(municipalityName);
+  const logoUrl =
+    municipalityLogoUrl ||
+    (isCampoLimpo ? CAMPO_LIMPO_BRASAO_FALLBACK : "");
+  const logoDataUrl =
+    (await loadImageDataUrl(logoUrl)) ||
+    (isCampoLimpo ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK) : null);
+
   const officialMunicipalityName =
     /prefeitura/i.test(municipalityName)
       ? municipalityName
       : isCampoLimpo
         ? "Prefeitura Municipal de Campo Limpo Paulista"
-        : `Prefeitura Municipal de ${municipalityName}`;
+        : "Prefeitura Municipal de " + municipalityName;
 
   const effectiveSecretariat =
     !secretariat ||
@@ -349,7 +344,9 @@ export async function buildConstructionPermitPdfBlob({
         ? "Secretaria de Desenvolvimento Urbano, Habitação e Meio Ambiente"
         : secretariat || "Secretaria responsável"
       : secretariat;
-  const effectiveDirectorate = directorate || "Diretoria responsável";
+  const effectiveDirectorate =
+    directorate ||
+    (isCampoLimpo ? "Departamento de Urbanismo" : "Diretoria responsável");
   const effectiveAddress =
     municipalityAddress ||
     (isCampoLimpo
@@ -358,6 +355,7 @@ export async function buildConstructionPermitPdfBlob({
   const effectivePhone =
     municipalityPhone ||
     (isCampoLimpo ? "(11) 4038-8300" : "");
+
   const directorOfficial = Boolean(
     permit.directorSignature?.official &&
     permit.directorSignature?.verificationCode,
@@ -369,226 +367,631 @@ export async function buildConstructionPermitPdfBlob({
   const permitDocumentTitle = buildPermitDocumentTitle(
     form?.workType || process.property.workType || process.type,
   );
+  const isRegularization = /regulariza/i.test(
+    form?.workType || process.property.workType || process.type || "",
+  );
+
+  const parsePtNumber = (value?: string | number | null) => {
+    if (typeof value === "number") return value;
+    const raw = String(value ?? "").trim().replace(/\s/g, "");
+    if (!raw) return Number.NaN;
+    const normalized = raw.includes(",")
+      ? raw.replace(/\./g, "").replace(",", ".")
+      : raw;
+    return Number(normalized);
+  };
+
+  const formatDecimal = (
+    value?: string | number | null,
+    suffix = "",
+    fallback = "—",
+  ) => {
+    const parsed = parsePtNumber(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return (
+      parsed.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }) + suffix
+    );
+  };
+
+  const formatLongDate = (value?: string | null) => {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return valueOrFallback(value, "—");
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const municipalityCity = isCampoLimpo
+    ? "Campo Limpo Paulista"
+    : officialMunicipalityName
+        .replace(/^Prefeitura\s+Municipal\s+de\s+/i, "")
+        .replace(/^Prefeitura\s+de\s+/i, "")
+        .trim();
+
+  const propertyAddress = [
+    valueOrFallback(form?.propertyAddress || process.address, ""),
+    form?.lot ? "Lote: " + form.lot : "",
+    form?.block ? "Quadra: " + form.block : "",
+    form?.neighborhood ? "Bairro: " + form.neighborhood : "",
+    form?.city ? "Cidade: " + form.city : "",
+    form?.postalCode ? "CEP: " + form.postalCode : "",
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
+  const registryValue = [
+    form?.propertyRegistryNumber
+      ? "Matrícula nº " + form.propertyRegistryNumber
+      : "",
+    form?.propertyRegistryOffice || "",
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
+  const rawAreaRows = (form?.regularizationAreas ?? [])
+    .map((item) => ({
+      description: String(item.description || "").trim(),
+      area: parsePtNumber(item.areaM2),
+    }))
+    .filter(
+      (item) =>
+        item.description &&
+        Number.isFinite(item.area) &&
+        item.area > 0,
+    );
+
+  const fallbackLicensedArea = Number.isFinite(parsePtNumber(form?.areaM2))
+    ? parsePtNumber(form?.areaM2)
+    : process.property.area > 0
+      ? process.property.area
+      : Number.NaN;
+
+  const allAreaRows =
+    rawAreaRows.length > 0
+      ? rawAreaRows
+      : Number.isFinite(fallbackLicensedArea)
+        ? [
+            {
+              description: isRegularization
+                ? "Área a regularizar"
+                : "Área licenciada",
+              area: fallbackLicensedArea,
+            },
+          ]
+        : [];
+
+  const displayedAreaRows =
+    allAreaRows.length <= 8
+      ? allAreaRows
+      : [
+          ...allAreaRows.slice(0, 7),
+          {
+            description:
+              "Outras áreas (" + String(allAreaRows.length - 7) + " itens)",
+            area: allAreaRows
+              .slice(7)
+              .reduce((sum, item) => sum + item.area, 0),
+          },
+        ];
+
+  const totalRegularizedArea = allAreaRows.reduce(
+    (sum, item) => sum + item.area,
+    0,
+  );
+
+  const compactField = (
+    x: number,
+    y: number,
+    width: number,
+    label: string,
+    value: string,
+    height = 9.2,
+  ) => {
+    fill(pdf, color.soft);
+    draw(pdf, color.line);
+    pdf.setLineWidth(0.16);
+    pdf.roundedRect(x, y, width, height, 1.4, 1.4, "FD");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(4.45);
+    textColor(pdf, color.muted);
+    pdf.text(label.toUpperCase(), x + 2.5, y + 3.15);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.15);
+    textColor(pdf, color.ink);
+    const lines = pdf.splitTextToSize(value || "—", width - 5) as string[];
+    pdf.text(lines.slice(0, 2), x + 2.5, y + 6.75, {
+      lineHeightFactor: 1.05,
+    });
+  };
 
   pdf.setProperties({
-    title: `${permitDocumentTitle} - ${permit.permitNumber} - ${process.protocol}`,
-    subject: `${permitDocumentTitle} do processo ${process.protocol}`,
+    title:
+      permitDocumentTitle +
+      " - " +
+      permit.permitNumber +
+      " - " +
+      process.protocol,
+    subject:
+      permitDocumentTitle + " do processo " + process.protocol,
     author: municipalityName || "Prefeitura Municipal",
     creator: "SIGAPRO Municipal",
-    keywords: "SIGAPRO, alvará, prefeitura, processo municipal",
+    keywords:
+      "SIGAPRO, alvará, regularização, prefeitura, processo municipal",
   });
 
-  // Cabeçalho institucional claro e premium.
+  // Cabeçalho institucional premium e compacto.
   fill(pdf, color.white);
-  draw(pdf, [214, 223, 232]);
-  pdf.roundedRect(margin, 8, contentWidth, 31, 2.6, 2.6, "FD");
+  draw(pdf, [211, 220, 230]);
+  pdf.roundedRect(margin, 8, contentWidth, 27, 2.4, 2.4, "FD");
   fill(pdf, color.blue);
-  pdf.roundedRect(margin, 8, 3.2, 31, 1.6, 1.6, "F");
+  pdf.roundedRect(margin, 8, 3, 27, 1.4, 1.4, "F");
 
   if (logoDataUrl) {
     try {
       pdf.addImage(
         logoDataUrl,
         imageFormat(logoDataUrl),
-        margin + 7,
-        10.2,
-        19,
-        19,
+        margin + 6,
+        10.1,
+        17,
+        17,
         undefined,
         "FAST",
       );
     } catch {
-      // Identificação textual permanece válida se a imagem não puder ser decodificada.
+      // O cabeçalho textual continua íntegro se a imagem não puder ser decodificada.
     }
   }
 
-  const copyX = logoDataUrl ? margin + 31 : margin + 8;
+  const copyX = logoDataUrl ? margin + 27 : margin + 7;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10.4);
+  pdf.setFontSize(9.1);
   textColor(pdf, color.ink);
-  pdf.text(valueOrFallback(officialMunicipalityName, "Prefeitura Municipal").toUpperCase(), copyX, 14.7);
+  pdf.text(
+    valueOrFallback(officialMunicipalityName, "Prefeitura Municipal").toUpperCase(),
+    copyX,
+    13.9,
+  );
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(5.35);
+  textColor(pdf, color.navy);
+  pdf.text(
+    (pdf.splitTextToSize(effectiveSecretariat.toUpperCase(), 112) as string[]).slice(0, 1),
+    copyX,
+    18.1,
+  );
 
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(5.6);
+  pdf.setFontSize(5.15);
   textColor(pdf, color.muted);
-  pdf.text(
-    (pdf.splitTextToSize(effectiveSecretariat.toUpperCase(), 105) as string[]).slice(0, 1),
-    copyX,
-    19.2,
-  );
-  pdf.text(effectiveDirectorate.toUpperCase(), copyX, 23.3);
-
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10.8);
-  textColor(pdf, color.blue);
-  pdf.text(permitDocumentTitle, pageWidth / 2, 32.2, {
-    align: "center",
-  });
-  draw(pdf, [186, 230, 253]);
-  pdf.setLineWidth(0.7);
-  pdf.line(pageWidth / 2 - 27, 34.5, pageWidth / 2 + 27, 34.5);
-
-  fill(pdf, [241, 245, 249]);
-  draw(pdf, [226, 232, 240]);
-  pdf.roundedRect(pageWidth - margin - 45, 12, 39, 9, 4.5, 4.5, "FD");
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(6.1);
-  textColor(pdf, color.navy);
-  pdf.text(permit.permitNumber, pageWidth - margin - 25.5, 17.6, { align: "center" });
+  pdf.text(effectiveDirectorate.toUpperCase(), copyX, 21.8);
 
   const contact = [effectiveAddress, effectivePhone, municipalityEmail]
     .filter(Boolean)
-    .join("  •  ");
+    .join(" • ");
   if (contact) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(4.8);
-    textColor(pdf, [100, 116, 139]);
+    pdf.setFontSize(4.35);
     pdf.text(
-      (pdf.splitTextToSize(contact, 170) as string[]).slice(0, 1),
-      margin + 4,
-      42.5,
+      (pdf.splitTextToSize(contact, 125) as string[]).slice(0, 1),
+      copyX,
+      25.8,
     );
   }
 
-  let y = 47;
-  drawSectionTitle(pdf, margin, y, "Identificação do licenciamento", contentWidth);
-  y += 8.5;
-  drawField(pdf, margin, y, half, "Processo administrativo", process.protocol);
-  drawField(
-    pdf,
-    margin + half + gap,
-    y,
-    half,
-    "Situação do alvará",
-    directorOfficial
-      ? "Emitido"
-      : "Em fase de emissão",
+  fill(pdf, [241, 245, 249]);
+  draw(pdf, [218, 226, 234]);
+  pdf.roundedRect(pageWidth - margin - 44, 11, 38, 8.5, 4.2, 4.2, "FD");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(5.8);
+  textColor(pdf, color.navy);
+  pdf.text(
+    permit.permitNumber,
+    pageWidth - margin - 25,
+    16.3,
+    { align: "center" },
   );
-  y += 16;
 
-  drawSectionTitle(pdf, margin, y, "Titular e responsável técnico", contentWidth);
-  y += 8.5;
-  drawField(pdf, margin, y, half, "Proprietário / titular", form?.ownerName || process.ownerName);
-  drawField(
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(4.4);
+  textColor(pdf, directorOfficial ? color.green : color.muted);
+  pdf.text(
+    directorOfficial ? "EMITIDO" : "EM EMISSÃO",
+    pageWidth - margin - 25,
+    22.4,
+    { align: "center" },
+  );
+
+  // Título principal em faixa institucional.
+  fill(pdf, color.navy);
+  draw(pdf, color.navy);
+  pdf.roundedRect(margin, 39, contentWidth, 13, 2.2, 2.2, "FD");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11.2);
+  textColor(pdf, color.white);
+  pdf.text(permitDocumentTitle, pageWidth / 2, 47.2, { align: "center" });
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(5.65);
+  textColor(pdf, color.ink);
+  const intro = isRegularization
+    ? effectiveSecretariat +
+      " expede o presente Alvará para a regularização da obra abaixo caracterizada, conforme o processo administrativo indicado."
+    : effectiveSecretariat +
+      " expede o presente Alvará para a obra abaixo caracterizada, conforme o processo administrativo indicado.";
+  const introLines = pdf.splitTextToSize(intro, contentWidth - 4) as string[];
+  pdf.text(introLines.slice(0, 2), margin + 2, 57, {
+    lineHeightFactor: 1.18,
+  });
+
+  let y = 63;
+
+  drawSectionTitle(
     pdf,
-    margin + half + gap,
+    margin,
     y,
-    half,
+    "Identificação do processo, titular e imóvel",
+    contentWidth,
+  );
+  y += 8;
+
+  const processW = 55;
+  compactField(
+    margin,
+    y,
+    processW,
+    "Processo administrativo",
+    process.protocol,
+  );
+  compactField(
+    margin + processW + gap,
+    y,
+    contentWidth - processW - gap,
+    "Identificação do imóvel / inscrição / IPTU",
+    valueOrFallback(
+      form?.propertyRegistration ||
+        process.property.iptu ||
+        process.property.registration,
+    ),
+  );
+  y += 10.2;
+
+  const ownerDocW = 48;
+  compactField(
+    margin,
+    y,
+    contentWidth - ownerDocW - gap,
+    "Proprietário(s) / titular",
+    valueOrFallback(form?.ownerName || process.ownerName),
+  );
+  compactField(
+    pageWidth - margin - ownerDocW,
+    y,
+    ownerDocW,
     "CPF / CNPJ",
     valueOrFallback(form?.ownerDocument || process.ownerDocument),
   );
-  y += 16;
-  drawField(pdf, margin, y, half, "Responsável técnico", form?.technicalLead || process.technicalLead);
-  drawField(
-    pdf,
-    margin + half + gap,
-    y,
-    half,
-    "CREA / CAU / CFT",
-    valueOrFallback(form?.technicalRegistration || technicalProfile?.registrationNumber),
-  );
-  y += 16;
+  y += 10.2;
 
-  drawSectionTitle(pdf, margin, y, "Imóvel e obra", contentWidth);
-  y += 8.5;
-  drawField(pdf, margin, y, contentWidth, "Endereço do imóvel", form?.propertyAddress || process.address);
-  y += 16;
+  if (String(form?.ownerAddress || "").trim()) {
+    compactField(
+      margin,
+      y,
+      contentWidth,
+      "Endereço do proprietário / titular",
+      String(form?.ownerAddress || "").trim(),
+    );
+    y += 10.2;
+  }
 
-  const quarter = (contentWidth - gap * 3) / 4;
-  drawField(
-    pdf,
-    margin,
-    y,
-    quarter,
-    "Inscrição / IPTU",
-    valueOrFallback(form?.propertyRegistration || process.property.iptu || process.property.registration),
-  );
-  drawField(pdf, margin + quarter + gap, y, quarter, "Lote", valueOrFallback(form?.lot || process.property.lot));
-  drawField(pdf, margin + (quarter + gap) * 2, y, quarter, "Quadra", valueOrFallback(form?.block || process.property.block));
-  drawField(
-    pdf,
-    margin + (quarter + gap) * 3,
-    y,
-    quarter,
-    "Área licenciada",
-    form?.areaM2
-      ? `${Number(String(form.areaM2).replace(",", ".")).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} m²`
-      : process.property.area > 0
-        ? `${process.property.area.toFixed(2)} m²`
-        : "Não informada",
-  );
-  y += 16;
-
-  drawField(
-    pdf,
-    margin,
-    y,
-    half,
-    "Natureza da obra",
-    valueOrFallback(form?.workType || process.property.workType || process.type),
-  );
-  drawField(
-    pdf,
-    margin + half + gap,
-    y,
-    half,
-    "Uso / padrão construtivo",
-    [
-      valueOrFallback(form?.usage || process.property.usage, ""),
-      valueOrFallback(form?.constructionStandard || process.property.constructionStandard, ""),
-    ]
-      .filter(Boolean)
-      .join(" • ") || "Não informado",
-  );
-  y += 16;
-
-  drawSectionTitle(pdf, margin, y, "Objeto e condições do Alvará", contentWidth);
-  y += 8.5;
-  drawField(
-    pdf,
+  compactField(
     margin,
     y,
     contentWidth,
-    "Objeto do licenciamento",
-    valueOrFallback(form?.licenseObject || process.type),
-    14,
+    "Endereço da obra",
+    propertyAddress || valueOrFallback(process.address),
   );
-  y += 17;
+  y += 10.2;
+
+  const regW = 49;
+  const smallW = 23;
+  compactField(
+    margin,
+    y,
+    regW,
+    "Inscrição imobiliária",
+    valueOrFallback(
+      form?.propertyRegistration ||
+        process.property.iptu ||
+        process.property.registration,
+    ),
+  );
+  compactField(
+    margin + regW + gap,
+    y,
+    smallW,
+    "Lote",
+    valueOrFallback(form?.lot || process.property.lot),
+  );
+  compactField(
+    margin + regW + gap + smallW + gap,
+    y,
+    smallW,
+    "Quadra",
+    valueOrFallback(form?.block || process.property.block),
+  );
+  compactField(
+    margin + regW + gap + smallW + gap + smallW + gap,
+    y,
+    contentWidth - regW - smallW * 2 - gap * 3,
+    "Matrícula do imóvel / C.R.I.",
+    registryValue || "Não informado",
+  );
+  y += 11.2;
+
+  drawSectionTitle(pdf, margin, y, "Natureza da obra", contentWidth);
+  y += 8;
+
+  const natureW = (contentWidth - gap * 3) / 4;
+  compactField(
+    margin,
+    y,
+    natureW,
+    "Área do terreno",
+    formatDecimal(form?.landAreaM2, " m²"),
+  );
+  compactField(
+    margin + (natureW + gap),
+    y,
+    natureW,
+    "Testada",
+    formatDecimal(form?.frontageM, " m"),
+  );
+  compactField(
+    margin + (natureW + gap) * 2,
+    y,
+    natureW,
+    "Uso",
+    valueOrFallback(form?.usage || process.property.usage),
+  );
+  compactField(
+    margin + (natureW + gap) * 3,
+    y,
+    natureW,
+    isRegularization ? "Área a regularizar" : "Área licenciada",
+    Number.isFinite(totalRegularizedArea) && totalRegularizedArea > 0
+      ? totalRegularizedArea.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) + " m²"
+      : formatDecimal(
+          form?.areaM2 || process.property.area,
+          " m²",
+          "Não informada",
+        ),
+  );
+  y += 10.2;
+
+  compactField(
+    margin,
+    y,
+    natureW,
+    "Nº de habitações",
+    valueOrFallback(form?.housingUnits, "—"),
+  );
+  compactField(
+    margin + (natureW + gap),
+    y,
+    natureW,
+    "Nº de pavimentos",
+    valueOrFallback(form?.floors, "—"),
+  );
+  compactField(
+    margin + (natureW + gap) * 2,
+    y,
+    natureW,
+    "Nº de banheiros",
+    valueOrFallback(form?.bathrooms, "—"),
+  );
+  compactField(
+    margin + (natureW + gap) * 3,
+    y,
+    natureW,
+    "Padrão construtivo",
+    valueOrFallback(
+      form?.constructionStandard || process.property.constructionStandard,
+      "—",
+    ),
+  );
+  y += 11.2;
+
+  drawSectionTitle(
+    pdf,
+    margin,
+    y,
+    isRegularization
+      ? "Edificação - regularização"
+      : "Edificação - área licenciada",
+    contentWidth,
+  );
+  y += 8;
+
+  const areaColWidth = 38;
+  const descColWidth = contentWidth - areaColWidth;
+  const tableHeaderH = 5.5;
+  const tableRowH = 4.7;
+  const tableTotalH = 5.6;
+
+  fill(pdf, color.navy);
+  draw(pdf, color.navy);
+  pdf.rect(margin, y, descColWidth, tableHeaderH, "FD");
+  pdf.rect(margin + descColWidth, y, areaColWidth, tableHeaderH, "FD");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(5.3);
+  textColor(pdf, color.white);
+  pdf.text(
+    isRegularization ? "EDIFICAÇÃO / REGULARIZAÇÃO" : "EDIFICAÇÃO / LICENCIAMENTO",
+    margin + 2.5,
+    y + 3.7,
+  );
+  pdf.text("ÁREA (m²)", pageWidth - margin - 2.5, y + 3.7, {
+    align: "right",
+  });
+  y += tableHeaderH;
+
+  const rowsToRender =
+    displayedAreaRows.length > 0
+      ? displayedAreaRows
+      : [{ description: "Área não informada", area: Number.NaN }];
+
+  rowsToRender.forEach((item, index) => {
+    fill(pdf, index % 2 === 0 ? color.white : color.soft);
+    draw(pdf, color.line);
+    pdf.rect(margin, y, descColWidth, tableRowH, "FD");
+    pdf.rect(margin + descColWidth, y, areaColWidth, tableRowH, "FD");
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(5.45);
+    textColor(pdf, color.ink);
+    pdf.text(
+      (pdf.splitTextToSize(item.description, descColWidth - 5) as string[]).slice(0, 1),
+      margin + 2.5,
+      y + 3.2,
+    );
+    pdf.setFont("helvetica", "bold");
+    pdf.text(
+      Number.isFinite(item.area)
+        ? item.area.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+        : "—",
+      pageWidth - margin - 2.5,
+      y + 3.2,
+      { align: "right" },
+    );
+    y += tableRowH;
+  });
+
+  fill(pdf, [241, 245, 249]);
+  draw(pdf, color.line);
+  pdf.rect(margin, y, descColWidth, tableTotalH, "FD");
+  pdf.rect(margin + descColWidth, y, areaColWidth, tableTotalH, "FD");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(5.8);
+  textColor(pdf, color.navy);
+  pdf.text("TOTAL GERAL", margin + 2.5, y + 3.8);
+  pdf.text(
+    totalRegularizedArea > 0
+      ? totalRegularizedArea.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : formatDecimal(form?.areaM2 || process.property.area, "", "—"),
+    pageWidth - margin - 2.5,
+    y + 3.8,
+    { align: "right" },
+  );
+  y += tableTotalH + 2.5;
+
+  drawSectionTitle(
+    pdf,
+    margin,
+    y,
+    isRegularization
+      ? "Responsável técnico pelo projeto de regularização"
+      : "Responsável técnico",
+    contentWidth,
+  );
+  y += 8;
+
+  const technicalNameW = 78;
+  const technicalRegW = 38;
+  const technicalTypeW = 27;
+  compactField(
+    margin,
+    y,
+    technicalNameW,
+    "Responsável técnico",
+    valueOrFallback(form?.technicalLead || process.technicalLead),
+  );
+  compactField(
+    margin + technicalNameW + gap,
+    y,
+    technicalRegW,
+    "CREA / CAU / CFT",
+    valueOrFallback(
+      form?.technicalRegistration || technicalProfile?.registrationNumber,
+    ),
+  );
+  compactField(
+    margin + technicalNameW + gap + technicalRegW + gap,
+    y,
+    technicalTypeW,
+    "ART / RRT / TRT",
+    valueOrFallback(form?.technicalResponsibilityType, "Documento"),
+  );
+  compactField(
+    margin + technicalNameW + gap + technicalRegW + gap + technicalTypeW + gap,
+    y,
+    contentWidth -
+      technicalNameW -
+      technicalRegW -
+      technicalTypeW -
+      gap * 3,
+    "Número",
+    valueOrFallback(form?.technicalResponsibilityNumber),
+  );
+  y += 11.5;
 
   fill(pdf, color.soft);
   draw(pdf, color.line);
-  pdf.roundedRect(margin, y, contentWidth, 28, 2.5, 2.5, "FD");
+  pdf.roundedRect(margin, y, contentWidth, 12.5, 1.6, 1.6, "FD");
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(5.2);
+  pdf.setFontSize(4.6);
   textColor(pdf, color.muted);
-  pdf.text("CONDIÇÕES E OBSERVAÇÕES", margin + 4, y + 5);
-
+  pdf.text("OBSERVAÇÕES E CONDIÇÕES", margin + 2.8, y + 3.4);
   const conditions = [
-    "A obra deverá obedecer ao projeto aprovado e à legislação municipal aplicável.",
-    "Este Alvará não substitui autorizações de outros órgãos quando exigíveis.",
-    "O responsável técnico responde pela execução conforme ART/RRT/TRT e atribuições profissionais.",
-    ...(form?.complementaryConditions?.trim()
-      ? [form.complementaryConditions.trim()]
-      : []),
-  ];
+    "O Alvará vincula-se ao processo e ao projeto aprovados, sem dispensar exigências de outros órgãos competentes.",
+    "O responsável técnico permanece responsável pelos dados, projeto e atribuições profissionais declaradas.",
+    String(form?.complementaryConditions || "").trim(),
+  ].filter(Boolean);
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(6.15);
+  pdf.setFontSize(5.05);
   textColor(pdf, color.ink);
   const conditionLines = pdf.splitTextToSize(
-    conditions.map((item, index) => `${index + 1}. ${item}`).join("\n"),
-    contentWidth - 8,
+    conditions.join(" "),
+    contentWidth - 6,
   ) as string[];
-  pdf.text(conditionLines.slice(0, 7), margin + 4, y + 10.2, {
-    lineHeightFactor: 1.3,
+  pdf.text(conditionLines.slice(0, 4), margin + 2.8, y + 6.9, {
+    lineHeightFactor: 1.12,
   });
-  y += 32;
+  y += 15;
 
-  drawSectionTitle(pdf, margin, y, "Assinatura municipal", contentWidth);
-  y += 8.5;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(6.1);
+  textColor(pdf, color.ink);
+  pdf.text(
+    municipalityCity +
+      ", " +
+      formatLongDate(permit.issuedAt || permit.updatedAt) +
+      ".",
+    pageWidth / 2,
+    y + 2.8,
+    { align: "center" },
+  );
+  y += 6;
 
   const showManualDirectorLine = manualSignature && !directorOfficial;
-
-  if (secretaryOfficial) {
+  const hasSecretary = secretaryOfficial;
+  if (hasSecretary) {
+    const half = (contentWidth - gap) / 2;
     drawSignature(
       pdf,
       margin,
@@ -618,42 +1021,53 @@ export async function buildConstructionPermitPdfBlob({
       showManualDirectorLine,
     );
   }
-  y += 32;
+  y += 28;
 
-  fill(pdf, directorOfficial ? ([240, 253, 250] as const) : ([248, 250, 252] as const));
-  draw(pdf, directorOfficial ? ([167, 243, 208] as const) : color.line);
-  pdf.roundedRect(margin, y, contentWidth, 12, 2.2, 2.2, "FD");
+  fill(
+    pdf,
+    directorOfficial
+      ? ([240, 253, 250] as const)
+      : ([248, 250, 252] as const),
+  );
+  draw(
+    pdf,
+    directorOfficial
+      ? ([167, 243, 208] as const)
+      : color.line,
+  );
+  pdf.roundedRect(margin, y, contentWidth, 8.7, 1.7, 1.7, "FD");
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(6.3);
+  pdf.setFontSize(5.5);
   textColor(pdf, directorOfficial ? color.green : color.navy);
   pdf.text(
     directorOfficial ? "ALVARÁ MUNICIPAL EMITIDO" : permitDocumentTitle,
-    margin + 4,
-    y + 5.5,
+    margin + 3,
+    y + 3.6,
   );
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(5.4);
+  pdf.setFontSize(4.65);
   textColor(pdf, color.muted);
   pdf.text(
-    `Processo: ${process.protocol}  •  Emissão: ${formatDate(permit.issuedAt || permit.updatedAt)}`,
-    margin + 4,
-    y + 9.2,
-  );
-  pdf.text(
-    `SIGAPRO Municipal • Alvará ${permit.permitNumber}`,
-    margin + 4,
-    y + 11.1,
+    "Processo: " +
+      process.protocol +
+      " • Alvará: " +
+      permit.permitNumber +
+      " • Emissão: " +
+      formatDate(permit.issuedAt || permit.updatedAt),
+    margin + 3,
+    y + 6.6,
   );
 
   draw(pdf, color.line);
-  pdf.line(margin, pageHeight - 7.5, pageWidth - margin, pageHeight - 7.5);
+  pdf.line(margin, pageHeight - 6.8, pageWidth - margin, pageHeight - 6.8);
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(4.8);
+  pdf.setFontSize(4.45);
   textColor(pdf, color.muted);
   pdf.text(
-    `${municipalityName || "Prefeitura Municipal"} • Processo Administrativo ${process.protocol} • Alvará ${permit.permitNumber}`,
+    (municipalityName || "Prefeitura Municipal") +
+      " • Documento oficial gerado pelo SIGAPRO Municipal",
     pageWidth / 2,
-    pageHeight - 3.8,
+    pageHeight - 3.4,
     { align: "center", maxWidth: contentWidth },
   );
 
