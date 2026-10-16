@@ -66,8 +66,8 @@ describe("construction permit workflow", () => {
     expect(pdf).toContain("ALVARÁ DE REFORMA");
     expect(pdf).toContain("ALVARÁ DE AMPLIAÇÃO");
     expect(pdf).toContain("pdf.text(permitDocumentTitle, pageWidth / 2");
-    expect(pdf).toContain('"Situação do alvará"');
-    expect(pdf).toContain('"Em fase de emissão"');
+    expect(pdf).toContain('directorOfficial ? "EMITIDO" : "EM EMISSÃO"');
+    expect(pdf).toContain('"ALVARÁ MUNICIPAL EMITIDO"');
     expect(pdf).not.toContain('"Aguardando assinatura da Diretoria"');
   });
 
@@ -87,7 +87,8 @@ describe("construction permit workflow", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(panel).toContain("permitReadyForSignature");
-    expect(panel).toContain("Pré-requisito financeiro");
+    expect(panel).toContain("ISSQN / Projeto");
+    expect(panel).toContain("Aprovação / Alvará");
     expect(panel).toContain("Pré-requisito técnico");
     expect(panel).toContain("Abrir e preencher Alvará");
     expect(detail).toContain('key: "alvara" as ProcessTab');
