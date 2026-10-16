@@ -21,12 +21,19 @@ describe("official construction permit workflow", () => {
   );
 
   it("generates the permit PDF from the official fill modal after choosing a signing path", () => {
-    expect(panel).toContain("Solicitar assinatura eletrônica");
+    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
     expect(panel).toContain("Gerar PDF para assinatura à caneta");
     expect(panel).toContain("municipalityLogoUrl");
     expect(panel).toContain("municipalityAddress");
     expect(panel).toContain("municipalityPhone");
     expect(panel).toContain("municipalityEmail");
+  });
+
+  it("keeps the signing actions visible and routes only to an eligible director", () => {
+    expect(panel).toContain("sticky bottom-0");
+    expect(panel).toContain("directors.length === 0");
+    expect(panel).toContain("nenhum perfil ativo está cadastrado como Diretor(a)");
+    expect(panel).toContain("Gerar PDF para assinatura à caneta");
   });
 
   it("uses director as the only required municipal signer", () => {
@@ -60,8 +67,9 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("CAMPO_LIMPO_BRASAO_FALLBACK");
     expect(permitPdf).toContain("loadImageDataUrl");
     expect(permitPdf).toContain("pdf.addImage");
-    expect(permitPdf).toContain("municipalityAddress");
-    expect(permitPdf).toContain("municipalityPhone");
+    expect(permitPdf).toContain("effectiveAddress");
+    expect(permitPdf).toContain("effectivePhone");
+    expect(permitPdf).toContain("Prefeitura Municipal de Campo Limpo Paulista");
     expect(permitPdf).toContain("municipalityEmail");
     expect(permitPdf).not.toContain("RASCUNHO - SEM VALIDADE");
   });
