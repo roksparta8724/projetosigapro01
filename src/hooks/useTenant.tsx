@@ -5,6 +5,7 @@ import type { MunicipalityBundle } from "@/lib/municipality";
 import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { isRootDomainHost, resolveTenantFromLocation } from "@/lib/tenant";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
+import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
 
 interface TenantContextValue {
   loading: boolean;
@@ -33,18 +34,76 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
+    let active = true;
     const branding = bundle?.branding ?? null;
-    const faviconUrl =
-      resolveAssetUrl(branding?.logoUrl || branding?.coatOfArmsUrl || "") ||
-      getPublicAssetUrl("favicon-sigapro.svg");
-    const link =
-      document.querySelector<HTMLLinkElement>("link[rel='icon']") ||
-      document.querySelector<HTMLLinkElement>("link[rel='shortcut icon']");
+    const fallback = getPublicAssetUrl("favicon-sigapro.svg");
 
-    if (link && faviconUrl) {
-      link.href = faviconUrl;
-    }
-  }, [bundle?.branding]);
+    const ensureIconLink = () => {
+      const existing =
+        document.querySelector<HTMLLinkElement>("link[rel='icon']") ||
+        document.querySelector<HTMLLinkElement>("link[rel='shortcut icon']");
+      if (existing) return existing;
+
+      const created = document.createElement("link");
+      created.rel = "icon";
+      created.type = "image/png";
+      document.head.appendChild(created);
+      return created;
+    };
+
+    const isTemporarySignedUrl = (value: string) =>
+      /[?&]X-Amz-(?:Algorithm|Credential|Date|Expires|Signature|SignedHeaders)=/i.test(
+        value,
+      );
+
+    void (async () => {
+      const objectKey =
+        branding?.headerLogoObjectKey?.trim() ||
+        branding?.logoObjectKey?.trim() ||
+        "";
+
+      let faviconUrl = "";
+
+      if (objectKey) {
+        try {
+          faviconUrl =
+            getPublicUrl(objectKey) ||
+            (await getSignedUrlForObject({
+              bucket: "institutional-branding",
+              objectKey,
+            })) ||
+            "";
+        } catch {
+          faviconUrl = "";
+        }
+      }
+
+      if (!faviconUrl) {
+        const storedUrl =
+          branding?.headerLogoUrl?.trim() ||
+          branding?.logoUrl?.trim() ||
+          branding?.coatOfArmsUrl?.trim() ||
+          "";
+        if (storedUrl && !isTemporarySignedUrl(storedUrl)) {
+          faviconUrl = resolveAssetUrl(storedUrl);
+        }
+      }
+
+      if (!active) return;
+      const link = ensureIconLink();
+      link.href = faviconUrl || fallback;
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    bundle?.branding?.coatOfArmsUrl,
+    bundle?.branding?.headerLogoObjectKey,
+    bundle?.branding?.headerLogoUrl,
+    bundle?.branding?.logoObjectKey,
+    bundle?.branding?.logoUrl,
+  ]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
