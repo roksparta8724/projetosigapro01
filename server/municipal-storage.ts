@@ -231,6 +231,12 @@ export async function testMunicipalStorageConnection(config: MunicipalStorageCon
   return { ok: true, message: "Conexão validada com gravação no armazenamento da Prefeitura." };
 }
 
+function isPublicMunicipalLegislationObject(objectKey: string) {
+  return /^municipalities\/[0-9a-f-]{36}\/legislation(?:[-/]|$)/i.test(
+    String(objectKey || "").replace(/^\/+/, ""),
+  );
+}
+
 export async function resolveMunicipalDocumentTarget(
   req: ApiReq,
   municipalityId: string,
@@ -240,6 +246,18 @@ export async function resolveMunicipalDocumentTarget(
   if (!municipalityId) return null;
   const sigaproDocumentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
   if (requestedBucket !== sigaproDocumentBucket) return null;
+
+  const publicLegislation = isPublicMunicipalLegislationObject(logicalObjectKey);
+
+  // O acervo legal municipal é público. Se a sessão do navegador ainda não
+  // disponibilizou o Bearer para a função, não bloqueamos a leitura tentando
+  // resolver um BYOS que nem existe nesta Prefeitura; seguimos para o R2
+  // institucional do SIGAPRO. Documentos de processos continuam exigindo a
+  // resolução autenticada normal.
+  if (publicLegislation && !readBearer(req)) {
+    return null;
+  }
+
   let config: MunicipalStorageConnection;
   try {
     config = await resolveMunicipalStorageSecret(req, municipalityId);
@@ -247,7 +265,13 @@ export async function resolveMunicipalDocumentTarget(
     const message = error instanceof Error ? error.message : String(error || "");
     // Compatibilidade durante o rollout: antes da migration BYOS existir,
     // o comportamento histórico permanece no R2 do SIGAPRO.
-    if (/resolve_municipal_storage_secret_v1|schema cache|does not exist|not found/i.test(message)) {
+    if (
+      /resolve_municipal_storage_secret_v1|schema cache|does not exist|not found/i.test(message) ||
+      (publicLegislation &&
+        /autentica[cç][aã]o necess[aá]ria|jwt|token|servi[cç]o de configura[cç][aã]o indispon[ií]vel/i.test(
+          message,
+        ))
+    ) {
       return null;
     }
     throw error;
