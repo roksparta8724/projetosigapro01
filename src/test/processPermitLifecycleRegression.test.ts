@@ -6,6 +6,10 @@ const detail = readFileSync(
   resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
   "utf8",
 );
+const permitHook = readFileSync(
+  resolve(process.cwd(), "src/hooks/useConstructionPermit.ts"),
+  "utf8",
+);
 
 describe("process permit lifecycle monotonicity", () => {
   it("never sends a process with a prepared permit back to analysis visually", () => {
@@ -25,6 +29,14 @@ describe("process permit lifecycle monotonicity", () => {
     expect(detail).toContain(
       'title={effectiveSlaStage}>{effectiveSlaStage}</p>',
     );
+  });
+
+  it("never lets a delayed official draft overwrite a local permit that already reached issuance", () => {
+    expect(permitHook).toContain("PERMIT_STATUS_RANK");
+    expect(permitHook).toContain("mergeConstructionPermitMonotonic");
+    expect(permitHook).toContain("localRank > officialRank ? local : official");
+    expect(permitHook).toContain("latestLocal");
+    expect(permitHook).toContain("readLocalConstructionPermit(municipalityId, processId)");
   });
 
   it("keeps the paid ISS and official permit artifact as independent authoritative evidence", () => {
