@@ -575,12 +575,8 @@ export function UrbanAnalysisChecklistPanel({
     technicalOfficial &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
-  const withdrawalMatchesCurrentVersion = Boolean(
-    withdrawalRecord &&
-    withdrawalRecord.artifact_hash === state.technicalSignature?.evidenceHash,
-  );
+  const withdrawalMatchesCurrentVersion = Boolean(withdrawalRecord);
   const canRecordWithdrawal =
-    isFullySigned &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
@@ -824,7 +820,7 @@ export function UrbanAnalysisChecklistPanel({
       const snapshot = await requestProcessArtifactSignature({
         processId: process.id,
         artifactKey: ANALYSIS_ARTIFACT_KEY,
-        artifactHash: state.technicalSignature.evidenceHash,
+        artifactHash: state.technicalSignature?.evidenceHash || "",
         signerSlot: "diretoria",
       });
       setDirectorRequest(snapshot);
@@ -845,8 +841,8 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const saveWithdrawalRecord = async () => {
-    if (!canRecordWithdrawal || !state.technicalSignature?.evidenceHash) {
-      setNotice("Conclua as assinaturas do Analista Técnico e da Diretoria antes de registrar a retirada.");
+    if (!canRecordWithdrawal) {
+      setNotice("Somente o Analista Técnico responsável pode registrar a retirada em mãos.");
       return;
     }
     if (!withdrawalName.trim()) {
@@ -2175,7 +2171,7 @@ export function UrbanAnalysisChecklistPanel({
                   onChange={(event) => setWithdrawalName(event.target.value)}
                   placeholder="Nome completo de quem retirou"
                   className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
-                  disabled={!canSignTechnical || !isFullySigned || withdrawalBusy}
+                  disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
               <div>
@@ -2187,7 +2183,7 @@ export function UrbanAnalysisChecklistPanel({
                   value={withdrawalDate}
                   onChange={(event) => setWithdrawalDate(event.target.value)}
                   className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
-                  disabled={!canSignTechnical || !isFullySigned || withdrawalBusy}
+                  disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
               {canSignTechnical ? (
@@ -2195,7 +2191,7 @@ export function UrbanAnalysisChecklistPanel({
                   type="button"
                   variant="outline"
                   className="h-10 rounded-xl border-sky-300 bg-white font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200"
-                  disabled={!isFullySigned || withdrawalBusy || !withdrawalName.trim() || !withdrawalDate}
+                  disabled={!canRecordWithdrawal || withdrawalBusy || !withdrawalName.trim() || !withdrawalDate}
                   onClick={() => void saveWithdrawalRecord()}
                 >
                   {withdrawalBusy ? (
@@ -2212,11 +2208,9 @@ export function UrbanAnalysisChecklistPanel({
               ) : null}
             </div>
 
-            {!isFullySigned ? (
-              <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
-                A retirada será liberada para registro após as assinaturas do Analista Técnico e da Diretoria.
-              </p>
-            ) : null}
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              O registro pode ser preenchido pelo Analista Técnico no momento da entrega física e permanece separado das assinaturas eletrônicas.
+            </p>
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
