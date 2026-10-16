@@ -9672,3 +9672,27 @@ html body [data-urban-analysis-sheet="true"] button[data-checklist-status="NA"][
   box-shadow:0 0 0 4px rgba(100,116,139,.26),0 10px 22px rgba(51,65,85,.30) !important;
 }
 /* ===== END PROCESS DARK HEADERS + ORGANOGRAM ACRONYMS V10 ===== */
+
+
+/* SIGAPRO: mantém os segmentos nativos do campo de data legíveis durante edição. */
+.sigapro-date-input:focus::-webkit-datetime-edit,
+.sigapro-date-input:focus::-webkit-datetime-edit-fields-wrapper,
+.sigapro-date-input:focus::-webkit-datetime-edit-text,
+.sigapro-date-input:focus::-webkit-datetime-edit-day-field,
+.sigapro-date-input:focus::-webkit-datetime-edit-month-field,
+.sigapro-date-input:focus::-webkit-datetime-edit-year-field {
+  color: #ffffff !important;
+}
+
+.sigapro-date-input::-webkit-datetime-edit-day-field:focus,
+.sigapro-date-input::-webkit-datetime-edit-month-field:focus,
+.sigapro-date-input::-webkit-datetime-edit-year-field:focus {
+  background: #075985 !important;
+  color: #ffffff !important;
+  border-radius: 0.25rem;
+}
+
+.sigapro-date-input::selection {
+  background: #0369a1;
+  color: #ffffff;
+}
