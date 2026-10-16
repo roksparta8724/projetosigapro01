@@ -26,12 +26,13 @@ describe("urban analysis checklist", () => {
     expect(panel).toContain("municipalityId");
     expect(panel).toContain("Salvar rascunho");
     expect(panel).toContain("Assinar análise técnica");
-    expect(panel).toContain("Assinar conferência fiscal");
+    expect(panel).toContain("Solicitar assinatura do Diretor");
+    expect(panel).toContain("Assinar como Diretor");
     expect(panel).toContain("technicalSignature");
-    expect(panel).toContain("fiscalSignature");
+    expect(panel).toContain("directorSignature");
     expect(panel).toContain("new jsPDF");
-    expect(panel).toContain("Gerar PDF final");
-    expect(panel).toContain("RASCUNHO");
+    expect(panel).toContain("Gerar PDF oficial");
+    expect(panel).toContain("Salvar rascunho");
   });
 
   it("supports A, AP, C and N/A with observations and routing", () => {
@@ -81,9 +82,9 @@ describe("selected checklist statuses unmistakable", () => {
     expect(panel).toContain("bg-sky-600");
     expect(panel).toContain("bg-amber-600");
 
-    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V12");
-    expect(polarity).toContain('[data-checklist-status="A"][aria-pressed="true"]');
-    expect(polarity).toContain('[data-checklist-status="C"][aria-pressed="true"]');
+    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V14");
+    expect(polarity).toContain('button[data-checklist-status="A"][data-selected="true"]');
+    expect(polarity).toContain('button[data-checklist-status="C"][data-selected="true"]');
   });
 });
 
