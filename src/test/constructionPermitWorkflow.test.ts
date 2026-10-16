@@ -58,6 +58,17 @@ describe("construction permit workflow", () => {
     expect(pdf).toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
   });
 
+  it("highlights the permit type dynamically and keeps issuance status neutral", () => {
+    expect(pdf).toContain("buildPermitDocumentTitle");
+    expect(pdf).toContain("ALVARÁ DE DEMOLIÇÃO");
+    expect(pdf).toContain("ALVARÁ DE REFORMA");
+    expect(pdf).toContain("ALVARÁ DE AMPLIAÇÃO");
+    expect(pdf).toContain("pdf.text(permitDocumentTitle, pageWidth / 2");
+    expect(pdf).toContain('"Situação do alvará"');
+    expect(pdf).toContain('"Em fase de emissão"');
+    expect(pdf).not.toContain('"Aguardando assinatura da Diretoria"');
+  });
+
   it("keeps municipality, property and technical data in the PDF", () => {
     expect(pdf).toContain("ALVARÁ DE CONSTRUÇÃO");
     expect(pdf).toContain("Titular e responsável técnico");
