@@ -84,6 +84,12 @@ export function LegislationPage() {
           ? items[2]
           : null;
 
+  const openOfficialDocument = (item: LawItem) => {
+    if (!item.fileUrl) return;
+    const opened = window.open(item.fileUrl, "_blank", "noopener,noreferrer");
+    opened?.focus();
+  };
+
   const renderDocumentPanel = (item: LawItem) => (
     <PageMainGrid>
       <PageMainContent>
@@ -99,23 +105,36 @@ export function LegislationPage() {
             </div>
 
             {item.fileUrl ? (
-              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">{item.fileName || item.title}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">Visualização oficial</p>
+              <div className="overflow-hidden rounded-[24px] border border-sky-200 bg-[linear-gradient(145deg,#ffffff_0%,#f4f9ff_100%)] shadow-[0_16px_40px_rgba(14,165,233,0.08)]">
+                <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700">
+                        <ScrollText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-bold text-slate-950" title={item.fileName || item.title}>
+                          {item.fileName || item.title}
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">
+                          Documento oficial da Prefeitura
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+                      O PDF é aberto em uma nova guia do navegador, ocupando toda a área de visualização para leitura, impressão e download sem limitar o documento dentro de um card.
+                    </p>
                   </div>
-                  <a
-                    href={item.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-700"
+
+                  <Button
+                    type="button"
+                    className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
+                    onClick={() => openOfficialDocument(item)}
                   >
-                    Abrir original
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Abrir PDF em nova guia
+                  </Button>
                 </div>
-                <iframe src={item.fileUrl} title={item.title} className="h-[640px] w-full bg-white" />
               </div>
             ) : (
               <EmptyState
@@ -214,14 +233,15 @@ export function LegislationPage() {
                           {item.fileName || "Sem arquivo oficial"}
                         </p>
                         {item.fileUrl ? (
-                          <a
-                            href={item.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700"
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 rounded-full border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+                            onClick={() => openOfficialDocument(item)}
                           >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                            <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                            Abrir PDF
+                          </Button>
                         ) : null}
                       </div>
                     </div>
