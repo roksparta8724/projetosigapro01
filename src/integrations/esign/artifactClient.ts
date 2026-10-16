@@ -134,6 +134,19 @@ function normalizeApiError(value: unknown): string {
   }
 }
 
+function normalizeWithdrawalError(value: unknown, fallback: string): string {
+  const message = normalizeApiError(value);
+  if (
+    /schema cache|PGRST20[245]|Could not find the function|Could not find the table/i.test(
+      message,
+    )
+  ) {
+    return "O módulo de retirada foi atualizado e está sincronizando com o banco. Recarregue a página e tente novamente.";
+  }
+  return message || fallback;
+}
+
+
 async function readApiResponse(response: Response) {
   const raw = await response.text();
   if (!raw) return {} as Record<string, unknown>;
@@ -306,7 +319,7 @@ export async function getProcessArtifactWithdrawal(
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeApiError(error) || "Não foi possível carregar a retirada em mãos.",
+      normalizeWithdrawalError(error, "Não foi possível carregar a retirada em mãos."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_READ_FAILED",
@@ -344,7 +357,7 @@ export async function saveProcessArtifactWithdrawal(input: {
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeApiError(error) || "Não foi possível registrar a retirada em mãos.",
+      normalizeWithdrawalError(error, "Não foi possível registrar a retirada em mãos."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_SAVE_FAILED",
