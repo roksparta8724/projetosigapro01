@@ -8,7 +8,10 @@ import {
   Eye,
   FileBadge2,
   FileDown,
+  Loader2,
   PenLine,
+  Printer,
+  Send,
   Save,
   ShieldCheck,
   Signature,
@@ -54,6 +57,12 @@ import {
   getProcessArtifactSignatures,
   signProcessArtifactWithPassword,
 } from "@/integrations/esign/artifactClient";
+import {
+  getOfficialConstructionPermit,
+  markOfficialPermitForManualSignature,
+  requestOfficialPermitDirectorSignature,
+  saveOfficialConstructionPermitDraft,
+} from "@/integrations/permits/constructionPermitClient";
 import type { ProcessRecord, SessionUser, UserProfile } from "@/lib/platform";
 
 type ConstructionPermitPanelProps = {
@@ -83,8 +92,15 @@ function permitStatusLabel(record: ConstructionPermitRecord | null) {
     record.directorSignature?.verificationCode,
   );
   if (directorOfficial) return "Alvará emitido";
-  if (record.status === "aguardando_diretor" || record.directorSignature) {
-    return "Aguardando confirmação da Diretoria";
+  if (record.signatureMode === "manual" || record.status === "assinatura_manual") {
+    return "Preparado para assinatura à caneta";
+  }
+  if (
+    record.signatureMode === "electronic" ||
+    record.status === "aguardando_diretor" ||
+    record.directorSignature
+  ) {
+    return "Aguardando assinatura da Diretoria";
   }
   return "Em preparação";
 }
@@ -115,6 +131,7 @@ export function ConstructionPermitPanel({
   const [signatureDialog, setSignatureDialog] = useState<"director" | "secretary" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
+  const [workflowBusy, setWorkflowBusy] = useState<"save" | "request" | "manual" | null>(null);
   const [signatureError, setSignatureError] = useState("");
   const [fillOpen, setFillOpen] = useState(false);
   const [formData, setFormData] = useState<ConstructionPermitFormData>(() => ({
