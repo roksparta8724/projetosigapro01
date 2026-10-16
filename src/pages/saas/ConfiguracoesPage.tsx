@@ -919,6 +919,67 @@ export function ConfiguracoesPage() {
     setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
   }, [availableInstitutions, selectedTenantId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    const hydratePrivateDocument = async (
+      files: UploadedFileItem[],
+      setFiles: React.Dispatch<React.SetStateAction<UploadedFileItem[]>>,
+    ) => {
+      const item = files[0];
+      const persistentRef = item?.persistentRef?.trim() || "";
+      if (
+        !item ||
+        item.previewUrl ||
+        !persistentRef.startsWith("r2:")
+      ) {
+        return;
+      }
+
+      const objectKey = persistentRef.slice(3).trim();
+      if (!objectKey) return;
+
+      try {
+        const signedUrl = await getSignedUrlForObjectStrict({
+          bucket,
+          objectKey,
+          expiresIn: 21600,
+        });
+        if (cancelled || !signedUrl) return;
+
+        setFiles((current) => {
+          const currentItem = current[0];
+          if (
+            !currentItem ||
+            currentItem.persistentRef !== persistentRef ||
+            currentItem.previewUrl
+          ) {
+            return current;
+          }
+          return [{ ...currentItem, previewUrl: signedUrl }];
+        });
+      } catch {
+        // O arquivo continua salvo. A URL assinada será tentada novamente ao reabrir a tela.
+      }
+    };
+
+    void hydratePrivateDocument(planoDiretorFiles, setPlanoDiretorFiles);
+    void hydratePrivateDocument(usoSoloFiles, setUsoSoloFiles);
+    void hydratePrivateDocument(leisFiles, setLeisFiles);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedTenantId,
+    planoDiretorFiles[0]?.persistentRef,
+    usoSoloFiles[0]?.persistentRef,
+    leisFiles[0]?.persistentRef,
+  ]);
+
   const setTenantField = (field: keyof typeof tenantForm, value: string) => {
     setTenantForm((current) => ({ ...current, [field]: value }));
   };
