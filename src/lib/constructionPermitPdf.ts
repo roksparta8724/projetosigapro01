@@ -511,9 +511,34 @@ export async function buildConstructionPermitPdfBlob({
 }
 
 export async function openConstructionPermitPdf(input: ConstructionPermitPdfInput) {
-  const blob = await buildConstructionPermitPdfBlob(input);
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (opened) opened.opener = null;
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  const opened = window.open("", "_blank", "noopener,noreferrer");
+  if (opened) {
+    opened.opener = null;
+    opened.document.title = "Gerando Alvará...";
+    opened.document.body.innerHTML =
+      '<div style="font-family:Arial,sans-serif;padding:32px;color:#0f172a">Gerando PDF oficial do Alvará...</div>';
+  }
+
+  try {
+    const blob = await buildConstructionPermitPdfBlob(input);
+    const url = URL.createObjectURL(blob);
+
+    if (opened) {
+      opened.location.replace(url);
+    } else {
+      const fallback = document.createElement("a");
+      fallback.href = url;
+      fallback.target = "_blank";
+      fallback.rel = "noopener noreferrer";
+      fallback.click();
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    if (opened) {
+      opened.document.body.innerHTML =
+        '<div style="font-family:Arial,sans-serif;padding:32px;color:#991b1b">Não foi possível gerar o PDF do Alvará.</div>';
+    }
+    throw error;
+  }
 }
