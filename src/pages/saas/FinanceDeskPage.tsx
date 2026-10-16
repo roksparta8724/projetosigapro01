@@ -418,7 +418,12 @@ export function FinanceDeskPage() {
       code: `APR_${profile.id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`,
       label: `Aprovação / Alvará • ${profile.label}`,
       kind: "per_square_meter" as const,
-      rate: profile.rate,
+      rate: Number(
+        (
+          profile.rate *
+          ((tenantSettings?.approvalAliquotPercent ?? 5) / 100)
+        ).toFixed(4),
+      ),
       processType: "licenciamento",
       occupancyPermit: false,
       constructionStandard: profile.standard,
