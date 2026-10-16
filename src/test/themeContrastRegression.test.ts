@@ -120,7 +120,7 @@ describe("theme contrast authority", () => {
     });
 
     expect(surfacePolarity).toContain('[data-process-premium-card="true"]');
-    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#123454 0%,#081a2b 100%)");
+    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#11283f 0%,#0a1928 100%)");
     expect(surfacePolarity).toContain("color: #f8fbff !important");
     expect(surfacePolarity).toContain("background: linear-gradient(180deg,#ffffff 0%,#f4f9ff 100%)");
     expect(surfacePolarity).toContain("color: #0b1726 !important");
