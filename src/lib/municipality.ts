@@ -336,6 +336,38 @@ export function buildTenantSettingsFromMunicipality(
       typeof general.footer_logo_offset_y === "number"
         ? general.footer_logo_offset_y
         : base.footerLogoOffsetY,
+    planoDiretorArquivoNome:
+      (typeof general.plano_diretor_arquivo_nome === "string" &&
+        general.plano_diretor_arquivo_nome) ||
+      (typeof general.plan_file_name === "string" && general.plan_file_name) ||
+      base.planoDiretorArquivoNome,
+    planoDiretorArquivoUrl:
+      (typeof general.plano_diretor_arquivo_url === "string" &&
+        general.plano_diretor_arquivo_url) ||
+      (typeof general.plan_file_url === "string" && general.plan_file_url) ||
+      base.planoDiretorArquivoUrl,
+    usoSoloArquivoNome:
+      (typeof general.uso_solo_arquivo_nome === "string" &&
+        general.uso_solo_arquivo_nome) ||
+      (typeof general.zoning_file_name === "string" && general.zoning_file_name) ||
+      base.usoSoloArquivoNome,
+    usoSoloArquivoUrl:
+      (typeof general.uso_solo_arquivo_url === "string" &&
+        general.uso_solo_arquivo_url) ||
+      (typeof general.zoning_file_url === "string" && general.zoning_file_url) ||
+      base.usoSoloArquivoUrl,
+    leisArquivoNome:
+      (typeof general.leis_arquivo_nome === "string" &&
+        general.leis_arquivo_nome) ||
+      (typeof general.complementary_laws_file_name === "string" &&
+        general.complementary_laws_file_name) ||
+      base.leisArquivoNome,
+    leisArquivoUrl:
+      (typeof general.leis_arquivo_url === "string" &&
+        general.leis_arquivo_url) ||
+      (typeof general.complementary_laws_file_url === "string" &&
+        general.complementary_laws_file_url) ||
+      base.leisArquivoUrl,
   };
 }
 
