@@ -105,3 +105,34 @@ describe("V14/V15 process polarity authority", () => {
     expect(polarity).toContain("color:#ffffff !important");
   });
 });
+
+
+describe("technical analysis legend contrast", () => {
+  it("keeps every colored legend chip readable with white text in every theme", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(panel).toContain('data-analysis-legend="true"');
+    expect(panel).toContain('data-analysis-legend-chip="true"');
+    expect(panel).toContain("data-analysis-legend-status={status}");
+    expect(panel).toContain('className="!text-white"');
+
+    expect(polarity).toContain(
+      "ANALISE / FICHA TECNICA — LEGENDA DE STATUS V17",
+    );
+    expect(polarity).toContain(
+      '[data-analysis-legend-chip="true"][data-analysis-legend-status="A"]',
+    );
+    expect(polarity).toContain(
+      '[data-analysis-legend-chip="true"][data-analysis-legend-status="AP"]',
+    );
+    expect(polarity).toContain(
+      '[data-analysis-legend-chip="true"][data-analysis-legend-status="C"]',
+    );
+    expect(polarity).toContain(
+      '[data-analysis-legend-chip="true"][data-analysis-legend-status="NA"]',
+    );
+    expect(polarity).toContain("color:#ffffff !important");
+    expect(polarity).toContain("-webkit-text-fill-color:#ffffff !important");
+  });
+});
