@@ -48,14 +48,16 @@ describe("construction permit workflow", () => {
   it("keeps the secretary optional and only after the director", () => {
     expect(panel).toContain("Assinar também como Secretário");
     expect(api).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
-    expect(pdf).toContain("const hasSecretary = secretaryOfficial");
+    expect(pdf).toContain("const hasSecretary = secretaryOfficial;");
+    expect(pdf).not.toContain("secretaryOfficial || showManual");
   });
 
-  it("generates a premium manual-signature version when chosen", () => {
+  it("generates a premium manual-signature version without printing workflow instructions", () => {
     expect(pdf).toContain("manualSignature");
-    expect(pdf).toContain("ASSINATURA MANUAL");
-    expect(pdf).toContain("Assinatura da autoridade municipal");
-    expect(pdf).toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
+    expect(pdf).toContain("showManualDirectorLine");
+    expect(pdf).toContain("Diretor(a) Responsável");
+    expect(pdf).not.toContain("ASSINATURA MANUAL");
+    expect(pdf).not.toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
   });
 
   it("highlights the permit type dynamically and keeps issuance status neutral", () => {
@@ -69,14 +71,16 @@ describe("construction permit workflow", () => {
     expect(pdf).not.toContain('"Aguardando assinatura da Diretoria"');
   });
 
-  it("keeps municipality, property and technical data in the PDF", () => {
+  it("keeps municipality, property, regularization and technical data in the PDF", () => {
     expect(pdf).toContain("ALVARÁ DE CONSTRUÇÃO");
-    expect(pdf).toContain("Titular e responsável técnico");
-    expect(pdf).toContain("Imóvel e obra");
-    expect(pdf).toContain("Objeto e condições do Alvará");
+    expect(pdf).toContain("Identificação do processo, titular e imóvel");
+    expect(pdf).toContain("Natureza da obra");
+    expect(pdf).toContain("Edificação - regularização");
     expect(pdf).toContain("form?.propertyAddress");
+    expect(pdf).toContain("form?.propertyRegistryNumber");
     expect(pdf).toContain("form?.technicalRegistration");
-    expect(pdf).toContain("form?.licenseObject");
+    expect(pdf).toContain("form?.technicalResponsibilityNumber");
+    expect(pdf).toContain("form?.regularizationAreas");
   });
 
   it("keeps prerequisites visible before signature actions", () => {
