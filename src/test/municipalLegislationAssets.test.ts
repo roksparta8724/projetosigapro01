@@ -11,6 +11,7 @@ describe("municipal legislation assets", () => {
   const municipality = read("src/lib/municipality.ts");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const dropzone = read("src/components/platform/FileDropZone.tsx");
+  const r2Client = read("src/integrations/r2/client.ts");
 
   it("persists institutional assets instead of saving blob preview URLs", () => {
     expect(settings).toContain("handleSaveInstitutionalAssets");
@@ -59,6 +60,14 @@ describe("municipal legislation assets", () => {
     expect(zoning).toContain("getSignedUrlForObjectStrict");
     expect(zoning).toContain("Abrir guia");
     expect(zoning).toContain("PDF de zoneamento ainda não vinculado");
+  });
+
+  it("prioritizes the official same-origin API when opening signed PDFs in production", () => {
+    expect(r2Client).toContain("buildApiCandidates");
+    expect(r2Client).toContain('buildApiCandidates("/api/r2-sign-get")');
+    expect(r2Client).toContain('["localhost", "127.0.0.1", "::1"]');
+    expect(r2Client).toContain("isLocalBrowser ? [remote, normalized] : [normalized, remote]");
+    expect(r2Client).toContain("requestSignedUrlWithFallback");
   });
 
   it("shows an explicit official-storage state in upload cards", () => {
