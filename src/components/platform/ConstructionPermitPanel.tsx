@@ -157,6 +157,34 @@ export function ConstructionPermitPanel({
   }, [directors, selectedDirectorId]);
 
   useEffect(() => {
+    let active = true;
+
+    void getOfficialConstructionPermit(process.id)
+      .then((official) => {
+        if (!active || !official) return;
+
+        const local = readLocalConstructionPermit(municipalityId, process.id);
+        const merged: ConstructionPermitRecord = {
+          ...official,
+          directorSignature: local?.directorSignature,
+          secretarySignature: local?.secretarySignature,
+          issuedAt: local?.issuedAt,
+        };
+
+        writeLocalConstructionPermit(merged);
+        setPermit(merged);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Alvará] Falha ao carregar o registro oficial.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [municipalityId, process.id]);
+
+  useEffect(() => {
     setFormData({
       ...buildConstructionPermitFormData(process),
       ...(permit?.formData ?? {}),
@@ -283,9 +311,16 @@ export function ConstructionPermitPanel({
     permit?.secretarySignature?.official &&
     permit?.secretarySignature?.verificationCode,
   );
+  const directorRequestPending =
+    permit?.status === "aguardando_diretor" &&
+    permit?.signatureMode === "electronic";
+  const manualSignatureSelected =
+    permit?.status === "assinatura_manual" ||
+    permit?.signatureMode === "manual";
   const canSignDirector =
     Boolean(permit) &&
     permitReadyForSignature &&
+    directorRequestPending &&
     !directorOfficial &&
     !externalView &&
     userCanSignPermitAsDirector(session);
@@ -294,7 +329,10 @@ export function ConstructionPermitPanel({
     !secretaryOfficial &&
     !externalView &&
     userCanSignPermitAsSecretary(session);
-  const canPreview = Boolean(permit);
+  const canPreview = Boolean(
+    permit &&
+    (directorOfficial || manualSignatureSelected),
+  );
   const canEditForm =
     canStartDraft &&
     !directorOfficial;
