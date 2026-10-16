@@ -32,7 +32,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
-import { getChecklistTemplate, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
+import { getChecklistTemplate, isOccupancyPermitProcessType, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
@@ -320,6 +320,11 @@ export function ProtocolarProjetoPage({
   const effectiveProcessType = isHabiteSeMode
     ? (form.modalidadeHabiteSe === "parcial" ? "Carta de Habite-se Parcial" : "Habite-se")
     : form.tipo;
+
+  const standardProcessTypes = useMemo(
+    () => processTypeCatalog.filter((type) => !isOccupancyPermitProcessType(type)),
+    [],
+  );
 
   const checklistTemplate = useMemo(
     () => getChecklistTemplate(effectiveProcessType, effectiveScopeId),
@@ -716,6 +721,13 @@ export function ProtocolarProjetoPage({
 
     if (tenantSettings?.registroProfissionalObrigatorio && !form.registro.trim()) {
       setStatus("Informe o registro profissional exigido pela Prefeitura.");
+      return;
+    }
+
+    if (!isHabiteSeMode && isOccupancyPermitProcessType(form.tipo)) {
+      setStatus(
+        "Habite-se é um protocolo independente. Use a opção Solicitar Habite-se para abrir esse serviço corretamente.",
+      );
       return;
     }
 
@@ -1187,7 +1199,7 @@ export function ProtocolarProjetoPage({
                   <>
                     <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
                     <datalist id="sigapro-process-types">
-                      {processTypeCatalog.map((type) => (
+                      {standardProcessTypes.map((type) => (
                         <option key={type} value={type} />
                       ))}
                     </datalist>
