@@ -41,6 +41,7 @@ import {
   getChecklistTemplate,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
+  isProcessOwnedBySessionDepartment,
   matchesOperationalScope,
   parseMarker,
   statusLabel,
@@ -630,6 +631,7 @@ export function AnalystDeskPage() {
         processes={processRegistry}
         archivedProcessIds={archivedProcessIds}
         onToggleArchive={setProcessArchived}
+        canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
         emptyMessage={
           showArchived
             ? "Nenhum processo arquivado nesta lista."
