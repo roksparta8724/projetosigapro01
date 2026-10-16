@@ -20,7 +20,8 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
   it("mostra a estrutura configurada do departamento atual no banner", () => {
     expect(portal).toContain("departmentOwnershipKey");
     expect(portal).toContain("activeDepartmentOwnership");
-    expect(portal).toContain("Estrutura do departamento");
+    expect(portal).toContain("defaultDepartmentOwnership");
+    expect(portal).toContain("configuredDepartmentOwnership");
     expect(portal).toContain("Secretaria de Finanças");
     expect(portal).toContain("Diretoria Financeira");
     expect(portal).toContain("Secretaria de Administração");
