@@ -181,12 +181,17 @@ export function ZoningPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { getInstitutionSettings } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const institutionSettings =
-    institutionSettingsCompat ??
-    getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const liveInstitutionSettings = getInstitutionSettings(
+    effectiveScopeId ?? session.tenantId,
+  );
   const zoningFileName =
-    institutionSettings?.zoneamentoArquivoNome?.trim() || "Zoneamento municipal";
-  const zoningFileUrl = institutionSettings?.zoneamentoArquivoUrl?.trim() || "";
+    liveInstitutionSettings?.zoneamentoArquivoNome?.trim() ||
+    institutionSettingsCompat?.zoneamentoArquivoNome?.trim() ||
+    "Zoneamento municipal";
+  const zoningFileUrl =
+    liveInstitutionSettings?.zoneamentoArquivoUrl?.trim() ||
+    institutionSettingsCompat?.zoneamentoArquivoUrl?.trim() ||
+    "";
   const canManageRules =
     can(session, "manage_tenant_users") ||
     session.role === "master_admin" ||
