@@ -1394,6 +1394,68 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleGenerateApprovalGuide = () => {
+    if (!approvalPaymentRequired) {
+      setProcessActionStatus(
+        "A Prefeitura não configurou cobrança de aprovação/Alvará para este fluxo.",
+      );
+      return;
+    }
+    if (approvalGuide) {
+      setProcessActionStatus("A Guia de Pagamento - Aprovação / Alvará já foi emitida.");
+      return;
+    }
+    if (!constructionPaymentCompensated) {
+      setProcessActionStatus(
+        "A Guia de ISSQN / Projeto precisa estar compensada antes da guia de aprovação/Alvará.",
+      );
+      return;
+    }
+    if (!allAnalysisDocumentsApproved || hasOpenAnalysisRequirements) {
+      setProcessActionStatus(
+        "Conclua a análise documental e todas as exigências antes de emitir a guia de aprovação/Alvará.",
+      );
+      return;
+    }
+    if (!canAnalysisOperate || !ownsCurrentProcessStage) {
+      setProcessActionStatus(
+        "A Guia de Pagamento - Aprovação / Alvará deve ser encaminhada pela unidade responsável pela análise.",
+      );
+      return;
+    }
+
+    void runProcessAction(
+      "generate-approval-guide",
+      () => issuePaymentGuide(process.id, session.name, "aprovacao_final"),
+      "Guia de Pagamento - Aprovação / Alvará emitida pelo cálculo oficial e encaminhada ao Financeiro. Ela já está disponível ao interessado.",
+    );
+  };
+
+  const handleConfirmApprovalPayment = async () => {
+    if (!approvalGuide || approvalGuide.status === "compensada") return;
+    if (!canFinanceOperate) {
+      setProcessActionStatus(
+        "Somente o Setor Financeiro pode confirmar o pagamento da guia de aprovação/Alvará.",
+      );
+      return;
+    }
+
+    const ok = await runProcessAction(
+      "confirm-approval-payment",
+      () => markGuideAsPaid(process.id, session.name, "aprovacao_final"),
+      "Pagamento da aprovação/Alvará confirmado. O processo retornou à Análise Urbanística e o Alvará pode seguir para assinatura.",
+    );
+
+    if (ok) {
+      navigate(
+        `/prefeitura/financeiro/protocolos?retorno=analise&processo=${encodeURIComponent(
+          formatOfficialProcessNumber(process.protocol),
+        )}`,
+        { replace: true },
+      );
+    }
+  };
+
   const handleReviseConstructionGuide = async () => {
     if (!constructionGuide || !canManageIssuedIssGuide) return;
     const input = getConstructionGuideInput();
