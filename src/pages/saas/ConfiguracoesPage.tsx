@@ -777,6 +777,14 @@ export function ConfiguracoesPage() {
       "uso-solo",
     ),
   );
+  const [zoneamentoFiles, setZoneamentoFiles] = useState<UploadedFileItem[]>(() =>
+    storedInstitutionalDocument(
+      settings?.zoneamentoArquivoUrl,
+      settings?.zoneamentoArquivoNome,
+      "zoneamento.pdf",
+      "zoneamento",
+    ),
+  );
   const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(() =>
     storedInstitutionalDocument(
       settings?.leisArquivoUrl,
@@ -909,6 +917,12 @@ export function ConfiguracoesPage() {
       "uso-e-ocupacao-do-solo.pdf",
       "uso-solo",
     );
+    const nextZoneamentoFiles = storedInstitutionalDocument(
+      nextSettings?.zoneamentoArquivoUrl,
+      nextSettings?.zoneamentoArquivoNome,
+      "zoneamento.pdf",
+      "zoneamento",
+    );
     const nextLeisFiles = storedInstitutionalDocument(
       nextSettings?.leisArquivoUrl,
       nextSettings?.leisArquivoNome,
@@ -919,6 +933,9 @@ export function ConfiguracoesPage() {
       sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
     );
     setUsoSoloFiles((current) => (sameFileList(current, nextUsoSoloFiles) ? current : nextUsoSoloFiles));
+    setZoneamentoFiles((current) =>
+      sameFileList(current, nextZoneamentoFiles) ? current : nextZoneamentoFiles,
+    );
     setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
   }, [availableInstitutions, selectedTenantId]);
 
@@ -971,6 +988,7 @@ export function ConfiguracoesPage() {
 
     void hydratePrivateDocument(planoDiretorFiles, setPlanoDiretorFiles);
     void hydratePrivateDocument(usoSoloFiles, setUsoSoloFiles);
+    void hydratePrivateDocument(zoneamentoFiles, setZoneamentoFiles);
     void hydratePrivateDocument(leisFiles, setLeisFiles);
 
     return () => {
@@ -980,6 +998,7 @@ export function ConfiguracoesPage() {
     selectedTenantId,
     planoDiretorFiles[0]?.persistentRef,
     usoSoloFiles[0]?.persistentRef,
+    zoneamentoFiles[0]?.persistentRef,
     leisFiles[0]?.persistentRef,
   ]);
 
@@ -2226,6 +2245,14 @@ export function ConfiguracoesPage() {
       );
       setUsoSoloFiles(nextUsoSoloFiles);
 
+      const nextZoneamentoFiles = await uploadInstitutionalAssetList(
+        zoneamentoFiles,
+        "legislation/zoneamento",
+        savedTenantId,
+        "process-documents",
+      );
+      setZoneamentoFiles(nextZoneamentoFiles);
+
       const nextLeisFiles = await uploadInstitutionalAssetList(
         leisFiles,
         "legislation/leis-complementares",
@@ -2256,6 +2283,8 @@ export function ConfiguracoesPage() {
         planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.persistentRef ?? nextPlanoDiretorFiles[0]?.previewUrl ?? "",
         usoSoloArquivoNome: nextUsoSoloFiles[0]?.fileName ?? "",
         usoSoloArquivoUrl: nextUsoSoloFiles[0]?.persistentRef ?? nextUsoSoloFiles[0]?.previewUrl ?? "",
+        zoneamentoArquivoNome: nextZoneamentoFiles[0]?.fileName ?? "",
+        zoneamentoArquivoUrl: nextZoneamentoFiles[0]?.persistentRef ?? nextZoneamentoFiles[0]?.previewUrl ?? "",
         leisArquivoNome: nextLeisFiles[0]?.fileName ?? "",
         leisArquivoUrl: nextLeisFiles[0]?.persistentRef ?? nextLeisFiles[0]?.previewUrl ?? "",
       };
@@ -2277,10 +2306,11 @@ export function ConfiguracoesPage() {
       setHeroFiles(nextHeroFiles);
       setPlanoDiretorFiles(nextPlanoDiretorFiles);
       setUsoSoloFiles(nextUsoSoloFiles);
+      setZoneamentoFiles(nextZoneamentoFiles);
       setLeisFiles(nextLeisFiles);
 
       setInstitutionalAssetsStatus(
-        "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo e Leis Complementares já estão vinculados ao módulo Legislação.",
+        "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
       );
     } catch (error) {
       setInstitutionalAssetsStatus(
@@ -2340,6 +2370,8 @@ export function ConfiguracoesPage() {
       planoDiretorArquivoUrl: planoDiretorFiles[0]?.persistentRef ?? planoDiretorFiles[0]?.previewUrl ?? "",
       usoSoloArquivoNome: usoSoloFiles[0]?.fileName ?? "",
       usoSoloArquivoUrl: usoSoloFiles[0]?.persistentRef ?? usoSoloFiles[0]?.previewUrl ?? "",
+      zoneamentoArquivoNome: zoneamentoFiles[0]?.fileName ?? "",
+      zoneamentoArquivoUrl: zoneamentoFiles[0]?.persistentRef ?? zoneamentoFiles[0]?.previewUrl ?? "",
       leisArquivoNome: leisFiles[0]?.fileName ?? "",
       leisArquivoUrl: leisFiles[0]?.persistentRef ?? leisFiles[0]?.previewUrl ?? "",
       logoScale: headerBranding.logoScale,
@@ -2617,6 +2649,8 @@ export function ConfiguracoesPage() {
     planoDiretorArquivoUrl: planoDiretorFiles[0]?.previewUrl ?? settings?.planoDiretorArquivoUrl ?? "",
     usoSoloArquivoNome: usoSoloFiles[0]?.fileName ?? settings?.usoSoloArquivoNome ?? "",
     usoSoloArquivoUrl: usoSoloFiles[0]?.previewUrl ?? settings?.usoSoloArquivoUrl ?? "",
+    zoneamentoArquivoNome: zoneamentoFiles[0]?.fileName ?? settings?.zoneamentoArquivoNome ?? "",
+    zoneamentoArquivoUrl: zoneamentoFiles[0]?.previewUrl ?? settings?.zoneamentoArquivoUrl ?? "",
     leisArquivoNome: leisFiles[0]?.fileName ?? settings?.leisArquivoNome ?? "",
     leisArquivoUrl: leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
   };
@@ -3257,7 +3291,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <FileDropZone
                     title="Brasão oficial"
                     description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
@@ -3332,6 +3366,17 @@ export function ConfiguracoesPage() {
                     savedLabel="Salvo no armazenamento oficial"
                     files={usoSoloFiles}
                     onFilesSelected={setUsoSoloFiles}
+                  />
+                  <FileDropZone
+                    title="Zoneamento"
+                    description="PDF oficial e específico do zoneamento municipal, separado da Lei de Uso e Ocupação do Solo."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
+                    files={zoneamentoFiles}
+                    onFilesSelected={setZoneamentoFiles}
                   />
                   <FileDropZone
                     title="Leis complementares"
