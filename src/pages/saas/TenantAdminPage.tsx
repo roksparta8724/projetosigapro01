@@ -591,129 +591,216 @@ export function TenantAdminPage() {
     const financialGuides = getProcessPaymentGuides(process, tenantSettings);
     const pendingGuides = financialGuides.filter((guide) => guide.status === "pendente");
     const protocolGuide = financialGuides.find((guide) => guide.kind === "protocolo");
+    const slaLabel = process.sla.breached
+      ? "Vencido"
+      : process.sla.hoursRemaining <= 12
+        ? "Crítico"
+        : "No prazo";
 
     return (
-      <div key={process.id} className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-        <div className="grid min-w-0 gap-5 p-5 2xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.55fr)] 2xl:items-start">
+      <article
+        key={process.id}
+        className="group relative min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.045)] transition hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.075)]"
+      >
+        <div
+          className={`absolute inset-y-0 left-0 w-1 ${
+            process.sla.breached
+              ? "bg-rose-500"
+              : process.sla.hoursRemaining <= 12
+                ? "bg-amber-400"
+                : "bg-sky-500"
+          }`}
+          aria-hidden="true"
+        />
+
+        <div className="grid min-w-0 gap-4 px-4 py-4 pl-5 lg:grid-cols-[minmax(260px,1.55fr)_minmax(150px,0.72fr)_minmax(140px,0.68fr)_minmax(115px,0.52fr)_auto] lg:items-center">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="max-w-full truncate text-lg font-semibold leading-7 text-slate-950" title={process.protocol}>
+              <p
+                className="max-w-full truncate text-sm font-black tracking-[-0.01em] text-slate-950"
+                title={process.protocol}
+              >
                 {process.protocol}
               </p>
               <Badge variant="outline" className={statusTone(process.status)}>
                 {statusLabel(process.status)}
               </Badge>
-              <Badge className={`shrink-0 rounded-full border ${getPriorityTone(process)}`}>
-                {process.sla.breached ? "SLA vencido" : process.sla.hoursRemaining <= 12 ? "SLA crítico" : "No prazo"}
+              <Badge className={`shrink-0 rounded-full border text-[10px] ${getPriorityTone(process)}`}>
+                SLA {slaLabel}
               </Badge>
             </div>
-
-            <p className="mt-2 line-clamp-2 text-base leading-6 text-slate-900" title={process.title}>
+            <p
+              className="mt-1.5 truncate text-sm font-semibold text-slate-800"
+              title={process.title}
+            >
               {process.title}
             </p>
-
-            <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
-              <p className="min-w-0 truncate text-sm leading-6 text-slate-500" title={process.ownerName}>
-                Responsável externo: {process.ownerName}
-              </p>
-              <p className="min-w-0 truncate text-sm leading-6 text-slate-500" title={`IPTU ${process.property.iptu}`}>
-                Cadastro imobiliário: {process.property.iptu}
-              </p>
+            <div className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              <span className="truncate" title={process.ownerName}>
+                {process.ownerName || "Responsável não informado"}
+              </span>
+              <span className="truncate" title={process.property.iptu}>
+                IPTU {process.property.iptu || "não informado"}
+              </span>
             </div>
-            <p className="mt-1 min-w-0 truncate text-sm leading-6 text-slate-500" title={process.address}>
-              {process.address}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+              Etapa atual
+            </p>
+            <p
+              className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-700"
+              title={process.sla.currentStage}
+            >
+              {process.sla.currentStage || "Não informada"}
             </p>
           </div>
 
-          <div className="grid min-w-0 gap-3 md:grid-cols-3">
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <span className="block font-semibold text-slate-900">Setor atual:</span>
-              <span className="mt-1 block line-clamp-2 break-words leading-5" title={process.sla.currentStage}>
-                {process.sla.currentStage || "Não informado"}
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+              Responsável
+            </p>
+            <p
+              className="mt-1 truncate text-xs font-semibold text-slate-700"
+              title={process.technicalLead}
+            >
+              {process.technicalLead || "Não atribuído"}
+            </p>
+            <p className="mt-1 truncate text-[11px] text-slate-400" title={process.sla.dueDate}>
+              Prazo: {process.sla.dueDate || "não informado"}
+            </p>
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+              Pendências
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">
+                {pendingRequirements.length} exig.
+              </span>
+              <span className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700">
+                {pendingGuides.length} guia(s)
               </span>
             </div>
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <span className="block font-semibold text-slate-900">Responsável:</span>
-              <span className="mt-1 block line-clamp-2 break-words leading-5" title={process.technicalLead}>
-                {process.technicalLead || "Não informado"}
-              </span>
-            </div>
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <span className="block font-semibold text-slate-900">Prazo:</span>
-              <span className="mt-1 block truncate leading-5" title={process.sla.dueDate}>
-                {process.sla.dueDate || "Não informado"}
-              </span>
-            </div>
+            <p
+              className="mt-1 truncate text-[10px] text-slate-400"
+              title={protocolGuide?.code || ""}
+            >
+              {protocolGuide?.code ? `Inicial ${protocolGuide.code}` : "Sem guia inicial"}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              onClick={() => navigate(`/processos/${process.id}`)}
+            >
+              Abrir processo
+            </Button>
           </div>
         </div>
-
-        <div className="grid min-w-0 gap-3 border-t border-slate-200 p-5 pt-4 md:grid-cols-3">
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Triagem</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">
-              {process.triage.status === "concluido" ? "Concluída" : "Em aberto"}
-            </p>
-            <p className="mt-1 truncate text-sm leading-6 text-slate-500" title={process.triage.assignedTo || "Sem responsável"}>
-              {process.triage.assignedTo || "Sem responsável"}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Pendências</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">{pendingRequirements.length}</p>
-            <p className="mt-1 line-clamp-2 text-sm text-slate-500" title={pendingRequirements[0]?.title || "Sem exigências abertas"}>
-              {pendingRequirements[0]?.title || "Sem exigências abertas"}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Financeiro</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">
-              {pendingGuides.length > 0 ? `${pendingGuides.length} pendente(s)` : financialGuides.length > 0 ? "Compensado" : "Sem guia emitida"}
-            </p>
-            <p className="mt-1 truncate text-sm leading-6 text-slate-500" title={protocolGuide?.code || "Nenhuma guia de protocolo"}>
-              {protocolGuide?.code ? `Guia inicial ${protocolGuide.code}` : `${financialGuides.length} guia(s) emitida(s)`}
-            </p>
-          </div>
-        </div>
-      </div>
+      </article>
     );
   };
 
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
     const isEditing = editingUserId === user.id;
+    const departmentLabel = getUserDepartmentLabel(user);
+    const roleVisual =
+      user.role === "financeiro"
+        ? {
+            rail: "bg-emerald-500",
+            badge: "border-emerald-200 bg-emerald-50 text-emerald-800",
+            icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          }
+        : user.role === "analista" || user.role === "prefeitura_supervisor"
+          ? {
+              rail: "bg-sky-500",
+              badge: "border-sky-200 bg-sky-50 text-sky-800",
+              icon: "border-sky-200 bg-sky-50 text-sky-700",
+            }
+          : user.role === "fiscal"
+            ? {
+                rail: "bg-amber-400",
+                badge: "border-amber-200 bg-amber-50 text-amber-800",
+                icon: "border-amber-200 bg-amber-50 text-amber-700",
+              }
+            : user.role === "prefeitura_admin"
+              ? {
+                  rail: "bg-violet-500",
+                  badge: "border-violet-200 bg-violet-50 text-violet-800",
+                  icon: "border-violet-200 bg-violet-50 text-violet-700",
+                }
+              : {
+                  rail: "bg-slate-400",
+                  badge: "border-slate-200 bg-slate-50 text-slate-700",
+                  icon: "border-slate-200 bg-slate-50 text-slate-700",
+                };
 
     return (
-      <div key={user.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <article
+        key={user.id}
+        className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.055)]"
+      >
+        <div className={`absolute inset-y-0 left-0 w-1.5 ${roleVisual.rail}`} aria-hidden="true" />
+
+        <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_55%,#f2f6fa_100%)] px-5 py-5 pl-6 md:px-6 md:pl-7">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex min-w-0 items-start gap-4">
-              <UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="lg" />
-              <div className="min-w-0 space-y-1.5">
+              <div className={`rounded-[18px] border p-1.5 shadow-sm ${roleVisual.icon}`}>
+                <UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="lg" />
+              </div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <p className="sig-fit-title text-lg font-semibold leading-7 text-slate-950">{user.name}</p>
-                  <Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge>
+                  <p className="sig-fit-title text-lg font-black leading-7 tracking-[-0.015em] text-slate-950">
+                    {user.name}
+                  </p>
+                  <Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>
+                    {getStatusLabel(user.accountStatus)}
+                  </Badge>
                 </div>
-                <p className="sig-fit-copy text-sm leading-6 text-slate-600">{user.title || user.department || "Setor não informado"}</p>
-                <p className="sig-fit-copy text-sm leading-6 text-slate-500" title={user.email}>{user.email}</p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${roleVisual.badge}`}>
+                    {getMunicipalProfileLabel(user)}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-700">
+                    {user.title || "Cargo não informado"}
+                  </span>
+                </div>
+
+                <p className="mt-2 sig-fit-copy text-sm text-slate-500" title={user.email}>
+                  {user.email}
+                </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 xl:max-w-[42%] xl:justify-end">
-              <Badge className="sig-tenant-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{getMunicipalProfileLabel(user)}</Badge>
-              <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge>
-              <Badge variant="outline" className="rounded-full border-slate-300 px-3 py-1 text-slate-600">{user.userType || "Usuário"}</Badge>
+            <div className="flex flex-wrap items-center gap-2 xl:max-w-[45%] xl:justify-end">
+              <Badge variant="outline" className="rounded-full border-slate-300 bg-white px-3 py-1 text-slate-700">
+                {accessLevelLabels[user.accessLevel]}
+              </Badge>
+              <Badge variant="outline" className="rounded-full border-slate-300 bg-white px-3 py-1 text-slate-600">
+                {user.userType || "Usuário"}
+              </Badge>
             </div>
           </div>
+        </div>
 
+        <div className="space-y-5 px-5 py-5 pl-6 md:px-6 md:pl-7">
           {isEditing ? (
-            <div className="grid gap-3 border-t border-slate-200 pt-5 lg:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-3 rounded-[22px] border border-sky-200 bg-sky-50/40 p-4 lg:grid-cols-2 2xl:grid-cols-3">
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>E-mail de acesso</Label>
-                <Input value={editForm.email} readOnly className="bg-slate-50" />
+                <Input value={editForm.email} readOnly className="bg-white" />
               </div>
               <div className="space-y-2">
                 <Label>Cargo / função / profissão</Label>
@@ -740,7 +827,7 @@ export function TenantAdminPage() {
                     )
                   }
                 >
-                  <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-2xl bg-white"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">Sem departamento</SelectItem>
                     {activeDepartments.map((department) => (
@@ -755,7 +842,7 @@ export function TenantAdminPage() {
                   value={getMunicipalProfileSelectValue(editForm.role, editForm.profileLabel)}
                   onValueChange={(value) => setEditForm((current) => applyMunicipalProfileSelection(value, current))}
                 >
-                  <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-2xl bg-white"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
                   <SelectContent>
                     {tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}
                     {municipalProfilePresets.map((profile) => (
@@ -767,17 +854,25 @@ export function TenantAdminPage() {
               <div className="space-y-2">
                 <Label>Nível de acesso</Label>
                 <Select value={editForm.accessLevel} onValueChange={(value) => setEditForm((current) => ({ ...current, accessLevel: value }))}>
-                  <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent>
+                  <SelectTrigger className="h-11 rounded-2xl bg-white"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Nível 1 - Operacional</SelectItem>
+                    <SelectItem value="2">Nível 2 - Coordenação</SelectItem>
+                    <SelectItem value="3">Nível 3 - Gestão total</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col gap-2 lg:col-span-2 2xl:col-span-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <Button type="button" disabled={savingUserId === user.id} className="sig-force-dark-action h-11 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900 sm:w-auto" onClick={() => void handleSaveEdit(user.id)}>{savingUserId === user.id ? "Salvando..." : "Salvar alterações"}</Button>
-                  <Button type="button" variant="outline" className="h-11 w-full rounded-2xl sm:w-auto" onClick={() => { setEditStatusMessage(""); setEditingUserId(null); }}>Cancelar</Button>
+                  <Button type="button" disabled={savingUserId === user.id} className="sig-force-dark-action h-11 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900 sm:w-auto" onClick={() => void handleSaveEdit(user.id)}>
+                    {savingUserId === user.id ? "Salvando..." : "Salvar alterações"}
+                  </Button>
+                  <Button type="button" variant="outline" className="h-11 w-full rounded-2xl bg-white sm:w-auto" onClick={() => { setEditStatusMessage(""); setEditingUserId(null); }}>
+                    Cancelar
+                  </Button>
                 </div>
                 {editStatusMessage ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
                     {editStatusMessage}
                   </div>
                 ) : null}
@@ -785,36 +880,74 @@ export function TenantAdminPage() {
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Departamento</span>
-              <span className="mt-2 block font-medium text-slate-800">{getUserDepartmentLabel(user)}</span>
+          <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.9fr)_minmax(0,1.5fr)]">
+            <div className={`rounded-[20px] border p-4 ${roleVisual.badge}`}>
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.13em]">
+                  Lotação institucional
+                </p>
+              </div>
+              <p className="mt-3 text-base font-black leading-6">{departmentLabel}</p>
+              <p className="mt-1 text-xs leading-5 opacity-80">
+                {user.title || getMunicipalProfileLabel(user)}
+              </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Criado em</span>
-              <span className="mt-2 block font-medium text-slate-800">{user.createdAt || "Não informado"}</span>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Último acesso</span>
-              <span className="mt-2 block font-medium text-slate-800">{user.lastAccessAt || "Não registrado"}</span>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 text-slate-600">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Justificativa</span>
-              <span className="mt-2 block font-medium text-slate-800">{user.blockReason || "Sem restrição administrativa"}</span>
+
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-slate-500" />
+                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-500">
+                  Acesso e segurança
+                </p>
+              </div>
+              <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Criado em</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.createdAt || "Não informado"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Último acesso</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.lastAccessAt || "Não registrado"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Situação administrativa</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                    {user.blockReason || "Sem restrição administrativa"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-slate-200 pt-5 sm:flex-row sm:flex-wrap">
-            {canManageAccount(user) ? <>
-              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => startEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button>
-              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleBlockToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button>
-              <Button type="button" disabled={savingUserId === user.id} variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleDeactivate(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar conta</Button>
-            </> : <p className="text-sm text-slate-500">Esta conta administrativa é gerenciada pelo Master.</p>}
+          <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:flex-wrap">
+            {canManageAccount(user) ? (
+              <>
+                <Button type="button" disabled={savingUserId === user.id} variant="outline" className="h-10 w-full rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:w-auto" onClick={() => startEdit(user)}>
+                  <PencilLine className="mr-2 h-4 w-4 text-sky-700" />
+                  Editar cadastro
+                </Button>
+                <Button type="button" disabled={savingUserId === user.id} variant="outline" className="h-10 w-full rounded-xl border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 sm:w-auto" onClick={() => handleBlockToggle(user)}>
+                  {user.accountStatus === "blocked"
+                    ? <><Undo2 className="mr-2 h-4 w-4" />Desbloquear</>
+                    : <><ShieldAlert className="mr-2 h-4 w-4" />Bloquear acesso</>}
+                </Button>
+                <Button type="button" disabled={savingUserId === user.id} variant="outline" className="h-10 w-full rounded-xl border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 sm:w-auto" onClick={() => handleDeactivate(user)}>
+                  <UserX className="mr-2 h-4 w-4" />
+                  Desativar conta
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Esta conta administrativa é gerenciada pelo Master.
+              </p>
+            )}
           </div>
         </div>
-      </div>
+      </article>
     );
   };
+
   const executiveCards = [
     { label: "Processos ativos", value: `${metrics.protocolsInProgress}`, description: "Processos municipais em andamento", icon: ClipboardList, tone: "blue" as const },
     { label: "Fila operacional", value: `${mainQueue.length}`, description: "Itens priorizados para coordenação", icon: Clock3, tone: "amber" as const },
