@@ -30,6 +30,13 @@ describe("municipal process registry", () => {
     expect(registry).toContain("parseMarker");
   });
 
+  it("keeps each process row dense like SEI instead of rendering tall process cards", () => {
+    expect(registry).toContain('data-sei-process-row="true"');
+    expect(registry).toContain("px-3 py-2.5");
+    expect(registry).not.toContain("Abrir processo");
+    expect(analyst).toContain("CompactProcessRegistry");
+  });
+
   it("shows only the single operational marker and leaves marker management in the topbar", () => {
     expect(registry).toContain("process.tags?.[0]");
     expect(registry).not.toContain("MarkerSelector");
@@ -40,6 +47,9 @@ describe("municipal process registry", () => {
   it("moves the organogram to the topbar instead of rendering the page organogram strip", () => {
     expect(frame).toContain('navigate("/prefeitura/organograma")');
     expect(frame).toContain('aria-label="Organograma"');
+    expect(frame).toContain("showMunicipalOrganogramShortcut");
+    expect(frame).toContain("Organograma municipal");
+    expect(frame).toContain(">Organograma<");
     expect(frame).not.toContain("MunicipalOrganogramBar");
     expect(frame).not.toContain('key: "organization"');
   });
