@@ -111,6 +111,14 @@ begin
       raise exception 'Aliquota da guia de aprovacao invalida';
     end if;
 
+    if nullif(_normalized_usage,'') is null then
+      raise exception 'Tipo de obra/uso nao informado para calculo da aprovacao';
+    end if;
+
+    if nullif(_normalized_standard,'') is null then
+      raise exception 'Padrao de acabamento nao informado para calculo da aprovacao';
+    end if;
+
     if jsonb_typeof(_settings->'approval_rate_profiles') = 'array'
        and jsonb_array_length(_settings->'approval_rate_profiles') > 0 then
       _profiles := _settings->'approval_rate_profiles';
@@ -122,15 +130,6 @@ begin
         and public.normalize_fee_label(p.value->>'standard') = _normalized_standard
       order by p.ord
       limit 1;
-
-      if _profile is null then
-        select p.value
-          into _profile
-        from jsonb_array_elements(_profiles) with ordinality p(value, ord)
-        where public.normalize_fee_label(p.value->>'usage') = _normalized_usage
-        order by p.ord
-        limit 1;
-      end if;
 
       if _profile is not null then
         _rate := nullif(_profile->>'rate','')::numeric;
@@ -149,9 +148,6 @@ begin
     _permit_fee := coalesce(_permit_fee, _fixed, 0);
 
     if _rate is null or _rate <= 0 then
-      if _permit_fee > 0 then
-        return round(_permit_fee, 2);
-      end if;
       raise exception 'Tabela da guia de aprovacao nao configurada para o tipo de obra e acabamento informados';
     end if;
 
