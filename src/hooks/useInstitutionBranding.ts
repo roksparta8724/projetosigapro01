@@ -33,6 +33,43 @@ const getCachedMasterFooterUrl = () =>
     ? cachedMasterFooterSignedUrl
     : "";
 
+function isUsableBrandingUrl(value: string | null | undefined) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  try {
+    const url = new URL(raw, typeof window !== "undefined" ? window.location.origin : "https://sigapromunicipal.com.br");
+    const amzDate = url.searchParams.get("X-Amz-Date");
+    const expires = Number(url.searchParams.get("X-Amz-Expires") || "0");
+    if (!amzDate || !Number.isFinite(expires) || expires <= 0) return true;
+
+    const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(amzDate);
+    if (!match) return true;
+    const issuedAt = Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4]),
+      Number(match[5]),
+      Number(match[6]),
+    );
+    return Date.now() < issuedAt + expires * 1000 - 30_000;
+  } catch {
+    return true;
+  }
+}
+
+function municipalityLogoFallback(name: string | null | undefined) {
+  const normalized = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
+  if (normalized.includes("campo limpo paulista")) {
+    return "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
+  }
+  return "";
+}
+
 function buildEmptyTenantSettings(tenantId: string): TenantSettings {
   return {
     tenantId,
@@ -304,14 +341,22 @@ export function useInstitutionBranding(tenantId?: string | null) {
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "header",
     );
-    const brandingUrl = scopedMunicipalityBranding?.headerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
-    const resolvedTenantHeaderLogo =
+    const rawHeaderUrl =
       scopedMunicipalityBranding?.headerLogoUrl ||
+      scopedMunicipalityBranding?.logoUrl ||
+      "";
+    const brandingUrl = isUsableBrandingUrl(rawHeaderUrl) ? rawHeaderUrl : "";
+    const institutionalFallback =
+      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
+      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
+    const resolvedTenantHeaderLogo =
       brandingUrl ||
-      base.logoUrl ||
-      (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId
+      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
+      isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
         ? stableTenantHeaderLogoRef.current.url
-        : "");
+        : "") ||
+      institutionalFallback;
 
     if (resolvedTenantHeaderLogo) {
       stableTenantHeaderLogoRef.current = {
@@ -331,6 +376,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     };
   }, [
     institution?.name,
+    scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
     platformBranding?.headerLogoFileName,
@@ -359,14 +405,22 @@ export function useInstitutionBranding(tenantId?: string | null) {
       institution?.name ? `Logo institucional de ${institution.name}` : "Logo institucional",
       "footer",
     );
-    const brandingUrl = scopedMunicipalityBranding?.footerLogoUrl || scopedMunicipalityBranding?.logoUrl || "";
-    const resolvedTenantFooterLogo =
+    const rawFooterUrl =
       scopedMunicipalityBranding?.footerLogoUrl ||
+      scopedMunicipalityBranding?.logoUrl ||
+      "";
+    const brandingUrl = isUsableBrandingUrl(rawFooterUrl) ? rawFooterUrl : "";
+    const institutionalFallback =
+      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
+      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
+    const resolvedTenantFooterLogo =
       brandingUrl ||
-      base.logoUrl ||
-      (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId
+      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
+      isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
         ? stableTenantFooterLogoRef.current.url
-        : "");
+        : "") ||
+      institutionalFallback;
 
     if (resolvedTenantFooterLogo) {
       stableTenantFooterLogoRef.current = {
@@ -386,6 +440,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     };
   }, [
     institution?.name,
+    scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
     platformBranding?.footerLogoFileName,
