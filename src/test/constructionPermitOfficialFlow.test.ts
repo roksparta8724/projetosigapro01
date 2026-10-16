@@ -46,12 +46,13 @@ describe("official construction permit workflow", () => {
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
   });
 
-  it("keeps secretary electronic signature optional and reserves a clean secretary line in the manual PDF", () => {
+  it("keeps secretary optional and only shows the secretary block when a secretary actually signs", () => {
     expect(permitLib).toContain("secretarySignature");
     expect(panel).toContain("Assinar também como Secretário");
     expect(panel).toContain("secretaryOfficial");
-    expect(permitPdf).toContain("const showManualAuthorityLines");
-    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial || showManualAuthorityLines");
+    expect(permitPdf).toContain("const showManualDirectorLine");
+    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial;");
+    expect(permitPdf).not.toContain("secretaryOfficial || showManual");
     expect(permitPdf).toContain("Secretaria municipal");
     expect(permitPdf).toContain("Secretário(a) Municipal");
   });
@@ -85,7 +86,27 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("effectiveAddress");
     expect(permitPdf).toContain("effectivePhone");
     expect(permitPdf).toContain("Prefeitura Municipal de Campo Limpo Paulista");
+    expect(permitPdf).toContain("Departamento de Urbanismo");
     expect(permitPdf).toContain("municipalityEmail");
     expect(permitPdf).not.toContain("RASCUNHO - SEM VALIDADE");
+  });
+
+  it("includes the official regularization data missing from the earlier permit and stays on one A4 page", () => {
+    expect(permitLib).toContain("propertyRegistryNumber");
+    expect(permitLib).toContain("technicalResponsibilityNumber");
+    expect(permitLib).toContain("regularizationAreas");
+    expect(panel).toContain("Matrícula do imóvel");
+    expect(panel).toContain("Área do terreno (m²)");
+    expect(panel).toContain("Testada (m)");
+    expect(panel).toContain("Nº de habitações");
+    expect(panel).toContain("Nº de pavimentos");
+    expect(panel).toContain("Nº de banheiros");
+    expect(panel).toContain("Nº ART / RRT / TRT");
+    expect(panel).toContain("Edificação - regularização");
+    expect(permitPdf).toContain("EDIFICAÇÃO / REGULARIZAÇÃO");
+    expect(permitPdf).toContain("Matrícula do imóvel / C.R.I.");
+    expect(permitPdf).toContain("Responsável técnico pelo projeto de regularização");
+    expect(permitPdf).toContain('format: "a4"');
+    expect(permitPdf).not.toContain("pdf.addPage(");
   });
 });
