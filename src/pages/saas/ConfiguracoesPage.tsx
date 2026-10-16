@@ -1999,6 +1999,143 @@ export function ConfiguracoesPage() {
     }
   };
 
+  const uploadInstitutionalAssetList = async (
+    files: UploadedFileItem[],
+    folder: string,
+    savedTenantId: string,
+  ): Promise<UploadedFileItem[]> => {
+    if (files.length === 0) return [];
+
+    const item = files[0];
+    if (!item?.file) {
+      return files;
+    }
+
+    const mimeType = item.file.type || item.mimeType || "application/octet-stream";
+    const isAllowed = mimeType === "application/pdf" || mimeType.startsWith("image/");
+    if (!isAllowed) {
+      throw new Error(`O arquivo "${item.fileName}" precisa ser PDF ou imagem.`);
+    }
+
+    if (item.file.size > 30 * 1024 * 1024) {
+      throw new Error(`O arquivo "${item.fileName}" excede o limite de 30 MB.`);
+    }
+
+    const uploaded = await uploadFileToStorage({
+      bucket: "institutional-branding",
+      tenantId: savedTenantId,
+      userId: session.id,
+      file: item.file,
+      folder,
+    });
+
+    if (!uploaded.publicUrl) {
+      throw new Error(
+        `O arquivo "${item.fileName}" foi enviado, mas o armazenamento não retornou uma URL pública para consulta institucional.`,
+      );
+    }
+
+    return [
+      {
+        ...item,
+        previewUrl: uploaded.publicUrl,
+        storagePath: uploaded.path,
+        file: undefined,
+        fileSizeBytes: item.fileSizeBytes ?? item.file.size,
+      },
+    ];
+  };
+
+  const handleSaveInstitutionalAssets = async () => {
+    if (institutionalAssetsSaving) return;
+
+    setInstitutionalAssetsSaving(true);
+    setInstitutionalAssetsStatus("");
+
+    try {
+      const savedTenantId = resolveValidScopeId(
+        selectedTenantId || scopeId || session.tenantId,
+      );
+
+      if (!savedTenantId) {
+        throw new Error("Selecione uma Prefeitura válida antes de salvar os arquivos institucionais.");
+      }
+
+      const [
+        nextBrasaoFiles,
+        nextBandeiraFiles,
+        nextHeroFiles,
+        nextPlanoDiretorFiles,
+        nextUsoSoloFiles,
+        nextLeisFiles,
+      ] = await Promise.all([
+        uploadInstitutionalAssetList(brasaoFiles, "branding/brasao", savedTenantId),
+        uploadInstitutionalAssetList(bandeiraFiles, "branding/bandeira", savedTenantId),
+        uploadInstitutionalAssetList(heroFiles, "branding/portal", savedTenantId),
+        uploadInstitutionalAssetList(planoDiretorFiles, "legislation/plano-diretor", savedTenantId),
+        uploadInstitutionalAssetList(usoSoloFiles, "legislation/uso-solo", savedTenantId),
+        uploadInstitutionalAssetList(leisFiles, "legislation/leis-complementares", savedTenantId),
+      ]);
+
+      const baseSettings =
+        buildTenantSettingsFromMunicipality(
+          selectedMunicipality,
+          selectedMunicipalityBranding,
+          selectedMunicipalitySettings,
+          getInstitutionSettingsRef.current(savedTenantId),
+        ) ?? getInstitutionSettingsRef.current(savedTenantId);
+
+      if (!baseSettings) {
+        throw new Error("Não foi possível carregar as configurações oficiais desta Prefeitura.");
+      }
+
+      const nextSettings: TenantSettings = {
+        ...baseSettings,
+        tenantId: savedTenantId,
+        brasaoUrl: nextBrasaoFiles[0]?.previewUrl ?? "",
+        bandeiraUrl: nextBandeiraFiles[0]?.previewUrl ?? "",
+        imagemHeroUrl: nextHeroFiles[0]?.previewUrl ?? "",
+        planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
+        planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.previewUrl ?? "",
+        usoSoloArquivoNome: nextUsoSoloFiles[0]?.fileName ?? "",
+        usoSoloArquivoUrl: nextUsoSoloFiles[0]?.previewUrl ?? "",
+        leisArquivoNome: nextLeisFiles[0]?.fileName ?? "",
+        leisArquivoUrl: nextLeisFiles[0]?.previewUrl ?? "",
+      };
+
+      if (hasBackendEnv) {
+        await withTimeout(
+          saveRemoteInstitutionSettings(nextSettings, {
+            skipMunicipalityUpdate: true,
+            skipMunicipalityBranding: false,
+          }),
+          "Tempo limite ao salvar os arquivos institucionais no banco oficial.",
+        );
+      }
+
+      saveInstitutionSettings(nextSettings, { skipRemoteSync: hasBackendEnv });
+
+      setBrasaoFiles(nextBrasaoFiles);
+      setBandeiraFiles(nextBandeiraFiles);
+      setHeroFiles(nextHeroFiles);
+      setPlanoDiretorFiles(nextPlanoDiretorFiles);
+      setUsoSoloFiles(nextUsoSoloFiles);
+      setLeisFiles(nextLeisFiles);
+
+      setInstitutionalAssetsStatus(
+        "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo e Leis Complementares já estão vinculados ao módulo Legislação.",
+      );
+    } catch (error) {
+      setInstitutionalAssetsStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar os arquivos institucionais.",
+      );
+    } finally {
+      setInstitutionalAssetsSaving(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setStatus("");
