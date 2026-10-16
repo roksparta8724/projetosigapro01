@@ -53,6 +53,20 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
+  it("never replaces a configured municipal object key with the generic municipality fallback", () => {
+    expect(branding).toContain("hasPersistedHeaderIdentity");
+    expect(branding).toContain("hasPersistedFooterIdentity");
+    expect(branding).toContain("!hasPersistedHeaderIdentity");
+    expect(branding).toContain("!hasPersistedFooterIdentity");
+  });
+
+  it("edits exactly the runtime-resolved municipal logo in the frame editor", () => {
+    expect(settings).toContain("draftHeaderLogoFiles[0]?.previewUrl ??");
+    expect(settings).toContain("headerBranding.logoUrl ??");
+    expect(settings).toContain("draftFooterLogoFiles[0]?.previewUrl ??");
+    expect(settings).toContain("footerBranding.logoUrl ??");
+  });
+
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
     expect(settings).toContain("getObjectKeyFromPublicUrl(url || \"\")");
     expect(settings).toContain("X-Amz-");
