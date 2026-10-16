@@ -1776,7 +1776,7 @@ export function ProcessDetailPage() {
         departmentHint={currentFolder}
         title="Organograma do processo"
         description="A unidade atual aparece dentro da hierarquia oficial da Prefeitura. O mesmo organograma é usado para escolher o destino dos despachos."
-        showLink={isInternalRole(session.role)}
+        showLink={false}
       />
 
       <PageStatsRow className="sig-process-stats">
