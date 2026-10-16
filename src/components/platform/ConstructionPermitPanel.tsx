@@ -80,6 +80,16 @@ type ConstructionPermitPanelProps = {
   organogramTrail?: Array<{ code: string; name: string }>;
 };
 
+function permitFormTitle(workType?: string | null) {
+  const raw = String(workType || "");
+  if (/regulariza/i.test(raw)) return "Alvará de Regularização";
+  if (/demoli/i.test(raw)) return "Alvará de Demolição";
+  if (/reforma/i.test(raw)) return "Alvará de Reforma";
+  if (/amplia/i.test(raw)) return "Alvará de Ampliação";
+  if (/terraplen|movimenta.*terra/i.test(raw)) return "Alvará de Terraplenagem";
+  return "Alvará de Construção";
+}
+
 function permitStatusLabel(record: ConstructionPermitRecord | null) {
   if (!record) return "Ainda não preparado";
   const directorOfficial = Boolean(
@@ -404,7 +414,11 @@ export function ConstructionPermitPanel({
   const buildDraftFromForm = (): ConstructionPermitRecord | null => {
     if (!canEditForm && !canStartDraft) return null;
 
-    const area = Number(String(formData.areaM2).replace(",", "."));
+    const enteredArea = Number(String(formData.areaM2).replace(",", "."));
+    const effectiveArea =
+      isRegularizationForm && regularizationAreaTotal > 0
+        ? regularizationAreaTotal
+        : enteredArea;
     if (!formData.ownerName.trim()) {
       setStatus("Informe o proprietário/titular do Alvará.");
       return null;
@@ -417,8 +431,12 @@ export function ConstructionPermitPanel({
       setStatus("Informe o endereço do imóvel.");
       return null;
     }
-    if (!Number.isFinite(area) || area <= 0) {
-      setStatus("Informe uma área licenciada válida.");
+    if (!Number.isFinite(effectiveArea) || effectiveArea <= 0) {
+      setStatus(
+        isRegularizationForm
+          ? "Informe a área total ou detalhe as áreas a regularizar."
+          : "Informe uma área licenciada válida.",
+      );
       return null;
     }
     if (!formData.usage.trim() || !formData.workType.trim()) {
@@ -457,6 +475,10 @@ export function ConstructionPermitPanel({
 
     const next = updateConstructionPermitFormData(base, {
       ...formData,
+      areaM2:
+        isRegularizationForm && regularizationAreaTotal > 0
+          ? regularizationAreaTotal.toFixed(2).replace(".", ",")
+          : formData.areaM2,
       technicalRegistration:
         formData.technicalRegistration ||
         technicalProfile?.registrationNumber ||
@@ -1151,7 +1173,7 @@ export function ConstructionPermitPanel({
                         Preenchimento oficial
                       </p>
                       <DialogTitle className="mt-1 text-xl font-bold !text-white">
-                        Alvará de Construção
+                        {permitFormTitle(formData.workType || process.property.workType || process.type)}
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
                         Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura à caneta. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
