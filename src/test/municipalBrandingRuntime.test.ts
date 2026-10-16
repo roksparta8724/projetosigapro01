@@ -18,13 +18,21 @@ describe("municipal branding runtime resilience", () => {
     expect(tenant).toContain("document.createElement(\"link\")");
   });
 
-  it("keeps the visible municipal logo priority stable instead of replacing it from the object key", () => {
-    expect(branding).toContain("const resolvedTenantHeaderLogo =\n      brandingUrl ||");
-    expect(branding).toContain("const resolvedTenantFooterLogo =\n      brandingUrl ||");
+  it("renews an expired municipal logo from its persistent object key without changing the asset", () => {
+    expect(branding).toContain("resolvedTenantHeaderLogoUrl");
+    expect(branding).toContain("resolvedTenantFooterLogoUrl");
+    expect(branding).toContain("scopedMunicipalityBranding?.headerLogoObjectKey");
+    expect(branding).toContain('bucket: "institutional-branding"');
+    expect(branding).toContain("getSignedUrlForObjectStrict");
     expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
     expect(branding).toContain("municipalityLogoFallback");
-    expect(branding).not.toContain("resolvedTenantHeaderLogoUrl");
-    expect(branding).not.toContain("resolvedTenantFooterLogoUrl");
+  });
+
+  it("uses the same resolved logo in the configuration preview without replacing a newly selected file", () => {
+    expect(settings).toContain("headerBranding.logoUrl");
+    expect(settings).toContain("footerBranding.logoUrl");
+    expect(settings).toContain("if (current[0]?.file) return current");
+    expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
