@@ -85,6 +85,23 @@ export function DocumentAnalysisPage() {
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    const fileLabel =
+      document?.fileName?.trim() ||
+      document?.label?.trim() ||
+      "Documento técnico";
+    const protocol = process?.protocol?.trim() || "";
+
+    document.title = protocol
+      ? `Análise • ${fileLabel} • ${protocol} • SIGAPRO`
+      : `Análise • ${fileLabel} • SIGAPRO`;
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [document?.fileName, document?.label, process?.protocol]);
   const effectiveScopeId =
     process?.municipalityId ??
     process?.tenantId ??
