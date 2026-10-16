@@ -91,7 +91,18 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
       if (!active) return;
       const link = ensureIconLink();
-      link.href = faviconUrl || fallback;
+      const finalUrl = faviconUrl || fallback;
+      link.href = finalUrl;
+
+      if (/\.jpe?g(?:$|\?)/i.test(finalUrl)) {
+        link.type = "image/jpeg";
+      } else if (/\.png(?:$|\?)/i.test(finalUrl)) {
+        link.type = "image/png";
+      } else if (/\.svg(?:$|\?)/i.test(finalUrl)) {
+        link.type = "image/svg+xml";
+      } else {
+        link.removeAttribute("type");
+      }
     })();
 
     return () => {
