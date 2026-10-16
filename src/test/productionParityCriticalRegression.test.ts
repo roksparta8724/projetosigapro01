@@ -33,6 +33,9 @@ describe("critical localhost x production parity", () => {
     expect(permitPage).toContain('constructionPermit?.status === "aguardando_diretor"');
     expect(permitPage).toContain("Alvará preenchido e encaminhado para assinatura da Diretoria");
     expect(permitPage).toContain("Abrir / conferir Alvará");
+    expect(permitPage).toContain("permitReachedIssuanceStage");
+    expect(permitPage).toContain('constructionPermit?.status !== "rascunho"');
+    expect(permitPage).toContain("currentFlowIndex = 4");
   });
 
   it("invalidates the old production asset cache and actively checks service-worker updates", () => {
