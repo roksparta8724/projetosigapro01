@@ -3108,6 +3108,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={brasaoFiles}
                     onFilesSelected={setBrasaoFiles}
                   />
@@ -3118,6 +3119,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={bandeiraFiles}
                     onFilesSelected={setBandeiraFiles}
                   />
@@ -3128,6 +3130,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={heroFiles}
                     onFilesSelected={setHeroFiles}
                   />
@@ -3158,6 +3161,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={planoDiretorFiles}
                     onFilesSelected={setPlanoDiretorFiles}
                   />
@@ -3168,6 +3172,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={usoSoloFiles}
                     onFilesSelected={setUsoSoloFiles}
                   />
@@ -3178,6 +3183,7 @@ export function ConfiguracoesPage() {
                     multiple={false}
                     allowPreview
                     busy={institutionalAssetsSaving}
+                    savedLabel="Salvo no armazenamento oficial"
                     files={leisFiles}
                     onFilesSelected={setLeisFiles}
                   />
