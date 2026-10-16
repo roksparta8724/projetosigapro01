@@ -28,6 +28,7 @@ type CompactProcessRegistryProps = {
   onToggleArchive?: (processId: string, archived: boolean) => void;
   emptyMessage?: string;
   showArchiveAction?: boolean;
+  canDispatchProcess?: (process: ProcessRecord) => boolean;
 };
 
 function formatDateTime(value?: string | null) {
@@ -60,6 +61,7 @@ export function CompactProcessRegistry({
   onToggleArchive,
   emptyMessage = "Nenhum processo encontrado.",
   showArchiveAction = true,
+  canDispatchProcess = () => true,
 }: CompactProcessRegistryProps) {
   if (processes.length === 0) {
     return (
@@ -215,19 +217,21 @@ export function CompactProcessRegistry({
                   </Link>
                 </Button>
 
-                <Button
-                  asChild
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-xl border-sky-200 bg-sky-50 px-2.5 text-[10px] font-bold text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200"
-                  title="Abrir área de despacho"
-                >
-                  <Link to={`/processos/${process.id}?aba=historico#despacho`}>
-                    <Send className="mr-1.5 h-3.5 w-3.5" />
-                    Despachar
-                  </Link>
-                </Button>
+                {canDispatchProcess(process) ? (
+                  <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-xl border-sky-200 bg-sky-50 px-2.5 text-[10px] font-bold text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200"
+                    title="Abrir área de despacho"
+                  >
+                    <Link to={`/processos/${process.id}?aba=historico#despacho`}>
+                      <Send className="mr-1.5 h-3.5 w-3.5" />
+                      Despachar
+                    </Link>
+                  </Button>
+                ) : null}
 
                 <Button
                   asChild
