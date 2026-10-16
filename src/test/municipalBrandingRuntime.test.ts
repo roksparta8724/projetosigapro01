@@ -56,14 +56,15 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
-  it("keeps the configured object-key logo authoritative and only falls back when it cannot be resolved", () => {
+  it("keeps the configured object-key logo authoritative but never leaves the municipal frame blank", () => {
     expect(branding).toContain("resolvedTenantHeaderLogoUrl");
     expect(branding).toContain("resolvedTenantFooterLogoUrl");
-    expect(branding).toContain("hasPersistedHeaderIdentity");
-    expect(branding).toContain("hasPersistedFooterIdentity");
     expect(branding).toContain("institutionalFallback");
     expect(branding).toContain("base.brasaoUrl");
     expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("hasPersistedHeaderIdentity");
+    expect(branding).not.toContain("hasPersistedFooterIdentity");
+    expect(branding).toContain('if (raw.startsWith("r2:")) return false');
   });
 
   it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
