@@ -1,6 +1,5 @@
 -- SIGAPRO — registro de retirada física da ficha/documento.
--- Mantido separado do payload assinado para não invalidar as assinaturas eletrônicas
--- quando o analista registrar posteriormente quem retirou o documento em mãos.
+-- Registro operacional separado do payload assinado, para não invalidar assinaturas eletrônicas.
 
 begin;
 
@@ -18,6 +17,7 @@ create table if not exists public.process_artifact_withdrawals (
   recorded_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp()
 );
+
 alter table public.process_artifact_withdrawals
   alter column artifact_hash drop not null;
 
@@ -125,7 +125,17 @@ begin
     raise exception 'Identificação da ficha inválida.';
   end if;
 
-  if _hash is not null and _hash !~ '^[0-9a-f]{64}
+  if _hash is not null and _hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Hash da ficha inválido.';
+  end if;
+
+  if _name='' then
+    raise exception 'Informe o nome de quem retirou o documento em mãos.';
+  end if;
+
+  if _withdrawn_at is null then
+    raise exception 'Informe a data da retirada.';
+  end if;
 
   insert into public.process_artifact_withdrawals(
     tenant_id,
@@ -187,106 +197,6 @@ begin
       'Retirado por ', _name,
       ' em ', to_char(_withdrawn_at,'DD/MM/YYYY'),
       case when _hash is not null then concat(' • SHA-256 ', _hash) else '' end
-    ),
-    true,
-    clock_timestamp()
-  );
-
-  return jsonb_build_object(
-    'ok', true,
-    'withdrawal', jsonb_build_object(
-      'id', _row.id,
-      'artifact_hash', _row.artifact_hash,
-      'withdrawn_by_name', _row.withdrawn_by_name,
-      'withdrawn_at', _row.withdrawn_at,
-      'recorded_by_profile_id', _row.recorded_by_profile_id,
-      'recorded_at', _row.recorded_at,
-      'updated_at', _row.updated_at
-    )
-  );
-end;
-$$;
-
-revoke all on function public.get_process_artifact_withdrawal_v1(uuid,text) from public;
-revoke all on function public.upsert_process_artifact_withdrawal_v1(uuid,text,text,text,date) from public;
-
-grant execute on function public.get_process_artifact_withdrawal_v1(uuid,text) to authenticated;
-grant execute on function public.upsert_process_artifact_withdrawal_v1(uuid,text,text,text,date) to authenticated;
-
-commit;
-
-notify pgrst, 'reload schema';
- then
-    raise exception 'Hash da ficha inválido.';
-  end if;
-
-  if _name='' then
-    raise exception 'Informe o nome de quem retirou o documento em mãos.';
-  end if;
-
-  if _withdrawn_at is null then
-    raise exception 'Informe a data da retirada.';
-  end if;
-
-  insert into public.process_artifact_withdrawals(
-    tenant_id,
-    municipality_id,
-    process_id,
-    artifact_key,
-    artifact_hash,
-    withdrawn_by_name,
-    withdrawn_at,
-    recorded_by_profile_id,
-    recorded_by_user_id,
-    recorded_at,
-    updated_at
-  )
-  values(
-    _process.tenant_id,
-    _process.municipality_id,
-    _process.id,
-    _key,
-    _hash,
-    _name,
-    _withdrawn_at,
-    _profile.id,
-    _profile.user_id,
-    clock_timestamp(),
-    clock_timestamp()
-  )
-  on conflict (process_id, artifact_key, artifact_hash)
-  do update set
-    withdrawn_by_name=excluded.withdrawn_by_name,
-    withdrawn_at=excluded.withdrawn_at,
-    recorded_by_profile_id=excluded.recorded_by_profile_id,
-    recorded_by_user_id=excluded.recorded_by_user_id,
-    updated_at=clock_timestamp()
-  returning * into _row;
-
-  insert into public.process_audit_entries(
-    tenant_id,
-    municipality_id,
-    process_id,
-    actor_user_id,
-    actor_profile_id,
-    category,
-    title,
-    detail,
-    visible_to_external,
-    created_at
-  )
-  values(
-    _process.tenant_id,
-    _process.municipality_id,
-    _process.id,
-    _profile.user_id,
-    _profile.id,
-    'retirada',
-    'Retirada em mãos registrada',
-    concat(
-      'Retirado por ', _name,
-      ' em ', to_char(_withdrawn_at,'DD/MM/YYYY'),
-      ' • SHA-256 ', _hash
     ),
     true,
     clock_timestamp()
