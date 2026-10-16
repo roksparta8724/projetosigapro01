@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -620,104 +621,21 @@ export function AnalystDeskPage() {
   const renderProcessRegistry = () => (
     <div className="space-y-3">
       <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-        Esta é a lista histórica da Análise Urbanística. Processos continuam aqui mesmo depois de seguirem para Financeiro ou outra unidade.
-        Arquivar organiza somente a sua lista e não apaga nem altera o processo oficial.
+        Lista histórica da Análise Urbanística em formato compacto. O número do processo abre a ficha completa.
+        O marcador exibido é o único marcador operacional do processo e continua sendo gerenciado pelo topo do SIGAPRO.
+        Arquivar organiza somente a sua lista; não apaga nem altera o processo oficial.
       </div>
 
-      {processRegistry.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
-          {showArchived ? "Nenhum processo arquivado nesta lista." : "Nenhum processo da Análise encontrado com os filtros atuais."}
-        </div>
-      ) : (
-        processRegistry.map((process) => {
-          const isActiveAnalysis = analysisActiveStatuses.includes(
-            process.status as (typeof analysisActiveStatuses)[number],
-          );
-          const currentFlow =
-            process.processControl?.currentFolder ||
-            process.dispatches[0]?.to ||
-            process.sla.currentStage ||
-            statusLabel(process.status);
-          const isArchived = archivedProcessIds.includes(process.id);
-
-          return (
-            <div
-              key={process.id}
-              data-process-premium-card="true"
-              data-surface="adaptive-card"
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/35"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
-                      {formatOfficialProcessNumber(process.protocol)}
-                    </p>
-                    <Badge variant="outline" className={statusTone(process.status)}>
-                      {statusLabel(process.status)}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`rounded-full ${
-                        isActiveAnalysis
-                          ? "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300"
-                          : "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/40 dark:bg-violet-950/40 dark:text-violet-300"
-                      }`}
-                    >
-                      <Workflow className="mr-1 h-3.5 w-3.5" />
-                      {isActiveAnalysis ? "Na Análise" : `Fluxo atual: ${currentFlow}`}
-                    </Badge>
-                  </div>
-
-                  <p className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
-                    {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {process.ownerName} • {process.address}
-                  </p>
-                  <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-                    Responsável pela análise: {process.analysis?.assignedTo || "Não atribuído"}
-                    {process.analysis?.startedAt ? ` • iniciada em ${new Date(process.analysis.startedAt).toLocaleString("pt-BR")}` : ""}
-                  </p>
-                </div>
-
-                <div className="mt-1 flex flex-col gap-2.5 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 rounded-full"
-                      onClick={() => setProcessArchived(process.id, !isArchived)}
-                    >
-                      {isArchived ? (
-                        <>
-                          <ArchiveRestore className="mr-2 h-4 w-4" />
-                          Restaurar na lista
-                        </>
-                      ) : (
-                        <>
-                          <Archive className="mr-2 h-4 w-4" />
-                          Arquivar da minha lista
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <Button
-                    asChild
-                    data-primary-action="process"
-                    className="sig-primary-process-action h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#082f49_0%,#075985_50%,#0f78b8_100%)] text-[14px] font-bold !text-white shadow-[0_12px_28px_rgba(7,89,133,0.30)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
-                  >
-                    <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center !text-white">
-                      <Eye className="mr-2 h-5 w-5 !text-white" />
-                      {isActiveAnalysis ? "Abrir processo" : "Consultar processo"}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })
-      )}
+      <CompactProcessRegistry
+        processes={processRegistry}
+        archivedProcessIds={archivedProcessIds}
+        onToggleArchive={setProcessArchived}
+        emptyMessage={
+          showArchived
+            ? "Nenhum processo arquivado nesta lista."
+            : "Nenhum processo da Análise encontrado com os filtros atuais."
+        }
+      />
     </div>
   );
 
