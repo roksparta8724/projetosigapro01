@@ -753,6 +753,8 @@ export async function loadRemotePlatformStore() {
       planoDiretorArquivoUrl: settings?.plano_diretor_arquivo_url ?? "",
       usoSoloArquivoNome: settings?.uso_solo_arquivo_nome ?? "",
       usoSoloArquivoUrl: settings?.uso_solo_arquivo_url ?? "",
+      zoneamentoArquivoNome: settings?.zoneamento_arquivo_nome ?? "",
+      zoneamentoArquivoUrl: settings?.zoneamento_arquivo_url ?? "",
       leisArquivoNome: settings?.leis_arquivo_nome ?? "",
       leisArquivoUrl: settings?.leis_arquivo_url ?? "",
       adminContacts: normalizeAdminContacts(legacyExtra.admin_contacts),
