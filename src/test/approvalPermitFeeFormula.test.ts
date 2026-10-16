@@ -71,4 +71,20 @@ describe("guia de aprovação e Alvará", () => {
     expect(migration).toContain("_permit_fee + (_area * _rate * (_aliquot / 100.0))");
     expect(migration).toContain("O Habite-se NÃO é calculado nem emitido por esta função");
   });
+
+  it("após o pagamento da aprovação retorna à Análise para emitir o Alvará, sem concluir como Habite-se", () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        "neon/migrations/20261016_approval_alvara_payment_workflow.sql",
+      ),
+      "utf8",
+    );
+
+    expect(migration).toContain("when 'aprovacao_final' then 'analise_tecnica'");
+    expect(migration).toContain("then 'Análise Urbanística'");
+    expect(migration).toContain("Alvará aguardando emissão e assinatura");
+    expect(migration).not.toContain("when 'aprovacao_final' then 'deferido'");
+    expect(migration).not.toContain("habite-se e aprovacao final");
+  });
 });
