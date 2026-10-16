@@ -25,13 +25,19 @@ describe("official electronic signatures", () => {
     resolve(process.cwd(), "neon/migrations/20261015_director_signature_request_flow.sql"),
     "utf8",
   );
+  const withdrawalMigration = readFileSync(
+    resolve(process.cwd(), "neon/migrations/20261015_analysis_withdrawal_record.sql"),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
     expect(checklist).toContain('type="password"');
     expect(checklist).toContain("Confirmar com minha senha");
     expect(checklist).toContain("technicalOfficial");
-    expect(checklist).toContain("fiscalOfficial");
+    expect(checklist).toContain("directorOfficial");
+    expect(checklist).not.toContain("fiscalOfficial");
+    expect(checklist).not.toContain("conferencia_fiscal");
   });
 
   it("builds the protocol label from the string field and never from the whole process object", () => {
@@ -126,6 +132,28 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("state.directorSignature");
     expect(checklist).toContain('"Diretoria"');
     expect(checklist).toContain("ASSINATURA SOLICITADA");
+  });
+
+  it("keeps this ficha limited to analyst and director signatures and records physical pickup separately", () => {
+    expect(checklist).toContain("Assinaturas do Analista Técnico e da Diretoria");
+    expect(checklist).toContain("2ª assinatura");
+    expect(checklist).not.toContain("Conferência do Fiscal de Obras");
+    expect(checklist).not.toContain("Assinar conferência fiscal");
+    expect(checklist).toContain("Retirada em mãos");
+    expect(checklist).toContain("Retirada em mãos por");
+    expect(checklist).toContain("Data da retirada");
+    expect(checklist).toContain("saveProcessArtifactWithdrawal");
+    expect(checklist).toContain("withdrawalMatchesCurrentVersion");
+  });
+
+  it("persists pickup outside the signed payload so later delivery does not invalidate signatures", () => {
+    expect(withdrawalMigration).toContain("process_artifact_withdrawals");
+    expect(withdrawalMigration).toContain("upsert_process_artifact_withdrawal_v1");
+    expect(withdrawalMigration).toContain("get_process_artifact_withdrawal_v1");
+    expect(withdrawalMigration).toContain("Retirada em mãos registrada");
+    expect(withdrawalMigration).toContain("artifact_hash");
+    expect(withdrawalMigration).toContain("analise_tecnica");
+    expect(checklist).not.toContain("withdrawn_by_name: state");
   });
 
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
