@@ -10,11 +10,10 @@ interface InstitutionalLogoProps {
   variant?: "header" | "footer" | "preview" | "compact" | "login";
   className?: string;
   viewportClassName?: string;
-  contextScope?: "auto" | "master" | "municipality";
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
-const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
+const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
@@ -77,31 +76,13 @@ export function InstitutionalLogo({
   variant = "header",
   className,
   viewportClassName,
-  contextScope = "auto",
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const [fallbackReady, setFallbackReady] = useState(false);
-  const isMaster =
-    contextScope === "master"
-      ? true
-      : contextScope === "municipality"
-        ? false
-        : branding.tenantId === "master";
-  const context = `${contextScope}:${variant}:${branding.tenantId}`;
-
-  const requestedCandidate = resolveAssetUrl(branding.logoUrl);
-  const municipalFallbackCandidate = resolveAssetUrl(branding.fallbackLogoUrl);
-
-  // Em uma superfície municipal o logo da plataforma jamais pode aparecer,
-  // nem por um frame durante o bootstrap/F5.
-  const requestedUrl =
-    !isMaster && sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)
-      ? ""
-      : requestedCandidate;
-  const municipalFallbackUrl =
-    !isMaster && sameAssetResource(municipalFallbackCandidate, SIGAPRO_OFFICIAL_LOGO)
-      ? ""
-      : municipalFallbackCandidate;
+  const isMaster = branding.tenantId === "master";
+  const context = `${variant}:${branding.tenantId}`;
+  const requestedUrl = resolveAssetUrl(branding.logoUrl);
+  const municipalFallbackUrl = resolveAssetUrl(branding.fallbackLogoUrl);
   const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
   const secondaryUrl = isMaster
     ? SIGAPRO_OFFICIAL_LOGO
@@ -114,45 +95,21 @@ export function InstitutionalLogo({
       : ""
     : primaryUrl;
 
-  const cachedAtMount = readSessionLogo(context);
-  const cachedMatchesCurrentAsset =
-    cachedAtMount &&
-    !failedSources.includes(cachedAtMount) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(cachedAtMount, candidate),
-    );
-
   const [loadedSource, setLoadedSource] = useState(() => ({
     context,
-    url: cachedMatchesCurrentAsset ? cachedAtMount : imageUrl,
+    url: readSessionLogo(context) || imageUrl,
   }));
-
-  const loadedSourceAllowed =
-    isMaster ||
-    !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO);
 
   const stableLoadedUrl =
     loadedSource.context === context &&
     loadedSource.url &&
-    loadedSourceAllowed &&
-    !failedSources.includes(loadedSource.url) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(loadedSource.url, candidate),
-    )
+    !failedSources.includes(loadedSource.url)
       ? loadedSource.url
       : "";
 
   const cachedContextUrl = readSessionLogo(context);
-  const cachedAllowed =
-    isMaster ||
-    !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO);
   const safeCachedUrl =
-    cachedContextUrl &&
-    cachedAllowed &&
-    !failedSources.includes(cachedContextUrl) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(cachedContextUrl, candidate),
-    )
+    cachedContextUrl && !failedSources.includes(cachedContextUrl)
       ? cachedContextUrl
       : "";
 
@@ -246,12 +203,7 @@ export function InstitutionalLogo({
               fetchPriority="high"
               onLoad={() => {
                 setLoadedSource({ context, url: displayUrl });
-                if (
-                  isMaster ||
-                  !sameAssetResource(displayUrl, SIGAPRO_OFFICIAL_LOGO)
-                ) {
-                  writeSessionLogo(context, displayUrl);
-                }
+                writeSessionLogo(context, displayUrl);
               }}
               onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
             />
@@ -268,13 +220,8 @@ export function InstitutionalLogo({
             decoding="sync"
             fetchPriority="high"
             onLoad={() => {
-              if (
-                isMaster ||
-                !sameAssetResource(pendingUrl, SIGAPRO_OFFICIAL_LOGO)
-              ) {
-                writeSessionLogo(context, pendingUrl);
-                setLoadedSource({ context, url: pendingUrl });
-              }
+              writeSessionLogo(context, pendingUrl);
+              setLoadedSource({ context, url: pendingUrl });
             }}
             onError={() => setFailedSources((current) => current.includes(pendingUrl) ? current : [...current, pendingUrl])}
           />
