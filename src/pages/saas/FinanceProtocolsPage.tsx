@@ -2,6 +2,7 @@ import {
   Building2,
   CalendarClock,
   CircleDollarSign,
+  ChevronDown,
   Copy,
   Eye,
   FileText,
@@ -170,6 +171,7 @@ export function FinanceProtocolsPage() {
   const [financialBusyKey, setFinancialBusyKey] = useState("");
   const [view, setView] = useState<FinanceView>("abertos");
   const [search, setSearch] = useState("");
+  const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
 
   const openLedgers = ledgers.filter((ledger) => ledger.isOpen);
   const totalIssued = ledgers.reduce((sum, ledger) => sum + ledger.totalIssued, 0);
@@ -416,7 +418,7 @@ export function FinanceProtocolsPage() {
                       variant={view === "abertos" ? "default" : "outline"}
                       className={
                         view === "abertos"
-                          ? "rounded-full bg-[#075985] text-white hover:bg-[#064c70]"
+                          ? "rounded-full bg-[#075985] !text-white hover:bg-[#064c70] hover:!text-white [&_*]:!text-white [&_svg]:!text-white"
                           : "rounded-full"
                       }
                       onClick={() => setView("abertos")}
@@ -429,7 +431,7 @@ export function FinanceProtocolsPage() {
                       variant={view === "todos" ? "default" : "outline"}
                       className={
                         view === "todos"
-                          ? "rounded-full bg-[#075985] text-white hover:bg-[#064c70]"
+                          ? "rounded-full bg-[#075985] !text-white hover:bg-[#064c70] hover:!text-white [&_*]:!text-white [&_svg]:!text-white"
                           : "rounded-full"
                       }
                       onClick={() => setView("todos")}
@@ -459,12 +461,25 @@ export function FinanceProtocolsPage() {
                       process.processControl?.currentFolder ||
                       process.sla.currentStage ||
                       "Fluxo municipal";
+                    const isExpanded = expandedProcessId === process.id;
 
                     return (
                       <article
                         key={process.id}
                         data-finance-process-ledger="true"
-                        className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-950"
+                        data-expanded={isExpanded ? "true" : "false"}
+                        className={`overflow-hidden rounded-[24px] border bg-white transition-[border-color,box-shadow] duration-200 dark:bg-slate-950 ${
+                          isExpanded
+                            ? "border-sky-300 shadow-[0_16px_42px_rgba(7,89,133,0.10)] dark:border-sky-500/45"
+                            : "border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.055)] hover:border-sky-200 hover:shadow-[0_13px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:hover:border-sky-700"
+                        }`}
+                        onClick={(event) => {
+                          const target = event.target as HTMLElement;
+                          if (target.closest("a,button,input,select,textarea,[role='button']")) return;
+                          setExpandedProcessId((current) =>
+                            current === process.id ? null : process.id,
+                          );
+                        }}
                       >
                         <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f7fbff_100%)] px-5 py-5 dark:border-slate-700 dark:bg-none dark:bg-slate-950">
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -531,9 +546,34 @@ export function FinanceProtocolsPage() {
                                 triggerClassName="h-9"
                               />
                               <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className={`h-9 rounded-full border-slate-300 bg-white px-3 text-[11px] font-bold text-slate-700 shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 ${
+                                  isExpanded
+                                    ? "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/50 dark:bg-sky-950/30 dark:text-sky-200"
+                                    : ""
+                                }`}
+                                onClick={() =>
+                                  setExpandedProcessId((current) =>
+                                    current === process.id ? null : process.id,
+                                  )
+                                }
+                                aria-expanded={isExpanded}
+                                aria-controls={`finance-process-details-${process.id}`}
+                              >
+                                <span>{isExpanded ? "Recolher" : "Ver detalhes"}</span>
+                                <ChevronDown
+                                  className={`ml-1.5 h-4 w-4 transition-transform duration-200 ${
+                                    isExpanded ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </Button>
+
+                              <Button
                                 asChild
                                 variant="outline"
-                                className="h-9 rounded-full border-slate-300 bg-white font-semibold dark:border-slate-700 dark:bg-slate-950"
+                                className="h-9 rounded-full border-slate-300 bg-white font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                               >
                                 <Link to={`/processos/${process.id}?aba=financeiro`}>
                                   Abrir processo
@@ -543,7 +583,11 @@ export function FinanceProtocolsPage() {
                           </div>
                         </div>
 
-                        <div className="p-5">
+                        {isExpanded ? (
+                          <div
+                            id={`finance-process-details-${process.id}`}
+                            className="border-t border-slate-200 p-5 dark:border-slate-700"
+                          >
                           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/60">
                               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
@@ -771,7 +815,8 @@ export function FinanceProtocolsPage() {
                               </div>
                             )}
                           </div>
-                        </div>
+                          </div>
+                        ) : null}
                       </article>
                     );
                   })
