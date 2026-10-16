@@ -393,6 +393,7 @@ export async function loadRemotePlatformStore() {
     rolesResult,
     departmentsResult,
     processesResult,
+    constructionPermitsResult,
     propertiesResult,
     guidesResult,
     partiesResult,
@@ -428,6 +429,10 @@ export async function loadRemotePlatformStore() {
     db.from("roles").select("*"),
     db.from("departments").select("*"),
     db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
+    isNeonBackend
+      ? db.from("process_construction_permits")
+          .select("process_id,permit_number,status,signature_mode,updated_at")
+      : Promise.resolve({ data: [], error: null }),
     db.from("properties").select("*"),
     isNeonBackend
       ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
@@ -473,6 +478,7 @@ export async function loadRemotePlatformStore() {
     rolesResult.error,
     departmentsResult.error,
     processesResult.error,
+    constructionPermitsResult.error,
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
@@ -512,6 +518,9 @@ export async function loadRemotePlatformStore() {
       .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""]),
   );
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
+  const constructionPermitByProcess = new Map(
+    (constructionPermitsResult.data ?? []).map((item) => [String(item.process_id), item]),
+  );
   const guidesByProcess = new Map<string, Record<string, unknown>[]>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
   const docsByProcess = new Map<string, Record<string, unknown>[]>();
@@ -1154,6 +1163,16 @@ export async function loadRemotePlatformStore() {
 
   const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
     const property = propertyById.get(process.property_id);
+    const constructionPermit = constructionPermitByProcess.get(String(process.id));
+    const constructionPermitStage = constructionPermit
+      ? constructionPermit.status === "signed"
+        ? "Alvará de Construção emitido"
+        : constructionPermit.status === "manual_signature"
+          ? "Alvará de Construção — assinatura manual"
+          : constructionPermit.status === "awaiting_director"
+            ? "Alvará de Construção — aguardando assinatura da Diretoria"
+            : "Alvará de Construção — em preparação"
+      : "";
     const guideRows = guidesByProcess.get(process.id) ?? [];
     const operationalGuideRows = guideRows.filter((item) =>
       ["protocolo", "iss_obra", "aprovacao_final", "initial_protocol", "final_approval"].includes(
@@ -1190,7 +1209,10 @@ export async function loadRemotePlatformStore() {
       externalProtocol: process.external_protocol_number ?? process.protocol_number,
       title: process.title,
       type: process.process_type,
-      status: process.status,
+      status:
+        constructionPermit?.status === "signed"
+          ? "deferido"
+          : process.status,
       ownerName: owner?.display_name ?? "Nao informado",
       ownerDocument: owner?.document_masked ?? "***",
       technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
@@ -1231,7 +1253,7 @@ export async function loadRemotePlatformStore() {
       },
       checklistType: process.checklist_type ?? process.process_type,
       sla: {
-        currentStage: process.sla_stage ?? "Fluxo em andamento",
+        currentStage: constructionPermitStage || process.sla_stage || "Fluxo em andamento",
         dueDate: process.sla_due_at ? new Date(process.sla_due_at).toLocaleDateString("pt-BR") : "",
         hoursRemaining: process.sla_hours_remaining ?? 0,
         breached: Boolean(process.sla_breached),
@@ -1311,11 +1333,13 @@ export async function loadRemotePlatformStore() {
         externalTransitView:
           process.external_transit_view === "restrito" ? "restrito" : "completo",
         currentFolder:
-          process.current_department ??
-          process.current_queue ??
-          process.sla_stage ??
-          "Fluxo em andamento",
-        checkpoint: process.process_checkpoint ?? undefined,
+          constructionPermit
+            ? "Alvará de Construção"
+            : process.current_department ??
+              process.current_queue ??
+              process.sla_stage ??
+              "Fluxo em andamento",
+        checkpoint: constructionPermitStage || process.process_checkpoint || undefined,
         onHold: Boolean(process.is_on_hold),
         onHoldReason: process.hold_reason ?? undefined,
       },
