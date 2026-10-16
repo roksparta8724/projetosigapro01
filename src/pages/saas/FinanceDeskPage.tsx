@@ -85,6 +85,15 @@ export function FinanceDeskPage() {
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const financeLedgerProcesses = useMemo(
+    () =>
+      allProcesses.filter(
+        (process) =>
+          Boolean(effectiveScopeId) &&
+          (process.municipalityId ?? process.tenantId) === effectiveScopeId,
+      ),
+    [allProcesses, effectiveScopeId],
+  );
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const issFeeConfigured = isIssFeeConfigured(tenantSettings);
   const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
@@ -108,7 +117,11 @@ export function FinanceDeskPage() {
   const financeCanIssueConstructionGuide =
     constructionGuideIssuerMode === "financeiro" || constructionGuideIssuerMode === "ambos";
 
-  const controlGuides = processes.flatMap((process) =>
+  // O financeiro precisa manter o livro histórico de guias da Prefeitura mesmo
+  // depois que o processo muda de pasta (ex.: volta para Análise Urbanística).
+  // A fila operacional continua usando `processes`; somente o livro financeiro
+  // usa todos os processos do mesmo município.
+  const controlGuides = financeLedgerProcesses.flatMap((process) =>
     getProcessPaymentGuides(process, tenantSettings).map((guide) => ({
       process,
       guide,
@@ -455,7 +468,7 @@ export function FinanceDeskPage() {
           actions={
             <Button
               asChild
-              className="rounded-full bg-[#075985] font-bold text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:bg-[#064c70]"
+              className="sig-force-dark-action rounded-full bg-[#075985] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:bg-[#064c70] [&_*]:!text-white"
             >
               <Link to="/prefeitura/financeiro/protocolos">
                 Controle por processo
