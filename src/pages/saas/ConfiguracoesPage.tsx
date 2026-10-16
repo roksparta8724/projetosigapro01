@@ -665,6 +665,38 @@ export function ConfiguracoesPage() {
   const [draftHeaderLogoFiles, setDraftHeaderLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.headerLogoUrl || settings?.logoUrl || "", "header-logo"));
   const [draftFooterLogoFiles, setDraftFooterLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.footerLogoUrl || settings?.logoUrl || "", "footer-logo"));
   const [logoRemovalRequested, setLogoRemovalRequested] = useState<InstitutionalLogoConfigVariant | null>(null);
+
+  // A tela de configuração deve usar a mesma fonte visual do cabeçalho real.
+  // Se o banco contém uma URL assinada expirada, useInstitutionBranding renova
+  // a URL a partir do object key e este efeito atualiza o preview sem apagar
+  // um arquivo novo que o usuário acabou de selecionar.
+  useEffect(() => {
+    if (isMasterRole) return;
+
+    const headerUrl = String(headerBranding.logoUrl || "").trim();
+    const footerUrl = String(footerBranding.logoUrl || "").trim();
+
+    if (isRenderablePreviewUrl(headerUrl)) {
+      setDraftHeaderLogoFiles((current) => {
+        if (current[0]?.file) return current;
+        const next = imageFiles(headerUrl, "header-logo");
+        return sameFileList(current, next) ? current : next;
+      });
+    }
+
+    if (isRenderablePreviewUrl(footerUrl)) {
+      setDraftFooterLogoFiles((current) => {
+        if (current[0]?.file) return current;
+        const next = imageFiles(footerUrl, "footer-logo");
+        return sameFileList(current, next) ? current : next;
+      });
+    }
+  }, [
+    footerBranding.logoUrl,
+    headerBranding.logoUrl,
+    isMasterRole,
+    selectedTenantId,
+  ]);
   useEffect(() => {
     const client = backendClient;
     if (!isMasterRole || !isUuid(selectedTenantId) || !client) return;
