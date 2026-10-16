@@ -25,6 +25,7 @@ interface FileDropZoneProps {
   files: UploadedFileItem[];
   onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
   onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
+  savedLabel?: string;
 }
 
 function sizeLabel(size: number) {
@@ -52,6 +53,7 @@ export function FileDropZone({
   files,
   onFilesSelected,
   onFilesRemoved,
+  savedLabel = "Salvo no rascunho",
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ownedPreviewUrlsRef = useRef<Set<string>>(new Set());
@@ -203,7 +205,7 @@ export function FileDropZone({
                             : "text-slate-500 dark:text-slate-400",
                       )}
                     >
-                      {busy ? "Salvando arquivo..." : file.storagePath ? "Salvo no rascunho" : "Arquivo selecionado"}
+                      {busy ? "Salvando arquivo..." : file.storagePath ? savedLabel : "Arquivo selecionado"}
                     </p>
                   </div>
                 </div>
