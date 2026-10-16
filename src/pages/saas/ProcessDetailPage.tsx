@@ -3143,17 +3143,26 @@ export function ProcessDetailPage() {
             ) : (
             <>
               {!isExternalProcessViewer && approvalPaymentRequired ? (
-                <Card className={`${cardShell} overflow-hidden border-violet-200 dark:border-violet-500/30`}>
-                  <CardHeader className="border-b border-violet-100 bg-[linear-gradient(135deg,#f8f7ff_0%,#eef4ff_100%)] dark:border-violet-500/20 dark:bg-[linear-gradient(135deg,#17152b_0%,#10243a_100%)]">
+                <Card
+                  data-approval-payment-card="true"
+                  className={`${cardShell} overflow-hidden border-violet-200 dark:border-violet-500/30`}
+                >
+                  <CardHeader
+                    data-approval-payment-header="true"
+                    className="border-b border-violet-100 bg-[linear-gradient(135deg,#f8f7ff_0%,#eef4ff_100%)] dark:border-violet-500/20 dark:bg-[linear-gradient(135deg,#17152b_0%,#10243a_100%)]"
+                  >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
                           <Wallet className="h-5 w-5 text-violet-700 dark:text-violet-300" />
-                          <CardTitle className="text-slate-950 dark:text-white">
+                          <CardTitle data-approval-payment-title="true" className="text-slate-950 dark:text-white">
                             Pagamento da aprovação / Alvará
                           </CardTitle>
                         </div>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        <p
+                          data-approval-payment-copy="true"
+                          className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
+                        >
                           Esta cobrança pertence ao licenciamento atual. Habite-se não participa deste processo: ele possui protocolo, documentos e workflow próprios.
                         </p>
                       </div>
