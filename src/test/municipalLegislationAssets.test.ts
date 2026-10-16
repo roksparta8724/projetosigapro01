@@ -15,6 +15,7 @@ describe("municipal legislation assets", () => {
   const r2Storage = read("src/integrations/r2/storage.ts");
   const r2SignApi = read("api/r2-sign-get.ts");
   const r2UploadApi = read("api/r2-upload.ts");
+  const legislationOpenApi = read("api/legislation-open.ts");
 
   it("persists institutional assets instead of saving blob preview URLs", () => {
     expect(settings).toContain("handleSaveInstitutionalAssets");
@@ -47,10 +48,14 @@ describe("municipal legislation assets", () => {
     expect(municipality).toContain("general.plan_file_url");
   });
 
-  it("opens the official PDF in a dedicated browser tab, including private R2 files", () => {
-    expect(legislation).toContain('window.open("", "_blank")');
-    expect(legislation).toContain("getSignedUrlForObjectStrict");
-    expect(legislation).toContain('item.fileUrl.startsWith("r2:")');
+  it("opens the official PDF through one stable route in localhost and production", () => {
+    expect(legislation).toContain("getLegislationOpenUrl");
+    expect(legislation).toContain('window.open(targetUrl, "_blank", "noopener,noreferrer")');
+    expect(r2Client).toContain("getLegislationOpenUrl");
+    expect(r2Client).toContain("/api/legislation-open?objectKey=");
+    expect(legislationOpenApi).toContain("isMunicipalLegislationObject");
+    expect(legislationOpenApi).toContain("ResponseContentDisposition: \"inline\"");
+    expect(legislationOpenApi).toContain('res.setHeader("Location", signedUrl)');
     expect(legislation).toContain("Abrir guia");
     expect(legislation).not.toContain('<iframe src={item.fileUrl}');
   });
@@ -61,7 +66,7 @@ describe("municipal legislation assets", () => {
     expect(zoning).toContain("institutionSettingsCompat?.zoneamentoArquivoUrl");
     expect(zoning).toContain("liveInstitutionSettings?.zoneamentoArquivoNome");
     expect(zoning).toContain("openZoningDocument");
-    expect(zoning).toContain("getSignedUrlForObjectStrict");
+    expect(zoning).toContain("getLegislationOpenUrl");
     expect(zoning).toContain("Abrir guia");
     expect(zoning).toContain("PDF de zoneamento ainda não vinculado");
   });
@@ -87,8 +92,8 @@ describe("municipal legislation assets", () => {
     expect(r2Storage).not.toContain("VITE_R2_BUCKET_DOCUMENTOS");
     expect(r2SignApi).toContain('if (value === "process-documents") return documents');
     expect(r2UploadApi).toContain('if (value === "process-documents") return documents');
-    expect(legislation).toContain('bucket: "process-documents"');
-    expect(zoning).toContain('bucket: "process-documents"');
+    expect(legislationOpenApi).toContain('readEnv("R2_BUCKET_DOCUMENTOS")');
+    expect(legislationOpenApi).toContain('"sigapro-documentos"');
   });
 
   it("refreshes the municipality bundle and prefers live legal attachments after saving", () => {
