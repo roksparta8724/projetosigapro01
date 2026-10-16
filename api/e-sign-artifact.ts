@@ -367,6 +367,21 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    if (
+      artifactType === "construction_permit" &&
+      !["diretoria", "secretaria"].includes(signerSlot)
+    ) {
+      fail(
+        res,
+        403,
+        "authorization",
+        "PERMIT_SIGNER_SLOT_NOT_ALLOWED",
+        null,
+        "No Alvará, a assinatura municipal obrigatória é da Diretoria; a Secretaria pode assinar de forma complementar.",
+      );
+      return;
+    }
+
     if (!password || password.length > 512) {
       fail(res, 400, "password", "PASSWORD_REQUIRED", null, "Informe sua senha de acesso para confirmar a assinatura.");
       return;
