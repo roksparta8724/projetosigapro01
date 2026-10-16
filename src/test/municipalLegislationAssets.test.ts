@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 describe("municipal legislation assets", () => {
   const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
   const legislation = read("src/pages/saas/LegislationPage.tsx");
+  const zoning = read("src/pages/saas/ZoningPage.tsx");
   const municipality = read("src/lib/municipality.ts");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const dropzone = read("src/components/platform/FileDropZone.tsx");
@@ -41,8 +42,17 @@ describe("municipal legislation assets", () => {
     expect(legislation).toContain('window.open("", "_blank")');
     expect(legislation).toContain("getSignedUrlForObjectStrict");
     expect(legislation).toContain('item.fileUrl.startsWith("r2:")');
-    expect(legislation).toContain("Abrir PDF em nova guia");
+    expect(legislation).toContain("Abrir guia");
     expect(legislation).not.toContain('<iframe src={item.fileUrl}');
+  });
+
+  it("shows the official zoning PDF in the zoning workspace", () => {
+    expect(zoning).toContain("Documento oficial do zoneamento");
+    expect(zoning).toContain("institutionSettings?.usoSoloArquivoUrl");
+    expect(zoning).toContain("openZoningDocument");
+    expect(zoning).toContain("getSignedUrlForObjectStrict");
+    expect(zoning).toContain("Abrir guia");
+    expect(zoning).toContain("PDF de zoneamento ainda não vinculado");
   });
 
   it("shows an explicit official-storage state in upload cards", () => {
