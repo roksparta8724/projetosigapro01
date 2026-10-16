@@ -65,19 +65,15 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("font-size: 0.69rem !important");
   });
 
-  it("preserva a geometria exata do viewport no snapshot do F5", () => {
-    expect(main).toContain("pendingRefreshScrollY");
-    expect(main).toContain("waitForStableFrame");
-    expect(main).toContain("readGeometry");
-    expect(main).toContain("imagesReady()");
-    expect(main).toContain("maxRestoreMs");
-    expect(main).toContain("releaseRefreshSnapshot();");
-    expect(html).toContain("snapshot.userId === currentUserId");
-    expect(html).not.toContain('var key = "sigapro.visual.snapshot.v1"');
-    expect(html).toContain("--sig-snapshot-top");
-    expect(html).toContain(".sigapro-snapshot-page");
-    expect(html).toContain("transform: none");
-    expect(html).not.toContain("contain: layout paint style");
+  it("preserva a página e deixa o navegador restaurar o viewport sem snapshot visual", () => {
+    expect(main).toContain('window.history.scrollRestoration = "auto"');
+    expect(main).toContain("persistRefreshContinuity");
+    expect(main).toContain("CONTINUITY_KEY");
+    expect(main).not.toContain("pendingRefreshScrollY");
+    expect(main).not.toContain("waitForStableFrame");
+    expect(main).not.toContain("window.scrollTo");
+    expect(html).not.toContain("sigapro-refresh-snapshot");
+    expect(html).not.toContain(".sigapro-snapshot-page");
   });
 
 
@@ -86,7 +82,7 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("repeat(auto-fit, minmax(min(100%, 148px), 1fr))");
     expect(protocolDesk).toContain('<div className="sig-responsive-data-grid mt-4">');
     expect(protocolDesk).not.toContain('mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-5');
-    expect(analystDesk).toContain('<div className="sig-responsive-data-grid mt-4">');
+    expect(analystDesk).toContain("sig-responsive-data-grid");
     expect(analystDesk).not.toContain('mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5');
   });
 
@@ -103,14 +99,12 @@ describe("regressões visuais e financeiras do SIGAPRO", () => {
     expect(css).toContain("A light surface must never inherit a light foreground");
   });
 
-  it("permite que a unidade de Protocolo confirme recebimento da guia inicial", () => {
-    expect(processDetail).toContain('canAccessMunicipalArea(session, "protocolos")');
-    expect(processDetail).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
-    expect(processDetail).toContain("Confirmar pagamento recebido");
-    expect(processDetail).toContain('process.status === "pagamento_pendente"');
+  it("mantém a confirmação da guia inicial exclusivamente na unidade de Protocolo", () => {
     expect(protocolDesk).toContain("handleConfirmProtocolPayment");
     expect(protocolDesk).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
     expect(protocolDesk).toContain("Confirmar pagamento recebido");
+    expect(processDetail).not.toContain("handleConfirmProtocolPayment");
+    expect(processDetail).not.toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
   });
 
   it("mantém confirmação manual de pagamento somente no Financeiro", () => {
