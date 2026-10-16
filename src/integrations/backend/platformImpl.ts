@@ -767,6 +767,10 @@ export async function loadRemotePlatformStore() {
           ? (legacyExtra.iss_rate_profiles as TenantSettings["issRateProfiles"])
           : undefined,
       taxaAprovacaoFinal: Number(settings?.taxa_aprovacao_final ?? 0),
+      approvalAliquotPercent:
+        typeof legacyExtra.approval_aliquot_percent === "number"
+          ? legacyExtra.approval_aliquot_percent
+          : 5,
       finalApprovalFeeEnabled:
         typeof legacyExtra.final_approval_fee_enabled === "boolean"
           ? legacyExtra.final_approval_fee_enabled
@@ -940,6 +944,7 @@ export async function loadRemotePlatformStore() {
           ? (general.iss_rate_profiles as TenantSettings["issRateProfiles"])
           : undefined,
       taxaAprovacaoFinal: readGeneralNumber(general, ["taxa_aprovacao_final", "fee_final_approval"], 0),
+      approvalAliquotPercent: readGeneralNumber(general, ["approval_aliquot_percent"], 5),
       finalApprovalFeeEnabled:
         typeof general.final_approval_fee_enabled === "boolean"
           ? general.final_approval_fee_enabled
@@ -3249,6 +3254,7 @@ export async function saveRemoteInstitutionSettings(
       iss_stage_enabled: settings.issStageEnabled ?? true,
       fee_final_approval: settings.taxaAprovacaoFinal ?? 0,
       taxa_aprovacao_final: settings.taxaAprovacaoFinal ?? 0,
+      approval_aliquot_percent: settings.approvalAliquotPercent ?? 5,
       approval_rate_profiles: settings.approvalRateProfiles ?? null,
       final_approval_fee_enabled: settings.finalApprovalFeeEnabled ?? true,
       construction_guide_issuer_mode: settings.constructionGuideIssuerMode ?? "analise",
