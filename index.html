@@ -57,9 +57,9 @@
           initialBackground = "#06111d";
         } else {
           try {
-            var lastBackground = window.localStorage.getItem("sigapro.last-page-background.v1");
-            var rawTheme = window.localStorage.getItem("sigapro-layout-theme");
-            var rawEffectiveTheme = window.localStorage.getItem("sigapro.effective-theme.v1");
+            var lastBackground = window.localStorage.getItem("sigapro.last-page-background.v2");
+            var rawTheme = window.localStorage.getItem("sigapro-layout-theme.v2");
+            var rawEffectiveTheme = window.localStorage.getItem("sigapro.effective-theme.v2");
             var theme = rawTheme ? JSON.parse(rawTheme) : null;
             var effectiveTheme = rawEffectiveTheme ? JSON.parse(rawEffectiveTheme) : null;
 
