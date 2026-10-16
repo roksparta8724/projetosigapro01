@@ -1954,3 +1954,63 @@ html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="
   image-rendering:auto !important;
 }
 /* MUNICIPAL LOGO PREMIUM STAGE V17 END */
+
+
+/* ==========================================================================
+   ANALISE / FICHA TECNICA — LEGENDA CRISP V17 — 2026-10-16
+   A legenda e semantica e fixa: texto integralmente branco em chips saturados,
+   sem opacidade, blur, filtros ou text-shadow herdados do tema.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend="true"] {
+  filter:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-chip="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+  text-shadow:none !important;
+  transform:none !important;
+  font-weight:800 !important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-chip="true"]
+:is(span,strong,small,b,em) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-status="A"] {
+  background:#059669 !important;
+  border-color:#047857 !important;
+}
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-status="AP"] {
+  background:#0284c7 !important;
+  border-color:#0369a1 !important;
+}
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-status="C"] {
+  background:#d97706 !important;
+  border-color:#b45309 !important;
+}
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-legend-status="NA"] {
+  background:#334155 !important;
+  border-color:#1e293b !important;
+}
+/* ANALISE / FICHA TECNICA — LEGENDA CRISP V17 END */
