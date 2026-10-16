@@ -16,6 +16,7 @@ describe("municipal legislation assets", () => {
   const r2SignApi = read("api/r2-sign-get.ts");
   const r2UploadApi = read("api/r2-upload.ts");
   const legislationOpenApi = read("api/legislation-open.ts");
+  const viteConfig = read("vite.config.ts");
 
   it("persists institutional assets instead of saving blob preview URLs", () => {
     expect(settings).toContain("handleSaveInstitutionalAssets");
@@ -58,6 +59,18 @@ describe("municipal legislation assets", () => {
     expect(legislationOpenApi).toContain('res.setHeader("Location", signedUrl)');
     expect(legislation).toContain("Abrir guia");
     expect(legislation).not.toContain('<iframe src={item.fileUrl}');
+  });
+
+  it("serves the same legislation opener on localhost 8080 before the POST-only API guard", () => {
+    const localOpen = viteConfig.indexOf(
+      'req.url.startsWith("/api/legislation-open") && req.method === "GET"',
+    );
+    const postGuard = viteConfig.indexOf('if (req.method !== "POST")');
+
+    expect(localOpen).toBeGreaterThanOrEqual(0);
+    expect(postGuard).toBeGreaterThan(localOpen);
+    expect(viteConfig).toContain('ResponseContentDisposition: "inline"');
+    expect(viteConfig).toContain('res.setHeader("Location", signedUrl)');
   });
 
   it("shows the official zoning PDF in the zoning workspace", () => {
