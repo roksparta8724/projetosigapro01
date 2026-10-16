@@ -99,6 +99,21 @@ describe("municipal legislation assets", () => {
     expect(r2Client).toContain("bucket = normalizeClientBucket(input.bucket)");
   });
 
+  it("uses the same R2 endpoint preference for uploads, PDF reads and signed logo/document URLs", () => {
+    expect(legislationOpenApi).toContain("getR2EndpointCandidates");
+    expect(r2SignApi).toContain("getR2EndpointCandidates");
+
+    const legislationRaw = legislationOpenApi.indexOf('readEnv("R2_ENDPOINT")');
+    const legislationAccount = legislationOpenApi.indexOf('readEnv("R2_ACCOUNT_ID")');
+    const signRaw = r2SignApi.indexOf('readEnv("R2_ENDPOINT")');
+    const signAccount = r2SignApi.indexOf('readEnv("R2_ACCOUNT_ID")');
+
+    expect(legislationRaw).toBeGreaterThanOrEqual(0);
+    expect(legislationRaw).toBeLessThan(legislationAccount);
+    expect(signRaw).toBeGreaterThanOrEqual(0);
+    expect(signRaw).toBeLessThan(signAccount);
+  });
+
   it("resolves physical storage buckets only on the server", () => {
     expect(r2Storage).toContain('? "process-documents"');
     expect(r2Storage).toContain(': "institutional-branding"');
