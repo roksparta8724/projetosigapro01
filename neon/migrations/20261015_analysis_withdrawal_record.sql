@@ -132,16 +132,27 @@ begin
   if not exists (
     select 1
     from public.signature_blocks sb
-    join public.signatures s on s.signature_block_id=sb.id
     where sb.process_id=_process_id
       and sb.document_id is null
       and sb.artifact_key=_key
       and sb.evidence_hash=_hash
       and sb.status='concluido'
-      and s.signer_slot='analise_tecnica'
-      and s.status='concluido'
+      and exists (
+        select 1
+        from public.signatures s
+        where s.signature_block_id=sb.id
+          and s.signer_slot='analise_tecnica'
+          and s.status='concluido'
+      )
+      and exists (
+        select 1
+        from public.signatures s
+        where s.signature_block_id=sb.id
+          and s.signer_slot='diretoria'
+          and s.status='concluido'
+      )
   ) then
-    raise exception 'A análise técnica precisa estar assinada antes de registrar a retirada.';
+    raise exception 'As assinaturas do Analista Técnico e da Diretoria precisam estar concluídas antes de registrar a retirada.';
   end if;
 
   insert into public.process_artifact_withdrawals(
