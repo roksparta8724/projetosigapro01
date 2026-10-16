@@ -18,6 +18,7 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
 import { ConstructionPermitPanel } from "@/components/platform/ConstructionPermitPanel";
+import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPermitProcessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
@@ -51,6 +52,7 @@ import {
   getProcessPaymentGuides,
   getExternallyVisibleProcessPaymentGuides,
   isProcessPaymentGuideSharedExternally,
+  isOccupancyPermitProcessType,
   isInternalRole,
   processBelongsToExternalProfessional,
   matchesOperationalScope,
@@ -716,6 +718,7 @@ export function ProcessDetailPage() {
   const processInstitutionId = process.municipalityId ?? process.tenantId;
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
+  const isHabiteSeProcess = isOccupancyPermitProcessType(process.type);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const isExternalProcessViewer = isExternalSession;
   const visiblePaymentGuides = isExternalProcessViewer
@@ -723,7 +726,8 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
-  const approvalPaymentRequired = tenantSettings?.finalApprovalFeeEnabled !== false;
+  const approvalPaymentRequired =
+    !isHabiteSeProcess && tenantSettings?.finalApprovalFeeEnabled !== false;
   const approvalPaymentConfirmed =
     !approvalPaymentRequired || approvalGuide?.status === "compensada";
   const constructionGuideSentExternally = issuedConstructionGuide
@@ -948,7 +952,20 @@ export function ProcessDetailPage() {
   const approvalPaymentCompensated =
     approvalGuide?.status === "compensada";
   let currentFlowIndex = 0;
-  if (isFinalProcessStatus || constructionPermit?.status === "emitido") {
+  if (isHabiteSeProcess) {
+    if (isFinalProcessStatus) {
+      currentFlowIndex = 5;
+    } else if (/fiscal|vistoria|inspec|conferencia/.test(normalizedCurrentFolder)) {
+      currentFlowIndex = 3;
+    } else if (
+      /analise|urban|obra|engenharia/.test(normalizedCurrentFolder) ||
+      ["pagamento_confirmado", "distribuicao", "analise_tecnica", "despacho_intersetorial", "exigencia", "reapresentacao"].includes(process.status)
+    ) {
+      currentFlowIndex = 2;
+    } else if (["guia_emitida", "pagamento_pendente"].includes(process.status)) {
+      currentFlowIndex = 1;
+    }
+  } else if (isFinalProcessStatus || constructionPermit?.status === "emitido") {
     currentFlowIndex = 5;
   } else if (
     constructionPaymentCompensated &&
@@ -978,14 +995,23 @@ export function ProcessDetailPage() {
     currentFlowIndex = 1;
   }
 
-  const flowLabels = [
-    "Protocolo",
-    "Pagamento inicial",
-    "Análise Urbanística",
-    "Financeiro",
-    "Alvará de Construção",
-    "Conclusão",
-  ];
+  const flowLabels = isHabiteSeProcess
+    ? [
+        "Protocolo do Habite-se",
+        "Pagamento inicial",
+        "Análise documental",
+        "Vistoria / conferência",
+        "Decisão / emissão",
+        "Conclusão",
+      ]
+    : [
+        "Protocolo",
+        "Pagamento inicial",
+        "Análise Urbanística",
+        "Financeiro",
+        "Alvará de Construção",
+        "Conclusão",
+      ];
   const flowSteps = flowLabels.map((label, index) => ({
     key: `municipal-flow-${index}`,
     label,
@@ -1129,13 +1155,19 @@ export function ProcessDetailPage() {
     },
     {
       key: "alvara" as ProcessTab,
-      label: constructionPermit?.status === "emitido" ? "Alvará emitido" : "Alvará de Construção",
+      label: isHabiteSeProcess
+        ? "Habite-se"
+        : constructionPermit?.status === "emitido"
+          ? "Alvará emitido"
+          : "Alvará de Construção",
       enabled:
         !isProtocolTrackingOnly &&
         (
-          isExternalProcessViewer
-            ? currentFlowIndex >= 4 || constructionPermit?.status === "emitido"
-            : canAnalysisOperate || constructionPaymentCompensated || Boolean(constructionPermit)
+          isHabiteSeProcess
+            ? true
+            : isExternalProcessViewer
+              ? currentFlowIndex >= 4 || constructionPermit?.status === "emitido"
+              : canAnalysisOperate || constructionPaymentCompensated || Boolean(constructionPermit)
         ),
     },
     { key: "historico" as ProcessTab, label: "Acompanhamento", enabled: true },
@@ -3085,6 +3117,12 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "alvara" && (
+            isHabiteSeProcess ? (
+              <OccupancyPermitProcessPanel
+                process={process}
+                externalView={isExternalProcessViewer}
+              />
+            ) : (
             <>
               {!isExternalProcessViewer && approvalPaymentRequired ? (
                 <Card className={`${cardShell} overflow-hidden border-violet-200 dark:border-violet-500/30`}>
@@ -3295,6 +3333,7 @@ export function ProcessDetailPage() {
                 organogramTrail={currentOrganizationTrail}
               />
             </>
+            )
           )}
 
           {isExternalProcessViewer && session.role === "profissional_externo" && activeTab === "financeiro" && (
