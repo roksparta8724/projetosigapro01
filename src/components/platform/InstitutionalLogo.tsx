@@ -13,7 +13,7 @@ interface InstitutionalLogoProps {
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
-const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v1";
+const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
@@ -139,6 +139,7 @@ export function InstitutionalLogo({
   return (
     <div
       data-logo-context={isMaster ? "sigapro" : "municipality"}
+      data-logo-variant={variant}
       className={cn(
         "sig-institution-logo-surface flex max-w-full shrink-0 items-center justify-center overflow-hidden",
         isMaster
