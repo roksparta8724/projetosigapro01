@@ -512,9 +512,8 @@ export function UrbanAnalysisChecklistPanel({
       .then((snapshot) => {
         if (!active) return;
         const record = snapshot.withdrawal;
-        const currentHash = state.technicalSignature?.evidenceHash || "";
 
-        if (!record || !currentHash || record.artifact_hash !== currentHash) {
+        if (!record) {
           setWithdrawalRecord(null);
           setWithdrawalName("");
           setWithdrawalDate("");
@@ -533,7 +532,7 @@ export function UrbanAnalysisChecklistPanel({
     return () => {
       active = false;
     };
-  }, [process.id, state.technicalSignature?.evidenceHash]);
+  }, [process.id]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
@@ -859,7 +858,7 @@ export function UrbanAnalysisChecklistPanel({
       const snapshot = await saveProcessArtifactWithdrawal({
         processId: process.id,
         artifactKey: ANALYSIS_ARTIFACT_KEY,
-        artifactHash: state.technicalSignature.evidenceHash,
+        artifactHash: state.technicalSignature?.evidenceHash || "",
         withdrawnByName: withdrawalName.trim(),
         withdrawnAt: withdrawalDate,
       });
@@ -953,6 +952,23 @@ export function UrbanAnalysisChecklistPanel({
     setPdfBusy(true);
 
     try {
+      let pdfWithdrawalRecord = withdrawalRecord;
+      try {
+        const latestWithdrawal = await getProcessArtifactWithdrawal(
+          process.id,
+          ANALYSIS_ARTIFACT_KEY,
+        );
+        pdfWithdrawalRecord = latestWithdrawal.withdrawal ?? withdrawalRecord;
+
+        if (latestWithdrawal.withdrawal) {
+          setWithdrawalRecord(latestWithdrawal.withdrawal);
+          setWithdrawalName(latestWithdrawal.withdrawal.withdrawn_by_name || "");
+          setWithdrawalDate(latestWithdrawal.withdrawal.withdrawn_at || "");
+        }
+      } catch (error) {
+        console.error("[SIGAPRO][PDF] Não foi possível atualizar a retirada antes do PDF.", error);
+      }
+
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = 210;
       const pageH = 297;
@@ -1615,15 +1631,18 @@ export function UrbanAnalysisChecklistPanel({
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...muted);
       doc.setFontSize(5.1);
+      const pdfWithdrawalName = pdfWithdrawalRecord?.withdrawn_by_name?.trim() || "";
+      const pdfWithdrawalDate = pdfWithdrawalRecord?.withdrawn_at
+        ? pdfWithdrawalRecord.withdrawn_at.split("-").reverse().join("/")
+        : "";
+
       doc.text(
-        `Retirada por: ${withdrawalMatchesCurrentVersion ? withdrawalRecord?.withdrawn_by_name : "Não registrada"}`,
+        `Retirada por: ${pdfWithdrawalName || "____________________________________________"}`,
         margin + 4,
         withdrawalY + 7.8,
       );
       doc.text(
-        `Data: ${withdrawalMatchesCurrentVersion && withdrawalRecord?.withdrawn_at
-          ? withdrawalRecord.withdrawn_at.split("-").reverse().join("/")
-          : "Não registrada"}`,
+        `Data: ${pdfWithdrawalDate || "____/____/________"}`,
         pageW - margin - 4,
         withdrawalY + 7.8,
         { align: "right" },
@@ -2170,7 +2189,7 @@ export function UrbanAnalysisChecklistPanel({
                   value={withdrawalName}
                   onChange={(event) => setWithdrawalName(event.target.value)}
                   placeholder="Nome completo de quem retirou"
-                  className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
+                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-200 selection:text-slate-950 placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
@@ -2182,7 +2201,7 @@ export function UrbanAnalysisChecklistPanel({
                   type="date"
                   value={withdrawalDate}
                   onChange={(event) => setWithdrawalDate(event.target.value)}
-                  className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
+                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-calendar-picker-indicator]:opacity-80 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
