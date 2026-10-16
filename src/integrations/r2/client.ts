@@ -78,6 +78,19 @@ export function getPublicUrl(objectKey: string, baseOverride?: string) {
   return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
 }
 
+export function getLegislationOpenUrl(reference: string) {
+  const raw = String(reference || "").trim();
+  if (!raw) return "";
+  if (!raw.startsWith("r2:")) return raw;
+
+  const objectKey = raw.slice(3).trim().replace(/^\/+/, "");
+  if (!objectKey) return "";
+
+  return buildApiUrl(
+    `/api/legislation-open?objectKey=${encodeURIComponent(objectKey)}`,
+  );
+}
+
 export function getObjectKeyFromPublicUrl(publicUrl: string) {
   if (!publicUrl) return "";
   const base = (import.meta.env.VITE_R2_PUBLIC_BASE_URL || "").toString().replace(/\/+$/, "");
