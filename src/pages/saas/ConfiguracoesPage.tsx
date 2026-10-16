@@ -3084,60 +3084,134 @@ export function ConfiguracoesPage() {
                   </div>
                 </div>
               </div>
-              <FileDropZone
-                title="Brasao"
-                description="Imagem oficial para áreas institucionais e documentos."
-                accept="image/*"
-                multiple={false}
-                allowPreview
-                files={brasaoFiles}
-                onFilesSelected={setBrasaoFiles}
-              />
-              <FileDropZone
-                title="Bandeira"
-                description="Imagem complementar da identidade municipal."
-                accept="image/*"
-                multiple={false}
-                allowPreview
-                files={bandeiraFiles}
-                onFilesSelected={setBandeiraFiles}
-              />
-              <FileDropZone
-                title="Imagem interativa"
-                description="Imagem de capa do portal do cliente."
-                accept="image/*"
-                multiple={false}
-                allowPreview
-                files={heroFiles}
-                onFilesSelected={setHeroFiles}
-              />
-              <FileDropZone
-                title="Arquivo do plano diretor"
-                description="Anexe o arquivo oficial do plano diretor."
-                accept=".pdf,image/*"
-                multiple={false}
-                allowPreview
-                files={planoDiretorFiles}
-                onFilesSelected={setPlanoDiretorFiles}
-              />
-              <FileDropZone
-                title="Arquivo da Lei de Uso e Ocupação do Solo"
-                description="Anexe a lei municipal em PDF ou imagem."
-                accept=".pdf,image/*"
-                multiple={false}
-                allowPreview
-                files={usoSoloFiles}
-                onFilesSelected={setUsoSoloFiles}
-              />
-              <FileDropZone
-                title="Arquivo das leis complementares"
-                description="Anexe normas e regulamentos complementares."
-                accept=".pdf,image/*"
-                multiple={false}
-                allowPreview
-                files={leisFiles}
-                onFilesSelected={setLeisFiles}
-              />
+              <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f6f9fc_100%)] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.05)] md:p-5">
+                <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-sky-700" />
+                      <p className="text-sm font-bold text-slate-950">Identidade institucional da Prefeitura</p>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                      Brasão, bandeira e imagem do portal ficam armazenados de forma persistente e vinculados somente a esta Prefeitura.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    Ativos oficiais
+                  </span>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <FileDropZone
+                    title="Brasão oficial"
+                    description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
+                    accept="image/*"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={brasaoFiles}
+                    onFilesSelected={setBrasaoFiles}
+                  />
+                  <FileDropZone
+                    title="Bandeira municipal"
+                    description="Imagem complementar da identidade visual da Prefeitura."
+                    accept="image/*"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={bandeiraFiles}
+                    onFilesSelected={setBandeiraFiles}
+                  />
+                  <FileDropZone
+                    title="Imagem do portal"
+                    description="Imagem institucional utilizada no portal e nas áreas de apresentação."
+                    accept="image/*"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={heroFiles}
+                    onFilesSelected={setHeroFiles}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
+                <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ScrollText className="h-4 w-4 text-sky-700" />
+                      <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                      Estes arquivos alimentam diretamente o módulo Legislação. Priorize PDF oficial já publicado pela Prefeitura.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                    Legislação
+                  </span>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <FileDropZone
+                    title="Plano Diretor"
+                    description="PDF oficial do Plano Diretor municipal."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={planoDiretorFiles}
+                    onFilesSelected={setPlanoDiretorFiles}
+                  />
+                  <FileDropZone
+                    title="Lei de Uso e Ocupação do Solo"
+                    description="PDF oficial da lei de uso, ocupação e parâmetros urbanísticos."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={usoSoloFiles}
+                    onFilesSelected={setUsoSoloFiles}
+                  />
+                  <FileDropZone
+                    title="Leis complementares"
+                    description="PDF com leis, decretos e normas complementares vinculadas ao licenciamento."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    busy={institutionalAssetsSaving}
+                    files={leisFiles}
+                    onFilesSelected={setLeisFiles}
+                  />
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-950">Salvar identidade e legislação</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Depois disso, os PDFs aparecem automaticamente em Legislação.
+                    </p>
+                    {institutionalAssetsStatus ? (
+                      <p
+                        role="status"
+                        className={`mt-2 text-xs font-semibold leading-5 ${
+                          institutionalAssetsStatus.toLocaleLowerCase("pt-BR").includes("sucesso")
+                            ? "text-emerald-700"
+                            : "text-rose-700"
+                        }`}
+                      >
+                        {institutionalAssetsStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    className="sig-force-dark-action h-11 shrink-0 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
+                    onClick={() => void handleSaveInstitutionalAssets()}
+                    disabled={institutionalAssetsSaving}
+                  >
+                    {institutionalAssetsSaving ? "Salvando arquivos..." : "Salvar arquivos oficiais"}
+                  </Button>
+                </div>
+              </div>
             </div>
             ) : (
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
