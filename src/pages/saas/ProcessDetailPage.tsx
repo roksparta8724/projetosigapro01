@@ -2126,9 +2126,15 @@ export function ProcessDetailPage() {
                   ? "Protocolo próprio para análise da conclusão da obra, separado da aprovação e do Alvará."
                   : constructionPermit?.status === "emitido"
                     ? "Documento final emitido e disponível no processo."
-                    : isExternalProcessViewer
-                      ? "A Prefeitura está preparando o Alvará desta obra."
-                      : "Preencha os dados do Alvará, revise a prévia e siga para as assinaturas."}
+                    : constructionPermit?.status === "assinatura_manual"
+                      ? "Alvará preenchido e preparado para assinatura manual. Os dados oficiais já estão salvos no processo."
+                      : constructionPermit?.status === "aguardando_diretor"
+                        ? "Alvará preenchido e encaminhado para assinatura da Diretoria."
+                        : constructionPermit
+                          ? "Alvará preenchido e salvo como rascunho oficial. Revise antes de encaminhar para assinatura."
+                          : isExternalProcessViewer
+                            ? "A Prefeitura está preparando o Alvará desta obra."
+                            : "Preencha os dados do Alvará, revise a prévia e siga para as assinaturas."}
               </p>
               <Button
                 type="button"
@@ -2140,9 +2146,15 @@ export function ProcessDetailPage() {
                   ? "Abrir workflow do Habite-se"
                   : constructionPermit?.status === "emitido"
                     ? "Abrir Alvará"
-                    : isExternalProcessViewer
-                      ? "Acompanhar Alvará"
-                      : "Preencher / revisar Alvará"}
+                    : constructionPermit?.status === "assinatura_manual"
+                      ? "Abrir / conferir Alvará"
+                      : constructionPermit?.status === "aguardando_diretor"
+                        ? "Abrir / acompanhar assinatura"
+                        : constructionPermit
+                          ? "Revisar Alvará"
+                          : isExternalProcessViewer
+                            ? "Acompanhar Alvará"
+                            : "Preencher Alvará"}
               </Button>
             </CardContent>
           </Card>
