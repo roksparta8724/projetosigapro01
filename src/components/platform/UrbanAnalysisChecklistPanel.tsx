@@ -85,7 +85,6 @@ type AnalysisChecklistState = {
   signedAt: string;
   signedBy: string;
   technicalSignature?: ChecklistSignature | null;
-  fiscalSignature?: ChecklistSignature | null;
   directorSignature?: ChecklistSignature | null;
 };
 
@@ -339,7 +338,6 @@ function readInitialChecklistState(
             }
           : null
       ),
-      fiscalSignature: parsed.fiscalSignature ?? null,
       directorSignature: parsed.directorSignature ?? null,
     };
   } catch {
@@ -427,7 +425,337 @@ export function UrbanAnalysisChecklistPanel({
             stableSignatureStringify(currentPayload) === stableSignatureStringify(signedPayload);
 
           if (!payloadMatches) {
-            const next: AnalysisChecklistState =
+            const next: AnalysisChecklistState = {
+              ...current,
+              technicalSignature: null,
+              directorSignature: null,
+              signedAt: "",
+              signedBy: "",
+            };
+            window.localStorage.setItem(key, JSON.stringify(next));
+            setNotice("A ficha foi alterada após a última assinatura eletrônica. Uma nova assinatura é necessária.");
+            return next;
+          }
+
+          const verificationCode = snapshot.block?.verification_code;
+          const evidenceHash = snapshot.block?.artifact_hash;
+
+          const next: AnalysisChecklistState = {
+            ...current,
+            technicalSignature: technical
+              ? {
+                  userId: technical.profile_id || "",
+                  name: technical.name || "Usuário",
+                  title: technical.title || technical.role || "Analista Técnico",
+                  signedAt: technical.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
+                  verificationCode,
+                  evidenceHash,
+                  registration: technical.registration ?? null,
+                  authMethod: technical.auth_method || "password_reauth",
+                  official: true,
+                }
+              : current.technicalSignature,
+            directorSignature: director
+              ? {
+                  userId: director.profile_id || "",
+                  name: director.name || "Diretor(a)",
+                  title: director.title || director.role || "Diretor(a)",
+                  signedAt: director.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
+                  verificationCode,
+                  evidenceHash,
+                  registration: director.registration ?? null,
+                  authMethod: director.auth_method || "password_reauth",
+                  official: true,
+                }
+              : current.directorSignature,
+          };
+
+          window.localStorage.setItem(key, JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Assinatura] Falha ao carregar assinaturas oficiais.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [key, process.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    void getProcessArtifactSignatureRequest(
+      process.id,
+      ANALYSIS_ARTIFACT_KEY,
+      "diretoria",
+    )
+      .then((snapshot) => {
+        if (active) setDirectorRequest(snapshot);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Diretoria] Falha ao carregar solicitação de assinatura.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [process.id, state.directorSignature?.signedAt, state.technicalSignature?.evidenceHash]);
+
+  useEffect(() => {
+    let active = true;
+
+    void getProcessArtifactWithdrawal(process.id, ANALYSIS_ARTIFACT_KEY)
+      .then((snapshot) => {
+        if (!active) return;
+        const record = snapshot.withdrawal;
+        const currentHash = state.technicalSignature?.evidenceHash || "";
+
+        if (!record || !currentHash || record.artifact_hash !== currentHash) {
+          setWithdrawalRecord(null);
+          setWithdrawalName("");
+          setWithdrawalDate("");
+          return;
+        }
+
+        setWithdrawalRecord(record);
+        setWithdrawalName(record.withdrawn_by_name || "");
+        setWithdrawalDate(record.withdrawn_at || "");
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Retirada] Falha ao carregar registro de retirada.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [process.id, state.technicalSignature?.evidenceHash]);
+
+  const counts = useMemo(() => {
+    const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
+    return {
+      total: TEMPLATE.length,
+      evaluated: values.filter(Boolean).length,
+      a: values.filter((value) => value === "A").length,
+      ap: values.filter((value) => value === "AP").length,
+      c: values.filter((value) => value === "C").length,
+      na: values.filter((value) => value === "NA").length,
+    };
+  }, [state.items]);
+
+  const progress = Math.round((counts.evaluated / counts.total) * 100);
+  const pendingCorrectionCount = counts.ap + counts.c;
+
+  const canSignTechnical =
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+  const isDirectorProfile =
+    /diretor|diretora|director/i.test(session.role || "") ||
+    /diretor|diretora/i.test(session.title || "");
+  const technicalOfficial = Boolean(
+    state.technicalSignature?.official &&
+    state.technicalSignature?.verificationCode &&
+    state.technicalSignature?.authMethod === "password_reauth",
+  );
+  const directorOfficial = Boolean(
+    state.directorSignature?.official &&
+    state.directorSignature?.verificationCode &&
+    state.directorSignature?.authMethod === "password_reauth",
+  );
+  const directorRequestMatchesCurrentVersion =
+    Boolean(directorRequest.request) &&
+    directorRequest.request?.artifact_hash === state.technicalSignature?.evidenceHash;
+  const directorRequestPending =
+    directorRequestMatchesCurrentVersion &&
+    directorRequest.request?.status === "pending";
+  const directorRequestCompleted =
+    directorRequestMatchesCurrentVersion &&
+    directorRequest.request?.status === "completed";
+  const canRequestDirector =
+    technicalOfficial &&
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+  const isFullySigned = technicalOfficial && directorOfficial;
+  const withdrawalMatchesCurrentVersion = Boolean(
+    withdrawalRecord &&
+    withdrawalRecord.artifact_hash === state.technicalSignature?.evidenceHash,
+  );
+  const canRecordWithdrawal =
+    isFullySigned &&
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+
+  const invalidateSignature = (next: AnalysisChecklistState) => ({
+    ...next,
+    signedAt: "",
+    signedBy: "",
+    technicalSignature: null,
+    directorSignature: null,
+  });
+
+  const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
+    setState((current) =>
+      invalidateSignature({
+        ...current,
+        items: {
+          ...current.items,
+          [itemId]: {
+            ...(current.items[itemId] ?? { status: "", observation: "" }),
+            ...patch,
+          },
+        },
+      }),
+    );
+  };
+
+  const persistState = (next: AnalysisChecklistState) => {
+    window.localStorage.setItem(key, JSON.stringify(next));
+    setState(next);
+  };
+
+  const saveDraft = () => {
+    const now = new Date().toISOString();
+    const next = { ...state, savedAt: now };
+    persistState(next);
+    setNotice(
+      "Rascunho técnico salvo para este processo. As assinaturas permanecem vinculadas somente à versão assinada.",
+    );
+  };
+
+  const openSignatureConfirmation = (
+    kind: "technical" | "director",
+  ) => {
+    if (kind === "technical") {
+      if (!canSignTechnical) {
+        setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
+        return;
+      }
+      if (counts.evaluated === 0) {
+        setNotice("Avalie pelo menos um item antes de assinar.");
+        return;
+      }
+      if (technicalOfficial) {
+        setNotice("A análise técnica já possui assinatura eletrônica oficial nesta versão.");
+        return;
+      }
+    } else {
+      if (!isDirectorProfile) {
+        setNotice("Este perfil não está cadastrado como Diretor(a) para realizar esta assinatura.");
+        return;
+      }
+      if (!technicalOfficial) {
+        setNotice("A análise técnica precisa estar assinada antes da assinatura da Diretoria.");
+        return;
+      }
+      if (!directorRequestPending) {
+        setNotice("A assinatura da Diretoria precisa ser solicitada pelo analista antes da assinatura.");
+        return;
+      }
+      if (directorOfficial) {
+        setNotice("A Diretoria já assinou eletronicamente esta versão.");
+        return;
+      }
+    }
+
+    setSignaturePassword("");
+    setSignatureError(null);
+    setSignatureDialog(kind);
+  };
+
+  const confirmElectronicSignature = async () => {
+    if (!signatureDialog || !signaturePassword) {
+      setSignatureError({ message: "Informe sua senha de acesso." });
+      return;
+    }
+
+    const kind = signatureDialog;
+    const slot: ArtifactSignerSlot =
+      kind === "technical" ? "analise_tecnica" : "diretoria";
+    const payload = buildChecklistSignaturePayload(state, process, municipalityId);
+
+    setSignatureBusy(true);
+    setSignatureStage("signing");
+    setSignatureError(null);
+
+    try {
+      try {
+        await signProcessArtifactWithPassword({
+          processId: process.id,
+          artifactType: ANALYSIS_ARTIFACT_TYPE,
+          artifactKey: ANALYSIS_ARTIFACT_KEY,
+          signerSlot: slot,
+          password: signaturePassword,
+          payload,
+        });
+      } catch (error) {
+        // Idempotência real: se o servidor concluiu a gravação e a resposta se
+        // perdeu, uma segunda tentativa retorna 409. Nesse caso confirmamos no
+        // banco e tratamos como sucesso, sem duplicar assinatura.
+        if (
+          !(error instanceof ArtifactSignatureError) ||
+          error.code !== "SIGNATURE_ALREADY_EXISTS"
+        ) {
+          throw error;
+        }
+      }
+
+      setSignatureStage("verifying");
+
+      let snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+      let verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
+
+      for (let attempt = 0; attempt < 3 && (!snapshot.block || !verifiedSigner); attempt += 1) {
+        await wait(220 + attempt * 180);
+        snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+        verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
+      }
+
+      const signedPayload = snapshot.block?.payload ?? {};
+      const payloadMatches =
+        stableSignatureStringify(payload) === stableSignatureStringify(signedPayload);
+
+      if (
+        !snapshot.block ||
+        !verifiedSigner ||
+        !snapshot.block.verification_code ||
+        !snapshot.block.artifact_hash ||
+        !payloadMatches
+      ) {
+        throw new ArtifactSignatureError(
+          "A assinatura não foi confirmada integralmente no banco oficial. Nenhum sucesso visual foi aplicado.",
+          {
+            stage: "verification",
+            code: "SIGNATURE_READBACK_FAILED",
+          },
+        );
+      }
+
+      const signedAt =
+        verifiedSigner.signed_at ||
+        snapshot.block.completed_at ||
+        new Date().toISOString();
+      const verificationCode = snapshot.block.verification_code;
+      const evidenceHash = snapshot.block.artifact_hash;
+
+      const signature: ChecklistSignature = {
+        userId: verifiedSigner.profile_id || session.id,
+        name: verifiedSigner.name || session.name,
+        title:
+          verifiedSigner.title ||
+          verifiedSigner.role ||
+          session.title ||
+          (kind === "technical" ? "Analista Técnico" : "Diretor(a)"),
+        signedAt,
+        verificationCode,
+        evidenceHash,
+        registration: verifiedSigner.registration ?? null,
+        authMethod: verifiedSigner.auth_method || "password_reauth",
+        official: true,
+      };
+
+      const now = new Date().toISOString();
+      const next: AnalysisChecklistState =
         kind === "technical"
           ? {
               ...state,
@@ -516,6 +844,42 @@ export function UrbanAnalysisChecklistPanel({
       );
     } finally {
       setDirectorRequestBusy(false);
+    }
+  };
+
+  const saveWithdrawalRecord = async () => {
+    if (!canRecordWithdrawal || !state.technicalSignature?.evidenceHash) {
+      setNotice("Conclua as assinaturas do Analista Técnico e da Diretoria antes de registrar a retirada.");
+      return;
+    }
+    if (!withdrawalName.trim()) {
+      setNotice("Informe o nome de quem retirou o documento em mãos.");
+      return;
+    }
+    if (!withdrawalDate) {
+      setNotice("Informe a data da retirada.");
+      return;
+    }
+
+    setWithdrawalBusy(true);
+    try {
+      const snapshot = await saveProcessArtifactWithdrawal({
+        processId: process.id,
+        artifactKey: ANALYSIS_ARTIFACT_KEY,
+        artifactHash: state.technicalSignature.evidenceHash,
+        withdrawnByName: withdrawalName.trim(),
+        withdrawnAt: withdrawalDate,
+      });
+      setWithdrawalRecord(snapshot.withdrawal);
+      setNotice("Retirada em mãos registrada no processo.");
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registrar a retirada em mãos.",
+      );
+    } finally {
+      setWithdrawalBusy(false);
     }
   };
 
@@ -1227,8 +1591,8 @@ export function UrbanAnalysisChecklistPanel({
       );
 
       const signatureY = resultY + 30;
-      const signatureCardW = 60;
-      const signatureGap = 5;
+      const signatureCardW = 92;
+      const signatureGap = 6;
       drawSignatureCard(
         margin,
         signatureY,
@@ -1241,18 +1605,35 @@ export function UrbanAnalysisChecklistPanel({
         margin + signatureCardW + signatureGap,
         signatureY,
         signatureCardW,
-        "Conferência fiscal",
-        state.fiscalSignature,
-        fiscalOfficial,
-      );
-      drawSignatureCard(
-        margin + (signatureCardW + signatureGap) * 2,
-        signatureY,
-        signatureCardW,
         "Diretoria",
         state.directorSignature,
         directorOfficial,
         directorRequestPending,
+      );
+
+      const withdrawalY = signatureY + 41;
+      doc.setFillColor(250, 252, 254);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(margin, withdrawalY, contentW, 10, 2, 2, "FD");
+      doc.setTextColor(...slate);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5.2);
+      doc.text("RETIRADA EM MÃOS", margin + 4, withdrawalY + 4);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...muted);
+      doc.setFontSize(5.1);
+      doc.text(
+        `Retirada por: ${withdrawalMatchesCurrentVersion ? withdrawalRecord?.withdrawn_by_name : "Não registrada"}`,
+        margin + 4,
+        withdrawalY + 7.8,
+      );
+      doc.text(
+        `Data: ${withdrawalMatchesCurrentVersion && withdrawalRecord?.withdrawn_at
+          ? withdrawalRecord.withdrawn_at.split("-").reverse().join("/")
+          : "Não registrada"}`,
+        pageW - margin - 4,
+        withdrawalY + 7.8,
+        { align: "right" },
       );
 
       drawFooter(2);
@@ -1261,14 +1642,12 @@ export function UrbanAnalysisChecklistPanel({
       doc.save(fileName);
       setNotice(
         directorOfficial
-          ? "PDF oficial gerado em 2 páginas com a assinatura da Diretoria registrada."
+          ? "PDF oficial gerado em 2 páginas com as assinaturas do Analista Técnico e da Diretoria."
           : directorRequestPending
-            ? "PDF oficial gerado em 2 páginas. A solicitação da Diretoria aparece como pendente até o diretor assinar."
-            : fiscalOfficial
-              ? "PDF oficial gerado em 2 páginas com as assinaturas eletrônicas registradas."
-              : technicalOfficial
-                ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada; as demais assinaturas permanecem identificadas."
-                : "PDF oficial gerado em 2 páginas. As assinaturas eletrônicas pendentes permanecem identificadas no documento.",
+            ? "PDF oficial gerado em 2 páginas. A assinatura da Diretoria permanece solicitada."
+            : technicalOfficial
+              ? "PDF oficial gerado em 2 páginas. A análise técnica está assinada e a Diretoria permanece pendente."
+              : "PDF oficial gerado em 2 páginas. As assinaturas pendentes permanecem identificadas no documento.",
       );
     } catch (error) {
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
@@ -1375,7 +1754,7 @@ export function UrbanAnalysisChecklistPanel({
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">Caderno técnico digital</p>
               <CardTitle className="mt-1 text-xl font-bold !text-white">Ficha Oficial de Análise do Processo</CardTitle>
               <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
-                A ficha municipal foi transformada em uma mesa digital de conferência: análise técnica, observações por item, encaminhamento, assinatura técnica, conferência fiscal e PDF oficial.
+                A ficha municipal foi transformada em uma mesa digital de conferência: análise técnica, observações por item, encaminhamento, assinaturas eletrônicas e PDF oficial.
               </p>
 
               {organogramTrail.length > 0 ? (
@@ -1590,7 +1969,7 @@ export function UrbanAnalysisChecklistPanel({
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Validação da ficha</p>
-              <p className="mt-1 text-base font-bold text-slate-950 dark:text-white">Assinaturas da análise, fiscalização e Diretoria</p>
+              <p className="mt-1 text-base font-bold text-slate-950 dark:text-white">Assinaturas do Analista Técnico e da Diretoria</p>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
                 O analista conclui a avaliação e pode solicitar formalmente a assinatura da Diretoria. O diretor recebe a pendência, confirma com a própria senha e a assinatura passa a integrar o PDF oficial. Qualquer alteração da ficha invalida as assinaturas vinculadas à versão anterior.
               </p>
@@ -1614,7 +1993,7 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 xl:grid-cols-3">
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
             <div className={cn(
               "rounded-[20px] border p-4",
               technicalOfficial
@@ -1675,70 +2054,6 @@ export function UrbanAnalysisChecklistPanel({
 
             <div className={cn(
               "rounded-[20px] border p-4",
-              fiscalOfficial
-                ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
-                : technicalOfficial
-                  ? "border-violet-200 bg-violet-50/70 dark:border-violet-500/30 dark:bg-violet-950/25"
-                  : "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40",
-            )}>
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  fiscalOfficial
-                    ? "bg-emerald-600 text-white"
-                    : technicalOfficial
-                      ? "bg-violet-600 text-white"
-                      : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-                )}>
-                  {fiscalOfficial ? <CheckCircle2 className="h-5 w-5" /> : <Signature className="h-5 w-5" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">2ª assinatura</p>
-                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Conferência do Fiscal de Obras</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {state.fiscalSignature
-                      ? `${state.fiscalSignature.name} · ${state.fiscalSignature.title} · ${new Date(state.fiscalSignature.signedAt).toLocaleString("pt-BR")}`
-                      : technicalOfficial
-                        ? "Aguardando conferência e assinatura fiscal."
-                        : "Disponível depois da assinatura técnica eletrônica."}
-                    {state.fiscalSignature && !fiscalOfficial ? (
-                      <span className="mt-1 block font-semibold text-amber-700 dark:text-amber-300">
-                        Registro anterior ainda não confirmado eletronicamente com senha.
-                      </span>
-                    ) : null}
-                    {fiscalOfficial && state.fiscalSignature?.verificationCode ? (
-                      <span className="mt-1 block font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                        Código: {state.fiscalSignature.verificationCode}
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-              </div>
-              {renderSignatureEvidence(
-                state.fiscalSignature,
-                fiscalOfficial,
-                "Conferência fiscal",
-              )}
-              {canSignFiscal ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-4 w-full rounded-xl border-violet-300 bg-violet-50 font-semibold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                  disabled={!technicalOfficial || fiscalOfficial}
-                  onClick={signFiscalReview}
-                >
-                  <Signature className="mr-2 h-4 w-4" />
-                  {fiscalOfficial
-                    ? "Assinatura eletrônica concluída"
-                    : state.fiscalSignature
-                      ? "Confirmar assinatura com senha"
-                      : "Assinar conferência fiscal"}
-                </Button>
-              ) : null}
-            </div>
-
-            <div className={cn(
-              "rounded-[20px] border p-4",
               directorOfficial
                 ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-950/25"
                 : directorRequestPending
@@ -1761,7 +2076,7 @@ export function UrbanAnalysisChecklistPanel({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">3ª assinatura</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">2ª assinatura</p>
                   <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Diretoria responsável</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     {state.directorSignature
@@ -1832,6 +2147,81 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
+          <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  Retirada em mãos
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                  Registro de entrega física
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  O Analista Técnico registra o nome de quem retirou o documento e a data da retirada. Este registro não altera nem invalida as assinaturas eletrônicas.
+                </p>
+              </div>
+              {withdrawalMatchesCurrentVersion ? (
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Retirada registrada
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                  Retirada em mãos por
+                </label>
+                <Input
+                  value={withdrawalName}
+                  onChange={(event) => setWithdrawalName(event.target.value)}
+                  placeholder="Nome completo de quem retirou"
+                  className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
+                  disabled={!canSignTechnical || !isFullySigned || withdrawalBusy}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                  Data da retirada
+                </label>
+                <Input
+                  type="date"
+                  value={withdrawalDate}
+                  onChange={(event) => setWithdrawalDate(event.target.value)}
+                  className="mt-2 h-10 rounded-xl bg-white dark:bg-slate-900"
+                  disabled={!canSignTechnical || !isFullySigned || withdrawalBusy}
+                />
+              </div>
+              {canSignTechnical ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl border-sky-300 bg-white font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200"
+                  disabled={!isFullySigned || withdrawalBusy || !withdrawalName.trim() || !withdrawalDate}
+                  onClick={() => void saveWithdrawalRecord()}
+                >
+                  {withdrawalBusy ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {withdrawalBusy
+                    ? "Registrando..."
+                    : withdrawalMatchesCurrentVersion
+                      ? "Atualizar retirada"
+                      : "Registrar retirada"}
+                </Button>
+              ) : null}
+            </div>
+
+            {!isFullySigned ? (
+              <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
+                A retirada será liberada para registro após as assinaturas do Analista Técnico e da Diretoria.
+              </p>
+            ) : null}
+          </div>
+
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="text-xs leading-5 text-slate-500 dark:text-slate-400">
               {state.savedAt
@@ -1898,9 +2288,7 @@ export function UrbanAnalysisChecklistPanel({
                 <p className="font-bold">
                   {signatureDialog === "technical"
                     ? "Assinatura da análise técnica"
-                    : signatureDialog === "fiscal"
-                      ? "Assinatura da conferência fiscal"
-                      : "Assinatura da Diretoria"}
+                    : "Assinatura da Diretoria"}
                 </p>
                 <p className="mt-1">
                   Informe a mesma senha usada para entrar no SIGAPRO. A senha será revalidada no Neon Auth e não será armazenada no processo.
