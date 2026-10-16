@@ -122,8 +122,8 @@ describe("theme contrast authority", () => {
     expect(surfacePolarity).toContain('[data-process-premium-card="true"]');
     expect(surfacePolarity).toContain("background: linear-gradient(180deg,#11283f 0%,#0a1928 100%)");
     expect(surfacePolarity).toContain("color: #f8fbff !important");
-    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#ffffff 0%,#f4f9ff 100%)");
-    expect(surfacePolarity).toContain("color: #0b1726 !important");
+    expect(surfacePolarity).toContain("background: linear-gradient(180deg,#ffffff 0%,#f8fbff 100%)");
+    expect(surfacePolarity).toContain("color: #0f172a !important");
   });
 
   it("keeps the dark document command center bright in every theme", () => {
