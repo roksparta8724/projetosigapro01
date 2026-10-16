@@ -54,6 +54,7 @@ import {
   resolveSessionOperationalArea,
   type PaymentGuideKind,
   isFinalApprovalFeeConfigured,
+  isOccupancyPermitProcessType,
   isIssFeeConfigured,
 } from "@/lib/platform";
 import {
@@ -134,6 +135,7 @@ export function FinanceDeskPage() {
   const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
     ? processes.filter((process) => {
+        if (isOccupancyPermitProcessType(process.type)) return false;
         const hasGuide = getProcessPaymentGuides(process, tenantSettings).some(
           (guide) => guide.kind === "iss_obra",
         );
