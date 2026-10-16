@@ -191,6 +191,64 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
+        if (req.url.startsWith("/api/legislation-open") && req.method === "GET") {
+          try {
+            assertEnv();
+            const requestUrl = new URL(req.url, "http://localhost:8080");
+            const objectKey = String(requestUrl.searchParams.get("objectKey") || "")
+              .trim()
+              .replace(/^\/+/, "");
+
+            const isMunicipalLegislationObject =
+              /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(
+                objectKey,
+              );
+
+            if (!objectKey || !isMunicipalLegislationObject) {
+              res.statusCode = 400;
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.setHeader("Cache-Control", "no-store");
+              res.end("Documento de legislação inválido.");
+              return;
+            }
+
+            const signClient = new S3Client({
+              region: "auto",
+              endpoint: resolveR2Endpoint(),
+              credentials: {
+                accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
+                secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
+              },
+            });
+
+            const signedUrl = await getSignedUrl(
+              signClient,
+              new GetObjectCommand({
+                Bucket: readEnvValue("R2_BUCKET_DOCUMENTOS"),
+                Key: objectKey,
+                ResponseContentDisposition: "inline",
+                ResponseContentType: "application/pdf",
+              }),
+              { expiresIn: 900 },
+            );
+
+            res.statusCode = 302;
+            res.setHeader("Location", signedUrl);
+            res.setHeader("Cache-Control", "no-store, max-age=0");
+            res.end();
+          } catch (error) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(
+              error instanceof Error
+                ? `Não foi possível abrir o documento: ${error.message}`
+                : "Não foi possível abrir o documento.",
+            );
+          }
+          return;
+        }
+
         if (req.url.startsWith("/api/e-sign-artifact") && req.method === "POST") {
           // Em localhost, assinatura SEMPRE usa o endpoint oficial do SIGAPRO.
           // Isso elimina divergência de secret, banco, Neon Auth ou função antiga
