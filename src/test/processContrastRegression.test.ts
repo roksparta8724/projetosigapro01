@@ -50,4 +50,19 @@ describe("process contrast contract", () => {
     expect(css).toContain('[data-premium-dark-action="true"]');
     expect(css).toContain('[data-premium-header-icon="true"] svg');
   });
+
+  it("keeps the approval payment header premium and readable in inverse themes", () => {
+    const process = read("src/pages/saas/ProcessDetailPage.tsx");
+    const polarity = read("src/styles/surface-polarity.css");
+
+    expect(process).toContain('data-approval-payment-card="true"');
+    expect(process).toContain('data-approval-payment-header="true"');
+    expect(process).toContain('data-approval-payment-title="true"');
+    expect(process).toContain('data-approval-payment-copy="true"');
+    expect(polarity).toContain("PROCESSO > ALVARA > PAGAMENTO DA APROVACAO V17");
+    expect(polarity).toContain('[data-approval-payment-header="true"]');
+    expect(polarity).toContain("background:linear-gradient(135deg,#142940 0%,#0e1e31 100%) !important");
+    expect(polarity).toContain("color:#ffffff !important");
+    expect(polarity).toContain("color:#d5e1ee !important");
+  });
 });
