@@ -159,7 +159,11 @@ describe("official electronic signatures", () => {
     expect(withdrawalMigration).toContain("get_process_artifact_withdrawal_v1");
     expect(withdrawalMigration).toContain("Retirada em mãos registrada");
     expect(withdrawalMigration).toContain("artifact_hash");
-    expect(withdrawalMigration).toContain("analise_tecnica");
+    expect(withdrawalMigration).toContain("alter column artifact_hash drop not null");
+    expect(withdrawalMigration).not.toContain("precisam estar concluídas antes de registrar a retirada");
+    expect(checklist).toContain('disabled={!canRecordWithdrawal || withdrawalBusy}');
+    expect(checklist).not.toContain('disabled={!canSignTechnical || !isFullySigned || withdrawalBusy}');
+    expect(checklist).not.toContain("A retirada será liberada para registro após as assinaturas");
     expect(checklist).not.toContain("withdrawn_by_name: state");
   });
 
