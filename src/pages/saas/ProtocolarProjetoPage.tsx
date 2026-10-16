@@ -977,7 +977,7 @@ export function ProtocolarProjetoPage({
   return (
     <PortalFrame
       eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
-      title={isHabiteSeMode ? "Solicitar Habite-se" : "{isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto"}"}
+      title={isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto"}
     >
       <PageShell>
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
@@ -1465,7 +1465,9 @@ export function ProtocolarProjetoPage({
                 {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
               </Button>
               <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting || hasPendingDocumentUpload}>
-                {submitting ? "Protocolando projeto..." : "{isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto"}"}
+                {submitting
+                  ? (isHabiteSeMode ? "Protocolando Habite-se..." : "Protocolando projeto...")
+                  : (isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto")}
               </Button>
             </div>
           </SectionCard>
