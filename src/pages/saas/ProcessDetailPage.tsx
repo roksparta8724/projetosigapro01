@@ -2105,14 +2105,16 @@ export function ProcessDetailPage() {
           </CardContent>
         </Card>
 
-        {currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
+        {isHabiteSeProcess || currentFlowIndex >= 4 || constructionPermit || (!isExternalProcessViewer && canAnalysisOperate) ? (
           <Card data-process-summary-card="true" data-summary-tone="sky" data-permit-summary-card="true" data-surface="semantic-card" data-tone="sky" className={`${cardShell} sig-premium-summary-card sig-summary-sky h-full border-sky-200 bg-[linear-gradient(145deg,#f7fbff_0%,#e7f5ff_100%)] shadow-[0_16px_38px_rgba(14,165,233,0.12)] dark:border-sky-500/35 dark:bg-[linear-gradient(145deg,#102a42_0%,#0b2033_100%)]`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="sig-label">Alvará de Construção</p>
+                  <p className="sig-label">{isHabiteSeProcess ? "Habite-se" : "Alvará de Construção"}</p>
                   <p className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
-                    {constructionPermit?.permitNumber || "Em preparação"}
+                    {isHabiteSeProcess
+                      ? formatOfficialProcessNumber(process.protocol)
+                      : constructionPermit?.permitNumber || "Em preparação"}
                   </p>
                 </div>
                 <span data-summary-icon="permit" className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-100 text-sky-800 shadow-[0_8px_18px_rgba(14,165,233,0.14)] dark:border-sky-500/40 dark:bg-sky-950/70 dark:text-sky-100">
@@ -2120,11 +2122,13 @@ export function ProcessDetailPage() {
                 </span>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {constructionPermit?.status === "emitido"
-                  ? "Documento final emitido e disponível no processo."
-                  : isExternalProcessViewer
-                    ? "A Prefeitura está preparando o Alvará desta obra."
-                    : "Preencha os dados do Alvará, revise a prévia e siga para as assinaturas."}
+                {isHabiteSeProcess
+                  ? "Protocolo próprio para análise da conclusão da obra, separado da aprovação e do Alvará."
+                  : constructionPermit?.status === "emitido"
+                    ? "Documento final emitido e disponível no processo."
+                    : isExternalProcessViewer
+                      ? "A Prefeitura está preparando o Alvará desta obra."
+                      : "Preencha os dados do Alvará, revise a prévia e siga para as assinaturas."}
               </p>
               <Button
                 type="button"
@@ -2132,11 +2136,13 @@ export function ProcessDetailPage() {
                 className="mt-4 min-h-11 w-full rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-4 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.24)] hover:brightness-105 [&_*]:!text-white"
                 onClick={() => setProcessTab("alvara")}
               >
-                {constructionPermit?.status === "emitido"
-                  ? "Abrir Alvará"
-                  : isExternalProcessViewer
-                    ? "Acompanhar Alvará"
-                    : "Preencher / revisar Alvará"}
+                {isHabiteSeProcess
+                  ? "Abrir workflow do Habite-se"
+                  : constructionPermit?.status === "emitido"
+                    ? "Abrir Alvará"
+                    : isExternalProcessViewer
+                      ? "Acompanhar Alvará"
+                      : "Preencher / revisar Alvará"}
               </Button>
             </CardContent>
           </Card>
@@ -2796,7 +2802,7 @@ export function ProcessDetailPage() {
             </>
           )}
 
-          {!isExternalProcessViewer && activeTab === "analise" && (
+          {!isExternalProcessViewer && activeTab === "analise" && !isHabiteSeProcess && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -3406,7 +3412,73 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {!isExternalProcessViewer && activeTab === "financeiro" && (
+          {!isExternalProcessViewer && activeTab === "financeiro" && isHabiteSeProcess && (
+          <Card className={cardShell}>
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <FileKey2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    Financeiro do protocolo de Habite-se
+                  </CardTitle>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    Este processo possui cobrança e histórico próprios. Não herda ISSQN, taxa de aprovação
+                    nem a guia do Alvará do processo anterior.
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    protocolGuide?.status === "compensada"
+                      ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                      : "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
+                  }
+                >
+                  {protocolGuide?.status === "compensada"
+                    ? "Protocolo pago"
+                    : "Pagamento inicial pendente"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              {protocolGuide ? (
+                <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950/35 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                      Guia deste protocolo
+                    </p>
+                    <p className="mt-2 text-base font-bold text-slate-950 dark:text-white">
+                      {protocolGuide.code} • {formatCurrency(protocolGuide.amount)}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Vencimento: {protocolGuide.dueDate || "não informado"}.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Visualizar
+                    </Button>
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Imprimir
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-300">
+                  A guia inicial deste protocolo ainda não foi localizada no banco oficial.
+                </div>
+              )}
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
+                Qualquer taxa específica de Habite-se será configurada no workflow próprio deste serviço.
+                Ela nunca será calculada pela tabela de aprovação/Alvará.
+              </div>
+            </CardContent>
+          </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && !isHabiteSeProcess && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -3549,7 +3621,7 @@ export function ProcessDetailPage() {
           </Card>
           )}
 
-          {!isExternalProcessViewer && activeTab === "financeiro" && (
+          {!isExternalProcessViewer && activeTab === "financeiro" && !isHabiteSeProcess && (
           <Card className={cardShell}>
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap items-start justify-between gap-3">
