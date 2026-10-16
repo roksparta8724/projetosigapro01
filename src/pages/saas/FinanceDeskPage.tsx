@@ -4,6 +4,7 @@
   CheckCircle2,
   Building2,
   FileSpreadsheet,
+  FolderOpen,
   Landmark,
   ReceiptText,
   Scale,
@@ -107,11 +108,13 @@ export function FinanceDeskPage() {
   const financeCanIssueConstructionGuide =
     constructionGuideIssuerMode === "financeiro" || constructionGuideIssuerMode === "ambos";
 
-  const guides = processes.flatMap((process) =>
-    getProcessPaymentGuides(process, tenantSettings)
-      .filter((guide) => guide.kind !== "protocolo")
-      .map((guide) => ({ process, guide })),
+  const controlGuides = processes.flatMap((process) =>
+    getProcessPaymentGuides(process, tenantSettings).map((guide) => ({
+      process,
+      guide,
+    })),
   );
+  const guides = controlGuides.filter(({ guide }) => guide.kind !== "protocolo");
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
@@ -261,6 +264,19 @@ export function FinanceDeskPage() {
 
   const totalValue = guides.reduce((sum, { guide }) => sum + guide.amount, 0);
   const settledValue = settledGuides.reduce((sum, { guide }) => sum + guide.amount, 0);
+  const openProcessCount = processes.filter(
+    (process) => !["rascunho", "deferido", "indeferido", "arquivado"].includes(process.status),
+  ).length;
+  const controlIssuedValue = controlGuides.reduce(
+    (sum, { guide }) => sum + guide.amount,
+    0,
+  );
+  const controlPendingValue = controlGuides
+    .filter(({ guide }) => guide.status === "pendente")
+    .reduce((sum, { guide }) => sum + guide.amount, 0);
+  const controlSettledValue = controlGuides
+    .filter(({ guide }) => guide.status === "compensada")
+    .reduce((sum, { guide }) => sum + guide.amount, 0);
 
   const inconsistencyCount = guides.filter(({ process, guide }) => {
     if (guide.status !== "pendente") return false;
@@ -441,10 +457,37 @@ export function FinanceDeskPage() {
         {section === "visao-geral" ? (
           <>
             <PageStatsRow>
-              <StatCard label="Guias emitidas" value={String(guides.length)} description="Total vinculado aos processos" icon={ReceiptText} tone="blue" />
-              <StatCard label="Pendentes" value={String(pendingGuides.length)} description="Aguardando baixa" icon={FileSpreadsheet} tone="amber" />
-              <StatCard label="Confirmadas" value={String(settledGuides.length)} description="Baixas compensadas" icon={Building2} tone="emerald" />
-              <StatCard label="Arrecadação" value={formatCurrency(settledValue)} description="Valor confirmado" icon={Landmark} tone="default" />
+              <StatCard
+                label="Protocolos em aberto"
+                value={String(openProcessCount)}
+                description="Todos os processos ativos sob controle financeiro"
+                icon={FolderOpen}
+                tone="blue"
+              />
+              <StatCard
+                label="Total lançado"
+                value={formatCurrency(controlIssuedValue)}
+                description="Taxa de protocolo, ISSQN e taxas finais"
+                icon={ReceiptText}
+                tone="default"
+                valueClassName="text-xl md:text-2xl"
+              />
+              <StatCard
+                label="Em aberto"
+                value={formatCurrency(controlPendingValue)}
+                description="Valores aguardando compensação"
+                icon={FileSpreadsheet}
+                tone="amber"
+                valueClassName="text-xl md:text-2xl"
+              />
+              <StatCard
+                label="Arrecadado"
+                value={formatCurrency(controlSettledValue)}
+                description="Total já compensado"
+                icon={Landmark}
+                tone="emerald"
+                valueClassName="text-xl md:text-2xl"
+              />
             </PageStatsRow>
 
             <PageMainGrid>
