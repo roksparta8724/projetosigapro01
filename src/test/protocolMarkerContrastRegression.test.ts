@@ -27,6 +27,10 @@ describe("protocol marker active contrast", () => {
     expect(css).toContain("PROTOCOL MARKER ACTIVE CONTRAST — 2026-10-16");
     expect(css).toContain('.sig-protocol-marker[data-protocol-marker-active="true"]');
     expect(css).toContain("color: #ffffff !important");
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
+    expect(css).toContain(
+      '.sig-protocol-marker[data-protocol-marker-active="true"] :is(',
+    );
     expect(css).toContain("stroke: #dbeafe !important");
     expect(css).toContain("background: rgba(255,255,255,0.16) !important");
   });
