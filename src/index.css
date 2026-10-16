@@ -9718,11 +9718,23 @@ html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true
   opacity: 1 !important;
 }
 
+html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] :is(
+  span,
+  p,
+  strong,
+  small,
+  label
+) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
 html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] .sig-protocol-marker-count {
   background: rgba(255,255,255,0.16) !important;
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
 }
 
 html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="true"] .sig-protocol-marker-icon,
