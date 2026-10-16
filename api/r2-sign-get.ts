@@ -19,25 +19,38 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-function resolveR2Endpoint() {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  // Use the same endpoint preference as upload. This prevents a stale
+  // R2_ACCOUNT_ID from signing a URL for a different account than the one
+  // where the municipal logo/document was actually written.
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const url = new URL(
+        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
+      );
+      candidates.push(`${url.protocol}//${url.host}`);
+    } catch {
+      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+    }
+  }
+
   const accountId = readEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
 
   if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
   }
 
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
 
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
+function resolveR2Endpoint() {
+  return getR2EndpointCandidates()[0] || "";
 }
 
 function extractMunicipalityId(objectKey: string) {
