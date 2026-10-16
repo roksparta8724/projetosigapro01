@@ -338,7 +338,10 @@ export function ConstructionPermitPanel({
     !directorOfficial;
   const isIssued = directorOfficial;
 
-  const openPdf = (record: ConstructionPermitRecord | null = permit) => {
+  const openPdf = (
+    record: ConstructionPermitRecord | null = permit,
+    manualSignature = manualSignatureSelected,
+  ) => {
     if (!record) return;
     void openConstructionPermitPdf({
       permit: record,
@@ -351,6 +354,7 @@ export function ConstructionPermitPanel({
       secretariat,
       directorate,
       technicalProfile,
+      manualSignature,
     });
   };
 
@@ -368,9 +372,7 @@ export function ConstructionPermitPanel({
     setFillOpen(true);
   };
 
-  const savePermitForm = (
-    openPreviewAfterSave = false,
-  ): ConstructionPermitRecord | null => {
+  const buildDraftFromForm = (): ConstructionPermitRecord | null => {
     if (!canEditForm && !canStartDraft) return null;
 
     const area = Number(String(formData.areaM2).replace(",", "."));
@@ -405,10 +407,6 @@ export function ConstructionPermitPanel({
           "",
       });
 
-    if (!permit) {
-      writeLocalConstructionPermit(base);
-    }
-
     const next = updateConstructionPermitFormData(base, {
       ...formData,
       technicalRegistration:
@@ -417,17 +415,129 @@ export function ConstructionPermitPanel({
         "",
     });
 
-    setPermit(next);
-    setFillOpen(false);
-    setStatus(
-      "Preenchimento do Alvará salvo em rascunho. Revise a prévia antes das assinaturas.",
-    );
+    return next;
+  };
 
-    if (openPreviewAfterSave) {
-      openPdf(next);
+  const savePermitForm = async (
+    closeAfterSave = true,
+  ): Promise<ConstructionPermitRecord | null> => {
+    const localDraft = buildDraftFromForm();
+    if (!localDraft) return null;
+
+    setWorkflowBusy("save");
+    try {
+      const official = await saveOfficialConstructionPermitDraft({
+        processId: process.id,
+        permitNumber: localDraft.permitNumber,
+        formData:
+          localDraft.formData ?? buildConstructionPermitFormData(process),
+      });
+
+      const next: ConstructionPermitRecord = {
+        ...localDraft,
+        ...official,
+        formData: official.formData ?? localDraft.formData,
+        directorSignature: localDraft.directorSignature,
+        secretarySignature: localDraft.secretarySignature,
+        issuedAt: localDraft.issuedAt,
+      };
+
+      writeLocalConstructionPermit(next);
+      setPermit(next);
+      if (closeAfterSave) setFillOpen(false);
+      setStatus(
+        "Alvará salvo no banco oficial. Escolha assinatura eletrônica da Diretoria ou PDF para assinatura à caneta.",
+      );
+      return next;
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o Alvará no banco oficial.",
+      );
+      return null;
+    } finally {
+      setWorkflowBusy(null);
+    }
+  };
+
+  const requestDirectorSignature = async () => {
+    if (!permitReadyForSignature) {
+      setStatus(
+        "Conclua a análise documental e confirme a compensação do ISSQN / Projeto antes de solicitar a assinatura da Diretoria.",
+      );
+      return;
     }
 
-    return next;
+    setWorkflowBusy("request");
+    try {
+      const saved = await savePermitForm(false);
+      if (!saved) return;
+
+      const official = await requestOfficialPermitDirectorSignature(process.id);
+      const next: ConstructionPermitRecord = {
+        ...saved,
+        ...official,
+        formData: official.formData ?? saved.formData,
+        directorSignature: saved.directorSignature,
+        secretarySignature: saved.secretarySignature,
+      };
+
+      writeLocalConstructionPermit(next);
+      setPermit(next);
+      setFillOpen(false);
+      setStatus(
+        "Solicitação enviada à Diretoria. O Diretor pode abrir este processo e assinar eletronicamente com a própria senha.",
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível encaminhar o Alvará para a Diretoria.",
+      );
+    } finally {
+      setWorkflowBusy(null);
+    }
+  };
+
+  const generateManualSignaturePdf = async () => {
+    if (!permitReadyForSignature) {
+      setStatus(
+        "Conclua a análise documental e confirme a compensação do ISSQN / Projeto antes de gerar o Alvará para assinatura manual.",
+      );
+      return;
+    }
+
+    setWorkflowBusy("manual");
+    try {
+      const saved = await savePermitForm(false);
+      if (!saved) return;
+
+      const official = await markOfficialPermitForManualSignature(process.id);
+      const next: ConstructionPermitRecord = {
+        ...saved,
+        ...official,
+        formData: official.formData ?? saved.formData,
+        directorSignature: saved.directorSignature,
+        secretarySignature: saved.secretarySignature,
+      };
+
+      writeLocalConstructionPermit(next);
+      setPermit(next);
+      setFillOpen(false);
+      setStatus(
+        "PDF preparado para assinatura à caneta pela Diretoria.",
+      );
+      openPdf(next, true);
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível preparar o PDF para assinatura manual.",
+      );
+    } finally {
+      setWorkflowBusy(null);
+    }
   };
 
   const preparePermit = () => {
