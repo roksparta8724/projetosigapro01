@@ -18,27 +18,37 @@ function readEnv(key: string) {
   return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
 }
 
-function resolveR2Endpoint() {
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
+
+  // R2_ENDPOINT is the endpoint actually used by upload flows. Keep it first so
+  // read/sign operations never drift to a stale R2_ACCOUNT_ID from another account.
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const parsed = new URL(
+        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
+      );
+      candidates.push(`${parsed.protocol}//${parsed.host}`);
+    } catch {
+      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+    }
+  }
+
   const accountId = readEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
 
   if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
   }
 
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
 
-  try {
-    const parsed = new URL(
-      /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
-    );
-    return `${parsed.protocol}//${parsed.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
+function resolveR2Endpoint() {
+  return getR2EndpointCandidates()[0] || "";
 }
 
 function isMunicipalLegislationObject(objectKey: string) {
