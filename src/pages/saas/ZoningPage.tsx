@@ -43,7 +43,7 @@ import { toast } from "@/components/ui/sonner";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getLegislationOpenUrl } from "@/integrations/r2/client";
 import { useZoningRules } from "@/hooks/useZoningRules";
 import {
   ZONING_TYPE_OPTIONS,
@@ -239,56 +239,15 @@ export function ZoningPage() {
   const openZoningDocument = () => {
     if (!zoningFileUrl) return;
 
-    const opened = window.open("", "_blank");
+    const targetUrl = getLegislationOpenUrl(zoningFileUrl);
+    if (!targetUrl) return;
+
+    const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
     if (!opened) {
       toast.error("O navegador bloqueou a nova guia. Libere pop-ups para o SIGAPRO.");
       return;
     }
-
-    try {
-      opened.opener = null;
-      opened.document.title = zoningFileName;
-      opened.document.body.style.margin = "0";
-      opened.document.body.style.minHeight = "100vh";
-      opened.document.body.style.display = "grid";
-      opened.document.body.style.placeItems = "center";
-      opened.document.body.style.fontFamily = "system-ui, sans-serif";
-      opened.document.body.style.background = "#f8fafc";
-      opened.document.body.style.color = "#334155";
-      opened.document.body.textContent = "Carregando documento oficial de zoneamento...";
-    } catch {
-      // A guia continua válida mesmo que o navegador bloqueie a personalização do about:blank.
-    }
-
-    const navigateOpenedTab = (url: string) => {
-      if (!url) throw new Error("URL do documento de zoneamento não disponível.");
-      opened.location.replace(url);
-      opened.focus();
-    };
-
-    if (!zoningFileUrl.startsWith("r2:")) {
-      navigateOpenedTab(zoningFileUrl);
-      return;
-    }
-
-    const objectKey = zoningFileUrl.slice(3).trim();
-    void getSignedUrlForObjectStrict({
-      bucket: "process-documents",
-      objectKey,
-      expiresIn: 21600,
-    })
-      .then(navigateOpenedTab)
-      .catch((reason) => {
-        try {
-          opened.document.title = "Falha ao abrir zoneamento";
-          opened.document.body.textContent =
-            reason instanceof Error
-              ? `Não foi possível abrir o PDF de zoneamento: ${reason.message}`
-              : "Não foi possível abrir o PDF de zoneamento.";
-        } catch {
-          // A falha já fica restrita à guia de leitura.
-        }
-      });
+    opened.focus();
   };
 
   const openCreateDialog = () => {
