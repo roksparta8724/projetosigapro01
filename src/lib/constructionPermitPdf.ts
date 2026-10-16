@@ -104,7 +104,7 @@ function drawField(
   width: number,
   label: string,
   value: string,
-  height = 15,
+  height = 13,
 ) {
   fill(pdf, color.soft);
   draw(pdf, color.line);
@@ -114,13 +114,13 @@ function drawField(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(5.2);
   textColor(pdf, color.muted);
-  pdf.text(label.toUpperCase(), x + 3.2, y + 4.2);
+  pdf.text(label.toUpperCase(), x + 3.2, y + 3.8);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(7.1);
   textColor(pdf, color.ink);
   const lines = pdf.splitTextToSize(value || "—", width - 6.4) as string[];
-  pdf.text(lines.slice(0, 2), x + 3.2, y + 9.2);
+  pdf.text(lines.slice(0, 2), x + 3.2, y + 8.4);
 }
 
 function drawSectionTitle(pdf: jsPDF, x: number, y: number, title: string, width: number) {
@@ -146,7 +146,7 @@ function drawSignature(
   const official = Boolean(signature?.official || signature?.verificationCode);
   fill(pdf, official ? ([240, 253, 250] as const) : ([250, 252, 254] as const));
   draw(pdf, official ? ([167, 243, 208] as const) : color.line);
-  pdf.roundedRect(x, y, width, 34, 2.5, 2.5, "FD");
+  pdf.roundedRect(x, y, width, 29, 2.5, 2.5, "FD");
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(5.4);
@@ -167,7 +167,7 @@ function drawSignature(
     pdf.text(
       (pdf.splitTextToSize(signature.name || "Responsável", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 15,
+      y + 14.2,
     );
 
     pdf.setFont("helvetica", "normal");
@@ -179,27 +179,27 @@ function drawSignature(
     pdf.text(
       (pdf.splitTextToSize(role || "Autoridade municipal", width - 8) as string[]).slice(0, 1),
       x + 4,
-      y + 19.3,
+      y + 18.3,
     );
-    pdf.text(formatDate(signature.signedAt), x + 4, y + 23.5);
+    pdf.text(formatDate(signature.signedAt), x + 4, y + 22);
 
     if (signature.verificationCode) {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(5.2);
       textColor(pdf, color.green);
-      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 28);
+      pdf.text(`Código: ${signature.verificationCode}`, x + 4, y + 25.5);
     }
     if (signature.evidenceHash) {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(4.6);
       textColor(pdf, color.muted);
-      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 31.8);
+      pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 28);
     }
   } else {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6.2);
     textColor(pdf, color.muted);
-    pdf.text("Aguardando assinatura da autoridade municipal.", x + 4, y + 16);
+    pdf.text("Aguardando assinatura da autoridade municipal.", x + 4, y + 15);
   }
 }
 
@@ -319,7 +319,7 @@ export async function buildConstructionPermitPdfBlob({
 
   let y = 47;
   drawSectionTitle(pdf, margin, y, "Identificação do licenciamento", contentWidth);
-  y += 9.5;
+  y += 8.5;
   drawField(pdf, margin, y, half, "Processo administrativo", process.protocol);
   drawField(
     pdf,
@@ -331,10 +331,10 @@ export async function buildConstructionPermitPdfBlob({
       ? "Alvará emitido"
       : "Aguardando assinatura da Diretoria",
   );
-  y += 18.5;
+  y += 16;
 
   drawSectionTitle(pdf, margin, y, "Titular e responsável técnico", contentWidth);
-  y += 9.5;
+  y += 8.5;
   drawField(pdf, margin, y, half, "Proprietário / titular", form?.ownerName || process.ownerName);
   drawField(
     pdf,
@@ -344,7 +344,7 @@ export async function buildConstructionPermitPdfBlob({
     "CPF / CNPJ",
     valueOrFallback(form?.ownerDocument || process.ownerDocument),
   );
-  y += 18.5;
+  y += 16;
   drawField(pdf, margin, y, half, "Responsável técnico", form?.technicalLead || process.technicalLead);
   drawField(
     pdf,
@@ -354,12 +354,12 @@ export async function buildConstructionPermitPdfBlob({
     "CREA / CAU / CFT",
     valueOrFallback(form?.technicalRegistration || technicalProfile?.registrationNumber),
   );
-  y += 18.5;
+  y += 16;
 
   drawSectionTitle(pdf, margin, y, "Imóvel e obra", contentWidth);
-  y += 9.5;
+  y += 8.5;
   drawField(pdf, margin, y, contentWidth, "Endereço do imóvel", form?.propertyAddress || process.address);
-  y += 18.5;
+  y += 16;
 
   const quarter = (contentWidth - gap * 3) / 4;
   drawField(
@@ -384,7 +384,7 @@ export async function buildConstructionPermitPdfBlob({
         ? `${process.property.area.toFixed(2)} m²`
         : "Não informada",
   );
-  y += 18.5;
+  y += 16;
 
   drawField(
     pdf,
@@ -407,10 +407,10 @@ export async function buildConstructionPermitPdfBlob({
       .filter(Boolean)
       .join(" • ") || "Não informado",
   );
-  y += 18.5;
+  y += 16;
 
   drawSectionTitle(pdf, margin, y, "Objeto e condições do Alvará", contentWidth);
-  y += 9.5;
+  y += 8.5;
   drawField(
     pdf,
     margin,
@@ -418,13 +418,13 @@ export async function buildConstructionPermitPdfBlob({
     contentWidth,
     "Objeto do licenciamento",
     valueOrFallback(form?.licenseObject || process.type),
-    16,
+    14,
   );
-  y += 19.5;
+  y += 17;
 
   fill(pdf, color.soft);
   draw(pdf, color.line);
-  pdf.roundedRect(margin, y, contentWidth, 39, 2.5, 2.5, "FD");
+  pdf.roundedRect(margin, y, contentWidth, 28, 2.5, 2.5, "FD");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(5.2);
   textColor(pdf, color.muted);
@@ -445,13 +445,13 @@ export async function buildConstructionPermitPdfBlob({
     conditions.map((item, index) => `${index + 1}. ${item}`).join("\n"),
     contentWidth - 8,
   ) as string[];
-  pdf.text(conditionLines.slice(0, 9), margin + 4, y + 10.5, {
+  pdf.text(conditionLines.slice(0, 7), margin + 4, y + 10.2, {
     lineHeightFactor: 1.3,
   });
-  y += 43;
+  y += 32;
 
   drawSectionTitle(pdf, margin, y, "Assinatura municipal", contentWidth);
-  y += 9.5;
+  y += 8.5;
 
   const hasSecretary = secretaryOfficial;
   if (hasSecretary) {
@@ -474,11 +474,11 @@ export async function buildConstructionPermitPdfBlob({
       permit.directorSignature,
     );
   }
-  y += 38;
+  y += 32;
 
   fill(pdf, directorOfficial ? ([240, 253, 250] as const) : ([255, 247, 237] as const));
   draw(pdf, directorOfficial ? ([167, 243, 208] as const) : ([253, 186, 116] as const));
-  pdf.roundedRect(margin, y, contentWidth, 16, 2.2, 2.2, "FD");
+  pdf.roundedRect(margin, y, contentWidth, 12, 2.2, 2.2, "FD");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(6.3);
   textColor(pdf, directorOfficial ? color.green : color.amber);
@@ -495,23 +495,23 @@ export async function buildConstructionPermitPdfBlob({
   pdf.text(
     `Processo: ${process.protocol}  •  Emissão: ${formatDate(permit.issuedAt || permit.updatedAt)}`,
     margin + 4,
-    y + 10.2,
+    y + 9.2,
   );
   pdf.text(
     `SIGAPRO Municipal • Alvará ${permit.permitNumber}`,
     margin + 4,
-    y + 13.4,
+    y + 11.1,
   );
 
   draw(pdf, color.line);
-  pdf.line(margin, pageHeight - 10.5, pageWidth - margin, pageHeight - 10.5);
+  pdf.line(margin, pageHeight - 7.5, pageWidth - margin, pageHeight - 7.5);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(4.8);
   textColor(pdf, color.muted);
   pdf.text(
     "Documento eletrônico gerado pelo SIGAPRO Municipal. A assinatura da Diretoria é a assinatura municipal obrigatória; a assinatura da Secretaria é complementar quando registrada.",
     pageWidth / 2,
-    pageHeight - 6.5,
+    pageHeight - 3.8,
     { align: "center", maxWidth: contentWidth },
   );
 
