@@ -95,7 +95,7 @@ function guideResponsibility(kind: PaymentGuideKind) {
 function guideKindLabel(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Taxa de protocolo";
   if (kind === "iss_obra") return "ISSQN / Projeto";
-  return "Taxa final / Habite-se";
+  return "Aprovação / Alvará";
 }
 
 export function FinanceProtocolsPage() {
@@ -112,7 +112,7 @@ export function FinanceProtocolsPage() {
 
   // O Financeiro enxerga todos os protocolos ativos do município.
   // A responsabilidade operacional de cada guia continua respeitada:
-  // a taxa inicial pertence ao Protocolo; ISSQN e taxa final pertencem ao Financeiro.
+  // a taxa inicial pertence ao Protocolo; ISSQN e aprovação/Alvará pertencem ao Financeiro.
   const scopedProcesses = useMemo(
     () =>
       allProcesses.filter((process) =>
