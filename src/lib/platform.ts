@@ -163,6 +163,28 @@ export const workTypeCatalog = [
   "Substituição / alteração de projeto",
 ] as const;
 
+export const occupancyPermitProcessTypes = [
+  "Habite-se",
+  "Carta de Habite-se Parcial",
+  "Certificado de Conclusao de Obra",
+] as const;
+
+export function isOccupancyPermitProcessType(value: string | null | undefined) {
+  const normalized = (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  return (
+    normalized === "habite se" ||
+    normalized.includes("habite se parcial") ||
+    normalized.includes("certificado de conclusao de obra")
+  );
+}
+
 
 export const SIGAPRO_MASTER_EMAIL = "roksparta02@gmail.com";
 export const SIGAPRO_DEFAULT_SUBDOMAIN = "campolimpopaulista";
@@ -2055,10 +2077,32 @@ export const checklistTemplates: ChecklistTemplate[] = [
     items: [
       { id: "hab-1", label: "RG ou CNH do proprietario", required: true },
       { id: "hab-2", label: "CPF do proprietario", required: true },
-      { id: "hab-3", label: "IPTU", required: true },
-      { id: "hab-4", label: "Projeto aprovado", required: true },
-      { id: "hab-5", label: "Termo de conclusao da obra", required: true },
-      { id: "hab-6", label: "ART ou RRT", required: true },
+      { id: "hab-3", label: "IPTU atualizado", required: true },
+      { id: "hab-4", label: "Matricula do imovel", required: true },
+      { id: "hab-5", label: "Alvara de construcao ou regularizacao", required: true },
+      { id: "hab-6", label: "Projeto aprovado pela Prefeitura", required: true },
+      { id: "hab-7", label: "ART ou RRT de execucao ou conclusao da obra", required: true },
+      { id: "hab-8", label: "Termo de conclusao da obra pelo responsavel tecnico", required: true },
+      { id: "hab-9", label: "AVCB ou CLCB, quando aplicavel", required: false },
+      { id: "hab-10", label: "Licencas e anuencias complementares, quando aplicavel", required: false },
+    ],
+  },
+  {
+    id: "check-habite-se-parcial",
+    tenantId: null,
+    processType: "Carta de Habite-se Parcial",
+    items: [
+      { id: "habp-1", label: "RG ou CNH do proprietario", required: true },
+      { id: "habp-2", label: "CPF do proprietario", required: true },
+      { id: "habp-3", label: "IPTU atualizado", required: true },
+      { id: "habp-4", label: "Matricula do imovel", required: true },
+      { id: "habp-5", label: "Alvara de construcao ou regularizacao", required: true },
+      { id: "habp-6", label: "Projeto aprovado pela Prefeitura", required: true },
+      { id: "habp-7", label: "Planta destacando a etapa concluida", required: true },
+      { id: "habp-8", label: "ART ou RRT de execucao ou conclusao da etapa", required: true },
+      { id: "habp-9", label: "Termo de conclusao parcial pelo responsavel tecnico", required: true },
+      { id: "habp-10", label: "AVCB ou CLCB, quando aplicavel", required: false },
+      { id: "habp-11", label: "Licencas e anuencias complementares, quando aplicavel", required: false },
     ],
   },
 ];
