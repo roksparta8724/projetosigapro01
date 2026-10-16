@@ -169,6 +169,7 @@ const navItems = [
       children: [
         { to: "/externo/controle", label: "Processos", icon: FileBarChart2 },
         { to: "/externo/protocolar", label: "Novo protocolo", icon: ListChecks },
+        { to: "/externo/habite-se", label: "Habite-se", icon: FileText },
         { to: "/externo/pagamentos", label: "Pagamentos", icon: Wallet },
         { to: "/externo/historico", label: "Histórico", icon: History },
         { to: "/externo/mensagens", label: "Mensagens", icon: Mail },
