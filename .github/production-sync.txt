@@ -1,4 +1,5 @@
 SIGAPRO production sync
 Source branch: fix/analise-premium-cadastro-20261013
-Source commit: 56a69d63863c275b1b52297f970a79c12df443ad
+Source commit: a967c2e2fc62936b676b1ef5d2eb9a04ffb075f2
 Synced: 2026-10-16
+Reason: publish legislation PDF fixes, zoning/use-soil separation, and technical-sheet contrast
