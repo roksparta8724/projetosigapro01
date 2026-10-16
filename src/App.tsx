@@ -21,6 +21,7 @@ import { shouldShowPublicLanding } from "@/lib/tenant";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
 import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
+import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
 import { AnalystDeskPage } from "@/pages/saas/AnalystDeskPage";
 import { FinanceDeskPage } from "@/pages/saas/FinanceDeskPage";
@@ -217,6 +218,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <MunicipalOrganizationPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/prefeitura/processos"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <MunicipalProcessRegistryPage />
             </PermissionRoute>
           }
         />
