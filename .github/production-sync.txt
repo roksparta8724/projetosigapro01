@@ -1,0 +1,4 @@
+SIGAPRO production sync
+Source branch: fix/analise-premium-cadastro-20261013
+Source commit: 56a69d63863c275b1b52297f970a79c12df443ad
+Synced: 2026-10-16
