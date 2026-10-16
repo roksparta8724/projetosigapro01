@@ -984,6 +984,73 @@ export function ConstructionPermitPanel({
                   ) : null}
                 </div>
 
+                {canStartDraft &&
+                permitReadyForSignature &&
+                !directorOfficial &&
+                !directorRequestPending &&
+                !manualSignatureSelected ? (
+                  <div className="rounded-[20px] border border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef8ff_100%)] p-5 shadow-sm dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                          Assinatura do Alvará
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                          Escolha como a Diretoria vai assinar
+                        </p>
+                        <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                          Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar à caneta.
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
+                          disabled={Boolean(workflowBusy)}
+                          onClick={() => void requestDirectorSignature()}
+                        >
+                          {workflowBusy === "request" ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="mr-2 h-4 w-4" />
+                          )}
+                          Solicitar assinatura eletrônica
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-full bg-sky-700 px-5 font-bold text-white hover:bg-sky-800"
+                          disabled={Boolean(workflowBusy)}
+                          onClick={() => void generateManualSignaturePdf()}
+                        >
+                          {workflowBusy === "manual" ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Printer className="mr-2 h-4 w-4" />
+                          )}
+                          Gerar PDF para assinatura à caneta
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {directorRequestPending && canStartDraft && !directorOfficial ? (
+                  <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-5 py-4 dark:border-violet-500/30 dark:bg-violet-950/25">
+                    <div className="flex items-center gap-3">
+                      <Send className="h-5 w-5 text-violet-700 dark:text-violet-300" />
+                      <div>
+                        <p className="text-sm font-bold text-violet-950 dark:text-violet-100">
+                          Solicitação enviada à Diretoria
+                        </p>
+                        <p className="mt-1 text-xs text-violet-800 dark:text-violet-200">
+                          O Diretor pode abrir este processo e assinar eletronicamente com a própria senha.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 {isIssued ? (
                   <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
