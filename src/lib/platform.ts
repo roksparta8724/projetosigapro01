@@ -520,6 +520,8 @@ export interface TenantSettings {
   planoDiretorArquivoUrl: string;
   usoSoloArquivoNome: string;
   usoSoloArquivoUrl: string;
+  zoneamentoArquivoNome?: string;
+  zoneamentoArquivoUrl?: string;
   leisArquivoNome: string;
   leisArquivoUrl: string;
   adminContacts?: InstitutionAdminContact[];
@@ -1531,6 +1533,8 @@ export const tenantSettings: TenantSettings[] = [
     planoDiretorArquivoUrl: "",
     usoSoloArquivoNome: "",
     usoSoloArquivoUrl: "",
+    zoneamentoArquivoNome: "",
+    zoneamentoArquivoUrl: "",
     leisArquivoNome: "",
     leisArquivoUrl: "",
   },
