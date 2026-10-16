@@ -26,8 +26,14 @@ describe("construction permit workflow", () => {
     expect(migration).toContain("save_construction_permit_draft_v1");
   });
 
+  it("keeps the two signing paths visible while the form scrolls", () => {
+    expect(panel).toContain("sticky bottom-0");
+    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
+    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+  });
+
   it("offers the two director signature paths before PDF completion", () => {
-    expect(panel).toContain("Solicitar assinatura eletrônica");
+    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
     expect(panel).toContain("Gerar PDF para assinatura à caneta");
     expect(panel).toContain("requestOfficialPermitDirectorSignature");
     expect(panel).toContain("markOfficialPermitForManualSignature");
