@@ -344,7 +344,7 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog','public','private'
 set row_security to 'off'
-as $
+as $func$
 declare
   _block public.signature_blocks%rowtype;
 begin
@@ -370,7 +370,7 @@ begin
 
   return new;
 end;
-$;
+$func$;
 
 drop trigger if exists trg_complete_construction_permit_signature on public.signatures;
 create trigger trg_complete_construction_permit_signature
