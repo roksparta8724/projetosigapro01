@@ -5,6 +5,7 @@ export type InstitutionalLogoConfigVariant = "header" | "footer";
 export interface InstitutionalBranding {
   tenantId: string;
   logoUrl: string;
+  fallbackLogoUrl?: string;
   logoScale: number;
   logoOffsetX: number;
   logoOffsetY: number;
