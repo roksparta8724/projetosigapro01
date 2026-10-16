@@ -368,6 +368,16 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/externo/habite-se"
+          element={
+            <PermissionRoute permission="submit_processes">
+              <PlanModuleRoute module="Acesso externo">
+                <ProtocolarProjetoPage mode="habite-se" />
+              </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/externo/controle"
           element={
             <PermissionRoute permission="submit_processes">
