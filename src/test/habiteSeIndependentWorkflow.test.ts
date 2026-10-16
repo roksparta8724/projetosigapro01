@@ -32,11 +32,11 @@ describe("Habite-se independent workflow", () => {
 
   it("uses a dedicated Habite-se checklist", () => {
     expect(platform).toContain('processType: "Habite-se"');
-    expect(platform).toContain("Alvara de construcao ou regularizacao");
+    expect(platform).toContain("Alvará de construção ou regularização");
     expect(platform).toContain("Projeto aprovado pela Prefeitura");
-    expect(platform).toContain("ART ou RRT de execucao ou conclusao da obra");
+    expect(platform).toContain("ART ou RRT de execução ou conclusão da obra");
     expect(platform).toContain('processType: "Carta de Habite-se Parcial"');
-    expect(platform).toContain("Planta destacando a etapa concluida");
+    expect(platform).toContain("Planta destacando a etapa concluída");
   });
 
   it("blocks approval and ISS guides inside a Habite-se process", () => {
