@@ -3219,7 +3219,13 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? settings?.logoUrl ?? ""}
+                      imageUrl={
+                        draftHeaderLogoFiles[0]?.previewUrl ??
+                        headerBranding.logoUrl ??
+                        settings?.headerLogoUrl ??
+                        settings?.logoUrl ??
+                        ""
+                      }
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
@@ -3293,7 +3299,13 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? settings?.logoUrl ?? ""}
+                      imageUrl={
+                        draftFooterLogoFiles[0]?.previewUrl ??
+                        footerBranding.logoUrl ??
+                        settings?.footerLogoUrl ??
+                        settings?.logoUrl ??
+                        ""
+                      }
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
