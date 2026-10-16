@@ -12,6 +12,9 @@ describe("municipal legislation assets", () => {
   const backend = read("src/integrations/backend/platformImpl.ts");
   const dropzone = read("src/components/platform/FileDropZone.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
+  const r2Storage = read("src/integrations/r2/storage.ts");
+  const r2SignApi = read("api/r2-sign-get.ts");
+  const r2UploadApi = read("api/r2-upload.ts");
 
   it("persists institutional assets instead of saving blob preview URLs", () => {
     expect(settings).toContain("handleSaveInstitutionalAssets");
@@ -68,6 +71,16 @@ describe("municipal legislation assets", () => {
     expect(r2Client).toContain('["localhost", "127.0.0.1", "::1"]');
     expect(r2Client).toContain("isLocalBrowser ? [remote, normalized] : [normalized, remote]");
     expect(r2Client).toContain("requestSignedUrlWithFallback");
+  });
+
+  it("resolves physical storage buckets only on the server", () => {
+    expect(r2Storage).toContain('? "process-documents"');
+    expect(r2Storage).toContain(': "institutional-branding"');
+    expect(r2Storage).not.toContain("VITE_R2_BUCKET_DOCUMENTOS");
+    expect(r2SignApi).toContain('if (value === "process-documents") return documents');
+    expect(r2UploadApi).toContain('if (value === "process-documents") return documents');
+    expect(legislation).toContain('bucket: "process-documents"');
+    expect(zoning).toContain('bucket: "process-documents"');
   });
 
   it("shows an explicit official-storage state in upload cards", () => {
