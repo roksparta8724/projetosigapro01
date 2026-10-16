@@ -1893,3 +1893,64 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell
   opacity:1 !important;
 }
 /* PAGAMENTO DA APROVACAO V17 END */
+
+
+/* ==========================================================================
+   MUNICIPAL LOGO PREMIUM STAGE V17 — 2026-10-16
+   Final authority loaded after index.css. Keeps the configured municipal logo
+   intact, centered and uncropped, with a premium neutral frame in every theme.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"] {
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
+  background-color:#ffffff !important;
+  border:1px solid rgba(203,213,225,.92) !important;
+  outline:0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.96),
+    0 10px 24px rgba(15,23,42,.10) !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  isolation:isolate;
+}
+
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="header"],
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="footer"],
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="preview"] {
+  padding:8px 10px !important;
+  border-radius:20px !important;
+}
+
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="compact"] {
+  padding:3px !important;
+  border-radius:12px !important;
+}
+
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="login"] {
+  padding:10px !important;
+  border-radius:24px !important;
+}
+
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"] > div,
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"] > div > div {
+  background:transparent !important;
+  background-color:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+
+html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"] img {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  transform:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  image-rendering:auto !important;
+}
+/* MUNICIPAL LOGO PREMIUM STAGE V17 END */
