@@ -166,7 +166,7 @@ export const workTypeCatalog = [
 export const occupancyPermitProcessTypes = [
   "Habite-se",
   "Carta de Habite-se Parcial",
-  "Certificado de Conclusao de Obra",
+  "Certificado de Conclusão de Obra",
 ] as const;
 
 export function isOccupancyPermitProcessType(value: string | null | undefined) {
@@ -1879,7 +1879,7 @@ export const processTypeCatalog = [
   "Alvara de Demolicao",
   "Habite-se",
   "Carta de Habite-se Parcial",
-  "Certificado de Conclusao de Obra",
+  "Certificado de Conclusão de Obra",
   "Licenciamento de Fachada",
   "Licenciamento de Muro e Fechamento",
   "Licenciamento de Tapume",
@@ -2079,12 +2079,12 @@ export const checklistTemplates: ChecklistTemplate[] = [
       { id: "hab-2", label: "CPF do proprietario", required: true },
       { id: "hab-3", label: "IPTU atualizado", required: true },
       { id: "hab-4", label: "Matricula do imovel", required: true },
-      { id: "hab-5", label: "Alvara de construcao ou regularizacao", required: true },
+      { id: "hab-5", label: "Alvará de construção ou regularização", required: true },
       { id: "hab-6", label: "Projeto aprovado pela Prefeitura", required: true },
-      { id: "hab-7", label: "ART ou RRT de execucao ou conclusao da obra", required: true },
-      { id: "hab-8", label: "Termo de conclusao da obra pelo responsavel tecnico", required: true },
+      { id: "hab-7", label: "ART ou RRT de execução ou conclusão da obra", required: true },
+      { id: "hab-8", label: "Termo de conclusão da obra pelo responsável técnico", required: true },
       { id: "hab-9", label: "AVCB ou CLCB, quando aplicavel", required: false },
-      { id: "hab-10", label: "Licencas e anuencias complementares, quando aplicavel", required: false },
+      { id: "hab-10", label: "Licenças e anuências complementares, quando aplicável", required: false },
     ],
   },
   {
@@ -2096,13 +2096,13 @@ export const checklistTemplates: ChecklistTemplate[] = [
       { id: "habp-2", label: "CPF do proprietario", required: true },
       { id: "habp-3", label: "IPTU atualizado", required: true },
       { id: "habp-4", label: "Matricula do imovel", required: true },
-      { id: "habp-5", label: "Alvara de construcao ou regularizacao", required: true },
+      { id: "habp-5", label: "Alvará de construção ou regularização", required: true },
       { id: "habp-6", label: "Projeto aprovado pela Prefeitura", required: true },
-      { id: "habp-7", label: "Planta destacando a etapa concluida", required: true },
-      { id: "habp-8", label: "ART ou RRT de execucao ou conclusao da etapa", required: true },
-      { id: "habp-9", label: "Termo de conclusao parcial pelo responsavel tecnico", required: true },
+      { id: "habp-7", label: "Planta destacando a etapa concluída", required: true },
+      { id: "habp-8", label: "ART ou RRT de execução ou conclusão da etapa", required: true },
+      { id: "habp-9", label: "Termo de conclusão parcial pelo responsável técnico", required: true },
       { id: "habp-10", label: "AVCB ou CLCB, quando aplicavel", required: false },
-      { id: "habp-11", label: "Licencas e anuencias complementares, quando aplicavel", required: false },
+      { id: "habp-11", label: "Licenças e anuências complementares, quando aplicável", required: false },
     ],
   },
 ];
