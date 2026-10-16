@@ -999,12 +999,13 @@ export function FinanceDeskPage() {
             sampleUsage={sampleProcess?.property.usage ?? "Residencial"}
             sampleStandard={sampleProcess?.property.constructionStandard ?? "medio"}
             title="Tabelas e regras financeiras"
-            subtitle="Taxas de protocolo, ISSQN por tipo de construção e habite-se por padrão de acabamento."
+            subtitle="Taxas de protocolo, ISSQN e guia de aprovação/Alvará por tipo de obra e padrão de acabamento."
             values={{
               taxaProtocolo: tenantSettings?.taxaProtocolo ?? 35.24,
               taxaIssPorMetroQuadrado: tenantSettings?.taxaIssPorMetroQuadrado ?? 0,
               issRateProfiles: tenantSettings?.issRateProfiles ?? defaultIssRateProfiles,
               taxaAprovacaoFinal: tenantSettings?.taxaAprovacaoFinal ?? 0,
+              approvalAliquotPercent: tenantSettings?.approvalAliquotPercent ?? 5,
               approvalRateProfiles: tenantSettings?.approvalRateProfiles ?? defaultApprovalRateProfiles,
             }}
             statusMessage={feeStatus}
@@ -1022,6 +1023,7 @@ export function FinanceDeskPage() {
                   taxaIssPorMetroQuadrado: Number(values.taxaIssPorMetroQuadrado || 0),
                   issRateProfiles: values.issRateProfiles ?? defaultIssRateProfiles,
                   taxaAprovacaoFinal: Number(values.taxaAprovacaoFinal || 0),
+                  approvalAliquotPercent: Number(values.approvalAliquotPercent ?? 5),
                   approvalRateProfiles: values.approvalRateProfiles ?? defaultApprovalRateProfiles,
                 });
                 setFeeStatus("Tabela financeira salva no banco oficial. Os novos valores serão usados nas próximas emissões; guias já emitidas preservam o valor original.");
@@ -1087,9 +1089,9 @@ export function FinanceDeskPage() {
                     }
                   />
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">3. Taxa final / Habite-se</p>
+                    <p className="text-sm font-semibold text-slate-950">3. Guia de aprovação / Alvará</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Quando ativa, o processo passa pelo Financeiro antes do deferimento final.
+                      Quando ativa, a aprovação técnica gera a guia do Alvará e o processo passa pelo Financeiro antes da emissão do documento. Habite-se não participa deste fluxo.
                     </p>
                   </div>
                 </label>
