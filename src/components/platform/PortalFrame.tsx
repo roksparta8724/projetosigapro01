@@ -71,7 +71,6 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
@@ -120,7 +119,6 @@ const navItems = [
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
-  { key: "organization", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, internalOnly: true, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
     to: "/prefeitura/protocolos",
@@ -860,8 +858,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         ? "/externo/controle"
         : session.role === "proprietario_consulta" || session.role === "property_owner"
           ? "/proprietario"
-          : session.role === "prefeitura_admin"
-            ? "/dashboard/processos"
+          : isInternalRole(session.role)
+            ? "/prefeitura/processos"
             : "/prefeitura/protocolos";
 
   const resetMarkerEditor = () => {
@@ -1333,6 +1331,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
               </button>
+              {isInternalRole(session.role) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/prefeitura/organograma")}
+                  className={cn(
+                    "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                    topbarIconButton,
+                  )}
+                  aria-label="Organograma"
+                  title="Organograma"
+                >
+                  <Network className="h-[18px] w-[18px] text-white/92" />
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => navigate("/notificacoes")}
@@ -1476,6 +1488,21 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
                 </button>
+                {isInternalRole(session.role) ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/prefeitura/organograma")}
+                    className={cn(
+                      "sig-topbar-organogram-button relative",
+                      topbarUtilityButtonClass,
+                      topbarIconButton,
+                    )}
+                    aria-label="Organograma"
+                    title="Organograma"
+                  >
+                    <Network className={topbarUtilityIconClass} aria-hidden="true" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => navigate("/notificacoes")}
@@ -2331,16 +2358,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              {activeInstitutionId ? (
-                <MunicipalOrganogramBar
-                  municipalityId={activeInstitutionId}
-                  departmentHint={departmentOrganogramHint}
-                  title="Organograma do departamento"
-                  description="Caminho oficial da unidade no organograma municipal. Este mesmo cadastro orienta os destinos de despacho dos processos."
-                  className="mt-4"
-                  showLink={isInternalRole(session.role)}
-                />
-              ) : null}
             </header> : null}
 
             {dataError && !loading ? (
