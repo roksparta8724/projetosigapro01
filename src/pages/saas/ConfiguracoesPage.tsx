@@ -2061,21 +2061,47 @@ export function ConfiguracoesPage() {
         throw new Error("Selecione uma Prefeitura válida antes de salvar os arquivos institucionais.");
       }
 
-      const [
-        nextBrasaoFiles,
-        nextBandeiraFiles,
-        nextHeroFiles,
-        nextPlanoDiretorFiles,
-        nextUsoSoloFiles,
-        nextLeisFiles,
-      ] = await Promise.all([
-        uploadInstitutionalAssetList(brasaoFiles, "branding/brasao", savedTenantId),
-        uploadInstitutionalAssetList(bandeiraFiles, "branding/bandeira", savedTenantId),
-        uploadInstitutionalAssetList(heroFiles, "branding/portal", savedTenantId),
-        uploadInstitutionalAssetList(planoDiretorFiles, "legislation/plano-diretor", savedTenantId),
-        uploadInstitutionalAssetList(usoSoloFiles, "legislation/uso-solo", savedTenantId),
-        uploadInstitutionalAssetList(leisFiles, "legislation/leis-complementares", savedTenantId),
-      ]);
+      const nextBrasaoFiles = await uploadInstitutionalAssetList(
+        brasaoFiles,
+        "branding/brasao",
+        savedTenantId,
+      );
+      setBrasaoFiles(nextBrasaoFiles);
+
+      const nextBandeiraFiles = await uploadInstitutionalAssetList(
+        bandeiraFiles,
+        "branding/bandeira",
+        savedTenantId,
+      );
+      setBandeiraFiles(nextBandeiraFiles);
+
+      const nextHeroFiles = await uploadInstitutionalAssetList(
+        heroFiles,
+        "branding/portal",
+        savedTenantId,
+      );
+      setHeroFiles(nextHeroFiles);
+
+      const nextPlanoDiretorFiles = await uploadInstitutionalAssetList(
+        planoDiretorFiles,
+        "legislation/plano-diretor",
+        savedTenantId,
+      );
+      setPlanoDiretorFiles(nextPlanoDiretorFiles);
+
+      const nextUsoSoloFiles = await uploadInstitutionalAssetList(
+        usoSoloFiles,
+        "legislation/uso-solo",
+        savedTenantId,
+      );
+      setUsoSoloFiles(nextUsoSoloFiles);
+
+      const nextLeisFiles = await uploadInstitutionalAssetList(
+        leisFiles,
+        "legislation/leis-complementares",
+        savedTenantId,
+      );
+      setLeisFiles(nextLeisFiles);
 
       const baseSettings =
         buildTenantSettingsFromMunicipality(
