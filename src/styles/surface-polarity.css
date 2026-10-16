@@ -1463,3 +1463,366 @@ html body #root .sig-app-frame .sig-main-shell
   font-synthesis:none !important;
 }
 /* FICHA TECNICA — CONTRASTE + NITIDEZ FINAL V19 END */
+
+
+/* ==========================================================================
+   PREFEITURA / USUARIOS + ORGANOGRAMA — PREMIUM DARK LOCK V17 — 2026-10-16
+   Estas superficies sao institucionais e nao podem manter cabecalhos/cartoes
+   brancos quando o layout principal esta em modo escuro.
+   ========================================================================== */
+
+/* ---- Usuarios municipais: estrutura e nitidez ---- */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] {
+  background:linear-gradient(180deg,#102238 0%,#0b1929 100%) !important;
+  background-color:#0b1929 !important;
+  border-color:#2d4c67 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  box-shadow:0 18px 38px rgba(2,6,23,.24) !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-header="true"] {
+  background:linear-gradient(135deg,#152b44 0%,#102238 54%,#0d1c2d 100%) !important;
+  background-color:#102238 !important;
+  border-color:#2d4c67 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-body="true"] {
+  background:linear-gradient(180deg,#0e1f32 0%,#0a1828 100%) !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] :is(
+  h1,h2,h3,h4,h5,h6,p,span,strong,small,label,dt,dd
+) {
+  text-shadow:none !important;
+  filter:none !important;
+  opacity:1 !important;
+  -webkit-font-smoothing:antialiased !important;
+  -moz-osx-font-smoothing:grayscale !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-header="true"]
+:is(p,span,strong,small,label):not([data-ui="badge"]) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-header="true"]
+:is(.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400,.sig-fit-copy) {
+  color:#cbd8e8 !important;
+  -webkit-text-fill-color:#cbd8e8 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-avatar-frame="true"] {
+  background:#132b43 !important;
+  border-color:#35536d !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(2,6,23,.22) !important;
+}
+
+/* Badges do cabecalho nunca ficam brancos sobre o card escuro. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-header="true"] [data-ui="badge"] {
+  background:#172c42 !important;
+  border-color:#3a5a73 !important;
+  color:#e8f2ff !important;
+  -webkit-text-fill-color:#e8f2ff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-header="true"]
+[data-ui="badge"][class*="emerald"] {
+  background:#0b3d31 !important;
+  border-color:#16785f !important;
+  color:#b7f7df !important;
+  -webkit-text-fill-color:#b7f7df !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-role-badge="true"] {
+  background:#123650 !important;
+  border-color:#256587 !important;
+  color:#d9f2ff !important;
+  -webkit-text-fill-color:#d9f2ff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="financeiro"]
+[data-municipal-user-role-badge="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="financeiro"]
+[data-municipal-user-lotation="true"] {
+  background:#0b3d31 !important;
+  border-color:#16785f !important;
+  color:#c7f9e8 !important;
+  -webkit-text-fill-color:#c7f9e8 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="fiscal"]
+[data-municipal-user-role-badge="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="fiscal"]
+[data-municipal-user-lotation="true"] {
+  background:#49340d !important;
+  border-color:#946716 !important;
+  color:#ffefbd !important;
+  -webkit-text-fill-color:#ffefbd !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="prefeitura_admin"]
+[data-municipal-user-role-badge="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"][data-user-role="prefeitura_admin"]
+[data-municipal-user-lotation="true"] {
+  background:#31204f !important;
+  border-color:#684aa0 !important;
+  color:#eadcff !important;
+  -webkit-text-fill-color:#eadcff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-lotation="true"] {
+  background:#0b3554 !important;
+  border-color:#176b98 !important;
+  color:#e6f5ff !important;
+  -webkit-text-fill-color:#e6f5ff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-lotation="true"] :is(p,span,svg) {
+  color:inherit !important;
+  stroke:currentColor !important;
+  -webkit-text-fill-color:inherit !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-security="true"] {
+  background:#0d1d2f !important;
+  border-color:#2c4862 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-security="true"]
+:is(p,span,strong,small,label) {
+  color:#e7eff8 !important;
+  -webkit-text-fill-color:#e7eff8 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-security="true"]
+:is(.text-slate-500,.text-slate-400) {
+  color:#aebfd1 !important;
+  -webkit-text-fill-color:#aebfd1 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-editor="true"] {
+  background:#10283e !important;
+  border-color:#2e5876 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-editor="true"]
+:is(input,button,[data-ui="select-trigger"]) {
+  background:#091827 !important;
+  border-color:#36546f !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-actions="true"] {
+  border-color:#263f59 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-actions="true"] button {
+  background:#14283d !important;
+  border-color:#36536d !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  box-shadow:none !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-actions="true"] button:hover {
+  background:#1a3550 !important;
+  border-color:#4e708d !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-user-card="true"] [data-municipal-user-actions="true"] button svg {
+  color:#dcecff !important;
+  stroke:#dcecff !important;
+}
+
+/* ---- Organograma municipal: arvore institucional escura ---- */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-toolbar="true"] {
+  background:linear-gradient(135deg,#10263d 0%,#0c1c2e 100%) !important;
+  border-color:#2d4c67 !important;
+  color:#eaf3fc !important;
+  -webkit-text-fill-color:#eaf3fc !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-toolbar="true"] :is(span,p,svg) {
+  color:#dce9f6 !important;
+  -webkit-text-fill-color:#dce9f6 !important;
+  stroke:currentColor !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-node="true"] {
+  background:linear-gradient(180deg,#102136 0%,#0b192a 100%) !important;
+  border-color:#2d4964 !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  box-shadow:0 14px 30px rgba(2,6,23,.20) !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-node="true"][data-organogram-root="false"] {
+  background:linear-gradient(180deg,#0f2033 0%,#0b1928 100%) !important;
+  box-shadow:0 7px 18px rgba(2,6,23,.16) !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-acronym="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-shadow:none !important;
+  filter:none !important;
+  opacity:1 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-name="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-level-label="true"] {
+  color:#bfd0e1 !important;
+  -webkit-text-fill-color:#bfd0e1 !important;
+  text-shadow:none !important;
+  filter:none !important;
+  opacity:1 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-icon="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-level-badge="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-legend="true"] {
+  background:#172c42 !important;
+  border-color:#3a5a73 !important;
+  color:#dbeafe !important;
+  -webkit-text-fill-color:#dbeafe !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="secretaria"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#31204f !important;
+  border-color:#684aa0 !important;
+  color:#eadcff !important;
+  -webkit-text-fill-color:#eadcff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="diretoria"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#0b3554 !important;
+  border-color:#176b98 !important;
+  color:#d9f2ff !important;
+  -webkit-text-fill-color:#d9f2ff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="departamento"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#103a44 !important;
+  border-color:#1e7180 !important;
+  color:#d5f8ff !important;
+  -webkit-text-fill-color:#d5f8ff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="setor"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#0b3d31 !important;
+  border-color:#16785f !important;
+  color:#c7f9e8 !important;
+  -webkit-text-fill-color:#c7f9e8 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="coordenadoria"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#31204f !important;
+  border-color:#684aa0 !important;
+  color:#eadcff !important;
+  -webkit-text-fill-color:#eadcff !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-unit-type="divisao"]
+:is([data-organogram-icon="true"],[data-organogram-level-badge="true"],[data-organogram-legend="true"]) {
+  background:#49340d !important;
+  border-color:#946716 !important;
+  color:#ffefbd !important;
+  -webkit-text-fill-color:#ffefbd !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-icon="true"] svg {
+  color:inherit !important;
+  stroke:currentColor !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-edit="true"] {
+  background:#14283d !important;
+  border-color:#36536d !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  box-shadow:none !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-edit="true"]:hover {
+  background:#1a3550 !important;
+  border-color:#4e708d !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-organogram="true"] [data-organogram-children="true"] {
+  border-color:#36546f !important;
+}
+
+/* Nitidez comum nas duas areas. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-municipal-user-card="true"],[data-municipal-organogram="true"])
+:is(p,span,strong,small,label,button) {
+  text-shadow:none !important;
+  filter:none !important;
+  opacity:1 !important;
+}
+/* PREFEITURA PREMIUM DARK LOCK V17 END */
