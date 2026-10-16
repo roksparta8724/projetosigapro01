@@ -9,6 +9,7 @@ import { evaluateMunicipalFeeRules, type CalculationContext } from "@/lib/calcul
 import { type MunicipalFeeRule, type MunicipalFeeTable } from "@/lib/govtech";
 import {
   calculateApprovalGuideAmount,
+  calculateApprovalGuideBreakdown,
   defaultApprovalRateProfiles,
   calculateIssGuideAmount,
   defaultIssRateProfiles,
@@ -30,6 +31,7 @@ interface FeeTableManagerProps {
     taxaProtocolo: number;
     taxaIssPorMetroQuadrado: number;
     taxaAprovacaoFinal: number;
+    approvalAliquotPercent?: number;
     issRateProfiles?: MunicipalIssRateProfile[];
     approvalRateProfiles?: MunicipalApprovalRateProfile[];
   };
@@ -37,6 +39,7 @@ interface FeeTableManagerProps {
     taxaProtocolo: number;
     taxaIssPorMetroQuadrado: number;
     taxaAprovacaoFinal: number;
+    approvalAliquotPercent?: number;
     issRateProfiles?: MunicipalIssRateProfile[];
     approvalRateProfiles?: MunicipalApprovalRateProfile[];
   }) => void | Promise<void>;
@@ -55,7 +58,9 @@ function buildPreviewSettings(
     taxaProtocolo: number;
     taxaIssPorMetroQuadrado: number;
     taxaAprovacaoFinal: number;
+    approvalAliquotPercent?: number;
     issRateProfiles?: MunicipalIssRateProfile[];
+    approvalRateProfiles?: MunicipalApprovalRateProfile[];
   },
 ) {
   return {
@@ -86,6 +91,7 @@ function buildPreviewSettings(
     taxaIssPorMetroQuadrado: draft.taxaIssPorMetroQuadrado,
     issRateProfiles: draft.issRateProfiles,
     taxaAprovacaoFinal: draft.taxaAprovacaoFinal,
+    approvalAliquotPercent: draft.approvalAliquotPercent ?? 5,
     approvalRateProfiles: draft.approvalRateProfiles,
     registroProfissionalObrigatorio: true,
     planoDiretorArquivoNome: "",
@@ -118,6 +124,7 @@ export function FeeTableManager({
         ? values.issRateProfiles
         : defaultIssRateProfiles,
     taxaAprovacaoFinal: values?.taxaAprovacaoFinal ?? 0,
+    approvalAliquotPercent: values?.approvalAliquotPercent ?? 5,
     approvalRateProfiles:
       values?.approvalRateProfiles && values.approvalRateProfiles.length > 0
         ? values.approvalRateProfiles
@@ -140,7 +147,13 @@ export function FeeTableManager({
       issLabel: matchedProfile?.label ?? "Uso da obra",
       issRate: matchedProfile?.rate ?? Number(draft.taxaIssPorMetroQuadrado || 0),
       approvalLabel: matchedApprovalProfile?.label ?? "Padrão construtivo",
-      approvalRate: matchedApprovalProfile?.rate ?? Number(draft.taxaAprovacaoFinal || 0),
+      approvalRate: matchedApprovalProfile?.rate ?? 0,
+      approvalBreakdown: calculateApprovalGuideBreakdown(
+        Number(sampleContext.builtArea || 0),
+        sampleUsage,
+        sampleStandard,
+        settings,
+      ),
       aprovacao: calculateApprovalGuideAmount(
         Number(sampleContext.builtArea || 0),
         sampleUsage,
@@ -197,9 +210,10 @@ export function FeeTableManager({
         </div>
 
         <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-slate-700">
-          O ISSQN da obra é calculado pela metragem de construção multiplicada pelo valor do tipo
-          de construção definido pela Prefeitura. Ao salvar, os parâmetros passam a alimentar as
-          guias novas e as pendentes ainda não compensadas.
+          O ISSQN da obra segue sua tabela própria. Já a guia de aprovação do projeto e do Alvará
+          usa a área aprovada, o tipo de obra, o padrão de acabamento e a alíquota municipal sobre
+          o valor de referência do metro quadrado. Habite-se não faz parte deste cálculo: ele terá
+          protocolo próprio. Ao salvar, os parâmetros passam a alimentar somente novas emissões.
         </div>
 
         <div className="grid gap-4 xl:grid-cols-3">
@@ -285,47 +299,119 @@ export function FeeTableManager({
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="sig-label">Guia final de aprovação</p>
+                <p className="sig-label">Guia de aprovação / Alvará</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {formatCurrency(draft.taxaAprovacaoFinal)}
+                  {formatCurrency(simulation.aprovacao)}
                 </p>
               </div>
               <Wallet className="h-5 w-5 text-slate-500" />
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Cobrança final vinculada à aprovação e ao habite-se conforme uso e acabamento.
+              Total = taxa fixa do Alvará + (área × valor de referência do m² × alíquota).
             </p>
             {editable ? (
-              <div className="mt-4 space-y-3">
-                {draft.approvalRateProfiles.map((profile) => (
-                  <div key={profile.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
-                    <div className="space-y-1">
-                      <Label>{profile.label}</Label>
-                      <p className="text-xs text-slate-500">
-                        Valor por m² para aprovação final e habite-se.
-                      </p>
-                    </div>
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Alíquota da taxa de licença (%)</Label>
                     <Input
                       type="number"
+                      min="0"
+                      max="100"
                       step="0.01"
-                      value={profile.rate}
+                      value={draft.approvalAliquotPercent}
                       onChange={(event) =>
-                        setDraft((current) => {
-                          const nextRate = Number(event.target.value);
-                          return {
-                            ...current,
-                            approvalRateProfiles: current.approvalRateProfiles.map((item) =>
-                              item.id === profile.id ? { ...item, rate: nextRate } : item,
-                            ),
-                            taxaAprovacaoFinal: nextRate,
-                          };
-                        })
+                        setDraft((current) => ({
+                          ...current,
+                          approvalAliquotPercent: Number(event.target.value),
+                        }))
                       }
                     />
+                    <p className="text-xs leading-5 text-slate-500">
+                      No modelo informado de Campo Limpo Paulista, a alíquota aplicada é 5%.
+                    </p>
                   </div>
-                ))}
+                  <div className="space-y-2">
+                    <Label>Taxa fixa geral do Alvará (fallback)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={draft.taxaAprovacaoFinal}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          taxaAprovacaoFinal: Number(event.target.value),
+                        }))
+                      }
+                    />
+                    <p className="text-xs leading-5 text-slate-500">
+                      Usada somente quando a linha específica não possuir taxa fixa própria.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {draft.approvalRateProfiles.map((profile) => (
+                    <div
+                      key={profile.id}
+                      className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 md:grid-cols-[minmax(0,1fr)_145px_145px]"
+                    >
+                      <div className="space-y-1">
+                        <Label>{profile.label}</Label>
+                        <p className="text-xs leading-5 text-slate-500">
+                          Tipo de obra + padrão de acabamento.
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Referência R$/m²</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={profile.rate}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              approvalRateProfiles: current.approvalRateProfiles.map((item) =>
+                                item.id === profile.id
+                                  ? { ...item, rate: Number(event.target.value) }
+                                  : item,
+                              ),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Alvará fixo (R$)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={profile.permitFee ?? 0}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              approvalRateProfiles: current.approvalRateProfiles.map((item) =>
+                                item.id === profile.id
+                                  ? { ...item, permitFee: Number(event.target.value) }
+                                  : item,
+                              ),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="mt-4 grid gap-2 text-sm text-slate-600">
+                <span>Alíquota: {simulation.approvalBreakdown.aliquotPercent.toLocaleString("pt-BR")}%</span>
+                <span>Valor de referência: {formatCurrency(simulation.approvalBreakdown.baseValueM2)} / m²</span>
+                <span>Taxa fixa do Alvará: {formatCurrency(simulation.approvalBreakdown.permitFee)}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -349,7 +435,7 @@ export function FeeTableManager({
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-500">
-                  Habite-se {simulation.approvalLabel} ({sampleContext.builtArea} m²)
+                  Aprovação / Alvará {simulation.approvalLabel} ({sampleContext.builtArea} m²)
                 </p>
                 <p className="mt-2 text-base font-semibold text-slate-900">
                   {formatCurrency(simulation.aprovacao)}
@@ -363,7 +449,9 @@ export function FeeTableManager({
             <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
               <li>Guia inicial usa o valor fixo de protocolo.</li>
               <li>ISSQN da obra = metragem construída × valor do tipo de construção.</li>
-              <li>Guia final = metragem construída × valor por padrão de acabamento.</li>
+              <li>Taxa de licença = área × valor de referência do m² × alíquota.</li>
+              <li>Total da aprovação = taxa fixa do Alvará + taxa de licença.</li>
+              <li>Habite-se não é continuação deste fluxo: será aberto em protocolo próprio.</li>
             </ul>
             {editable ? (
               <Button
