@@ -856,25 +856,27 @@ export const defaultIssRateProfiles: MunicipalIssRateProfile[] = [
   },
 ];
 
+// Estrutura inicial da tabela. Os valores oficiais do m² devem ser cadastrados
+// pela Prefeitura; não usamos números fictícios como base de arrecadação.
 export const defaultApprovalRateProfiles: MunicipalApprovalRateProfile[] = [
-  { id: "residencial-luxo", label: "Residencial • Luxo", usage: "Residencial", standard: "luxo", rate: 547.2 },
-  { id: "residencial-primeira", label: "Residencial • Primeira", usage: "Residencial", standard: "primeira", rate: 444.6 },
-  { id: "residencial-medio", label: "Residencial • Médio", usage: "Residencial", standard: "medio", rate: 342 },
-  { id: "residencial-economico", label: "Residencial • Econômico", usage: "Residencial", standard: "economico", rate: 239.4 },
-  { id: "apartamento-luxo", label: "Apartamento • Luxo", usage: "Apartamento", standard: "luxo", rate: 444.6 },
-  { id: "apartamento-primeira", label: "Apartamento • Primeira", usage: "Apartamento", standard: "primeira", rate: 376.2 },
-  { id: "apartamento-medio", label: "Apartamento • Médio", usage: "Apartamento", standard: "medio", rate: 307.8 },
-  { id: "escritorio-luxo", label: "Escritório • Luxo", usage: "Escritório", standard: "luxo", rate: 410.4 },
-  { id: "escritorio-primeira", label: "Escritório • Primeira", usage: "Escritório", standard: "primeira", rate: 342 },
-  { id: "escritorio-medio", label: "Escritório • Médio", usage: "Escritório", standard: "medio", rate: 307.8 },
-  { id: "comercial-luxo", label: "Comercial • Luxo", usage: "Comercial", standard: "luxo", rate: 342 },
-  { id: "comercial-primeira", label: "Comercial • Primeira", usage: "Comercial", standard: "primeira", rate: 307.8 },
-  { id: "comercial-medio", label: "Comercial • Médio", usage: "Comercial", standard: "medio", rate: 307.8 },
-  { id: "comercial-economico", label: "Comercial • Econômico", usage: "Comercial", standard: "economico", rate: 273.6 },
-  { id: "industrial-luxo", label: "Industrial • Luxo", usage: "Industrial", standard: "luxo", rate: 342 },
-  { id: "industrial-primeira", label: "Industrial • Primeira", usage: "Industrial", standard: "primeira", rate: 307.8 },
-  { id: "industrial-medio", label: "Industrial • Médio", usage: "Industrial", standard: "medio", rate: 273.6 },
-  { id: "industrial-economico", label: "Industrial • Econômico", usage: "Industrial", standard: "economico", rate: 239.4 },
+  { id: "residencial-luxo", label: "Residencial • Luxo", usage: "Residencial", standard: "luxo", rate: 0 },
+  { id: "residencial-primeira", label: "Residencial • Primeira", usage: "Residencial", standard: "primeira", rate: 0 },
+  { id: "residencial-medio", label: "Residencial • Médio", usage: "Residencial", standard: "medio", rate: 0 },
+  { id: "residencial-economico", label: "Residencial • Econômico", usage: "Residencial", standard: "economico", rate: 0 },
+  { id: "apartamento-luxo", label: "Apartamento • Luxo", usage: "Apartamento", standard: "luxo", rate: 0 },
+  { id: "apartamento-primeira", label: "Apartamento • Primeira", usage: "Apartamento", standard: "primeira", rate: 0 },
+  { id: "apartamento-medio", label: "Apartamento • Médio", usage: "Apartamento", standard: "medio", rate: 0 },
+  { id: "escritorio-luxo", label: "Escritório • Luxo", usage: "Escritório", standard: "luxo", rate: 0 },
+  { id: "escritorio-primeira", label: "Escritório • Primeira", usage: "Escritório", standard: "primeira", rate: 0 },
+  { id: "escritorio-medio", label: "Escritório • Médio", usage: "Escritório", standard: "medio", rate: 0 },
+  { id: "comercial-luxo", label: "Comercial • Luxo", usage: "Comercial", standard: "luxo", rate: 0 },
+  { id: "comercial-primeira", label: "Comercial • Primeira", usage: "Comercial", standard: "primeira", rate: 0 },
+  { id: "comercial-medio", label: "Comercial • Médio", usage: "Comercial", standard: "medio", rate: 0 },
+  { id: "comercial-economico", label: "Comercial • Econômico", usage: "Comercial", standard: "economico", rate: 0 },
+  { id: "industrial-luxo", label: "Industrial • Luxo", usage: "Industrial", standard: "luxo", rate: 0 },
+  { id: "industrial-primeira", label: "Industrial • Primeira", usage: "Industrial", standard: "primeira", rate: 0 },
+  { id: "industrial-medio", label: "Industrial • Médio", usage: "Industrial", standard: "medio", rate: 0 },
+  { id: "industrial-economico", label: "Industrial • Econômico", usage: "Industrial", standard: "economico", rate: 0 },
 ];
 
 function normalizeUsageLabel(value: string | null | undefined) {
@@ -941,16 +943,16 @@ export function resolveApprovalRateProfile(
   if (profiles.length === 0) return null;
 
   const normalizedUsage = normalizeUsageLabel(usage);
-  const normalizedStandard = normalizeUsageLabel(standard || "medio");
+  const normalizedStandard = normalizeUsageLabel(standard);
+
+  if (!normalizedUsage || !normalizedStandard) return null;
 
   return (
     profiles.find(
       (profile) =>
         normalizeUsageLabel(profile.usage) === normalizedUsage &&
         normalizeUsageLabel(profile.standard) === normalizedStandard,
-    ) ??
-    profiles.find((profile) => normalizeUsageLabel(profile.usage) === normalizedUsage) ??
-    null
+    ) ?? null
   );
 }
 
@@ -990,7 +992,7 @@ export function calculateApprovalGuideBreakdown(
   return {
     areaM2,
     usage: usage ?? "",
-    standard: standard ?? "medio",
+    standard: standard ?? "",
     baseValueM2,
     aliquotPercent,
     licenseUnitValue,
