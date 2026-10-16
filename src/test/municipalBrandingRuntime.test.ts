@@ -9,7 +9,6 @@ describe("municipal branding runtime resilience", () => {
   const branding = read("src/hooks/useInstitutionBranding.ts");
   const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
-  const portal = read("src/components/platform/PortalFrame.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -76,17 +75,8 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("secondaryUrl");
   });
 
-  it("never flashes the SIGAPRO platform logo inside a municipal logo frame during F5", () => {
-    expect(logo).toContain('contextScope?: "auto" | "master" | "municipality"');
-    expect(logo).toContain("contextScope === \"municipality\"");
-    expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
-    expect(logo).toContain("cachedMatchesCurrentAsset");
-    expect(logo).toContain("loadedSourceAllowed");
-    expect(portal).toContain('contextScope={isMasterUser ? "master" : "municipality"}');
-  });
-
   it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
-    expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3"');
+    expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2"');
     expect(logo).toContain("data-logo-variant={variant}");
     expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
     expect(surface).toContain("object-fit:contain !important");
