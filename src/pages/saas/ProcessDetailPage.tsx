@@ -574,6 +574,17 @@ export function ProcessDetailPage() {
   }, [activeTab, isProtocolTrackingOnly]);
 
   useEffect(() => {
+    if (activeTab !== "historico" || location.hash !== "#despacho") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById("despacho")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, location.hash, processId]);
+
+  useEffect(() => {
     if (!isExternalSession) return;
     if (activeTab === "analise") {
       setActiveTab("resumo");
@@ -3345,6 +3356,7 @@ export function ProcessDetailPage() {
 
               {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
+                  id="despacho"
                   data-dispatch-panel="true"
                   onSubmit={handleDispatchSubmit}
                   className="overflow-hidden rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#111f31_0%,#0b1725_100%)]"
