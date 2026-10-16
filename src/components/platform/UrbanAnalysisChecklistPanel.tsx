@@ -551,7 +551,7 @@ export function UrbanAnalysisChecklistPanel({
   const pendingCorrectionCount = counts.ap + counts.c;
 
   const canSignTechnical =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
   const isDirectorProfile =
     /diretor|diretora|director/i.test(session.role || "") ||
     /diretor|diretora/i.test(session.title || "");
@@ -573,11 +573,11 @@ export function UrbanAnalysisChecklistPanel({
     directorRequest.request?.status === "pending";
   const canRequestDirector =
     technicalOfficial &&
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
   const withdrawalMatchesCurrentVersion = Boolean(withdrawalRecord);
   const canRecordWithdrawal =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
+    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
     ...next,
