@@ -785,13 +785,13 @@ export function ConstructionPermitPanel({
                             Assinatura da Secretaria
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {permit.secretarySignature.name} • {new Date(
-                              permit.secretarySignature.signedAt,
+                            {permit.secretarySignature?.name} • {new Date(
+                              permit.secretarySignature?.signedAt,
                             ).toLocaleString("pt-BR")}
                           </p>
-                          {permit.secretarySignature.verificationCode ? (
+                          {permit.secretarySignature?.verificationCode ? (
                             <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                              Código: {permit.secretarySignature.verificationCode}
+                              Código: {permit.secretarySignature?.verificationCode}
                             </p>
                           ) : null}
                         </div>
