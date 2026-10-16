@@ -14,6 +14,20 @@ function buildApiUrl(path: string) {
   return `${apiBase}${normalized}`;
 }
 
+function buildApiCandidates(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (!apiBase) return [normalized];
+
+  const remote = `${apiBase}${normalized}`;
+  const isLocalBrowser =
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+
+  return Array.from(
+    new Set(isLocalBrowser ? [remote, normalized] : [normalized, remote]),
+  );
+}
+
 async function getAuthorizationHeaders() {
   try {
     const sessionResult = await backendClient?.auth?.getSession?.();
@@ -66,6 +80,49 @@ async function requestSignedUrl(path: string, input: { bucket: string; objectKey
   return response;
 }
 
+async function requestSignedUrlWithFallback(input: {
+  bucket: string;
+  objectKey: string;
+  expiresIn?: number;
+}) {
+  const candidates = buildApiCandidates("/api/r2-sign-get");
+  let lastResponse: Response | null = null;
+  let lastMessage = "";
+
+  for (const candidate of candidates) {
+    try {
+      const response = await requestSignedUrl(candidate, input);
+      if (response.ok) return response;
+
+      lastResponse = response;
+      const payload = await response.clone().json().catch(() => null) as
+        | { error?: string }
+        | null;
+      lastMessage =
+        payload?.error ||
+        `Falha ao gerar URL assinada (HTTP ${response.status}).`;
+    } catch (error) {
+      lastMessage =
+        error instanceof Error
+          ? error.message
+          : "Falha de comunicação ao gerar URL assinada.";
+    }
+  }
+
+  if (lastResponse) {
+    const synthetic = new Response(
+      JSON.stringify({ error: lastMessage || "Falha ao gerar URL assinada." }),
+      {
+        status: lastResponse.status || 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    return synthetic;
+  }
+
+  throw new Error(lastMessage || "Falha ao gerar URL assinada.");
+}
+
 export async function getSignedUrlForObject(input: {
   bucket: string;
   objectKey: string;
@@ -73,16 +130,10 @@ export async function getSignedUrlForObject(input: {
 }) {
   const allowPublicFallback =
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
-
-  if (response.status === 404 && apiBase) {
-    // fallback local quando VITE_R2_API_BASE aponta para outro host sem a rota
-    response = await requestSignedUrl("/api/r2-sign-get", input);
-  }
+  const response = await requestSignedUrlWithFallback({ ...input, expiresIn });
 
   if (!response.ok) {
     if (allowPublicFallback) {
@@ -108,15 +159,10 @@ export async function getSignedUrlForObjectStrict(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  const primaryUrl = buildApiUrl("/api/r2-sign-get");
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
-  let response = await requestSignedUrl(primaryUrl, { ...input, expiresIn });
-
-  if (response.status === 404 && apiBase) {
-    response = await requestSignedUrl("/api/r2-sign-get", input);
-  }
+  const response = await requestSignedUrlWithFallback({ ...input, expiresIn });
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
