@@ -726,8 +726,16 @@ export function ProcessDetailPage() {
     : paymentGuides;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
+  const permitReachedIssuanceStage =
+    Boolean(constructionPermit) &&
+    constructionPermit?.status !== "rascunho";
+  // Um Alvará já preparado/encaminhado antes da ativação da cobrança final
+  // nunca pode regredir visualmente para Análise. Se uma guia final já existe,
+  // ela continua obrigatória; caso contrário, preservamos o estágio oficial já alcançado.
   const approvalPaymentRequired =
-    !isHabiteSeProcess && tenantSettings?.finalApprovalFeeEnabled !== false;
+    !isHabiteSeProcess &&
+    tenantSettings?.finalApprovalFeeEnabled !== false &&
+    (!permitReachedIssuanceStage || Boolean(approvalGuide));
   const approvalPaymentConfirmed =
     !approvalPaymentRequired || approvalGuide?.status === "compensada";
   const constructionGuideSentExternally = issuedConstructionGuide
@@ -967,6 +975,11 @@ export function ProcessDetailPage() {
     }
   } else if (isFinalProcessStatus || constructionPermit?.status === "emitido") {
     currentFlowIndex = 5;
+  } else if (permitReachedIssuanceStage) {
+    // O artefato oficial do Alvará é a fonte autoritativa do estágio alcançado.
+    // Ex.: PM-2026-00002 está em assinatura manual e não pode voltar para Análise
+    // apenas porque o status operacional do processo ainda é analise_tecnica.
+    currentFlowIndex = 4;
   } else if (
     constructionPaymentCompensated &&
     (!approvalPaymentRequired || approvalPaymentCompensated)
