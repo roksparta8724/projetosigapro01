@@ -716,6 +716,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     maxLength: 30,
   });
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
+  const showMunicipalOrganogramShortcut =
+    isInternalRole(session.role) || location.pathname.startsWith("/prefeitura/");
+
   const departmentOwnershipKey =
     location.pathname.startsWith("/prefeitura/financeiro")
       ? "financeiro"
@@ -1315,7 +1318,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
               </button>
-              {isInternalRole(session.role) ? (
+              {showMunicipalOrganogramShortcut ? (
                 <button
                   type="button"
                   onClick={() => navigate("/prefeitura/organograma")}
@@ -1472,19 +1475,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
                 </button>
-                {isInternalRole(session.role) ? (
+                {showMunicipalOrganogramShortcut ? (
                   <button
                     type="button"
                     onClick={() => navigate("/prefeitura/organograma")}
                     className={cn(
-                      "sig-topbar-organogram-button relative",
+                      "sig-topbar-organogram-button relative !w-auto gap-2 px-2.5",
                       topbarUtilityButtonClass,
                       topbarIconButton,
                     )}
                     aria-label="Organograma"
-                    title="Organograma"
+                    title="Organograma municipal"
                   >
                     <Network className={topbarUtilityIconClass} aria-hidden="true" />
+                    <span className="hidden text-[11px] font-bold tracking-[0.01em] text-white xl:inline">
+                      Organograma
+                    </span>
                   </button>
                 ) : null}
                 <button
