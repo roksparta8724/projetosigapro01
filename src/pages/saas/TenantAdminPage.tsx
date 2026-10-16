@@ -745,14 +745,22 @@ export function TenantAdminPage() {
     return (
       <article
         key={user.id}
+        data-municipal-user-card="true"
+        data-user-role={user.role}
         className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.055)]"
       >
         <div className={`absolute inset-y-0 left-0 w-1.5 ${roleVisual.rail}`} aria-hidden="true" />
 
-        <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_55%,#f2f6fa_100%)] px-5 py-5 pl-6 md:px-6 md:pl-7">
+        <div
+          data-municipal-user-header="true"
+          className="border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_55%,#f2f6fa_100%)] px-5 py-5 pl-6 md:px-6 md:pl-7"
+        >
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex min-w-0 items-start gap-4">
-              <div className={`rounded-[18px] border p-1.5 shadow-sm ${roleVisual.icon}`}>
+              <div
+                data-municipal-user-avatar-frame="true"
+                className={`rounded-[18px] border p-1.5 shadow-sm ${roleVisual.icon}`}
+              >
                 <UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="lg" />
               </div>
               <div className="min-w-0">
@@ -766,7 +774,10 @@ export function TenantAdminPage() {
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${roleVisual.badge}`}>
+                  <span
+                    data-municipal-user-role-badge="true"
+                    className={`rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${roleVisual.badge}`}
+                  >
                     {getMunicipalProfileLabel(user)}
                   </span>
                   <span className="text-sm font-semibold text-slate-700">
@@ -791,9 +802,15 @@ export function TenantAdminPage() {
           </div>
         </div>
 
-        <div className="space-y-5 px-5 py-5 pl-6 md:px-6 md:pl-7">
+        <div
+          data-municipal-user-body="true"
+          className="space-y-5 px-5 py-5 pl-6 md:px-6 md:pl-7"
+        >
           {isEditing ? (
-            <div className="grid gap-3 rounded-[22px] border border-sky-200 bg-sky-50/40 p-4 lg:grid-cols-2 2xl:grid-cols-3">
+            <div
+              data-municipal-user-editor="true"
+              className="grid gap-3 rounded-[22px] border border-sky-200 bg-sky-50/40 p-4 lg:grid-cols-2 2xl:grid-cols-3"
+            >
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
@@ -881,7 +898,10 @@ export function TenantAdminPage() {
           ) : null}
 
           <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.9fr)_minmax(0,1.5fr)]">
-            <div className={`rounded-[20px] border p-4 ${roleVisual.badge}`}>
+            <div
+              data-municipal-user-lotation="true"
+              className={`rounded-[20px] border p-4 ${roleVisual.badge}`}
+            >
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
                 <p className="text-[10px] font-black uppercase tracking-[0.13em]">
@@ -894,7 +914,10 @@ export function TenantAdminPage() {
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4">
+            <div
+              data-municipal-user-security="true"
+              className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4"
+            >
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
                 <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-500">
@@ -920,7 +943,10 @@ export function TenantAdminPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:flex-wrap">
+          <div
+            data-municipal-user-actions="true"
+            className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:flex-wrap"
+          >
             {canManageAccount(user) ? (
               <>
                 <Button type="button" disabled={savingUserId === user.id} variant="outline" className="h-10 w-full rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:w-auto" onClick={() => startEdit(user)}>
