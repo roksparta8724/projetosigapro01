@@ -154,11 +154,7 @@ function drawSignature(
   pdf.setFontSize(5.4);
   textColor(pdf, official ? color.green : color.muted);
   pdf.text(
-    official
-      ? "ASSINATURA ELETRÔNICA VÁLIDA"
-      : manual
-        ? "ASSINATURA MANUAL"
-        : "ASSINATURA ELETRÔNICA",
+    official ? "VALIDAÇÃO MUNICIPAL" : "AUTORIDADE MUNICIPAL",
     x + 4,
     y + 5,
   );
@@ -204,15 +200,18 @@ function drawSignature(
   } else if (manual) {
     draw(pdf, [100, 116, 139]);
     pdf.setLineWidth(0.35);
-    pdf.line(x + 12, y + 19, x + width - 12, y + 19);
+    pdf.line(x + 10, y + 18.5, x + width - 10, y + 18.5);
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(5.7);
+    pdf.setFontSize(5.6);
     textColor(pdf, color.muted);
-    pdf.text("Assinatura da autoridade municipal", x + width / 2, y + 23, {
+    const authorityLabel = /secret/i.test(label)
+      ? "Secretário(a) Municipal"
+      : "Diretor(a) Responsável";
+    pdf.text(authorityLabel, x + width / 2, y + 22.7, {
       align: "center",
     });
     pdf.setFontSize(5.1);
-    pdf.text("Data: ____/____/________", x + width / 2, y + 27, {
+    pdf.text("Data: ____/____/________", x + width / 2, y + 26.7, {
       align: "center",
     });
   } else {
@@ -368,9 +367,7 @@ export async function buildConstructionPermitPdfBlob({
     "Situação",
     directorOfficial
       ? "Alvará emitido"
-      : manualSignature
-        ? "Pronto para assinatura da Diretoria à caneta"
-        : "Aguardando assinatura da Diretoria",
+      : "Aguardando assinatura da Diretoria",
   );
   y += 16;
 
@@ -494,7 +491,9 @@ export async function buildConstructionPermitPdfBlob({
   drawSectionTitle(pdf, margin, y, "Assinatura municipal", contentWidth);
   y += 8.5;
 
-  const hasSecretary = secretaryOfficial;
+  const showManualAuthorityLines = manualSignature && !directorOfficial;
+  const hasSecretary = secretaryOfficial || showManualAuthorityLines;
+
   if (hasSecretary) {
     drawSignature(
       pdf,
@@ -503,7 +502,7 @@ export async function buildConstructionPermitPdfBlob({
       half,
       "Diretoria responsável",
       permit.directorSignature,
-      manualSignature && !directorOfficial,
+      showManualAuthorityLines,
     );
     drawSignature(
       pdf,
@@ -512,6 +511,7 @@ export async function buildConstructionPermitPdfBlob({
       half,
       "Secretaria municipal",
       permit.secretarySignature,
+      showManualAuthorityLines && !secretaryOfficial,
     );
   } else {
     drawSignature(
@@ -521,41 +521,19 @@ export async function buildConstructionPermitPdfBlob({
       contentWidth,
       "Diretoria responsável",
       permit.directorSignature,
-      manualSignature && !directorOfficial,
+      false,
     );
   }
   y += 32;
 
-  const pendingManual = manualSignature && !directorOfficial;
-  fill(
-    pdf,
-    directorOfficial
-      ? ([240, 253, 250] as const)
-      : pendingManual
-        ? ([239, 246, 255] as const)
-        : ([255, 247, 237] as const),
-  );
-  draw(
-    pdf,
-    directorOfficial
-      ? ([167, 243, 208] as const)
-      : pendingManual
-        ? ([186, 230, 253] as const)
-        : ([253, 186, 116] as const),
-  );
+  fill(pdf, directorOfficial ? ([240, 253, 250] as const) : ([248, 250, 252] as const));
+  draw(pdf, directorOfficial ? ([167, 243, 208] as const) : color.line);
   pdf.roundedRect(margin, y, contentWidth, 12, 2.2, 2.2, "FD");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(6.3);
-  textColor(
-    pdf,
-    directorOfficial ? color.green : pendingManual ? color.blue : color.amber,
-  );
+  textColor(pdf, directorOfficial ? color.green : color.navy);
   pdf.text(
-    directorOfficial
-      ? "ALVARÁ MUNICIPAL EMITIDO"
-      : pendingManual
-        ? "ALVARÁ PREPARADO PARA ASSINATURA À CANETA"
-        : "AGUARDANDO ASSINATURA ELETRÔNICA DA DIRETORIA",
+    directorOfficial ? "ALVARÁ MUNICIPAL EMITIDO" : "ALVARÁ DE CONSTRUÇÃO",
     margin + 4,
     y + 5.5,
   );
@@ -579,9 +557,7 @@ export async function buildConstructionPermitPdfBlob({
   pdf.setFontSize(4.8);
   textColor(pdf, color.muted);
   pdf.text(
-    manualSignature && !directorOfficial
-      ? "Documento gerado pelo SIGAPRO Municipal para assinatura manual da Diretoria. A assinatura da Secretaria é complementar e só aparece quando registrada eletronicamente."
-      : "Documento eletrônico gerado pelo SIGAPRO Municipal. A assinatura da Diretoria é a assinatura municipal obrigatória; a assinatura da Secretaria é complementar quando registrada.",
+    `${municipalityName || "Prefeitura Municipal"} • Processo Administrativo ${process.protocol} • Alvará ${permit.permitNumber}`,
     pageWidth / 2,
     pageHeight - 3.8,
     { align: "center", maxWidth: contentWidth },
