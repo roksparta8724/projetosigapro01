@@ -452,12 +452,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
     return {
       ...base,
-      // Nunca troca um brasão/logo já válido por vazio enquanto a URL assinada é renovada.
+      // Fonte primária é o arquivo municipal persistido no R2. Se esse arquivo
+      // estiver temporariamente indisponível, o componente ainda recebe um
+      // brasão institucional real em vez do placeholder genérico.
       logoUrl:
         resolvedTenantHeaderLogo ||
         (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId
           ? stableTenantHeaderLogoRef.current.url
           : ""),
+      fallbackLogoUrl: institutionalFallback,
     };
   }, [
     institution?.name,
@@ -524,6 +527,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
         (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId
           ? stableTenantFooterLogoRef.current.url
           : ""),
+      fallbackLogoUrl: institutionalFallback,
     };
   }, [
     institution?.name,
