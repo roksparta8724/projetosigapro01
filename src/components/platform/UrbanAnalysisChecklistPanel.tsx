@@ -2189,7 +2189,7 @@ export function UrbanAnalysisChecklistPanel({
                   value={withdrawalName}
                   onChange={(event) => setWithdrawalName(event.target.value)}
                   placeholder="Nome completo de quem retirou"
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-200 selection:text-slate-950 placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
+                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-700 selection:text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
@@ -2201,7 +2201,7 @@ export function UrbanAnalysisChecklistPanel({
                   type="date"
                   value={withdrawalDate}
                   onChange={(event) => setWithdrawalDate(event.target.value)}
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
+                  className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:bg-sky-700 selection:text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
                   disabled={!canRecordWithdrawal || withdrawalBusy}
                 />
               </div>
