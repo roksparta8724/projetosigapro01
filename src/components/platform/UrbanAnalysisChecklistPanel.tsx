@@ -571,9 +571,6 @@ export function UrbanAnalysisChecklistPanel({
   const directorRequestPending =
     directorRequestMatchesCurrentVersion &&
     directorRequest.request?.status === "pending";
-  const directorRequestCompleted =
-    directorRequestMatchesCurrentVersion &&
-    directorRequest.request?.status === "completed";
   const canRequestDirector =
     technicalOfficial &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
