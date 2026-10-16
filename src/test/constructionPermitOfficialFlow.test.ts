@@ -20,8 +20,9 @@ describe("official construction permit workflow", () => {
     "utf8",
   );
 
-  it("generates the permit PDF from the official fill modal", () => {
-    expect(panel).toContain("Gerar PDF do Alvará");
+  it("generates the permit PDF from the official fill modal after choosing a signing path", () => {
+    expect(panel).toContain("Solicitar assinatura eletrônica");
+    expect(panel).toContain("Gerar PDF para assinatura à caneta");
     expect(panel).toContain("municipalityLogoUrl");
     expect(panel).toContain("municipalityAddress");
     expect(panel).toContain("municipalityPhone");
@@ -34,8 +35,8 @@ describe("official construction permit workflow", () => {
     expect(panel).not.toContain("Assinatura da Análise Técnica");
     expect(permitPdf).toContain("directorOfficial");
     expect(permitPdf).toContain("ALVARÁ MUNICIPAL EMITIDO");
-    expect(signatureApi).toContain("PERMIT_SIGNER_SLOT_NOT_ALLOWED");
-    expect(signatureApi).toContain('"diretoria", "secretaria"');
+    expect(signatureApi).toContain("PERMIT_DIRECTOR_REQUEST_REQUIRED");
+    expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
   });
 
   it("keeps secretary signature optional and renders it only when actually signed", () => {
