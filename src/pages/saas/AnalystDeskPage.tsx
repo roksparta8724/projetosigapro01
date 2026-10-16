@@ -621,10 +621,8 @@ export function AnalystDeskPage() {
 
   const renderProcessRegistry = () => (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-        Lista histórica da Análise Urbanística em formato compacto. O número do processo abre a ficha completa.
-        O marcador exibido é o único marcador operacional do processo e continua sendo gerenciado pelo topo do SIGAPRO.
-        Arquivar organiza somente a sua lista; não apaga nem altera o processo oficial.
+      <div className="flex min-h-8 items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-[11px] font-medium text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
+        Clique no número do processo para abrir a ficha completa. Arquivar organiza apenas a sua lista e não altera o processo oficial.
       </div>
 
       <CompactProcessRegistry
