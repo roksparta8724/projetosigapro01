@@ -32,9 +32,12 @@ import {
   ArtifactSignatureError,
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
+  getProcessArtifactWithdrawal,
   requestProcessArtifactSignature,
+  saveProcessArtifactWithdrawal,
   signProcessArtifactWithPassword,
   type ArtifactSignatureRequestSnapshot,
+  type ArtifactWithdrawalRecord,
   type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
 
@@ -302,7 +305,6 @@ function makeInitialState(process: ProcessRecord, session: SessionUser): Analysi
     signedAt: "",
     signedBy: "",
     technicalSignature: null,
-    fiscalSignature: null,
     directorSignature: null,
   };
 }
@@ -379,7 +381,7 @@ export function UrbanAnalysisChecklistPanel({
     readInitialChecklistState(key, process, session),
   );
   const [notice, setNotice] = useState("");
-  const [signatureDialog, setSignatureDialog] = useState<"technical" | "fiscal" | "director" | null>(null);
+  const [signatureDialog, setSignatureDialog] = useState<"technical" | "director" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureStage, setSignatureStage] = useState<SignatureFlowStage>("idle");
@@ -390,6 +392,10 @@ export function UrbanAnalysisChecklistPanel({
     candidate_count: 0,
   });
   const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
+  const [withdrawalRecord, setWithdrawalRecord] = useState<ArtifactWithdrawalRecord | null>(null);
+  const [withdrawalName, setWithdrawalName] = useState("");
+  const [withdrawalDate, setWithdrawalDate] = useState("");
+  const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
     () => resolveMunicipalityLogoUrl(municipalityName, municipalityLogoUrl),
     [municipalityLogoUrl, municipalityName],
@@ -410,10 +416,9 @@ export function UrbanAnalysisChecklistPanel({
         if (!active || !snapshot.block) return;
 
         const technical = snapshot.signers.find((item) => item.slot === "analise_tecnica");
-        const fiscal = snapshot.signers.find((item) => item.slot === "conferencia_fiscal");
         const director = snapshot.signers.find((item) => item.slot === "diretoria");
 
-        if (!technical && !fiscal && !director) return;
+        if (!technical && !director) return;
 
         setState((current) => {
           const currentPayload = buildChecklistSignaturePayload(current, process, municipalityId);
@@ -422,346 +427,7 @@ export function UrbanAnalysisChecklistPanel({
             stableSignatureStringify(currentPayload) === stableSignatureStringify(signedPayload);
 
           if (!payloadMatches) {
-            const next: AnalysisChecklistState = {
-              ...current,
-              technicalSignature: null,
-              fiscalSignature: null,
-              directorSignature: null,
-              signedAt: "",
-              signedBy: "",
-            };
-            window.localStorage.setItem(key, JSON.stringify(next));
-            setNotice("A ficha foi alterada após a última assinatura eletrônica. Uma nova assinatura é necessária.");
-            return next;
-          }
-
-          const verificationCode = snapshot.block?.verification_code;
-          const evidenceHash = snapshot.block?.artifact_hash;
-
-          const next: AnalysisChecklistState = {
-            ...current,
-            technicalSignature: technical
-              ? {
-                  userId: technical.profile_id || "",
-                  name: technical.name || "Usuário",
-                  title: technical.title || technical.role || "Analista Técnico",
-                  signedAt: technical.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
-                  verificationCode,
-                  evidenceHash,
-                  registration: technical.registration ?? null,
-                  authMethod: technical.auth_method || "password_reauth",
-                  official: true,
-                }
-              : current.technicalSignature,
-            fiscalSignature: fiscal
-              ? {
-                  userId: fiscal.profile_id || "",
-                  name: fiscal.name || "Usuário",
-                  title: fiscal.title || fiscal.role || "Fiscal de Obras",
-                  signedAt: fiscal.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
-                  verificationCode,
-                  evidenceHash,
-                  registration: fiscal.registration ?? null,
-                  authMethod: fiscal.auth_method || "password_reauth",
-                  official: true,
-                }
-              : current.fiscalSignature,
-            directorSignature: director
-              ? {
-                  userId: director.profile_id || "",
-                  name: director.name || "Diretor(a)",
-                  title: director.title || director.role || "Diretor(a)",
-                  signedAt: director.signed_at || snapshot.block?.completed_at || new Date().toISOString(),
-                  verificationCode,
-                  evidenceHash,
-                  registration: director.registration ?? null,
-                  authMethod: director.auth_method || "password_reauth",
-                  official: true,
-                }
-              : current.directorSignature,
-          };
-
-          window.localStorage.setItem(key, JSON.stringify(next));
-          return next;
-        });
-      })
-      .catch((error) => {
-        if (!active) return;
-        console.error("[SIGAPRO][Assinatura] Falha ao carregar assinaturas oficiais.", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [key, process.id]);
-
-  useEffect(() => {
-    let active = true;
-
-    void getProcessArtifactSignatureRequest(
-      process.id,
-      ANALYSIS_ARTIFACT_KEY,
-      "diretoria",
-    )
-      .then((snapshot) => {
-        if (active) setDirectorRequest(snapshot);
-      })
-      .catch((error) => {
-        if (!active) return;
-        console.error("[SIGAPRO][Diretoria] Falha ao carregar solicitação de assinatura.", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [process.id, state.directorSignature?.signedAt, state.technicalSignature?.evidenceHash]);
-
-  const counts = useMemo(() => {
-    const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
-    return {
-      total: TEMPLATE.length,
-      evaluated: values.filter(Boolean).length,
-      a: values.filter((value) => value === "A").length,
-      ap: values.filter((value) => value === "AP").length,
-      c: values.filter((value) => value === "C").length,
-      na: values.filter((value) => value === "NA").length,
-    };
-  }, [state.items]);
-
-  const progress = Math.round((counts.evaluated / counts.total) * 100);
-  const pendingCorrectionCount = counts.ap + counts.c;
-
-  const canSignTechnical =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
-  const canSignFiscal =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "fiscal"].includes(session.role);
-  const isDirectorProfile =
-    /diretor|diretora|director/i.test(session.role || "") ||
-    /diretor|diretora/i.test(session.title || "");
-  const technicalOfficial = Boolean(
-    state.technicalSignature?.official &&
-    state.technicalSignature?.verificationCode &&
-    state.technicalSignature?.authMethod === "password_reauth",
-  );
-  const fiscalOfficial = Boolean(
-    state.fiscalSignature?.official &&
-    state.fiscalSignature?.verificationCode &&
-    state.fiscalSignature?.authMethod === "password_reauth",
-  );
-  const directorOfficial = Boolean(
-    state.directorSignature?.official &&
-    state.directorSignature?.verificationCode &&
-    state.directorSignature?.authMethod === "password_reauth",
-  );
-  const directorRequestMatchesCurrentVersion =
-    Boolean(directorRequest.request) &&
-    directorRequest.request?.artifact_hash === state.technicalSignature?.evidenceHash;
-  const directorRequestPending =
-    directorRequestMatchesCurrentVersion &&
-    directorRequest.request?.status === "pending";
-  const directorRequestCompleted =
-    directorRequestMatchesCurrentVersion &&
-    directorRequest.request?.status === "completed";
-  const canRequestDirector =
-    technicalOfficial &&
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista"].includes(session.role);
-  const isFullySigned =
-    technicalOfficial &&
-    fiscalOfficial &&
-    (!(directorRequestPending || directorRequestCompleted) || directorOfficial);
-
-  const invalidateSignature = (next: AnalysisChecklistState) => ({
-    ...next,
-    signedAt: "",
-    signedBy: "",
-    technicalSignature: null,
-    fiscalSignature: null,
-    directorSignature: null,
-  });
-
-  const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
-    setState((current) =>
-      invalidateSignature({
-        ...current,
-        items: {
-          ...current.items,
-          [itemId]: {
-            ...(current.items[itemId] ?? { status: "", observation: "" }),
-            ...patch,
-          },
-        },
-      }),
-    );
-  };
-
-  const persistState = (next: AnalysisChecklistState) => {
-    window.localStorage.setItem(key, JSON.stringify(next));
-    setState(next);
-  };
-
-  const saveDraft = () => {
-    const now = new Date().toISOString();
-    const next = { ...state, savedAt: now };
-    persistState(next);
-    setNotice(
-      "Rascunho técnico salvo para este processo. Analista e Fiscal podem continuar a conferência neste ambiente de validação.",
-    );
-  };
-
-  const openSignatureConfirmation = (
-    kind: "technical" | "fiscal" | "director",
-  ) => {
-    if (kind === "technical") {
-      if (!canSignTechnical) {
-        setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
-        return;
-      }
-      if (counts.evaluated === 0) {
-        setNotice("Avalie pelo menos um item antes de assinar.");
-        return;
-      }
-      if (technicalOfficial) {
-        setNotice("A análise técnica já possui assinatura eletrônica oficial nesta versão.");
-        return;
-      }
-    } else if (kind === "fiscal") {
-      if (!canSignFiscal) {
-        setNotice("Este perfil não possui atribuição para assinar a conferência fiscal.");
-        return;
-      }
-      if (!technicalOfficial) {
-        setNotice("A assinatura técnica eletrônica precisa ser concluída antes da conferência fiscal.");
-        return;
-      }
-      if (fiscalOfficial) {
-        setNotice("A conferência fiscal já possui assinatura eletrônica oficial nesta versão.");
-        return;
-      }
-    } else {
-      if (!isDirectorProfile) {
-        setNotice("Este perfil não está cadastrado como Diretor(a) para realizar esta assinatura.");
-        return;
-      }
-      if (!technicalOfficial) {
-        setNotice("A análise técnica precisa estar assinada antes da assinatura da Diretoria.");
-        return;
-      }
-      if (!directorRequestPending) {
-        setNotice("A assinatura da Diretoria precisa ser solicitada pelo analista antes da assinatura.");
-        return;
-      }
-      if (directorOfficial) {
-        setNotice("A Diretoria já assinou eletronicamente esta versão.");
-        return;
-      }
-    }
-
-    setSignaturePassword("");
-    setSignatureError(null);
-    setSignatureDialog(kind);
-  };
-
-  const confirmElectronicSignature = async () => {
-    if (!signatureDialog || !signaturePassword) {
-      setSignatureError({ message: "Informe sua senha de acesso." });
-      return;
-    }
-
-    const kind = signatureDialog;
-    const slot: ArtifactSignerSlot =
-      kind === "technical"
-        ? "analise_tecnica"
-        : kind === "fiscal"
-          ? "conferencia_fiscal"
-          : "diretoria";
-    const payload = buildChecklistSignaturePayload(state, process, municipalityId);
-
-    setSignatureBusy(true);
-    setSignatureStage("signing");
-    setSignatureError(null);
-
-    try {
-      try {
-        await signProcessArtifactWithPassword({
-          processId: process.id,
-          artifactType: ANALYSIS_ARTIFACT_TYPE,
-          artifactKey: ANALYSIS_ARTIFACT_KEY,
-          signerSlot: slot,
-          password: signaturePassword,
-          payload,
-        });
-      } catch (error) {
-        // Idempotência real: se o servidor concluiu a gravação e a resposta se
-        // perdeu, uma segunda tentativa retorna 409. Nesse caso confirmamos no
-        // banco e tratamos como sucesso, sem duplicar assinatura.
-        if (
-          !(error instanceof ArtifactSignatureError) ||
-          error.code !== "SIGNATURE_ALREADY_EXISTS"
-        ) {
-          throw error;
-        }
-      }
-
-      setSignatureStage("verifying");
-
-      let snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
-      let verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
-
-      for (let attempt = 0; attempt < 3 && (!snapshot.block || !verifiedSigner); attempt += 1) {
-        await wait(220 + attempt * 180);
-        snapshot = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
-        verifiedSigner = snapshot.signers.find((item) => item.slot === slot);
-      }
-
-      const signedPayload = snapshot.block?.payload ?? {};
-      const payloadMatches =
-        stableSignatureStringify(payload) === stableSignatureStringify(signedPayload);
-
-      if (
-        !snapshot.block ||
-        !verifiedSigner ||
-        !snapshot.block.verification_code ||
-        !snapshot.block.artifact_hash ||
-        !payloadMatches
-      ) {
-        throw new ArtifactSignatureError(
-          "A assinatura não foi confirmada integralmente no banco oficial. Nenhum sucesso visual foi aplicado.",
-          {
-            stage: "verification",
-            code: "SIGNATURE_READBACK_FAILED",
-          },
-        );
-      }
-
-      const signedAt =
-        verifiedSigner.signed_at ||
-        snapshot.block.completed_at ||
-        new Date().toISOString();
-      const verificationCode = snapshot.block.verification_code;
-      const evidenceHash = snapshot.block.artifact_hash;
-
-      const signature: ChecklistSignature = {
-        userId: verifiedSigner.profile_id || session.id,
-        name: verifiedSigner.name || session.name,
-        title:
-          verifiedSigner.title ||
-          verifiedSigner.role ||
-          session.title ||
-          (kind === "technical"
-            ? "Analista Técnico"
-            : kind === "fiscal"
-              ? "Fiscal de Obras"
-              : "Diretor(a)"),
-        signedAt,
-        verificationCode,
-        evidenceHash,
-        registration: verifiedSigner.registration ?? null,
-        authMethod: verifiedSigner.auth_method || "password_reauth",
-        official: true,
-      };
-
-      const now = new Date().toISOString();
-      const next: AnalysisChecklistState =
+            const next: AnalysisChecklistState =
         kind === "technical"
           ? {
               ...state,
@@ -769,23 +435,16 @@ export function UrbanAnalysisChecklistPanel({
               analystName: signature.name,
               analystTitle: signature.title,
               technicalSignature: signature,
-              fiscalSignature: null,
               directorSignature: null,
               signedBy: signature.name,
               signedAt,
               savedAt: now,
             }
-          : kind === "fiscal"
-            ? {
-                ...state,
-                fiscalSignature: signature,
-                savedAt: now,
-              }
-            : {
-                ...state,
-                directorSignature: signature,
-                savedAt: now,
-              };
+          : {
+              ...state,
+              directorSignature: signature,
+              savedAt: now,
+            };
 
       persistState(next);
       setSignaturePassword("");
@@ -803,9 +462,7 @@ export function UrbanAnalysisChecklistPanel({
       setNotice(
         kind === "technical"
           ? `Análise técnica assinada e confirmada no banco oficial. Código: ${verificationCode}.`
-          : kind === "fiscal"
-            ? `Conferência fiscal assinada e confirmada no banco oficial. Código: ${verificationCode}.`
-            : `Assinatura da Diretoria concluída e confirmada no banco oficial. Código: ${verificationCode}.`,
+          : `Assinatura da Diretoria concluída e confirmada no banco oficial. Código: ${verificationCode}.`,
       );
     } catch (error) {
       setSignaturePassword("");
@@ -863,7 +520,6 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const signTechnicalEvaluation = () => openSignatureConfirmation("technical");
-  const signFiscalReview = () => openSignatureConfirmation("fiscal");
   const signDirectorReview = () => openSignatureConfirmation("director");
 
   const renderSignatureEvidence = (
