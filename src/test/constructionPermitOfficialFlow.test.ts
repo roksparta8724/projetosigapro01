@@ -46,14 +46,14 @@ describe("official construction permit workflow", () => {
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
   });
 
-  it("keeps secretary electronic signature optional and reserves a clean secretary line in the manual PDF", () => {
+  it("keeps secretary signature optional and only prints it after an actual electronic signature", () => {
     expect(permitLib).toContain("secretarySignature");
     expect(panel).toContain("Assinar também como Secretário");
     expect(panel).toContain("secretaryOfficial");
-    expect(permitPdf).toContain("const showManualAuthorityLines");
-    expect(permitPdf).toContain("const hasSecretary = secretaryOfficial || showManualAuthorityLines");
+    expect(permitPdf).toContain("const showManualDirectorLine");
+    expect(permitPdf).toContain("if (secretaryOfficial)");
     expect(permitPdf).toContain("Secretaria municipal");
-    expect(permitPdf).toContain("Secretário(a) Municipal");
+    expect(permitPdf).not.toContain("const hasSecretary = secretaryOfficial || showManualAuthorityLines");
   });
 
   it("requires password-confirmed electronic signing and verification evidence", () => {
@@ -74,7 +74,7 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).not.toContain("A assinatura da Secretaria é complementar");
     expect(permitPdf).toContain("ALVARÁ DE CONSTRUÇÃO");
     expect(permitPdf).toContain("Diretor(a) Responsável");
-    expect(permitPdf).toContain("Secretário(a) Municipal");
+    expect(permitPdf).toContain("Diretor(a) Responsável");
     expect(permitPdf).toContain("Processo Administrativo");
   });
 
