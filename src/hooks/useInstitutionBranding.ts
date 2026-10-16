@@ -58,18 +58,6 @@ function isUsableBrandingUrl(value: string | null | undefined) {
   }
 }
 
-function municipalityLogoFallback(name: string | null | undefined) {
-  const normalized = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
-
-  if (normalized.includes("campo limpo paulista")) {
-    return "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
-  }
-  return "";
-}
-
 function buildEmptyTenantSettings(tenantId: string): TenantSettings {
   return {
     tenantId,
@@ -419,17 +407,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.logoUrl ||
       "";
     const brandingUrl = isUsableBrandingUrl(rawHeaderUrl) ? rawHeaderUrl : "";
-    const hasPersistedHeaderIdentity = Boolean(
-      scopedMunicipalityBranding?.headerLogoObjectKey ||
-      scopedMunicipalityBranding?.logoObjectKey ||
-      scopedMunicipalityBranding?.headerLogoUrl ||
-      scopedMunicipalityBranding?.logoUrl,
-    );
-    const institutionalFallback =
-      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
-      (!hasPersistedHeaderIdentity
-        ? municipalityLogoFallback(scopedMunicipality?.name || institution?.name)
-        : "");
     const resolvedTenantHeaderLogo =
       resolvedTenantHeaderLogoUrl ||
       brandingUrl ||
@@ -437,8 +414,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
         ? stableTenantHeaderLogoRef.current.url
-        : "") ||
-      institutionalFallback;
+        : "");
 
     if (resolvedTenantHeaderLogo) {
       stableTenantHeaderLogoRef.current = {
@@ -493,19 +469,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       scopedMunicipalityBranding?.logoUrl ||
       "";
     const brandingUrl = isUsableBrandingUrl(rawFooterUrl) ? rawFooterUrl : "";
-    const hasPersistedFooterIdentity = Boolean(
-      scopedMunicipalityBranding?.footerLogoObjectKey ||
-      scopedMunicipalityBranding?.logoObjectKey ||
-      scopedMunicipalityBranding?.headerLogoObjectKey ||
-      scopedMunicipalityBranding?.footerLogoUrl ||
-      scopedMunicipalityBranding?.logoUrl ||
-      scopedMunicipalityBranding?.headerLogoUrl,
-    );
-    const institutionalFallback =
-      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
-      (!hasPersistedFooterIdentity
-        ? municipalityLogoFallback(scopedMunicipality?.name || institution?.name)
-        : "");
     const resolvedTenantFooterLogo =
       resolvedTenantFooterLogoUrl ||
       brandingUrl ||
@@ -513,8 +476,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
         ? stableTenantFooterLogoRef.current.url
-        : "") ||
-      institutionalFallback;
+        : "");
 
     if (resolvedTenantFooterLogo) {
       stableTenantFooterLogoRef.current = {
