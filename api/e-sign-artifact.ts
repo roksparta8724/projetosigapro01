@@ -352,6 +352,21 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    if (
+      artifactType === "urban_analysis_checklist" &&
+      !["analise_tecnica", "diretoria"].includes(signerSlot)
+    ) {
+      fail(
+        res,
+        403,
+        "authorization",
+        "SIGNER_SLOT_NOT_ALLOWED_FOR_ARTIFACT",
+        null,
+        "Nesta ficha, somente o Analista Técnico e a Diretoria podem assinar.",
+      );
+      return;
+    }
+
     if (!password || password.length > 512) {
       fail(res, 400, "password", "PASSWORD_REQUIRED", null, "Informe sua senha de acesso para confirmar a assinatura.");
       return;
