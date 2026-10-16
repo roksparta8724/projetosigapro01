@@ -722,6 +722,10 @@ export function ProcessDetailPage() {
     ? getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
     : paymentGuides;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
+  const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
+  const approvalPaymentRequired = tenantSettings?.finalApprovalFeeEnabled !== false;
+  const approvalPaymentConfirmed =
+    !approvalPaymentRequired || approvalGuide?.status === "compensada";
   const constructionGuideSentExternally = issuedConstructionGuide
     ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
     : false;
@@ -832,7 +836,13 @@ export function ProcessDetailPage() {
     constructionUsageInput,
     tenantSettings,
   );
-  const displayGuide = constructionGuide ?? protocolGuide;
+  const approvalGuidePreview = calculateApprovalGuideBreakdown(
+    process.property.area,
+    process.property.usage,
+    process.property.constructionStandard || "medio",
+    tenantSettings,
+  );
+  const displayGuide = approvalGuide ?? constructionGuide ?? protocolGuide;
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -935,13 +945,24 @@ export function ProcessDetailPage() {
   const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
   const constructionPaymentCompensated =
     issuedConstructionGuide?.status === "compensada";
+  const approvalPaymentCompensated =
+    approvalGuide?.status === "compensada";
   let currentFlowIndex = 0;
   if (isFinalProcessStatus || constructionPermit?.status === "emitido") {
     currentFlowIndex = 5;
-  } else if (constructionPaymentCompensated) {
-    // Após a baixa financeira o processo já retornou para a Análise Urbanística:
-    // Financeiro é etapa concluída; a próxima entrega é o Alvará de Construção.
+  } else if (
+    constructionPaymentCompensated &&
+    (!approvalPaymentRequired || approvalPaymentCompensated)
+  ) {
+    // O Alvará só entra na etapa de assinatura quando todas as cobranças
+    // configuradas para o licenciamento estiverem compensadas.
     currentFlowIndex = 4;
+  } else if (
+    approvalPaymentRequired &&
+    approvalGuide &&
+    approvalGuide.status !== "compensada"
+  ) {
+    currentFlowIndex = 3;
   } else if (
     constructionGuideSentExternally &&
     issuedConstructionGuide?.status !== "compensada" &&
