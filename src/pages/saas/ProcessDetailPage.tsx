@@ -2935,9 +2935,9 @@ export function ProcessDetailPage() {
               municipalityId={effectiveScopeId || process.tenantId}
               municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
               municipalityLogoUrl={
+                tenantSettings?.brasaoUrl ||
                 tenantSettings?.headerLogoUrl ||
                 tenantSettings?.logoUrl ||
-                tenantSettings?.brasaoUrl ||
                 ""
               }
               municipalityAddress={tenantSettings?.endereco || ""}
