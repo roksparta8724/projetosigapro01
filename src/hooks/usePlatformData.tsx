@@ -1233,6 +1233,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
                 taxaProtocolo: 35.24,
                 taxaIssPorMetroQuadrado: 0,
                 taxaAprovacaoFinal: 0,
+                approvalAliquotPercent: 5,
                 registroProfissionalObrigatorio: true,
                 contractNumber: "",
                 contractStart: "",
