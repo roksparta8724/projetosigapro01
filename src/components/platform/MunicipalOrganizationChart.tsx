@@ -1,9 +1,60 @@
 import { Building2, Network } from "lucide-react";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
+import { cn } from "@/lib/utils";
 
-const STOP_WORDS = new Set(["de","da","do","das","dos","e","para","por","em","na","no"]);
+const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
 
-export function getDepartmentAcronym(input: Pick<MunicipalDepartmentRecord, "code" | "name">) {
+const UNIT_IDENTITY: Record<
+  string,
+  { short: string; label: string; tone: string; iconTone: string }
+> = {
+  secretaria: {
+    short: "SEC",
+    label: "Secretaria",
+    tone: "border-indigo-200 bg-indigo-50 text-indigo-800",
+    iconTone: "border-indigo-200 bg-indigo-100 text-indigo-700",
+  },
+  diretoria: {
+    short: "DIR",
+    label: "Diretoria",
+    tone: "border-sky-200 bg-sky-50 text-sky-800",
+    iconTone: "border-sky-200 bg-sky-100 text-sky-700",
+  },
+  departamento: {
+    short: "DEP",
+    label: "Departamento",
+    tone: "border-cyan-200 bg-cyan-50 text-cyan-800",
+    iconTone: "border-cyan-200 bg-cyan-100 text-cyan-700",
+  },
+  coordenadoria: {
+    short: "COORD",
+    label: "Coordenadoria",
+    tone: "border-violet-200 bg-violet-50 text-violet-800",
+    iconTone: "border-violet-200 bg-violet-100 text-violet-700",
+  },
+  setor: {
+    short: "SET",
+    label: "Setor",
+    tone: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    iconTone: "border-emerald-200 bg-emerald-100 text-emerald-700",
+  },
+  divisao: {
+    short: "DIV",
+    label: "Divisão",
+    tone: "border-amber-200 bg-amber-50 text-amber-800",
+    iconTone: "border-amber-200 bg-amber-100 text-amber-700",
+  },
+  unidade: {
+    short: "UNI",
+    label: "Unidade",
+    tone: "border-slate-200 bg-slate-50 text-slate-700",
+    iconTone: "border-slate-200 bg-slate-100 text-slate-700",
+  },
+};
+
+export function getDepartmentAcronym(
+  input: Pick<MunicipalDepartmentRecord, "code" | "name">,
+) {
   const explicit = input.code?.trim().toUpperCase();
   if (explicit) return explicit.slice(0, 8);
 
@@ -17,7 +68,18 @@ export function getDepartmentAcronym(input: Pick<MunicipalDepartmentRecord, "cod
   const initials = words.map((word) => word[0]).join("").toUpperCase();
   if (initials.length >= 2) return initials.slice(0, 8);
 
-  return input.name.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").toUpperCase().slice(0, 8) || "UN";
+  return (
+    input.name.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").toUpperCase().slice(0, 8) || "UN"
+  );
+}
+
+export function getInstitutionalUnitIdentity(unitType?: string | null) {
+  return UNIT_IDENTITY[(unitType || "").trim().toLocaleLowerCase("pt-BR")] ?? {
+    short: "UNI",
+    label: "Unidade",
+    tone: "border-slate-200 bg-slate-50 text-slate-700",
+    iconTone: "border-slate-200 bg-slate-100 text-slate-700",
+  };
 }
 
 function UnitNode({
@@ -32,42 +94,109 @@ function UnitNode({
   depth?: number;
 }) {
   const acronym = getDepartmentAcronym(department);
-  const children = allDepartments.filter((item) => item.parentDepartmentId === department.id);
+  const identity = getInstitutionalUnitIdentity(department.unitType);
+  const children = allDepartments.filter(
+    (item) => item.parentDepartmentId === department.id,
+  );
+  const isRoot = depth === 0;
 
   return (
-    <article className={depth === 0 ? "rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm" : "rounded-2xl border border-slate-200 bg-slate-50 p-3"}>
-      <div className="flex items-center gap-3">
-        <div className={depth === 0 ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-sky-700" : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-sky-700"}>
-          <Building2 className={depth === 0 ? "h-4.5 w-4.5" : "h-4 w-4"} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{department.unitType}</p>
-          <p className={depth === 0 ? "mt-1 text-2xl font-bold tracking-[-0.03em] text-slate-950" : "mt-1 text-base font-bold tracking-[0.02em] text-slate-900"} title={department.name}>{acronym}</p>
-        </div>
-        {onEdit ? (
-          <button
-            type="button"
-            onClick={() => onEdit(department)}
-            className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+    <article
+      className={cn(
+        "relative overflow-hidden border transition-shadow",
+        isRoot
+          ? "rounded-[26px] border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.07)]"
+          : "rounded-[18px] border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]",
+      )}
+    >
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0",
+          isRoot ? "w-1.5 bg-slate-900" : "w-1 bg-slate-300",
+        )}
+        aria-hidden="true"
+      />
+
+      <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-center border",
+              identity.iconTone,
+              isRoot
+                ? "h-11 w-11 rounded-[14px]"
+                : "h-9 w-9 rounded-xl",
+            )}
           >
-            Editar
-          </button>
+            <Building2 className={isRoot ? "h-[18px] w-[18px]" : "h-4 w-4"} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex min-w-11 items-center justify-center rounded-lg border px-2 py-1 text-[10px] font-black tracking-[0.12em]",
+                  identity.tone,
+                )}
+                title={identity.label}
+              >
+                {identity.short}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {identity.label}
+              </span>
+            </div>
+
+            <p
+              className={cn(
+                "mt-2 font-black tracking-[-0.02em] text-slate-950",
+                isRoot ? "text-[22px] leading-7" : "text-[16px] leading-6",
+              )}
+              title={department.name}
+            >
+              {acronym}
+            </p>
+            <p
+              className={cn(
+                "mt-0.5 truncate text-slate-500",
+                isRoot ? "text-xs" : "text-[11px]",
+              )}
+              title={department.name}
+            >
+              {department.name}
+            </p>
+          </div>
+
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(department)}
+              className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              Editar
+            </button>
+          ) : null}
+        </div>
+
+        {children.length > 0 ? (
+          <div
+            className={cn(
+              "mt-4 space-y-2.5 border-l",
+              isRoot ? "ml-5 border-slate-300 pl-4" : "ml-4 border-slate-200 pl-3",
+            )}
+          >
+            {children.map((child) => (
+              <UnitNode
+                key={child.id}
+                department={child}
+                allDepartments={allDepartments}
+                onEdit={onEdit}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
         ) : null}
       </div>
-
-      {children.length > 0 ? (
-        <div className="mt-3 space-y-2 border-l-2 border-slate-200 pl-3">
-          {children.map((child) => (
-            <UnitNode
-              key={child.id}
-              department={child}
-              allDepartments={allDepartments}
-              onEdit={onEdit}
-              depth={depth + 1}
-            />
-          ))}
-        </div>
-      ) : null}
     </article>
   );
 }
@@ -83,7 +212,10 @@ export function MunicipalOrganizationChart({
 }) {
   const active = departments
     .filter((item) => item.isActive)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"));
+    .sort(
+      (a, b) =>
+        a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"),
+    );
   const roots = active.filter((item) => !item.parentDepartmentId);
 
   if (active.length === 0) {
@@ -96,10 +228,32 @@ export function MunicipalOrganizationChart({
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2 text-sm text-slate-600">
-        <Network className="h-4 w-4 text-sky-700" />
-        <span>Estrutura institucional por siglas. O organograma não exibe nomes de servidores ou usuários.</span>
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-sm text-slate-700">
+          <Network className="h-4 w-4 text-sky-700" />
+          <span>
+            Hierarquia institucional por siglas, níveis e unidades oficiais da Prefeitura.
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["secretaria", "diretoria", "departamento", "setor"].map((type) => {
+            const identity = getInstitutionalUnitIdentity(type);
+            return (
+              <span
+                key={type}
+                className={cn(
+                  "rounded-lg border px-2 py-1 text-[9px] font-black tracking-[0.1em]",
+                  identity.tone,
+                )}
+                title={identity.label}
+              >
+                {identity.short}
+              </span>
+            );
+          })}
+        </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
         {roots.map((department) => (
           <UnitNode
