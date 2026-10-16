@@ -1147,3 +1147,54 @@ html body #root .sig-main-shell .sig-process-detail-premium
 }
 
 /* PROCESS DETAIL ADAPTIVE CARDS V15 END */
+
+
+/* ==========================================================================
+   PROTOCOLO > TODOS OS PROTOCOLOS > MARCADOR ATIVO V16 — 2026-10-16
+   Fonte de verdade carregada por ultimo. O marcador selecionado e apenas um
+   indicador de filtro; quando escuro, TODO o conteudo textual precisa ser claro.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-main-shell
+button.sig-protocol-marker[data-protocol-marker-active="true"] {
+  background:#0f172a !important;
+  background-color:#0f172a !important;
+  border-color:#0f172a !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+button.sig-protocol-marker[data-protocol-marker-active="true"] :is(
+  span,strong,small,em,b,i
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+button.sig-protocol-marker[data-protocol-marker-active="true"]
+.sig-protocol-marker-label {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+button.sig-protocol-marker[data-protocol-marker-active="true"]
+.sig-protocol-marker-count {
+  background:rgba(255,255,255,.18) !important;
+  border-color:rgba(255,255,255,.16) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+button.sig-protocol-marker[data-protocol-marker-active="true"]
+:is(svg,.sig-protocol-marker-icon) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+/* PROTOCOLO MARKER ATIVO V16 END */
