@@ -38,7 +38,40 @@ export function LegislationPage() {
   const [view, setView] = useState<LegislationView>("visao-geral");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
-  const settings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const liveSettings = getInstitutionSettings(
+    effectiveScopeId ?? session.tenantId,
+  );
+  const settings = useMemo(() => {
+    const base = institutionSettingsCompat ?? liveSettings;
+    if (!base) return liveSettings ?? null;
+    if (!liveSettings) return base;
+
+    return {
+      ...base,
+      resumoPlanoDiretor:
+        liveSettings.resumoPlanoDiretor || base.resumoPlanoDiretor,
+      resumoUsoSolo: liveSettings.resumoUsoSolo || base.resumoUsoSolo,
+      leisComplementares:
+        liveSettings.leisComplementares || base.leisComplementares,
+      secretariaResponsavel:
+        liveSettings.secretariaResponsavel || base.secretariaResponsavel,
+      planoDiretorArquivoNome:
+        liveSettings.planoDiretorArquivoNome || base.planoDiretorArquivoNome,
+      planoDiretorArquivoUrl:
+        liveSettings.planoDiretorArquivoUrl || base.planoDiretorArquivoUrl,
+      usoSoloArquivoNome:
+        liveSettings.usoSoloArquivoNome || base.usoSoloArquivoNome,
+      usoSoloArquivoUrl:
+        liveSettings.usoSoloArquivoUrl || base.usoSoloArquivoUrl,
+      zoneamentoArquivoNome:
+        liveSettings.zoneamentoArquivoNome || base.zoneamentoArquivoNome,
+      zoneamentoArquivoUrl:
+        liveSettings.zoneamentoArquivoUrl || base.zoneamentoArquivoUrl,
+      leisArquivoNome:
+        liveSettings.leisArquivoNome || base.leisArquivoNome,
+      leisArquivoUrl: liveSettings.leisArquivoUrl || base.leisArquivoUrl,
+    };
+  }, [institutionSettingsCompat, liveSettings]);
 
   const items = useMemo<LawItem[]>(
     () => [
