@@ -1266,3 +1266,133 @@ html body #root .sig-app-frame .sig-main-shell
   box-shadow:0 4px 10px rgba(51,65,85,.22) !important;
 }
 /* ANALISE / FICHA TECNICA — LEGENDA DE STATUS V17 END */
+
+
+/* ==========================================================================
+   FICHA TECNICA — NITIDEZ TIPOGRAFICA V18 — 2026-10-16
+   Escopo exato dos cards-resumo e da legenda da análise. O app interno usa
+   zoom de 85%; fontes muito pequenas perdiam definição. Compensamos somente
+   aqui sem alterar a escala geral do SIGAPRO.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] {
+  filter:none !important;
+  opacity:1 !important;
+  transform:none !important;
+  scale:1 !important;
+  backface-visibility:visible !important;
+  will-change:auto !important;
+  text-rendering:geometricPrecision;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] :is(
+  .sig-analysis-crisp-label,
+  .sig-analysis-crisp-value,
+  .sig-analysis-crisp-help,
+  input
+) {
+  filter:none !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+  transform:none !important;
+  -webkit-font-smoothing:auto;
+  font-synthesis:none;
+}
+
+html[data-page-zoom="85"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] .sig-analysis-crisp-label {
+  font-size:11px !important;
+  line-height:1.35 !important;
+  letter-spacing:.08em !important;
+  font-weight:800 !important;
+}
+
+html[data-page-zoom="85"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] .sig-analysis-crisp-value {
+  font-size:15px !important;
+  line-height:1.35 !important;
+  font-weight:800 !important;
+  letter-spacing:0 !important;
+}
+
+html[data-page-zoom="85"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-crisp-card="true"] .sig-analysis-crisp-help {
+  font-size:13px !important;
+  line-height:1.45 !important;
+  font-weight:500 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"] {
+  filter:none !important;
+  opacity:1 !important;
+  transform:none !important;
+  scale:1 !important;
+  box-shadow:none !important;
+  text-rendering:geometricPrecision;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"] {
+  filter:none !important;
+  opacity:1 !important;
+  transform:none !important;
+  scale:1 !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  font-weight:800 !important;
+  letter-spacing:0 !important;
+  -webkit-font-smoothing:auto;
+  font-synthesis:none;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+[data-analysis-legend-chip="true"]
+.sig-analysis-legend-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+  filter:none !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  font-weight:800 !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+.sig-analysis-legend-heading {
+  color:#1e293b !important;
+  -webkit-text-fill-color:#1e293b !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+  filter:none !important;
+  font-size:13px !important;
+  line-height:1.2 !important;
+  font-weight:800 !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+[data-analysis-legend="true"]
+.sig-analysis-legend-heading {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+/* FICHA TECNICA — NITIDEZ TIPOGRAFICA V18 END */
