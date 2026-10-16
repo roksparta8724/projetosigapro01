@@ -45,6 +45,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v1")');
     expect(html).toContain('document.documentElement.style.setProperty("--sig-initial-bg", initialBackground)');
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
+    expect(html).toContain('document.documentElement.setAttribute(');
     expect(html).toContain('"data-page-zoom"');
     expect(html).toContain("initialAppZoom");
   });
