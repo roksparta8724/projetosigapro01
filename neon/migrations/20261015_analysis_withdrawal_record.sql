@@ -10,7 +10,7 @@ create table if not exists public.process_artifact_withdrawals (
   municipality_id uuid,
   process_id uuid not null references public.processes(id) on delete cascade,
   artifact_key text not null,
-  artifact_hash text not null,
+  artifact_hash text,
   withdrawn_by_name text not null,
   withdrawn_at date not null,
   recorded_by_profile_id uuid references public.profiles(id),
@@ -19,8 +19,10 @@ create table if not exists public.process_artifact_withdrawals (
   updated_at timestamptz not null default clock_timestamp()
 );
 
-create unique index if not exists ux_process_artifact_withdrawals_version
-  on public.process_artifact_withdrawals(process_id, artifact_key, artifact_hash);
+drop index if exists public.ux_process_artifact_withdrawals_version;
+
+create unique index if not exists ux_process_artifact_withdrawals_process_artifact
+  on public.process_artifact_withdrawals(process_id, artifact_key);
 
 create index if not exists ix_process_artifact_withdrawals_process
   on public.process_artifact_withdrawals(process_id, artifact_key, updated_at desc);
@@ -89,7 +91,7 @@ declare
   _profile public.profiles%rowtype;
   _role text;
   _key text := lower(btrim(coalesce(_artifact_key,'')));
-  _hash text := lower(btrim(coalesce(_artifact_hash,'')));
+  _hash text := nullif(lower(btrim(coalesce(_artifact_hash,''))), '');
   _name text := btrim(coalesce(_withdrawn_by_name,''));
   _row public.process_artifact_withdrawals%rowtype;
 begin
@@ -117,8 +119,103 @@ begin
     raise exception 'Somente o analista responsável pode registrar a retirada em mãos.';
   end if;
 
-  if _key='' or _hash !~ '^[0-9a-f]{64}$' then
-    raise exception 'Versão assinada da ficha inválida.';
+  if _key='' then
+    raise exception 'Identificação da ficha inválida.';
+  end if;
+
+  if _hash is not null and _hash !~ '^[0-9a-f]{64}
+
+  insert into public.process_artifact_withdrawals(
+    tenant_id,
+    municipality_id,
+    process_id,
+    artifact_key,
+    artifact_hash,
+    withdrawn_by_name,
+    withdrawn_at,
+    recorded_by_profile_id,
+    recorded_by_user_id,
+    recorded_at,
+    updated_at
+  )
+  values(
+    _process.tenant_id,
+    _process.municipality_id,
+    _process.id,
+    _key,
+    _hash,
+    _name,
+    _withdrawn_at,
+    _profile.id,
+    _profile.user_id,
+    clock_timestamp(),
+    clock_timestamp()
+  )
+  on conflict (process_id, artifact_key)
+  do update set
+    artifact_hash=coalesce(excluded.artifact_hash, public.process_artifact_withdrawals.artifact_hash),
+    withdrawn_by_name=excluded.withdrawn_by_name,
+    withdrawn_at=excluded.withdrawn_at,
+    recorded_by_profile_id=excluded.recorded_by_profile_id,
+    recorded_by_user_id=excluded.recorded_by_user_id,
+    updated_at=clock_timestamp()
+  returning * into _row;
+
+  insert into public.process_audit_entries(
+    tenant_id,
+    municipality_id,
+    process_id,
+    actor_user_id,
+    actor_profile_id,
+    category,
+    title,
+    detail,
+    visible_to_external,
+    created_at
+  )
+  values(
+    _process.tenant_id,
+    _process.municipality_id,
+    _process.id,
+    _profile.user_id,
+    _profile.id,
+    'retirada',
+    'Retirada em mãos registrada',
+    concat(
+      'Retirado por ', _name,
+      ' em ', to_char(_withdrawn_at,'DD/MM/YYYY'),
+      case when _hash is not null then concat(' • SHA-256 ', _hash) else '' end
+    ),
+    true,
+    clock_timestamp()
+  );
+
+  return jsonb_build_object(
+    'ok', true,
+    'withdrawal', jsonb_build_object(
+      'id', _row.id,
+      'artifact_hash', _row.artifact_hash,
+      'withdrawn_by_name', _row.withdrawn_by_name,
+      'withdrawn_at', _row.withdrawn_at,
+      'recorded_by_profile_id', _row.recorded_by_profile_id,
+      'recorded_at', _row.recorded_at,
+      'updated_at', _row.updated_at
+    )
+  );
+end;
+$$;
+
+revoke all on function public.get_process_artifact_withdrawal_v1(uuid,text) from public;
+revoke all on function public.upsert_process_artifact_withdrawal_v1(uuid,text,text,text,date) from public;
+
+grant execute on function public.get_process_artifact_withdrawal_v1(uuid,text) to authenticated;
+grant execute on function public.upsert_process_artifact_withdrawal_v1(uuid,text,text,text,date) to authenticated;
+
+commit;
+
+notify pgrst, 'reload schema';
+ then
+    raise exception 'Hash da ficha inválido.';
   end if;
 
   if _name='' then
@@ -127,32 +224,6 @@ begin
 
   if _withdrawn_at is null then
     raise exception 'Informe a data da retirada.';
-  end if;
-
-  if not exists (
-    select 1
-    from public.signature_blocks sb
-    where sb.process_id=_process_id
-      and sb.document_id is null
-      and sb.artifact_key=_key
-      and sb.evidence_hash=_hash
-      and sb.status='concluido'
-      and exists (
-        select 1
-        from public.signatures s
-        where s.signature_block_id=sb.id
-          and s.signer_slot='analise_tecnica'
-          and s.status='concluido'
-      )
-      and exists (
-        select 1
-        from public.signatures s
-        where s.signature_block_id=sb.id
-          and s.signer_slot='diretoria'
-          and s.status='concluido'
-      )
-  ) then
-    raise exception 'As assinaturas do Analista Técnico e da Diretoria precisam estar concluídas antes de registrar a retirada.';
   end if;
 
   insert into public.process_artifact_withdrawals(
