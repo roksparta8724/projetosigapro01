@@ -30,13 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   CONSTRUCTION_PERMIT_EVENT,
   buildConstructionPermitFormData,
   createConstructionPermitDraft,
@@ -146,16 +139,6 @@ export function ConstructionPermitPanel({
     () => getMunicipalDirectorCandidates(sessionUsers, municipalityId),
     [municipalityId, sessionUsers],
   );
-  const [selectedDirectorId, setSelectedDirectorId] = useState(
-    directors[0]?.id || "",
-  );
-
-  useEffect(() => {
-    if (!selectedDirectorId && directors[0]?.id) {
-      setSelectedDirectorId(directors[0].id);
-    }
-  }, [directors, selectedDirectorId]);
-
   useEffect(() => {
     let active = true;
 
@@ -296,8 +279,6 @@ export function ConstructionPermitPanel({
     process.id,
   ]);
 
-  const selectedDirector =
-    directors.find((item) => item.id === selectedDirectorId) ?? directors[0];
   const canStartDraft =
     !externalView &&
     userCanSignPermitAsAnalyst(session, process);
@@ -463,6 +444,13 @@ export function ConstructionPermitPanel({
   };
 
   const requestDirectorSignature = async () => {
+    if (directors.length === 0) {
+      setStatus(
+        "Não existe um perfil interno ativo identificado como Diretor(a) da área de Urbanismo/Obras. Cadastre ou ajuste o cargo no organograma antes de solicitar a assinatura eletrônica.",
+      );
+      return;
+    }
+
     if (!permitReadyForSignature) {
       setStatus(
         "Conclua a análise documental e confirme a compensação do ISSQN / Projeto antes de solicitar a assinatura da Diretoria.",
@@ -1001,6 +989,11 @@ export function ConstructionPermitPanel({
                         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
                           Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar à caneta.
                         </p>
+                        {directors.length === 0 ? (
+                          <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura à caneta continua disponível.
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
@@ -1015,7 +1008,7 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Send className="mr-2 h-4 w-4" />
                           )}
-                          Solicitar assinatura eletrônica
+                          Enviar ao Diretor para assinar eletronicamente
                         </Button>
                         <Button
                           type="button"
@@ -1094,7 +1087,7 @@ export function ConstructionPermitPanel({
                         Alvará de Construção
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
-                        Revise e salve os dados. Depois escolha: solicitar a assinatura eletrônica da Diretoria ou gerar o PDF para o Diretor assinar à caneta. Se o Secretário assinar eletronicamente, a assinatura dele aparecerá automaticamente no Alvará.
+                        Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura à caneta. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
                       </DialogDescription>
                     </div>
                   </div>
@@ -1211,7 +1204,7 @@ export function ConstructionPermitPanel({
                   </div>
                 </div>
 
-                <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-950">
+                <DialogFooter className="sticky bottom-0 z-20 border-t border-slate-200 bg-white/98 px-6 py-4 shadow-[0_-12px_28px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-slate-700 dark:bg-slate-950/98">
                   <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -1244,7 +1237,7 @@ export function ConstructionPermitPanel({
                         type="button"
                         variant="outline"
                         className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                        disabled={!permitReadyForSignature || Boolean(workflowBusy)}
+                        disabled={!permitReadyForSignature || directors.length === 0 || Boolean(workflowBusy)}
                         onClick={() => void requestDirectorSignature()}
                       >
                         {workflowBusy === "request" ? (
@@ -1252,7 +1245,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Send className="mr-2 h-4 w-4" />
                         )}
-                        Solicitar assinatura eletrônica
+                        Enviar ao Diretor para assinar eletronicamente
                       </Button>
 
                       <Button
