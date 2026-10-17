@@ -341,6 +341,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
+  const activeInstitutionTheme =
+    activeInstitution && "theme" in activeInstitution
+      ? activeInstitution.theme
+      : null;
   const userProfile = getUserProfile(session.id, session.email);
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
@@ -451,13 +455,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     appliedTheme?.primary ||
     stableMunicipalityTheme.primary ||
     municipalityTheme.primary ||
-    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) ||
+    activeInstitutionTheme?.primary ||
     resolvedThemePreset.primary ||
     "#123f32";
   const accentColor =
     appliedTheme?.accent ||
     stableMunicipalityTheme.accent ||
-    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) ||
+    activeInstitutionTheme?.accent ||
     resolvedThemePreset.accent ||
     "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
