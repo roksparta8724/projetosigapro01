@@ -1994,42 +1994,6 @@ export function buildGuiaRecolhimentoOficialHtml(
 </html>`;
 }
 
-export function reserveGuiaRecolhimentoWindow(title = "Guia municipal") {
-  const popup = window.open("", "_blank");
-  if (!popup) return null;
-
-  // Reserva a nova aba ainda dentro do gesto do usuário para evitar bloqueio
-  // de pop-up, mas nunca exibe uma tela intermediária. A preparação bancária
-  // continua na tela atual do SIGAPRO e a nova aba só recebe foco quando a DAM
-  // final estiver pronta.
-  popup.document.open();
-  popup.document.write(`<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <style>
-    html,body{margin:0;width:100%;height:100%;background:#fff;overflow:hidden}
-    body{visibility:hidden}
-  </style>
-</head>
-<body aria-hidden="true"></body>
-</html>`);
-  popup.document.close();
-
-  try {
-    popup.blur();
-    window.focus();
-    window.requestAnimationFrame(() => window.focus());
-  } catch {
-    // Alguns navegadores ignoram blur/focus entre abas; isso não interfere
-    // na geração da guia nem no documento final.
-  }
-
-  return popup;
-}
-
 export function showGuiaRecolhimentoError(
   popup: Window | null,
   message: string,
@@ -2065,21 +2029,18 @@ export function showGuiaRecolhimentoError(
 export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
-  targetWindow?: Window | null,
 ) {
   const html = buildGuiaRecolhimentoOficialHtml(props, options);
-  const popup =
-    targetWindow && !targetWindow.closed
-      ? targetWindow
-      : window.open("", "_blank");
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const previewUrl = URL.createObjectURL(blob);
+  const popup = window.open(previewUrl, "_blank");
 
-  if (!popup) return null;
+  if (!popup) {
+    URL.revokeObjectURL(previewUrl);
+    return null;
+  }
 
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
   popup.focus();
+  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
   return popup;
 }
-
-
