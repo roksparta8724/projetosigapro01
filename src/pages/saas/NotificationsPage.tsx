@@ -1,4 +1,4 @@
-import { AlertCircle, BellRing, MessageSquareMore, Send, Wallet } from "lucide-react";
+import { AlertCircle, BellRing, CheckCheck, MessageSquareMore, Send, Signature, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ActivityList, type ActivityItem } from "@/components/platform/ActivityList";
@@ -22,6 +22,7 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useNotifications } from "@/hooks/useNotifications";
 
 type NotificationView = "visao-geral" | "notificacoes" | "mensagens" | "tramites" | "pendencias";
 
@@ -29,6 +30,14 @@ export function NotificationsPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, tenantSettingsCompat } = useMunicipality();
   const { processes: allProcesses } = usePlatformData();
+  const {
+    notifications: officialNotifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    markRead,
+    markAllRead,
+  } = useNotifications({ includeItems: true, limit: 150, pollMs: 10000 });
   const [view, setView] = useState<NotificationView>("visao-geral");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
@@ -131,9 +140,80 @@ export function NotificationsPage() {
     [processes, tenantSettingsCompat],
   );
 
-  const notificationItems = useMemo(
+  const processById = useMemo(
+    () => new Map(processes.map((process) => [process.id, process] as const)),
+    [processes],
+  );
+
+  const officialNotificationItems = useMemo<ActivityItem[]>(
+    () =>
+      officialNotifications.map((notification) => {
+        const linkedProcess = notification.processId
+          ? processById.get(notification.processId)
+          : undefined;
+        const target =
+          notification.actionUrl ||
+          (linkedProcess ? buildProcessPath(linkedProcess) : "");
+
+        const icon =
+          notification.type === "assinatura"
+            ? Signature
+            : notification.type === "financeiro"
+              ? Wallet
+              : notification.type === "exigencia"
+                ? AlertCircle
+                : notification.type === "mensagem"
+                  ? MessageSquareMore
+                  : notification.type === "tramite"
+                    ? Send
+                    : BellRing;
+
+        return {
+          id: `official-${notification.id}`,
+          title: notification.title,
+          description: notification.message,
+          meta: `${notification.isRead ? "Lida" : "Nova"} · ${new Date(
+            notification.createdAt,
+          ).toLocaleString("pt-BR")}`,
+          badge: notification.isRead ? notification.category : "Nova",
+          icon,
+          action: (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {!notification.isRead ? (
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={() => void markRead(notification.id)}
+                >
+                  Marcar lida
+                </button>
+              ) : null}
+              {target ? (
+                <Link
+                  to={target}
+                  onClick={() => {
+                    if (!notification.isRead) void markRead(notification.id);
+                  }}
+                  className="sig-dark-action-btn inline-flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium text-slate-50"
+                >
+                  Abrir
+                </Link>
+              ) : null}
+            </div>
+          ),
+        };
+      }),
+    [markRead, officialNotifications, processById],
+  );
+
+  const operationalItems = useMemo(
     () => [...messageItems, ...dispatchItems, ...requirementItems, ...financeItems],
     [dispatchItems, financeItems, messageItems, requirementItems],
+  );
+
+  const notificationItems = useMemo(
+    () => [...officialNotificationItems, ...operationalItems],
+    [officialNotificationItems, operationalItems],
   );
 
   const tabs = [
@@ -144,7 +224,7 @@ export function NotificationsPage() {
     { value: "pendencias", label: "Pendências", helper: "Exigências e atenção" },
   ] as const;
 
-  const mainFeed = notificationItems.slice(0, 8);
+  const mainFeed = notificationItems.slice(0, 10);
   const recentMessages = messageItems.slice(0, 4);
   const pendingAttention = requirementItems.slice(0, 4);
 
@@ -179,7 +259,7 @@ export function NotificationsPage() {
           <SummaryCard
             title="Total monitorado"
             value={String(notificationItems.length)}
-            helper="Eventos visíveis no escopo atual"
+            helper={unreadCount > 0 ? `${unreadCount} notificação(ões) não lida(s)` : "Nenhuma notificação não lida"}
             icon={BellRing}
             tone="blue"
           />
@@ -299,14 +379,37 @@ export function NotificationsPage() {
 
         {view === "notificacoes" ? (
           <TableContainer
-            title="Central consolidada"
-            description="Leitura única de notificações, mensagens, trâmites e financeiro."
+            title="Notificações direcionadas"
+            description="Avisos oficiais destinados ao seu perfil, com leitura individual e atualização automática."
             icon={BellRing}
+            actions={
+              unreadCount > 0 ? (
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={() => void markAllRead()}
+                >
+                  <CheckCheck className="mr-2 h-4 w-4" />
+                  Marcar todas como lidas
+                </button>
+              ) : null
+            }
           >
-            {renderFeed(
-              notificationItems,
-              "Nenhuma notificação encontrada",
-              "O ambiente ainda não gerou eventos visíveis para este perfil.",
+            {notificationsError ? (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {notificationsError}
+              </div>
+            ) : null}
+            {notificationsLoading && officialNotificationItems.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                Atualizando notificações...
+              </div>
+            ) : (
+              renderFeed(
+                officialNotificationItems,
+                "Nenhuma notificação direcionada",
+                "Quando uma ação exigir sua atenção, ela aparecerá aqui automaticamente.",
+              )
             )}
           </TableContainer>
         ) : null}
