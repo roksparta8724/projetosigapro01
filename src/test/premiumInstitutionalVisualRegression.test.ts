@@ -8,6 +8,9 @@ const read = (path: string) =>
 const css = read("src/index.css");
 const pageLayout = read("src/components/platform/PageLayout.tsx");
 const metricCard = read("src/components/platform/MetricCard.tsx");
+const statCard = read("src/components/platform/StatCard.tsx");
+const tableCard = read("src/components/platform/TableCard.tsx");
+const alertCard = read("src/components/platform/AlertCard.tsx");
 const sidebar = read("src/components/platform/AppSidebar.tsx");
 const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
 const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
@@ -18,6 +21,9 @@ describe("premium institutional visual contract", () => {
     expect(pageLayout).toContain('data-premium-surface="header"');
     expect(pageLayout).toContain('data-premium-surface="section"');
     expect(metricCard).toContain('data-premium-surface="metric"');
+    expect(statCard).toContain('data-premium-surface="metric"');
+    expect(tableCard).toContain('data-premium-surface="section"');
+    expect(alertCard).toContain('data-premium-surface="section"');
     expect(css).toContain("SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1");
     expect(css).toContain('[data-layout-mode="default"]');
     expect(css).toContain('[data-layout-mode="inverse-main"]');
