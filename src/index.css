@@ -10122,3 +10122,84 @@ html body [data-landing-product-header="true"] > div p:first-of-type {
   -webkit-text-fill-color:#ffffff !important;
 }
 /* ===== END SIGNATURE QR + TOPBAR INITIALS FINAL V2 ===== */
+
+
+/* ===== SIGNATURE QR RASTER QUALITY LOCK V3 — 2026-10-17 =====
+   SEI-style verification: black modules, pure-white quiet zone and a raster
+   image isolated from every SVG/fill/stroke rule in the application theme. */
+html body .sig-main-shell .sig-sei-verification-qr {
+  width:146px !important;
+  min-width:146px !important;
+  background:#ffffff !important;
+  border:1px solid #cfd8e3 !important;
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  box-shadow:
+    0 8px 20px rgba(15,23,42,.10),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+  text-decoration:none !important;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr-frame {
+  width:126px !important;
+  height:126px !important;
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+  box-shadow:inset 0 0 0 4px #ffffff !important;
+  overflow:hidden !important;
+}
+
+html body .sig-main-shell img.sig-sei-verification-qr-image {
+  display:block !important;
+  width:112px !important;
+  height:112px !important;
+  max-width:none !important;
+  min-width:112px !important;
+  min-height:112px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  transform:none !important;
+  object-fit:contain !important;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr-label {
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  background:#f8fafc !important;
+  border:1px solid #e2e8f0 !important;
+  border-radius:999px !important;
+  padding:4px 8px !important;
+  line-height:1.15 !important;
+  font-weight:800 !important;
+  opacity:1 !important;
+  text-decoration:none !important;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr:hover {
+  border-color:#9fb3c8 !important;
+  box-shadow:
+    0 10px 24px rgba(15,23,42,.13),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+/* Theme inversion must never touch the QR scan field itself. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-sei-verification-qr,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-sei-verification-qr-frame,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+img.sig-sei-verification-qr-image {
+  background:#ffffff !important;
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  filter:none !important;
+}
+/* ===== END SIGNATURE QR RASTER QUALITY LOCK V3 ===== */
