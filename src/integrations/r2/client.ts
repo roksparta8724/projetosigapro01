@@ -91,6 +91,24 @@ export function getLegislationOpenUrl(reference: string) {
   );
 }
 
+export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefined) {
+  const raw = String(sourceUrl || "").trim();
+  if (!raw) return "";
+
+  try {
+    const source = new URL(raw);
+    const allowedHost = /(^|\.)supabase\.co$/i.test(source.hostname);
+    const allowedPath = source.pathname.startsWith("/storage/v1/object/public/avatars/");
+    if (source.protocol !== "https:" || !allowedHost || !allowedPath) return raw;
+  } catch {
+    return raw;
+  }
+
+  return buildApiUrl(
+    `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`,
+  );
+}
+
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
   const normalized = String(objectKey || "").trim().replace(/^\/+/, "");
   if (!normalized) return "";
