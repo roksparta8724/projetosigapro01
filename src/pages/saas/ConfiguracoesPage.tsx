@@ -2927,9 +2927,9 @@ export function ConfiguracoesPage() {
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
       <PageShell className="sig-config-page">
       <PageHeader
-        eyebrow="Identidade visual"
-        title="Identidade e operação institucional"
-        description="Organize identidade visual, contatos oficiais, prefixos e preferências da Prefeitura."
+        eyebrow="Configurações institucionais"
+        title="Central de configuração da Prefeitura"
+        description="Identidade visual, dados oficiais, protocolo, equipe e armazenamento organizados em um único ambiente."
         icon={MonitorCog}
         className="sig-config-hero rounded-[28px] p-5 md:p-6 lg:p-7"
       />
@@ -3251,15 +3251,7 @@ export function ConfiguracoesPage() {
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Aplicar no cabeçalho"}
                       </Button>
-                      <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
-                        Testar prefeitura
-                      </Button>
                     </div>
-                    {diagnosticStatus ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                        {diagnosticStatus}
-                      </div>
-                    ) : null}
                     {headerLogoStatus ? (
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm ${
@@ -3388,12 +3380,12 @@ export function ConfiguracoesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f6f9fc_100%)] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.05)] md:p-5">
+              <div data-config-asset-panel="true" className="sig-config-support-panel rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.05)] md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <ImageIcon className="h-4 w-4 text-sky-700" />
-                      <p className="text-sm font-bold text-slate-950">Identidade institucional da Prefeitura</p>
+                      <p className="text-sm font-bold text-slate-950">Ativos visuais oficiais</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
                       Brasão, bandeira e imagem do portal ficam armazenados de forma persistente e vinculados somente a esta Prefeitura.
@@ -3441,7 +3433,7 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
+              <div data-config-legal-panel="true" className="sig-config-support-panel rounded-[26px] border border-sky-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f9ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.06)] md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -3463,7 +3455,7 @@ export function ConfiguracoesPage() {
                     description="PDF oficial do Plano Diretor municipal."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview
+                    allowPreview={false}
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={planoDiretorFiles}
@@ -3474,7 +3466,7 @@ export function ConfiguracoesPage() {
                     description="PDF oficial da lei de uso, ocupação e parâmetros urbanísticos."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview
+                    allowPreview={false}
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={usoSoloFiles}
@@ -3485,7 +3477,7 @@ export function ConfiguracoesPage() {
                     description="PDF oficial e específico do zoneamento municipal, separado da Lei de Uso e Ocupação do Solo."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview
+                    allowPreview={false}
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={zoneamentoFiles}
@@ -3496,7 +3488,7 @@ export function ConfiguracoesPage() {
                     description="PDF com leis, decretos e normas complementares vinculadas ao licenciamento."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview
+                    allowPreview={false}
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={leisFiles}
