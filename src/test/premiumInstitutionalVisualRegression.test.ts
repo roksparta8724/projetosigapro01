@@ -87,4 +87,14 @@ describe("premium institutional visual contract", () => {
     expect(css).toContain("image-rendering:pixelated");
     expect(css).toContain("mix-blend-mode:normal !important");
   });
+  it("preserves the original dark sidebar selection mask while improving label contrast", () => {
+    expect(sidebar).toContain('bg-[var(--sig-topbar)] text-white');
+    expect(sidebar).toContain('bg-white/[0.08] text-white');
+    expect(sidebar).toContain('bg-white/80');
+    expect(sidebar).not.toContain('border border-white/85 bg-white text-[var(--sig-primary-deep)]');
+    expect(css).toContain("SIDEBAR SELECTION RESTORE V2");
+    expect(css).toContain('background: linear-gradient(180deg, var(--sig-topbar) 0%, var(--sig-sidebar) 100%) !important');
+    expect(css).toContain("color: #f3f8fc !important");
+  });
+
 });
