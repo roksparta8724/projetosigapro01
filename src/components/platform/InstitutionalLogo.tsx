@@ -205,6 +205,18 @@ export function InstitutionalLogo({
   useEffect(() => {
     if (!pendingUrl || typeof window === "undefined") return;
 
+    const pendingIsAuthoritative =
+      isMaster ||
+      Boolean(
+        requestedUrl &&
+        sameAssetResource(pendingUrl, requestedUrl),
+      );
+
+    // Se o branding oficial ainda está hidratando e o pendingUrl é somente o
+    // brasão de fallback, mantenha o último logo estável. Não pré-carregue nem
+    // promova esse fallback para a tela.
+    if (!pendingIsAuthoritative) return;
+
     let active = true;
     let settled = false;
     const probe = new window.Image();
@@ -244,7 +256,7 @@ export function InstitutionalLogo({
       probe.onload = null;
       probe.onerror = null;
     };
-  }, [context, isMaster, pendingUrl]);
+  }, [context, isMaster, pendingUrl, requestedUrl]);
 
   const configuredScale = Number.isFinite(branding.logoScale) ? branding.logoScale : 1;
   // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
