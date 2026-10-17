@@ -58,6 +58,7 @@ describe("construction permit workflow", () => {
     expect(panel).toContain('type="password"');
     expect(panel).toContain("QRCodeSVG");
     expect(panel).toContain("directorVerificationUrl");
+    expect(panel).toContain("Abrir verificação");
     expect(pdf).toContain("createQrCodeDataUrl");
     expect(pdf).toContain("buildPublicSignatureVerificationUrl");
     expect(pdf).toContain("VERIFICAR AUTENTICIDADE");
