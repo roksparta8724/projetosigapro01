@@ -317,13 +317,18 @@ function getStyles() {
     }
 
     .dam-logo-fallback {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #000000;
+      width: 42px;
+      height: 42px;
+      border: 1px solid #c5d1dc;
+      border-radius: 12px;
+      background: #f4f8fb;
+      color: #0f3557;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 6px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .08em;
       line-height: 1;
     }
 
@@ -1124,18 +1129,6 @@ function ReceiptRow({
   );
 }
 
-function municipalLogoFallback(name?: string) {
-  const normalized = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
-
-  if (normalized.includes("campo limpo paulista")) {
-    return "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
-  }
-  return "";
-}
-
 function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   const reference = `${guia.referencia || ""} ${itens.map((item) => item.divida || "").join(" ")}`.toLowerCase();
   if (reference.includes("iss")) {
@@ -1199,8 +1192,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
   const visibleItens = itens.slice(0, 8);
   const resolvedMunicipalityLogo =
-    String(prefeitura.logoUrl || "").trim() ||
-    municipalLogoFallback(prefeitura.nome);
+    String(prefeitura.logoUrl || "").trim();
 
   return (
     <div ref={ref} className={`dam-root ${className}`}>
