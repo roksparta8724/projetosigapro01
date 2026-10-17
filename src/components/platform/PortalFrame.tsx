@@ -1368,12 +1368,17 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 type="button"
                 onClick={() => navigate("/notificacoes")}
                 className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  "relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
                 )}
-                aria-label="Notificações"
+                aria-label={`Notificações (${notificationCount})`}
               >
                 <Bell className="h-[18px] w-[18px] text-white/92" />
+                {notificationCount > 0 ? (
+                  <span className="sig-topbar-notification-badge absolute right-[2px] top-[2px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                ) : null}
               </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
