@@ -808,6 +808,10 @@ export interface ProcessRecord {
     assignedTo?: string;
     assignedProfileId?: string;
     startedAt?: string;
+    supervisorOverrideProfileId?: string;
+    supervisorOverrideReason?: string;
+    supervisorOverrideStartedAt?: string;
+    supervisorOverrideExpiresAt?: string;
   };
   checklistType: string;
   sla: {
@@ -2564,6 +2568,8 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
       return "/master";
     case "prefeitura_admin":
       return "/prefeitura";
+    case "prefeitura_supervisor":
+      return "/prefeitura/analise";
     case "analista":
       return "/prefeitura/analise";
     case "financeiro":
@@ -2585,12 +2591,15 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
 }
 
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
-  if (
-    session.role === "master_admin" ||
-    session.role === "master_ops" ||
-    session.role === "prefeitura_supervisor"
-  ) {
+  if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
+  }
+
+  // Diretor/supervisor é autoridade do seu setor, não um superusuário municipal.
+  // Ex.: Diretor de Urbanismo governa Análise/Fiscalização, mas não recebe
+  // Financeiro ou Protocolo automaticamente.
+  if (session.role === "prefeitura_supervisor") {
+    return resolveSessionOperationalArea(session) === area;
   }
 
   // O administrador municipal governa usuários/configurações e pode consultar
@@ -2845,7 +2854,48 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   return false;
 }
 
-export function canAnalyzeProcessDocument(
+export function isAnalysisSupervisor(
+  session: Pick<SessionUser, "role" | "department" | "title">,
+) {
+  return (
+    session.role === "prefeitura_supervisor" &&
+    resolveSessionOperationalArea(session as SessionUser) === "analise"
+  );
+}
+
+export function hasActiveAnalysisSupervisorIntervention(
+  session: Pick<SessionUser, "id">,
+  process: ProcessRecord,
+) {
+  const overrideProfileId = String(process.analysis?.supervisorOverrideProfileId || "").trim();
+  const expiresAt = process.analysis?.supervisorOverrideExpiresAt
+    ? Date.parse(process.analysis.supervisorOverrideExpiresAt)
+    : Number.NaN;
+
+  return Boolean(
+    overrideProfileId &&
+    overrideProfileId === session.id &&
+    Number.isFinite(expiresAt) &&
+    expiresAt > Date.now(),
+  );
+}
+
+export function canSuperviseProcessAnalysis(
+  session: SessionUser,
+  process: ProcessRecord,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
+  if (!isAnalysisSupervisor(session)) return false;
+
+  const sessionScopeId = getOperationalScopeId(session);
+  return Boolean(
+    sessionScopeId &&
+    matchesOperationalScope(sessionScopeId, process),
+  );
+}
+
+export function canEditProcessAnalysis(
   session: SessionUser,
   process: ProcessRecord,
   scopeId?: string | null,
@@ -2854,31 +2904,24 @@ export function canAnalyzeProcessDocument(
     return false;
   }
 
-  // O Administrador da Prefeitura governa o ambiente, mas não opera a análise técnica.
   if (session.role === "prefeitura_admin") return false;
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
 
-  if (session.role === "master_admin" || session.role === "master_ops") {
-    return true;
-  }
-
-  // Segurança: o vínculo municipal do USUÁRIO precisa coincidir com o processo.
-  // O escopo visual da página nunca concede acesso por conta própria.
   const sessionScopeId = getOperationalScopeId(session);
   if (!sessionScopeId || !matchesOperationalScope(sessionScopeId, process)) {
     return false;
   }
 
   if (session.role === "prefeitura_supervisor") {
-    return true;
+    return (
+      canSuperviseProcessAnalysis(session, process) &&
+      hasActiveAnalysisSupervisorIntervention(session, process)
+    );
   }
 
   if (session.role !== "analista") return false;
   if (!canAccessMunicipalArea(session, "analise")) return false;
 
-  // A análise documental pertence ao analista designado, não à fila operacional
-  // em que o processo está neste instante. Depois que Urbanismo libera uma guia
-  // e o processo avança para o Financeiro, o analista responsável precisa manter
-  // acesso aos documentos para revisar, apontar correções e acompanhar reenvios.
   const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
   const normalizeAssignee = (value: string | null | undefined) =>
     String(value || "")
@@ -2898,11 +2941,19 @@ export function canAnalyzeProcessDocument(
     return Boolean(sessionName && assignedName === sessionName);
   }
 
-  // Processos antigos ainda sem analista designado seguem a regra da fila atual.
-  const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? sessionScopeId;
-  return canAccessProcess(session, process, processScopeId);
+  // Processo sem responsável ainda não é editável. O analista deve usar
+  // "Iniciar análise", que faz uma tomada atômica no banco e evita dois
+  // analistas assumirem o mesmo processo simultaneamente.
+  return false;
 }
 
+export function canAnalyzeProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  return canEditProcessAnalysis(session, process, scopeId);
+}
 
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
   return records.filter((process) => canAccessProcess(session, process));
