@@ -1511,6 +1511,9 @@ export async function loadRemotePlatformStore() {
             revision: Number(guide.reissue_count ?? 0),
             paymentMethod: guide.payment_method ? String(guide.payment_method) : undefined,
             pixPayload: guide.pix_code ? String(guide.pix_code) : undefined,
+            barcode: guide.barcode ? String(guide.barcode) : undefined,
+            digitableLine: guide.digitable_line ? String(guide.digitable_line) : undefined,
+            bankReference: guide.bank_reference ? String(guide.bank_reference) : undefined,
           };
         }),
       },
