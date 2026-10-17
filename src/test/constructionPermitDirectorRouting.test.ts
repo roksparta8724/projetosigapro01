@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getMunicipalDirectorCandidates, userCanSignPermitAsDirector, type SessionUser } from "@/lib/constructionPermit";
+import { getMunicipalDirectorCandidates, userCanSignPermitAsDirector } from "@/lib/constructionPermit";
+import type { SessionUser } from "@/lib/platform";
 
 const municipalityId = "municipality-a";
 const director = {
