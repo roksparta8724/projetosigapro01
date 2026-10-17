@@ -184,7 +184,9 @@ function stableUuidFromText(value: string) {
 function normalizeGuideCode(value: unknown) {
   return String(value || "")
     .trim()
-    .replace(/[^a-zA-Z0-9._/-]/g, "-")
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
     .slice(0, 64);
 }
 
