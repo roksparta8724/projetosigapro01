@@ -2428,24 +2428,20 @@ export function can(session: SessionUser, permission: Permission) {
     return true;
   }
 
-  // Funcionários internos recebem apenas capacidades operacionais. A pasta/setor
-  // visível é limitada separadamente pelo departamento ao qual estão vinculados.
+  // Funcionários internos recebem capacidades somente dentro da própria pasta.
+  // Isso também protege acesso por URL direta; não basta esconder o item no menu.
   if (isInternalRole(session.role)) {
     if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") return false;
-    if (
-      permission === "manage_own_profile" ||
-      permission === "view_own_processes" ||
-      permission === "manage_protocols" ||
-      permission === "review_processes" ||
-      permission === "manage_financial"
-    ) {
-      return true;
+    if (permission === "manage_own_profile" || permission === "view_own_processes") return true;
+
+    const operationalArea = resolveSessionOperationalArea(session);
+    if (permission === "manage_protocols") return operationalArea === "protocolos";
+    if (permission === "review_processes") return operationalArea === "analise";
+    if (permission === "manage_financial") return operationalArea === "financeiro";
+    if (permission === "manage_fiscal_financial") {
+      return operationalArea === "financeiro" && session.accessLevel >= 2;
     }
-    if (
-      permission === "dispatch_interdepartmental" ||
-      permission === "sign_documents" ||
-      permission === "manage_fiscal_financial"
-    ) {
+    if (permission === "dispatch_interdepartmental" || permission === "sign_documents") {
       return session.accessLevel >= 2;
     }
     return false;
