@@ -39,11 +39,12 @@ export default async function handler(req: Req, res: Res) {
   try {
     const body = await readJsonBody(req);
     const result = await createMercadoPagoGuideBoleto({
+      municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
       guideCode: String(body.guideCode || ""),
       amount: Number(body.amount || 0),
       dueDate: body.dueDate ? String(body.dueDate) : undefined,
       description: body.description ? String(body.description) : undefined,
-    });
+    }, req);
     json(res, result.ok ? 201 : 400, result);
   } catch (error) {
     json(res, 400, {
