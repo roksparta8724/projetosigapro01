@@ -2431,3 +2431,139 @@ html body #root [data-layout-mode="inverse-main"] .sig-config-page
   box-shadow:0 9px 22px rgba(2,6,23,.14) !important;
 }
 /* CONFIGURACOES MUNICIPAIS PREMIUM V19 END */
+
+
+/* ==========================================================================
+   ENQUADRAMENTO INSTITUCIONAL EXATO V20 — 2026-10-17
+   Preview e editor compartilham a mesma geometria do logo real. Nenhuma regra
+   global pode transformar o brasao em faixa horizontal ou esticar o frame.
+   ========================================================================== */
+html body #root .sig-config-page .sig-config-logo-frame {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex-grow:0 !important;
+  flex-shrink:0 !important;
+  align-self:center !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+  background:#ffffff !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-frame-header {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:124px !important;
+  min-height:124px !important;
+  max-height:124px !important;
+  flex-basis:176px !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-frame-footer {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:128px !important;
+  min-height:128px !important;
+  max-height:128px !important;
+  flex-basis:176px !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-frame > img {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+  margin:0 !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-editor [data-image-frame-shape="rounded"] {
+  width:max-content !important;
+  max-width:100% !important;
+  margin-inline:auto !important;
+  padding:10px !important;
+  border-radius:24px !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-editor-header [data-image-frame-viewport="true"] {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:124px !important;
+  min-height:124px !important;
+  max-height:124px !important;
+  aspect-ratio:176 / 124 !important;
+  border-radius:18px !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:128px !important;
+  min-height:128px !important;
+  max-height:128px !important;
+  aspect-ratio:176 / 128 !important;
+  border-radius:18px !important;
+}
+
+html body #root .sig-config-page .sig-config-logo-editor [data-image-frame-viewport="true"] img {
+  max-width:none !important;
+  max-height:none !important;
+  image-rendering:auto !important;
+}
+
+html body #root .sig-config-page .sig-config-live-preview {
+  width:100% !important;
+  max-width:720px !important;
+  min-width:0 !important;
+  margin-inline:0 !important;
+}
+
+html body #root .sig-config-page [data-institutional-header-preview="true"],
+html body #root .sig-config-page [data-institutional-footer-preview="true"] {
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+}
+
+html body #root .sig-app-frame
+.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="header"] {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:124px !important;
+  min-height:124px !important;
+  max-height:124px !important;
+  flex:0 0 176px !important;
+}
+
+html body #root .sig-app-frame
+.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="footer"],
+html body #root .sig-app-frame
+.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="preview"] {
+  width:176px !important;
+  min-width:176px !important;
+  max-width:176px !important;
+  height:128px !important;
+  min-height:128px !important;
+  max-height:128px !important;
+  flex:0 0 176px !important;
+}
+
+@media (max-width:639px) {
+  html body #root .sig-config-page .sig-config-logo-frame-header,
+  html body #root .sig-config-page .sig-config-logo-frame-footer,
+  html body #root .sig-config-page .sig-config-logo-editor-header [data-image-frame-viewport="true"],
+  html body #root .sig-config-page .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+    width:160px !important;
+    min-width:160px !important;
+    max-width:160px !important;
+    flex-basis:160px !important;
+  }
+}
+/* ENQUADRAMENTO INSTITUCIONAL EXATO V20 END */
