@@ -10077,3 +10077,48 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell
   color: #bae6fd !important;
   stroke: currentColor !important;
 }
+
+
+/* ===== SIGNATURE QR + TOPBAR INITIALS FINAL V2 — 2026-10-17 ===== */
+html body .sig-topbar-user-avatar-fallback {
+  color:#000000 !important;
+  -webkit-text-fill-color:#000000 !important;
+  font-weight:800 !important;
+}
+
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) {
+  width:136px !important;
+  background:#ffffff !important;
+  border:1px solid #d7dee7 !important;
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  box-shadow:0 8px 20px rgba(15,23,42,.08) !important;
+}
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) svg {
+  display:block !important;
+  width:112px !important;
+  height:112px !important;
+  background:#ffffff !important;
+  border-radius:4px !important;
+  filter:none !important;
+  opacity:1 !important;
+  shape-rendering:crispEdges;
+}
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) span {
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  font-weight:800 !important;
+}
+
+/* Landing product preview: no gray-on-blue. */
+html body [data-landing-product-header="true"] :is(p,span) {
+  opacity:1 !important;
+}
+html body [data-landing-product-header="true"] > div p:first-of-type {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+/* ===== END SIGNATURE QR + TOPBAR INITIALS FINAL V2 ===== */
