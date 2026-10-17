@@ -1198,7 +1198,7 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Printer className="mr-2 h-4 w-4" />
                           )}
-                          Gerar PDF do Alvará
+                          Gerar PDF para assinatura à caneta
                         </Button>
                       </div>
                     </div>
@@ -1543,7 +1543,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Printer className="mr-2 h-4 w-4" />
                         )}
-                        Gerar PDF do Alvará
+                        Gerar PDF para assinatura à caneta
                       </Button>
                     </div>
                   </div>
