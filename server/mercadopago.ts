@@ -174,6 +174,7 @@ export type MercadoPagoGuideBoletoResult = {
   barcodeContent?: string;
   digitableLine?: string;
   financialInstitution?: string;
+  authenticatedAt?: string;
   error?: string;
   errorCode?: string;
   errorDetails?: string[];
@@ -228,14 +229,29 @@ function extractMercadoPagoGuideResult(
       ? (payment.payment_method as Record<string, unknown>)
       : {};
 
+  const status = String(source.status || payment.status || "");
+  const statusDetail = String(source.status_detail || payment.status_detail || "");
+  const paid =
+    status.toLowerCase() === "processed" &&
+    statusDetail.toLowerCase() === "accredited";
+  const authenticatedAt = paid
+    ? String(
+        payment.date_approved ||
+          payment.date_last_updated ||
+          source.last_updated_date ||
+          source.date_last_updated ||
+          source.updated_at ||
+          "",
+      )
+    : "";
   return {
     ok: true,
     environment,
     orderId: String(source.id || ""),
     paymentId: String(payment.id || ""),
     externalReference: String(source.external_reference || externalReference),
-    status: String(source.status || payment.status || ""),
-    statusDetail: String(source.status_detail || payment.status_detail || ""),
+    status,
+    statusDetail,
     amount: String(source.total_amount || payment.amount || amountText),
     ticketUrl: String(paymentMethod.ticket_url || ""),
     barcodeContent: String(paymentMethod.barcode_content || ""),
@@ -243,6 +259,7 @@ function extractMercadoPagoGuideResult(
     financialInstitution: String(
       paymentMethod.financial_institution || "Mercado Pago",
     ),
+    authenticatedAt: authenticatedAt || undefined,
   };
 }
 
@@ -323,6 +340,34 @@ function extractMercadoPagoError(
   };
 }
 
+export async function getMercadoPagoGuideBoletoStatus(
+  input: { municipalityId?: string; orderId: string; guideCode: string; amount: number },
+  req?: ApiReq,
+): Promise<MercadoPagoGuideBoletoResult> {
+  const resolved = req
+    ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
+    : { token: getMercadoPagoAccessToken(), environment: getMercadoPagoEnvironment() };
+  const environment = resolved.environment;
+  const token = resolved.token;
+  if (!token) {
+    return { ok: false, environment, error: "Credencial do Mercado Pago não configurada." };
+  }
+  if (!input.orderId) {
+    return { ok: false, environment, error: "Order do Mercado Pago não informado." };
+  }
+  const amountText = Number(input.amount || 0).toFixed(2);
+  const result = await refetchMercadoPagoOrder(
+    input.orderId,
+    token,
+    environment,
+    normalizeGuideCode(input.guideCode),
+    amountText,
+  );
+  if (!result) {
+    return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
+  }
+  return result;
+}
 export async function createMercadoPagoGuideBoleto(
   input: MercadoPagoGuideBoletoInput,
   req?: ApiReq,
