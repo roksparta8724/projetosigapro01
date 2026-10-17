@@ -1368,6 +1368,10 @@ export async function loadRemotePlatformStore() {
         assignedTo: process.analysis_assigned_to ?? undefined,
         assignedProfileId: process.analysis_assigned_to_profile_id ?? undefined,
         startedAt: process.analysis_started_at ?? undefined,
+        supervisorOverrideProfileId: process.analysis_override_profile_id ?? undefined,
+        supervisorOverrideReason: process.analysis_override_reason ?? undefined,
+        supervisorOverrideStartedAt: process.analysis_override_started_at ?? undefined,
+        supervisorOverrideExpiresAt: process.analysis_override_expires_at ?? undefined,
       },
       checklistType: process.checklist_type ?? process.process_type,
       sla: {
@@ -3057,6 +3061,58 @@ export async function assignRemoteProfileDepartment(input: {
     department_name: string | null;
   };
 }
+
+export async function beginRemoteAnalysisSupervisorIntervention(input: {
+  processId: string;
+  reason: string;
+  minutes?: number;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("begin_analysis_supervisor_intervention", {
+    _process_id: input.processId,
+    _reason: input.reason,
+    _minutes: input.minutes ?? 30,
+  });
+  if (error) throw new Error(error.message || "Não foi possível iniciar a intervenção da Diretoria.");
+  return data as {
+    process_id: string;
+    profile_id: string;
+    reason: string;
+    started_at: string;
+    expires_at: string;
+    minutes: number;
+  };
+}
+
+export async function endRemoteAnalysisSupervisorIntervention(processId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("end_analysis_supervisor_intervention", {
+    _process_id: processId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível encerrar a intervenção da Diretoria.");
+  return data;
+}
+
+export async function reassignRemoteProcessAnalysis(input: {
+  processId: string;
+  targetProfileId: string;
+  reason: string;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("reassign_process_analysis", {
+    _process_id: input.processId,
+    _target_profile_id: input.targetProfileId,
+    _reason: input.reason,
+  });
+  if (error) throw new Error(error.message || "Não foi possível redistribuir a análise.");
+  return data as {
+    process_id: string;
+    previous_profile_id?: string | null;
+    assigned_profile_id: string;
+    assigned_to: string;
+  };
+}
+
 
 async function provisionRemoteMunicipalStaffAccount(input: {
   email: string;
