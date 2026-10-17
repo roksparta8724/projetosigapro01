@@ -1003,7 +1003,7 @@ export function ProcessDetailPage() {
     process.property.constructionStandard,
     tenantSettings,
   );
-  const displayGuide = approvalGuide ?? constructionGuide ?? protocolGuide;
+  const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -2331,7 +2331,7 @@ export function ProcessDetailPage() {
                   variant="outline"
                   className="rounded-full"
                   disabled={Boolean(guideBillingBusyKey)}
-                  onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
+                  onClick={() => void printGuide(displayGuide.kind, false, displayGuide.code)}
                 >
                   {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
@@ -2345,7 +2345,7 @@ export function ProcessDetailPage() {
                   variant="outline"
                   className="rounded-full"
                   disabled={Boolean(guideBillingBusyKey)}
-                  onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
+                  onClick={() => void printGuide(displayGuide.kind, true, displayGuide.code)}
                 >
                   {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
