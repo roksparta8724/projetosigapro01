@@ -2458,6 +2458,7 @@ export function ConfiguracoesPage() {
     const normalizedSubdomain = normalizeSubdomainInput(
       tenantForm.subdomain || tenantForm.name || tenantForm.city,
     );
+    let normalizedPixKeyForSave = settingsForm.chavePix.trim();
     if (!tenantForm.name.trim()) {
       setStatus("Informe o nome institucional antes de salvar.");
       return;
@@ -2496,6 +2497,7 @@ export function ConfiguracoesPage() {
           setStatus(pixValidation.message);
           return;
         }
+        normalizedPixKeyForSave = pixValidation.normalized;
         if (pixValidation.normalized !== settingsForm.chavePix) {
           setSettingsField("chavePix", pixValidation.normalized);
         }
@@ -2529,6 +2531,7 @@ export function ConfiguracoesPage() {
       tenantId: savedTenantId,
       ...settings,
       ...settingsForm,
+      chavePix: normalizedPixKeyForSave,
       logoUrl,
       brasaoUrl: brasaoFiles[0]?.persistentRef ?? brasaoFiles[0]?.previewUrl ?? "",
       bandeiraUrl: bandeiraFiles[0]?.persistentRef ?? bandeiraFiles[0]?.previewUrl ?? "",
