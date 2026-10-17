@@ -303,6 +303,7 @@ export function FinanceProtocolsPage() {
           pixPayload: banking.pixPayload,
           bankName: banking.bankName,
           bankAgreement: banking.bankAgreement,
+          bankInstructions: banking.bankInstructions,
           autenticacaoMecanica: "",
         },
         itens: [
