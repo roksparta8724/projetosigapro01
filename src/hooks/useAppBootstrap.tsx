@@ -678,10 +678,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!isReady || stage !== "ready") return;
 
-    const hasStableContext =
-      Boolean(authUserId) || Boolean(municipalityBundle?.municipality?.id) || scopeType === "platform";
+    const hasStableContext = isNeonBackend
+      ? Boolean(authUserId)
+      : Boolean(authUserId) || Boolean(municipalityBundle?.municipality?.id) || scopeType === "platform";
 
     if (!hasStableContext) {
+      // No Neon, este cache representa uma sessão autenticada. A tela pública da
+      // plataforma/Prefeitura não pode recriar o snapshot logo após um logout ou
+      // reinício do navegador, senão a próxima abertura parece autenticada.
       writeBootstrapSnapshot(null);
       return;
     }
