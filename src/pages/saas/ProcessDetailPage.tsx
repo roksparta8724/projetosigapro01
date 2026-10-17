@@ -1232,7 +1232,7 @@ export function ProcessDetailPage() {
     let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
 
     if (
-      selectedGuide.status === "pendente" &&
+      selectedGuide.status !== "compensada" &&
       !banking.barcode &&
       !banking.digitableLine
     ) {
