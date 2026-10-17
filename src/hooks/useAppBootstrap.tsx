@@ -1130,7 +1130,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             );
           }
 
-          await markCurrentProfileAccess();
+          // O registro de ultimo acesso e telemetria administrativa; nao e
+          // requisito para liberar a navegacao depois de perfil/escopo validados.
+          void markCurrentProfileAccess();
           const nextScopeType: "platform" | "municipality" | "external" =
             mappedRole === "master_admin" || mappedRole === "master_ops"
               ? "platform"
