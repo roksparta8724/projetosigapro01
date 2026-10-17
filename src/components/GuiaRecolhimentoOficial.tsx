@@ -1639,8 +1639,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-warning-row">
-              ** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O
-              VENCIMENTO **
+              {guia.paymentProvider === "mercado_pago"
+                ? "** VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO ** ** NÃO RECEBER APÓS O VENCIMENTO **"
+                : "** VÁLIDO SOMENTE COM AUTENTICAÇÃO / BAIXA OFICIAL ** ** NÃO RECEBER APÓS O VENCIMENTO **"}
             </div>
 
             <div className="dam-observation-row">
@@ -1736,9 +1737,18 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
 
                 <div className="dam-auth">
-                  <div className="dam-auth-label">Autenticação Mecânica</div>
+                  <div className="dam-auth-label">
+                    {guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
+                  </div>
                   <div className="dam-auth-value">
-                    {guia.autenticacaoMecanica || ""}
+                    {guia.paymentProvider === "mercado_pago" ? (
+                      <>
+                        {bankAuth.title}
+                        {guia.bankPaymentId ? <> • Payment {guia.bankPaymentId}</> : null}
+                      </>
+                    ) : (
+                      guia.autenticacaoMecanica || "Aguardando baixa oficial"
+                    )}
                   </div>
                 </div>
               </div>
@@ -1769,33 +1779,30 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.bankEnvironment === "test" ? (
+                {guia.pixPayload ? (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX</div>
+                    <div className="dam-qrcode-label">PIX — QR Code e Copia e Cola</div>
+                    {guia.bankEnvironment === "test" ? (
+                      <div className="dam-pix-test-warning">
+                        PIX cadastrado pode ser real — não efetuar pagamento durante a homologação.
+                      </div>
+                    ) : null}
                     <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">
-                        PIX real oculto durante a homologação do boleto bancário.
-                      </span>
+                      <QRCodeSVG value={guia.pixPayload} size={64} level="M" />
                     </div>
-                  </div>
-                ) : guia.pixPayload ? (
-                  <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX — QR Code oficial</div>
-                    <div className="dam-qrcode-box">
-                      <QRCodeSVG value={guia.pixPayload} size={58} level="M" />
-                    </div>
+                    <div className="dam-pix-copy-label">PIX Copia e Cola</div>
                     <div className="dam-pix-copy">{guia.pixPayload}</div>
                   </div>
                 ) : guia.qrCodePixUrl ? (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX</div>
+                    <div className="dam-qrcode-label">PIX — QR Code oficial</div>
                     <div className="dam-qrcode-box">
                       <img src={guia.qrCodePixUrl} alt="QR Code PIX" />
                     </div>
                   </div>
                 ) : (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">Canal complementar</div>
+                    <div className="dam-qrcode-label">PIX</div>
                     <div className="dam-qrcode-box">
                       <span className="dam-qrcode-fallback">PIX não configurado para esta Prefeitura.</span>
                     </div>
@@ -1841,19 +1848,27 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-final-area">
               <div className="dam-final-left">
-                <div className="dam-bottom-label">Instruções de lançamento</div>
+                <div className="dam-bottom-label">Controle e conciliação da arrecadação</div>
                 <div className="dam-final-text">
-                  Documento de cobrança registrado e vinculado ao processo administrativo. O pagamento depende de meio oficial de arrecadação, observando as normas e o vencimento da Prefeitura.
+                  Guia vinculada ao processo administrativo e ao provedor oficial de cobrança.
                 </div>
                 <div className="dam-final-box">
-                  Uso interno da Prefeitura: conferência do recolhimento, registro da compensação, despacho da tesouraria
-                  e validação para prosseguimento do processo.
+                  <div><strong>Provedor:</strong> {guia.bankName || "Arrecadação municipal"}</div>
+                  <div><strong>Situação:</strong> {bankAuth.title}</div>
+                  {guia.bankReference ? <div><strong>Order:</strong> {guia.bankReference}</div> : null}
+                  {guia.bankPaymentId ? <div><strong>Payment:</strong> {guia.bankPaymentId}</div> : null}
+                  {guia.bankAuthenticatedAt ? (
+                    <div><strong>Compensação:</strong> {formatDateTimeBR(guia.bankAuthenticatedAt)}</div>
+                  ) : null}
                 </div>
               </div>
               <div className="dam-final-right">
-                <div className="dam-bottom-label">Autenticação mecânica / Tesouraria</div>
+                <div className="dam-bottom-label">Tesouraria / baixa manual</div>
                 <div className="dam-final-right-box">
-                  {guia.autenticacaoMecanica || "Uso exclusivo da Tesouraria / agente arrecadador"}
+                  {guia.autenticacaoMecanica ||
+                    (guia.paymentProvider === "mercado_pago"
+                      ? "Dispensada após confirmação eletrônica do provedor."
+                      : "Carimbo, assinatura, data e identificação do agente arrecadador.")}
                 </div>
               </div>
             </div>
