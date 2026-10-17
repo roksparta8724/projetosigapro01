@@ -374,7 +374,7 @@ export function ConfiguracoesPage() {
       if (devSlug) {
         const normalizedDevSlug = normalizeSubdomainInput(devSlug);
         const bySlug = availableInstitutions.find(
-          (item) => normalizeSubdomainInput(item.subdomain || item.slug || "") === normalizedDevSlug,
+          (item) => normalizeSubdomainInput(item.subdomain || "") === normalizedDevSlug,
         );
         if (bySlug?.id && isUuid(bySlug.id)) {
           console.log("[SIGAPRO] Branding: municipio por VITE_DEV_MUNICIPALITY_SLUG", {
@@ -403,7 +403,7 @@ export function ConfiguracoesPage() {
     const normalizedName = tenantForm.name.trim().toLowerCase();
     const fallbackByList =
       availableInstitutions.find((item) => {
-        const sub = normalizeSubdomainInput(item.subdomain || item.slug || "");
+        const sub = normalizeSubdomainInput(item.subdomain || "");
         const name = (item.name || "").trim().toLowerCase();
         return (normalizedSubdomain && sub === normalizedSubdomain) || (normalizedName && name === normalizedName);
       }) ?? (availableInstitutions.length === 1 ? availableInstitutions[0] : null);
@@ -2053,7 +2053,6 @@ export function ConfiguracoesPage() {
           ...(settings ?? settingsForm),
           ...settingsForm,
           tenantId: savedTenant.id,
-          institutionId: savedTenant.id,
           logoUrl,
           brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
           bandeiraUrl:
