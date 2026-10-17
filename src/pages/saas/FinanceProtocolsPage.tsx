@@ -392,7 +392,13 @@ export function FinanceProtocolsPage() {
           bankAgreement: banking.bankAgreement,
           bankInstructions: banking.bankInstructions,
           bankReference: providerCharge?.orderId || match?.guide?.bankReference,
-          bankPaymentId: providerCharge?.paymentId,
+          bankPaymentId: providerCharge?.paymentId || match?.guide?.bankPaymentId,
+          bankStatus: providerCharge?.status || match?.guide?.bankStatus,
+          bankStatusDetail: providerCharge?.statusDetail || match?.guide?.bankStatusDetail,
+          bankAuthenticatedAt:
+            match?.guide?.bankAuthenticatedAt ||
+            (match?.guide?.status === "compensada" ? match?.guide?.paidAt : undefined),
+          paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
           autenticacaoMecanica: "",
         },
         itens: [
