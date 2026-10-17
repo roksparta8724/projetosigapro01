@@ -16,6 +16,7 @@ const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
 const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 const qr = read("src/lib/qrCode.ts");
 const permitPdf = read("src/lib/constructionPermitPdf.ts");
+const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
 
 describe("premium institutional visual contract", () => {
   it("keeps core cards adaptive with readable polarity in both workspace themes", () => {
@@ -25,6 +26,7 @@ describe("premium institutional visual contract", () => {
     expect(statCard).toContain('data-premium-surface="metric"');
     expect(tableCard).toContain('data-premium-surface="section"');
     expect(alertCard).toContain('data-premium-surface="section"');
+    expect(dashboard).toContain('data-premium-surface="metric"');
     expect(css).toContain("SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1");
     expect(css).toContain('[data-layout-mode="default"]');
     expect(css).toContain('[data-layout-mode="inverse-main"]');
