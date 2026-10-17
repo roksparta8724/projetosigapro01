@@ -605,7 +605,7 @@ export function AnalystDeskPage() {
                   type="button"
                   variant="outline"
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                  disabled={Boolean(actionBusy)}
+                  disabled={Boolean(actionBusy) || !canEditAnalysis}
                   onClick={() =>
                     void runAnalystAction(
                       `requirement-${process.id}`,
@@ -641,7 +641,7 @@ export function AnalystDeskPage() {
                       type="button"
                       variant="outline"
                       className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                      disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
+                      disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                       onClick={() =>
                         void runAnalystAction(
                           `iptu-${process.id}`,
@@ -668,7 +668,7 @@ export function AnalystDeskPage() {
                     type="button"
                     variant="outline"
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                    disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
+                    disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
                       void runAnalystAction(
                         `finance-${process.id}`,
@@ -696,7 +696,7 @@ export function AnalystDeskPage() {
                     type="button"
                     variant="outline"
                     className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                    disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
+                    disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}
                     onClick={() =>
                       void runAnalystAction(
                         `defer-${process.id}`,
