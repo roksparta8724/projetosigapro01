@@ -439,6 +439,7 @@ export function AppSidebar({
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
+          data-sidebar-surface={darkSurface ? "dark" : "light"}
           style={{ background: "var(--sig-sidebar)" }}
         >
           <SidebarInner
