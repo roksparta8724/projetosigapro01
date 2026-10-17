@@ -131,31 +131,22 @@ export function InstitutionalLogo({
     : primaryUrl;
 
   const cachedAtMount = readSessionLogo(context);
-  // requestedUrl é a identidade configurada de verdade. Quando ela ainda não
-  // chegou durante a hidratação, preserve o último logo válido do mesmo
-  // contexto em vez de forçar o brasão de fallback por alguns frames.
-  const cacheMatchesCurrentPrimary =
-    !cachedAtMount ||
-    !requestedUrl ||
-    sameAssetResource(cachedAtMount, requestedUrl);
+  // O cache é isolado por Prefeitura + variante. Uma imagem já validada nesse
+  // mesmo contexto permanece como frame estável enquanto uma nova identidade é
+  // pré-carregada. Isso evita trocar o logo por um arquivo novo/quebrado antes
+  // de o navegador confirmar que ele realmente carregou.
   const cachedAtMountAllowed =
-    (isMaster ||
-      !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO)) &&
-    cacheMatchesCurrentPrimary;
+    isMaster ||
+    !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO);
 
   const [loadedSource, setLoadedSource] = useState(() => ({
     context,
     url: cachedAtMount && cachedAtMountAllowed ? cachedAtMount : imageUrl,
   }));
 
-  const loadedSourceMatchesCurrentPrimary =
-    !loadedSource.url ||
-    !requestedUrl ||
-    sameAssetResource(loadedSource.url, requestedUrl);
   const loadedSourceAllowed =
-    (isMaster ||
-      !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO)) &&
-    loadedSourceMatchesCurrentPrimary;
+    isMaster ||
+    !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO);
 
   const stableLoadedUrl =
     loadedSource.context === context &&
@@ -166,14 +157,9 @@ export function InstitutionalLogo({
       : "";
 
   const cachedContextUrl = readSessionLogo(context);
-  const cachedContextMatchesCurrentPrimary =
-    !cachedContextUrl ||
-    !requestedUrl ||
-    sameAssetResource(cachedContextUrl, requestedUrl);
   const cachedAllowed =
-    (isMaster ||
-      !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO)) &&
-    cachedContextMatchesCurrentPrimary;
+    isMaster ||
+    !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO);
   const safeCachedUrl =
     cachedContextUrl &&
     cachedAllowed &&
@@ -348,7 +334,6 @@ export function InstitutionalLogo({
               style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
-              fetchPriority="high"
               onLoad={() => {
                 setLoadedSource({ context, url: displayUrl });
                 const isAuthoritativeCurrentLogo =
