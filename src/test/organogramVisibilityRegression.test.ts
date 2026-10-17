@@ -5,13 +5,16 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("municipal organogram visibility", () => {
-  it("keeps the official organogram visible on every municipal department page", () => {
+  it("keeps the official organogram reachable on every municipal page without duplicating the full strip", () => {
     const portal = read("src/components/platform/PortalFrame.tsx");
     const bar = read("src/components/platform/MunicipalOrganogramBar.tsx");
 
-    expect(portal).toContain("<MunicipalOrganogramBar");
-    expect(portal).toContain('title="Organograma do departamento"');
-    expect(portal).toContain("departmentOrganogramHint");
+    expect(portal).toContain("showMunicipalOrganogramShortcut");
+    expect(portal).toContain('navigate("/prefeitura/organograma")');
+    expect(portal).toContain('aria-label="Organograma municipal"');
+    expect(portal).toContain('title="Organograma municipal"');
+    expect(portal).not.toContain("<MunicipalOrganogramBar");
+    expect(portal).not.toContain("departmentOrganogramHint");
     expect(bar).toContain('data-municipal-organogram="true"');
     expect(bar).toContain("sig-organogram-card");
     expect(bar).toContain("Ver organograma completo");
