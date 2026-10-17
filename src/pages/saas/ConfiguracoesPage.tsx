@@ -2691,6 +2691,39 @@ export function ConfiguracoesPage() {
           settings?.brasaoUrl,
         );
 
+  const previewHeaderFallbackUrl = firstRenderablePreviewUrl(
+    headerBranding.fallbackLogoUrl,
+    brasaoFiles[0]?.previewUrl,
+    settings?.brasaoUrl,
+  );
+  const previewFooterFallbackUrl = firstRenderablePreviewUrl(
+    footerBranding.fallbackLogoUrl,
+    brasaoFiles[0]?.previewUrl,
+    settings?.brasaoUrl,
+  );
+  const [failedHeaderPreviewUrl, setFailedHeaderPreviewUrl] = useState("");
+  const [failedFooterPreviewUrl, setFailedFooterPreviewUrl] = useState("");
+  const previewHeaderDisplayUrl =
+    previewHeaderLogoUrl && failedHeaderPreviewUrl === previewHeaderLogoUrl
+      ? previewHeaderFallbackUrl
+      : previewHeaderLogoUrl;
+  const previewFooterDisplayUrl =
+    previewFooterLogoUrl && failedFooterPreviewUrl === previewFooterLogoUrl
+      ? previewFooterFallbackUrl
+      : previewFooterLogoUrl;
+
+  useEffect(() => {
+    if (failedHeaderPreviewUrl && failedHeaderPreviewUrl !== previewHeaderLogoUrl) {
+      setFailedHeaderPreviewUrl("");
+    }
+  }, [failedHeaderPreviewUrl, previewHeaderLogoUrl]);
+
+  useEffect(() => {
+    if (failedFooterPreviewUrl && failedFooterPreviewUrl !== previewFooterLogoUrl) {
+      setFailedFooterPreviewUrl("");
+    }
+  }, [failedFooterPreviewUrl, previewFooterLogoUrl]);
+
   const headerLogoStatusIsSuccess = /sucesso/i.test(headerLogoStatus);
   const footerLogoStatusIsSuccess = /sucesso/i.test(footerLogoStatus);
   const settingsTabs = [
@@ -3138,10 +3171,10 @@ export function ConfiguracoesPage() {
                           data-municipal-logo-live-preview="header"
                           className="relative mx-auto flex h-[142px] w-full max-w-[232px] shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-3 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                         >
-                          {previewHeaderLogoUrl ? (
+                          {previewHeaderDisplayUrl ? (
                             <img
-                              key={previewHeaderLogoUrl}
-                              src={previewHeaderLogoUrl}
+                              key={previewHeaderDisplayUrl}
+                              src={previewHeaderDisplayUrl}
                               alt={tenantForm.name ? `Logo institucional de ${tenantForm.name}` : "Logo institucional"}
                               className="block h-full w-full select-none object-contain object-center"
                               style={{
@@ -3150,6 +3183,7 @@ export function ConfiguracoesPage() {
                               }}
                               loading="eager"
                               decoding="sync"
+                              onError={() => setFailedHeaderPreviewUrl(previewHeaderLogoUrl)}
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -3193,7 +3227,7 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={previewHeaderLogoUrl}
+                      imageUrl={previewHeaderDisplayUrl}
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
@@ -3269,10 +3303,10 @@ export function ConfiguracoesPage() {
                           data-municipal-logo-live-preview="footer"
                           className="relative flex h-[132px] w-full max-w-[228px] items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-3 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)]"
                         >
-                          {previewFooterLogoUrl ? (
+                          {previewFooterDisplayUrl ? (
                             <img
-                              key={previewFooterLogoUrl}
-                              src={previewFooterLogoUrl}
+                              key={previewFooterDisplayUrl}
+                              src={previewFooterDisplayUrl}
                               alt={tenantForm.name ? `Logo de rodapé de ${tenantForm.name}` : "Logo institucional"}
                               className="block h-full w-full select-none object-contain object-center"
                               style={{
@@ -3281,6 +3315,7 @@ export function ConfiguracoesPage() {
                               }}
                               loading="eager"
                               decoding="sync"
+                              onError={() => setFailedFooterPreviewUrl(previewFooterLogoUrl)}
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -3306,7 +3341,7 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={previewFooterLogoUrl}
+                      imageUrl={previewFooterDisplayUrl}
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
