@@ -97,7 +97,7 @@ export function OwnerPortalPage() {
       setRequestProcessSummary({
         protocol: response.process.protocol,
         title: response.process.title,
-        status: response.process.status,
+        status: response.process.status as ProcessStatus,
       });
     }
 
@@ -415,7 +415,7 @@ export function OwnerPortalPage() {
                       <p className="text-sm text-slate-300">Etapa atual</p>
                       <p className="text-base font-semibold text-white">{statusLabel(selectedProcess.status)}</p>
                       <p className="mt-2 text-xs text-slate-400">
-                        Atualizado em {selectedProcess.updatedAt || selectedProcess.createdAt}
+                        Atualizado em {selectedProcess.auditTrail[0]?.at || selectedProcess.timeline[0]?.at || "sem registro"}
                       </p>
                     </div>
                     <div className="rounded-[16px] border border-white/10 bg-white/5 p-4">
