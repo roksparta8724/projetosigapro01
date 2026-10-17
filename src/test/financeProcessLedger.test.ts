@@ -66,13 +66,15 @@ describe("finance process accounting ledger", () => {
   });
 
   it("keeps the clicked ledger row bound to the exact guide instead of falling back to another guide in the same process", () => {
-    expect(desk).toContain('&guia=${encodeURIComponent(guide.code)}');
+    expect(desk).toContain('&guia=${encodeURIComponent(guide.code)}#guia-selecionada');
     expect(desk).toMatch(
-      /key=\{\`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}\`\}[\s\S]{0,320}to=\{\`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}\`\}/,
+      /key=\{\`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}\`\}[\s\S]{0,380}to=\{\`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}#guia-selecionada\`\}/,
     );
     expect(detail).toContain('new URLSearchParams(location.search).get("guia")');
     expect(detail).toContain("paymentGuides.find((guide) => guide.code === requestedGuideCode)");
     expect(detail).toContain('id="guia-selecionada"');
+    expect(detail).toContain("prewarmGuideSignature");
+    expect(detail).toContain("[activeTab, requestedGuideCode, processId, prewarmGuideSignature]");
     expect(detail).toContain("printGuide(requestedPaymentGuide.kind, false, requestedPaymentGuide.code)");
     expect(detail).toContain("visiblePaymentGuides.find((guide) => guide.code === guideCode)");
   });
