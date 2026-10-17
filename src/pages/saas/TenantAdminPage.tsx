@@ -28,6 +28,7 @@ import {
   upsertRemoteMunicipalDepartment,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 
 const tenantRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal", "profissional_externo", "property_owner", "proprietario_consulta"];
 const municipalInternalRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
@@ -244,6 +245,15 @@ function getPriorityTone(process: ProcessRecord) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
+function resolveMunicipalCoatOfArmsPreview(reference?: string | null) {
+  const raw = String(reference || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("r2:")) {
+    return getMunicipalityLogoOpenUrl(raw.slice(3).trim().replace(/^\/+/, ""));
+  }
+  return raw;
+}
+
 export function TenantAdminPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
@@ -263,6 +273,7 @@ export function TenantAdminPage() {
   );
   const currentUnit = municipality?.secretariatName || session.department || session.title || "Administração da Prefeitura";
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const coatOfArmsPreviewUrl = resolveMunicipalCoatOfArmsPreview(tenantSettings?.brasaoUrl);
   const hasPendingGuide = (process: ProcessRecord) =>
     getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status === "pendente");
   const availablePositionOptions = useMemo(
@@ -1320,6 +1331,46 @@ export function TenantAdminPage() {
                   <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("usuarios")}>
                     <Users2 className="mr-2 h-4 w-4 text-sky-200" />
                     Gerenciar usuários
+                  </Button>
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Brasão oficial"
+                description="Identidade institucional vinculada exclusivamente a esta Prefeitura."
+                icon={Building2}
+              >
+                <div className="space-y-4">
+                  <div className="flex min-h-[118px] items-center gap-4 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4">
+                    <div className="flex h-[86px] w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                      {coatOfArmsPreviewUrl ? (
+                        <img
+                          src={coatOfArmsPreviewUrl}
+                          alt={`Brasão oficial de ${municipalityName || activeInstitution?.name || "Prefeitura"}`}
+                          className="block h-full w-full object-contain"
+                          decoding="async"
+                        />
+                      ) : (
+                        <Building2 className="h-8 w-8 text-slate-400" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-950">
+                        {coatOfArmsPreviewUrl ? "Brasão salvo" : "Brasão ainda não cadastrado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        O arquivo salvo é reutilizado nos documentos oficiais e como fallback institucional.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                    onClick={() => navigate("/configuracoes?secao=branding")}
+                  >
+                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />
+                    Alterar ou salvar brasão
                   </Button>
                 </div>
               </SectionCard>
