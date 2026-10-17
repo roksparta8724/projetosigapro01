@@ -76,9 +76,9 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).not.toContain("URL.createObjectURL");
   });
 
-  it("does not open a non-compensated guide before Mercado Pago returns bank data", () => {
-    expect(finance).toContain('match.guide.status !== "compensada"');
-    expect(processDetail).toContain('selectedGuide.status !== "compensada"');
+  it("does not open a guide before Mercado Pago returns complete bank data", () => {
+    expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
+    expect(processDetail).toContain("if (!banking.barcode || !banking.digitableLine)");
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
     expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
   });
@@ -88,11 +88,19 @@ describe("municipal bank and payment guide flow", () => {
     expect(guideAssets).toContain("readAsDataURL");
     expect(finance).toContain("embeddedGuideLogoUrl");
     expect(processDetail).toContain("embeddedGuideLogoUrl");
-    expect(finance).toContain('status !== "compensada"');
-    expect(processDetail).toContain('status !== "compensada"');
+    expect(finance).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("if (!barcode || !digitableLine)");
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()");
     expect(finance).toContain("showGuiaRecolhimentoError");
     expect(processDetail).toContain("showGuiaRecolhimentoError");
+  });
+
+  it("marks sandbox guides and never mixes a real PIX with a test boleto", () => {
+    expect(guide).toContain('bankEnvironment?: "test" | "production"');
+    expect(guide).toContain('guia.bankEnvironment === "test"');
+    expect(guide).toContain("Homologação Mercado Pago");
+    expect(finance).toContain('providerCharge?.environment === "test" ? "" : banking.pixPayload');
+    expect(processDetail).toContain('providerCharge?.environment === "test" ? "" : banking.pixPayload');
   });
 
   it("keeps the official guide premium and print-safe", () => {
