@@ -256,7 +256,7 @@ export function buildTenantSettingsFromMunicipality(
     footerLogoUrl,
     headerLogoObjectKey: hasVariantLogo ? branding?.headerLogoObjectKey || "" : branding?.logoObjectKey || "",
     footerLogoObjectKey: hasVariantLogo ? branding?.footerLogoObjectKey || "" : branding?.logoObjectKey || "",
-    logoStorageProvider: branding?.logoStorageProvider || "",
+    logoStorageProvider: branding?.logoStorageProvider === "r2" || branding?.logoStorageProvider === "supabase" ? branding.logoStorageProvider : undefined,
     logoBucket: branding?.logoBucket || "",
     logoObjectKey: branding?.logoObjectKey || "",
     logoFileName: branding?.logoFileName || "",
@@ -504,11 +504,12 @@ export function buildTenantFromMunicipalityBundle(
       (typeof general.plan === "string" && general.plan) ||
       fallbackTenant?.plan ||
       "Plano institucional",
-    userCount: fallbackTenant?.userCount || 0,
-    activeProcessCount: fallbackTenant?.activeProcessCount || 0,
-    monthlyRevenue:
+    activeModules: fallbackTenant?.activeModules || [],
+    users: fallbackTenant?.users || 0,
+    processes: fallbackTenant?.processes || 0,
+    revenue:
       (typeof general.monthly_fee === "number" && general.monthly_fee) ||
-      fallbackTenant?.monthlyRevenue ||
+      fallbackTenant?.revenue ||
       0,
     subdomain:
       municipality?.subdomain || fallbackTenant?.subdomain || "",
