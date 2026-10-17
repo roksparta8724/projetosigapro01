@@ -7,7 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import {
+  type GuiaRecolhimentoOficialProps,
+  openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoWindow,
+  showGuiaRecolhimentoError,
+} from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
@@ -1167,6 +1172,13 @@ export function ProcessDetailPage() {
   const printGuide = async (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
+
+    const guideWindow = reserveGuiaRecolhimentoWindow(`Guia ${selectedGuide.code}`);
+    if (!guideWindow) {
+      setProcessActionStatus("O navegador bloqueou a nova aba da guia. Permita pop-ups para o localhost e tente novamente.");
+      return;
+    }
+
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown =
@@ -1257,11 +1269,12 @@ export function ProcessDetailPage() {
           "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras incorporados à DAM.",
         );
       } catch (error) {
-        setProcessActionStatus(
+        const message =
           error instanceof Error
             ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.",
-        );
+            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+        setProcessActionStatus(message);
+        showGuiaRecolhimentoError(guideWindow, message);
         return;
       } finally {
         setGuideBillingBusyKey("");
@@ -1342,6 +1355,7 @@ export function ProcessDetailPage() {
         title: `Guia ${selectedGuide.code}`,
         autoPrint,
       },
+      guideWindow,
     );
   };
   const runProcessAction = async (
