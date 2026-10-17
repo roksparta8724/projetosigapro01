@@ -183,6 +183,14 @@ export function InstitutionalLogo({
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
+    // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve
+    // limpar falhas antigas. Um erro transitório nao pode prender o logo no
+    // fallback depois que a fonte oficial ja esta disponivel.
+    setFailedSources([]);
+    setFallbackReady(false);
+  }, [context, requestedUrl, secondaryUrl]);
+
+  useEffect(() => {
     if (displayUrl) {
       setFallbackReady(false);
       return;
