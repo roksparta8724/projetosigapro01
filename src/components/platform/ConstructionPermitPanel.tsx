@@ -1085,37 +1085,54 @@ export function ConstructionPermitPanel({
                                   : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
                         {permit.directorSignature?.verificationCode ? (
-                          <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                            Código: {permit.directorSignature.verificationCode}
-                          </p>
-                        ) : null}
-                        {directorVerificationUrl ? (
-                          <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-white/80 p-3 dark:border-emerald-500/30 dark:bg-slate-950/45">
-                            <div className="shrink-0 rounded-lg bg-white p-1.5 shadow-sm">
-                              <QRCodeSVG
-                                value={directorVerificationUrl}
-                                size={74}
-                                level="M"
-                                bgColor="#ffffff"
-                                fgColor="#0f172a"
-                                aria-label="QR Code para verificar a assinatura eletrônica do Alvará"
-                              />
-                            </div>
+                          <div
+                            data-director-electronic-signature-evidence="true"
+                            className="mt-3 grid gap-3 rounded-2xl border border-emerald-200 bg-white/90 p-3 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/45"
+                          >
+                            {directorVerificationUrl ? (
+                              <div
+                                data-director-signature-qr="true"
+                                className="flex shrink-0 flex-col items-center rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+                              >
+                                <QRCodeSVG
+                                  value={directorVerificationUrl}
+                                  size={88}
+                                  level="Q"
+                                  includeMargin
+                                  bgColor="#ffffff"
+                                  fgColor="#0f172a"
+                                  aria-label="QR Code da assinatura eletrônica da Diretoria"
+                                />
+                                <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-700">
+                                  Verificar assinatura
+                                </span>
+                              </div>
+                            ) : null}
                             <div className="min-w-0">
                               <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
-                                Verificação pública
+                                Assinatura eletrônica verificada
                               </p>
-                              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                                Leia o QR Code para confirmar a assinatura, o código e o SHA-256 no SIGAPRO.
+                              <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Código: {permit.directorSignature.verificationCode}
                               </p>
-                              <a
-                                href={directorVerificationUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
-                              >
-                                Abrir verificação
-                              </a>
+                              {permit.directorSignature.evidenceHash ? (
+                                <p className="mt-1 break-all font-mono text-[9px] leading-4 text-slate-500 dark:text-slate-400">
+                                  SHA-256: {permit.directorSignature.evidenceHash}
+                                </p>
+                              ) : null}
+                              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                O QR Code faz parte do bloco da assinatura eletrônica e abre a confirmação pública do código e da integridade do Alvará.
+                              </p>
+                              {directorVerificationUrl ? (
+                                <a
+                                  href={directorVerificationUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                                >
+                                  Abrir verificação pública
+                                </a>
+                              ) : null}
                             </div>
                           </div>
                         ) : null}
