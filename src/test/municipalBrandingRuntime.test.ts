@@ -11,8 +11,6 @@ describe("municipal branding runtime resilience", () => {
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
   const portal = read("src/components/platform/PortalFrame.tsx");
   const editor = read("src/components/platform/ImageFrameEditor.tsx");
-  const tabs = read("src/components/platform/InternalTabs.tsx");
-  const pageLayout = read("src/components/platform/PageLayout.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -116,29 +114,25 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
   });
 
-  it("keeps the configuration page premium and accepts the stable same-origin logo proxy", () => {
-    expect(settings).toContain('className="sig-config-page"');
+  it("keeps preview changes isolated from the page chrome and accepts the stable same-origin logo proxy", () => {
     expect(settings).toContain('data-config-brand-panel="header"');
     expect(settings).toContain('data-config-brand-panel="footer"');
-    expect(settings).toContain("allowPreview={false}");
+    expect(settings).toContain('<PageShell>');
+    expect(settings).toContain('className="rounded-[30px] p-5 md:p-6 lg:p-7"');
     expect(editor).toContain('normalized.startsWith("/")');
-    expect(surface).toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
-    expect(settings).toContain("preserveOrder");
-    expect(settings).toContain("preferOperationalDefault={false}");
-    expect(tabs).toContain("preserveOrder = false");
-    expect(tabs).toContain("preferOperationalDefault = true");
-    expect(pageLayout).toContain("preserveOrder = false");
+    expect(surface).not.toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
+    expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
   });
 
-  it("keeps preview, editor and runtime logo on the same fixed geometry", () => {
+  it("keeps preview and editor on the same fixed geometry without changing the real page logo", () => {
     expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 124');
     expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 128');
     expect(settings).toContain('viewportClassName="!h-[124px] !w-[176px]"');
     expect(settings).toContain('viewportClassName="!h-[128px] !w-[176px]"');
     expect(editor).toContain('data-image-frame-viewport="true"');
     expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
-    expect(surface).toContain("max-width:1540px !important");
-    expect(logo).toContain('variant === "header" ? 176');
+    expect(surface).not.toContain("max-width:1540px !important");
+    expect(surface).not.toContain('.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="header"] {\n  width:176px !important;');
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
