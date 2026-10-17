@@ -776,12 +776,12 @@ function getStyles() {
 
     .dam-receipt-right .dam-receipt-row-value {
       padding: 3px 4px;
-      font-size: 7.5px;
-      line-height: 1.15;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: clip;
+      font-size: 6.9px;
+      line-height: 1.12;
+      font-weight: 800;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -1112,6 +1112,18 @@ function ReceiptRow({
   );
 }
 
+function municipalLogoFallback(name?: string) {
+  const normalized = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
+  if (normalized.includes("campo limpo paulista")) {
+    return "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
+  }
+  return "";
+}
+
 function inferGuideKind(guia: GuiaData, itens: TaxaItem[]) {
   const reference = `${guia.referencia || ""} ${itens.map((item) => item.divida || "").join(" ")}`.toLowerCase();
   if (reference.includes("iss")) {
@@ -1152,6 +1164,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   ref,
 ) {
   const guideMeta = inferGuideKind(guia, itens);
+  const effectiveLogoUrl =
+    String(prefeitura.logoUrl || "").trim() ||
+    municipalLogoFallback(prefeitura.nome);
   const totalPrincipal = sumValues(itens, "principal");
   const totalMulta = sumValues(itens, "multa");
   const totalJuros = sumValues(itens, "juros");
@@ -1210,7 +1225,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     className="dam-logo"
                   />
                 ) : (
-                  <div className="dam-logo-fallback">LOGO</div>
+                  <div className="dam-logo-fallback">PM</div>
                 )}
               </div>
 
@@ -1458,7 +1473,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   <img src={resolvedMunicipalityLogo} alt="Logo da Prefeitura" />
                 ) : (
                   <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
-                    LOGO
+                    PM
                   </div>
                 )}
               </div>
@@ -1687,20 +1702,95 @@ export function buildGuiaRecolhimentoOficialHtml(
 </html>`;
 }
 
+export function reserveGuiaRecolhimentoWindow(title = "Preparando guia municipal") {
+  const popup = window.open("", "_blank");
+  if (!popup) return null;
+
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:#eef3f8;color:#0f172a}
+    .loading-shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
+    .loading-card{width:min(560px,92vw);border:1px solid #d8e2eb;border-top:4px solid #0f3557;border-radius:18px;background:#fff;padding:28px;box-shadow:0 20px 48px rgba(15,53,87,.12)}
+    .loading-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#52708b}
+    .loading-title{margin-top:7px;font-size:20px;font-weight:800;color:#0f3557}
+    .loading-text{margin-top:8px;font-size:13px;line-height:1.55;color:#475569}
+    .loading-bar{height:5px;margin-top:20px;border-radius:999px;overflow:hidden;background:#e6edf3}
+    .loading-bar:after{content:"";display:block;width:38%;height:100%;border-radius:inherit;background:#0f3557;animation:damload 1.15s ease-in-out infinite alternate}
+    @keyframes damload{from{transform:translateX(-15%)}to{transform:translateX(180%)}}
+  </style>
+</head>
+<body>
+  <div class="loading-shell">
+    <div class="loading-card">
+      <div class="loading-kicker">SIGAPRO Municipal</div>
+      <div class="loading-title">Preparando a Guia de Recolhimento</div>
+      <div class="loading-text">Validando os dados da Prefeitura, a cobrança oficial e o código bancário antes de abrir a DAM.</div>
+      <div class="loading-bar"></div>
+    </div>
+  </div>
+</body>
+</html>`);
+  popup.document.close();
+  popup.focus();
+  return popup;
+}
+
+export function showGuiaRecolhimentoError(
+  popup: Window | null,
+  message: string,
+) {
+  if (!popup || popup.closed) return;
+  const safeMessage = String(message || "Não foi possível preparar a guia.")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia indisponível</title>
+  <style>
+    html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:#f7f9fb;color:#0f172a}
+    .shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
+    .card{width:min(620px,92vw);border:1px solid #fecaca;border-top:4px solid #b91c1c;border-radius:18px;background:#fff;padding:28px;box-shadow:0 20px 48px rgba(15,23,42,.1)}
+    .title{font-size:20px;font-weight:800;color:#991b1b}
+    .text{margin-top:10px;font-size:13px;line-height:1.55;color:#475569}
+  </style>
+</head>
+<body><div class="shell"><div class="card"><div class="title">A guia não foi aberta incompleta</div><div class="text">${safeMessage}</div></div></div></body>
+</html>`);
+  popup.document.close();
+  popup.focus();
+}
+
 export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
+  targetWindow?: Window | null,
 ) {
   const html = buildGuiaRecolhimentoOficialHtml(props, options);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const previewUrl = URL.createObjectURL(blob);
-  const popup = window.open(previewUrl, "_blank");
-  if (!popup) {
-    URL.revokeObjectURL(previewUrl);
-    return;
-  }
+  const popup =
+    targetWindow && !targetWindow.closed
+      ? targetWindow
+      : window.open("", "_blank");
+
+  if (!popup) return null;
+
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
   popup.focus();
-  window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+  return popup;
 }
 
 
