@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
@@ -14,10 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
-import { usePlatformData } from "@/hooks/usePlatformData";
-import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useTenant } from "@/hooks/useTenant";
-import type { PlanModuleName } from "@/lib/planEntitlements";
 import { getRoleLandingPath } from "@/lib/platform";
 import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
@@ -48,8 +45,6 @@ const institutionalHighlights = [
 export function AcessoPage() {
   const navigate = useNavigate();
   const { signIn } = useAuthGateway();
-  const { dataReadyForCurrentUser, dataError } = usePlatformData();
-  const entitlements = usePlanEntitlements();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -62,57 +57,11 @@ export function AcessoPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!pendingRedirect) return;
-
-    if (dataError && !dataReadyForCurrentUser) {
-      setError("A conta foi autenticada, mas os dados institucionais ainda não puderam ser sincronizados. Tente novamente.");
-      setSubmitting(false);
-      setPendingRedirect(null);
-      return;
-    }
-
-    if (
-      tenant.loading ||
-      !dataReadyForCurrentUser ||
-      entitlements.isResolving
-    ) {
-      return;
-    }
-
-    const requiredModule = getRequiredModuleForRedirect(pendingRedirect);
-    if (
-      requiredModule &&
-      !entitlements.isMaster &&
-      !entitlements.canUseModule(requiredModule)
-    ) {
-      setError(
-        entitlements.contractReason ||
-          "A conta foi autenticada, mas o módulo ainda não está liberado para esta Prefeitura.",
-      );
-      setSubmitting(false);
-      setPendingRedirect(null);
-      return;
-    }
-
-    navigate(pendingRedirect, { replace: true });
-  }, [
-    dataError,
-    dataReadyForCurrentUser,
-    entitlements,
-    navigate,
-    pendingRedirect,
-    tenant.loading,
-  ]);
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
-    let keepSubmitting = false;
     try {
       const result = await signIn(email, password);
       if (!result.ok) {
@@ -120,13 +69,15 @@ export function AcessoPage() {
         return;
       }
 
-      keepSubmitting = true;
-      setPendingRedirect(resolveRedirect(result.role ?? null));
+      // A autenticacao, o perfil e o escopo municipal ja foram validados pelo
+      // bootstrap. O carregamento pesado de processos/planos continua em
+      // segundo plano e nao deve segurar o usuario na tela de acesso.
+      navigate(resolveRedirect(result.role ?? null), { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao autenticar.";
       setError(message);
     } finally {
-      if (!keepSubmitting) setSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -345,15 +296,6 @@ export function AcessoPage() {
       </div>
     </div>
   );
-}
-
-function getRequiredModuleForRedirect(path: string): PlanModuleName | null {
-  if (path === "/prefeitura") return "Configurações";
-  if (path.startsWith("/prefeitura/analise")) return "Analise tecnica";
-  if (path.startsWith("/prefeitura/financeiro")) return "Financeiro";
-  if (path.startsWith("/prefeitura/protocolos")) return "Protocolo digital";
-  if (path.startsWith("/externo") || path.startsWith("/proprietario")) return "Acesso externo";
-  return null;
 }
 
 function resolveRedirect(role: string | null) {
