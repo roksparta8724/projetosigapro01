@@ -202,9 +202,19 @@ export function getMunicipalDirectorCandidates(
       .replace(/[\u0300-\u036f]/g, "")
       .toLocaleLowerCase("pt-BR");
 
+    const urbanismAuthority =
+      /urban|obra|planejamento|projeto|habitacao|licenciamento|aprovacao/.test(
+        department,
+      );
+
+    // O vínculo municipal pode chegar ao front antes do cargo descritivo
+    // ("Diretor") terminar de hidratar. O role prefeitura_supervisor +
+    // departamento de Urbanismo já representa a autoridade da Diretoria e
+    // impede o falso "nenhum Diretor cadastrado" visto logo após o cadastro.
     return (
-      /\bdiretor(?:a)?\b/.test(position) &&
-      /urban|obra|planejamento|projeto|habitacao/.test(department)
+      urbanismAuthority &&
+      (/\bdiretor(?:a)?\b/.test(position) ||
+        user.role === "prefeitura_supervisor")
     );
   });
 }
