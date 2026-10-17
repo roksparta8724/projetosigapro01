@@ -664,6 +664,7 @@ export interface ProcessDocument {
   source: "profissional" | "prefeitura" | "integracao";
   fileName?: string;
   filePath?: string;
+  fileHash?: string;
   mimeType?: string;
   sizeLabel?: string;
   fileSizeBytes?: number;
