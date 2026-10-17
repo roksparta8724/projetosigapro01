@@ -25,6 +25,7 @@ import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -294,7 +295,7 @@ export function IptuDeskPage() {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button asChild variant="outline" className="rounded-full">
-                              <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                              <Link to={buildProcessPath(process)}>Abrir processo</Link>
                             </Button>
                             <Button
                               type="button"
@@ -378,7 +379,7 @@ export function IptuDeskPage() {
                         </div>
 
                         <Button asChild variant="outline" className="rounded-full">
-                          <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                          <Link to={buildProcessPath(process)}>Abrir processo</Link>
                         </Button>
                       </div>
 
