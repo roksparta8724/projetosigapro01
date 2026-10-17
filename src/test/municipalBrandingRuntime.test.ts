@@ -122,17 +122,21 @@ describe("municipal branding runtime resilience", () => {
     expect(editor).toContain('normalized.startsWith("/")');
     expect(surface).not.toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
     expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
+    expect(surface).toContain("CONTRASTE DO PREVIEW INSTITUCIONAL V21");
   });
 
-  it("keeps preview and editor on the same fixed geometry without changing the real page logo", () => {
-    expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 124');
-    expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 128');
-    expect(settings).toContain('viewportClassName="!h-[124px] !w-[176px]"');
-    expect(settings).toContain('viewportClassName="!h-[128px] !w-[176px]"');
+  it("keeps the whole crest visible at 1x with one square geometry in preview and editor", () => {
+    expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
+    expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
+    expect(settings).toContain("draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX");
+    expect(settings).toContain("draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX");
+    expect(settings).toContain("setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
+    expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
+    expect(settings.match(/allowPreview=\{false\}/g)?.length).toBeGreaterThanOrEqual(2);
     expect(editor).toContain('data-image-frame-viewport="true"');
-    expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
+    expect(surface).toContain("width:188px !important");
+    expect(surface).toContain("height:188px !important");
     expect(surface).not.toContain("max-width:1540px !important");
-    expect(surface).not.toContain('.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="header"] {\n  width:176px !important;');
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
