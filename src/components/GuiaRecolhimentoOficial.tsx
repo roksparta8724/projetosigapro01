@@ -55,6 +55,7 @@ type GuiaData = {
   pixPayload?: string;
   bankName?: string;
   bankAgreement?: string;
+  bankInstructions?: string;
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -1524,9 +1525,10 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-footer-left">
                 <div className="dam-bottom-label">Instruções de pagamento</div>
                 <div className="dam-footer-note">
-                  {guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
-                    ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
-                    : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento."}
+                  {guia.bankInstructions ||
+                    (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
+                      ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
+                      : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento.")}
                 </div>
               </div>
               <div className="dam-footer-right">
