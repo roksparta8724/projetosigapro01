@@ -278,7 +278,7 @@ export function ProcessDetailPage() {
     shareIssProjectGuide,
     issuePaymentGuide,
   } = usePlatformData();
-  const liveProcess = resolveProcessFromRoute(processes, processId);
+  const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
     readCachedProcessVisual(session.id, processId),
   );
@@ -410,6 +410,58 @@ export function ProcessDetailPage() {
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
     session.role === "proprietario_consulta";
+
+  const prewarmProcessInstitutionId =
+    process?.municipalityId ?? process?.tenantId ?? effectiveScopeId ?? null;
+  const prewarmTenant = process
+    ? institutions.find((item) => item.id === prewarmProcessInstitutionId) ?? null
+    : null;
+  const prewarmTenantSettings = process
+    ? institutionSettingsCompat ?? getInstitutionSettings(prewarmProcessInstitutionId)
+    : undefined;
+  const prewarmStableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
+  const prewarmGuideLogoUrl =
+    prewarmStableGuideLogoUrl ||
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    prewarmTenantSettings?.logoUrl ||
+    prewarmTenantSettings?.brasaoUrl ||
+    "";
+  const prewarmPaymentGuides = process
+    ? getProcessPaymentGuides(process, prewarmTenantSettings)
+    : [];
+  const prewarmVisibleGuides =
+    process && isExternalSession
+      ? getExternallyVisibleProcessPaymentGuides(process, prewarmTenantSettings)
+      : prewarmPaymentGuides;
+  const prewarmGuideSignature = prewarmVisibleGuides
+    .map((guide) =>
+      [
+        guide.kind,
+        guide.code,
+        guide.amount,
+        guide.dueDate,
+        guide.barcode || "",
+        guide.digitableLine || "",
+        guide.bankReference || "",
+      ].join(":"),
+    )
+    .join("|");
+  const prewarmSettingsSignature = [
+    prewarmGuideLogoUrl,
+    prewarmTenantSettings?.paymentProvider || "",
+    prewarmTenantSettings?.paymentProviderEnvironment || "",
+    prewarmTenantSettings?.bankCode || "",
+    prewarmTenantSettings?.bankAgreementCode || "",
+    prewarmTenantSettings?.chavePix || "",
+    prewarmTenantSettings?.pixMerchantCity || "",
+    municipalityName || "",
+    prewarmTenant?.name || "",
+  ].join("|");
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
   const [messageRecipient, setMessageRecipient] = useState("todos");
@@ -455,6 +507,86 @@ export function ProcessDetailPage() {
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!process || prewarmVisibleGuides.length === 0) {
+      setPreparedGuideCharges({});
+      setPreparedGuideLogoUrl("");
+      setGuidePreparationError("");
+      setGuideBillingBusyKey("");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const prepareGuides = async () => {
+      setGuideBillingBusyKey("preparing-guides");
+      setGuidePreparationError("");
+
+      try {
+        const logoPromise = prepareGuideInstitutionalLogo(
+          prewarmStableGuideLogoUrl,
+          prewarmGuideLogoUrl,
+          prewarmTenantSettings?.logoUrl,
+          prewarmTenantSettings?.brasaoUrl,
+        ).catch(() => prewarmGuideLogoUrl || "");
+
+        const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
+
+        for (const guide of prewarmVisibleGuides) {
+          const banking = resolveGuideBankingData({
+            settings: prewarmTenantSettings,
+            guide,
+            municipalityName: municipalityName || prewarmTenant?.name,
+            municipalityCity:
+              prewarmTenantSettings?.pixMerchantCity || prewarmTenant?.city,
+          });
+
+          if (banking.barcode && banking.digitableLine) continue;
+
+          preparedCharges[guide.code] = await ensureMercadoPagoGuideCharge({
+            municipalityId: effectiveScopeId,
+            guideCode: guide.code,
+            amount: guide.amount,
+            dueDate: guide.dueDate,
+            description: `${guide.label} · ${process.protocol}`,
+          });
+        }
+
+        const embeddedLogo = await logoPromise;
+        if (cancelled) return;
+
+        setPreparedGuideCharges((current) => ({
+          ...current,
+          ...preparedCharges,
+        }));
+        setPreparedGuideLogoUrl(embeddedLogo || prewarmGuideLogoUrl || "");
+      } catch (error) {
+        if (cancelled) return;
+        setGuidePreparationError(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível preparar os dados bancários da guia.",
+        );
+      } finally {
+        if (!cancelled) setGuideBillingBusyKey("");
+      }
+    };
+
+    void prepareGuides();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    effectiveScopeId,
+    prewarmGuideSignature,
+    prewarmSettingsSignature,
+    process?.id,
+    process?.protocol,
+  ]);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && !stableAnalysisAccess) return;
     if (
@@ -1203,15 +1335,9 @@ export function ProcessDetailPage() {
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
-  const printGuide = async (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
+  const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
-
-    const guideWindow = reserveGuiaRecolhimentoWindow(`Guia ${selectedGuide.code}`);
-    if (!guideWindow) {
-      setProcessActionStatus("O navegador bloqueou a nova aba da guia. Permita pop-ups para o localhost e tente novamente.");
-      return;
-    }
 
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
@@ -1272,55 +1398,23 @@ export function ProcessDetailPage() {
               total: selectedGuide.amount,
             },
           ];
-    // PIX pode ser gerado localmente com BR Code válido. Para boleto,
-    // o Mercado Pago cria somente a cobrança técnica; a linha digitável e o
-    // código de barras retornados são incorporados à própria DAM do SIGAPRO.
+
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
       guide: selectedGuide,
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
+    const providerCharge = preparedGuideCharges[selectedGuide.code] ?? null;
+    const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
+    const barcode = providerCharge?.barcodeContent || banking.barcode;
 
-    const billingKey = `${selectedGuide.code}:mercadopago`;
-    let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
-
-    if (!banking.barcode || !banking.digitableLine) {
-      setGuideBillingBusyKey(billingKey);
-      setProcessActionStatus("Gerando cobrança Mercado Pago para esta guia...");
-      try {
-        providerCharge = await ensureMercadoPagoGuideCharge({
-          municipalityId: effectiveScopeId,
-          guideCode: selectedGuide.code,
-          amount: selectedGuide.amount,
-          dueDate: selectedGuide.dueDate,
-          description: `${selectedGuide.label} · ${process.protocol}`,
-        });
-        setProcessActionStatus(
-          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras incorporados à DAM.",
-        );
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
-        setProcessActionStatus(message);
-        showGuiaRecolhimentoError(guideWindow, message);
-        return;
-      } finally {
-        setGuideBillingBusyKey("");
-      }
-    }
-
-    const digitableLine =
-      providerCharge?.digitableLine || banking.digitableLine;
-    const barcode =
-      providerCharge?.barcodeContent || banking.barcode;
     if (!barcode || !digitableLine) {
-      const message =
-        "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
-      setProcessActionStatus(message);
-      showGuiaRecolhimentoError(guideWindow, message);
+      setProcessActionStatus(
+        guidePreparationError
+          ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
+          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
+      );
       return;
     }
 
@@ -1329,12 +1423,12 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
-    const embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
-      stableGuideLogoUrl,
-      guideLogoUrl,
-      tenantSettings?.logoUrl,
-      tenantSettings?.brasaoUrl,
-    );
+    const embeddedGuideLogoUrl =
+      preparedGuideLogoUrl ||
+      guideLogoUrl ||
+      tenantSettings?.logoUrl ||
+      tenantSettings?.brasaoUrl ||
+      "";
 
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
     const issuedByLooksLikeId =
@@ -1375,26 +1469,32 @@ export function ProcessDetailPage() {
             : issuedByDisplay,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
-        padraoConstrutivo: selectedGuide.kind === "iss_obra"
-          ? process.property.workType || workTypeInput || undefined
-          : selectedGuide.constructionStandard || constructionStandardLabel,
+        padraoConstrutivo:
+          selectedGuide.kind === "iss_obra"
+            ? process.property.workType || workTypeInput || undefined
+            : selectedGuide.constructionStandard || constructionStandardLabel,
         codigoBarras: barcode,
         linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
         pixPayload: banking.pixPayload,
         bankName: providerName,
-        bankEnvironment: providerCharge?.environment,
+        bankEnvironment:
+          providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
         bankInstructions: banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
         bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
-        bankStatusDetail: providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
+        bankStatusDetail:
+          providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
         bankAuthenticatedAt:
           providerCharge?.authenticatedAt ||
           selectedGuide.bankAuthenticatedAt ||
           (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
-        paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
+        paymentProvider:
+          selectedGuide.paymentProvider ||
+          tenantSettings?.paymentProvider ||
+          "mercado_pago",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
@@ -1404,14 +1504,17 @@ export function ProcessDetailPage() {
       },
       itens: guideItems,
     };
-    openGuiaRecolhimentoOficialWindow(
-      guideDocument,
-      {
-        title: `Guia ${selectedGuide.code}`,
-        autoPrint,
-      },
-      guideWindow,
-    );
+
+    const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
+      title: `Guia ${selectedGuide.code}`,
+      autoPrint,
+    });
+
+    if (!opened) {
+      setProcessActionStatus(
+        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
+      );
+    }
   };
   const runProcessAction = async (
     key: string,
