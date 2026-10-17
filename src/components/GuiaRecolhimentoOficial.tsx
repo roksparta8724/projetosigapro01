@@ -131,7 +131,12 @@ const I25_PATTERNS: Record<string, string> = {
 
 function normalizeOfficialBarcode(code?: string) {
   const digits = (code || "").replace(/\D/g, "");
-  return digits.length === 44 ? digits : "";
+  // O código vem do provedor/banco. Não calculamos ou completamos dígitos.
+  // I25 exige quantidade par; aceitamos o conteúdo oficial retornado entre
+  // 40 e 48 dígitos para acomodar os provedores homologados.
+  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
+    ? digits
+    : "";
 }
 
 function Interleaved2of5Barcode({ value }: { value?: string }) {
