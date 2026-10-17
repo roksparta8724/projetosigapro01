@@ -797,9 +797,10 @@ function getStyles() {
 
     .dam-receipt-body {
       display: grid;
-      grid-template-columns: 1fr 64mm;
-      flex: 1 1 auto;
-      min-height: 72mm;
+      grid-template-columns: 1fr 58mm;
+      flex: 0 0 auto;
+      min-height: 42mm;
+      background: #ffffff;
     }
 
     .dam-receipt-left {
@@ -857,7 +858,7 @@ function getStyles() {
     }
 
     .dam-auth-value {
-      min-height: 18mm;
+      min-height: 7mm;
       font-size: 6.5px;
       line-height: 1.1;
       margin-top: 1px;
@@ -890,8 +891,8 @@ function getStyles() {
 
     .dam-qrcode-box img,
     .dam-qrcode-box svg {
-      width: 58px;
-      height: 58px;
+      width: 52px;
+      height: 52px;
       object-fit: contain;
       display: block;
       background: #ffffff;
@@ -960,11 +961,24 @@ function getStyles() {
       color: #374151;
     }
 
+    .dam-barcode-digits {
+      margin-top: 2px;
+      text-align: center;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 6.3px;
+      line-height: 1.1;
+      font-weight: 700;
+      letter-spacing: .055em;
+      color: #334155;
+      word-break: break-all;
+    }
+
     .dam-footer-area {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-top: 1px solid #000000;
-      min-height: 19mm;
+      border-top: 1px solid #b7c5d2;
+      min-height: 14mm;
+      background: #fbfcfe;
     }
 
     .dam-footer-left,
@@ -1012,7 +1026,7 @@ function getStyles() {
       grid-template-columns: 1fr 54mm;
       border-top: 1px solid #b7c5d2;
       flex: 1 1 auto;
-      min-height: 28mm;
+      min-height: 20mm;
     }
 
     .dam-final-left,
@@ -1600,6 +1614,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-barcode-box">
                 <Interleaved2of5Barcode value={guia.codigoBarras} />
               </div>
+              {normalizeOfficialBarcode(guia.codigoBarras) ? (
+                <div className="dam-barcode-digits">
+                  {normalizeOfficialBarcode(guia.codigoBarras)}
+                </div>
+              ) : null}
             </div>
 
             <div className="dam-footer-area">
