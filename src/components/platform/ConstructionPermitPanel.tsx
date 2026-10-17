@@ -46,7 +46,7 @@ import {
   type ConstructionPermitFormData,
   type ConstructionPermitRecord,
 } from "@/lib/constructionPermit";
-import { openConstructionPermitPdf } from "@/lib/constructionPermitPdf";
+import { openConstructionPermitPdf, reserveConstructionPermitPdfWindow } from "@/lib/constructionPermitPdf";
 import {
   ArtifactSignatureError,
   getProcessArtifactSignatures,
@@ -101,7 +101,7 @@ function permitStatusLabel(record: ConstructionPermitRecord | null) {
   );
   if (directorOfficial) return "Alvará emitido";
   if (record.signatureMode === "manual" || record.status === "assinatura_manual") {
-    return "Preparado para assinatura à caneta";
+    return "Preparado para assinatura";
   }
   if (
     record.signatureMode === "electronic" ||
@@ -386,24 +386,36 @@ export function ConstructionPermitPanel({
     }));
   };
 
-  const openPdf = (
+  const openPdf = async (
     record: ConstructionPermitRecord | null = permit,
     manualSignature = manualSignatureSelected,
+    reservedWindow?: Window | null,
   ) => {
     if (!record) return;
-    void openConstructionPermitPdf({
-      permit: record,
-      process,
-      municipalityName,
-      municipalityLogoUrl,
-      municipalityAddress,
-      municipalityPhone,
-      municipalityEmail,
-      secretariat,
-      directorate,
-      technicalProfile,
-      manualSignature,
-    });
+    try {
+      await openConstructionPermitPdf(
+        {
+          permit: record,
+          process,
+          municipalityName,
+          municipalityLogoUrl,
+          municipalityAddress,
+          municipalityPhone,
+          municipalityEmail,
+          secretariat,
+          directorate,
+          technicalProfile,
+          manualSignature,
+        },
+        reservedWindow,
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o PDF oficial do Alvará.",
+      );
+    }
   };
 
   const openPermitForm = () => {
@@ -526,7 +538,7 @@ export function ConstructionPermitPanel({
       setPermit(next);
       if (closeAfterSave) setFillOpen(false);
       setStatus(
-        "Alvará salvo no banco oficial. Escolha assinatura eletrônica da Diretoria ou PDF para assinatura à caneta.",
+        "Alvará salvo no banco oficial. Escolha assinatura eletrônica da Diretoria ou PDF para assinatura manual.",
       );
       return next;
     } catch (error) {
@@ -595,6 +607,29 @@ export function ConstructionPermitPanel({
       return;
     }
 
+    // Reserva a guia no clique do usuário ANTES das operações assíncronas.
+    // Assim o navegador não bloqueia a abertura quando o banco terminar de salvar.
+    const previewRecord =
+      permit ??
+      createConstructionPermitDraft(process, municipalityId, {
+        ...formData,
+        technicalRegistration:
+          formData.technicalRegistration ||
+          technicalProfile?.registrationNumber ||
+          "",
+      });
+    const reservedPdfWindow = reserveConstructionPermitPdfWindow({
+      permit: previewRecord,
+      process,
+    });
+
+    if (!reservedPdfWindow) {
+      setStatus(
+        "O navegador bloqueou a abertura do PDF. Libere pop-ups para o SIGAPRO e tente novamente.",
+      );
+      return;
+    }
+
     setWorkflowBusy("manual");
     try {
       const saved = await savePermitForm(false, false);
@@ -613,10 +648,11 @@ export function ConstructionPermitPanel({
       setPermit(next);
       setFillOpen(false);
       setStatus(
-        "PDF preparado para assinatura à caneta pela Diretoria.",
+        "PDF preparado para assinatura da Diretoria.",
       );
-      openPdf(next, true);
+      await openPdf(next, true, reservedPdfWindow);
     } catch (error) {
+      if (!reservedPdfWindow.closed) reservedPdfWindow.close();
       setStatus(
         error instanceof Error
           ? error.message
@@ -1034,11 +1070,11 @@ export function ConstructionPermitPanel({
                                 permit.directorSignature.signedAt,
                               ).toLocaleString("pt-BR")}`
                             : manualSignatureSelected
-                              ? "PDF preparado para assinatura à caneta"
+                              ? "PDF preparado para assinatura"
                               : directorRequestPending
                                 ? "Solicitação eletrônica enviada à Diretoria"
                                 : permitReadyForSignature
-                                  ? "Escolha assinatura eletrônica ou assinatura à caneta"
+                                  ? "Escolha assinatura eletrônica ou assinatura manual"
                                   : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
                         {permit.directorSignature?.verificationCode ? (
@@ -1070,7 +1106,7 @@ export function ConstructionPermitPanel({
                         onClick={() => openPdf(permit, true)}
                       >
                         <Printer className="mr-2 h-4 w-4" />
-                        Abrir PDF para assinatura à caneta
+                        Abrir PDF do Alvará
                       </Button>
                     ) : null}
 
@@ -1128,11 +1164,11 @@ export function ConstructionPermitPanel({
                           Escolha como a Diretoria vai assinar
                         </p>
                         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                          Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar à caneta.
+                          Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar manualmente.
                         </p>
                         {directors.length === 0 ? (
                           <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                            Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura à caneta continua disponível.
+                            Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura manual continua disponível.
                           </p>
                         ) : null}
                       </div>
@@ -1162,7 +1198,7 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Printer className="mr-2 h-4 w-4" />
                           )}
-                          Gerar PDF para assinatura à caneta
+                          Gerar PDF do Alvará
                         </Button>
                       </div>
                     </div>
@@ -1228,7 +1264,7 @@ export function ConstructionPermitPanel({
                         {permitFormTitle(formData.workType || process.property.workType || process.type)}
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
-                        Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura à caneta. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
+                        Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura manual. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
                       </DialogDescription>
                     </div>
                   </div>
@@ -1507,7 +1543,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Printer className="mr-2 h-4 w-4" />
                         )}
-                        Gerar PDF para assinatura à caneta
+                        Gerar PDF do Alvará
                       </Button>
                     </div>
                   </div>
