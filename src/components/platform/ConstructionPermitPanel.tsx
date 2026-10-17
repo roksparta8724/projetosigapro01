@@ -1094,11 +1094,16 @@ export function ConstructionPermitPanel({
                             className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/55"
                           >
                             {directorVerificationUrl ? (
-                              <SignatureVerificationQr
-                                verificationUrl={directorVerificationUrl}
-                                alt="QR Code da assinatura eletrônica da Diretoria"
-                                className="sig-director-signature-qr"
-                              />
+                              <div
+                                data-director-signature-qr="true"
+                                className="shrink-0"
+                              >
+                                <SignatureVerificationQr
+                                  verificationUrl={directorVerificationUrl}
+                                  alt="QR Code da assinatura eletrônica da Diretoria"
+                                  className="sig-director-signature-qr"
+                                />
+                              </div>
                             ) : null}
                             <div className="min-w-0">
                               <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
