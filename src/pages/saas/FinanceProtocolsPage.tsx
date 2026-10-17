@@ -299,6 +299,7 @@ export function FinanceProtocolsPage() {
       setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
+          municipalityId: effectiveScopeId,
           guideCode: match.guide.code,
           amount: match.guide.amount,
           dueDate: match.guide.dueDate,
