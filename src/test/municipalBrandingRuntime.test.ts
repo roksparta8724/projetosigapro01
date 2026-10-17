@@ -11,6 +11,7 @@ describe("municipal branding runtime resilience", () => {
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
   const portal = read("src/components/platform/PortalFrame.tsx");
   const editor = read("src/components/platform/ImageFrameEditor.tsx");
+  const upload = read("src/components/platform/FileDropZone.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -133,6 +134,9 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
     expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
     expect(settings.match(/allowPreview=\{false\}/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(settings.match(/preparePreviewUrl/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(upload).toContain("preparePreviewUrl?: boolean");
+    expect(upload).toContain("(!allowPreview && !preparePreviewUrl)");
     expect(editor).toContain('data-image-frame-viewport="true"');
     expect(surface).toContain("width:188px !important");
     expect(surface).toContain("height:188px !important");
