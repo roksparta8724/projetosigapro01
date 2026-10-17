@@ -1994,10 +1994,14 @@ export function buildGuiaRecolhimentoOficialHtml(
 </html>`;
 }
 
-export function reserveGuiaRecolhimentoWindow(title = "Preparando guia municipal") {
+export function reserveGuiaRecolhimentoWindow(title = "Guia municipal") {
   const popup = window.open("", "_blank");
   if (!popup) return null;
 
+  // Reserva a nova aba ainda dentro do gesto do usuário para evitar bloqueio
+  // de pop-up, mas nunca exibe uma tela intermediária. A preparação bancária
+  // continua na tela atual do SIGAPRO e a nova aba só recebe foco quando a DAM
+  // final estiver pronta.
   popup.document.open();
   popup.document.write(`<!doctype html>
 <html lang="pt-BR">
@@ -2006,30 +2010,23 @@ export function reserveGuiaRecolhimentoWindow(title = "Preparando guia municipal
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
   <style>
-    html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:#eef3f8;color:#0f172a}
-    .loading-shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
-    .loading-card{width:min(560px,92vw);border:1px solid #d8e2eb;border-top:4px solid #0f3557;border-radius:18px;background:#fff;padding:28px;box-shadow:0 20px 48px rgba(15,53,87,.12)}
-    .loading-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#52708b}
-    .loading-title{margin-top:7px;font-size:20px;font-weight:800;color:#0f3557}
-    .loading-text{margin-top:8px;font-size:13px;line-height:1.55;color:#475569}
-    .loading-bar{height:5px;margin-top:20px;border-radius:999px;overflow:hidden;background:#e6edf3}
-    .loading-bar:after{content:"";display:block;width:38%;height:100%;border-radius:inherit;background:#0f3557;animation:damload 1.15s ease-in-out infinite alternate}
-    @keyframes damload{from{transform:translateX(-15%)}to{transform:translateX(180%)}}
+    html,body{margin:0;width:100%;height:100%;background:#fff;overflow:hidden}
+    body{visibility:hidden}
   </style>
 </head>
-<body>
-  <div class="loading-shell">
-    <div class="loading-card">
-      <div class="loading-kicker">SIGAPRO Municipal</div>
-      <div class="loading-title">Preparando a Guia de Recolhimento</div>
-      <div class="loading-text">Validando os dados da Prefeitura, a cobrança oficial e o código bancário antes de abrir a DAM.</div>
-      <div class="loading-bar"></div>
-    </div>
-  </div>
-</body>
+<body aria-hidden="true"></body>
 </html>`);
   popup.document.close();
-  popup.focus();
+
+  try {
+    popup.blur();
+    window.focus();
+    window.requestAnimationFrame(() => window.focus());
+  } catch {
+    // Alguns navegadores ignoram blur/focus entre abas; isso não interfere
+    // na geração da guia nem no documento final.
+  }
+
   return popup;
 }
 
