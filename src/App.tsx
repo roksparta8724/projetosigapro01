@@ -113,6 +113,7 @@ const AppRoutes = () => {
     pathname === "/criar-conta" ||
     pathname === "/recuperar-senha" ||
     pathname.startsWith("/cliente/") ||
+    pathname.startsWith("/v/") ||
     pathname === "/verificar-assinatura";
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
@@ -135,6 +136,7 @@ const AppRoutes = () => {
         <Route path="/cliente/:tenantSlug" element={<ClientePortalPage />} />
         <Route path="/planos-publicos" element={<PublicPlansPage />} />
         <Route path="/verificar-assinatura" element={<PublicSignatureVerificationPage />} />
+        <Route path="/v/:codigo" element={<PublicSignatureVerificationPage />} />
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
