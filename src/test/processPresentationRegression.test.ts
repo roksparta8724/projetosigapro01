@@ -281,7 +281,7 @@ describe("canonical process surface contract", () => {
 describe("final process contrast authority", () => {
   it("keeps the final polarity lock after every earlier rule and never targets topbar", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
-    const finalIndex = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const finalIndex = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
     const finalEnd = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", finalIndex);
     const block = polarity.slice(finalIndex, finalEnd);
 
@@ -301,7 +301,7 @@ describe("authoritative V14 process-only contrast", () => {
   it("runs after earlier process rules and keeps the topbar out of scope", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
-    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const start = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
     const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
     const v14 = polarity.slice(start, end);
 
@@ -366,19 +366,20 @@ describe("process detail visibility lock v13", () => {
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
     const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
     const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
-    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
-    const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
-    const v14 = polarity.slice(start, end);
+    const start = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V13");
+    const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V13 END", start);
+    const v13 = polarity.slice(start, end);
 
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
-    expect(v14).toContain(".sig-process-detail-premium");
-    expect(v14).toContain('[data-analysis-dark-header="true"]');
-    expect(v14).toContain('[data-permit-dark-header="true"]');
-    expect(v14).toContain('[data-analysis-signature-action="technical"]');
-    expect(v14).toContain('button[data-checklist-status="NA"][data-selected="true"]');
-    expect(v14).not.toContain(".sig-premium-topbar");
-    expect(v14).not.toContain(".sig-topbar-shell");
+    expect(v13).toContain(".sig-process-detail-premium");
+    expect(v13).toContain('[data-analysis-dark-header="true"]');
+    expect(v13).toContain('[data-permit-dark-header="true"]');
+    expect(v13).toContain('[data-analysis-signature-action="technical"]');
+    expect(v13).toContain('[data-dispatch-organogram="true"] [data-organogram-code="true"]');
+    expect(v13).toContain('button[data-checklist-status="NA"][data-selected="true"]');
+    expect(v13).not.toContain(".sig-premium-topbar");
+    expect(v13).not.toContain(".sig-topbar-shell");
 
     expect(detail).toContain('data-dark-header-action="true"');
     expect(analysis).toContain('data-analysis-dark-header="true"');
