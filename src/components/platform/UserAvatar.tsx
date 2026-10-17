@@ -1,5 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound } from "@/components/platform/PremiumIcons";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -23,14 +22,6 @@ const sizeClasses: Record<UserAvatarSize, string> = {
   lg: "h-14 w-14 text-base",
   xl: "h-20 w-20 text-xl",
 };
-
-function getInitials(name?: string | null) {
-  const safe = name?.trim();
-  if (!safe) return "";
-  const parts = safe.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
-}
 
 export function UserAvatar({
   name,
@@ -116,7 +107,6 @@ export function UserAvatar({
     };
   }, []);
 
-  const initials = useMemo(() => getInitials(name), [name]);
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
@@ -140,20 +130,11 @@ export function UserAvatar({
     >
       <span
         aria-hidden="true"
-        style={{ color: "#0f172a" }}
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#dbe6f1_100%)] font-semibold !text-[#0f172a]",
+          "sig-user-avatar-fallback absolute inset-0 block h-full w-full rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)]",
           fallbackClassName,
         )}
-      >
-        {initials ? (
-          <strong className="sig-user-avatar-initials block leading-none !text-[#0f172a]" style={{ color: "#0f172a" }}>
-            {initials}
-          </strong>
-        ) : (
-          <UserRound className="sig-user-avatar-icon h-[52%] w-[52%] !text-[#334155]" style={{ color: "#334155" }} />
-        )}
-      </span>
+      />
       {showImage ? (
         <img
           src={resolvedImageUrl || undefined}
