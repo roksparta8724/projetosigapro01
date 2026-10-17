@@ -159,12 +159,24 @@ describe("municipal bank and payment guide flow", () => {
     expect(neonBankingMigration).toContain("payment_provider");
   });
 
+  it("binds DAM-ISS guides to the Mercado Pago order before rendering", () => {
+    expect(processDetail).toContain('ensureMercadoPagoGuideCharge({');
+    expect(processDetail).toContain('guideCode: selectedGuide.code');
+    expect(processDetail).toContain('amount: selectedGuide.amount');
+    expect(processDetail).toContain('description: `${selectedGuide.label} · ${process.protocol}`');
+    expect(processDetail).toContain('codigoBarras: barcode');
+    expect(processDetail).toContain('linhaDigitavel: digitableLine');
+    expect(mercadoPagoServer).toContain("normalizeGuideCode");
+    expect(mercadoPagoServer).toContain("external_reference: externalReference");
+  });
+
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
     expect(guide).toContain('import { QRCodeSVG } from "qrcode.react"');
     expect(guide).toContain("<QRCodeSVG");
     expect(guide).toContain("digits.length >= 40");
     expect(guide).toContain("digits.length <= 48");
     expect(guide).toContain("Interleaved2of5Barcode");
+    expect(guide).toContain("ProviderBarcode");
     expect(guide).toContain("dam-barcode-digits");
     expect(guide).not.toContain('return "|||||"');
     expect(guide).toContain("Código bancário ainda não fornecido pelo convênio/API");
