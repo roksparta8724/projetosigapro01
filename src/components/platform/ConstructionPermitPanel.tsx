@@ -647,9 +647,9 @@ export function ConstructionPermitPanel({
       writeLocalConstructionPermit(next);
       setPermit(next);
       setFillOpen(false);
-      setStatus(
-        "PDF preparado para assinatura da Diretoria.",
-      );
+      // Sucesso de preparação não deve piscar uma mensagem antes de trocar para
+      // o visualizador nativo. Somente erros permanecem visíveis na tela.
+      setStatus("");
       await openPdf(next, true, reservedPdfWindow);
     } catch (error) {
       if (!reservedPdfWindow.closed) reservedPdfWindow.close();
