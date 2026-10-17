@@ -28,6 +28,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { prepareGuideImageSource } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -1290,6 +1291,7 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
+    const embeddedGuideLogoUrl = await prepareGuideImageSource(guideLogoUrl);
 
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
     const issuedByLooksLikeId =
@@ -1302,7 +1304,7 @@ export function ProcessDetailPage() {
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: guideLogoUrl,
+        logoUrl: embeddedGuideLogoUrl || guideLogoUrl,
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
