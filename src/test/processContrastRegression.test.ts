@@ -45,10 +45,12 @@ describe("process contrast contract", () => {
     const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
     const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
 
-    expect(analysis).toContain('data-premium-dark-action="true"');
-    expect(permit).toContain('data-premium-header-icon="true"');
-    expect(css).toContain('[data-premium-dark-action="true"]');
-    expect(css).toContain('[data-premium-header-icon="true"] svg');
+    expect(analysis).toContain('data-analysis-header-icon="true"');
+    expect(permit).toContain('data-permit-header-icon="true"');
+    expect(analysis).toContain('data-analysis-dark-header="true"');
+    expect(permit).toContain('data-permit-dark-header="true"');
+    expect(css).toContain('[data-analysis-dark-header="true"]');
+    expect(css).toContain('[data-permit-dark-header="true"]');
   });
 
   it("keeps the approval payment header premium and readable in inverse themes", () => {
