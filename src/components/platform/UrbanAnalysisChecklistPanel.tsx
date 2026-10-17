@@ -1561,9 +1561,9 @@ export function UrbanAnalysisChecklistPanel({
         false,
       );
       const page1Engineering =
-        page1Split.fit.length > 0 ? page1Split.fit : ENGINEERING_ITEMS.slice(0, 20);
+        page1Split.fit.length > 0 ? page1Split.fit : ENGINEERING_ITEMS.slice(0, 1);
       const page2Engineering =
-        page1Split.fit.length > 0 ? page1Split.rest : ENGINEERING_ITEMS.slice(20);
+        page1Split.fit.length > 0 ? page1Split.rest : ENGINEERING_ITEMS.slice(1);
 
       drawHeader(1);
       drawProcessSummary(47);
