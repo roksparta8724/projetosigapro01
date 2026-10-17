@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import type { ApiReq } from "./municipal-storage";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -37,9 +39,18 @@ export function getMercadoPagoAccessToken() {
   return cleanEnv(process.env.MERCADOPAGO_ACCESS_TOKEN_TEST);
 }
 
-export async function checkMercadoPagoConnection(): Promise<MercadoPagoConnectionCheck> {
-  const environment = getMercadoPagoEnvironment();
-  const token = getMercadoPagoAccessToken();
+export async function checkMercadoPagoConnection(
+  req?: ApiReq,
+  municipalityId?: string | null,
+): Promise<MercadoPagoConnectionCheck> {
+  const resolved = req
+    ? await resolveMercadoPagoMunicipalAccessToken(req, municipalityId)
+    : {
+        token: getMercadoPagoAccessToken(),
+        environment: getMercadoPagoEnvironment(),
+      };
+  const environment = resolved.environment;
+  const token = resolved.token;
 
   if (!token) {
     return {
@@ -143,6 +154,7 @@ export async function checkMercadoPagoConnection(): Promise<MercadoPagoConnectio
 
 
 export type MercadoPagoGuideBoletoInput = {
+  municipalityId?: string;
   guideCode: string;
   amount: number;
   dueDate?: string;
@@ -313,9 +325,16 @@ function extractMercadoPagoError(
 
 export async function createMercadoPagoGuideBoleto(
   input: MercadoPagoGuideBoletoInput,
+  req?: ApiReq,
 ): Promise<MercadoPagoGuideBoletoResult> {
-  const environment = getMercadoPagoEnvironment();
-  const token = getMercadoPagoAccessToken();
+  const resolved = req
+    ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
+    : {
+        token: getMercadoPagoAccessToken(),
+        environment: getMercadoPagoEnvironment(),
+      };
+  const environment = resolved.environment;
+  const token = resolved.token;
   const guideCode = normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
 
