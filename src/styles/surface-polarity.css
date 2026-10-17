@@ -2101,6 +2101,9 @@ html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
    tabs, cards, upload e editor sem alterar as demais areas do SIGAPRO.
    ========================================================================== */
 html body #root .sig-config-page {
+  width:100% !important;
+  max-width:1540px !important;
+  margin-inline:auto !important;
   gap:18px !important;
   padding-bottom:36px !important;
 }
