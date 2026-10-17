@@ -1254,6 +1254,7 @@ export function ProcessDetailPage() {
             ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
             : "Não foi possível obter a cobrança Mercado Pago desta guia.",
         );
+        return;
       } finally {
         setGuideBillingBusyKey("");
       }
