@@ -49,13 +49,13 @@ export function ExternalPortalPage() {
     0,
   );
   const pendingPayments = processes.filter((process) => process.payment?.status === "pendente").length;
-  const concludedProcesses = processes.filter((process) => process.status === "aprovado" || process.status === "concluido").length;
+  const concludedProcesses = processes.filter((process) => ["deferido", "indeferido", "arquivado"].includes(process.status)).length;
   const activeProcesses = Math.max(processes.length - concludedProcesses, 0);
 
   const recentActivity = useMemo(
     () =>
       [...processes]
-        .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
+        .sort((a, b) => new Date(b.auditTrail[0]?.at ?? b.timeline[0]?.at ?? 0).getTime() - new Date(a.auditTrail[0]?.at ?? a.timeline[0]?.at ?? 0).getTime())
         .slice(0, 3),
     [processes],
   );
