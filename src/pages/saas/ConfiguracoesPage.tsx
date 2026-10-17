@@ -765,12 +765,12 @@ export function ConfiguracoesPage() {
     });
   }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState({
-    scale: settings?.headerLogoScale ?? settings?.logoScale ?? 1,
+    scale: Math.max(1, settings?.headerLogoScale ?? settings?.logoScale ?? 1),
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   });
   const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState({
-    scale: settings?.footerLogoScale ?? settings?.logoScale ?? 1,
+    scale: Math.max(1, settings?.footerLogoScale ?? settings?.logoScale ?? 1),
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   });
@@ -3248,7 +3248,7 @@ export function ConfiguracoesPage() {
                       label="Ajuste do logo do cabeçalho"
                       hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
                       fitMode="contain"
-                      minScale={0.35}
+                      minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center xl:justify-start"
@@ -3333,7 +3333,7 @@ export function ConfiguracoesPage() {
                       label="Ajuste do logo do rodapé"
                       hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
                       fitMode="contain"
-                      minScale={0.35}
+                      minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center xl:justify-start"
