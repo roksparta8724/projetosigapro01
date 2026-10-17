@@ -80,6 +80,20 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).toContain("municipalityLoading ? effectiveThemeCache?.background");
   });
 
+  it("never paints mobile and desktop topbar logos together during F5", () => {
+    expect(portal).toContain("isDesktopTopbarViewport");
+    expect(portal).toContain('window.matchMedia("(min-width: 1024px)")');
+    expect(portal).toContain('data-topbar-brand-viewport="mobile"');
+    expect(portal).toContain('data-topbar-viewport="desktop"');
+    expect(portal).toContain('display: isDesktopTopbarViewport ? "none" : undefined');
+    expect(portal).toContain('display: isDesktopTopbarViewport ? undefined : "none"');
+  });
+
+  it("compensates the 85 percent app zoom so the footer logo cannot jump into the initial viewport", () => {
+    expect(portal).toContain('data-refresh-layout-stable={focusMode ? "false" : "true"}');
+    expect(portal).toContain('minHeight: "117.6470588235vh"');
+  });
+
   it("hydrates analysis checklist synchronously before first paint", () => {
     expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
     expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
