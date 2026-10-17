@@ -2765,12 +2765,11 @@ export function ConfiguracoesPage() {
           title="Resumo institucional"
           description="Confira a base ativa da Prefeitura e os pontos principais da operação institucional."
           icon={Building2}
-          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-5"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
+            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Instituição</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2782,7 +2781,7 @@ export function ConfiguracoesPage() {
               </p>
             </div>
 
-            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
+            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Canal oficial</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2794,7 +2793,7 @@ export function ConfiguracoesPage() {
               </p>
             </div>
 
-            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
+            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Protocolo</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2804,7 +2803,7 @@ export function ConfiguracoesPage() {
               <p className="text-sm text-slate-500">Prefixos oficiais da operação.</p>
             </div>
 
-            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
+            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Portal institucional</p>
                 <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-900">
@@ -2822,12 +2821,11 @@ export function ConfiguracoesPage() {
           title="Acessos rápidos"
           description="Entre direto no bloco que precisa de ajuste."
           icon={Link2}
-          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-3"
         >
           <div className="grid gap-3">
-            <button type="button" onClick={() => setActiveSettingsView("branding")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
+            <button type="button" onClick={() => setActiveSettingsView("branding")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Branding e identidade</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Logo, ativos e paleta.</p>
@@ -2835,7 +2833,7 @@ export function ConfiguracoesPage() {
               <Palette className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("institutional")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
+            <button type="button" onClick={() => setActiveSettingsView("institutional")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Dados institucionais</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Prefeitura e base cadastral.</p>
@@ -2843,7 +2841,7 @@ export function ConfiguracoesPage() {
               <ShieldPlus className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("communication")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
+            <button type="button" onClick={() => setActiveSettingsView("communication")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Comunicação oficial</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">E-mail, site e canais.</p>
@@ -2851,7 +2849,7 @@ export function ConfiguracoesPage() {
               <Bell className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("protocol")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
+            <button type="button" onClick={() => setActiveSettingsView("protocol")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Protocolo e prefixos</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Numeração e taxas.</p>
@@ -2865,11 +2863,10 @@ export function ConfiguracoesPage() {
           title="Estado atual"
           description="Leitura rápida da configuração ativa."
           icon={Flag}
-          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-3"
         >
-          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="sig-label">Status do contrato</p>
             <p className="mt-2 text-sm font-medium text-slate-900">
               {tenantForm.status === "ativo"
@@ -2879,13 +2876,13 @@ export function ConfiguracoesPage() {
                   : "Implantação"}
             </p>
           </div>
-          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="sig-label">Plano comercial</p>
             <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {tenantForm.plan || "Plano institucional"}
             </p>
           </div>
-          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="sig-label">Arrecadação</p>
             <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {settingsForm.beneficiarioArrecadacao || "Beneficiário não informado"}
@@ -2928,18 +2925,18 @@ export function ConfiguracoesPage() {
 
   return (
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
-      <PageShell className="sig-config-page">
+      <PageShell>
       <PageHeader
-        eyebrow="Configurações institucionais"
-        title="Central de configuração da Prefeitura"
-        description="Identidade visual, dados oficiais, protocolo, equipe e armazenamento organizados em um único ambiente."
+        eyebrow="Identidade visual"
+        title="Identidade e operação institucional"
+        description="Organize identidade visual, contatos oficiais, prefixos e preferências da Prefeitura."
         icon={MonitorCog}
-        className="sig-config-hero rounded-[28px] p-5 md:p-6 lg:p-7"
+        className="rounded-[30px] p-5 md:p-6 lg:p-7"
       />
-      <PageStatsRow className="sig-config-stats">
-        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Prefeitura vinculada ao ambiente" icon={Building2} tone="blue" valueClassName="max-w-[24ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Responsável pela operação" icon={Flag} tone="emerald" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Identificação dos protocolos" icon={ScrollText} tone="amber" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+      <PageStatsRow>
+        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Base institucional vinculada" icon={Building2} tone="default" valueClassName="max-w-[24ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Exibição principal do cabeçalho" icon={Flag} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Numeração oficial ativa" icon={ScrollText} tone="default" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
         <StatCard label="Canal institucional" value={settingsForm.email || "Não informado"} description="Contato público principal" icon={Bell} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
       </PageStatsRow>
       <InternalTabs
@@ -2956,9 +2953,6 @@ export function ConfiguracoesPage() {
         ]}
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
-        className="sig-config-tabs"
-        preserveOrder
-        preferOperationalDefault={false}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
@@ -2985,7 +2979,7 @@ export function ConfiguracoesPage() {
       ) : null}
       {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
         {activeSettingsView === "branding" ? <PageMainContent className="w-full">
-        <SectionCard title="Identidade visual" description="Configure a marca institucional exatamente como ela será exibida no portal, documentos e áreas oficiais." icon={Building2} className="sig-config-section" contentClassName="space-y-5" headerClassName="gap-2 pb-4">
+        <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
             {session.tenantId === null ? (
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -3405,12 +3399,12 @@ export function ConfiguracoesPage() {
                   </div>
                 </div>
               </div>
-              <div data-config-asset-panel="true" className="sig-config-support-panel rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.05)] md:p-5">
+              <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f6f9fc_100%)] p-4 shadow-[0_14px_36px_rgba(15,23,42,0.05)] md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <ImageIcon className="h-4 w-4 text-sky-700" />
-                      <p className="text-sm font-bold text-slate-950">Ativos visuais oficiais</p>
+                      <p className="text-sm font-bold text-slate-950">Identidade institucional da Prefeitura</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
                       Brasão, bandeira e imagem do portal ficam armazenados de forma persistente e vinculados somente a esta Prefeitura.
@@ -3421,7 +3415,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <FileDropZone
                     title="Brasão oficial"
                     description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
@@ -3458,7 +3452,7 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div data-config-legal-panel="true" className="sig-config-support-panel rounded-[26px] border border-sky-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f9ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.06)] md:p-5">
+              <div className="rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -3474,13 +3468,13 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
                   <FileDropZone
                     title="Plano Diretor"
                     description="PDF oficial do Plano Diretor municipal."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview={false}
+                    allowPreview
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={planoDiretorFiles}
@@ -3491,7 +3485,7 @@ export function ConfiguracoesPage() {
                     description="PDF oficial da lei de uso, ocupação e parâmetros urbanísticos."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview={false}
+                    allowPreview
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={usoSoloFiles}
@@ -3502,7 +3496,7 @@ export function ConfiguracoesPage() {
                     description="PDF oficial e específico do zoneamento municipal, separado da Lei de Uso e Ocupação do Solo."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview={false}
+                    allowPreview
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={zoneamentoFiles}
@@ -3513,7 +3507,7 @@ export function ConfiguracoesPage() {
                     description="PDF com leis, decretos e normas complementares vinculadas ao licenciamento."
                     accept="application/pdf,.pdf"
                     multiple={false}
-                    allowPreview={false}
+                    allowPreview
                     busy={institutionalAssetsSaving}
                     savedLabel="Salvo no armazenamento oficial"
                     files={leisFiles}
@@ -3755,7 +3749,7 @@ export function ConfiguracoesPage() {
         ) : null}
 
         {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
-        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} className="sig-config-section" headerClassName="gap-2 pb-4">
+        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
                 <>
