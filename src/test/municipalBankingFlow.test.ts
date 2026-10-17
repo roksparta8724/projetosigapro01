@@ -12,6 +12,7 @@ describe("municipal bank and payment guide flow", () => {
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const collection = read("src/lib/paymentCollection.ts");
+  const neonBankingMigration = read("neon/migrations/20261017_payment_guide_banking_fields.sql");
   const guideAssets = read("src/lib/guideAssets.ts");
   const mercadoPagoGuide = read("src/lib/mercadoPagoGuide.ts");
   const mercadoPagoServer = read("server/mercadopago.ts");
@@ -22,6 +23,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(settingsPage).toContain('setSettingsField("chavePix"');
     expect(settingsPage).toContain('setSettingsField("bankCode"');
     expect(settingsPage).toContain('setSettingsField("bankAgreementCode"');
+    expect(settingsPage).toContain('setSettingsField("paymentProvider"');
+    expect(settingsPage).toContain('setSettingsField("paymentAuthenticationMode"');
     expect(settingsPage).toContain("validateMunicipalPixKey");
     expect(settingsPage).toContain("Credenciais, tokens e certificados de API nunca devem ser gravados nesta tela");
     expect(settingsPage).not.toContain("Teste de boleto Mercado Pago");
@@ -58,6 +61,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).not.toContain('padEnd(44, "7")');
     expect(processDetail).not.toContain("000201|");
     expect(processDetail).not.toContain("function buildProtocolGuideHtml");
+    expect(finance).toContain("bankStatus: providerCharge?.status");
+    expect(processDetail).toContain("bankStatus: providerCharge?.status");
     expect(finance).not.toContain("PIX|");
   });
 
@@ -141,6 +146,17 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("if (!barcode || !digitableLine)");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
     expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
+  });
+
+  it("prepares auditable bank authentication and Neon persistence", () => {
+    expect(guide).toContain("bankAuthenticationLabel");
+    expect(guide).toContain("AGUARDANDO COMPENSAÇÃO");
+    expect(guide).toContain("PAGAMENTO COMPENSADO");
+    expect(guide).toContain("Autenticação mecânica / Tesouraria");
+    expect(neonBankingMigration).toContain("bank_payment_id");
+    expect(neonBankingMigration).toContain("bank_status_detail");
+    expect(neonBankingMigration).toContain("bank_authenticated_at");
+    expect(neonBankingMigration).toContain("payment_provider");
   });
 
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
