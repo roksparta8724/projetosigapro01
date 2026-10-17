@@ -78,6 +78,19 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("secondaryUrl");
   });
 
+  it("keeps the exact configured municipal logo across F5 instead of flashing the crest-only fallback", () => {
+    expect(branding).toContain('TENANT_LOGO_CACHE_PREFIX = "sigapro.municipality-logo.v3"');
+    expect(branding).toContain("readTenantLogoCache");
+    expect(branding).toContain("writeTenantLogoCache");
+    expect(branding).toContain("synchronousHeaderUrl");
+    expect(branding).toContain("synchronousFooterUrl");
+    expect(branding).toContain("primaryHeaderLogo");
+    expect(branding).toContain("primaryFooterLogo");
+    expect(settings).toContain("getMunicipalityLogoOpenUrl");
+    expect(settings).toContain('persistentRef.startsWith("r2:")');
+    expect(settings).toContain("Brasão oficial e arquivos institucionais salvos com sucesso");
+  });
+
   it("never flashes the SIGAPRO platform logo inside a municipal logo frame during F5", () => {
     expect(logo).toContain('contextScope?: "auto" | "master" | "municipality"');
     expect(logo).toContain('contextScope === "municipality"');
