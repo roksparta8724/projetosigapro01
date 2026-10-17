@@ -12,7 +12,8 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { formatCurrency, formatOfficialProcessNumber, formatOfficialProcessTitle, getExternallyVisibleProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import {
+  buildProcessPath, formatCurrency, formatOfficialProcessNumber, formatOfficialProcessTitle, getExternallyVisibleProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -184,7 +185,7 @@ export function ExternalPaymentsPage() {
                     </div>
                     <div className="flex justify-start 2xl:justify-end">
                       <Button asChild variant="outline" className="rounded-full text-[13px]">
-                        <Link to={`/processos/${process.id}?aba=financeiro`}>Ver detalhes</Link>
+                        <Link to={buildProcessPath(process, "financeiro")}>Ver detalhes</Link>
                       </Button>
                     </div>
                   </div>
