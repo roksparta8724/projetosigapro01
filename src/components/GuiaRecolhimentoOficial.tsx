@@ -1174,6 +1174,15 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     .join(" - ");
 
   const visibleItens = itens.slice(0, 8);
+  const normalizedMunicipalityName = String(prefeitura.nome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+  const resolvedMunicipalityLogo =
+    prefeitura.logoUrl ||
+    (normalizedMunicipalityName.includes("campo limpo paulista")
+      ? "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png"
+      : "");
 
   return (
     <div ref={ref} className={`dam-root ${className}`}>
@@ -1194,9 +1203,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-top">
             <div className="dam-header">
               <div className="dam-logo-box">
-                {prefeitura.logoUrl ? (
+                {resolvedMunicipalityLogo ? (
                   <img
-                    src={prefeitura.logoUrl}
+                    src={resolvedMunicipalityLogo}
                     alt="Logo da Prefeitura"
                     className="dam-logo"
                   />
@@ -1445,8 +1454,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-bottom">
             <div className="dam-receipt-header">
               <div className="dam-receipt-logo">
-                {prefeitura.logoUrl ? (
-                  <img src={prefeitura.logoUrl} alt="Logo da Prefeitura" />
+                {resolvedMunicipalityLogo ? (
+                  <img src={resolvedMunicipalityLogo} alt="Logo da Prefeitura" />
                 ) : (
                   <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
                     LOGO
