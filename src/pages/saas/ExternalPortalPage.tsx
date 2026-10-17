@@ -19,6 +19,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -136,7 +137,7 @@ export function ExternalPortalPage() {
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">{statusLabel(process.status)}</p>
                     </div>
                     <Button asChild variant="outline" className="shrink-0 rounded-full">
-                      <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                      <Link to={buildProcessPath(process)}>Abrir processo</Link>
                     </Button>
                   </div>
                 ))
