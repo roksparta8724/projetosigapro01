@@ -32,7 +32,8 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
-import { getChecklistTemplate, isOccupancyPermitProcessType, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
+import {
+  buildProcessPath, getChecklistTemplate, isOccupancyPermitProcessType, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
@@ -983,7 +984,7 @@ export function ProtocolarProjetoPage({
       setSubmitting(false);
     }
 
-    navigate(`/processos/${remoteSeed.processId}`);
+    navigate(buildProcessPath({ id: remoteSeed.processId, protocol: remoteSeed.protocol }));
   };
 
   return (
