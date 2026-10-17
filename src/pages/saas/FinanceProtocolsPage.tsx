@@ -296,8 +296,7 @@ export function FinanceProtocolsPage() {
 
     if (
       match.guide.status !== "compensada" &&
-      !banking.barcode &&
-      !banking.digitableLine
+      (!banking.barcode || !banking.digitableLine)
     ) {
       setGuideBillingBusyKey(billingKey);
       setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
@@ -328,6 +327,17 @@ export function FinanceProtocolsPage() {
       providerCharge?.digitableLine || banking.digitableLine;
     const barcode =
       providerCharge?.barcodeContent || banking.barcode;
+    if (
+      match.guide.status !== "compensada" &&
+      (!barcode || !digitableLine)
+    ) {
+      const message =
+        "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
+      setFinancialStatus(message);
+      showGuiaRecolhimentoError(guideWindow, message);
+      return;
+    }
+
     const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
     const providerName =
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
