@@ -101,12 +101,13 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("showGuiaRecolhimentoError");
   });
 
-  it("marks sandbox guides and never mixes a real PIX with a test boleto", () => {
+  it("marks sandbox guides while keeping the configured municipal PIX visible", () => {
     expect(guide).toContain('bankEnvironment?: "test" | "production"');
     expect(guide).toContain('guia.bankEnvironment === "test"');
     expect(guide).toContain("Homologação Mercado Pago");
-    expect(finance).toContain('providerCharge?.environment === "test" ? "" : banking.pixPayload');
-    expect(processDetail).toContain('providerCharge?.environment === "test" ? "" : banking.pixPayload');
+    expect(guide).toContain("PIX cadastrado pode ser real");
+    expect(finance).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("pixPayload: banking.pixPayload");
   });
 
   it("keeps the official guide premium and print-safe", () => {
@@ -153,7 +154,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("bankAuthenticationLabel");
     expect(guide).toContain("AGUARDANDO COMPENSAÇÃO");
     expect(guide).toContain("PAGAMENTO COMPENSADO");
-    expect(guide).toContain("Autenticação mecânica / Tesouraria");
+    expect(guide).toContain("Tesouraria / baixa manual");
     expect(neonBankingMigration).toContain("bank_payment_id");
     expect(neonBankingMigration).toContain("bank_status_detail");
     expect(neonBankingMigration).toContain("bank_authenticated_at");
