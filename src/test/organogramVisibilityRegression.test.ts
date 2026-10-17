@@ -45,7 +45,7 @@ describe("municipal organogram visibility", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(hook).toContain('join(" › ")');
-    expect(detail).toContain("department.code.trim()");
+    expect(detail).toContain("department.code?.trim()");
     expect(detail).toContain("getOrganizationPath(department.name)");
   });
 });
@@ -101,14 +101,17 @@ describe("organogram visual contrast", () => {
       resolve(process.cwd(), "src/components/platform/MunicipalOrganogramBar.tsx"),
       "utf8",
     );
-    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const polarity = readFileSync(
+      resolve(process.cwd(), "src/styles/surface-polarity.css"),
+      "utf8",
+    );
 
     expect(bar).toContain('data-organogram-code="true"');
     expect(bar).toContain('data-contrast-surface="dark"');
     expect(bar).toContain("sig-dark-chip");
-    expect(css).toContain("SIGAPRO FINAL SURFACE POLARITY LOCK 2026-10-14");
-    expect(css).toContain('[data-municipal-organogram="true"] span[data-organogram-code="true"]');
-    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
+    expect(polarity).toContain("Surface Polarity Contract V8");
+    expect(polarity).toContain('[data-municipal-organogram="true"] [data-organogram-code="true"]');
+    expect(polarity).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 });
 
