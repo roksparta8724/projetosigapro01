@@ -2116,24 +2116,15 @@ html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame 
   background:#ffffff !important;
 }
 
-html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header {
-  width:176px !important;
-  min-width:176px !important;
-  max-width:176px !important;
-  height:124px !important;
-  min-height:124px !important;
-  max-height:124px !important;
-  flex-basis:176px !important;
-}
-
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header,
 html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-footer {
-  width:176px !important;
-  min-width:176px !important;
-  max-width:176px !important;
-  height:128px !important;
-  min-height:128px !important;
-  max-height:128px !important;
-  flex-basis:176px !important;
+  width:188px !important;
+  min-width:188px !important;
+  max-width:188px !important;
+  height:188px !important;
+  min-height:188px !important;
+  max-height:188px !important;
+  flex-basis:188px !important;
 }
 
 html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame > img {
@@ -2155,26 +2146,16 @@ html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor
   border-radius:24px !important;
 }
 
-html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"] {
-  width:176px !important;
-  min-width:176px !important;
-  max-width:176px !important;
-  height:124px !important;
-  min-height:124px !important;
-  max-height:124px !important;
-  aspect-ratio:176 / 124 !important;
-  border-radius:18px !important;
-}
-
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"],
 html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
-  width:176px !important;
-  min-width:176px !important;
-  max-width:176px !important;
-  height:128px !important;
-  min-height:128px !important;
-  max-height:128px !important;
-  aspect-ratio:176 / 128 !important;
-  border-radius:18px !important;
+  width:188px !important;
+  min-width:188px !important;
+  max-width:188px !important;
+  height:188px !important;
+  min-height:188px !important;
+  max-height:188px !important;
+  aspect-ratio:1 / 1 !important;
+  border-radius:20px !important;
 }
 
 html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor [data-image-frame-viewport="true"] img {
@@ -2205,7 +2186,58 @@ html body #root .sig-app-frame [data-config-brand-panel] [data-institutional-foo
     width:160px !important;
     min-width:160px !important;
     max-width:160px !important;
+    height:160px !important;
+    min-height:160px !important;
+    max-height:160px !important;
     flex-basis:160px !important;
   }
 }
 /* ENQUADRAMENTO INSTITUCIONAL EXATO V20 END */
+
+/* CONTRASTE DO PREVIEW INSTITUCIONAL V21 */
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="strong"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="muted"] {
+  color:#e8f1f8 !important;
+  -webkit-text-fill-color:#e8f1f8 !important;
+  opacity:.86 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="subtle"] {
+  color:#c8d7e4 !important;
+  -webkit-text-fill-color:#c8d7e4 !important;
+  opacity:.78 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+#cadastro-preview-usuario {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+.sig-config-logo-frame {
+  background:#ffffff !important;
+  border-color:rgba(226,232,240,.96) !important;
+  box-shadow:
+    0 16px 34px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+/* CONTRASTE DO PREVIEW INSTITUCIONAL V21 END */
+
