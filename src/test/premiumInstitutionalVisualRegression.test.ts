@@ -15,6 +15,7 @@ const sidebar = read("src/components/platform/AppSidebar.tsx");
 const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
 const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 const qr = read("src/lib/qrCode.ts");
+const permitPdf = read("src/lib/constructionPermitPdf.ts");
 
 describe("premium institutional visual contract", () => {
   it("keeps core cards adaptive with readable polarity in both workspace themes", () => {
@@ -56,10 +57,13 @@ describe("premium institutional visual contract", () => {
 
   it("uses a cleaner institutional navy QR while preserving a pure-white scan field", () => {
     expect(permit).toContain('fgColor="#0B4F71"');
+    expect(permit).toContain("secretaryVerificationUrl");
     expect(analysis).toContain('fgColor="#0B4F71"');
     expect(analysis).toContain('data-premium-qr="true"');
     expect(qr).toContain('level: "Q"');
     expect(qr).toContain('fgColor: "#0B4F71"');
     expect(qr).toContain('bgColor: "#ffffff"');
+    expect(permitPdf).toContain("secretaryVerificationQrDataUrl");
+    expect(permitPdf).toContain("pdf.roundedRect(qrX - 1.15");
   });
 });
