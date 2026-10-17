@@ -14,7 +14,7 @@ describe("tenant admin premium workspace", () => {
     expect(admin).toContain("Etapa atual");
     expect(admin).toContain("Pendências");
     expect(admin).toContain("lg:grid-cols-[minmax(260px,1.55fr)");
-    expect(admin).toContain("navigate(\`/processos/\${process.id}\`)");
+    expect(admin).toContain("navigate(buildProcessPath(process))");
   });
 
   it("uses a distinct institutional identity layout for users", () => {
