@@ -600,6 +600,20 @@ export function ConfiguracoesPage() {
     guiaPrefixo: settings?.guiaPrefixo ?? "",
     chavePix: settings?.chavePix ?? "",
     beneficiarioArrecadacao: settings?.beneficiarioArrecadacao ?? "",
+    pixEnabled: settings?.pixEnabled ?? true,
+    pixKeyType: settings?.pixKeyType ?? "cnpj",
+    pixMerchantCity: settings?.pixMerchantCity ?? tenantForm.city ?? "",
+    bankCode: settings?.bankCode ?? "",
+    bankName: settings?.bankName ?? "",
+    bankAgency: settings?.bankAgency ?? "",
+    bankAgencyDigit: settings?.bankAgencyDigit ?? "",
+    bankAccount: settings?.bankAccount ?? "",
+    bankAccountDigit: settings?.bankAccountDigit ?? "",
+    bankBeneficiaryDocument: settings?.bankBeneficiaryDocument ?? settings?.cnpj ?? "",
+    bankCollectionMode: settings?.bankCollectionMode ?? "manual",
+    bankAgreementCode: settings?.bankAgreementCode ?? "",
+    bankWallet: settings?.bankWallet ?? "",
+    bankInstructions: settings?.bankInstructions ?? "",
     taxaProtocolo: settings?.taxaProtocolo ?? 35.24,
     taxaIssPorMetroQuadrado: settings?.taxaIssPorMetroQuadrado ?? 0,
     taxaAprovacaoFinal: settings?.taxaAprovacaoFinal ?? 0,
@@ -665,6 +679,7 @@ export function ConfiguracoesPage() {
     | "institutional"
     | "communication"
     | "protocol"
+    | "collection"
     | "team"
     | "account"
     | "advanced"
@@ -926,6 +941,20 @@ export function ConfiguracoesPage() {
       guiaPrefixo: nextSettings?.guiaPrefixo ?? "",
       chavePix: nextSettings?.chavePix ?? "",
       beneficiarioArrecadacao: nextSettings?.beneficiarioArrecadacao ?? "",
+      pixEnabled: nextSettings?.pixEnabled ?? true,
+      pixKeyType: nextSettings?.pixKeyType ?? "cnpj",
+      pixMerchantCity: nextSettings?.pixMerchantCity ?? nextTenant?.city ?? "",
+      bankCode: nextSettings?.bankCode ?? "",
+      bankName: nextSettings?.bankName ?? "",
+      bankAgency: nextSettings?.bankAgency ?? "",
+      bankAgencyDigit: nextSettings?.bankAgencyDigit ?? "",
+      bankAccount: nextSettings?.bankAccount ?? "",
+      bankAccountDigit: nextSettings?.bankAccountDigit ?? "",
+      bankBeneficiaryDocument: nextSettings?.bankBeneficiaryDocument ?? nextSettings?.cnpj ?? "",
+      bankCollectionMode: nextSettings?.bankCollectionMode ?? "manual",
+      bankAgreementCode: nextSettings?.bankAgreementCode ?? "",
+      bankWallet: nextSettings?.bankWallet ?? "",
+      bankInstructions: nextSettings?.bankInstructions ?? "",
       taxaProtocolo: nextSettings?.taxaProtocolo ?? 35.24,
       taxaIssPorMetroQuadrado: nextSettings?.taxaIssPorMetroQuadrado ?? 0,
       taxaAprovacaoFinal: nextSettings?.taxaAprovacaoFinal ?? 0,
@@ -2444,6 +2473,32 @@ export function ConfiguracoesPage() {
       setStatus("Informe um subdomínio válido (somente o nome, sem .sigapromunicipal.com.br).");
       return;
     }
+    if (activeSettingsView === "collection") {
+      if (!settingsForm.beneficiarioArrecadacao.trim()) {
+        setStatus("Informe o beneficiário oficial da arrecadação.");
+        return;
+      }
+      if (settingsForm.pixEnabled && !settingsForm.chavePix.trim()) {
+        setStatus("Informe a chave PIX ou desative o PIX para esta Prefeitura.");
+        return;
+      }
+      if (settingsForm.pixEnabled && !settingsForm.pixMerchantCity.trim()) {
+        setStatus("Informe a cidade do recebedor usada no QR Code PIX.");
+        return;
+      }
+      if (settingsForm.bankCode && !/^\d{3}$/.test(settingsForm.bankCode.trim())) {
+        setStatus("O código COMPE do banco deve conter exatamente 3 dígitos.");
+        return;
+      }
+      if (settingsForm.bankCollectionMode !== "manual" && (!settingsForm.bankCode.trim() || !settingsForm.bankName.trim())) {
+        setStatus("Informe o código e o nome do banco arrecadador para usar convênio ou API bancária.");
+        return;
+      }
+      if (settingsForm.bankCollectionMode === "agreement" && !settingsForm.bankAgreementCode.trim()) {
+        setStatus("Informe o número do convênio de arrecadação fornecido pelo banco.");
+        return;
+      }
+    }
     if (tenantForm.subdomain !== normalizedSubdomain) {
       setTenantField("subdomain", normalizedSubdomain);
     }
@@ -2905,6 +2960,12 @@ export function ConfiguracoesPage() {
             description: "Organize prefixos, numeração oficial e parâmetros financeiros do fluxo DAM.",
             icon: ScrollText,
           }
+        : activeSettingsView === "collection"
+          ? {
+              title: "Arrecadação e banco",
+              description: "Configure PIX, beneficiário, banco arrecadador e os dados do convênio usados nas guias municipais.",
+              icon: Wallet,
+            }
         : activeSettingsView === "team"
           ? {
               title: "Equipe responsável",
@@ -2946,6 +3007,7 @@ export function ConfiguracoesPage() {
           { value: "institutional", label: "Dados institucionais", helper: "Prefeitura e cadastro" },
           { value: "communication", label: "Comunicação oficial", helper: "Canais e contato público" },
           { value: "protocol", label: "Protocolo e prefixos", helper: "Numeração e DAM" },
+          { value: "collection", label: "Arrecadação e banco", helper: "PIX, convênio e cobrança" },
           { value: "team", label: "Equipe responsável", helper: "Secretaria e diretoria" },
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
@@ -2977,7 +3039,7 @@ export function ConfiguracoesPage() {
           </PageMainContent>
         </PageMainGrid>
       ) : null}
-      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
+      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
         {activeSettingsView === "branding" ? <PageMainContent className="w-full">
         <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
             {session.tenantId === null ? (
@@ -3044,6 +3106,20 @@ export function ConfiguracoesPage() {
                       guiaPrefixo: "",
                       chavePix: "",
                       beneficiarioArrecadacao: "",
+                      pixEnabled: true,
+                      pixKeyType: "cnpj",
+                      pixMerchantCity: "",
+                      bankCode: "",
+                      bankName: "",
+                      bankAgency: "",
+                      bankAgencyDigit: "",
+                      bankAccount: "",
+                      bankAccountDigit: "",
+                      bankBeneficiaryDocument: "",
+                      bankCollectionMode: "manual",
+                      bankAgreementCode: "",
+                      bankWallet: "",
+                      bankInstructions: "",
                       taxaProtocolo: 35.24,
                       taxaIssPorMetroQuadrado: 0,
                       taxaAprovacaoFinal: 0,
@@ -3760,7 +3836,7 @@ export function ConfiguracoesPage() {
           </PageMainContent>
         ) : null}
 
-        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
+        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
         <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
