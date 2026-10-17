@@ -27,10 +27,10 @@ describe("construction permit PDF opening", () => {
     expect(panel).toContain("await openPdf(next, true, reservedPdfWindow)");
   });
 
-  it("uses professional manual-signature copy without 'à caneta' in the permit card", () => {
-    expect(panel).toContain("Preparado para assinatura");
+  it("keeps the explicit manual-signature option for the Director", () => {
     expect(panel).toContain("Abrir PDF do Alvará");
-    expect(panel).toContain("Gerar PDF do Alvará");
-    expect(panel).not.toContain("à caneta");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
+    expect(panel).toContain("assinatura manual");
+    expect(panel).toContain("openPdf(next, true, reservedPdfWindow)");
   });
 });
