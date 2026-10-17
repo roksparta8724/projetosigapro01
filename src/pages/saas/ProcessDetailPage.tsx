@@ -596,6 +596,7 @@ export function ProcessDetailPage() {
     ) return;
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("aba", tab);
+    if (tab !== "financeiro") nextParams.delete("guia");
     navigate({ pathname: location.pathname, search: nextParams.toString() }, { replace: true, preventScrollReset: true });
     setActiveTab(tab);
   };
@@ -677,6 +678,17 @@ export function ProcessDetailPage() {
     process?.protocol,
     processId,
   ]);
+
+  useEffect(() => {
+    if (activeTab !== "financeiro" || !requestedGuideCode) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById("guia-selecionada")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, requestedGuideCode, processId]);
 
   useEffect(() => {
     if (activeTab !== "historico" || location.hash !== "#despacho") return;
@@ -838,6 +850,10 @@ export function ProcessDetailPage() {
   const visiblePaymentGuides = isExternalProcessViewer
     ? getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
     : paymentGuides;
+  const requestedGuideCode = new URLSearchParams(location.search).get("guia")?.trim() || "";
+  const requestedPaymentGuide = requestedGuideCode
+    ? paymentGuides.find((guide) => guide.code === requestedGuideCode) ?? null
+    : null;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
   const permitReachedIssuanceStage =
@@ -1335,8 +1351,16 @@ export function ProcessDetailPage() {
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
-  const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
-    const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
+  const printGuide = (
+    guideKind: PaymentGuideKind = "protocolo",
+    autoPrint = true,
+    guideCode?: string,
+  ) => {
+    const selectedGuide =
+      (guideCode
+        ? visiblePaymentGuides.find((guide) => guide.code === guideCode)
+        : undefined) ||
+      visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
@@ -3653,7 +3677,7 @@ export function ProcessDetailPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, false)}>
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, false, guide.code)}>
                             {guideBillingBusyKey ? (
                               <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                             ) : (
@@ -3661,7 +3685,7 @@ export function ProcessDetailPage() {
                             )}
                             {guideBillingBusyKey ? "Preparando guia..." : "Visualizar"}
                           </Button>
-                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, true)}>
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, true, guide.code)}>
                             {guideBillingBusyKey ? (
                               <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                             ) : (
@@ -3679,6 +3703,68 @@ export function ProcessDetailPage() {
                   Nenhuma cobrança foi liberada para você neste processo.
                 </div>
               )}
+            </CardContent>
+          </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
+          <Card
+            id="guia-selecionada"
+            className="sig-process-card min-w-0 rounded-[20px] border-2 border-sky-300 bg-sky-50/60 shadow-[0_16px_38px_rgba(14,116,144,0.12)] dark:border-sky-500/50 dark:bg-sky-950/20"
+          >
+            <CardHeader className="border-b border-sky-200/80 dark:border-sky-700/50">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">
+                    Guia selecionada no Financeiro
+                  </p>
+                  <CardTitle className="mt-1 flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <ReceiptText className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    {requestedPaymentGuide.code}
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    {requestedPaymentGuide.label}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    requestedPaymentGuide.status === "compensada"
+                      ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                      : "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
+                  }
+                >
+                  {requestedPaymentGuide.status === "compensada" ? "Compensada" : "Pendente"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Valor</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">
+                    {formatCurrency(requestedPaymentGuide.amount)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {requestedPaymentGuide.dueDate || "Não informado"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={Boolean(guideBillingBusyKey)}
+                    onClick={() => void printGuide(requestedPaymentGuide.kind, false, requestedPaymentGuide.code)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Visualizar esta guia
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
           )}
