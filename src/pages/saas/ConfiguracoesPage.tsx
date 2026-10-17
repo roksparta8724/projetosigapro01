@@ -3217,7 +3217,7 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview={false}
+                      allowPreview
                       files={draftHeaderLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftHeaderLogoFiles(files);
@@ -3247,7 +3247,15 @@ export function ConfiguracoesPage() {
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
                         {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
+                      <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
+                        Testar prefeitura
+                      </Button>
                     </div>
+                    {diagnosticStatus ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                        {diagnosticStatus}
+                      </div>
+                    ) : null}
                     {headerLogoStatus ? (
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm ${
@@ -3342,7 +3350,7 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview={false}
+                      allowPreview
                       files={draftFooterLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftFooterLogoFiles(files);
