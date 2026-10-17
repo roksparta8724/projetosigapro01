@@ -1225,7 +1225,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           : [nextTenant, ...current.tenants];
 
         const existingSettings = current.tenantSettings.find((item) => item.tenantId === tenantId);
-        const tenantSettings = existingSettings
+        const tenantSettings: InstitutionSettings[] = existingSettings
           ? current.tenantSettings
           : [
               {
