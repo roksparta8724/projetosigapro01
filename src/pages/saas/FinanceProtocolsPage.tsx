@@ -778,7 +778,7 @@ export function FinanceProtocolsPage() {
                                   return (
                                     <div
                                       key={`${process.id}:${guide.kind}:${guide.code}`}
-                                      className="rounded-[18px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/60"
+                                      className="sig-finance-guide-card rounded-[18px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/60"
                                     >
                                       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px_150px_auto] xl:items-center">
                                         <div className="min-w-0">
@@ -882,12 +882,12 @@ export function FinanceProtocolsPage() {
                                       </div>
 
                                       <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                                        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
+                                        <div className="sig-finance-pix-surface min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
                                           <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
                                             PIX copia e cola
                                           </p>
                                           <p
-                                            className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-[10px] leading-5 text-slate-600 dark:text-slate-300"
+                                            className="sig-finance-pix-code mt-1 overflow-x-auto whitespace-nowrap font-mono text-[10px] leading-5 text-slate-600 dark:text-slate-300"
                                             title={pixPayload || "PIX não configurado"}
                                           >
                                             {pixPayload || "PIX não configurado para esta Prefeitura"}
