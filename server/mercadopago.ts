@@ -190,6 +190,89 @@ function normalizeGuideCode(value: unknown) {
     .slice(0, 64);
 }
 
+function extractMercadoPagoGuideResult(
+  payload: unknown,
+  environment: MercadoPagoEnvironment,
+  externalReference: string,
+  amountText: string,
+): MercadoPagoGuideBoletoResult {
+  const source =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : {};
+  const transactions =
+    source.transactions && typeof source.transactions === "object"
+      ? (source.transactions as Record<string, unknown>)
+      : {};
+  const payments = Array.isArray(transactions.payments)
+    ? transactions.payments
+    : [];
+  const payment =
+    payments[0] && typeof payments[0] === "object"
+      ? (payments[0] as Record<string, unknown>)
+      : {};
+  const paymentMethod =
+    payment.payment_method && typeof payment.payment_method === "object"
+      ? (payment.payment_method as Record<string, unknown>)
+      : {};
+
+  return {
+    ok: true,
+    environment,
+    orderId: String(source.id || ""),
+    paymentId: String(payment.id || ""),
+    externalReference: String(source.external_reference || externalReference),
+    status: String(source.status || payment.status || ""),
+    statusDetail: String(source.status_detail || payment.status_detail || ""),
+    amount: String(source.total_amount || payment.amount || amountText),
+    ticketUrl: String(paymentMethod.ticket_url || ""),
+    barcodeContent: String(paymentMethod.barcode_content || ""),
+    digitableLine: String(paymentMethod.digitable_line || ""),
+    financialInstitution: String(
+      paymentMethod.financial_institution || "Mercado Pago",
+    ),
+  };
+}
+
+function hasCompleteGuideBankingData(result: MercadoPagoGuideBoletoResult) {
+  const lineDigits = String(result.digitableLine || "").replace(/\D/g, "");
+  const barcodeDigits = String(result.barcodeContent || "").replace(/\D/g, "");
+  return (
+    (lineDigits.length === 47 || lineDigits.length === 48) &&
+    barcodeDigits.length >= 40 &&
+    barcodeDigits.length <= 48 &&
+    barcodeDigits.length % 2 === 0
+  );
+}
+
+async function refetchMercadoPagoOrder(
+  orderId: string,
+  token: string,
+  environment: MercadoPagoEnvironment,
+  externalReference: string,
+  amountText: string,
+) {
+  if (!orderId) return null;
+  const response = await fetch(
+    `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) return null;
+  return extractMercadoPagoGuideResult(
+    payload,
+    environment,
+    externalReference,
+    amountText,
+  );
+}
+
 function extractMercadoPagoError(
   source: Record<string, unknown>,
   status: number,
@@ -351,71 +434,34 @@ export async function createMercadoPagoGuideBoleto(
       };
     }
 
-    const transactions =
-      source.transactions && typeof source.transactions === "object"
-        ? (source.transactions as Record<string, unknown>)
-        : {};
-    const payments = Array.isArray(transactions.payments)
-      ? transactions.payments
-      : [];
-    const paymentResult =
-      payments[0] && typeof payments[0] === "object"
-        ? (payments[0] as Record<string, unknown>)
-        : {};
-    const paymentMethod =
-      paymentResult.payment_method &&
-      typeof paymentResult.payment_method === "object"
-        ? (paymentResult.payment_method as Record<string, unknown>)
-        : {};
+    let result = extractMercadoPagoGuideResult(
+      source,
+      environment,
+      externalReference,
+      amountText,
+    );
 
-    const digitableLine = String(paymentMethod.digitable_line || "");
-    const barcodeContent = String(paymentMethod.barcode_content || "");
-    const lineDigits = digitableLine.replace(/\D/g, "");
-    const barcodeDigits = barcodeContent.replace(/\D/g, "");
-    const validLine = lineDigits.length === 47 || lineDigits.length === 48;
-    const validBarcode =
-      barcodeDigits.length >= 40 &&
-      barcodeDigits.length <= 48 &&
-      barcodeDigits.length % 2 === 0;
-
-    if (!validLine || !validBarcode) {
-      return {
-        ok: false,
+    if (!hasCompleteGuideBankingData(result) && result.orderId) {
+      const refreshed = await refetchMercadoPagoOrder(
+        result.orderId,
+        token,
         environment,
-        orderId: String(source.id || ""),
-        paymentId: String(paymentResult.id || ""),
-        externalReference: String(
-          source.external_reference || externalReference,
-        ),
-        status: String(source.status || paymentResult.status || ""),
-        statusDetail: String(
-          source.status_detail || paymentResult.status_detail || "",
-        ),
+        externalReference,
+        amountText,
+      );
+      if (refreshed) result = refreshed;
+    }
+
+    if (!hasCompleteGuideBankingData(result)) {
+      return {
+        ...result,
+        ok: false,
         error:
           "O Mercado Pago criou a cobrança, mas não devolveu linha digitável e código de barras em formato bancário completo.",
       };
     }
 
-    return {
-      ok: true,
-      environment,
-      orderId: String(source.id || ""),
-      paymentId: String(paymentResult.id || ""),
-      externalReference: String(
-        source.external_reference || externalReference,
-      ),
-      status: String(source.status || paymentResult.status || ""),
-      statusDetail: String(
-        source.status_detail || paymentResult.status_detail || "",
-      ),
-      amount: String(source.total_amount || paymentResult.amount || amountText),
-      ticketUrl: String(paymentMethod.ticket_url || ""),
-      barcodeContent,
-      digitableLine,
-      financialInstitution: String(
-        paymentMethod.financial_institution || "Mercado Pago",
-      ),
-    };
+    return result;
   } catch (error) {
     return {
       ok: false,
