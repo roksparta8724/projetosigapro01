@@ -55,6 +55,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(permit).toContain('resolveAuthorityRoleLabel(user, "Diretor")');
   });
 
+  it("exposes official coat-of-arms management directly from Prefeitura administration", () => {
+    expect(admin).toContain('title="Brasão oficial"');
+    expect(admin).toContain("coatOfArmsPreviewUrl");
+    expect(admin).toContain("Alterar ou salvar brasão");
+    expect(admin).toContain('navigate("/configuracoes?secao=branding")');
+  });
+
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
     expect(backend).toContain("getLegacyProfileAvatarOpenUrl");
     expect(r2Client).toContain("/api/profile-avatar-open?source=");
