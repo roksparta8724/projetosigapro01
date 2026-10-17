@@ -112,7 +112,9 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("loadedSourceMatchesCurrentPrimary");
     expect(logo).toContain("cachedContextMatchesCurrentPrimary");
     expect(logo).toContain("isAuthoritativeCurrentLogo");
-    expect(logo).toContain("Nunca grave no cache de continuidade um brasão de fallback");
+    expect(logo).toContain("pendingIsAuthoritative");
+    expect(logo).toContain("Não pré-carregue nem");
+    expect(logo).toContain("Só a imagem configurada entra no cache municipal");
     expect(logo).toContain('parsed.pathname.endsWith("/api/municipality-logo-open")');
     expect(logo).toContain('parsed.searchParams.get("objectKey")');
   });
