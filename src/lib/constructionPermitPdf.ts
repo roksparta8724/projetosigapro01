@@ -128,17 +128,25 @@ function writePdfShell(opened: Window, title: string, message: string) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${escapeHtml(title)}</title>
   <style>
-    html,body{margin:0;width:100%;height:100%;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a}
-    #sigapro-pdf-shell{width:100%;height:100%;display:flex;flex-direction:column}
-    #sigapro-pdf-status{padding:14px 18px;background:#fff;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700}
-    #sigapro-pdf-frame{flex:1;width:100%;border:0;background:#f8fafc}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:#071b2e;font-family:Arial,sans-serif;color:#fff}
+    body{display:grid;place-items:center}
+    #sigapro-pdf-shell{width:min(520px,calc(100vw - 40px));padding:28px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(145deg,#0a2d49,#0b567e);box-shadow:0 28px 80px rgba(0,0,0,.28)}
+    #sigapro-pdf-brand{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#bae6fd}
+    #sigapro-pdf-title{margin-top:9px;font-size:21px;font-weight:800;line-height:1.25}
+    #sigapro-pdf-status{margin-top:14px;font-size:13px;line-height:1.6;color:#e2e8f0}
+    #sigapro-pdf-progress{margin-top:22px;height:5px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.14)}
+    #sigapro-pdf-progress:after{content:"";display:block;width:42%;height:100%;border-radius:999px;background:#38bdf8;animation:loading 1.1s ease-in-out infinite alternate}
+    @keyframes loading{from{transform:translateX(-20%)}to{transform:translateX(180%)}}
   </style>
 </head>
 <body>
-  <div id="sigapro-pdf-shell">
+  <main id="sigapro-pdf-shell">
+    <div id="sigapro-pdf-brand">SIGAPRO • Documento oficial</div>
+    <div id="sigapro-pdf-title">${escapeHtml(title)}</div>
     <div id="sigapro-pdf-status">${escapeHtml(message)}</div>
-    <iframe id="sigapro-pdf-frame" title="${escapeHtml(title)}"></iframe>
-  </div>
+    <div id="sigapro-pdf-progress" aria-hidden="true"></div>
+  </main>
 </body>
 </html>`);
   opened.document.close();
@@ -1074,7 +1082,41 @@ export async function buildConstructionPermitPdfBlob({
   return pdf.output("blob");
 }
 
-export async function openConstructionPermitPdf(input: ConstructionPermitPdfInput) {
+export function reserveConstructionPermitPdfWindow(
+  input: Pick<ConstructionPermitPdfInput, "permit" | "process">,
+) {
+  const permitDocumentTitle = buildPermitDocumentTitle(
+    input.permit.formData?.workType ||
+      input.process.property.workType ||
+      input.process.type,
+  );
+  const tabTitle = buildPermitTabTitle(
+    permitDocumentTitle,
+    input.permit.permitNumber,
+    input.process.protocol,
+  );
+
+  // Importante: não usar "noopener" como feature do window.open aqui.
+  // Em Chromium isso pode abrir a aba e devolver null, deixando about:blank
+  // órfão e acionando o antigo fallback de download. Mantemos o handle e
+  // zeramos opener imediatamente depois.
+  const opened = window.open(
+    "about:blank",
+    `sigapro-alvara-${input.process.id}`,
+  );
+
+  if (!opened) return null;
+
+  opened.opener = null;
+  writePdfShell(opened, tabTitle, "Preparando o PDF oficial do Alvará...");
+  opened.focus();
+  return opened;
+}
+
+export async function openConstructionPermitPdf(
+  input: ConstructionPermitPdfInput,
+  reservedWindow?: Window | null,
+) {
   const permitDocumentTitle = buildPermitDocumentTitle(
     input.permit.formData?.workType ||
       input.process.property.workType ||
@@ -1091,15 +1133,15 @@ export async function openConstructionPermitPdf(input: ConstructionPermitPdfInpu
     input.process.protocol,
   );
 
-  const opened = window.open(
-    "",
-    `sigapro-alvara-${input.process.id}`,
-    "noopener,noreferrer",
-  );
+  const opened =
+    reservedWindow && !reservedWindow.closed
+      ? reservedWindow
+      : reserveConstructionPermitPdfWindow(input);
 
-  if (opened) {
-    opened.opener = null;
-    writePdfShell(opened, tabTitle, "Gerando PDF oficial do Alvará...");
+  if (!opened) {
+    throw new Error(
+      "O navegador bloqueou a abertura do PDF. Libere pop-ups para o SIGAPRO e tente novamente.",
+    );
   }
 
   try {
@@ -1107,41 +1149,21 @@ export async function openConstructionPermitPdf(input: ConstructionPermitPdfInpu
     const namedBlob = new File([blob], fileName, { type: "application/pdf" });
     const url = URL.createObjectURL(namedBlob);
 
-    if (opened) {
-      opened.document.title = tabTitle;
-      const status = opened.document.getElementById("sigapro-pdf-status");
-      const frame = opened.document.getElementById(
-        "sigapro-pdf-frame",
-      ) as HTMLIFrameElement | null;
+    // Navega a própria guia reservada para o PDF nativo do navegador.
+    // Não cria iframe intermediário e não dispara download automático.
+    opened.location.replace(url);
+    opened.focus();
 
-      if (status) status.remove();
-      if (frame) {
-        frame.src = url;
-        frame.title = tabTitle;
-      } else {
-        writePdfShell(opened, tabTitle, "");
-        const fallbackFrame = opened.document.getElementById(
-          "sigapro-pdf-frame",
-        ) as HTMLIFrameElement | null;
-        if (fallbackFrame) fallbackFrame.src = url;
-      }
-
-      opened.document.title = tabTitle;
-      opened.focus();
-    } else {
-      const fallback = document.createElement("a");
-      fallback.href = url;
-      fallback.download = fileName;
-      fallback.rel = "noopener noreferrer";
-      fallback.click();
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
+    // Mantém o Blob vivo tempo suficiente para impressão/salvamento pelo viewer.
+    window.setTimeout(() => URL.revokeObjectURL(url), 15 * 60_000);
   } catch (error) {
-    if (opened) {
+    if (!opened.closed) {
       opened.document.title = `Erro • ${tabTitle}`;
-      opened.document.body.innerHTML =
-        '<div style="font-family:Arial,sans-serif;padding:32px;color:#991b1b">Não foi possível gerar o PDF do Alvará.</div>';
+      writePdfShell(
+        opened,
+        `Erro • ${tabTitle}`,
+        "Não foi possível gerar o PDF do Alvará. Feche esta guia e tente novamente.",
+      );
     }
     throw error;
   }
