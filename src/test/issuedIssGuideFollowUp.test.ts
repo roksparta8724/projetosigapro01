@@ -107,7 +107,7 @@ describe("ISSQN after transfer to Financeiro", () => {
     expect(detail).toContain("ensureMercadoPagoGuideCharge");
     expect(detail).toContain("codigoBarras: barcode");
     expect(detail).toContain("linhaDigitavel: digitableLine");
-    expect(detail).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
+    expect(detail).toContain("A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.");
     expect(detail).not.toContain('.padEnd(44, "7")');
     expect(backend).toContain("actorProfileId: entry.actor_profile_id ?? undefined");
   });
