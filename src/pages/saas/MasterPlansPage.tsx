@@ -240,7 +240,7 @@ const escapeHtml = (value: string) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replaceAll("'", "&#039;");
+    .replace(/'/g, "&#039;");
 
 const buildCommercialHeadline = (plans: PlanItem[], materialType: CommercialMaterialType, customerName: string) => {
   const audience = customerName.trim() || "sua Prefeitura";
