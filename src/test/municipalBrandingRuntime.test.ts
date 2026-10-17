@@ -88,7 +88,10 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain("primaryFooterLogo");
     expect(settings).toContain("getMunicipalityLogoOpenUrl");
     expect(settings).toContain('persistentRef.startsWith("r2:")');
-    expect(settings).toContain("Brasão oficial e arquivos institucionais salvos com sucesso");
+    expect(settings).toContain('bucket === "institutional-branding"');
+    expect(settings).toContain("getMunicipalityLogoOpenUrl(uploaded.path)");
+    expect(settings).not.toContain("domínio público dos ativos institucionais não está configurado");
+    expect(settings).toContain("Brasão oficial salvo com sucesso no cadastro desta Prefeitura");
   });
 
   it("never flashes the SIGAPRO platform logo inside a municipal logo frame during F5", () => {
