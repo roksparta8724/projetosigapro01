@@ -10203,3 +10203,55 @@ img.sig-sei-verification-qr-image {
   filter:none !important;
 }
 /* ===== END SIGNATURE QR RASTER QUALITY LOCK V3 ===== */
+
+
+/* ===== SIDEBAR ACTIVE CHILD WHITE MASK READABILITY V4 — 2026-10-17 =====
+   Preserve the white active mask exactly as before, but keep the active
+   child label/icon dark and readable. Non-active children remain light on
+   the institutional blue sidebar. */
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] {
+  background:#ffffff !important;
+  border-color:rgba(255,255,255,.92) !important;
+  color:#0b3553 !important;
+  -webkit-text-fill-color:#0b3553 !important;
+  font-weight:700 !important;
+  opacity:1 !important;
+  box-shadow:
+    0 10px 24px rgba(2,6,23,.20),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] :is(span,strong,small,p) {
+  color:#0b3553 !important;
+  -webkit-text-fill-color:#0b3553 !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] svg {
+  color:#0b4f71 !important;
+  stroke:#0b4f71 !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] > span[aria-hidden="true"] {
+  background:#0b4f71 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="false"] {
+  color:#e7f3fb !important;
+  -webkit-text-fill-color:#e7f3fb !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="false"] svg {
+  color:#d7ebf8 !important;
+  stroke:#d7ebf8 !important;
+  opacity:1 !important;
+}
+/* ===== END SIDEBAR ACTIVE CHILD WHITE MASK READABILITY V4 ===== */
