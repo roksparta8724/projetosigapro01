@@ -78,7 +78,9 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).not.toContain("reserveGuiaRecolhimentoWindow");
     expect(finance).not.toContain("showGuiaRecolhimentoError");
     expect(processDetail).not.toContain("showGuiaRecolhimentoError");
-    expect(guide).toContain("municipalLogoFallback");
+    expect(guide).toContain("resolvedMunicipalityLogo");
+    expect(guide).toContain("logoUrl: toAbsoluteGuideAssetUrl(props.prefeitura.logoUrl)");
+    expect(guide).not.toContain("showGuiaRecolhimentoError");
     expect(guide).toContain("toAbsoluteGuideAssetUrl");
     expect(guide).toContain("Promise.all(pending)");
     expect(guide).toContain("URL.createObjectURL");
