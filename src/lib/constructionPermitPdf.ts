@@ -1080,6 +1080,7 @@ export async function buildConstructionPermitPdfBlob({
       "Diretoria responsável",
       permit.directorSignature,
       showManualDirectorLine,
+      verificationQrDataUrl,
     );
   }
   y += 28;
