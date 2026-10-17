@@ -4095,19 +4095,257 @@ export function ConfiguracoesPage() {
                 </>
               ) : null}
 
-              {activeSettingsView === "communication" ? (
+              {activeSettingsView === "collection" ? (
                 <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Chave Pix</Label>
-                  <Input value={settingsForm.chavePix} onChange={(event) => setSettingsField("chavePix", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                <Label>Beneficiário da Arrecadação</Label>
-                  <Input value={settingsForm.beneficiarioArrecadacao} onChange={(event) => setSettingsField("beneficiarioArrecadacao", event.target.value)} />
-                </div>
-              </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className={`rounded-2xl border p-4 ${
+                      settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                        ? "border-emerald-200 bg-emerald-50/80"
+                        : "border-amber-200 bg-amber-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">PIX municipal</p>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                          settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-500 text-white"
+                        }`}>
+                          {settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                            ? "Pronto"
+                            : "Pendente"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {settingsForm.pixEnabled ? "QR Code e Copia e Cola" : "PIX desativado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        O SIGAPRO gera o BR Code com valor e identificação da guia.
+                      </p>
+                    </div>
 
+                    <div className={`rounded-2xl border p-4 ${
+                      settingsForm.bankCode.trim() && settingsForm.bankName.trim()
+                        ? "border-sky-200 bg-sky-50/80"
+                        : "border-slate-200 bg-slate-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">Banco arrecadador</p>
+                        <Landmark className="h-4 w-4 text-sky-700" />
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {settingsForm.bankName.trim() || "Banco não cadastrado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {settingsForm.bankCode.trim()
+                          ? `COMPE ${settingsForm.bankCode.trim()}`
+                          : "Informe banco e código COMPE."}
+                      </p>
+                    </div>
+
+                    <div className={`rounded-2xl border p-4 ${
+                      settingsForm.bankCollectionMode !== "manual" &&
+                      settingsForm.bankCode.trim() &&
+                      settingsForm.bankName.trim() &&
+                      (settingsForm.bankCollectionMode !== "agreement" || settingsForm.bankAgreementCode.trim())
+                        ? "border-violet-200 bg-violet-50/80"
+                        : "border-amber-200 bg-amber-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">Código de barras</p>
+                        <ReceiptText className="h-4 w-4 text-violet-700" />
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {settingsForm.bankCollectionMode === "api"
+                          ? "Integração bancária por API"
+                          : settingsForm.bankCollectionMode === "agreement"
+                            ? "Convênio bancário cadastrado"
+                            : "Aguardando convênio/API"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        O código bancário só será impresso quando vier de uma integração oficial do banco.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">PIX da Prefeitura</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Configure a chave oficial usada nas guias. Nenhuma chave é criada automaticamente.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2">
+                        <span className="text-xs font-semibold text-slate-700">Habilitar PIX</span>
+                        <Switch
+                          checked={settingsForm.pixEnabled}
+                          onCheckedChange={(checked) => setSettingsField("pixEnabled", checked)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Beneficiário oficial</Label>
+                        <Input
+                          value={settingsForm.beneficiarioArrecadacao}
+                          onChange={(event) => setSettingsField("beneficiarioArrecadacao", event.target.value)}
+                          placeholder="Prefeitura Municipal de ..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>CNPJ/CPF do beneficiário</Label>
+                        <Input
+                          value={settingsForm.bankBeneficiaryDocument}
+                          onChange={(event) => setSettingsField("bankBeneficiaryDocument", event.target.value)}
+                          placeholder="Documento da conta arrecadadora"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-[minmax(160px,0.55fr)_minmax(0,1.45fr)]">
+                      <div className="space-y-2">
+                        <Label>Tipo da chave PIX</Label>
+                        <Select
+                          value={settingsForm.pixKeyType}
+                          onValueChange={(value) => setSettingsField("pixKeyType", value as "cpf" | "cnpj" | "email" | "phone" | "random")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cnpj">CNPJ</SelectItem>
+                            <SelectItem value="cpf">CPF</SelectItem>
+                            <SelectItem value="email">E-mail</SelectItem>
+                            <SelectItem value="phone">Telefone</SelectItem>
+                            <SelectItem value="random">Chave aleatória</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Chave PIX</Label>
+                        <Input
+                          value={settingsForm.chavePix}
+                          onChange={(event) => setSettingsField("chavePix", event.target.value)}
+                          disabled={!settingsForm.pixEnabled}
+                          placeholder="Chave registrada para a Prefeitura"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Cidade do recebedor no PIX</Label>
+                        <Input
+                          value={settingsForm.pixMerchantCity}
+                          onChange={(event) => setSettingsField("pixMerchantCity", event.target.value)}
+                          disabled={!settingsForm.pixEnabled}
+                          placeholder={tenantForm.city || "Campo Limpo Paulista"}
+                        />
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs leading-5 text-emerald-800">
+                        O QR Code é gerado com o valor exato da guia e TXID vinculado ao número da cobrança. A chave precisa existir e estar ativa no PSP/banco da Prefeitura.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-5">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Banco arrecadador e convênio</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Cadastre os dados fornecidos pela Tesouraria ou pelo banco. Credenciais, tokens e certificados de API nunca devem ser gravados nesta tela.
+                      </p>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-[minmax(160px,0.5fr)_minmax(0,1.5fr)]">
+                      <div className="space-y-2">
+                        <Label>Código COMPE</Label>
+                        <Input
+                          inputMode="numeric"
+                          maxLength={3}
+                          value={settingsForm.bankCode}
+                          onChange={(event) => setSettingsField("bankCode", event.target.value.replace(/\D/g, "").slice(0, 3))}
+                          placeholder="001"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nome do banco</Label>
+                        <Input
+                          value={settingsForm.bankName}
+                          onChange={(event) => setSettingsField("bankName", event.target.value)}
+                          placeholder="Banco arrecadador"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-4">
+                      <div className="space-y-2">
+                        <Label>Agência</Label>
+                        <Input value={settingsForm.bankAgency} onChange={(event) => setSettingsField("bankAgency", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Dígito agência</Label>
+                        <Input value={settingsForm.bankAgencyDigit} onChange={(event) => setSettingsField("bankAgencyDigit", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Conta</Label>
+                        <Input value={settingsForm.bankAccount} onChange={(event) => setSettingsField("bankAccount", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Dígito conta</Label>
+                        <Input value={settingsForm.bankAccountDigit} onChange={(event) => setSettingsField("bankAccountDigit", event.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Modo de arrecadação bancária</Label>
+                        <Select
+                          value={settingsForm.bankCollectionMode}
+                          onValueChange={(value) => setSettingsField("bankCollectionMode", value as "manual" | "agreement" | "api")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">PIX / baixa municipal</SelectItem>
+                            <SelectItem value="agreement">Convênio bancário</SelectItem>
+                            <SelectItem value="api">API bancária</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Número do convênio</Label>
+                        <Input
+                          value={settingsForm.bankAgreementCode}
+                          onChange={(event) => setSettingsField("bankAgreementCode", event.target.value)}
+                          placeholder="Fornecido pelo banco"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Carteira / modalidade</Label>
+                        <Input
+                          value={settingsForm.bankWallet}
+                          onChange={(event) => setSettingsField("bankWallet", event.target.value)}
+                          placeholder="Quando aplicável"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      <Label>Instruções bancárias para a guia</Label>
+                      <Textarea
+                        rows={3}
+                        value={settingsForm.bankInstructions}
+                        onChange={(event) => setSettingsField("bankInstructions", event.target.value)}
+                        placeholder="Ex.: pagável até o vencimento nos canais oficiais indicados pela Prefeitura."
+                      />
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs leading-5 text-amber-900">
+                      <strong>Código de barras bancário:</strong> o SIGAPRO não inventa números de cobrança. Para imprimir código de barras e linha digitável válidos, o banco deve fornecer o padrão do convênio ou uma API que retorne a cobrança registrada. O sistema ficará pronto para consumir esses dados sem alterar o fluxo da guia.
+                    </div>
+                  </div>
                 </>
               ) : null}
 
@@ -4143,7 +4381,7 @@ export function ConfiguracoesPage() {
               ) : null}
 
               <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
-                Atualizar perfil da prefeitura
+                {activeSettingsView === "collection" ? "Salvar arrecadação e banco" : "Atualizar perfil da prefeitura"}
               </Button>
             </form>
 
