@@ -58,7 +58,7 @@ describe("official construction permit workflow", () => {
     expect(permitLib).toContain("assignedProfileId");
     expect(ownershipMigration).toContain("guard_construction_permit_analysis_owner");
     expect(ownershipMigration).toContain("Somente o Analista Técnico responsável");
-    expect(ownershipMigration).toContain("directorSignature");
+    expect(ownershipMigration).toContain("artifact_type='construction_permit'");
     expect(ownershipMigration).toContain("s.signer_slot='diretoria'");
     expect(ownershipMigration).toContain("old.status='signed'");
   });
