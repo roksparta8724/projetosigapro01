@@ -379,7 +379,7 @@ function getStyles() {
     }
 
     .dam-block-bottom {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
     }
@@ -1013,21 +1013,51 @@ function getStyles() {
 
     .dam-qrcode-box img,
     .dam-qrcode-box svg {
-      width: 52px;
-      height: 52px;
+      width: 60px;
+      height: 60px;
       object-fit: contain;
       display: block;
       background: #ffffff;
     }
 
+    .dam-pix-test-warning {
+      margin-top: 2px;
+      border: 1px solid #f0b45d;
+      border-radius: 3px;
+      background: #fff7ed;
+      color: #9a3412;
+      padding: 2px 3px;
+      font-size: 5.2px;
+      line-height: 1.15;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .dam-pix-copy-label {
+      margin-top: 2px;
+      font-size: 5.4px;
+      line-height: 1;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+    }
+
     .dam-pix-copy {
       margin-top: 2px;
-      max-height: 18px;
+      max-height: 29px;
       overflow: hidden;
-      font-size: 4.8px;
-      line-height: 1.15;
+      border: 1px solid #d4dee7;
+      border-radius: 3px;
+      background: #f8fafc;
+      padding: 2px 3px;
+      box-sizing: border-box;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 4.9px;
+      line-height: 1.18;
+      font-weight: 600;
       word-break: break-all;
-      color: #111111;
+      color: #0f172a;
     }
 
     .dam-qrcode-fallback {
@@ -1202,8 +1232,9 @@ function getStyles() {
       display: grid;
       grid-template-columns: 1fr 54mm;
       border-top: 1px solid #b7c5d2;
-      flex: 1 1 auto;
-      min-height: 20mm;
+      flex: 0 0 auto;
+      min-height: 19mm;
+      background: #f8fbfd;
     }
 
     .dam-final-left,
@@ -1225,17 +1256,22 @@ function getStyles() {
     .dam-final-box {
       margin-top: 3px;
       border: 1px solid #c0ccd7;
-      min-height: 16mm;
+      min-height: 11mm;
       padding: 3px 4px;
       box-sizing: border-box;
-      font-size: 6.5px;
-      line-height: 1.2;
+      font-size: 6.2px;
+      line-height: 1.3;
+      background: #ffffff;
+    }
+
+    .dam-final-box > div + div {
+      margin-top: 1.5px;
     }
 
     .dam-final-right-box {
       margin-top: 3px;
       border: 1px solid #c0ccd7;
-      min-height: 16mm;
+      min-height: 11mm;
       display: flex;
       align-items: center;
       justify-content: center;
