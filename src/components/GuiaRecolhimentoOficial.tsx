@@ -1241,7 +1241,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
                 <div className="dam-header-right-grid">
                   <div className="dam-mini-cell">
-                    <div className="dam-mini-label">No Guia</div>
+                    <div className="dam-mini-label">Nº Guia</div>
                     <div className="dam-mini-value">{guia.numeroGuia}</div>
                   </div>
                   <div className="dam-mini-cell">
@@ -1272,7 +1272,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-fields-grid">
               <FormCell
-                label="No do Cadastro"
+                label="Nº do Cadastro"
                 value={contribuinte.numeroCadastro}
                 spanClass="span-6"
               />
@@ -1433,7 +1433,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-observation-row">
-              <div className="dam-observation-label">Observacao</div>
+              <div className="dam-observation-label">Observação</div>
               <div className="dam-observation-value">
                 {guia.observacao || " "}
               </div>
@@ -1491,19 +1491,19 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   label="Vencimento"
                   value={formatDateBR(guia.vencimento)}
                 />
-                <ReceiptRow label="No Guia" value={guia.numeroGuia} />
+                <ReceiptRow label="Nº Guia" value={guia.numeroGuia} />
               </div>
             </div>
 
             <div className="dam-receipt-body">
               <div className="dam-receipt-left">
                 <ReceiptRow
-                  label="No do Cadastro"
+                  label="Nº do Cadastro"
                   value={contribuinte.numeroCadastro}
                 />
                 <ReceiptRow label="CNPJ/CPF" value={contribuinte.cpfCnpj} />
                 <ReceiptRow
-                  label="Data Emissao"
+                  label="Data Emissão"
                   value={formatDateBR(guia.dataDocumento)}
                 />
                 <ReceiptRow label="Pagador" value={contribuinte.nome} />
@@ -1516,7 +1516,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
 
                 <div className="dam-auth">
-                  <div className="dam-auth-label">Autenticacao Mecanica</div>
+                  <div className="dam-auth-label">Autenticação Mecânica</div>
                   <div className="dam-auth-value">
                     {guia.autenticacaoMecanica || ""}
                   </div>
@@ -1576,14 +1576,14 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-bottom-section">
-              <div className="dam-bottom-label">Linha Digitavel</div>
+              <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
                 {formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
             <div className="dam-bottom-section">
-              <div className="dam-bottom-label">Codigo de Barras</div>
+              <div className="dam-bottom-label">Código de Barras</div>
               <div className="dam-barcode-box">
                 <Interleaved2of5Barcode value={guia.codigoBarras} />
               </div>
