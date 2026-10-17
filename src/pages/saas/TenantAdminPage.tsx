@@ -232,7 +232,7 @@ export function TenantAdminPage() {
   const internalTenantUsers = useMemo(
     () =>
       tenantUsers.filter(
-        (user) => !["profissional_externo", "proprietario_consulta"].includes(user.role),
+        (user) => !["profissional_externo", "proprietario_consulta", "property_owner"].includes(user.role),
       ),
     [tenantUsers],
   );
@@ -365,7 +365,9 @@ export function TenantAdminPage() {
       }
     }
 
+    const creatingInternalUser = !["profissional_externo", "proprietario_consulta", "property_owner"].includes(form.role);
     if (
+      creatingInternalUser &&
       planEntitlements.maxUsers != null &&
       internalTenantUsers.length >= planEntitlements.maxUsers
     ) {
@@ -377,7 +379,7 @@ export function TenantAdminPage() {
 
     if (savingUserId) return;
     setSavingUserId("new");
-    setStatusMessage("Confirmando vínculo no banco...");
+    setStatusMessage("Cadastrando usuário no banco...");
     try {
       const user = await createTenantUser({
         tenantId: effectiveScopeId,
