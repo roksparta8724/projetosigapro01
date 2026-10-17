@@ -4247,7 +4247,9 @@ export function ConfiguracoesPage() {
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         {mercadoPagoHealth?.ok
-                          ? `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: ${mercadoPagoHealth.boletoAvailable ? "disponível" : "não retornado"}`
+                          ? mercadoPagoHealth.boletoAvailable
+                            ? "Ao abrir uma guia pendente, o SIGAPRO solicita a cobrança ao Mercado Pago e incorpora a linha digitável e o código de barras na própria DAM."
+                            : `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: não retornado`
                           : "O código de barras será usado somente quando vier da cobrança oficial do Mercado Pago."}
                       </p>
                     </div>
