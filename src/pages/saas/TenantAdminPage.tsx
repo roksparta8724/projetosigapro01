@@ -63,9 +63,11 @@ function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
   return preset?.key ?? role;
 }
 
-function applyMunicipalProfileSelection(
+function applyMunicipalProfileSelection<
+  T extends { role: UserRole; profileLabel?: string; accessLevel: string },
+>(
   value: string,
-  current: { role: UserRole; profileLabel: string; accessLevel: string },
+  current: T,
 ) {
   const preset = municipalProfilePresets.find((item) => item.key === value);
   if (preset) {
@@ -165,14 +167,16 @@ function resolveMunicipalRoleFromDepartment(
   return "setor_intersetorial";
 }
 
-function applyMunicipalDepartmentSelection(
-  departmentName: string,
-  current: {
+function applyMunicipalDepartmentSelection<
+  T extends {
     role: UserRole;
-    profileLabel: string;
+    profileLabel?: string;
     accessLevel: string;
     department: string;
   },
+>(
+  departmentName: string,
+  current: T,
 ) {
   if (!departmentName) {
     return { ...current, department: "" };
@@ -237,7 +241,7 @@ export function TenantAdminPage() {
       ),
     [tenantUsers],
   );
-  const currentUnit = activeInstitution?.secretariaResponsavel || session.department || session.title || "Administração da Prefeitura";
+  const currentUnit = municipality?.secretariatName || session.department || session.title || "Administração da Prefeitura";
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const hasPendingGuide = (process: ProcessRecord) =>
     getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status === "pendente");
