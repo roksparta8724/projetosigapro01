@@ -61,12 +61,13 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
-  getRoleLandingPath, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -298,6 +299,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const isConfigPage = location.pathname.startsWith("/configuracoes");
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
+  const { unreadCount: notificationCount } = useNotifications({
+    includeItems: false,
+    pollMs: 10000,
+  });
   const {
     municipality,
     tenantSettingsCompat,
@@ -613,20 +618,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const recentMarkerEntries = useMemo(() => bookmarkedMarkers.slice(0, 6), [bookmarkedMarkers]);
   const selectedMarkerColorLabel =
     MARKER_COLOR_OPTIONS.find((option) => option.value === markerColor)?.label ?? "Cor personalizada";
-  const notificationCount = visibleTenantProcesses.reduce((count, process) => {
-    const pendingRequirements = process.requirements.filter(
-      (item) => item.status === "aberta" || item.status === "respondida",
-    ).length;
-    const awaitingDispatches = process.dispatches.filter(
-      (item) => item.status === "aguardando",
-    ).length;
-    const pendingGuides = getProcessPaymentGuides(process, tenantSettings).filter(
-      (guide) => guide.status === "pendente",
-    ).length;
-
-    return count + pendingRequirements + awaitingDispatches + pendingGuides;
-  }, 0);
-
   const globalSearchItems = useMemo(() => {
     const items: {
       id: string;
@@ -1547,9 +1538,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   title="Notificações"
                 >
                   <Bell className={topbarUtilityIconClass} aria-hidden="true" />
-                  <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
-                    {notificationCount > 99 ? "99+" : notificationCount}
-                  </span>
+                  {notificationCount > 0 ? (
+                    <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                      {notificationCount > 99 ? "99+" : notificationCount}
+                    </span>
+                  ) : null}
                 </button>
 
               <div className="sig-topbar-local-popper sig-marker-anchor relative flex shrink-0">
