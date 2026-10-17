@@ -70,7 +70,7 @@ function SidebarInner({
       {showClose ? (
         <div className="sig-sidebar-mobile-header flex items-center justify-between border-b border-white/10 px-4 py-3.5">
           <div>
-            <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", darkSurface ? "text-slate-400/90" : "text-slate-600")}>
+            <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", darkSurface ? "!text-[#d7ebf8]" : "text-slate-600")}>
               Navegacao
             </p>
             <p className={cn("mt-1 text-sm font-semibold", darkSurface ? "text-white" : "text-slate-900")}>
@@ -123,7 +123,7 @@ function SidebarInner({
                         ? "border border-white/85 bg-white text-[var(--sig-primary-deep)] shadow-[0_10px_26px_rgba(2,6,23,0.22)]"
                         : "border border-slate-300 bg-white text-slate-950"
                       : darkSurface
-                        ? "border border-white/[0.06] text-slate-300 hover:border-white/10 hover:bg-white/[0.045] hover:text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
+                        ? "border border-white/[0.075] !text-[#f5fbff] hover:border-white/15 hover:bg-white/[0.055] hover:!text-white hover:shadow-[0_10px_24px_rgba(2,6,23,0.20)]"
                         : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-black/[0.04] hover:text-slate-950",
                   );
 
@@ -149,7 +149,7 @@ function SidebarInner({
                                   ? "border-slate-200 bg-slate-100 text-[var(--sig-primary-deep)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
+                                  ? "border-white/[0.10] bg-white/[0.055] !text-[#eef8ff] group-hover:border-white/16 group-hover:bg-white/[0.09] group-hover:!text-white"
                                   : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
                           >
@@ -171,7 +171,7 @@ function SidebarInner({
                                     ? "font-semibold text-[var(--sig-primary-deep)]"
                                     : "font-semibold text-slate-950"
                                   : darkSurface
-                                    ? "font-medium text-slate-200"
+                                    ? "font-semibold !text-[#f7fbff]"
                                     : "font-medium text-slate-800",
                               )}
                             >
@@ -189,7 +189,7 @@ function SidebarInner({
                                     ? "text-[var(--sig-primary-deep)]"
                                     : "text-slate-600"
                                   : darkSurface
-                                    ? "text-white/75"
+                                    ? "!text-[#d7ebf8]"
                                     : "text-slate-500",
                               )}
                             />
@@ -214,7 +214,7 @@ function SidebarInner({
                                   ? "border-slate-200 bg-slate-100 text-[var(--sig-primary-deep)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
                                   : "border-slate-300 bg-slate-50 text-slate-950"
                                 : darkSurface
-                                  ? "border-white/8 bg-white/[0.03] text-white/85 group-hover:border-white/12 group-hover:bg-white/[0.06] group-hover:text-white"
+                                  ? "border-white/[0.10] bg-white/[0.055] !text-[#eef8ff] group-hover:border-white/16 group-hover:bg-white/[0.09] group-hover:!text-white"
                                   : "border-slate-300/70 bg-white/80 text-slate-700 group-hover:border-slate-400 group-hover:bg-white group-hover:text-slate-950",
                             )}
                           >
@@ -236,7 +236,7 @@ function SidebarInner({
                                     ? "font-semibold text-[var(--sig-primary-deep)]"
                                     : "font-semibold text-slate-950"
                                   : darkSurface
-                                    ? "font-medium text-slate-200"
+                                    ? "font-semibold !text-[#f7fbff]"
                                     : "font-medium text-slate-800",
                               )}
                             >
@@ -272,7 +272,7 @@ function SidebarInner({
                                         ? "border border-white/85 bg-white text-[var(--sig-primary-deep)] shadow-[0_10px_24px_rgba(2,6,23,0.20)]"
                                         : "border border-slate-300 bg-white text-slate-950"
                                       : darkSurface
-                                        ? "border border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
+                                        ? "border border-transparent !text-[#e7f3fb] hover:border-white/12 hover:bg-white/[0.055] hover:!text-white"
                                         : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950",
                                   )}
                                 >
@@ -288,9 +288,9 @@ function SidebarInner({
                                     aria-hidden="true"
                                   />
                                   {ChildIcon ? (
-                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
+                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "text-white/75" : "text-slate-500")} />
+                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
                                   )}
                                   <span className="min-w-0 flex-1 truncate">{child.label}</span>
                                 </Link>
