@@ -153,7 +153,7 @@ describe("InstitutionalLogo", () => {
       expect(container.querySelector('img[aria-hidden="true"]')).not.toBeInTheDocument();
       expect(container.querySelectorAll("img")).toHaveLength(1);
 
-      act(() => probes.at(-1)?.onload?.());
+      act(() => probes[probes.length - 1]?.onload?.());
 
       expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
         .toHaveAttribute("src", expect.stringContaining("/new-logo.png"));
@@ -219,7 +219,7 @@ describe("InstitutionalLogo", () => {
       );
 
       expect(container.querySelectorAll("img")).toHaveLength(1);
-      act(() => probes.at(-1)?.onerror?.());
+      act(() => probes[probes.length - 1]?.onerror?.());
 
       expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
         .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
