@@ -50,11 +50,12 @@ import {
   type PaymentGuideKind,
   type ProcessRecord,
 } from "@/lib/platform";
-import { prepareGuideImageSource } from "@/lib/guideAssets";
+import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
@@ -104,8 +105,13 @@ function guideKindLabel(kind: PaymentGuideKind) {
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
   const [searchParams] = useSearchParams();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } =
-    useMunicipality();
+  const {
+    municipality,
+    branding: municipalityBranding,
+    scopeId,
+    institutionSettingsCompat,
+    name: municipalityName,
+  } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } =
     usePlatformData();
 
@@ -113,7 +119,13 @@ export function FinanceProtocolsPage() {
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
+  const stableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
   const guideLogoUrl =
+    stableGuideLogoUrl ||
     guideHeaderBranding.logoUrl ||
     ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
     tenantSettings?.logoUrl ||
@@ -321,7 +333,12 @@ export function FinanceProtocolsPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
-    const embeddedGuideLogoUrl = await prepareGuideImageSource(guideLogoUrl);
+    const embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
+      stableGuideLogoUrl,
+      guideLogoUrl,
+      tenantSettings?.logoUrl,
+      tenantSettings?.brasaoUrl,
+    );
 
     openGuiaRecolhimentoOficialWindow(
       {
@@ -336,7 +353,7 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: embeddedGuideLogoUrl || guideLogoUrl,
+          logoUrl: embeddedGuideLogoUrl,
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
