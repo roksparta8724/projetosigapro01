@@ -21,8 +21,8 @@ describe("Habite-se sidebar navigation", () => {
     expect(sidebar).toContain(
       "const parentActive = hasChildren ? isParentActive(pathname, item.to) || isChildActive : isExactActive",
     );
-    expect(sidebar).toContain(
-      'childActive\n                                        ? darkSurface',
-    );
+    expect(sidebar).toContain("const childActive = isRouteActive(pathname, child.to)");
+    expect(sidebar).toContain("childActive");
+    expect(sidebar).toContain("darkSurface");
   });
 });
