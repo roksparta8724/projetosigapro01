@@ -250,6 +250,24 @@ export function userCanSignPermitAsSecretary(user: SessionUser) {
   return /\bsecretari[oa]\b/.test(position);
 }
 
+function resolveAuthorityRoleLabel(
+  user: SessionUser,
+  fallback: string,
+) {
+  const title = String(user.title || "").trim();
+  const profile = String(user.profileLabel || "").trim();
+
+  const normalize = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  if (title && profile && normalize(title) === normalize(profile)) return title;
+  return title || profile || fallback;
+}
+
 export function signConstructionPermitAsAnalyst(
   record: ConstructionPermitRecord,
   user: SessionUser,
@@ -260,7 +278,7 @@ export function signConstructionPermitAsAnalyst(
     analystSignature: {
       profileId: user.id,
       name: user.name,
-      role: user.title || user.profileLabel || "Analista técnico",
+      role: resolveAuthorityRoleLabel(user, "Analista técnico"),
       signedAt: now,
     },
     status: record.directorSignature ? "emitido" : "aguardando_diretor",
@@ -281,7 +299,7 @@ export function signConstructionPermitAsDirector(
     directorSignature: {
       profileId: user.id,
       name: user.name,
-      role: user.title || user.profileLabel || "Diretor",
+      role: resolveAuthorityRoleLabel(user, "Diretor"),
       signedAt: now,
     },
     status: "emitido",
