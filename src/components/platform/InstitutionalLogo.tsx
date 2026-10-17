@@ -161,6 +161,57 @@ export function InstitutionalLogo({
       ? imageUrl
       : "";
 
+  // Pré-carregamento fora do DOM.
+  // Antes existia uma segunda <img aria-hidden> dentro do cartão do logo.
+  // As regras globais premium do logo usam !important em width/height/opacity
+  // e conseguiam tornar essa imagem de pré-carga visível por um frame durante
+  // navegação/F5. O navegador então mostrava o brasão gigante sobre a página.
+  // Um Image() desacoplado do DOM mantém o stale-while-revalidate sem permitir
+  // que qualquer CSS de layout atinja o recurso pendente.
+  useEffect(() => {
+    if (!pendingUrl || typeof window === "undefined") return;
+
+    let active = true;
+    let settled = false;
+    const probe = new window.Image();
+
+    const markLoaded = () => {
+      if (!active || settled) return;
+      settled = true;
+      if (
+        isMaster ||
+        !sameAssetResource(pendingUrl, SIGAPRO_OFFICIAL_LOGO)
+      ) {
+        writeSessionLogo(context, pendingUrl);
+        setLoadedSource({ context, url: pendingUrl });
+      }
+    };
+
+    const markFailed = () => {
+      if (!active || settled) return;
+      settled = true;
+      setFailedSources((current) =>
+        current.includes(pendingUrl) ? current : [...current, pendingUrl],
+      );
+    };
+
+    probe.decoding = "sync";
+    probe.onload = markLoaded;
+    probe.onerror = markFailed;
+    probe.src = pendingUrl;
+
+    // Recursos presentes no memory cache podem já estar completos no mesmo tick.
+    if (probe.complete && probe.naturalWidth > 0) {
+      window.queueMicrotask(markLoaded);
+    }
+
+    return () => {
+      active = false;
+      probe.onload = null;
+      probe.onerror = null;
+    };
+  }, [context, isMaster, pendingUrl]);
+
   const configuredScale = Number.isFinite(branding.logoScale) ? branding.logoScale : 1;
   // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
   // uma margem vazia excessiva. Valores legados menores que 1 sao normalizados
@@ -217,7 +268,7 @@ export function InstitutionalLogo({
       }}
     >
       <div
-        className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}
+        className={cn("relative flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}
         style={isMaster ? undefined : { background: "#ffffff", backgroundColor: "#ffffff", opacity: 1 }}
       >
         <div
@@ -266,27 +317,6 @@ export function InstitutionalLogo({
           ) : null}
         </div>
 
-        {pendingUrl ? (
-          <img
-            src={pendingUrl}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute h-px w-px opacity-0"
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            onLoad={() => {
-              if (
-                isMaster ||
-                !sameAssetResource(pendingUrl, SIGAPRO_OFFICIAL_LOGO)
-              ) {
-                writeSessionLogo(context, pendingUrl);
-                setLoadedSource({ context, url: pendingUrl });
-              }
-            }}
-            onError={() => setFailedSources((current) => current.includes(pendingUrl) ? current : [...current, pendingUrl])}
-          />
-        ) : null}
       </div>
     </div>
   );
