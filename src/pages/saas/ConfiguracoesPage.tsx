@@ -180,24 +180,6 @@ type MercadoPagoHealth = {
   error?: string;
 };
 
-type MercadoPagoTestBoleto = {
-  ok: boolean;
-  environment: "test" | "production";
-  orderId?: string;
-  paymentId?: string;
-  externalReference?: string;
-  status?: string;
-  statusDetail?: string;
-  amount?: string;
-  ticketUrl?: string;
-  barcodeContent?: string;
-  digitableLine?: string;
-  financialInstitution?: string;
-  error?: string;
-  errorCode?: string;
-  errorDetails?: string[];
-};
-
 export function ConfiguracoesPage() {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
@@ -717,8 +699,6 @@ export function ConfiguracoesPage() {
   >("overview");
   const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
   const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
-  const [mercadoPagoTestBoleto, setMercadoPagoTestBoleto] = useState<MercadoPagoTestBoleto | null>(null);
-  const [mercadoPagoCreatingBoleto, setMercadoPagoCreatingBoleto] = useState(false);
 
   const checkMercadoPagoConnection = async () => {
     setMercadoPagoChecking(true);
@@ -744,33 +724,6 @@ export function ConfiguracoesPage() {
       });
     } finally {
       setMercadoPagoChecking(false);
-    }
-  };
-
-  const createMercadoPagoTestBoleto = async () => {
-    setMercadoPagoCreatingBoleto(true);
-    setMercadoPagoTestBoleto(null);
-    try {
-      const response = await fetch("/api/mercadopago/test-boleto", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-      const payload = (await response.json().catch(() => null)) as MercadoPagoTestBoleto | null;
-      if (!payload) {
-        throw new Error(`Resposta inválida ao criar boleto teste (HTTP ${response.status}).`);
-      }
-      setMercadoPagoTestBoleto(payload);
-    } catch (error) {
-      setMercadoPagoTestBoleto({
-        ok: false,
-        environment: "test",
-        error: error instanceof Error ? error.message : "Falha ao criar boleto teste.",
-      });
-    } finally {
-      setMercadoPagoCreatingBoleto(false);
     }
   };
 
@@ -4299,106 +4252,6 @@ export function ConfiguracoesPage() {
                       </p>
                     </div>
                   </div>
-
-                  {mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable ? (
-                    <div className="rounded-[22px] border border-violet-200 bg-[linear-gradient(135deg,#faf7ff_0%,#f7fbff_100%)] p-5 shadow-[0_12px_28px_rgba(76,29,149,0.06)]">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-950">Teste de boleto Mercado Pago</p>
-                          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">
-                            Cria uma cobrança de teste de R$ 50,00 no ambiente sandbox. Não movimenta dinheiro real e serve para validar order, linha digitável e código de barras retornados pelo Mercado Pago.
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          className="h-10 rounded-xl bg-violet-700 !text-white hover:bg-violet-800"
-                          disabled={mercadoPagoCreatingBoleto}
-                          onClick={() => void createMercadoPagoTestBoleto()}
-                        >
-                          <ReceiptText className="mr-2 h-4 w-4" />
-                          {mercadoPagoCreatingBoleto ? "Gerando..." : "Gerar boleto teste R$ 50,00"}
-                        </Button>
-                      </div>
-
-                      {mercadoPagoTestBoleto ? (
-                        <div className={`mt-4 rounded-[18px] border p-4 ${
-                          mercadoPagoTestBoleto.ok
-                            ? "border-emerald-200 bg-emerald-50/80"
-                            : "border-rose-200 bg-rose-50/80"
-                        }`}>
-                          {mercadoPagoTestBoleto.ok ? (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white">
-                                  Boleto criado
-                                </span>
-                                <span className="text-xs font-semibold text-slate-700">
-                                  {mercadoPagoTestBoleto.status || "status não informado"} · {mercadoPagoTestBoleto.statusDetail || "sem detalhe"}
-                                </span>
-                              </div>
-                              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                <div className="rounded-xl border border-white/80 bg-white p-3">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">Order Mercado Pago</p>
-                                  <p className="mt-1 break-all text-xs font-semibold text-slate-900">{mercadoPagoTestBoleto.orderId || "—"}</p>
-                                </div>
-                                <div className="rounded-xl border border-white/80 bg-white p-3">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">Pagamento</p>
-                                  <p className="mt-1 break-all text-xs font-semibold text-slate-900">{mercadoPagoTestBoleto.paymentId || "—"}</p>
-                                </div>
-                                <div className="rounded-xl border border-white/80 bg-white p-3 md:col-span-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">Linha digitável oficial retornada</p>
-                                  <p className="mt-1 break-all font-mono text-xs font-semibold text-slate-900">
-                                    {mercadoPagoTestBoleto.digitableLine || "Não retornada"}
-                                  </p>
-                                </div>
-                                <div className="rounded-xl border border-white/80 bg-white p-3 md:col-span-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">Conteúdo do código de barras</p>
-                                  <p className="mt-1 break-all font-mono text-xs font-semibold text-slate-900">
-                                    {mercadoPagoTestBoleto.barcodeContent || "Não retornado"}
-                                  </p>
-                                </div>
-                              </div>
-                              {mercadoPagoTestBoleto.ticketUrl ? (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="mt-4 rounded-xl bg-white"
-                                  onClick={() => window.open(mercadoPagoTestBoleto.ticketUrl, "_blank", "noopener,noreferrer")}
-                                >
-                                  Abrir boleto do Mercado Pago
-                                </Button>
-                              ) : null}
-                            </>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-sm font-semibold text-rose-800">
-                                {mercadoPagoTestBoleto.error || "Não foi possível criar o boleto teste."}
-                              </p>
-                              {mercadoPagoTestBoleto.errorCode ? (
-                                <p className="text-xs font-mono text-rose-700">
-                                  Código: {mercadoPagoTestBoleto.errorCode}
-                                </p>
-                              ) : null}
-                              {mercadoPagoTestBoleto.errorDetails?.length ? (
-                                <div className="rounded-xl border border-rose-200 bg-white/80 p-3">
-                                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-rose-700">
-                                    Detalhes retornados pela API
-                                  </p>
-                                  <div className="mt-2 space-y-1.5">
-                                    {mercadoPagoTestBoleto.errorDetails.map((detail, index) => (
-                                      <p key={index} className="break-words font-mono text-[11px] leading-5 text-rose-800">
-                                        {detail}
-                                      </p>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
 
                   <div className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
