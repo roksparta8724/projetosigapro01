@@ -15,6 +15,7 @@ describe("municipal bank and payment guide flow", () => {
   const neonBankingMigration = read("neon/migrations/20261017_payment_guide_banking_fields.sql");
   const guideAssets = read("src/lib/guideAssets.ts");
   const mercadoPagoGuide = read("src/lib/mercadoPagoGuide.ts");
+  const mercadoPagoClient = mercadoPagoGuide;
   const mercadoPagoServer = read("server/mercadopago.ts");
 
   it("provides a dedicated admin collection and banking section", () => {
@@ -168,6 +169,25 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain('linhaDigitavel: digitableLine');
     expect(mercadoPagoServer).toContain("normalizeGuideCode");
     expect(mercadoPagoServer).toContain("external_reference: externalReference");
+  });
+
+  it("keeps PIX visible in homologation and uses electronic authentication", () => {
+    expect(guide).toContain("PIX — QR Code e Copia e Cola");
+    expect(guide).toContain("PIX cadastrado pode ser real");
+    expect(guide).not.toContain("PIX real oculto durante a homologação");
+    expect(finance).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("pixPayload: banking.pixPayload");
+    expect(guide).toContain("VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO");
+    expect(guide).toContain("Tesouraria / baixa manual");
+  });
+
+  it("refreshes provider status to support automatic bank authentication", () => {
+    expect(mercadoPagoServer).toContain("getMercadoPagoGuideBoletoStatus");
+    expect(mercadoPagoServer).toContain("authenticatedAt");
+    expect(mercadoPagoClient).toContain('/api/mercadopago/guide-status');
+    expect(mercadoPagoClient).toContain("refreshMercadoPagoGuideCharge");
+    expect(finance).toContain("providerCharge?.authenticatedAt");
+    expect(processDetail).toContain("providerCharge?.authenticatedAt");
   });
 
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
