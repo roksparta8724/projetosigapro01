@@ -941,6 +941,29 @@ export async function loadRemotePlatformStore() {
       chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
       beneficiarioArrecadacao:
         readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipalityName,
+      pixEnabled:
+        typeof general.pix_enabled === "boolean" ? general.pix_enabled : true,
+      pixKeyType:
+        typeof general.pix_key_type === "string" &&
+        ["cpf", "cnpj", "email", "phone", "random"].includes(general.pix_key_type)
+          ? (general.pix_key_type as TenantSettings["pixKeyType"])
+          : "cnpj",
+      pixMerchantCity: readGeneralOptionalString(general, ["pix_merchant_city"]),
+      bankCode: readGeneralOptionalString(general, ["bank_code"]),
+      bankName: readGeneralOptionalString(general, ["bank_name"]),
+      bankAgency: readGeneralOptionalString(general, ["bank_agency"]),
+      bankAgencyDigit: readGeneralOptionalString(general, ["bank_agency_digit"]),
+      bankAccount: readGeneralOptionalString(general, ["bank_account"]),
+      bankAccountDigit: readGeneralOptionalString(general, ["bank_account_digit"]),
+      bankBeneficiaryDocument: readGeneralOptionalString(general, ["bank_beneficiary_document"]),
+      bankCollectionMode:
+        typeof general.bank_collection_mode === "string" &&
+        ["manual", "agreement", "api"].includes(general.bank_collection_mode)
+          ? (general.bank_collection_mode as TenantSettings["bankCollectionMode"])
+          : "manual",
+      bankAgreementCode: readGeneralOptionalString(general, ["bank_agreement_code"]),
+      bankWallet: readGeneralOptionalString(general, ["bank_wallet"]),
+      bankInstructions: readGeneralOptionalString(general, ["bank_instructions"]),
       contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
       contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
       contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
@@ -1486,6 +1509,8 @@ export async function loadRemotePlatformStore() {
               ? String(guide.construction_standard_snapshot)
               : undefined,
             revision: Number(guide.reissue_count ?? 0),
+            paymentMethod: guide.payment_method ? String(guide.payment_method) : undefined,
+            pixPayload: guide.pix_code ? String(guide.pix_code) : undefined,
           };
         }),
       },
@@ -3300,6 +3325,20 @@ export async function saveRemoteInstitutionSettings(
       chave_pix: settings.chavePix || null,
       settlement_beneficiary: settings.beneficiarioArrecadacao || null,
       beneficiario_arrecadacao: settings.beneficiarioArrecadacao || null,
+      pix_enabled: settings.pixEnabled ?? true,
+      pix_key_type: settings.pixKeyType || "cnpj",
+      pix_merchant_city: settings.pixMerchantCity || null,
+      bank_code: settings.bankCode || null,
+      bank_name: settings.bankName || null,
+      bank_agency: settings.bankAgency || null,
+      bank_agency_digit: settings.bankAgencyDigit || null,
+      bank_account: settings.bankAccount || null,
+      bank_account_digit: settings.bankAccountDigit || null,
+      bank_beneficiary_document: settings.bankBeneficiaryDocument || null,
+      bank_collection_mode: settings.bankCollectionMode || "manual",
+      bank_agreement_code: settings.bankAgreementCode || null,
+      bank_wallet: settings.bankWallet || null,
+      bank_instructions: settings.bankInstructions || null,
       contract_number: settings.contractNumber || null,
       contract_start: settings.contractStart || null,
       contract_end: settings.contractEnd || null,
