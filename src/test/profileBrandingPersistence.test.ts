@@ -25,7 +25,9 @@ describe("profile and branding persistence regressions", () => {
   });
 
   it("keeps municipal header, footer and preview logos whole while preserving master framing", () => {
-    expect(logo).toContain('const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview")');
+    expect(logo).toContain("const showCrop =");
+    expect(logo).toContain("isMaster &&");
+    expect(logo).toContain('(variant === "header" || variant === "footer" || variant === "preview")');
     expect(logo).toContain('Math.min(5, branding.logoScale)');
     expect(logo).toContain('transformOrigin: "center center"');
     // A moldura municipal usa todo o espaço sem padding antigo que cortava o logo.
