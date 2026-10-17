@@ -33,21 +33,15 @@ create unique index if not exists notifications_profile_dedupe_uidx
 update public.notifications n
 set municipality_id = coalesce(
       n.municipality_id,
-      p.municipality_id,
-      pr.municipality_id
+      (select p.municipality_id from public.profiles p where p.id=n.profile_id),
+      (select pr.municipality_id from public.processes pr where pr.id=n.process_id)
     ),
-    process_id = coalesce(n.process_id, pr.id),
     read_at = case
       when coalesce(n.is_read,false) and n.read_at is null then coalesce(n.created_at,now())
       else n.read_at
     end
-from public.profiles p
-left join public.processes pr on pr.id=n.process_id
-where p.id=n.profile_id
-  and (
-    n.municipality_id is null
-    or (coalesce(n.is_read,false) and n.read_at is null)
-  );
+where n.municipality_id is null
+   or (coalesce(n.is_read,false) and n.read_at is null);
 
 -- Master deixa de ter leitura global da tabela. Ele verá somente linhas
 -- explicitamente endereçadas ao próprio profile_id.
