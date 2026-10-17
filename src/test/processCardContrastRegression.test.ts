@@ -30,10 +30,12 @@ describe("premium process card contrast contract", () => {
 
     expect(detail).toContain('data-force-card-contrast="dark"');
     expect(detail).toContain('data-force-card-contrast="adaptive"');
-    expect(analysis).toContain('<CardHeader data-force-card-contrast="dark"');
+    expect(analysis).toContain('data-force-card-contrast="dark"');
+    expect(analysis).toContain('data-analysis-dark-header="true"');
     expect(analysis).toContain('data-analysis-section="true"');
     expect(analysis).toContain('data-force-card-contrast="adaptive"');
-    expect(permit).toContain('<CardHeader data-force-card-contrast="dark"');
+    expect(permit).toContain('data-force-card-contrast="dark"');
+    expect(permit).toContain('data-permit-dark-header="true"');
     expect(permit).toContain('<DialogHeader data-force-card-contrast="dark"');
   });
 });
