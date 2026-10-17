@@ -53,6 +53,7 @@ import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
   appendRemoteProcessDocuments,
+  beginRemoteAnalysisSupervisorIntervention,
   completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
   confirmRemoteProcessPaymentGuide,
@@ -71,6 +72,7 @@ import {
   reopenRemoteProcess,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
+  reassignRemoteProcessAnalysis,
   returnRemoteProcessDispatch,
   reviewRemoteProcessDocument,
   saveRemoteClientPlanAssignment,
@@ -78,6 +80,7 @@ import {
   saveRemoteProfile,
   sendRemoteProcessMessage,
   shareRemoteIssProjectGuide,
+  endRemoteAnalysisSupervisorIntervention,
   setRemoteOwnerChatEnabled,
   startRemoteProcessAnalysis,
   setRemoteProcessCheckpoint,
@@ -182,6 +185,9 @@ interface PlatformDataState {
     notes?: string;
   }) => Promise<void>;
   startProcessAnalysis: (processId: string) => Promise<void>;
+  beginAnalysisSupervisorIntervention: (input: { processId: string; reason: string; minutes?: number }) => Promise<void>;
+  endAnalysisSupervisorIntervention: (processId: string) => Promise<void>;
+  reassignProcessAnalysis: (input: { processId: string; targetProfileId: string; reason: string }) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
   updateIssProjectGuideData: (input: {
@@ -1905,6 +1911,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para iniciar análise.");
 
         await startRemoteProcessAnalysis(processId);
+        await refreshRemoteStore();
+      },
+      beginAnalysisSupervisorIntervention: async ({ processId, reason, minutes }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para iniciar intervenção.");
+        await beginRemoteAnalysisSupervisorIntervention({ processId, reason, minutes });
+        await refreshRemoteStore();
+      },
+      endAnalysisSupervisorIntervention: async (processId) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para encerrar intervenção.");
+        await endRemoteAnalysisSupervisorIntervention(processId);
+        await refreshRemoteStore();
+      },
+      reassignProcessAnalysis: async ({ processId, targetProfileId, reason }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para redistribuir análise.");
+        await reassignRemoteProcessAnalysis({ processId, targetProfileId, reason });
         await refreshRemoteStore();
       },
       reopenProcess: async ({ processId, actor, reason }) => {
