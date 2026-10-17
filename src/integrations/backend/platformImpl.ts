@@ -429,10 +429,9 @@ export async function loadRemotePlatformStore() {
     db.from("roles").select("*"),
     db.from("departments").select("*"),
     db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
-    isNeonBackend
-      ? db.from("process_construction_permits")
-          .select("process_id,permit_number,status,signature_mode,updated_at")
-      : Promise.resolve({ data: [], error: null }),
+    // A tabela process_construction_permits é RPC-only no Neon.
+    // O bootstrap global nunca deve fazer SELECT direto nela.
+    Promise.resolve({ data: [], error: null }),
     db.from("properties").select("*"),
     isNeonBackend
       ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
@@ -478,7 +477,6 @@ export async function loadRemotePlatformStore() {
     rolesResult.error,
     departmentsResult.error,
     processesResult.error,
-    constructionPermitsResult.error,
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
@@ -495,11 +493,49 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
     tolerateLegacyMissing(plansResult.error, "public.plans"),
     tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
-    lastAccessResult.error,
   ].filter(Boolean);
+
+  if (lastAccessResult.error) {
+    console.warn(
+      "[SIGAPRO][Access] Telemetria de último acesso indisponível; login segue normalmente.",
+      lastAccessResult.error,
+    );
+  }
 
   if (errors.length > 0) {
     throw errors[0];
+  }
+
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+
+  if (isNeonBackend) {
+    const visibleProcessIds = (processesResult.data ?? [])
+      .map((process) => String(process.id ?? "").trim())
+      .filter(Boolean);
+
+    for (let index = 0; index < visibleProcessIds.length; index += 8) {
+      const batch = visibleProcessIds.slice(index, index + 8);
+      const permits = await Promise.all(
+        batch.map(async (processId) => {
+          const { data, error } = await db.rpc("get_construction_permit_v1", {
+            _process_id: processId,
+          });
+
+          if (error) {
+            console.warn("[SIGAPRO][Alvara] RPC escopada indisponível para o processo.", {
+              processId,
+              error,
+            });
+            return null;
+          }
+
+          const payload = (data ?? {}) as { permit?: any | null };
+          return payload.permit ?? null;
+        }),
+      );
+
+      constructionPermitRows.push(...permits.filter(Boolean));
+    }
   }
 
   const tenantRows = tenantsResult.data ?? [];
@@ -519,7 +555,7 @@ export async function loadRemotePlatformStore() {
   );
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
   const constructionPermitByProcess = new Map(
-    (constructionPermitsResult.data ?? []).map((item) => [String(item.process_id), item]),
+    constructionPermitRows.map((item) => [String(item.process_id), item]),
   );
   const guidesByProcess = new Map<string, Record<string, unknown>[]>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
