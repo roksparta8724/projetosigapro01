@@ -8,7 +8,12 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import {
-  buildProcessPath, can, formatOfficialProcessNumber, formatOfficialProcessTitle, matchesOperationalScope } from "@/lib/platform";
+  buildProcessPath,
+  can,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
+  matchesOperationalScope,
+} from "@/lib/platform";
 
 export function GlobalSearchPage() {
   const [params] = useSearchParams();
