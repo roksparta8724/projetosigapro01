@@ -113,6 +113,57 @@ export function formatOfficialProcessNumber(
   return value;
 }
 
+export function buildProcessRouteKey(
+  protocol: string | null | undefined,
+  fallbackId = "",
+) {
+  const normalized = String(protocol || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\\/\s]+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || String(fallbackId || "").trim();
+}
+
+export function buildProcessPath(
+  process: Pick<ProcessRecord, "id" | "protocol">,
+  tab?: string,
+) {
+  const routeKey = buildProcessRouteKey(process.protocol, process.id);
+  const search = tab ? `?aba=${encodeURIComponent(tab)}` : "";
+  return `/processos/${encodeURIComponent(routeKey)}${search}`;
+}
+
+export function resolveProcessRoute(
+  processes: ProcessRecord[],
+  routeValue: string | null | undefined,
+) {
+  if (!routeValue) return undefined;
+
+  let decoded = routeValue.trim();
+  try {
+    decoded = decodeURIComponent(routeValue).trim();
+  } catch {
+    decoded = routeValue.trim();
+  }
+
+  const byId = getProcessById(decoded, processes);
+  if (byId) return byId;
+
+  const normalized = decoded.toLocaleLowerCase("pt-BR");
+  return processes.find((item) => {
+    const protocol = String(item.protocol || "");
+    return (
+      protocol.toLocaleLowerCase("pt-BR") === normalized ||
+      buildProcessRouteKey(protocol, item.id).toLocaleLowerCase("pt-BR") === normalized
+    );
+  });
+}
+
 export function formatProfessionalProcessType(type?: string | null) {
   const normalized = (type ?? "").trim().toLowerCase();
   if (!normalized) return "Processo administrativo digital";
