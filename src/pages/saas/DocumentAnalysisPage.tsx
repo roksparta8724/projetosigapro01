@@ -32,7 +32,6 @@ import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignmen
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
-  buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
 } from "@/lib/platform";
