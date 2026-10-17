@@ -10,6 +10,7 @@ describe("municipal branding runtime resilience", () => {
   const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
   const portal = read("src/components/platform/PortalFrame.tsx");
+  const editor = read("src/components/platform/ImageFrameEditor.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -97,15 +98,29 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("minScale={1}");
   });
 
-  it("uses one exact source for the live preview and the frame editor", () => {
+  it("uses one resilient source for live preview and frame editor", () => {
+    expect(settings).toContain("firstRenderablePreviewUrl");
     expect(settings).toContain("const previewHeaderLogoUrl =");
     expect(settings).toContain("const previewFooterLogoUrl =");
+    expect(settings).toContain("const previewHeaderDisplayUrl =");
+    expect(settings).toContain("const previewFooterDisplayUrl =");
     expect(settings).toContain('data-municipal-logo-live-preview="header"');
     expect(settings).toContain('data-municipal-logo-live-preview="footer"');
-    expect(settings).toContain("imageUrl={previewHeaderLogoUrl}");
-    expect(settings).toContain("imageUrl={previewFooterLogoUrl}");
+    expect(settings).toContain("imageUrl={previewHeaderDisplayUrl}");
+    expect(settings).toContain("imageUrl={previewFooterDisplayUrl}");
+    expect(settings).toContain("headerBranding.fallbackLogoUrl");
+    expect(settings).toContain("footerBranding.fallbackLogoUrl");
     expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
     expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
+  });
+
+  it("keeps the configuration page premium and accepts the stable same-origin logo proxy", () => {
+    expect(settings).toContain('className="sig-config-page"');
+    expect(settings).toContain('data-config-brand-panel="header"');
+    expect(settings).toContain('data-config-brand-panel="footer"');
+    expect(settings).toContain("allowPreview={false}");
+    expect(editor).toContain('normalized.startsWith("/")');
+    expect(surface).toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
