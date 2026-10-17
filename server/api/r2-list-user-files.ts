@@ -10,7 +10,7 @@ import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import {
   applyMunicipalBasePath,
   resolveMunicipalDocumentTarget,
-} from "../server/municipal-storage";
+} from "../municipal-storage";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;

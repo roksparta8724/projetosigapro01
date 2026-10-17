@@ -1,12 +1,14 @@
 /**
- * api/r2-delete.ts — Vercel Serverless handler
+ * api/r2-sign-get.ts — Vercel Serverless handler
  *
- * Recebe { bucket, objectKey }
- * Retorna { ok: true, bucket, objectKey }
+ * Recebe { bucket, objectKey, expiresIn }
+ * Retorna { signedUrl, bucket, objectKey }
+ * usando S3 presigned GET URL via @aws-sdk/s3-request-presigner.
  */
 
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../server/municipal-storage";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { resolveMunicipalDocumentTarget } from "../municipal-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -17,92 +19,43 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-function extractMunicipalityId(objectKey: string) {
-  const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
-  return match?.[1] || "";
-}
+function getR2EndpointCandidates() {
+  const candidates: string[] = [];
 
-function resolveR2Endpoint() {
+  // Use the same endpoint preference as upload. This prevents a stale
+  // R2_ACCOUNT_ID from signing a URL for a different account than the one
+  // where the municipal logo/document was actually written.
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const url = new URL(
+        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
+      );
+      candidates.push(`${url.protocol}//${url.host}`);
+    } catch {
+      candidates.push(rawEndpoint.replace(/\/+$/, ""));
+    }
+  }
+
   const accountId = readEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
 
   if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
+    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
   }
 
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
+  return Array.from(new Set(candidates.filter(Boolean)));
 }
 
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
-
-function isR2AuthRequired() {
-  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
-  if (configured === "true") return true;
-  if (configured === "false") return false;
-  return readEnv("VERCEL_ENV").toLowerCase() === "production";
+function resolveR2Endpoint() {
+  return getR2EndpointCandidates()[0] || "";
 }
 
-function readBearer(req: Req) {
-  const raw = req.headers.authorization || "";
-  const match = /^Bearer\s+(.+)$/i.exec(raw);
-  return match?.[1]?.trim() || "";
-}
-
-async function requireAuthenticatedProfile(req: Req) {
-  if (!isR2AuthRequired()) {
-    return { ok: true as const, profileId: null as string | null };
-  }
-
-  const token = readBearer(req);
-  if (!token) {
-    return { ok: false as const, status: 401, error: "Autenticação necessária." };
-  }
-
-  const dataApiUrl = (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
-
-  try {
-    const response = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: "{}",
-    });
-
-    const payload = await response.json().catch(() => null);
-    const profileId =
-      typeof payload === "string"
-        ? payload
-        : payload && typeof payload === "object"
-          ? ((payload as Record<string, unknown>).id ||
-             (payload as Record<string, unknown>).profile_id ||
-             null)
-          : null;
-
-    if (!response.ok || !profileId) {
-      return { ok: false as const, status: 401, error: "Sessão inválida ou expirada." };
-    }
-
-    return { ok: true as const, profileId: String(profileId) };
-  } catch {
-    return { ok: false as const, status: 503, error: "Validação de autenticação indisponível." };
-  }
+function extractMunicipalityId(objectKey: string) {
+  const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
+  return match?.[1] || "";
 }
 
 function resolveRequestedBucket(value: string) {
@@ -158,27 +111,26 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  const auth = await requireAuthenticatedProfile(req);
-  if (!auth.ok) {
-    json(res, auth.status, { error: auth.error });
-    return;
-  }
-
   try {
     const endpoint = resolveR2Endpoint();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
 
-    console.log("[ProdAudit][R2Delete] env", {
+    console.log("[ProdAudit][R2Sign] env", {
       hasEndpoint: Boolean(endpoint),
       hasAccessKeyId: Boolean(accessKeyId),
       hasSecret: Boolean(secretAccessKey),
       accessKeyLength: accessKeyId.length,
     });
 
-    const body = (await readJsonBody(req)) as { bucket?: unknown; objectKey?: unknown };
-    const { bucket: requestedBucket, objectKey } = body ?? {};
+    const body = (await readJsonBody(req)) as {
+      bucket?: unknown;
+      objectKey?: unknown;
+      expiresIn?: unknown;
+    };
+
+    const { bucket: requestedBucket, objectKey, expiresIn } = body ?? {};
     const bucket =
       typeof requestedBucket === "string"
         ? resolveRequestedBucket(requestedBucket)
@@ -194,20 +146,27 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
+    const ttl =
+      typeof expiresIn === "number" && Number.isFinite(expiresIn)
+        ? Math.max(60, Math.min(expiresIn, 86400))
+        : 21600;
+
     const municipalityId = extractMunicipalityId(objectKey);
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
 
     if (municipalTarget) {
-      await municipalTarget.client.send(
-        new DeleteObjectCommand({
+      const signedUrl = await getSignedUrl(
+        municipalTarget.client,
+        new GetObjectCommand({
           Bucket: municipalTarget.bucket,
           Key: municipalTarget.objectKey,
         }),
+        { expiresIn: ttl },
       );
       json(res, 200, {
-        ok: true,
+        signedUrl,
         bucket: requestedBucket,
         resolvedBucket: bucket,
         objectKey,
@@ -229,21 +188,23 @@ export default async function handler(req: Req, res: Res) {
       },
     });
 
-    await client.send(
-      new DeleteObjectCommand({
+    const signedUrl = await getSignedUrl(
+      client,
+      new GetObjectCommand({
         Bucket: bucket,
         Key: objectKey,
       }),
+      { expiresIn: ttl },
     );
 
-    json(res, 200, { ok: true, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
+    json(res, 200, { signedUrl, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "Erro ao remover o arquivo.";
+    const rawMessage = error instanceof Error ? error.message : "Erro ao gerar link de leitura.";
     const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
     const message = signatureMismatch
       ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
       : rawMessage;
-    console.error("[SIGAPRO][R2] Falha no delete", { error: rawMessage });
+    console.error("[SIGAPRO][R2] Falha no sign-get", { error: rawMessage });
     json(res, 500, {
       error: message,
       code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",

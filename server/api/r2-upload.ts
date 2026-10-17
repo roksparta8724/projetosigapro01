@@ -6,7 +6,7 @@
  */
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../server/municipal-storage";
+import { resolveMunicipalDocumentTarget } from "../municipal-storage";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;

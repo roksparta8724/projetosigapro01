@@ -12,6 +12,26 @@
   ],
   "rewrites": [
     {
+      "source": "/api/r2-upload",
+      "destination": "/api/r2?action=upload"
+    },
+    {
+      "source": "/api/r2-delete",
+      "destination": "/api/r2?action=delete"
+    },
+    {
+      "source": "/api/r2-sign-get",
+      "destination": "/api/r2?action=sign-get"
+    },
+    {
+      "source": "/api/r2-list-user-files",
+      "destination": "/api/r2?action=list-user-files"
+    },
+    {
+      "source": "/api/r2-master-logo-source",
+      "destination": "/api/r2?action=master-logo-source"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -23,7 +43,9 @@
   "git": {
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
-      "fix/analise-premium-cadastro-20261013": false
+      "fix/analise-premium-cadastro-20261013": false,
+      "workbench/logo-preview-premium-no-deploy-20261016": false,
+      "hotfix/vercel-hobby-sync-20261017": false
     }
   }
 }
