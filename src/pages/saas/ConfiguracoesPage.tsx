@@ -706,9 +706,31 @@ export function ConfiguracoesPage() {
   const checkMercadoPagoConnection = async () => {
     setMercadoPagoChecking(true);
     try {
-      const response = await fetch("/api/mercadopago/health", {
+      let authorization = "";
+      try {
+        const sessionResult = await backendClient?.auth?.getSession?.();
+        const authSession = sessionResult?.data?.session ?? null;
+        authorization =
+          authSession?.access_token ||
+          authSession?.accessToken ||
+          authSession?.token ||
+          "";
+      } catch {
+        authorization = "";
+      }
+
+      const paymentMunicipalityId =
+        selectedTenantId || scopeId || session.tenantId || "";
+      const healthUrl = paymentMunicipalityId
+        ? `/api/mercadopago/health?municipalityId=${encodeURIComponent(paymentMunicipalityId)}`
+        : "/api/mercadopago/health";
+
+      const response = await fetch(healthUrl, {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
+        },
         cache: "no-store",
       });
       const payload = (await response.json().catch(() => null)) as MercadoPagoHealth | null;
@@ -734,7 +756,14 @@ export function ConfiguracoesPage() {
     if (activeSettingsView !== "collection") return;
     if (mercadoPagoHealth || mercadoPagoChecking) return;
     void checkMercadoPagoConnection();
-  }, [activeSettingsView, mercadoPagoHealth, mercadoPagoChecking]);
+  }, [
+    activeSettingsView,
+    mercadoPagoHealth,
+    mercadoPagoChecking,
+    selectedTenantId,
+    scopeId,
+    session.tenantId,
+  ]);
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
   const [draftLogoFiles, setDraftLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
