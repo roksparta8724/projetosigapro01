@@ -472,6 +472,7 @@ export function ImageFrameEditor({
           ) : null}
           <div
             ref={frameRef}
+            data-image-frame-viewport="true"
             className={cn(
               "relative cursor-grab overflow-hidden active:cursor-grabbing",
               shape === "circle"
