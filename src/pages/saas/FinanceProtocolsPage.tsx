@@ -46,6 +46,7 @@ import {
   type PaymentGuideKind,
   type ProcessRecord,
 } from "@/lib/platform";
+import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -72,11 +73,6 @@ const CLOSED_PROCESS_STATUSES = new Set([
 
 function isOpenMunicipalProcess(process: ProcessRecord) {
   return !CLOSED_PROCESS_STATUSES.has(process.status);
-}
-
-function buildBarcodeValue(protocol: string, guideNumber: string, amount: number) {
-  const base = `${protocol.replace(/\D/g, "")}${guideNumber.replace(/\D/g, "")}${Math.round(amount * 100)}`;
-  return base.padEnd(44, "7").slice(0, 44);
 }
 
 function formatDate(value?: string) {
@@ -255,11 +251,12 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
-    const barcode = buildBarcodeValue(
-      match.process.protocol,
-      match.guide.code,
-      match.guide.amount,
-    );
+    const banking = resolveGuideBankingData({
+      settings: tenantSettings,
+      guide: match.guide,
+      municipalityName,
+      municipalityCity: tenantSettings?.pixMerchantCity,
+    });
 
     openGuiaRecolhimentoOficialWindow(
       {
@@ -300,9 +297,12 @@ export function FinanceProtocolsPage() {
           descontos: 0,
           outrosAcrescimos: 0,
           valorCobrado: match.guide.amount,
-          linhaDigitavel: barcode,
-          codigoBarras: barcode,
+          linhaDigitavel: banking.digitableLine,
+          codigoBarras: banking.barcode,
           qrCodePixUrl: "",
+          pixPayload: banking.pixPayload,
+          bankName: banking.bankName,
+          bankAgreement: banking.bankAgreement,
           autenticacaoMecanica: "",
         },
         itens: [
@@ -673,7 +673,12 @@ export function FinanceProtocolsPage() {
                             ) : (
                               <div className="space-y-3">
                                 {guides.map((guide) => {
-                                  const pixPayload = `PIX|${tenantSettings?.beneficiarioArrecadacao || "Prefeitura"}|${tenantSettings?.chavePix || "nao-configurado"}|${guide.code}|${process.protocol}|${guide.amount.toFixed(2).replace(".", ",")}`;
+                                  const pixPayload = resolveGuideBankingData({
+                                    settings: tenantSettings,
+                                    guide,
+                                    municipalityName,
+                                    municipalityCity: tenantSettings?.pixMerchantCity,
+                                  }).pixPayload;
                                   const isProtocolGuide = guide.kind === "protocolo";
                                   const busyKey = `${process.id}:${guide.kind}`;
 
