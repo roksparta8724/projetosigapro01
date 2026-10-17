@@ -23,6 +23,8 @@ const NEON_BROWSER_BOOTSTRAP_CACHE_KEY = "sigapro.bootstrap.neon-browser.v1";
 const NEON_BROWSER_SESSION_COOKIE = "sigapro_browser_session_v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
 
+type BootstrapAuthUser = AuthUserLike & { id: string };
+
 interface AppBootstrapProfile {
   userId: string;
   role: string | null;
@@ -272,17 +274,17 @@ function clearPlatformSessionSnapshot() {
   }
 }
 
-function readStoredSupabaseUser(): StoredSupabaseUser | null {
+function readStoredSupabaseUser(): StoredSupabaseBootstrapAuthUser | null {
   if (isNeonBackend || typeof window === "undefined") return null;
 
   try {
     const raw = window.localStorage.getItem("sigapro-supabase-auth");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
-      user?: StoredSupabaseUser | null;
-      currentSession?: { user?: StoredSupabaseUser | null } | null;
-      session?: { user?: StoredSupabaseUser | null } | null;
-      data?: { session?: { user?: StoredSupabaseUser | null } | null } | null;
+      user?: StoredSupabaseBootstrapAuthUser | null;
+      currentSession?: { user?: StoredSupabaseBootstrapAuthUser | null } | null;
+      session?: { user?: StoredSupabaseBootstrapAuthUser | null } | null;
+      data?: { session?: { user?: StoredSupabaseBootstrapAuthUser | null } | null } | null;
     };
     return parsed?.user ?? parsed?.currentSession?.user ?? parsed?.session?.user ?? parsed?.data?.session?.user ?? null;
   } catch {
@@ -655,12 +657,12 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   const [municipalityBundle, setMunicipalityBundle] = useState<MunicipalityBundle | null>(
     cachedSnapshot?.municipalityBundle ?? null,
   );
-  const [authChange, setAuthChange] = useState<{ event: string; user: User | null } | null>(null);
-  const runBootstrapRef = useRef<((event?: string | null, user?: User | null) => Promise<void>) | null>(null);
+  const [authChange, setAuthChange] = useState<{ event: string; user: BootstrapAuthUser | null } | null>(null);
+  const runBootstrapRef = useRef<((event?: string | null, user?: BootstrapAuthUser | null) => Promise<void>) | null>(null);
   const manualSignInRef = useRef(false);
   const bootstrapEpochRef = useRef(0);
   const runningRef = useRef(false);
-  const pendingBootstrapRef = useRef<{ event?: string | null; sessionUserOverride?: User | null } | null>(null);
+  const pendingBootstrapRef = useRef<{ event?: string | null; sessionUserOverride?: BootstrapAuthUser | null } | null>(null);
   const initializedRef = useRef(Boolean(cachedSnapshot));
   const lastAuthUserIdRef = useRef<string | null>(cachedSnapshot?.authUserId ?? null);
   const refreshRef = useRef(false);
@@ -726,7 +728,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
     let active = true;
 
-    const runBootstrap = async (event?: string | null, sessionUserOverride?: User | null) => {
+    const runBootstrap = async (event?: string | null, sessionUserOverride?: BootstrapAuthUser | null) => {
       if (manualSignInRef.current || explicitSignOutRef.current) return;
       if (runningRef.current) {
         pendingBootstrapRef.current = { event, sessionUserOverride };
