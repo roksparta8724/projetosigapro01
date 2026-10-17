@@ -111,15 +111,55 @@ describe("InstitutionalLogo", () => {
     expect(image).toHaveStyle({ transform: `translate(${40 * 144 / 160}px, ${-20 * 144 / 160}px) scale(2)` });
   });
 
-  it("retains a valid logo while replacing it, but never across municipalities", () => {
-    const { container, rerender } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />);
-    rerender(<InstitutionalLogo branding={{ ...branding, logoUrl: "/new-logo.png" }} fallbackLabel="Prefeitura A" />);
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
-    fireEvent.load(container.querySelector('img[aria-hidden="true"]')!);
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("/new-logo.png"));
+  it("retains a valid logo while replacing it without mounting a hidden preload image", () => {
+    const probes: Array<{
+      onload: null | (() => void);
+      onerror: null | (() => void);
+      src: string;
+      decoding: string;
+      complete: boolean;
+      naturalWidth: number;
+    }> = [];
+    const OriginalImage = window.Image;
+    class ProbeImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = "";
+      decoding = "auto";
+      complete = false;
+      naturalWidth = 0;
+      constructor() {
+        probes.push(this);
+      }
+    }
+    Object.defineProperty(window, "Image", { configurable: true, writable: true, value: ProbeImage });
 
-    rerender(<InstitutionalLogo branding={{ ...branding, tenantId: "municipality-b", logoUrl: "/municipality-b-logo.png" }} fallbackLabel="Prefeitura B" />);
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("/municipality-b-logo.png"));
+    try {
+      const { container, rerender } = render(
+        <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />,
+      );
+      const firstImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
+      fireEvent.load(firstImage);
+
+      rerender(
+        <InstitutionalLogo
+          branding={{ ...branding, logoUrl: "/new-logo.png" }}
+          fallbackLabel="Prefeitura A"
+        />,
+      );
+
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+      expect(container.querySelector('img[aria-hidden="true"]')).not.toBeInTheDocument();
+      expect(container.querySelectorAll("img")).toHaveLength(1);
+
+      act(() => probes.at(-1)?.onload?.());
+
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/new-logo.png"));
+    } finally {
+      Object.defineProperty(window, "Image", { configurable: true, writable: true, value: OriginalImage });
+    }
   });
 
   it("keeps the loaded municipal logo when branding temporarily loses its URL", () => {
@@ -141,10 +181,50 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("Prefeitura")).not.toBeInTheDocument();
   });
 
-  it("keeps the previous municipal logo if a replacement fails to load", () => {
-    const { container, rerender } = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />);
-    rerender(<InstitutionalLogo branding={{ ...branding, logoUrl: "/broken-logo.png" }} fallbackLabel="Prefeitura A" />);
-    fireEvent.error(container.querySelector('img[aria-hidden="true"]')!);
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" })).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+  it("keeps the previous municipal logo if an off-DOM replacement probe fails", () => {
+    const probes: Array<{
+      onload: null | (() => void);
+      onerror: null | (() => void);
+      src: string;
+      decoding: string;
+      complete: boolean;
+      naturalWidth: number;
+    }> = [];
+    const OriginalImage = window.Image;
+    class ProbeImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = "";
+      decoding = "auto";
+      complete = false;
+      naturalWidth = 0;
+      constructor() {
+        probes.push(this);
+      }
+    }
+    Object.defineProperty(window, "Image", { configurable: true, writable: true, value: ProbeImage });
+
+    try {
+      const { container, rerender } = render(
+        <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />,
+      );
+      const firstImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
+      fireEvent.load(firstImage);
+
+      rerender(
+        <InstitutionalLogo
+          branding={{ ...branding, logoUrl: "/broken-logo.png" }}
+          fallbackLabel="Prefeitura A"
+        />,
+      );
+
+      expect(container.querySelectorAll("img")).toHaveLength(1);
+      act(() => probes.at(-1)?.onerror?.());
+
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+    } finally {
+      Object.defineProperty(window, "Image", { configurable: true, writable: true, value: OriginalImage });
+    }
   });
 });
