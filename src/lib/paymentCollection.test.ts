@@ -73,6 +73,8 @@ describe("municipal payment collection", () => {
   it("never accepts an invented or malformed bank barcode", () => {
     expect(normalizeBankBarcode("123")).toBe("");
     expect(normalizeBankBarcode("1".repeat(44))).toBe("1".repeat(44));
+    expect(normalizeBankBarcode("2".repeat(48))).toBe("2".repeat(48));
+    expect(normalizeBankBarcode("3".repeat(47))).toBe("");
     expect(normalizeDigitableLine("2".repeat(47))).toBe("2".repeat(47));
     expect(normalizeDigitableLine("3".repeat(48))).toBe("3".repeat(48));
     expect(normalizeDigitableLine("4".repeat(44))).toBe("");
