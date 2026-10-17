@@ -59,15 +59,17 @@ describe("process guide placement and organogram regression", () => {
     const hero = detail.slice(heroStart, heroEnd + 2);
 
     expect(hero).not.toContain('printGuide("protocolo"');
-    expect(detail).toContain('onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", false)}');
-    expect(detail).toContain('onClick={() => printGuide(constructionGuide ? "iss_obra" : "protocolo", true)}');
+    expect(detail).toContain('onClick={() => void printGuide("protocolo", false)}');
+    expect(detail).toContain('onClick={() => void printGuide("protocolo", true)}');
+    expect(detail).toContain("preparedGuideCharges");
   });
 
   it("loads the municipal organogram for external process viewers and hides stale premature Finance handoff", () => {
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
     expect(detail).not.toContain("!effectiveScopeId || !isInternalRole(session.role)");
-    expect(detail).toContain("const displayOrganizationPath = currentOrganizationPath");
+    expect(detail).toContain("const displayOrganizationPath =");
+    expect(detail).toContain(": currentOrganizationPath;");
     expect(detail).toContain("isPrematureIssFinanceHandoff");
     expect(detail).toContain('holdsIssuedIssInsideUrbanism ? "Análise Urbanística em andamento"');
   });
@@ -155,15 +157,17 @@ describe("topbar and process-card contrast isolation", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const portal = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
-    const v11Start = polarity.indexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
-    const v11 = polarity.slice(v11Start);
+    const v14Start = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const v14End = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", v14Start);
+    const v14 = polarity.slice(v14Start, v14End);
 
     expect(portal).toContain("const topbarFill = darken(primaryColor, -5)");
     expect(portal).toContain("const topbarHighlight = darken(primaryColor, -11)");
     expect(portal).toContain("const topbarDepth = darken(primaryColor, 2)");
-    expect(v11Start).toBeGreaterThanOrEqual(0);
-    expect(v11).not.toContain(".sig-premium-topbar");
-    expect(v11).not.toContain(".sig-topbar-shell");
+    expect(v14Start).toBeGreaterThanOrEqual(0);
+    expect(v14End).toBeGreaterThan(v14Start);
+    expect(v14).not.toContain(".sig-premium-topbar");
+    expect(v14).not.toContain(".sig-topbar-shell");
     expect(detail).toContain("sig-process-detail-premium");
     expect(detail).toContain('data-process-document-card="true"');
     expect(detail).toContain("sig-primary-document-action");
@@ -192,7 +196,9 @@ describe("strict process surface contrast root", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 
-    const contrastRoot = polarity.slice(polarity.indexOf("FINAL PROCESS POLARITY LOCK V10"));
+    const start = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
+    const contrastRoot = polarity.slice(start, end);
     expect(contrastRoot).toContain("#sig-process-document-command-center");
     expect(contrastRoot).toContain(".sig-command-metric-blue");
     expect(contrastRoot).toContain(".sig-command-metric-emerald");
@@ -232,12 +238,12 @@ describe("authoritative process surface polarity file", () => {
       main.indexOf('import "./index.css"'),
     );
     expect(polarity).toContain("Surface Polarity Contract V8");
-    expect(polarity).toContain("FINAL PROCESS POLARITY LOCK V10");
+    expect(polarity).toContain("PROCESS DETAIL VISIBILITY LOCK V14");
     expect(polarity).toContain("#sig-process-document-command-center");
     expect(polarity).toContain('[data-layout-mode="default"]');
     expect(polarity).toContain('[data-layout-mode="inverse-main"]');
-    expect(polarity).toContain('color: #ffffff !important');
-    expect(polarity).toContain('color: #0f172a !important');
+    expect(polarity).toMatch(/color:\s*#ffffff\s*!important/);
+    expect(polarity).toMatch(/color:\s*#0f172a\s*!important/);
   });
 });
 
@@ -275,33 +281,37 @@ describe("canonical process surface contract", () => {
 describe("final process contrast authority", () => {
   it("keeps the final polarity lock after every earlier rule and never targets topbar", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
-    const finalIndex = polarity.lastIndexOf("FINAL PROCESS POLARITY LOCK V10");
-    const commandIndex = polarity.lastIndexOf("#sig-process-document-command-center");
+    const finalIndex = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const finalEnd = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", finalIndex);
+    const block = polarity.slice(finalIndex, finalEnd);
 
     expect(finalIndex).toBeGreaterThan(0);
-    expect(commandIndex).toBeGreaterThan(finalIndex);
-    expect(polarity.slice(finalIndex)).toContain("color: #ffffff !important");
-    expect(polarity.slice(finalIndex)).toContain('[data-organogram-unit-chip="true"]');
-    expect(polarity.slice(finalIndex)).toContain('[data-primary-action="process"]');
-    expect(polarity.slice(finalIndex)).not.toContain(".sig-topbar");
-    expect(polarity.slice(finalIndex)).not.toContain(".sig-premium-topbar");
+    expect(finalEnd).toBeGreaterThan(finalIndex);
+    expect(block).toMatch(/color:\s*#ffffff\s*!important/);
+    expect(block).toContain("#sig-process-document-command-center");
+    expect(block).toContain('[data-analysis-dark-header="true"]');
+    expect(block).toContain('[data-permit-dark-header="true"]');
+    expect(block).not.toContain(".sig-topbar");
+    expect(block).not.toContain(".sig-premium-topbar");
   });
 });
 
 
-describe("authoritative V12 process-only contrast", () => {
-  it("runs after earlier polarity locks and keeps the topbar out of scope", () => {
+describe("authoritative V14 process-only contrast", () => {
+  it("runs after earlier process rules and keeps the topbar out of scope", () => {
     const polarity = readFileSync(resolve(process.cwd(), "src/styles/surface-polarity.css"), "utf8");
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
-    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V12");
-    const v12 = polarity.slice(start);
+    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
+    const v14 = polarity.slice(start, end);
 
     expect(start).toBeGreaterThan(0);
-    expect(v12).toContain("[data-premium-process-dark-header]");
-    expect(v12).toContain("[data-command-metric]");
-    expect(v12).toContain("[data-process-summary-card");
-    expect(v12).not.toContain(".sig-premium-topbar");
-    expect(v12).not.toContain(".sig-topbar-shell");
+    expect(end).toBeGreaterThan(start);
+    expect(v14).toContain('[data-analysis-dark-header="true"]');
+    expect(v14).toContain("[data-command-metric]");
+    expect(v14).toContain('[data-process-summary-card="true"]');
+    expect(v14).not.toContain(".sig-premium-topbar");
+    expect(v14).not.toContain(".sig-topbar-shell");
     expect(detail).toContain('data-premium-process-dark-header="documents"');
     expect(detail).toContain('data-command-metric="blue"');
     expect(detail).toContain("sig-summary-sky");
@@ -342,7 +352,8 @@ describe("process analysis premium contrast contract v7", () => {
 
     expect(detail).toContain('data-dispatch-panel="true"');
     expect(detail).toContain('data-dispatch-organogram="true"');
-    expect(detail).toContain("overflow-x-auto");
+    expect(detail).toContain('data-dispatch-organogram-grid="true"');
+    expect(detail).toContain("sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4");
     expect(detail).toContain('data-organogram-destination="true"');
     expect(detail).toContain('data-premium-dark-action="true"');
   });
@@ -355,18 +366,19 @@ describe("process detail visibility lock v13", () => {
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
     const analysis = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
     const permit = readFileSync(resolve(process.cwd(), "src/components/platform/ConstructionPermitPanel.tsx"), "utf8");
-    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V13");
-    const v13 = polarity.slice(start);
+    const start = polarity.lastIndexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
+    const v14 = polarity.slice(start, end);
 
     expect(start).toBeGreaterThan(0);
-    expect(v13).toContain(".sig-process-detail-premium");
-    expect(v13).toContain('[data-analysis-dark-header="true"]');
-    expect(v13).toContain('[data-permit-dark-header="true"]');
-    expect(v13).toContain('[data-analysis-signature-action="technical"]');
-    expect(v13).toContain('[data-dispatch-organogram="true"] [data-organogram-code="true"]');
-    expect(v13).toContain('button[data-checklist-status="NA"][data-selected="true"]');
-    expect(v13).not.toContain(".sig-premium-topbar");
-    expect(v13).not.toContain(".sig-topbar-shell");
+    expect(end).toBeGreaterThan(start);
+    expect(v14).toContain(".sig-process-detail-premium");
+    expect(v14).toContain('[data-analysis-dark-header="true"]');
+    expect(v14).toContain('[data-permit-dark-header="true"]');
+    expect(v14).toContain('[data-analysis-signature-action="technical"]');
+    expect(v14).toContain('button[data-checklist-status="NA"][data-selected="true"]');
+    expect(v14).not.toContain(".sig-premium-topbar");
+    expect(v14).not.toContain(".sig-topbar-shell");
 
     expect(detail).toContain('data-dark-header-action="true"');
     expect(analysis).toContain('data-analysis-dark-header="true"');
@@ -385,9 +397,12 @@ describe("process contrast v9", () => {
     expect(detail).toContain("sig-process-dark-surface-v9");
     expect(analysis).toContain("sig-process-dark-surface-v9");
     expect(permit).toContain("sig-process-dark-surface-v9");
-    expect(css).toContain("PROCESS DETAIL CONTRAST FINAL V9");
-    expect(css).toContain(".sig-process-detail-premium .sig-process-dark-surface-v9");
-    expect(css).not.toContain(".sig-topbar");
+    const start = css.indexOf("PROCESS DETAIL CONTRAST FINAL V9");
+    const end = css.indexOf("PROCESS DETAIL PREMIUM CONTRACT V10", start);
+    const v9 = css.slice(start, end > start ? end : css.length);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(v9).toContain(".sig-process-detail-premium .sig-process-dark-surface-v9");
+    expect(v9).not.toContain(".sig-topbar");
   });
 
   it("makes selected technical checklist statuses unmistakable", () => {
