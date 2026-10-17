@@ -11,7 +11,7 @@ describe("construction permit PDF opening", () => {
 
   it("keeps a real browser tab handle and navigates it to the native PDF viewer", () => {
     expect(pdf).toContain("reserveConstructionPermitPdfWindow");
-    expect(pdf).toContain('window.open(\n    "about:blank"');
+    expect(pdf).toMatch(/window\.open\(\s*["']about:blank["']/);
     expect(pdf).toContain("opened.opener = null");
     expect(pdf).toContain("opened.location.replace(url)");
     expect(pdf).not.toContain("fallback.download");
