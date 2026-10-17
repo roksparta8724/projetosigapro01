@@ -50,6 +50,7 @@ import {
   type PaymentGuideKind,
   type ProcessRecord,
 } from "@/lib/platform";
+import { prepareGuideImageSource } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -320,6 +321,7 @@ export function FinanceProtocolsPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
+    const embeddedGuideLogoUrl = await prepareGuideImageSource(guideLogoUrl);
 
     openGuiaRecolhimentoOficialWindow(
       {
@@ -334,7 +336,7 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: guideLogoUrl,
+          logoUrl: embeddedGuideLogoUrl || guideLogoUrl,
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
