@@ -573,7 +573,9 @@ export function ConstructionPermitPanel({
       const saved = await savePermitForm(false, false);
       if (!saved) return;
 
-      const official = await requestOfficialPermitDirectorSignature(process.id);
+      const requestResult =
+        await requestOfficialPermitDirectorSignature(process.id);
+      const official = requestResult.permit;
       const next: ConstructionPermitRecord = {
         ...saved,
         ...official,
@@ -586,7 +588,9 @@ export function ConstructionPermitPanel({
       setPermit(next);
       setFillOpen(false);
       setStatus(
-        "Solicitação enviada com sucesso. O Alvará entrou na fila da Diretoria para assinatura eletrônica. O Diretor deve confirmar a assinatura com a própria senha.",
+        requestResult.directorName
+          ? `Solicitação enviada com sucesso para ${requestResult.directorName}. O Alvará entrou na fila da Diretoria para assinatura eletrônica com a própria senha.`
+          : "Solicitação enviada com sucesso. O Alvará entrou na fila da Diretoria para assinatura eletrônica. O Diretor deve confirmar a assinatura com a própria senha.",
       );
     } catch (error) {
       setStatus(
