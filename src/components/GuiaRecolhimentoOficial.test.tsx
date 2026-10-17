@@ -67,7 +67,7 @@ describe("GuiaRecolhimentoOficial", () => {
     expect(html).toContain("#0f3557");
   });
 
-  it("uses the Campo Limpo Paulista official fallback instead of showing a LOGO placeholder", () => {
+  it("never injects a broken external logo fallback when the embedded crest is unavailable", () => {
     const html = buildGuiaRecolhimentoOficialHtml(
       {
         ...baseProps,
@@ -79,10 +79,19 @@ describe("GuiaRecolhimentoOficial", () => {
       { autoPrint: false },
     );
 
-    expect(html).toContain(
-      "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png",
-    );
-    expect(html).not.toContain(">LOGO<");
+    expect(html).not.toContain("upload.wikimedia.org");
+    expect(html).toContain('class="dam-logo-fallback"');
+    expect(html).toContain(">PM<");
+  });
+
+  it("binds the print/save PDF button in the static HTML document", () => {
+    const html = buildGuiaRecolhimentoOficialHtml(baseProps, {
+      autoPrint: false,
+    });
+
+    expect(html).toContain('data-dam-print-button="true"');
+    expect(html).toContain("bindDamPrint");
+    expect(html).toContain("window.print()");
   });
 
   it("keeps the guide number fully visible in the receipt area", () => {
