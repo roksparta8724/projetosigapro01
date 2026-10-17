@@ -188,16 +188,6 @@ function normalizeGuideCode(value: unknown) {
     .slice(0, 64);
 }
 
-function resolveExpirationTime(dueDate?: string) {
-  if (!dueDate) return undefined;
-  const due = new Date(dueDate);
-  if (Number.isNaN(due.getTime())) return undefined;
-  const now = new Date();
-  const diffDays = Math.ceil((due.getTime() - now.getTime()) / 86_400_000);
-  const days = Math.min(30, Math.max(1, diffDays));
-  return `P${days}D`;
-}
-
 function extractMercadoPagoError(
   source: Record<string, unknown>,
   status: number,
@@ -272,7 +262,6 @@ export async function createMercadoPagoGuideBoleto(
   }
 
   const amountText = amount.toFixed(2);
-  const expirationTime = resolveExpirationTime(input.dueDate);
   const externalReference = guideCode;
   const idempotencyKey = stableUuidFromText(
     `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v1`,
@@ -285,16 +274,12 @@ export async function createMercadoPagoGuideBoleto(
       type: "ticket",
     },
   };
-  if (expirationTime) {
-    payment.expiration_time = expirationTime;
-  }
-
   // No sandbox do Mercado Pago usamos apenas dados de comprador de teste.
   // Em produção, a integração deverá usar os dados reais do contribuinte.
   const payer =
     environment === "test"
       ? {
-          email: "test_user_br@testuser.com",
+          email: "test@testuser.com",
           first_name: "John",
           last_name: "Doe",
           identification: {
