@@ -42,7 +42,8 @@ describe("process document persistence regressions", () => {
 
   it("never embeds live PDF viewers inside process document cards", () => {
     expect(processDetail).toContain('data-process-document-card="true"');
-    expect(processDetail).toContain("/visualizar");
+    expect(processDetail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
+    expect(processDetail).toContain('/documentos/${documentId}/${route}');
     expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
     expect(processDetail).not.toContain('className="h-72 w-full"');
@@ -52,7 +53,7 @@ describe("process document persistence regressions", () => {
     expect(documentViewer).not.toContain("}, [allowed, document]);");
     expect(documentViewer).toContain("document?.filePath");
     expect(documentViewer).toContain("document?.previewUrl");
-    expect(documentViewer).toContain('className="h-full w-full border-0 bg-white"');
+    expect(documentViewer).toContain('className="h-full w-full border-0 bg-[#2b3037]"');
   });
 
   it("requires a real R2 file path and idempotently links it in the official process", () => {
@@ -78,7 +79,8 @@ describe("process document persistence regressions", () => {
     expect(r2Client).toContain("listRecoverableProcessFiles");
     expect(processDetail).toContain("Buscar uploads anteriores");
     expect(processDetail).toContain("handleRecoverStoredDocument");
-    expect(processDetail).toContain("Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável.");
+    expect(processDetail).toContain("O analista não anexa documentos em nome do profissional.");
+    expect(processDetail).toContain("eles aparecerão automaticamente aqui para análise.");
     expect(processDetail).toContain('const canUploadProcessDocuments = session.role === "profissional_externo"');
   });
 
