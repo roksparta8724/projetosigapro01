@@ -1,6 +1,6 @@
-import { databaseClient as db } from "@/integrations/backend/databaseClient";
+import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -29,6 +29,14 @@ type DatabaseRow = Record<string, any>;
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
   const raw = (value ?? "").trim();
   if (!raw) return "";
+
+  // Perfis antigos ainda podem apontar para o bucket público legado do Supabase.
+  // O SIGAPRO agora resolve esses avatares pelo endpoint próprio e faz cache no R2,
+  // evitando depender diretamente do armazenamento antigo no navegador.
+  if (/^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//i.test(raw)) {
+    return getLegacyProfileAvatarOpenUrl(raw);
+  }
+
   if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
 
   const objectKey = raw.startsWith(PROFILE_ASSET_REF_PREFIX)
@@ -3050,6 +3058,89 @@ export async function assignRemoteProfileDepartment(input: {
   };
 }
 
+async function provisionRemoteMunicipalStaffAccount(input: {
+  email: string;
+  municipalityId: string;
+  role: SessionUser["role"];
+  name: string;
+  title: string;
+  accessLevel: 1 | 2 | 3;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+
+  const { data, error } = await db.rpc("provision_municipal_staff_account", {
+    _municipality_id: input.municipalityId,
+    _email: input.email.trim().toLowerCase(),
+    _role_code: input.role,
+    _full_name: input.name.trim(),
+    _title: input.title.trim(),
+    _access_level: input.accessLevel,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível criar a conta do servidor.");
+  }
+
+  const saved = data as Record<string, unknown> | null;
+  return {
+    ready: Boolean(saved?.ready),
+    reason: saved?.reason ? String(saved.reason) : "",
+    userId: saved?.profile_id ? String(saved.profile_id) : saved?.user_id ? String(saved.user_id) : "",
+    email: saved?.email ? String(saved.email) : input.email.trim().toLowerCase(),
+    name: saved?.full_name ? String(saved.full_name) : input.name.trim(),
+    role: (saved?.role ?? input.role) as SessionUser["role"],
+    title: saved?.title ? String(saved.title) : input.title.trim(),
+    profileLabel: saved?.profile_label ? String(saved.profile_label) : "",
+    accessLevel: Number(saved?.access_level ?? input.accessLevel) as 1 | 2 | 3,
+    accountStatus: (saved?.account_status ?? "active") as SessionUser["accountStatus"],
+    userType: saved?.user_type ? String(saved.user_type) : "Interno",
+    blockedAt: saved?.blocked_at ? String(saved.blocked_at) : null,
+    blockedBy: saved?.blocked_by ? String(saved.blocked_by) : null,
+    blockReason: saved?.block_reason ? String(saved.block_reason) : null,
+  };
+}
+
+async function createDetachedNeonEmailAccount(input: {
+  email: string;
+  name: string;
+  password: string;
+}) {
+  if (!neonAuthUrl) {
+    throw new Error("Serviço Neon Auth indisponível para criar a nova conta.");
+  }
+
+  const response = await fetch(`${neonAuthUrl}/sign-up/email`, {
+    method: "POST",
+    credentials: "omit",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email.trim().toLowerCase(),
+      name: input.name.trim(),
+      password: input.password,
+    }),
+  });
+
+  const payload = await response.clone().json().catch(() => null) as
+    | { message?: string; error?: string; code?: string }
+    | null;
+
+  if (response.ok) return;
+
+  const message =
+    payload?.message ||
+    payload?.error ||
+    `Falha ao criar a conta de autenticação (HTTP ${response.status}).`;
+
+  // E-mail já existente não deve trocar senha nem sessão. O passo seguinte
+  // somente confirma/vincula o perfil à Prefeitura atual.
+  if (/already|exists|registered|email.*taken|user.*exist/i.test(message)) return;
+
+  throw new Error(message);
+}
+
 export async function manageRemoteUserAccess(input: {
   userId: string;
   municipalityId: string;
@@ -3106,9 +3197,61 @@ export async function linkExistingMunicipalStaff(input: {
   name: string;
   title: string;
   accessLevel: 1 | 2 | 3;
+  temporaryPassword?: string;
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
+
   const email = input.email.trim().toLowerCase();
+
+  if (isNeonBackend) {
+    let saved = await provisionRemoteMunicipalStaffAccount({
+      email,
+      municipalityId: input.municipalityId,
+      role: input.role,
+      name: input.name,
+      title: input.title,
+      accessLevel: input.accessLevel,
+    });
+
+    if (!saved.ready && saved.reason === "auth_missing") {
+      const temporaryPassword = input.temporaryPassword?.trim() ?? "";
+      if (!temporaryPassword) {
+        throw new Error(
+          "Informe uma senha provisória para criar a conta do servidor.",
+        );
+      }
+
+      await createDetachedNeonEmailAccount({
+        email,
+        name: input.name,
+        password: temporaryPassword,
+      });
+
+      for (const delayMs of [0, 120, 320, 700]) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        saved = await provisionRemoteMunicipalStaffAccount({
+          email,
+          municipalityId: input.municipalityId,
+          role: input.role,
+          name: input.name,
+          title: input.title,
+          accessLevel: input.accessLevel,
+        });
+        if (saved.ready) break;
+      }
+    }
+
+    if (!saved.ready || !saved.userId) {
+      throw new Error(
+        "A conta de autenticação foi criada, mas o vínculo municipal ainda não foi confirmado. Tente salvar novamente.",
+      );
+    }
+
+    return saved;
+  }
+
   const { data, error } = await db
     .from("profiles")
     .select("id, user_id, municipality_id")
