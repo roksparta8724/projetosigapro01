@@ -1643,7 +1643,7 @@ export function UrbanAnalysisChecklistPanel({
 
       metrics.forEach(([label, value, fill, border, textColor], index) => {
         const x = margin + 4 + index * 31;
-        doc.setFillColor(...fill);
+        doc.setFillColor(fill[0], fill[1], fill[2]);
         doc.setDrawColor(border[0], border[1], border[2]);
         doc.roundedRect(x, resultY + 8, 28, 8, 2, 2, "FD");
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
