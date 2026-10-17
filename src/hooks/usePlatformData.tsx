@@ -823,7 +823,7 @@ async function loadRemotePlatformStoreWithRetry(maxAttempts = 3) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await loadRemotePlatformStoreWithRetry();
+      return await loadRemotePlatformStore();
     } catch (error) {
       lastError = error;
       if (isAuthError(error) || attempt >= maxAttempts) {
