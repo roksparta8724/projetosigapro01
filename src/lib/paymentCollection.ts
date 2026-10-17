@@ -67,7 +67,9 @@ export function validateMunicipalPixKey(
 
 export function normalizeBankBarcode(value?: string | null) {
   const digits = String(value || "").replace(/\D/g, "");
-  return digits.length === 44 ? digits : "";
+  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
+    ? digits
+    : "";
 }
 
 export function normalizeDigitableLine(value?: string | null) {
