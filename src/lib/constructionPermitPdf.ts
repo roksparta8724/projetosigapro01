@@ -318,14 +318,14 @@ function drawSignature(
     }
 
     if (verificationQrDataUrl) {
-      const qrSize = 17.5;
-      const qrX = x + width - qrSize - 3.5;
-      const qrY = y + 2.5;
+      const qrSize = 18.5;
+      const qrX = x + width - qrSize - 3.2;
+      const qrY = y + 2.1;
       pdf.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(3.9);
       textColor(pdf, color.green);
-      pdf.text("VERIFICAR AUTENTICIDADE", qrX + qrSize / 2, y + 22.4, {
+      pdf.text("QR DA ASSINATURA ELETRÔNICA", qrX + qrSize / 2, y + 22.4, {
         align: "center",
       });
     }
