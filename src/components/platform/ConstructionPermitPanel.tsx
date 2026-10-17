@@ -593,7 +593,7 @@ export function ConstructionPermitPanel({
       setPermit(next);
       setFillOpen(false);
       setStatus(
-        "Solicitação enviada à Diretoria. O Diretor pode abrir este processo e assinar eletronicamente com a própria senha.",
+        "Solicitação enviada com sucesso. O Alvará entrou na fila da Diretoria para assinatura eletrônica. O Diretor deve confirmar a assinatura com a própria senha.",
       );
     } catch (error) {
       setStatus(
@@ -1076,12 +1076,12 @@ export function ConstructionPermitPanel({
                             ? `${permit.directorSignature.name} • ${new Date(
                                 permit.directorSignature.signedAt,
                               ).toLocaleString("pt-BR")}`
-                            : manualSignatureSelected
-                              ? "PDF preparado para assinatura"
-                              : directorRequestPending
-                                ? "Solicitação eletrônica enviada à Diretoria"
+                            : directorRequestPending
+                              ? "Solicitação eletrônica enviada pelo Analista à Diretoria"
+                              : manualSignatureSelected
+                                ? "PDF manual preparado — assinatura eletrônica ainda pode ser solicitada pelo Analista"
                                 : permitReadyForSignature
-                                  ? "Escolha assinatura eletrônica ou assinatura manual"
+                                  ? "Aguardando o Analista solicitar a assinatura do Diretor"
                                   : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
                         {permit.directorSignature?.verificationCode ? (
@@ -1206,8 +1206,7 @@ export function ConstructionPermitPanel({
                 {canStartDraft &&
                 permitReadyForSignature &&
                 !directorOfficial &&
-                !directorRequestPending &&
-                !manualSignatureSelected ? (
+                !directorRequestPending ? (
                   <div className="rounded-[20px] border border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef8ff_100%)] p-5 shadow-sm dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                       <div>
@@ -1215,11 +1214,16 @@ export function ConstructionPermitPanel({
                           Assinatura do Alvará
                         </p>
                         <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
-                          Escolha como a Diretoria vai assinar
+                          O Analista solicita a assinatura do Diretor
                         </p>
                         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                          Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar manualmente.
+                          Fluxo oficial: o Analista responsável encaminha o Alvará ao Diretor, que entra com a própria conta, confirma com a própria senha e assina eletronicamente. O PDF manual fica apenas como alternativa excepcional.
                         </p>
+                        {manualSignatureSelected ? (
+                          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-200">
+                            Um PDF manual já foi preparado, mas o Analista ainda pode mudar para assinatura eletrônica. Ao solicitar abaixo, o modo manual é cancelado e o Alvará passa para a fila da Diretoria.
+                          </p>
+                        ) : null}
                         {directors.length === 0 ? (
                           <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
                             Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura manual continua disponível.
@@ -1229,9 +1233,9 @@ export function ConstructionPermitPanel({
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
-                          variant="outline"
-                          className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                          disabled={Boolean(workflowBusy)}
+                          data-request-director-signature="true"
+                          className="rounded-full bg-violet-700 px-5 font-bold !text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)] hover:bg-violet-800"
+                          disabled={directors.length === 0 || Boolean(workflowBusy)}
                           onClick={() => void requestDirectorSignature()}
                         >
                           {workflowBusy === "request" ? (
@@ -1239,11 +1243,12 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Send className="mr-2 h-4 w-4" />
                           )}
-                          Enviar ao Diretor para assinar eletronicamente
+                          Solicitar assinatura eletrônica do Diretor
                         </Button>
                         <Button
                           type="button"
-                          className="rounded-full bg-sky-700 px-5 font-bold text-white hover:bg-sky-800"
+                          variant="outline"
+                          className="rounded-full border-slate-300 bg-white px-5 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
                           disabled={Boolean(workflowBusy)}
                           onClick={() => void generateManualSignaturePdf()}
                         >
