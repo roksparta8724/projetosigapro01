@@ -2095,345 +2095,7 @@ html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
 /* TOPBAR BRAND PREMIUM V18 END */
 
 
-/* ==========================================================================
-   CONFIGURACOES MUNICIPAIS PREMIUM V19 — 2026-10-16
-   Escopo exclusivo da pagina de configuracoes. Melhora hierarquia, densidade,
-   tabs, cards, upload e editor sem alterar as demais areas do SIGAPRO.
-   ========================================================================== */
-html body #root .sig-config-page {
-  width:100% !important;
-  max-width:1540px !important;
-  margin-inline:auto !important;
-  gap:18px !important;
-  padding-bottom:36px !important;
-}
 
-html body #root .sig-config-page .sig-config-hero {
-  position:relative;
-  border:1px solid rgba(190,205,220,.82) !important;
-  background:
-    radial-gradient(circle at 92% 8%,rgba(37,99,235,.08),transparent 30%),
-    linear-gradient(135deg,#ffffff 0%,#f8fbff 52%,#f3f8fc 100%) !important;
-  box-shadow:
-    0 18px 42px rgba(15,23,42,.075),
-    inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page .sig-config-hero::after {
-  content:"";
-  position:absolute;
-  inset:0 auto 0 0;
-  width:4px;
-  background:linear-gradient(180deg,#0f4a7a 0%,#2563eb 52%,#10b981 100%);
-  border-radius:999px;
-  opacity:.96;
-}
-
-html body #root .sig-config-page .sig-config-hero .sig-header-icon {
-  background:linear-gradient(145deg,#0f4a7a 0%,#23679d 100%) !important;
-  border-color:rgba(15,74,122,.4) !important;
-  color:#ffffff !important;
-  box-shadow:0 12px 26px rgba(15,74,122,.2) !important;
-}
-
-html body #root .sig-config-page .sig-config-stats {
-  gap:12px !important;
-}
-
-html body #root .sig-config-page .sig-config-stats .sig-stat-card {
-  min-height:126px !important;
-  border-radius:22px !important;
-  border-color:rgba(203,213,225,.9) !important;
-  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
-  box-shadow:
-    0 12px 28px rgba(15,23,42,.055),
-    inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page .sig-config-stats .sig-stat-value {
-  font-weight:700 !important;
-  letter-spacing:-.018em !important;
-}
-
-html body #root .sig-config-page .sig-config-tabs {
-  border-color:rgba(190,205,220,.86) !important;
-  border-radius:22px !important;
-  background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%) !important;
-  box-shadow:0 12px 28px rgba(15,23,42,.055) !important;
-}
-
-html body #root .sig-config-page .sig-config-tabs .sig-nav-item {
-  min-height:58px !important;
-  min-width:168px !important;
-  border-radius:15px !important;
-  padding:10px 13px !important;
-  box-shadow:none !important;
-}
-
-html body #root .sig-config-page .sig-config-tabs .sig-nav-item[data-nav-active="true"] {
-  border-color:rgba(96,165,250,.28) !important;
-  background:linear-gradient(135deg,#0d3f68 0%,#155987 54%,#256a9c 100%) !important;
-  box-shadow:
-    0 10px 22px rgba(15,74,122,.22),
-    inset 0 1px 0 rgba(255,255,255,.11) !important;
-}
-
-html body #root .sig-config-page .sig-config-tabs .sig-nav-item-label {
-  font-weight:700 !important;
-}
-
-html body #root .sig-config-page .sig-config-section {
-  overflow:visible !important;
-  border:1px solid rgba(190,205,220,.82) !important;
-  border-radius:28px !important;
-  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
-  box-shadow:
-    0 18px 42px rgba(15,23,42,.065),
-    inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page .sig-config-brand-panel {
-  position:relative;
-  overflow:hidden;
-  border-color:rgba(199,210,221,.92) !important;
-  background:
-    radial-gradient(circle at 100% 0%,rgba(59,130,246,.045),transparent 34%),
-    linear-gradient(180deg,#ffffff 0%,#f9fbfd 100%) !important;
-  box-shadow:
-    0 14px 34px rgba(15,23,42,.06),
-    inset 0 1px 0 rgba(255,255,255,.98) !important;
-}
-
-html body #root .sig-config-page .sig-config-brand-panel::before {
-  content:"";
-  position:absolute;
-  inset:0 auto 0 0;
-  width:3px;
-  border-radius:999px;
-}
-
-html body #root .sig-config-page .sig-config-brand-panel[data-config-brand-panel="header"]::before {
-  background:linear-gradient(180deg,#0284c7,#2563eb);
-}
-
-html body #root .sig-config-page .sig-config-brand-panel[data-config-brand-panel="footer"]::before {
-  background:linear-gradient(180deg,#7c3aed,#4f46e5);
-}
-
-html body #root .sig-config-page .sig-config-live-preview {
-  min-height:0 !important;
-  height:auto !important;
-  align-self:start !important;
-  isolation:isolate;
-}
-
-html body #root .sig-config-page [data-municipal-logo-live-preview] {
-  background:linear-gradient(180deg,#ffffff 0%,#fdfefe 100%) !important;
-  border-color:rgba(203,213,225,.96) !important;
-  box-shadow:
-    0 16px 34px rgba(2,6,23,.17),
-    inset 0 1px 0 rgba(255,255,255,1) !important;
-}
-
-html body #root .sig-config-page [data-municipal-logo-live-preview] img {
-  display:block !important;
-  max-width:100% !important;
-  max-height:100% !important;
-  object-fit:contain !important;
-  object-position:center !important;
-  filter:none !important;
-  opacity:1 !important;
-  image-rendering:auto !important;
-}
-
-html body #root .sig-config-page .sig-config-logo-editor {
-  border:1px solid rgba(203,213,225,.92) !important;
-  border-radius:22px !important;
-  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
-  padding:14px !important;
-  box-shadow:
-    0 10px 26px rgba(15,23,42,.05),
-    inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page [data-upload-zone] {
-  gap:10px !important;
-}
-
-html body #root .sig-config-page [data-upload-zone] > div:first-child {
-  border-style:solid !important;
-  border-color:rgba(203,213,225,.92) !important;
-  border-radius:20px !important;
-  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
-  padding:14px 16px !important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page [data-upload-zone] > div:not(:first-child) {
-  border-color:rgba(203,213,225,.88) !important;
-  background:#ffffff !important;
-  box-shadow:0 8px 20px rgba(15,23,42,.035) !important;
-}
-
-html body #root .sig-config-page input,
-html body #root .sig-config-page textarea {
-  border-color:rgba(203,213,225,.96) !important;
-  background:#ffffff !important;
-  box-shadow:inset 0 1px 2px rgba(15,23,42,.025) !important;
-}
-
-html body #root .sig-config-page input:focus,
-html body #root .sig-config-page textarea:focus {
-  border-color:#60a5fa !important;
-  box-shadow:0 0 0 3px rgba(59,130,246,.12) !important;
-}
-
-html body #root .sig-config-page .sig-force-dark-action {
-  min-height:42px;
-  border-radius:14px !important;
-  background:linear-gradient(135deg,#0b1726 0%,#162c42 100%) !important;
-  border:1px solid rgba(15,23,42,.45) !important;
-  box-shadow:0 9px 20px rgba(15,23,42,.15) !important;
-  font-weight:700 !important;
-}
-
-html body #root .sig-config-page .sig-force-dark-action:hover {
-  background:linear-gradient(135deg,#10243a 0%,#1e3a56 100%) !important;
-  transform:translateY(-1px);
-}
-
-@media (min-width:1280px) {
-  html body #root .sig-config-page .sig-config-tabs > div {
-    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
-  }
-  html body #root .sig-config-page .sig-config-tabs .sig-nav-item {
-    min-width:0 !important;
-  }
-}
-
-@media (max-width:1279px) {
-  html body #root .sig-config-page .sig-config-brand-panel {
-    padding:16px !important;
-  }
-}
-
-/* Tema inverso: mesma hierarquia premium sem cards brancos ilegíveis. */
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-hero,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-section,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-brand-panel,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-logo-editor,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page [data-upload-zone] > div:first-child,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page [data-upload-zone] > div:not(:first-child) {
-  background:linear-gradient(180deg,#13283d 0%,#0f2133 100%) !important;
-  border-color:#36536d !important;
-  color:#f8fbff !important;
-  box-shadow:0 14px 34px rgba(2,6,23,.18) !important;
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page input,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page textarea {
-  background:#102337 !important;
-  border-color:#36536d !important;
-  color:#f8fbff !important;
-  -webkit-text-fill-color:#f8fbff !important;
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page
-:is(.sig-section-title,.sig-page-title,.sig-stat-value,h1,h2,h3,strong,label) {
-  color:#f8fbff !important;
-  -webkit-text-fill-color:#f8fbff !important;
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page
-:is(.sig-subtitle,.sig-fit-copy,p:not(.sig-nav-item-label):not(.sig-nav-item-helper)) {
-  text-shadow:none;
-}
-
-html body #root .sig-config-page .sig-section-card {
-  border-radius:26px !important;
-  border-color:rgba(190,205,220,.82) !important;
-  box-shadow:
-    0 15px 36px rgba(15,23,42,.055),
-    inset 0 1px 0 rgba(255,255,255,.96) !important;
-}
-
-html body #root .sig-config-page .sig-main-grid {
-  gap:16px !important;
-}
-
-html body #root .sig-config-page .sig-config-support-panel {
-  border-color:rgba(199,210,221,.92) !important;
-  background:linear-gradient(180deg,#ffffff 0%,#f9fbfd 100%) !important;
-  box-shadow:
-    0 13px 30px rgba(15,23,42,.05),
-    inset 0 1px 0 rgba(255,255,255,.98) !important;
-}
-
-html body #root .sig-config-page [data-config-legal-panel="true"] {
-  border-color:rgba(186,216,242,.96) !important;
-  background:
-    radial-gradient(circle at 100% 0%,rgba(14,165,233,.055),transparent 30%),
-    linear-gradient(180deg,#ffffff 0%,#f5faff 100%) !important;
-}
-
-html body #root .sig-config-page label {
-  font-weight:700 !important;
-  letter-spacing:-.005em;
-  color:#334155;
-}
-
-html body #root .sig-config-page button:not(.sig-nav-item):focus-visible,
-html body #root .sig-config-page input:focus-visible,
-html body #root .sig-config-page textarea:focus-visible {
-  outline:0 !important;
-  box-shadow:0 0 0 3px rgba(59,130,246,.14) !important;
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-section-card,
-html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-support-panel {
-  background:linear-gradient(180deg,#13283d 0%,#0f2133 100%) !important;
-  border-color:#36536d !important;
-  color:#f8fbff !important;
-  box-shadow:0 14px 34px rgba(2,6,23,.18) !important;
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page label {
-  color:#e7f0f8 !important;
-  -webkit-text-fill-color:#e7f0f8 !important;
-}
-
-html body #root .sig-config-page .sig-config-summary-card,
-html body #root .sig-config-page .sig-config-state-card {
-  border-color:rgba(203,213,225,.9) !important;
-  background:
-    radial-gradient(circle at 100% 0%,rgba(59,130,246,.035),transparent 34%),
-    linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;
-  box-shadow:
-    0 9px 22px rgba(15,23,42,.04),
-    inset 0 1px 0 rgba(255,255,255,.98) !important;
-}
-
-html body #root .sig-config-page .sig-config-quick-link {
-  border-color:rgba(203,213,225,.9) !important;
-  background:linear-gradient(180deg,#ffffff 0%,#fafcff 100%) !important;
-  box-shadow:0 7px 18px rgba(15,23,42,.035) !important;
-}
-
-html body #root .sig-config-page .sig-config-quick-link:hover {
-  border-color:rgba(125,168,204,.92) !important;
-  background:#ffffff !important;
-  box-shadow:0 12px 24px rgba(15,74,122,.09) !important;
-  transform:translateY(-1px);
-}
-
-html body #root [data-layout-mode="inverse-main"] .sig-config-page
-:is(.sig-config-summary-card,.sig-config-state-card,.sig-config-quick-link) {
-  background:linear-gradient(180deg,#142a40 0%,#102337 100%) !important;
-  border-color:#36536d !important;
-  color:#f8fbff !important;
-  box-shadow:0 9px 22px rgba(2,6,23,.14) !important;
-}
-/* CONFIGURACOES MUNICIPAIS PREMIUM V19 END */
 
 
 /* ==========================================================================
@@ -2441,7 +2103,7 @@ html body #root [data-layout-mode="inverse-main"] .sig-config-page
    Preview e editor compartilham a mesma geometria do logo real. Nenhuma regra
    global pode transformar o brasao em faixa horizontal ou esticar o frame.
    ========================================================================== */
-html body #root .sig-config-page .sig-config-logo-frame {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame {
   padding:0 !important;
   display:flex !important;
   align-items:center !important;
@@ -2454,7 +2116,7 @@ html body #root .sig-config-page .sig-config-logo-frame {
   background:#ffffff !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-frame-header {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header {
   width:176px !important;
   min-width:176px !important;
   max-width:176px !important;
@@ -2464,7 +2126,7 @@ html body #root .sig-config-page .sig-config-logo-frame-header {
   flex-basis:176px !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-frame-footer {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-footer {
   width:176px !important;
   min-width:176px !important;
   max-width:176px !important;
@@ -2474,7 +2136,7 @@ html body #root .sig-config-page .sig-config-logo-frame-footer {
   flex-basis:176px !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-frame > img {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame > img {
   display:block !important;
   width:100% !important;
   height:100% !important;
@@ -2485,7 +2147,7 @@ html body #root .sig-config-page .sig-config-logo-frame > img {
   margin:0 !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-editor [data-image-frame-shape="rounded"] {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor [data-image-frame-shape="rounded"] {
   width:max-content !important;
   max-width:100% !important;
   margin-inline:auto !important;
@@ -2493,7 +2155,7 @@ html body #root .sig-config-page .sig-config-logo-editor [data-image-frame-shape
   border-radius:24px !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-editor-header [data-image-frame-viewport="true"] {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"] {
   width:176px !important;
   min-width:176px !important;
   max-width:176px !important;
@@ -2504,7 +2166,7 @@ html body #root .sig-config-page .sig-config-logo-editor-header [data-image-fram
   border-radius:18px !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
   width:176px !important;
   min-width:176px !important;
   max-width:176px !important;
@@ -2515,21 +2177,21 @@ html body #root .sig-config-page .sig-config-logo-editor-footer [data-image-fram
   border-radius:18px !important;
 }
 
-html body #root .sig-config-page .sig-config-logo-editor [data-image-frame-viewport="true"] img {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor [data-image-frame-viewport="true"] img {
   max-width:none !important;
   max-height:none !important;
   image-rendering:auto !important;
 }
 
-html body #root .sig-config-page .sig-config-live-preview {
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-live-preview {
   width:100% !important;
   max-width:720px !important;
   min-width:0 !important;
   margin-inline:0 !important;
 }
 
-html body #root .sig-config-page [data-institutional-header-preview="true"],
-html body #root .sig-config-page [data-institutional-footer-preview="true"] {
+html body #root .sig-app-frame [data-config-brand-panel] [data-institutional-header-preview="true"],
+html body #root .sig-app-frame [data-config-brand-panel] [data-institutional-footer-preview="true"] {
   height:auto !important;
   min-height:0 !important;
   max-height:none !important;
@@ -2560,10 +2222,10 @@ html body #root .sig-app-frame
 }
 
 @media (max-width:639px) {
-  html body #root .sig-config-page .sig-config-logo-frame-header,
-  html body #root .sig-config-page .sig-config-logo-frame-footer,
-  html body #root .sig-config-page .sig-config-logo-editor-header [data-image-frame-viewport="true"],
-  html body #root .sig-config-page .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header,
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-footer,
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"],
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
     width:160px !important;
     min-width:160px !important;
     max-width:160px !important;
