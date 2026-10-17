@@ -1069,8 +1069,18 @@ function getStyles() {
       }
 
       .dam-sheet {
+        margin: 0 auto !important;
         border-color: #000000 !important;
+        border-radius: 0 !important;
         box-shadow: none !important;
+      }
+
+      .dam-barcode-svg,
+      .dam-barcode-svg rect {
+        fill: #000000 !important;
+        color: #000000 !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
       }
 
       .dam-receipt-right,
@@ -1199,7 +1209,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
       <div className="dam-toolbar print-hide">
         <button
           type="button"
-          onClick={() => window.print()}
+          data-dam-print-button="true"
           className="dam-print-button"
         >
           Imprimir / Salvar PDF
@@ -1685,6 +1695,24 @@ export function buildGuiaRecolhimentoOficialHtml(
   </head>
   <body>
     ${markup}
+    <script>
+      (function () {
+        function bindDamPrint() {
+          var buttons = document.querySelectorAll('[data-dam-print-button="true"]');
+          buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+              window.focus();
+              window.print();
+            });
+          });
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', bindDamPrint, { once: true });
+        } else {
+          bindDamPrint();
+        }
+      })();
+    </script>
     ${autoPrint ? `<script>
       window.addEventListener('load', function () {
         var images = Array.prototype.slice.call(document.images || []);
