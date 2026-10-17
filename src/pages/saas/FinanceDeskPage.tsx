@@ -729,7 +729,7 @@ export function FinanceDeskPage() {
                       return (
                         <Link
                           key={`${process.id}-${guide.kind}-${guide.code}`}
-                          to={buildProcessPath(process, "financeiro")}
+                          to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}`}
                           className="group grid min-h-[58px] grid-cols-[34px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
                         >
                           <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950">
