@@ -20,8 +20,10 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(admin).toContain("Senha provisória");
     expect(admin).toContain("Departamento / unidade");
     expect(admin).toContain("temporaryPassword");
+    expect(admin).toContain("Salvo com sucesso.");
+    expect(admin).toContain('aria-live="polite"');
     expect(dataHook).toContain("temporaryPassword: input.temporaryPassword");
-    expect(backend).toContain('db.rpc("provision_municipal_staff_account"');
+    expect(backend).toContain('db.rpc("link_municipal_user_by_email"');
     expect(backend).toContain('credentials: "omit"');
     expect(backend).toContain("/sign-up/email");
   });
