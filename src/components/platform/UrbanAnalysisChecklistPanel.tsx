@@ -954,14 +954,14 @@ export function UrbanAnalysisChecklistPanel({
             >
               <QRCodeSVG
                 value={buildPublicSignatureVerificationUrl(signature.verificationCode)}
-                size={82}
+                size={92}
                 level="Q"
                 includeMargin
                 bgColor="#ffffff"
-                fgColor="#0f172a"
+                fgColor="#0B4F71"
                 aria-label={`QR Code de verificação da assinatura eletrônica - ${label}`}
               />
-              <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-700">
+              <span className="mt-1.5 rounded-full bg-sky-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.09em] text-sky-800">
                 Verificar assinatura
               </span>
             </div>
