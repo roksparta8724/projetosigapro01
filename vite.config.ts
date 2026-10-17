@@ -4,6 +4,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { checkMercadoPagoConnection } from "./server/mercadopago";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -246,6 +247,15 @@ function createR2DevApiPlugin(): Plugin {
                 : "Não foi possível abrir o documento.",
             );
           }
+          return;
+        }
+
+        if (req.url.startsWith("/api/mercadopago/health") && req.method === "GET") {
+          const result = await checkMercadoPagoConnection();
+          res.statusCode = result.ok ? 200 : result.configured ? 502 : 503;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(result));
           return;
         }
 
