@@ -197,6 +197,7 @@ type UrbanAnalysisChecklistPanelProps = {
   municipalityEmail?: string | null;
   departmentLabel?: string | null;
   organogramTrail?: Array<{ code: string; name: string }>;
+  readOnly?: boolean;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -373,6 +374,7 @@ export function UrbanAnalysisChecklistPanel({
   municipalityEmail,
   departmentLabel,
   organogramTrail = [],
+  readOnly = false,
 }: UrbanAnalysisChecklistPanelProps) {
   const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() =>
@@ -551,7 +553,8 @@ export function UrbanAnalysisChecklistPanel({
   const pendingCorrectionCount = counts.ap + counts.c;
 
   const canSignTechnical =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
+    !readOnly &&
+    ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isDirectorProfile =
     /diretor|diretora|director/i.test(session.role || "") ||
     /diretor|diretora/i.test(session.title || "");
@@ -572,8 +575,9 @@ export function UrbanAnalysisChecklistPanel({
     directorRequestMatchesCurrentVersion &&
     directorRequest.request?.status === "pending";
   const canRequestDirector =
+    !readOnly &&
     technicalOfficial &&
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
+    ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
   const withdrawalMatchesCurrentVersion = Boolean(withdrawalRecord);
   const canRecordWithdrawal =
@@ -588,6 +592,10 @@ export function UrbanAnalysisChecklistPanel({
   });
 
   const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
+    if (readOnly) {
+      setNotice("Modo acompanhamento: a ficha pertence ao analista responsável. Para alterar, a Diretoria deve iniciar uma intervenção auditada.");
+      return;
+    }
     setState((current) =>
       invalidateSignature({
         ...current,
@@ -608,6 +616,10 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const saveDraft = () => {
+    if (readOnly) {
+      setNotice("Modo acompanhamento: alterações técnicas estão bloqueadas para proteger a autoria da análise.");
+      return;
+    }
     const now = new Date().toISOString();
     const next = { ...state, savedAt: now };
     persistState(next);
@@ -1951,6 +1963,13 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
+        {readOnly ? (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
+            Modo acompanhamento: a análise permanece em leitura. O responsável técnico continua sendo {process.analysis?.assignedTo || "o analista designado"}. A assinatura da Diretoria continua disponível quando solicitada.
+          </div>
+        ) : null}
+
+        <fieldset disabled={readOnly} className="contents">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Processo</p>
@@ -2068,6 +2087,8 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
         </section>
+
+        </fieldset>
 
         <section data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
