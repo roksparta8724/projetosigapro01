@@ -701,6 +701,7 @@ export function ConfiguracoesPage() {
     | "storage"
     | "platform"
   >("overview");
+  const isPlatformSettingsView = String(activeSettingsView) === "platform";
   const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
   const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
 
@@ -3744,7 +3745,7 @@ export function ConfiguracoesPage() {
             )}
         </SectionCard>
         </PageMainContent> : null}
-        {activeSettingsView === "platform" && isMasterRole ? (
+        {isPlatformSettingsView && isMasterRole ? (
           <PageMainContent className="w-full">
             <SectionCard
               title="Administração da plataforma"
