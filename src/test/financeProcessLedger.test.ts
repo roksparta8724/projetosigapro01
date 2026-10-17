@@ -72,6 +72,9 @@ describe("finance process accounting ledger", () => {
     );
     expect(detail).toContain('new URLSearchParams(location.search).get("guia")');
     expect(detail).toContain("paymentGuides.find((guide) => guide.code === requestedGuideCode)");
+    expect(detail).toContain("const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;");
+    expect(detail).toContain("printGuide(displayGuide.kind, false, displayGuide.code)");
+    expect(detail).toContain("printGuide(displayGuide.kind, true, displayGuide.code)");
     expect(detail).toContain('id={guide.code === requestedGuideCode ? "guia-selecionada" : undefined}');
     expect(detail).toContain('data-guide-selected={guide.code === requestedGuideCode ? "true" : "false"}');
     expect(detail).toContain('data-guide-code={guide.code}');
