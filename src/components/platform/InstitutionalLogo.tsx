@@ -48,10 +48,26 @@ function assetIdentity(url: string) {
   const value = url.trim();
   if (!value) return "";
   try {
-    const parsed = new URL(value, window.location.origin);
+    const parsed = new URL(
+      value,
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://sigapromunicipal.com.br",
+    );
+
+    // Na rota estável do brasão/logo municipal, o objectKey identifica o
+    // arquivo. Remover toda a query faria logos de Prefeituras diferentes
+    // parecerem o mesmo recurso durante F5.
+    if (parsed.pathname.endsWith("/api/municipality-logo-open")) {
+      const objectKey = parsed.searchParams.get("objectKey") || "";
+      return `${parsed.origin}${parsed.pathname}?objectKey=${objectKey}`;
+    }
+
+    // Em URL assinada do R2, a query muda apenas autenticação/expiração.
+    // A identidade visual continua sendo origin + pathname.
     return `${parsed.origin}${parsed.pathname}`;
   } catch {
-    return value.split("?")[0].split("#")[0];
+    return value.split("#")[0];
   }
 }
 
@@ -115,18 +131,28 @@ export function InstitutionalLogo({
     : primaryUrl;
 
   const cachedAtMount = readSessionLogo(context);
+  const cacheMatchesCurrentPrimary =
+    !cachedAtMount ||
+    !primaryUrl ||
+    sameAssetResource(cachedAtMount, primaryUrl);
   const cachedAtMountAllowed =
-    isMaster ||
-    !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO);
+    (isMaster ||
+      !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO)) &&
+    cacheMatchesCurrentPrimary;
 
   const [loadedSource, setLoadedSource] = useState(() => ({
     context,
     url: cachedAtMount && cachedAtMountAllowed ? cachedAtMount : imageUrl,
   }));
 
+  const loadedSourceMatchesCurrentPrimary =
+    !loadedSource.url ||
+    !primaryUrl ||
+    sameAssetResource(loadedSource.url, primaryUrl);
   const loadedSourceAllowed =
-    isMaster ||
-    !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO);
+    (isMaster ||
+      !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO)) &&
+    loadedSourceMatchesCurrentPrimary;
 
   const stableLoadedUrl =
     loadedSource.context === context &&
@@ -137,9 +163,14 @@ export function InstitutionalLogo({
       : "";
 
   const cachedContextUrl = readSessionLogo(context);
+  const cachedContextMatchesCurrentPrimary =
+    !cachedContextUrl ||
+    !primaryUrl ||
+    sameAssetResource(cachedContextUrl, primaryUrl);
   const cachedAllowed =
-    isMaster ||
-    !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO);
+    (isMaster ||
+      !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO)) &&
+    cachedContextMatchesCurrentPrimary;
   const safeCachedUrl =
     cachedContextUrl &&
     cachedAllowed &&
@@ -305,10 +336,15 @@ export function InstitutionalLogo({
               fetchPriority="high"
               onLoad={() => {
                 setLoadedSource({ context, url: displayUrl });
+                const isAuthoritativeCurrentLogo =
+                  !primaryUrl || sameAssetResource(displayUrl, primaryUrl);
                 if (
-                  isMaster ||
-                  !sameAssetResource(displayUrl, SIGAPRO_OFFICIAL_LOGO)
+                  isAuthoritativeCurrentLogo &&
+                  (isMaster ||
+                    !sameAssetResource(displayUrl, SIGAPRO_OFFICIAL_LOGO))
                 ) {
+                  // Nunca grave no cache de continuidade um brasão de fallback
+                  // enquanto há um logo oficial diferente configurado.
                   writeSessionLogo(context, displayUrl);
                 }
               }}
