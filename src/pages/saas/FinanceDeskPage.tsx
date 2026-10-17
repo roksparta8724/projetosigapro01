@@ -785,7 +785,7 @@ export function FinanceDeskPage() {
                           </span>
 
                           <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
-                            {isProtocolGuide ? "Baixa: Protocolo" : "Controle: Financeiro"}
+                            {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
                           </span>
 
                           <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white lg:block">
