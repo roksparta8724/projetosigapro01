@@ -1013,12 +1013,7 @@ export function ProcessDetailPage() {
   const canManageIssuedIssGuide =
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
-    (
-      isMasterOperator ||
-      session.role === "prefeitura_supervisor" ||
-      (session.role === "analista" &&
-        (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
-    );
+    (isMasterOperator || canReviewDocuments);
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
       /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
@@ -3220,7 +3215,7 @@ export function ProcessDetailPage() {
                       inputMode="decimal"
                       value={constructionAreaInput}
                       onChange={(event) => setConstructionAreaInput(event.target.value)}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                       className="mt-2 h-11 bg-white dark:bg-slate-950"
                       placeholder="Ex.: 250,00"
                     />
@@ -3231,7 +3226,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={constructionUsageInput}
                       onValueChange={setConstructionUsageInput}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
                         <SelectValue placeholder="Selecione o uso da edificação" />
@@ -3249,7 +3244,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={workTypeInput}
                       onValueChange={setWorkTypeInput}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100">
                         <SelectValue placeholder="Selecione a natureza da obra" />
