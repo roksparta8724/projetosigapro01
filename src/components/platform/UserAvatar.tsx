@@ -23,6 +23,23 @@ const sizeClasses: Record<UserAvatarSize, string> = {
   xl: "h-20 w-20 text-xl",
 };
 
+function userInitials(name?: string | null) {
+  const clean = String(name || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!clean) return "?";
+
+  const parts = clean.split(" ").filter(Boolean);
+  if (parts.length === 1) {
+    const compact = parts[0].replace(/[^\p{L}\p{N}]/gu, "");
+    return compact.slice(0, 2).toLocaleUpperCase("pt-BR") || "?";
+  }
+
+  const first = parts[0].replace(/[^\p{L}\p{N}]/gu, "").charAt(0);
+  const last = parts[parts.length - 1].replace(/[^\p{L}\p{N}]/gu, "").charAt(0);
+  return `${first}${last}`.toLocaleUpperCase("pt-BR") || "?";
+}
+
 export function UserAvatar({
   name,
   imageUrl,
@@ -109,6 +126,7 @@ export function UserAvatar({
 
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
+  const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
   const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
@@ -131,10 +149,12 @@ export function UserAvatar({
       <span
         aria-hidden="true"
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 block h-full w-full rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)]",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none",
           fallbackClassName,
         )}
-      />
+      >
+        {initials}
+      </span>
       {showImage ? (
         <img
           src={resolvedImageUrl || undefined}
