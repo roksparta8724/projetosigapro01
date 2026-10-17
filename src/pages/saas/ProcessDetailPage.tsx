@@ -2171,19 +2171,29 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
+                  disabled={Boolean(guideBillingBusyKey)}
                   onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
                 >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Visualizar guia
+                  {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className="rounded-full"
+                  disabled={Boolean(guideBillingBusyKey)}
                   onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
                 >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Imprimir guia
+                  {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                 </Button>
               </div>
             ) : null}
@@ -3039,10 +3049,15 @@ export function ProcessDetailPage() {
                         type="button"
                         variant="outline"
                         className="rounded-full"
-                        onClick={() => void printGuide("iss_obra", false)}
+                        disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("iss_obra", false)}
                       >
-                        <Eye className="mr-2 h-4 w-4" />
-                        Visualizar guia
+                        {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                       </Button>
 
                       {canManageIssuedIssGuide ? (
@@ -3367,19 +3382,29 @@ export function ProcessDetailPage() {
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => void printGuide("aprovacao_final", false)}
+                                disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("aprovacao_final", false)}
                               >
-                                <Eye className="mr-2 h-4 w-4" />
-                                Visualizar guia
+                                {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                               </Button>
                               <Button
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => void printGuide("aprovacao_final", true)}
+                                disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("aprovacao_final", true)}
                               >
-                                <Printer className="mr-2 h-4 w-4" />
-                                Imprimir guia
+                                {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                               </Button>
                             </>
                           ) : (
@@ -3670,12 +3695,20 @@ export function ProcessDetailPage() {
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
                         <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", false)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Visualizar guia
+                          {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                         </Button>
                         <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", true)}>
-                          <Printer className="mr-2 h-4 w-4" />
-                          Imprimir guia
+                          {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                         </Button>
                         {canFinanceConfirmConstructionPayment ? (
                           <Button
@@ -3840,12 +3873,20 @@ export function ProcessDetailPage() {
                         {approvalGuide ? (
                           <>
                             <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", false)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar guia
+                              {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                             </Button>
                             <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", true)}>
-                              <Printer className="mr-2 h-4 w-4" />
-                              Imprimir guia
+                              {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                             </Button>
                             {approvalGuide.status !== "compensada" && canFinanceOperate ? (
                               <Button
