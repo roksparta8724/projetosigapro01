@@ -3068,9 +3068,13 @@ async function provisionRemoteMunicipalStaffAccount(input: {
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
 
-  const { data, error } = await db.rpc("provision_municipal_staff_account", {
-    _municipality_id: input.municipalityId,
+  // Esta RPC já existe no Data API há bastante tempo e, por isso, não depende
+  // de atualização de schema cache para o cadastro municipal funcionar.
+  // O corpo SQL foi ampliado para também criar o perfil municipal quando a
+  // identidade Neon Auth já existe.
+  const { data, error } = await db.rpc("link_municipal_user_by_email", {
     _email: input.email.trim().toLowerCase(),
+    _municipality_id: input.municipalityId,
     _role_code: input.role,
     _full_name: input.name.trim(),
     _title: input.title.trim(),
@@ -3082,21 +3086,32 @@ async function provisionRemoteMunicipalStaffAccount(input: {
   }
 
   const saved = data as Record<string, unknown> | null;
+  const access =
+    saved?.access && typeof saved.access === "object"
+      ? (saved.access as Record<string, unknown>)
+      : saved;
+
   return {
-    ready: Boolean(saved?.ready),
+    ready: Boolean(saved?.ready ?? saved?.linked),
     reason: saved?.reason ? String(saved.reason) : "",
-    userId: saved?.profile_id ? String(saved.profile_id) : saved?.user_id ? String(saved.user_id) : "",
+    userId: saved?.profile_id
+      ? String(saved.profile_id)
+      : access?.profile_id
+        ? String(access.profile_id)
+        : access?.user_id
+          ? String(access.user_id)
+          : "",
     email: saved?.email ? String(saved.email) : input.email.trim().toLowerCase(),
-    name: saved?.full_name ? String(saved.full_name) : input.name.trim(),
-    role: (saved?.role ?? input.role) as SessionUser["role"],
-    title: saved?.title ? String(saved.title) : input.title.trim(),
-    profileLabel: saved?.profile_label ? String(saved.profile_label) : "",
-    accessLevel: Number(saved?.access_level ?? input.accessLevel) as 1 | 2 | 3,
-    accountStatus: (saved?.account_status ?? "active") as SessionUser["accountStatus"],
-    userType: saved?.user_type ? String(saved.user_type) : "Interno",
-    blockedAt: saved?.blocked_at ? String(saved.blocked_at) : null,
-    blockedBy: saved?.blocked_by ? String(saved.blocked_by) : null,
-    blockReason: saved?.block_reason ? String(saved.block_reason) : null,
+    name: access?.full_name ? String(access.full_name) : input.name.trim(),
+    role: (access?.role ?? input.role) as SessionUser["role"],
+    title: access?.title ? String(access.title) : input.title.trim(),
+    profileLabel: access?.profile_label ? String(access.profile_label) : "",
+    accessLevel: Number(access?.access_level ?? input.accessLevel) as 1 | 2 | 3,
+    accountStatus: (access?.account_status ?? "active") as SessionUser["accountStatus"],
+    userType: access?.user_type ? String(access.user_type) : "Interno",
+    blockedAt: access?.blocked_at ? String(access.blocked_at) : null,
+    blockedBy: access?.blocked_by ? String(access.blocked_by) : null,
+    blockReason: access?.block_reason ? String(access.block_reason) : null,
   };
 }
 
