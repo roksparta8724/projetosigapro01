@@ -636,7 +636,7 @@ export function LandingPage() {
                         <PieChart>
                           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                           <Pie
-                            data={heroOperationalShare}
+                            data={[...heroOperationalShare]}
                             dataKey="value"
                             nameKey="name"
                             innerRadius="54%"
