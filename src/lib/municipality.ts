@@ -120,6 +120,20 @@ function buildFallbackTenantSettings(tenantId: string): TenantSettings {
     guiaPrefixo: "DAM",
     chavePix: "",
     beneficiarioArrecadacao: "",
+    pixEnabled: true,
+    pixKeyType: "cnpj",
+    pixMerchantCity: "",
+    bankCode: "",
+    bankName: "",
+    bankAgency: "",
+    bankAgencyDigit: "",
+    bankAccount: "",
+    bankAccountDigit: "",
+    bankBeneficiaryDocument: "",
+    bankCollectionMode: "manual",
+    bankAgreementCode: "",
+    bankWallet: "",
+    bankInstructions: "",
     taxaProtocolo: 35.24,
     taxaIssPorMetroQuadrado: 0,
     issRateProfiles: defaultIssRateProfiles,
@@ -272,6 +286,64 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.settlement_beneficiary === "string" &&
         general.settlement_beneficiary) ||
       base.beneficiarioArrecadacao,
+    pixEnabled:
+      typeof general.pix_enabled === "boolean"
+        ? general.pix_enabled
+        : base.pixEnabled ?? true,
+    pixKeyType:
+      typeof general.pix_key_type === "string" &&
+      ["cpf", "cnpj", "email", "phone", "random"].includes(general.pix_key_type)
+        ? (general.pix_key_type as TenantSettings["pixKeyType"])
+        : base.pixKeyType ?? "cnpj",
+    pixMerchantCity:
+      (typeof general.pix_merchant_city === "string" && general.pix_merchant_city) ||
+      base.pixMerchantCity ||
+      "",
+    bankCode:
+      (typeof general.bank_code === "string" && general.bank_code) ||
+      base.bankCode ||
+      "",
+    bankName:
+      (typeof general.bank_name === "string" && general.bank_name) ||
+      base.bankName ||
+      "",
+    bankAgency:
+      (typeof general.bank_agency === "string" && general.bank_agency) ||
+      base.bankAgency ||
+      "",
+    bankAgencyDigit:
+      (typeof general.bank_agency_digit === "string" && general.bank_agency_digit) ||
+      base.bankAgencyDigit ||
+      "",
+    bankAccount:
+      (typeof general.bank_account === "string" && general.bank_account) ||
+      base.bankAccount ||
+      "",
+    bankAccountDigit:
+      (typeof general.bank_account_digit === "string" && general.bank_account_digit) ||
+      base.bankAccountDigit ||
+      "",
+    bankBeneficiaryDocument:
+      (typeof general.bank_beneficiary_document === "string" && general.bank_beneficiary_document) ||
+      base.bankBeneficiaryDocument ||
+      "",
+    bankCollectionMode:
+      typeof general.bank_collection_mode === "string" &&
+      ["manual", "agreement", "api"].includes(general.bank_collection_mode)
+        ? (general.bank_collection_mode as TenantSettings["bankCollectionMode"])
+        : base.bankCollectionMode ?? "manual",
+    bankAgreementCode:
+      (typeof general.bank_agreement_code === "string" && general.bank_agreement_code) ||
+      base.bankAgreementCode ||
+      "",
+    bankWallet:
+      (typeof general.bank_wallet === "string" && general.bank_wallet) ||
+      base.bankWallet ||
+      "",
+    bankInstructions:
+      (typeof general.bank_instructions === "string" && general.bank_instructions) ||
+      base.bankInstructions ||
+      "",
     taxaProtocolo:
       typeof general.taxa_protocolo === "number"
         ? general.taxa_protocolo
