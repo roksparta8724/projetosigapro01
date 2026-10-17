@@ -1816,11 +1816,6 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-barcode-box">
                 <ProviderBarcode value={guia.codigoBarras} />
               </div>
-              {normalizeOfficialBarcode(guia.codigoBarras) ? (
-                <div className="dam-barcode-digits">
-                  {normalizeOfficialBarcode(guia.codigoBarras)}
-                </div>
-              ) : null}
             </div>
 
             <div className="dam-footer-area">
