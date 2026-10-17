@@ -1267,6 +1267,7 @@ export function ProcessDetailPage() {
         pixPayload: banking.pixPayload,
         bankName: banking.bankName,
         bankAgreement: banking.bankAgreement,
+        bankInstructions: banking.bankInstructions,
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
