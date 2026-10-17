@@ -1,6 +1,70 @@
 import { buildPixPayload } from "@/lib/pix";
 import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
 
+export function normalizeMunicipalPixKey(
+  value: string | null | undefined,
+  type: TenantSettings["pixKeyType"],
+) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  if (type === "cpf" || type === "cnpj") {
+    return raw.replace(/\D/g, "");
+  }
+  if (type === "phone") {
+    const digits = raw.replace(/\D/g, "");
+    if (raw.startsWith("+")) return `+${digits}`;
+    if (digits.startsWith("55")) return `+${digits}`;
+    return digits ? `+55${digits}` : "";
+  }
+  return raw;
+}
+
+export function validateMunicipalPixKey(
+  value: string | null | undefined,
+  type: TenantSettings["pixKeyType"] = "random",
+) {
+  const normalized = normalizeMunicipalPixKey(value, type);
+  if (!normalized) {
+    return { valid: false, normalized, message: "Informe a chave PIX." };
+  }
+
+  if (type === "cpf") {
+    return {
+      valid: /^\d{11}$/.test(normalized),
+      normalized,
+      message: "A chave PIX do tipo CPF deve conter 11 dígitos.",
+    };
+  }
+  if (type === "cnpj") {
+    return {
+      valid: /^\d{14}$/.test(normalized),
+      normalized,
+      message: "A chave PIX do tipo CNPJ deve conter 14 dígitos.",
+    };
+  }
+  if (type === "email") {
+    return {
+      valid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && normalized.length <= 77,
+      normalized,
+      message: "Informe um e-mail válido para a chave PIX.",
+    };
+  }
+  if (type === "phone") {
+    return {
+      valid: /^\+55\d{10,11}$/.test(normalized),
+      normalized,
+      message: "Informe o telefone PIX com DDD; o sistema usa o padrão +55.",
+    };
+  }
+
+  return {
+    valid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(normalized),
+    normalized,
+    message: "A chave aleatória PIX deve ser uma chave UUID válida.",
+  };
+}
+
 export function normalizeBankBarcode(value?: string | null) {
   const digits = String(value || "").replace(/\D/g, "");
   return digits.length === 44 ? digits : "";
@@ -65,8 +129,12 @@ export function buildGuidePixPayload(input: {
   const settings = input.settings;
   if (!isMunicipalPixReady(settings)) return "";
 
+  const pixKey = normalizeMunicipalPixKey(settings?.chavePix, settings?.pixKeyType ?? "random");
+  const validation = validateMunicipalPixKey(pixKey, settings?.pixKeyType ?? "random");
+  if (!validation.valid) return "";
+
   return buildPixPayload({
-    key: settings?.chavePix,
+    key: validation.normalized,
     merchantName:
       settings?.beneficiarioArrecadacao ||
       input.municipalityName ||
