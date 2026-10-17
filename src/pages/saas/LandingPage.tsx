@@ -416,8 +416,8 @@ export function LandingPage() {
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-semibold">SIGAPRO Municipal</p>
-                          <p className="truncate text-[10px] uppercase tracking-[0.16em] text-sky-100/80">Ambiente institucional</p>
+                          <p className="text-[13px] font-bold !text-white">SIGAPRO Municipal</p>
+                          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] !text-sky-100">Ambiente institucional</p>
                         </div>
                       </div>
                       <span className="hidden rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-50 sm:inline-flex">
@@ -427,7 +427,7 @@ export function LandingPage() {
 
                     <div className="grid min-h-[560px] lg:grid-cols-[210px_minmax(0,1fr)]">
                       <aside className="border-b border-slate-200 bg-[#0f3d5d] p-3 lg:border-b-0 lg:border-r">
-                        <p className="px-3 pb-3 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100/70">
+                        <p className="px-3 pb-3 pt-1 text-[10px] font-bold uppercase tracking-[0.2em] !text-sky-100">
                           Módulos do sistema
                         </p>
                         <div className="space-y-1.5">
@@ -440,7 +440,7 @@ export function LandingPage() {
                                   "flex items-center gap-3 rounded-[14px] px-3 py-3",
                                   ("active" in module && module.active)
                                     ? "bg-white text-slate-950 shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
-                                    : "text-sky-50/90",
+                                    : "!text-white",
                                 )}
                               >
                                 <span
@@ -453,7 +453,7 @@ export function LandingPage() {
                                 </span>
                                 <div className="min-w-0">
                                   <p className="text-[12px] font-semibold">{module.label}</p>
-                                  <p className={cn("mt-0.5 truncate text-[9px]", ("active" in module && module.active) ? "text-slate-500" : "text-sky-100/60")}>
+                                  <p className={cn("mt-0.5 truncate text-[9px]", ("active" in module && module.active) ? "text-slate-600" : "!text-sky-100")}>
                                     {module.description}
                                   </p>
                                 </div>
@@ -468,7 +468,7 @@ export function LandingPage() {
                           <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-700">Financeiro da Prefeitura</p>
                             <h2 className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-slate-950">Guias, pagamentos e conciliação</h2>
-                            <p className="mt-1.5 max-w-[58ch] text-[12px] leading-5 text-slate-500">
+                            <p className="mt-1.5 max-w-[58ch] text-[12px] font-medium leading-5 text-slate-700">
                               Estrutura baseada no módulo financeiro existente no SIGAPRO.
                             </p>
                           </div>
@@ -504,7 +504,7 @@ export function LandingPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-[11px] font-semibold text-slate-950">{String(title)}</p>
-                                  <p className="mt-1 text-[10px] leading-4 text-slate-500">{String(subtitle)}</p>
+                                  <p className="mt-1 text-[10px] font-medium leading-4 text-slate-700">{String(subtitle)}</p>
                                 </div>
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-50 text-blue-800">
                                   <Icon className="h-4 w-4" />
@@ -519,14 +519,14 @@ export function LandingPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div>
                                 <p className="text-[11px] font-semibold text-slate-950">Visão financeira da Prefeitura</p>
-                                <p className="mt-1 text-[10px] text-slate-500">Resumo executivo da emissão e dos pagamentos.</p>
+                                <p className="mt-1 text-[10px] font-medium text-slate-700">Resumo executivo da emissão e dos pagamentos.</p>
                               </div>
                               <Badge className="rounded-full bg-slate-950 px-2.5 py-1 text-[9px] text-white hover:bg-slate-950">DAM / PM</Badge>
                             </div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               {["Guias de protocolo", "ISSQN da obra", "Aprovação final"].map((item) => (
                                 <div key={item} className="rounded-[12px] border border-slate-200 bg-slate-50 px-2.5 py-3">
-                                  <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">{item}</p>
+                                  <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-700">{item}</p>
                                   <p className="mt-2 text-[11px] font-semibold text-slate-900">Controle por etapa</p>
                                 </div>
                               ))}
@@ -539,7 +539,7 @@ export function LandingPage() {
                               {["Guia emitida", "Pagamento identificado", "Baixa confirmada", "Histórico registrado"].map((item, index) => (
                                 <div key={item} className="flex items-center gap-2.5">
                                   <span className={cn("h-2.5 w-2.5 rounded-full", index < 2 ? "bg-emerald-500" : "bg-slate-300")} />
-                                  <span className="text-[10px] font-medium text-slate-600">{item}</span>
+                                  <span className="text-[10px] font-semibold text-slate-700">{item}</span>
                                 </div>
                               ))}
                             </div>
