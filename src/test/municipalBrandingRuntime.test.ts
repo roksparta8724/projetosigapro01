@@ -108,12 +108,11 @@ describe("municipal branding runtime resilience", () => {
   });
 
   it("never replays a coat-of-arms fallback over a configured municipal logo during refresh", () => {
-    expect(logo).toContain("cacheMatchesCurrentPrimary");
-    expect(logo).toContain("loadedSourceMatchesCurrentPrimary");
-    expect(logo).toContain("cachedContextMatchesCurrentPrimary");
-    expect(logo).toContain("isAuthoritativeCurrentLogo");
+    expect(logo).toContain("O cache é isolado por Prefeitura + variante");
+    expect(logo).toContain("loadedSource.context === context");
     expect(logo).toContain("pendingIsAuthoritative");
     expect(logo).toContain("Não pré-carregue nem");
+    expect(logo).toContain("isAuthoritativeCurrentLogo");
     expect(logo).toContain("Só a imagem configurada entra no cache municipal");
     expect(logo).toContain('parsed.pathname.endsWith("/api/municipality-logo-open")');
     expect(logo).toContain('parsed.searchParams.get("objectKey")');
