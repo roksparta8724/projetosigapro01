@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { QRCodeSVG } from "qrcode.react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -28,6 +29,8 @@ import {
   type SessionUser,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import { createQrCodeDataUrl } from "@/lib/qrCode";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import {
   ArtifactSignatureError,
   getProcessArtifactSignatureRequest,
@@ -929,8 +932,8 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </div>
 
-        <div className="grid gap-3 px-4 py-4 text-xs sm:grid-cols-2">
-          <div className="sm:col-span-2">
+        <div className="grid gap-3 px-4 py-4 text-xs sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Documento assinado eletronicamente por
             </p>
@@ -944,7 +947,27 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
+          {signature.verificationCode ? (
+            <div
+              data-analysis-signature-qr="true"
+              className="row-span-3 flex shrink-0 flex-col items-center self-start rounded-xl border border-emerald-200 bg-white p-2 shadow-sm dark:border-emerald-500/30"
+            >
+              <QRCodeSVG
+                value={buildPublicSignatureVerificationUrl(signature.verificationCode)}
+                size={82}
+                level="Q"
+                includeMargin
+                bgColor="#ffffff"
+                fgColor="#0f172a"
+                aria-label={`QR Code de verificação da assinatura eletrônica - ${label}`}
+              />
+              <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-700">
+                Verificar assinatura
+              </span>
+            </div>
+          ) : null}
+
+          <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Data e hora
             </p>
@@ -953,7 +976,7 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/25">
+          <div className="min-w-0 rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/25">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-300">
               Código de verificação
             </p>
@@ -962,7 +985,7 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="sm:col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+          <div className="min-w-0 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Integridade SHA-256
             </p>
@@ -1020,6 +1043,21 @@ export function UrbanAnalysisChecklistPanel({
       const logoDataUrl =
         (await loadPdfImageDataUrl(resolvedMunicipalityLogoUrl)) ||
         (await loadPdfImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK));
+
+      const technicalVerificationUrl =
+        technicalOfficial && state.technicalSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(state.technicalSignature.verificationCode)
+          : "";
+      const directorVerificationUrl =
+        directorOfficial && state.directorSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(state.directorSignature.verificationCode)
+          : "";
+      const technicalSignatureQrDataUrl = technicalVerificationUrl
+        ? createQrCodeDataUrl(technicalVerificationUrl, 320)
+        : "";
+      const directorSignatureQrDataUrl = directorVerificationUrl
+        ? createQrCodeDataUrl(directorVerificationUrl, 320)
+        : "";
 
       const rawProtocol = process.protocol?.trim() || "Não informado";
       const protocolLabel = /^processo\b/i.test(rawProtocol)
@@ -1459,8 +1497,11 @@ export function UrbanAnalysisChecklistPanel({
         signature: ChecklistSignature | null | undefined,
         official: boolean,
         requested = false,
+        verificationQrDataUrl = "",
       ) => {
         const h = 39;
+        const qrSize = official && verificationQrDataUrl ? 18.5 : 0;
+        const textWidth = official && verificationQrDataUrl ? w - 34 : w - 10;
         if (official && signature) {
           doc.setFillColor(240, 253, 250);
           doc.setDrawColor(167, 243, 208);
@@ -1485,7 +1526,7 @@ export function UrbanAnalysisChecklistPanel({
           doc.setFontSize(6.4);
           doc.setTextColor(...slate);
           doc.text(
-            doc.splitTextToSize(signature.name || "Usuário", w - 10).slice(0, 1),
+            doc.splitTextToSize(signature.name || "Usuário", textWidth).slice(0, 1),
             x + 5,
             y + 19.4,
           );
@@ -1499,7 +1540,7 @@ export function UrbanAnalysisChecklistPanel({
             .filter(Boolean)
             .join(" - ");
           doc.text(
-            doc.splitTextToSize(titleLine || "Função registrada no SIGAPRO", w - 10).slice(0, 1),
+            doc.splitTextToSize(titleLine || "Função registrada no SIGAPRO", textWidth).slice(0, 1),
             x + 5,
             y + 23.6,
           );
@@ -1526,6 +1567,20 @@ export function UrbanAnalysisChecklistPanel({
             x + 5,
             y + 35.6,
           );
+
+          if (verificationQrDataUrl && qrSize > 0) {
+            const qrX = x + w - qrSize - 3.3;
+            const qrY = y + 11.2;
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(167, 243, 208);
+            doc.roundedRect(qrX - 1.2, qrY - 1.2, qrSize + 2.4, qrSize + 5.6, 1.6, 1.6, "FD");
+            doc.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize, undefined, "FAST");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(3.2);
+            doc.setTextColor(...emerald);
+            doc.text("QR DA ASSINATURA", qrX + qrSize / 2, qrY + qrSize + 2.1, { align: "center" });
+            doc.text("ELETRÔNICA", qrX + qrSize / 2, qrY + qrSize + 3.9, { align: "center" });
+          }
         } else {
           doc.setFillColor(248, 250, 252);
           doc.setDrawColor(...line);
@@ -1706,6 +1761,8 @@ export function UrbanAnalysisChecklistPanel({
         "Análise técnica",
         state.technicalSignature,
         technicalOfficial,
+        false,
+        technicalSignatureQrDataUrl,
       );
       drawSignatureCard(
         margin + signatureCardW + signatureGap,
@@ -1715,6 +1772,7 @@ export function UrbanAnalysisChecklistPanel({
         state.directorSignature,
         directorOfficial,
         directorRequestPending,
+        directorSignatureQrDataUrl,
       );
 
       const withdrawalY = signatureY + 41;
