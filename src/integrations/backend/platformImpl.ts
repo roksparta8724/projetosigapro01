@@ -430,10 +430,10 @@ export async function loadRemotePlatformStore() {
     db.from("roles").select("*"),
     db.from("departments").select("*"),
     db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
-    isNeonBackend
-      ? db.from("process_construction_permits")
-          .select("process_id,permit_number,status,signature_mode,updated_at")
-      : Promise.resolve({ data: [], error: null }),
+    // A tabela interna do Alvará é RPC-only no Neon. Não faça SELECT
+    // direto no bootstrap global, porque o papel authenticated não possui
+    // permissão por desenho de segurança.
+    Promise.resolve({ data: [], error: null }),
     db.from("properties").select("*"),
     isNeonBackend
       ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
@@ -495,8 +495,11 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
     tolerateLegacyMissing(plansResult.error, "public.plans"),
     tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
-    lastAccessResult.error,
   ].filter(Boolean);
+
+  if (lastAccessResult.error) {
+    console.warn("[SIGAPRO][Access] Telemetria de último acesso indisponível; login segue normalmente.", lastAccessResult.error);
+  }
 
   if (errors.length > 0) {
     throw errors[0];
@@ -508,12 +511,7 @@ export async function loadRemotePlatformStore() {
   // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
   // todo o store oficial nem faz o fluxo visual regredir.
   const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
-  if (isNeonBackend && constructionPermitsResult.error) {
-    console.warn(
-      "[SIGAPRO][Alvara] Leitura direta indisponivel; usando RPC oficial escopada.",
-      constructionPermitsResult.error,
-    );
-
+  if (isNeonBackend) {
     const visibleProcessIds = (processesResult.data ?? [])
       .map((process) => String(process.id ?? "").trim())
       .filter(Boolean);
@@ -527,7 +525,7 @@ export async function loadRemotePlatformStore() {
           });
 
           if (error) {
-            console.warn("[SIGAPRO][Alvara] Falha ao consultar Alvara escopado.", {
+            console.warn("[SIGAPRO][Alvara] RPC escopada indisponivel para o processo.", {
               processId,
               error,
             });
