@@ -625,6 +625,9 @@ export function ConfiguracoesPage() {
     bankAgreementCode: settings?.bankAgreementCode ?? "",
     bankWallet: settings?.bankWallet ?? "",
     bankInstructions: settings?.bankInstructions ?? "",
+    paymentProvider: settings?.paymentProvider ?? "mercado_pago",
+    paymentProviderEnvironment: settings?.paymentProviderEnvironment ?? "test",
+    paymentAuthenticationMode: settings?.paymentAuthenticationMode ?? "automatic",
     taxaProtocolo: settings?.taxaProtocolo ?? 35.24,
     taxaIssPorMetroQuadrado: settings?.taxaIssPorMetroQuadrado ?? 0,
     taxaAprovacaoFinal: settings?.taxaAprovacaoFinal ?? 0,
@@ -1001,6 +1004,9 @@ export function ConfiguracoesPage() {
       bankAgreementCode: nextSettings?.bankAgreementCode ?? "",
       bankWallet: nextSettings?.bankWallet ?? "",
       bankInstructions: nextSettings?.bankInstructions ?? "",
+      paymentProvider: nextSettings?.paymentProvider ?? "mercado_pago",
+      paymentProviderEnvironment: nextSettings?.paymentProviderEnvironment ?? "test",
+      paymentAuthenticationMode: nextSettings?.paymentAuthenticationMode ?? "automatic",
       taxaProtocolo: nextSettings?.taxaProtocolo ?? 35.24,
       taxaIssPorMetroQuadrado: nextSettings?.taxaIssPorMetroQuadrado ?? 0,
       taxaAprovacaoFinal: nextSettings?.taxaAprovacaoFinal ?? 0,
@@ -3182,6 +3188,9 @@ export function ConfiguracoesPage() {
                       bankAgreementCode: "",
                       bankWallet: "",
                       bankInstructions: "",
+                      paymentProvider: "mercado_pago",
+                      paymentProviderEnvironment: "test",
+                      paymentAuthenticationMode: "automatic",
                       taxaProtocolo: 35.24,
                       taxaIssPorMetroQuadrado: 0,
                       taxaAprovacaoFinal: 0,
@@ -4344,7 +4353,67 @@ export function ConfiguracoesPage() {
                     </div>
                   </div>
 
-                  {mercadoPagoHealth?.ok ? (
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-5">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Provedor e autenticação da arrecadação</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Esta configuração é individual por Prefeitura. Credenciais secretas permanecem somente no servidor.
+                      </p>
+                    </div>
+                    <div className="mt-5 grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Provedor de cobrança</Label>
+                        <Select
+                          value={settingsForm.paymentProvider}
+                          onValueChange={(value) => setSettingsField("paymentProvider", value as "mercado_pago" | "bank_direct" | "manual")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mercado_pago">Mercado Pago</SelectItem>
+                            <SelectItem value="bank_direct">Banco / convênio direto</SelectItem>
+                            <SelectItem value="manual">PIX / baixa manual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ambiente do provedor</Label>
+                        <Select
+                          value={settingsForm.paymentProviderEnvironment}
+                          onValueChange={(value) => setSettingsField("paymentProviderEnvironment", value as "test" | "production")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="test">Homologação / teste</SelectItem>
+                            <SelectItem value="production">Produção</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Autenticação da baixa</Label>
+                        <Select
+                          value={settingsForm.paymentAuthenticationMode}
+                          onValueChange={(value) => setSettingsField("paymentAuthenticationMode", value as "automatic" | "manual")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="automatic">Automática por webhook/API</SelectItem>
+                            <SelectItem value="manual">Manual pela Tesouraria</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+                      <strong>Autenticação bancária:</strong> em modo automático, a guia mostra a situação retornada pelo provedor e, após a compensação, registra referência, pagamento e data/hora. A autenticação mecânica permanece reservada ao atendimento presencial/Tesouraria.
+                    </div>
+                  </div>
+
+                  {mercadoPagoHealth?.ok && settingsForm.paymentProvider === "mercado_pago" ? (
                     <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900">
                       <strong>Mercado Pago conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
                       Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
