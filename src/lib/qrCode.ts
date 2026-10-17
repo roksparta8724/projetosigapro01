@@ -27,14 +27,21 @@ export function createQrCodeDataUrl(value: string, size = 256) {
           value: normalized,
           size,
           level: "M",
+          marginSize: 4,
+          boostLevel: false,
           bgColor: "#ffffff",
-          fgColor: "#111111",
+          fgColor: "#000000",
         }),
       );
     });
 
     const canvas = host.querySelector("canvas");
-    return canvas?.toDataURL("image/png") || "";
+    if (!canvas) return "";
+
+    // PNG is intentionally used by the UI as well as the PDF. Unlike an SVG,
+    // the QR modules cannot inherit global theme fill/stroke rules, so the
+    // black modules, white quiet zone and finder patterns remain pixel-perfect.
+    return canvas.toDataURL("image/png", 1);
   } catch {
     return "";
   } finally {
