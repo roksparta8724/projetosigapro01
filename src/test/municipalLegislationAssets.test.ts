@@ -13,8 +13,8 @@ describe("municipal legislation assets", () => {
   const dropzone = read("src/components/platform/FileDropZone.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
   const r2Storage = read("src/integrations/r2/storage.ts");
-  const r2SignApi = read("api/r2-sign-get.ts");
-  const r2UploadApi = read("api/r2-upload.ts");
+  const r2SignApi = read("server/api/r2-sign-get.ts");
+  const r2UploadApi = read("server/api/r2-upload.ts");
   const legislationOpenApi = read("api/legislation-open.ts");
   const viteConfig = read("vite.config.ts");
 
