@@ -2040,10 +2040,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               ["aguardando", "respondido"].includes(dispatch.status),
           );
           if (pendingRequest) {
-            await completeRemoteProcessDispatch({
-              dispatchId: pendingRequest.id,
-              unit: "Financeiro",
-            });
+            await completeRemoteProcessDispatch(
+              pendingRequest.id,
+              "Financeiro",
+            );
           }
         }
 
