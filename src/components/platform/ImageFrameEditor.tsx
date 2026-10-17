@@ -42,7 +42,17 @@ function clamp(value: number, min: number, max: number) {
 
 function isRenderableUrl(value?: string | null) {
   if (!value) return false;
-  return /^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:");
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return (
+    /^https?:\/\//i.test(normalized) ||
+    normalized.startsWith("//") ||
+    normalized.startsWith("/") ||
+    normalized.startsWith("./") ||
+    normalized.startsWith("../") ||
+    normalized.startsWith("blob:") ||
+    normalized.startsWith("data:")
+  );
 }
 
 function resolveBaseScale(
