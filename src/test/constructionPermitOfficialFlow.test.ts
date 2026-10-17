@@ -84,6 +84,16 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("SHA-256:");
   });
 
+  it("embeds a scannable QR in the director electronic-signature block on screen and in the official PDF", () => {
+    expect(panel).toContain('data-director-electronic-signature-evidence="true"');
+    expect(panel).toContain('data-director-signature-qr="true"');
+    expect(panel).toContain("QR Code da assinatura eletrônica da Diretoria");
+    expect(panel).toContain("permit.directorSignature.evidenceHash");
+    expect(permitPdf).toContain('pdf.text("QR DA ASSINATURA ELETRÔNICA"');
+    expect(permitPdf).toContain("verificationQrDataUrl");
+    expect(permitPdf).toContain("createQrCodeDataUrl(publicVerificationUrl)");
+  });
+
   it("keeps signature workflow instructions out of the official PDF", () => {
     expect(permitPdf).not.toContain("ASSINATURA MANUAL");
     expect(permitPdf).not.toContain("ALVARÁ PREPARADO PARA ASSINATURA À CANETA");
