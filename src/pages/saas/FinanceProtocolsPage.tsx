@@ -264,7 +264,7 @@ export function FinanceProtocolsPage() {
     let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
 
     if (
-      match.guide.status === "pendente" &&
+      match.guide.status !== "compensada" &&
       !banking.barcode &&
       !banking.digitableLine
     ) {
