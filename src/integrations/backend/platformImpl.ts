@@ -544,24 +544,54 @@ export async function loadRemotePlatformStore() {
     }
   }
 
-  const tenantRows = tenantsResult.data ?? [];
+  const tenantRows = municipalityResultData(tenantsResult.data);
   const municipalityRows = municipalityResultData(municipalitiesResult.data);
-  const brandingByTenant = new Map((brandingResult.data ?? []).map((item) => [item.tenant_id, item]));
-  const settingsByTenant = new Map((settingsResult.data ?? []).map((item) => [item.tenant_id, item]));
-  const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
-  const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
-  const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
-  const departmentById = new Map((departmentsResult.data ?? []).map((item) => [item.id, item]));
-  const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
-  const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
-  const lastAccessByProfileId = new Map(
-    (lastAccessResult.data ?? [])
-      .filter((item) => item?.profile_id)
-      .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""]),
+  const brandingRows = municipalityResultData(brandingResult.data);
+  const settingsRows = municipalityResultData(settingsResult.data);
+  const municipalityBrandingRows = municipalityResultData(municipalityBrandingResult.data);
+  const municipalitySettingsRows = municipalityResultData(municipalitySettingsResult.data);
+  const roleRows = municipalityResultData(rolesResult.data);
+  const departmentRows = municipalityResultData(departmentsResult.data);
+  const profileRows = municipalityResultData(profilesResult.data);
+  const propertyRows = municipalityResultData(propertiesResult.data);
+  const lastAccessRows = municipalityResultData(lastAccessResult.data);
+
+  const brandingByTenant = new Map<string, DatabaseRow>(
+    brandingRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
   );
-  const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
-  const constructionPermitByProcess = new Map(
-    constructionPermitRows.map((item) => [String(item.process_id), item]),
+  const settingsByTenant = new Map<string, DatabaseRow>(
+    settingsRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
+  );
+  const brandingByMunicipality = new Map<string, DatabaseRow>(
+    municipalityBrandingRows.map((item) => [String(item.municipality_id ?? ""), item] as const),
+  );
+  const settingsByMunicipality = new Map<string, DatabaseRow>(
+    municipalitySettingsRows.map((item) => [String(item.municipality_id ?? ""), item] as const),
+  );
+  const roleById = new Map<string, DatabaseRow>(
+    roleRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const departmentById = new Map<string, DatabaseRow>(
+    departmentRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const profileByUser = new Map<string, DatabaseRow>(
+    profileRows
+      .filter((item) => item.user_id)
+      .map((item) => [String(item.user_id), item] as const),
+  );
+  const profileById = new Map<string, DatabaseRow>(
+    profileRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const lastAccessByProfileId = new Map<string, string>(
+    lastAccessRows
+      .filter((item) => item?.profile_id)
+      .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""] as const),
+  );
+  const propertyById = new Map<string, DatabaseRow>(
+    propertyRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const constructionPermitByProcess = new Map<string, DatabaseRow>(
+    constructionPermitRows.map((item) => [String(item.process_id), item as DatabaseRow] as const),
   );
   const guidesByProcess = new Map<string, DatabaseRow[]>();
   const partiesByProcess = new Map<string, DatabaseRow[]>();
