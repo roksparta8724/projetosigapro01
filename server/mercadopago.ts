@@ -266,7 +266,7 @@ export async function createMercadoPagoGuideBoleto(
   const amountText = amount.toFixed(2);
   const externalReference = guideCode;
   const idempotencyKey = stableUuidFromText(
-    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v2`,
+    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v3`,
   );
 
   const payment: Record<string, unknown> = {
@@ -368,6 +368,34 @@ export async function createMercadoPagoGuideBoleto(
         ? (paymentResult.payment_method as Record<string, unknown>)
         : {};
 
+    const digitableLine = String(paymentMethod.digitable_line || "");
+    const barcodeContent = String(paymentMethod.barcode_content || "");
+    const lineDigits = digitableLine.replace(/\D/g, "");
+    const barcodeDigits = barcodeContent.replace(/\D/g, "");
+    const validLine = lineDigits.length === 47 || lineDigits.length === 48;
+    const validBarcode =
+      barcodeDigits.length >= 40 &&
+      barcodeDigits.length <= 48 &&
+      barcodeDigits.length % 2 === 0;
+
+    if (!validLine || !validBarcode) {
+      return {
+        ok: false,
+        environment,
+        orderId: String(source.id || ""),
+        paymentId: String(paymentResult.id || ""),
+        externalReference: String(
+          source.external_reference || externalReference,
+        ),
+        status: String(source.status || paymentResult.status || ""),
+        statusDetail: String(
+          source.status_detail || paymentResult.status_detail || "",
+        ),
+        error:
+          "O Mercado Pago criou a cobrança, mas não devolveu linha digitável e código de barras em formato bancário completo.",
+      };
+    }
+
     return {
       ok: true,
       environment,
@@ -382,8 +410,8 @@ export async function createMercadoPagoGuideBoleto(
       ),
       amount: String(source.total_amount || paymentResult.amount || amountText),
       ticketUrl: String(paymentMethod.ticket_url || ""),
-      barcodeContent: String(paymentMethod.barcode_content || ""),
-      digitableLine: String(paymentMethod.digitable_line || ""),
+      barcodeContent,
+      digitableLine,
       financialInstitution: String(
         paymentMethod.financial_institution || "Mercado Pago",
       ),
