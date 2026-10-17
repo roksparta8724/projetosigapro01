@@ -20,6 +20,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { AnalysisSupervisorControl } from "@/components/platform/AnalysisSupervisorControl";
 import { ConstructionPermitPanel } from "@/components/platform/ConstructionPermitPanel";
 import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPermitProcessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -278,6 +279,9 @@ export function ProcessDetailPage() {
     reviseIssProjectGuide,
     shareIssProjectGuide,
     issuePaymentGuide,
+    beginAnalysisSupervisorIntervention,
+    endAnalysisSupervisorIntervention,
+    reassignProcessAnalysis,
   } = usePlatformData();
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -498,6 +502,8 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [supervisorActionStatus, setSupervisorActionStatus] = useState("");
+  const [supervisorActionBusy, setSupervisorActionBusy] = useState(false);
   const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
   const [preparedGuideCharges, setPreparedGuideCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
   const [preparedGuideLogoUrl, setPreparedGuideLogoUrl] = useState("");
@@ -902,6 +908,61 @@ export function ProcessDetailPage() {
     canAnalysisOperate &&
     matchesOperationalScope(effectiveScopeId, process) &&
     ["master_admin", "master_ops", "prefeitura_supervisor", "analista", "fiscal"].includes(session.role);
+  const isAnalysisSupervisor =
+    session.role === "prefeitura_supervisor" &&
+    canAccessMunicipalArea(session, "analise");
+  const runSupervisorAction = async (
+    action: () => Promise<void>,
+    successMessage: string,
+  ) => {
+    if (supervisorActionBusy) return;
+    setSupervisorActionBusy(true);
+    setSupervisorActionStatus("");
+    try {
+      await action();
+      setSupervisorActionStatus(successMessage);
+    } catch (error) {
+      setSupervisorActionStatus(
+        error instanceof Error
+          ? `Não foi possível concluir: ${error.message}`
+          : "Não foi possível concluir a operação da Diretoria.",
+      );
+    } finally {
+      setSupervisorActionBusy(false);
+    }
+  };
+
+  const handleBeginSupervisorIntervention = async (reason: string) => {
+    await runSupervisorAction(
+      () =>
+        beginAnalysisSupervisorIntervention({
+          processId: process.id,
+          reason,
+          minutes: 30,
+        }),
+      "Intervenção da Diretoria iniciada por 30 minutos. Todas as alterações serão auditadas.",
+    );
+  };
+
+  const handleEndSupervisorIntervention = async () => {
+    await runSupervisorAction(
+      () => endAnalysisSupervisorIntervention(process.id),
+      "Intervenção encerrada. O processo voltou ao modo acompanhamento.",
+    );
+  };
+
+  const handleReassignAnalysis = async (targetProfileId: string, reason: string) => {
+    await runSupervisorAction(
+      () =>
+        reassignProcessAnalysis({
+          processId: process.id,
+          targetProfileId,
+          reason,
+        }),
+      "Análise redistribuída com sucesso e registrada no histórico.",
+    );
+  };
+
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
@@ -3044,9 +3105,22 @@ export function ProcessDetailPage() {
 
           {activeTab === "analise" && canUseMunicipalChecklist && (
             <>
+              {isAnalysisSupervisor ? (
+                <AnalysisSupervisorControl
+                  process={process}
+                  session={session}
+                  users={sessionUsers}
+                  busy={supervisorActionBusy}
+                  status={supervisorActionStatus}
+                  onBeginIntervention={handleBeginSupervisorIntervention}
+                  onEndIntervention={handleEndSupervisorIntervention}
+                  onReassign={handleReassignAnalysis}
+                />
+              ) : null}
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
+                readOnly={!canReviewDocuments}
                 municipalityId={effectiveScopeId || process.tenantId}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
                 municipalityLogoUrl={
