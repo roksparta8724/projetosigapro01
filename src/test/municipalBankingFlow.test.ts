@@ -121,8 +121,9 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
     expect(mercadoPagoGuide).toContain("validLine");
     expect(mercadoPagoGuide).toContain("validBarcode");
-    expect(mercadoPagoServer).toContain("validLine");
-    expect(mercadoPagoServer).toContain("validBarcode");
+    expect(mercadoPagoServer).toContain("hasCompleteGuideBankingData");
+    expect(mercadoPagoServer).toContain("refetchMercadoPagoOrder");
+    expect(mercadoPagoServer).toContain("/v1/orders/");
   });
 
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
@@ -131,6 +132,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("digits.length >= 40");
     expect(guide).toContain("digits.length <= 48");
     expect(guide).toContain("Interleaved2of5Barcode");
+    expect(guide).toContain("dam-barcode-digits");
     expect(guide).not.toContain('return "|||||"');
     expect(guide).toContain("Código bancário ainda não fornecido pelo convênio/API");
   });
