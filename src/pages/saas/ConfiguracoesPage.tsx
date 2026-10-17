@@ -753,6 +753,10 @@ export function ConfiguracoesPage() {
   };
 
   useEffect(() => {
+    setMercadoPagoHealth(null);
+  }, [selectedTenantId, scopeId, session.tenantId]);
+
+  useEffect(() => {
     if (activeSettingsView !== "collection") return;
     if (mercadoPagoHealth || mercadoPagoChecking) return;
     void checkMercadoPagoConnection();
