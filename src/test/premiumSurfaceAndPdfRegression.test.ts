@@ -8,7 +8,7 @@ describe("premium process surface contract", () => {
   it("keeps fixed dark cards light-on-dark without touching topbar chrome", () => {
     const polarity = read("src/styles/surface-polarity.css");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-    const finalStart = polarity.indexOf("FINAL PROCESS POLARITY LOCK V10");
+    const finalStart = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
     const finalBlock = polarity.slice(finalStart);
 
     expect(detail).toContain('data-surface="fixed-dark"');
@@ -39,7 +39,8 @@ describe("premium process surface contract", () => {
     expect(polarity).toContain('[data-process-premium-card="true"]');
     expect(analysis).toContain('data-process-premium-card="true"');
     expect(analysis).toContain('data-primary-action="process"');
-    expect(analysis).toContain("h-14 w-full");
+    expect(analysis).toContain('data-primary-action="process"');
+    expect(analysis).toContain("Abrir processo");
   });
 });
 
