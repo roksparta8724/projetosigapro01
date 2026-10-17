@@ -933,7 +933,7 @@ export function ConfiguracoesPage() {
     setDraftFooterLogoFiles((current) => (sameFileList(current, nextFooterFiles) ? current : nextFooterFiles));
 
     const nextHeaderConfig = {
-      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1,
+      scale: Math.max(1, nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1),
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     };
@@ -942,7 +942,7 @@ export function ConfiguracoesPage() {
     );
 
     const nextFooterConfig = {
-      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1,
+      scale: Math.max(1, nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1),
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     };
@@ -2136,12 +2136,12 @@ export function ConfiguracoesPage() {
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
       setDraftHeaderLogoConfig({
-        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? 1,
+        scale: Math.max(1, nextSettings.headerLogoScale ?? nextSettings.logoScale ?? 1),
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       });
       setDraftFooterLogoConfig({
-        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? 1,
+        scale: Math.max(1, nextSettings.footerLogoScale ?? nextSettings.logoScale ?? 1),
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       });
@@ -2717,18 +2717,29 @@ export function ConfiguracoesPage() {
     leisArquivoUrl: leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
   };
 
+  const previewHeaderLogoUrl =
+    logoRemovalRequested === "header"
+      ? ""
+      : draftHeaderLogoFiles[0]?.previewUrl ??
+        headerBranding.logoUrl ??
+        settings?.headerLogoUrl ??
+        settings?.logoUrl ??
+        "";
+
+  const previewFooterLogoUrl =
+    logoRemovalRequested === "footer"
+      ? ""
+      : draftFooterLogoFiles[0]?.previewUrl ??
+        footerBranding.logoUrl ??
+        settings?.footerLogoUrl ??
+        settings?.logoUrl ??
+        "";
+
   const previewHeaderBranding = getInstitutionBranding(
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl:
-          logoRemovalRequested === "header"
-            ? ""
-            : draftHeaderLogoFiles[0]?.previewUrl ??
-              headerBranding.logoUrl ??
-              settings?.headerLogoUrl ??
-              settings?.logoUrl ??
-              "",
+        logoUrl: previewHeaderLogoUrl,
         logoScale: draftHeaderLogoConfig.scale,
         logoOffsetX: draftHeaderLogoConfig.offsetX,
         logoOffsetY: draftHeaderLogoConfig.offsetY,
@@ -2746,14 +2757,7 @@ export function ConfiguracoesPage() {
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl:
-          logoRemovalRequested === "footer"
-            ? ""
-            : draftFooterLogoFiles[0]?.previewUrl ??
-              footerBranding.logoUrl ??
-              settings?.footerLogoUrl ??
-              settings?.logoUrl ??
-              "",
+        logoUrl: previewFooterLogoUrl,
         logoScale: draftFooterLogoConfig.scale,
         logoOffsetX: draftFooterLogoConfig.offsetX,
         logoOffsetY: draftFooterLogoConfig.offsetY,
@@ -3187,35 +3191,67 @@ export function ConfiguracoesPage() {
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     data-institutional-header-preview="true"
-                    className="relative overflow-hidden rounded-[30px] border border-white/15 p-6 shadow-[0_24px_52px_rgba(15,42,68,0.18)] ring-1 ring-black/5"
+                    className="relative self-start overflow-hidden rounded-[30px] border border-white/15 p-4 shadow-[0_24px_52px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
-                    <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
-                      <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]">Visual institucional</p>
-                      <p id="cadastro-preview-cabecalho" className="mt-2 text-sm leading-6 md:text-[15px]">Cabeçalho institucional</p>
-                    </div>
-                    <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
-                      <InstitutionalLogo
-                        branding={previewHeaderBranding}
-                        fallbackLabel={tenantForm.name || "Prefeitura"}
-                        variant="header"
-                        contextScope="municipality"
-                        className="mx-auto shrink-0 lg:mx-0"
-                      />
-                      <div className="min-w-0 flex-1 text-white">
-                        <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[15px] font-semibold leading-tight md:text-[17px] xl:text-[18px]">
-                          {tenantForm.name || "Prefeitura"}
-                        </p>
-                        <p
-                          id="cadastro-preview-secretaria"
-                          className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.13),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_48%)]" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+                        <div className="min-w-0">
+                          <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                            Prévia institucional
+                          </p>
+                          <p id="cadastro-preview-cabecalho" className="mt-1 text-[15px] font-semibold leading-5 text-white">
+                            Cabeçalho da Prefeitura
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-50">
+                          Prévia ao vivo
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex min-h-[190px] flex-col gap-5 rounded-[24px] border border-white/10 bg-slate-950/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center">
+                        <div
+                          data-municipal-logo-live-preview="header"
+                          className="relative mx-auto flex h-[150px] w-full max-w-[244px] shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-3 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                         >
-                          {settingsForm.secretariaResponsavel || "Secretaria responsável"}
-                        </p>
-                        <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
-                          <span id="cadastro-preview-usuario" className="truncate">
-                            {session.name} - {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
-                          </span>
+                          {previewHeaderLogoUrl ? (
+                            <img
+                              key={previewHeaderLogoUrl}
+                              src={previewHeaderLogoUrl}
+                              alt={tenantForm.name ? `Logo institucional de ${tenantForm.name}` : "Logo institucional"}
+                              className="block h-full w-full select-none object-contain object-center"
+                              style={{
+                                transform: `translate(${draftHeaderLogoConfig.offsetX}px, ${draftHeaderLogoConfig.offsetY}px) scale(${Math.max(1, draftHeaderLogoConfig.scale)})`,
+                                transformOrigin: "center center",
+                              }}
+                              loading="eager"
+                              decoding="sync"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                              <Building2 className="h-8 w-8" />
+                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1 text-white">
+                          <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[20px] font-semibold leading-[1.15] text-white xl:text-[22px]">
+                            {tenantForm.name || "Prefeitura"}
+                          </p>
+                          <p
+                            id="cadastro-preview-secretaria"
+                            className="mt-3 max-w-[38ch] text-[13px] font-medium leading-5 text-white/82"
+                          >
+                            {settingsForm.secretariaResponsavel || "Secretaria responsável"}
+                          </p>
+                          <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/14 bg-white/10 px-4 py-2 text-[12px] font-semibold leading-5 text-white shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_0_3px_rgba(110,231,183,0.12)]" />
+                            <span id="cadastro-preview-usuario" className="truncate">
+                              {session.name} · {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3234,13 +3270,7 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={
-                        draftHeaderLogoFiles[0]?.previewUrl ??
-                        headerBranding.logoUrl ??
-                        settings?.headerLogoUrl ??
-                        settings?.logoUrl ??
-                        ""
-                      }
+                      imageUrl={previewHeaderLogoUrl}
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
@@ -3293,16 +3323,47 @@ export function ConfiguracoesPage() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
-                    className="relative overflow-hidden rounded-[28px] border border-white/15 p-5 shadow-[0_18px_40px_rgba(15,42,68,0.16)] ring-1 ring-black/5"
+                    data-institutional-footer-preview="true"
+                    className="relative self-start overflow-hidden rounded-[28px] border border-white/15 p-4 shadow-[0_18px_40px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${darken(tenantForm.primaryColor, 2)} 0%, ${tenantForm.primaryColor} 48%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}
                   >
-                    <div className="flex items-center justify-center py-3">
-                      <InstitutionalLogo
-                        branding={previewFooterBranding}
-                        fallbackLabel={tenantForm.name || "Prefeitura"}
-                        variant="footer"
-                        contextScope="municipality"
-                      />
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.10),transparent_42%)]" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/65">Prévia institucional</p>
+                          <p className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
+                        </div>
+                        <span className="rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
+                          Rodapé
+                        </span>
+                      </div>
+                      <div className="mt-4 flex min-h-[164px] items-center justify-center rounded-[22px] border border-white/10 bg-slate-950/10 p-5">
+                        <div
+                          data-municipal-logo-live-preview="footer"
+                          className="relative flex h-[132px] w-full max-w-[228px] items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-3 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)]"
+                        >
+                          {previewFooterLogoUrl ? (
+                            <img
+                              key={previewFooterLogoUrl}
+                              src={previewFooterLogoUrl}
+                              alt={tenantForm.name ? `Logo de rodapé de ${tenantForm.name}` : "Logo institucional"}
+                              className="block h-full w-full select-none object-contain object-center"
+                              style={{
+                                transform: `translate(${draftFooterLogoConfig.offsetX}px, ${draftFooterLogoConfig.offsetY}px) scale(${Math.max(1, draftFooterLogoConfig.scale)})`,
+                                transformOrigin: "center center",
+                              }}
+                              loading="eager"
+                              decoding="sync"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                              <Building2 className="h-8 w-8" />
+                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -3319,13 +3380,7 @@ export function ConfiguracoesPage() {
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={
-                        draftFooterLogoFiles[0]?.previewUrl ??
-                        footerBranding.logoUrl ??
-                        settings?.footerLogoUrl ??
-                        settings?.logoUrl ??
-                        ""
-                      }
+                      imageUrl={previewFooterLogoUrl}
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
