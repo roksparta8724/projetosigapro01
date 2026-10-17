@@ -55,6 +55,7 @@ import {
 } from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { validateMunicipalPixKey } from "@/lib/paymentCollection";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { can, desktopThemePresets, mobileThemePresets, type TenantSettings } from "@/lib/platform";
 
@@ -2486,6 +2487,19 @@ export function ConfiguracoesPage() {
         setStatus("Informe a cidade do recebedor usada no QR Code PIX.");
         return;
       }
+      if (settingsForm.pixEnabled) {
+        const pixValidation = validateMunicipalPixKey(
+          settingsForm.chavePix,
+          settingsForm.pixKeyType,
+        );
+        if (!pixValidation.valid) {
+          setStatus(pixValidation.message);
+          return;
+        }
+        if (pixValidation.normalized !== settingsForm.chavePix) {
+          setSettingsField("chavePix", pixValidation.normalized);
+        }
+      }
       if (settingsForm.bankCode && !/^\d{3}$/.test(settingsForm.bankCode.trim())) {
         setStatus("O código COMPE do banco deve conter exatamente 3 dígitos.");
         return;
@@ -4230,6 +4244,13 @@ export function ConfiguracoesPage() {
                           disabled={!settingsForm.pixEnabled}
                           placeholder="Chave registrada para a Prefeitura"
                         />
+                        <p className="text-xs leading-5 text-slate-500">
+                          {settingsForm.pixKeyType === "phone"
+                            ? "Informe telefone com DDD; o SIGAPRO normaliza para +55."
+                            : settingsForm.pixKeyType === "random"
+                              ? "Use a chave aleatória UUID fornecida pelo banco/PSP."
+                              : `Formato selecionado: ${settingsForm.pixKeyType.toUpperCase()}.`}
+                        </p>
                       </div>
                     </div>
 
