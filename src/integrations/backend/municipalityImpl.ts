@@ -649,6 +649,7 @@ export async function resolveCurrentMunicipality(options: {
       return {
         id: env.id,
         name: env.name || "Prefeitura",
+        city: env.name || "",
         state: "",
         slug: env.slug || "",
         subdomain: env.slug || "",
