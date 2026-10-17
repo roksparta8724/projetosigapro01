@@ -13,6 +13,7 @@ import {
   type OwnerProjectRequest,
   type PaymentGuideEntry,
   type PlanItem,
+  type ProcessDocument,
   type ProcessRecord,
   type SessionUser,
   type Tenant,
@@ -412,7 +413,7 @@ export async function loadRemotePlatformStore() {
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
-  ] = await Promise.all([
+  ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenants").select("*").order("created_at", { ascending: false }),
@@ -455,7 +456,7 @@ export async function loadRemotePlatformStore() {
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
-  ]);
+  ])) as any[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -2544,18 +2545,21 @@ export type PlatformBrandingRecord = {
 };
 
 function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingRecord {
+  const readString = (key: string, fallback = "") =>
+    typeof record[key] === "string" ? (record[key] as string) : fallback;
+
   return {
-    platformKey: record.platform_key ?? PLATFORM_BRANDING_KEY,
-    headerLogoUrl: record.header_logo_url ?? "",
-    headerLogoObjectKey: record.header_logo_object_key ?? "",
-    headerLogoFileName: record.header_logo_file_name ?? "",
-    headerLogoMimeType: record.header_logo_mime_type ?? "",
-    footerLogoUrl: record.footer_logo_url ?? "",
-    footerLogoObjectKey: record.footer_logo_object_key ?? "",
-    footerLogoFileName: record.footer_logo_file_name ?? "",
-    footerLogoMimeType: record.footer_logo_mime_type ?? "",
-    logoAlt: record.logo_alt ?? "Logo institucional do SIGAPRO",
-    footerText: record.footer_text ?? "SIGAPRO — Sistema integrado de gestão e aprovação de projetos",
+    platformKey: readString("platform_key", PLATFORM_BRANDING_KEY),
+    headerLogoUrl: readString("header_logo_url"),
+    headerLogoObjectKey: readString("header_logo_object_key"),
+    headerLogoFileName: readString("header_logo_file_name"),
+    headerLogoMimeType: readString("header_logo_mime_type"),
+    footerLogoUrl: readString("footer_logo_url"),
+    footerLogoObjectKey: readString("footer_logo_object_key"),
+    footerLogoFileName: readString("footer_logo_file_name"),
+    footerLogoMimeType: readString("footer_logo_mime_type"),
+    logoAlt: readString("logo_alt", "Logo institucional do SIGAPRO"),
+    footerText: readString("footer_text", "SIGAPRO — Sistema integrado de gestão e aprovação de projetos"),
     headerLogoScale: Number(record.header_logo_scale ?? 1),
     headerLogoOffsetX: Number(record.header_logo_offset_x ?? 0),
     headerLogoOffsetY: Number(record.header_logo_offset_y ?? 0),
@@ -2566,8 +2570,8 @@ function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingR
     footerLogoOffsetY: Number(record.footer_logo_offset_y ?? 0),
     footerLogoFrameMode: record.footer_logo_frame_mode === "rounded" ? "rounded" : "soft-square",
     footerLogoFitMode: record.footer_logo_fit_mode === "cover" ? "cover" : "contain",
-    updatedAt: record.updated_at ?? "",
-    updatedBy: record.updated_by ?? "",
+    updatedAt: readString("updated_at"),
+    updatedBy: readString("updated_by"),
   };
 }
 
