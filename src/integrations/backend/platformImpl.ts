@@ -11,6 +11,7 @@ import {
   type OwnerProfessionalMessage,
   type OwnerProjectLink,
   type OwnerProjectRequest,
+  type PaymentGuideEntry,
   type PlanItem,
   type ProcessRecord,
   type SessionUser,
