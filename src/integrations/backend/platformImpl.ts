@@ -964,6 +964,21 @@ export async function loadRemotePlatformStore() {
       bankAgreementCode: readGeneralOptionalString(general, ["bank_agreement_code"]),
       bankWallet: readGeneralOptionalString(general, ["bank_wallet"]),
       bankInstructions: readGeneralOptionalString(general, ["bank_instructions"]),
+      paymentProvider:
+        typeof general.payment_provider === "string" &&
+        ["mercado_pago", "bank_direct", "manual"].includes(general.payment_provider)
+          ? (general.payment_provider as TenantSettings["paymentProvider"])
+          : "mercado_pago",
+      paymentProviderEnvironment:
+        typeof general.payment_provider_environment === "string" &&
+        ["test", "production"].includes(general.payment_provider_environment)
+          ? (general.payment_provider_environment as TenantSettings["paymentProviderEnvironment"])
+          : "test",
+      paymentAuthenticationMode:
+        typeof general.payment_authentication_mode === "string" &&
+        ["automatic", "manual"].includes(general.payment_authentication_mode)
+          ? (general.payment_authentication_mode as TenantSettings["paymentAuthenticationMode"])
+          : "automatic",
       contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
       contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
       contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
@@ -1514,6 +1529,12 @@ export async function loadRemotePlatformStore() {
             barcode: guide.barcode ? String(guide.barcode) : undefined,
             digitableLine: guide.digitable_line ? String(guide.digitable_line) : undefined,
             bankReference: guide.bank_reference ? String(guide.bank_reference) : undefined,
+            bankPaymentId: guide.bank_payment_id ? String(guide.bank_payment_id) : undefined,
+            bankStatus: guide.bank_status ? String(guide.bank_status) : undefined,
+            bankStatusDetail: guide.bank_status_detail ? String(guide.bank_status_detail) : undefined,
+            bankAuthenticatedAt: guide.bank_authenticated_at ? String(guide.bank_authenticated_at) : undefined,
+            paymentProvider: guide.payment_provider ? String(guide.payment_provider) as PaymentGuideEntry["paymentProvider"] : undefined,
+            providerEnvironment: guide.provider_environment ? String(guide.provider_environment) as PaymentGuideEntry["providerEnvironment"] : undefined,
           };
         }),
       },
@@ -3342,6 +3363,9 @@ export async function saveRemoteInstitutionSettings(
       bank_agreement_code: settings.bankAgreementCode || null,
       bank_wallet: settings.bankWallet || null,
       bank_instructions: settings.bankInstructions || null,
+      payment_provider: settings.paymentProvider || "mercado_pago",
+      payment_provider_environment: settings.paymentProviderEnvironment || "test",
+      payment_authentication_mode: settings.paymentAuthenticationMode || "automatic",
       contract_number: settings.contractNumber || null,
       contract_start: settings.contractStart || null,
       contract_end: settings.contractEnd || null,
