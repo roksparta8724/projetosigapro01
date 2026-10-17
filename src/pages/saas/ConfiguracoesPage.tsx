@@ -3174,7 +3174,7 @@ export function ConfiguracoesPage() {
                       <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center md:p-5">
                         <div
                           data-municipal-logo-live-preview="header"
-                          className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                           style={{ width: 176, minWidth: 176, maxWidth: 176, height: 124, flex: "0 0 176px" }}
                         >
                           {previewHeaderDisplayUrl ? (
@@ -3299,7 +3299,7 @@ export function ConfiguracoesPage() {
                       <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 sm:flex-row sm:items-center md:p-5">
                         <div
                           data-municipal-logo-live-preview="footer"
-                          className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                           style={{ width: 176, minWidth: 176, maxWidth: 176, height: 128, flex: "0 0 176px" }}
                         >
                           {previewFooterDisplayUrl ? (
