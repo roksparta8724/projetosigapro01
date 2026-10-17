@@ -1366,7 +1366,13 @@ export function ProcessDetailPage() {
         bankAgreement: banking.bankAgreement,
         bankInstructions: banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
-        bankPaymentId: providerCharge?.paymentId,
+        bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
+        bankStatus: providerCharge?.status || selectedGuide.bankStatus,
+        bankStatusDetail: providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
+        bankAuthenticatedAt:
+          selectedGuide.bankAuthenticatedAt ||
+          (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
+        paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
