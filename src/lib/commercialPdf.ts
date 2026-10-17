@@ -559,7 +559,7 @@ export async function buildCommercialPdfBlob({
 
   const drawSectionHeading = (eyebrow: string, heading: string, description?: string) => {
     const headingBox = measureText(pdf, heading, contentWidth, 16.2, 6.6, "bold");
-    const descriptionBox = description ? measureText(pdf, description, contentWidth, 9.2, 4.5) : { height: 0 };
+    const descriptionBox = description ? measureText(pdf, description, contentWidth, 9.2, 4.5) : { lines: [] as string[], height: 0 };
     ensurePageSpace(headingBox.height + descriptionBox.height + 12, heading);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(7.2);
