@@ -318,17 +318,21 @@ function drawSignature(
     }
 
     if (verificationQrDataUrl) {
-      const qrSize = 18.5;
-      const qrX = x + width - qrSize - 3.2;
-      const qrY = y + 2.1;
+      const qrSize = 17.2;
+      const qrX = x + width - qrSize - 3.8;
+      const qrY = y + 2.7;
+      fill(pdf, color.white);
+      draw(pdf, [186, 222, 235]);
+      pdf.setLineWidth(0.18);
+      pdf.roundedRect(qrX - 1.15, qrY - 1.15, qrSize + 2.3, qrSize + 5.3, 1.5, 1.5, "FD");
       pdf.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(3.25);
-      textColor(pdf, color.green);
-      pdf.text("QR DA ASSINATURA", qrX + qrSize / 2, y + 22.15, {
+      pdf.setFontSize(3.15);
+      textColor(pdf, color.navy);
+      pdf.text("QR DA ASSINATURA", qrX + qrSize / 2, qrY + qrSize + 2.05, {
         align: "center",
       });
-      pdf.text("ELETRÔNICA", qrX + qrSize / 2, y + 24.15, {
+      pdf.text("ELETRÔNICA", qrX + qrSize / 2, qrY + qrSize + 3.85, {
         align: "center",
       });
     }
@@ -1052,6 +1056,12 @@ export async function buildConstructionPermitPdfBlob({
   const verificationQrDataUrl = publicVerificationUrl
     ? createQrCodeDataUrl(publicVerificationUrl)
     : "";
+  const secretaryVerificationUrl = secretaryOfficial
+    ? buildPublicSignatureVerificationUrl(permit.secretarySignature?.verificationCode)
+    : "";
+  const secretaryVerificationQrDataUrl = secretaryVerificationUrl
+    ? createQrCodeDataUrl(secretaryVerificationUrl)
+    : "";
 
   if (hasSecretary) {
     const half = (contentWidth - gap) / 2;
@@ -1073,6 +1083,7 @@ export async function buildConstructionPermitPdfBlob({
       "Secretaria municipal",
       permit.secretarySignature,
       false,
+      secretaryVerificationQrDataUrl,
     );
   } else {
     drawSignature(
