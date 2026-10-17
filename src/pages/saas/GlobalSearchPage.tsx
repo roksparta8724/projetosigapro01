@@ -38,13 +38,14 @@ export function GlobalSearchPage() {
       const haystack = [
         process.protocol,
         process.title,
-        process.requesterName,
         process.ownerName,
         process.technicalLead,
         process.status,
-        process.property?.address,
-        process.property?.city,
-        process.property?.neighborhood,
+        process.address,
+        process.property?.registration,
+        process.property?.iptu,
+        process.property?.lot,
+        process.property?.block,
       ]
         .filter(Boolean)
         .join(" ")
