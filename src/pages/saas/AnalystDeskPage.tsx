@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  buildProcessPath,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getChecklistTemplate,
@@ -342,7 +343,7 @@ export function AnalystDeskPage() {
 
   const handleStartAnalysis = async (process: ProcessRecord) => {
     if (process.analysis?.startedAt) {
-      navigate(`/processos/${process.id}?aba=analise`);
+      navigate(buildProcessPath(process, "analise"));
       return;
     }
 
@@ -353,7 +354,7 @@ export function AnalystDeskPage() {
     );
 
     if (ok) {
-      navigate(`/processos/${process.id}?aba=analise`);
+      navigate(buildProcessPath(process, "analise"));
     }
   };
 
@@ -413,7 +414,7 @@ export function AnalystDeskPage() {
                 <div className="min-w-[min(100%,240px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/processos/${process.id}?aba=analise`}
+                      to={buildProcessPath(process, "analise")}
                       className="sig-fit-title inline-flex text-base font-semibold leading-6 text-[#075985] underline decoration-sky-300/70 underline-offset-[3px] hover:text-[#0369a1] hover:decoration-sky-600 dark:text-sky-300"
                       title={`Abrir ${formatOfficialProcessNumber(process.protocol)}`}
                     >
@@ -696,7 +697,7 @@ export function AnalystDeskPage() {
 
               <div className="mt-5 flex justify-end border-t border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/35">
                 <Link
-                  to={`/processos/${process.id}`}
+                  to={buildProcessPath(process)}
                   data-primary-action="process"
                   className="sig-primary-process-action inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-5 text-[12px] font-bold !text-white shadow-[0_8px_20px_rgba(7,89,133,0.22)] transition hover:-translate-y-px hover:brightness-105 sm:w-[190px] [&_*]:!text-white"
                 >
@@ -825,7 +826,7 @@ export function AnalystDeskPage() {
                             </p>
                           </div>
                           <Button asChild className="shrink-0 rounded-full bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-5 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
-                            <Link to={`/processos/${process.id}?aba=analise`}>Abrir análise</Link>
+                            <Link to={buildProcessPath(process, "analise")}>Abrir análise</Link>
                           </Button>
                         </div>
                       ))
@@ -859,7 +860,7 @@ export function AnalystDeskPage() {
                             </p>
                           </div>
                           <Button asChild variant="outline" className="shrink-0 rounded-full">
-                            <Link to={`/processos/${process.id}?aba=analise`}>Consultar análise</Link>
+                            <Link to={buildProcessPath(process, "analise")}>Consultar análise</Link>
                           </Button>
                         </div>
                       ))}
@@ -1082,7 +1083,7 @@ export function AnalystDeskPage() {
                               <p>{item.at}</p>
                             </div>
                             <Button asChild variant="outline" size="sm" className="rounded-full">
-                              <Link to={`/processos/${item.processId}?aba=analise`}>Abrir processo</Link>
+                              <Link to={buildProcessPath({ id: item.processId, protocol: item.protocol }, "analise")}>Abrir processo</Link>
                             </Button>
                           </div>
                         </div>
