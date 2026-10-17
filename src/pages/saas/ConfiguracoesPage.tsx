@@ -939,10 +939,34 @@ export function ConfiguracoesPage() {
     const nextLogoFiles = imageFiles(nextSettings?.logoUrl ?? "", "logo");
     setLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
     setDraftLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
-    const nextHeaderFiles = imageFiles(nextSettings?.headerLogoUrl || nextSettings?.logoUrl || "", "header-logo");
-    const nextFooterFiles = imageFiles(nextSettings?.footerLogoUrl || nextSettings?.logoUrl || "", "footer-logo");
-    setDraftHeaderLogoFiles((current) => (sameFileList(current, nextHeaderFiles) ? current : nextHeaderFiles));
-    setDraftFooterLogoFiles((current) => (sameFileList(current, nextFooterFiles) ? current : nextFooterFiles));
+    const nextHeaderFiles = imageFiles(
+      firstRenderablePreviewUrl(
+        headerBranding.logoUrl,
+        nextSettings?.headerLogoUrl,
+        nextSettings?.logoUrl,
+        nextSettings?.brasaoUrl,
+      ),
+      "header-logo",
+    );
+    const nextFooterFiles = imageFiles(
+      firstRenderablePreviewUrl(
+        footerBranding.logoUrl,
+        nextSettings?.footerLogoUrl,
+        nextSettings?.logoUrl,
+        nextSettings?.brasaoUrl,
+      ),
+      "footer-logo",
+    );
+    setDraftHeaderLogoFiles((current) => {
+      if (current[0]?.file) return current;
+      if (!nextHeaderFiles.length && current.length) return current;
+      return sameFileList(current, nextHeaderFiles) ? current : nextHeaderFiles;
+    });
+    setDraftFooterLogoFiles((current) => {
+      if (current[0]?.file) return current;
+      if (!nextFooterFiles.length && current.length) return current;
+      return sameFileList(current, nextFooterFiles) ? current : nextFooterFiles;
+    });
 
     const nextHeaderConfig = {
       scale: Math.max(1, nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1),
@@ -1001,7 +1025,7 @@ export function ConfiguracoesPage() {
       sameFileList(current, nextZoneamentoFiles) ? current : nextZoneamentoFiles,
     );
     setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
-  }, [availableInstitutions, selectedTenantId]);
+  }, [availableInstitutions, selectedTenantId, headerBranding.logoUrl, footerBranding.logoUrl]);
 
   useEffect(() => {
     let cancelled = false;
