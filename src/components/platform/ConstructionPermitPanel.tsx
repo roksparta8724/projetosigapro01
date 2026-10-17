@@ -832,7 +832,7 @@ export function ConstructionPermitPanel({
                 </div>
                 <Button
                   type="button"
-                  onClick={openPdf}
+                  onClick={() => openPdf()}
                   className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
                 >
                   <FileDown className="mr-2 h-4 w-4" />
@@ -1201,7 +1201,7 @@ export function ConstructionPermitPanel({
                       </div>
                       <Button
                         type="button"
-                        onClick={openPdf}
+                        onClick={() => openPdf()}
                         className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
                       >
                         <FileDown className="mr-2 h-4 w-4" />
