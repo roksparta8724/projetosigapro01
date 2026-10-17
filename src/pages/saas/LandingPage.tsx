@@ -438,7 +438,7 @@ export function LandingPage() {
                                 key={module.label}
                                 className={cn(
                                   "flex items-center gap-3 rounded-[14px] px-3 py-3",
-                                  module.active
+                                  ("active" in module && module.active)
                                     ? "bg-white text-slate-950 shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
                                     : "text-sky-50/90",
                                 )}
@@ -446,14 +446,14 @@ export function LandingPage() {
                                 <span
                                   className={cn(
                                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]",
-                                    module.active ? "bg-blue-50 text-blue-800" : "bg-white/10 text-white",
+                                    ("active" in module && module.active) ? "bg-blue-50 text-blue-800" : "bg-white/10 text-white",
                                   )}
                                 >
                                   <Icon className="h-4 w-4" />
                                 </span>
                                 <div className="min-w-0">
                                   <p className="text-[12px] font-semibold">{module.label}</p>
-                                  <p className={cn("mt-0.5 truncate text-[9px]", module.active ? "text-slate-500" : "text-sky-100/60")}>
+                                  <p className={cn("mt-0.5 truncate text-[9px]", ("active" in module && module.active) ? "text-slate-500" : "text-sky-100/60")}>
                                     {module.description}
                                   </p>
                                 </div>
@@ -697,7 +697,7 @@ export function LandingPage() {
                 >
                   <div className="min-w-0" data-chart>
                     <ChartContainer config={heroChartConfig} className="w-full" ratio={2.05} minHeight={196} maxHeight={240}>
-                      <BarChart data={heroStatusBars} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
+                      <BarChart data={[...heroStatusBars]} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.35} />
                         <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
                         <YAxis tickLine={false} axisLine={false} />
@@ -716,7 +716,7 @@ export function LandingPage() {
                 >
                   <div className="min-w-0" data-chart>
                     <ChartContainer config={heroChartConfig} className="w-full" ratio={2.05} minHeight={196} maxHeight={240}>
-                      <AreaChart data={heroVolumeTrend} margin={{ top: 12, right: 6, left: 0, bottom: 0 }}>
+                      <AreaChart data={[...heroVolumeTrend]} margin={{ top: 12, right: 6, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="landingTrendFill" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.36} />
