@@ -19,6 +19,13 @@ describe("official construction permit workflow", () => {
     resolve(process.cwd(), "api/e-sign-artifact.ts"),
     "utf8",
   );
+  const ownershipMigration = readFileSync(
+    resolve(
+      process.cwd(),
+      "neon/migrations/20261017_construction_permit_analysis_owner_lock.sql",
+    ),
+    "utf8",
+  );
 
   it("generates the permit PDF from the official fill modal after choosing a signing path", () => {
     expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
@@ -44,6 +51,16 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("ALVARÁ MUNICIPAL EMITIDO");
     expect(signatureApi).toContain("PERMIT_DIRECTOR_REQUEST_REQUIRED");
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
+  });
+
+  it("keeps permit authorship with the assigned analyst and makes the director signature-only", () => {
+    expect(permitLib).toContain('if (user.role !== "analista") return false');
+    expect(permitLib).toContain("assignedProfileId");
+    expect(ownershipMigration).toContain("guard_construction_permit_analysis_owner");
+    expect(ownershipMigration).toContain("Somente o Analista Técnico responsável");
+    expect(ownershipMigration).toContain("directorSignature");
+    expect(ownershipMigration).toContain("s.signer_slot='diretoria'");
+    expect(ownershipMigration).toContain("old.status='signed'");
   });
 
   it("keeps secretary optional and only shows the secretary block when a secretary actually signs", () => {
