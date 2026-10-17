@@ -158,7 +158,8 @@ export async function prepareGuideInstitutionalLogo(
     if (prepared) return prepared;
   }
 
-  for (const image of renderedMunicipalityLogoElements()) {
+  const renderedImages = renderedMunicipalityLogoElements();
+  for (const image of renderedImages) {
     const embedded = imageElementToDataUrl(image);
     if (embedded) return embedded;
 
@@ -168,5 +169,10 @@ export async function prepareGuideInstitutionalLogo(
     if (prepared) return prepared;
   }
 
-  return "";
+  // Último fallback: reutiliza apenas uma URL que o navegador já comprovou
+  // estar carregada (naturalWidth > 0). Assim evitamos ressuscitar URL quebrada.
+  const alreadyLoaded = renderedImages
+    .map((image) => image.currentSrc || image.src)
+    .find(Boolean);
+  return alreadyLoaded ? toAbsoluteUrl(alreadyLoaded) : "";
 }
