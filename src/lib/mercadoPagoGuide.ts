@@ -1,3 +1,5 @@
+import { backendClient } from "@/integrations/backend/databaseClient";
+
 export type MercadoPagoGuideCharge = {
   ok: boolean;
   environment: "test" | "production";
@@ -17,6 +19,7 @@ export type MercadoPagoGuideCharge = {
 };
 
 export type MercadoPagoGuideChargeInput = {
+  municipalityId?: string | null;
   guideCode: string;
   amount: number;
   dueDate?: string;
@@ -27,7 +30,8 @@ function cacheKey(input: MercadoPagoGuideChargeInput) {
   return [
     "sigapro",
     "mercadopago",
-    "guide-v4",
+    "guide-v5",
+    input.municipalityId || "fallback",
     input.guideCode,
     Number(input.amount || 0).toFixed(2),
     input.dueDate || "",
@@ -71,11 +75,25 @@ export async function ensureMercadoPagoGuideCharge(
   const cached = readCachedCharge(input);
   if (cached) return cached;
 
+  let authorization = "";
+  try {
+    const sessionResult = await backendClient?.auth?.getSession?.();
+    const session = sessionResult?.data?.session ?? null;
+    authorization =
+      session?.access_token ||
+      session?.accessToken ||
+      session?.token ||
+      "";
+  } catch {
+    authorization = "";
+  }
+
   const response = await fetch("/api/mercadopago/guide-boleto", {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
     },
     body: JSON.stringify(input),
   });
