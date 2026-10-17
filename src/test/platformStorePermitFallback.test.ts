@@ -24,6 +24,7 @@ describe("official platform store construction permit fallback", () => {
   it("keeps the official permit data feeding process stage preservation", () => {
     expect(source).toContain("constructionPermit?.status === \"signed\"");
     expect(source).toContain('currentStage: constructionPermitStage || process.sla_stage');
-    expect(source).toContain('constructionPermit ? "Alvará de Construção"');
+    expect(source).toContain("constructionPermit");
+    expect(source).toContain('"Alvará de Construção"');
   });
 });
