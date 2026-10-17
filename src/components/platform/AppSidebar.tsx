@@ -265,6 +265,8 @@ function SidebarInner({
                                   ref={childActive ? activeItemRef : undefined}
                                   to={child.to}
                                   onClick={onNavigate}
+                                  aria-current={childActive ? "page" : undefined}
+                                  data-sidebar-active={childActive ? "true" : "false"}
                                   className={cn(
                                     "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
                                     childActive
