@@ -3665,7 +3665,14 @@ export function ProcessDetailPage() {
                   {visiblePaymentGuides.map((guide) => (
                     <div
                       key={`${guide.kind}-${guide.code}`}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50"
+                      id={guide.code === requestedGuideCode ? "guia-selecionada" : undefined}
+                      data-guide-code={guide.code}
+                      data-guide-selected={guide.code === requestedGuideCode ? "true" : "false"}
+                      className={
+                        guide.code === requestedGuideCode
+                          ? "scroll-mt-28 rounded-2xl border-2 border-sky-400 bg-sky-50 p-5 shadow-[0_14px_34px_rgba(14,116,144,0.14)] dark:border-sky-500 dark:bg-sky-950/25"
+                          : "rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50"
+                      }
                     >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
@@ -3721,7 +3728,7 @@ export function ProcessDetailPage() {
 
           {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
           <Card
-            id="guia-selecionada"
+            data-selected-guide-summary="true"
             className="sig-process-card min-w-0 rounded-[20px] border-2 border-sky-300 bg-sky-50/60 shadow-[0_16px_38px_rgba(14,116,144,0.12)] dark:border-sky-500/50 dark:bg-sky-950/20"
           >
             <CardHeader className="border-b border-sky-200/80 dark:border-sky-700/50">
