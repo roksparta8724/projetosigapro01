@@ -205,6 +205,24 @@ function Interleaved2of5Barcode({ value }: { value?: string }) {
   );
 }
 
+function ProviderBarcode({ value }: { value?: string }) {
+  const digits = normalizeOfficialBarcode(value);
+  if (!digits) {
+    return (
+      <span className="dam-barcode-fallback">
+        Código bancário ainda não fornecido pelo convênio/API da Prefeitura.
+      </span>
+    );
+  }
+
+  return (
+    <div className="dam-barcode-render">
+      <Interleaved2of5Barcode value={digits} />
+      <div className="dam-barcode-digits">{digits}</div>
+    </div>
+  );
+}
+
 function formatDateTimeBR(value?: string) {
   if (!value) return "";
   const date = new Date(value);
@@ -1049,10 +1067,33 @@ function getStyles() {
       box-sizing: border-box;
     }
 
+    .dam-barcode-render {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      gap: 1px;
+    }
+
     .dam-barcode-svg {
       display: block;
       width: 100%;
-      height: 54px;
+      height: 49px;
+      flex: 1 1 auto;
+    }
+
+    .dam-barcode-digits {
+      flex: 0 0 auto;
+      text-align: center;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 6.2px;
+      line-height: 1;
+      letter-spacing: 0.055em;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
     }
 
     .dam-barcode-fallback {
@@ -1773,7 +1814,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Código de Barras</div>
               <div className="dam-barcode-box">
-                <Interleaved2of5Barcode value={guia.codigoBarras} />
+                <ProviderBarcode value={guia.codigoBarras} />
               </div>
               {normalizeOfficialBarcode(guia.codigoBarras) ? (
                 <div className="dam-barcode-digits">
