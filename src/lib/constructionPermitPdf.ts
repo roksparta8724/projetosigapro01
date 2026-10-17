@@ -119,7 +119,28 @@ function buildPermitFileName(
   return `${base || "alvara-municipal"}.pdf`;
 }
 
-function writePdfShell(opened: Window, title: string, message: string) {
+function prepareReservedPdfWindow(opened: Window, title: string) {
+  // A guia é reservada de forma síncrona para não cair no bloqueador de pop-up,
+  // mas não exibimos card, texto, spinner ou mensagem intermediária. O usuário
+  // vê apenas o fundo neutro do visualizador até o Blob final substituir a guia.
+  opened.document.open();
+  opened.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#525659}
+  </style>
+</head>
+<body></body>
+</html>`);
+  opened.document.close();
+  opened.document.title = title;
+}
+
+function writePdfError(opened: Window, title: string, message: string) {
   opened.document.open();
   opened.document.write(`<!doctype html>
 <html lang="pt-BR">
@@ -131,21 +152,17 @@ function writePdfShell(opened: Window, title: string, message: string) {
     *{box-sizing:border-box}
     html,body{margin:0;width:100%;height:100%;background:#071b2e;font-family:Arial,sans-serif;color:#fff}
     body{display:grid;place-items:center}
-    #sigapro-pdf-shell{width:min(520px,calc(100vw - 40px));padding:28px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(145deg,#0a2d49,#0b567e);box-shadow:0 28px 80px rgba(0,0,0,.28)}
-    #sigapro-pdf-brand{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#bae6fd}
-    #sigapro-pdf-title{margin-top:9px;font-size:21px;font-weight:800;line-height:1.25}
-    #sigapro-pdf-status{margin-top:14px;font-size:13px;line-height:1.6;color:#e2e8f0}
-    #sigapro-pdf-progress{margin-top:22px;height:5px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.14)}
-    #sigapro-pdf-progress:after{content:"";display:block;width:42%;height:100%;border-radius:999px;background:#38bdf8;animation:loading 1.1s ease-in-out infinite alternate}
-    @keyframes loading{from{transform:translateX(-20%)}to{transform:translateX(180%)}}
+    main{width:min(520px,calc(100vw - 40px));padding:28px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(145deg,#0a2d49,#0b567e);box-shadow:0 28px 80px rgba(0,0,0,.28)}
+    .brand{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#bae6fd}
+    h1{margin:9px 0 0;font-size:21px;line-height:1.25}
+    p{margin:14px 0 0;font-size:13px;line-height:1.6;color:#e2e8f0}
   </style>
 </head>
 <body>
-  <main id="sigapro-pdf-shell">
-    <div id="sigapro-pdf-brand">SIGAPRO • Documento oficial</div>
-    <div id="sigapro-pdf-title">${escapeHtml(title)}</div>
-    <div id="sigapro-pdf-status">${escapeHtml(message)}</div>
-    <div id="sigapro-pdf-progress" aria-hidden="true"></div>
+  <main>
+    <div class="brand">SIGAPRO • Documento oficial</div>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
   </main>
 </body>
 </html>`);
@@ -153,30 +170,40 @@ function writePdfShell(opened: Window, title: string, message: string) {
   opened.document.title = title;
 }
 
+const imageDataUrlCache = new Map<string, Promise<string | null>>();
+
 async function loadImageDataUrl(url?: string | null) {
   const normalized = String(url || "").trim();
   if (!normalized) return null;
   if (normalized.startsWith("data:image/")) return normalized;
 
-  try {
-    const response = await fetch(normalized, {
-      cache: "force-cache",
-      credentials: "omit",
-    });
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) return null;
+  const cached = imageDataUrlCache.get(normalized);
+  if (cached) return cached;
 
-    return await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        resolve(typeof reader.result === "string" ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
+  const request = (async () => {
+    try {
+      const response = await fetch(normalized, {
+        cache: "force-cache",
+        credentials: "omit",
+      });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) return null;
+
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          resolve(typeof reader.result === "string" ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  })();
+
+  imageDataUrlCache.set(normalized, request);
+  return request;
 }
 
 function imageFormat(dataUrl: string) {
@@ -1108,7 +1135,7 @@ export function reserveConstructionPermitPdfWindow(
   if (!opened) return null;
 
   opened.opener = null;
-  writePdfShell(opened, tabTitle, "Preparando o PDF oficial do Alvará...");
+  prepareReservedPdfWindow(opened, tabTitle);
   opened.focus();
   return opened;
 }
@@ -1159,7 +1186,7 @@ export async function openConstructionPermitPdf(
   } catch (error) {
     if (!opened.closed) {
       opened.document.title = `Erro • ${tabTitle}`;
-      writePdfShell(
+      writePdfError(
         opened,
         `Erro • ${tabTitle}`,
         "Não foi possível gerar o PDF do Alvará. Feche esta guia e tente novamente.",
