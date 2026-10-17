@@ -516,7 +516,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         return null;
       }
       const visibleChildren = (item.children ?? []).filter(
-        (child) => !child.permission || can(session, child.permission),
+        (child) =>
+          !("permission" in child) ||
+          !child.permission ||
+          can(session, child.permission as Permission),
       );
       const parentAllowed = can(session, item.permission);
       if (!parentAllowed && visibleChildren.length === 0) return null;
