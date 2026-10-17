@@ -397,7 +397,8 @@ export function AppSidebar({
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
-      style={{ background: "var(--sig-sidebar)" }}
+        data-sidebar-surface={darkSurface ? "dark" : "light"}
+        style={{ background: "var(--sig-sidebar)" }}
       >
         <SidebarInner
           pathname={pathname}
