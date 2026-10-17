@@ -24,6 +24,8 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+type DatabaseRow = Record<string, any>;
+
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
   const raw = (value ?? "").trim();
   if (!raw) return "";
@@ -374,8 +376,8 @@ function storedAccessLevel(levelName: string | null | undefined, role: SessionUs
   return level === 1 || level === 2 || level === 3 ? level : roleToAccessLevel(role);
 }
 
-function municipalityResultData(value: unknown[] | null | undefined) {
-  return Array.isArray(value) ? value : [];
+function municipalityResultData(value: unknown): DatabaseRow[] {
+  return Array.isArray(value) ? (value as DatabaseRow[]) : [];
 }
 
 export async function loadRemotePlatformStore() {
@@ -561,16 +563,16 @@ export async function loadRemotePlatformStore() {
   const constructionPermitByProcess = new Map(
     constructionPermitRows.map((item) => [String(item.process_id), item]),
   );
-  const guidesByProcess = new Map<string, Record<string, unknown>[]>();
-  const partiesByProcess = new Map<string, Record<string, unknown>[]>();
-  const docsByProcess = new Map<string, Record<string, unknown>[]>();
-  const requirementsByProcess = new Map<string, Record<string, unknown>[]>();
-  const auditByProcess = new Map<string, Record<string, unknown>[]>();
-  const reopenByProcess = new Map<string, Record<string, unknown>[]>();
-  const movementsByProcess = new Map<string, Record<string, unknown>[]>();
-  const dispatchesByProcess = new Map<string, Record<string, unknown>[]>();
-  const messagesByProcess = new Map<string, Record<string, unknown>[]>();
-  const markersByProcess = new Map<string, Record<string, unknown>[]>();
+  const guidesByProcess = new Map<string, DatabaseRow[]>();
+  const partiesByProcess = new Map<string, DatabaseRow[]>();
+  const docsByProcess = new Map<string, DatabaseRow[]>();
+  const requirementsByProcess = new Map<string, DatabaseRow[]>();
+  const auditByProcess = new Map<string, DatabaseRow[]>();
+  const reopenByProcess = new Map<string, DatabaseRow[]>();
+  const movementsByProcess = new Map<string, DatabaseRow[]>();
+  const dispatchesByProcess = new Map<string, DatabaseRow[]>();
+  const messagesByProcess = new Map<string, DatabaseRow[]>();
+  const markersByProcess = new Map<string, DatabaseRow[]>();
   for (const guide of guidesResult.data ?? []) {
     const list = guidesByProcess.get(guide.process_id) ?? [];
     list.push(guide);
