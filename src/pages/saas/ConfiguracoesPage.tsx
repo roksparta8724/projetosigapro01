@@ -3279,7 +3279,7 @@ export function ConfiguracoesPage() {
                     <p className="mt-0.5 text-xs text-slate-500">Pode ter enquadramento próprio sem alterar o cabeçalho.</p>
                   </div>
                 </div>
-                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(420px,0.98fr)_minmax(360px,1.02fr)]">
                   <div
                     data-institutional-footer-preview="true"
                     className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_20px_44px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
@@ -3296,10 +3296,10 @@ export function ConfiguracoesPage() {
                           Rodapé
                         </span>
                       </div>
-                      <div className="mt-4 flex min-h-[156px] items-center justify-center rounded-[22px] border border-white/10 bg-slate-950/10 p-4 md:p-5">
+                      <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 sm:flex-row sm:items-center md:p-5">
                         <div
                           data-municipal-logo-live-preview="footer"
-                          className="sig-config-logo-frame sig-config-logo-frame-footer relative flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)]"
+                          className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                           style={{ width: 176, minWidth: 176, maxWidth: 176, height: 128, flex: "0 0 176px" }}
                         >
                           {previewFooterDisplayUrl ? (
@@ -3322,6 +3322,26 @@ export function ConfiguracoesPage() {
                               <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
                             </div>
                           )}
+                        </div>
+                        <div className="min-w-0 flex-1 text-white">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/60">Secretaria</p>
+                          <p className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-white">
+                            {settingsForm.secretariaResponsavel || "Secretaria responsável"}
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Município</p>
+                              <p className="mt-1 truncate text-[11px] font-medium text-white/90">
+                                {tenantForm.city || tenantForm.name || "Prefeitura"}{tenantForm.state ? ` / ${tenantForm.state}` : ""}
+                              </p>
+                            </div>
+                            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Contato</p>
+                              <p className="mt-1 truncate text-[11px] font-medium text-white/90">
+                                {settingsForm.telefone || settingsForm.email || "Contato institucional"}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
