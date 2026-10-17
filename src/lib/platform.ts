@@ -2590,6 +2590,10 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
     return true;
   }
 
+  // O administrador municipal governa usuários/configurações e pode consultar
+  // processos, mas não recebe uma fila operacional só porque seu departamento
+  // contém "Administração".
+  if (session.role === "prefeitura_admin") return false;
   if (!isInternalRole(session.role)) return false;
 
   const department = resolveSessionOperationalArea(session);
