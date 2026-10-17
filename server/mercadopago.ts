@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -142,7 +142,14 @@ export async function checkMercadoPagoConnection(): Promise<MercadoPagoConnectio
 }
 
 
-export type MercadoPagoTestBoletoResult = {
+export type MercadoPagoGuideBoletoInput = {
+  guideCode: string;
+  amount: number;
+  dueDate?: string;
+  description?: string;
+};
+
+export type MercadoPagoGuideBoletoResult = {
   ok: boolean;
   environment: MercadoPagoEnvironment;
   orderId?: string;
@@ -160,62 +167,170 @@ export type MercadoPagoTestBoletoResult = {
   errorDetails?: string[];
 };
 
-export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBoletoResult> {
+function stableUuidFromText(value: string) {
+  const hex = createHash("sha256").update(value).digest("hex").slice(0, 32).split("");
+  hex[12] = "4";
+  hex[16] = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  const normalized = hex.join("");
+  return [
+    normalized.slice(0, 8),
+    normalized.slice(8, 12),
+    normalized.slice(12, 16),
+    normalized.slice(16, 20),
+    normalized.slice(20, 32),
+  ].join("-");
+}
+
+function normalizeGuideCode(value: unknown) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._/-]/g, "-")
+    .slice(0, 64);
+}
+
+function resolveExpirationTime(dueDate?: string) {
+  if (!dueDate) return undefined;
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return undefined;
+  const now = new Date();
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / 86_400_000);
+  const days = Math.min(30, Math.max(1, diffDays));
+  return `P${days}D`;
+}
+
+function extractMercadoPagoError(
+  source: Record<string, unknown>,
+  status: number,
+) {
+  const rawErrors = Array.isArray(source.errors)
+    ? source.errors
+    : Array.isArray(source.cause)
+      ? source.cause
+      : [];
+  const errorDetails = rawErrors
+    .map((item) => {
+      if (!item || typeof item !== "object") return String(item || "");
+      const detail = item as Record<string, unknown>;
+      const code = String(detail.code || detail.error || "").trim();
+      const message = String(
+        detail.message || detail.description || detail.detail || "",
+      ).trim();
+      const path = String(
+        detail.path || detail.property || detail.field || "",
+      ).trim();
+      return [code, path, message].filter(Boolean).join(" · ");
+    })
+    .filter(Boolean);
+
+  const errorCode = String(source.code || source.error || "").trim();
+  const topMessage = String(source.message || source.detail || "").trim();
+
+  return {
+    errorCode: errorCode || undefined,
+    errorDetails,
+    message:
+      errorDetails[0] ||
+      topMessage ||
+      errorCode ||
+      `HTTP ${status}`,
+  };
+}
+
+export async function createMercadoPagoGuideBoleto(
+  input: MercadoPagoGuideBoletoInput,
+): Promise<MercadoPagoGuideBoletoResult> {
   const environment = getMercadoPagoEnvironment();
   const token = getMercadoPagoAccessToken();
-
-  if (environment !== "test") {
-    return {
-      ok: false,
-      environment,
-      error: "A emissão de boleto teste está bloqueada fora do ambiente de teste.",
-    };
-  }
+  const guideCode = normalizeGuideCode(input.guideCode);
+  const amount = Number(input.amount);
 
   if (!token) {
     return {
       ok: false,
       environment,
-      error: "Access Token de teste não configurado.",
+      error:
+        environment === "production"
+          ? "Access Token de produção não configurado."
+          : "Access Token de teste não configurado.",
     };
   }
 
-  const externalReference = `sigapro_test_${Date.now()}`;
-  const idempotencyKey = randomUUID();
+  if (!guideCode) {
+    return {
+      ok: false,
+      environment,
+      error: "A guia do SIGAPRO não possui número válido para vincular à cobrança.",
+    };
+  }
 
-  const body = {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return {
+      ok: false,
+      environment,
+      error: "A guia do SIGAPRO não possui valor válido para cobrança.",
+    };
+  }
+
+  const amountText = amount.toFixed(2);
+  const expirationTime = resolveExpirationTime(input.dueDate);
+  const externalReference = guideCode;
+  const idempotencyKey = stableUuidFromText(
+    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v1`,
+  );
+
+  const payment: Record<string, unknown> = {
+    amount: amountText,
+    payment_method: {
+      id: "boleto",
+      type: "ticket",
+    },
+  };
+  if (expirationTime) {
+    payment.expiration_time = expirationTime;
+  }
+
+  // No sandbox do Mercado Pago usamos apenas dados de comprador de teste.
+  // Em produção, a integração deverá usar os dados reais do contribuinte.
+  const payer =
+    environment === "test"
+      ? {
+          email: "test_user_br@testuser.com",
+          first_name: "John",
+          last_name: "Doe",
+          identification: {
+            type: "CPF",
+            number: "99999999999",
+          },
+          address: {
+            street_name: "Av. das Nacoes Unidas",
+            street_number: "3003",
+            zip_code: "06233903",
+            neighborhood: "Bonfim",
+            state: "SP",
+            city: "Osasco",
+          },
+        }
+      : undefined;
+
+  if (environment !== "test") {
+    return {
+      ok: false,
+      environment,
+      error:
+        "A cobrança real ainda está bloqueada. Primeiro valide o fluxo completo no ambiente de teste.",
+    };
+  }
+
+  const body: Record<string, unknown> = {
     type: "online",
     external_reference: externalReference,
     processing_mode: "automatic",
-    total_amount: "50.00",
-    description: "SIGAPRO - boleto de teste",
-    payer: {
-      email: "test@testuser.com",
-      first_name: "John",
-      last_name: "Doe",
-      identification: {
-        type: "CPF",
-        number: "99999999999",
-      },
-      address: {
-        street_name: "Av. das Nacoes Unidas",
-        street_number: "3003",
-        zip_code: "06233903",
-        neighborhood: "Bonfim",
-        state: "SP",
-        city: "Osasco",
-      },
-    },
+    total_amount: amountText,
+    description:
+      String(input.description || `SIGAPRO - ${guideCode}`).slice(0, 120),
+    payer,
     transactions: {
-      payments: [
-        {
-          amount: "50.00",
-          payment_method: {
-            id: "boleto",
-            type: "ticket",
-          },
-        },
-      ],
+      payments: [payment],
     },
   };
 
@@ -238,37 +353,14 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
         : {};
 
     if (!response.ok) {
-      const rawErrors = Array.isArray(source.errors)
-        ? source.errors
-        : Array.isArray(source.cause)
-          ? source.cause
-          : [];
-      const errorDetails = rawErrors
-        .map((item) => {
-          if (!item || typeof item !== "object") return String(item || "");
-          const detail = item as Record<string, unknown>;
-          const code = String(detail.code || detail.error || "").trim();
-          const message = String(detail.message || detail.description || detail.detail || "").trim();
-          const path = String(detail.path || detail.property || detail.field || "").trim();
-          return [code, path, message].filter(Boolean).join(" · ");
-        })
-        .filter(Boolean);
-
-      const errorCode = String(source.code || source.error || "").trim();
-      const topMessage = String(source.message || source.detail || "").trim();
-      const message =
-        errorDetails[0] ||
-        topMessage ||
-        errorCode ||
-        `HTTP ${response.status}`;
-
+      const parsedError = extractMercadoPagoError(source, response.status);
       return {
         ok: false,
         environment,
         externalReference,
-        errorCode: errorCode || undefined,
-        errorDetails,
-        error: `Mercado Pago recusou o boleto teste: ${message}`,
+        errorCode: parsedError.errorCode,
+        errorDetails: parsedError.errorDetails,
+        error: `Mercado Pago recusou a cobrança da guia: ${parsedError.message}`,
       };
     }
 
@@ -279,28 +371,35 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
     const payments = Array.isArray(transactions.payments)
       ? transactions.payments
       : [];
-    const payment =
+    const paymentResult =
       payments[0] && typeof payments[0] === "object"
         ? (payments[0] as Record<string, unknown>)
         : {};
     const paymentMethod =
-      payment.payment_method && typeof payment.payment_method === "object"
-        ? (payment.payment_method as Record<string, unknown>)
+      paymentResult.payment_method &&
+      typeof paymentResult.payment_method === "object"
+        ? (paymentResult.payment_method as Record<string, unknown>)
         : {};
 
     return {
       ok: true,
       environment,
       orderId: String(source.id || ""),
-      paymentId: String(payment.id || ""),
-      externalReference: String(source.external_reference || externalReference),
-      status: String(source.status || payment.status || ""),
-      statusDetail: String(source.status_detail || payment.status_detail || ""),
-      amount: String(source.total_amount || payment.amount || "50.00"),
+      paymentId: String(paymentResult.id || ""),
+      externalReference: String(
+        source.external_reference || externalReference,
+      ),
+      status: String(source.status || paymentResult.status || ""),
+      statusDetail: String(
+        source.status_detail || paymentResult.status_detail || "",
+      ),
+      amount: String(source.total_amount || paymentResult.amount || amountText),
       ticketUrl: String(paymentMethod.ticket_url || ""),
       barcodeContent: String(paymentMethod.barcode_content || ""),
       digitableLine: String(paymentMethod.digitable_line || ""),
-      financialInstitution: String(paymentMethod.financial_institution || ""),
+      financialInstitution: String(
+        paymentMethod.financial_institution || "Mercado Pago",
+      ),
     };
   } catch (error) {
     return {
@@ -309,8 +408,8 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
       externalReference,
       error:
         error instanceof Error
-          ? `Falha de rede ao criar boleto teste: ${error.message}`
-          : "Falha de rede ao criar boleto teste.",
+          ? `Falha de rede ao criar a cobrança da guia: ${error.message}`
+          : "Falha de rede ao criar a cobrança da guia.",
     };
   }
 }
