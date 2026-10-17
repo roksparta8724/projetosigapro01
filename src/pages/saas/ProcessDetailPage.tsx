@@ -1361,7 +1361,7 @@ export function ProcessDetailPage() {
         codigoBarras: barcode,
         linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
-        pixPayload: providerCharge?.environment === "test" ? "" : banking.pixPayload,
+        pixPayload: banking.pixPayload,
         bankName: providerName,
         bankEnvironment: providerCharge?.environment,
         bankAgreement: banking.bankAgreement,
@@ -1371,6 +1371,7 @@ export function ProcessDetailPage() {
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
         bankStatusDetail: providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
         bankAuthenticatedAt:
+          providerCharge?.authenticatedAt ||
           selectedGuide.bankAuthenticatedAt ||
           (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
         paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
