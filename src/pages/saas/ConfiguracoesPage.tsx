@@ -2405,24 +2405,22 @@ export function ConfiguracoesPage() {
       folder,
     });
 
-    if (bucket === "institutional-branding" && !uploaded.publicUrl) {
-      throw new Error(
-        `O arquivo "${item.fileName}" foi enviado, mas o domínio público dos ativos institucionais não está configurado.`,
-      );
-    }
-
     const previewBucket =
       bucket === "process-documents"
         ? "process-documents"
         : "institutional-branding";
 
+    // Branding municipal não depende de domínio público nem de URL assinada
+    // temporária. A rota estável lê o objeto privado do R2 pelo object key.
     const previewUrl =
       uploaded.publicUrl ||
-      (await getSignedUrlForObjectStrict({
-        bucket: previewBucket,
-        objectKey: uploaded.path,
-        expiresIn: 21600,
-      }));
+      (bucket === "institutional-branding"
+        ? getMunicipalityLogoOpenUrl(uploaded.path)
+        : await getSignedUrlForObjectStrict({
+            bucket: previewBucket,
+            objectKey: uploaded.path,
+            expiresIn: 21600,
+          }));
 
     return [
       {
@@ -2570,7 +2568,9 @@ export function ConfiguracoesPage() {
       setLeisFiles(nextLeisFiles);
 
       setInstitutionalAssetsStatus(
-        "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
+        nextBrasaoFiles[0]
+          ? "Brasão oficial salvo com sucesso no cadastro desta Prefeitura. Os demais arquivos institucionais também foram vinculados às áreas correspondentes."
+          : "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
       );
     } catch (error) {
       setInstitutionalAssetsStatus(
