@@ -32,8 +32,9 @@ import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignmen
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
+  buildProcessPath,
   formatOfficialProcessNumber,
-  getProcessById,
+  resolveProcessRoute,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -81,7 +82,7 @@ export function DocumentAnalysisPage() {
     reviewProcessDocument,
     createRequirement,
   } = usePlatformData();
-  const process = processId ? getProcessById(processId, processes) : undefined;
+  const process = resolveProcessRoute(processes, processId);
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
