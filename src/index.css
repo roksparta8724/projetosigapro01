@@ -9748,3 +9748,294 @@ html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="fals
   background: rgba(255,255,255,0.82);
   color: #475569;
 }
+
+
+/* ===== SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1 — 2026-10-17 =====
+   Visual-only layer. It does not alter routes, workflow, permissions, database
+   state or process status. The contract follows the rendered surface:
+   light surface => dark typography; dark surface => light typography. */
+
+/* Core cards — clearer hierarchy, stronger borders and readable copy. */
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbfe 100%) !important;
+  border-color: #d6e1ec !important;
+  color: #0b1726 !important;
+  box-shadow:
+    0 14px 34px rgba(15,23,42,.075),
+    inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-page-title,.sig-section-title,.sig-metric-value,h1,h2,h3,h4,strong) {
+  color: #0a1625 !important;
+  -webkit-text-fill-color: #0a1625 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-subtitle,.sig-metric-title,.sig-metric-helper,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #4b5e73 !important;
+  -webkit-text-fill-color: #4b5e73 !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) {
+  background: linear-gradient(180deg,#10273d 0%,#0a1928 100%) !important;
+  border-color: #31506b !important;
+  color: #f8fbff !important;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.055) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-page-title,.sig-section-title,.sig-metric-value,h1,h2,h3,h4,strong) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-subtitle,.sig-metric-title,.sig-metric-helper,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #cbd9e7 !important;
+  -webkit-text-fill-color: #cbd9e7 !important;
+  opacity: 1 !important;
+}
+
+/* Internal navigation: saturated institutional blue in light mode; inverse
+   premium light selection in dark workspace so contrast can never collapse. */
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] {
+  background: linear-gradient(135deg,#083b61 0%,#0b628f 54%,#0b7eae 100%) !important;
+  border-color: rgba(125,211,252,.48) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 12px 26px rgba(6,42,68,.24),
+    inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] :is(span,p,strong,small,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] .sig-nav-item-helper {
+  color: #d9f1ff !important;
+  -webkit-text-fill-color: #d9f1ff !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] {
+  background: linear-gradient(180deg,#f8fcff 0%,#e8f5fd 100%) !important;
+  border-color: #9dd8f2 !important;
+  color: #08263d !important;
+  box-shadow:
+    0 14px 30px rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] :is(span,p,strong,small,svg) {
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] .sig-nav-item-helper {
+  color: #34536a !important;
+  -webkit-text-fill-color: #34536a !important;
+}
+
+/* Sidebar: never allow gray-on-blue institutional navigation. */
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-label > span,
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-subitem:not([aria-current="page"]) {
+  color: #e2edf8 !important;
+  -webkit-text-fill-color: #e2edf8 !important;
+  opacity: 1 !important;
+}
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-icon,
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] svg {
+  color: #eaf5ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Premium primary actions used in licensing/permit workflows.
+   The theme inversion is deliberate and visual only. */
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) {
+  background: linear-gradient(135deg,#071c30 0%,#0b456a 54%,#0877a6 100%) !important;
+  border: 1px solid rgba(14,116,144,.42) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    0 11px 25px rgba(7,54,85,.24),
+    inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action):hover {
+  background: linear-gradient(135deg,#09243c 0%,#0d527d 54%,#0a88b9 100%) !important;
+  filter: brightness(1.03);
+}
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) :is(span,p,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) {
+  background: linear-gradient(180deg,#ffffff 0%,#eaf5fb 100%) !important;
+  border: 1px solid #a7d5e8 !important;
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  box-shadow:
+    0 12px 26px rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action):hover {
+  background: linear-gradient(180deg,#f5fbff 0%,#dff1f9 100%) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) :is(span,p,strong,svg) {
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Electronic signature evidence: official, calm and readable. */
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-signature-evidence="true"] {
+  background:
+    radial-gradient(circle at 0 0,rgba(16,185,129,.08),transparent 36%),
+    linear-gradient(180deg,#ffffff 0%,#f7fcfa 100%) !important;
+  border-color: #b7ead7 !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #526579 !important;
+  -webkit-text-fill-color: #526579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] {
+  background:
+    radial-gradient(circle at 0 0,rgba(16,185,129,.12),transparent 38%),
+    linear-gradient(180deg,#102b35 0%,#0b1e2a 100%) !important;
+  border-color: #2b665e !important;
+  color: #f3fbf8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(
+  p,span,strong,small,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f3fbf8 !important;
+  -webkit-text-fill-color: #f3fbf8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #c3d8dc !important;
+  -webkit-text-fill-color: #c3d8dc !important;
+}
+
+/* QR remains on a pure-white scan field in every theme for reliability,
+   but uses institutional navy instead of visually harsh black. */
+html body .sig-main-shell [data-premium-qr="true"],
+html body .sig-main-shell .sig-premium-qr {
+  background: #ffffff !important;
+  border-color: #c7e3ef !important;
+  color: #0b4f71 !important;
+  -webkit-text-fill-color: #0b4f71 !important;
+  box-shadow:
+    0 8px 22px rgba(15,23,42,.10),
+    inset 0 0 0 1px rgba(255,255,255,.94) !important;
+}
+html body .sig-main-shell [data-premium-qr="true"] svg,
+html body .sig-main-shell .sig-premium-qr svg {
+  display: block;
+  border-radius: 10px;
+  background: #ffffff !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell [data-premium-qr="true"] span,
+html body .sig-main-shell .sig-premium-qr span {
+  color: #075985 !important;
+  -webkit-text-fill-color: #075985 !important;
+}
+
+/* Permit signature cards follow the actual workspace rather than html.dark. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card {
+  color: #0b1726 !important;
+  box-shadow: 0 12px 30px rgba(15,23,42,.07) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #536579 !important;
+  -webkit-text-fill-color: #536579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card {
+  background: linear-gradient(180deg,#102b35 0%,#0b1f2b 100%) !important;
+  border-color: #2f675f !important;
+  color: #f4fbf9 !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.24) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card :is(
+  p,span,strong,small,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f4fbf9 !important;
+  -webkit-text-fill-color: #f4fbf9 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #c6d9dc !important;
+  -webkit-text-fill-color: #c6d9dc !important;
+}
+
+/* Dark command headers: strengthen copy without touching nested light controls. */
+html body .sig-main-shell [data-force-card-contrast="dark"] > :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body .sig-main-shell [data-force-card-contrast="dark"] > *:not(button):not(a) > :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+
+/* ===== END SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1 ===== */
