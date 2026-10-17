@@ -23,6 +23,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import { listProtocolDrafts } from "@/lib/protocolDraft";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -483,7 +484,7 @@ export function ExternalProcessControlPage() {
                         data-primary-action="process"
                         className="sig-primary-process-action h-16 w-full rounded-[20px] px-7 text-[15px] font-extrabold tracking-[0.01em] !text-white transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                       >
-                        <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
+                        <Link to={buildProcessPath(process)} className="flex w-full items-center justify-center gap-2.5 !text-white">
                           <Eye className="h-4 w-4 shrink-0 !text-white" />
                           <span className="!text-white">Abrir processo</span>
                         </Link>
@@ -582,7 +583,7 @@ export function ExternalProcessControlPage() {
                                     <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                                   </div>
                                   <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
-                                    <Link to={`/processos/${process.id}`} onClick={() => setSummaryOpen(false)}>Abrir</Link>
+                                    <Link to={buildProcessPath(process)} onClick={() => setSummaryOpen(false)}>Abrir</Link>
                                   </Button>
                                 </div>
                               </div>
