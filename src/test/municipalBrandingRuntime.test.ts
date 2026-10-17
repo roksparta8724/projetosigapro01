@@ -104,6 +104,16 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("[context, requestedUrl, secondaryUrl]");
   });
 
+  it("never replays a coat-of-arms fallback over a configured municipal logo during refresh", () => {
+    expect(logo).toContain("cacheMatchesCurrentPrimary");
+    expect(logo).toContain("loadedSourceMatchesCurrentPrimary");
+    expect(logo).toContain("cachedContextMatchesCurrentPrimary");
+    expect(logo).toContain("isAuthoritativeCurrentLogo");
+    expect(logo).toContain("Nunca grave no cache de continuidade um brasão de fallback");
+    expect(logo).toContain('parsed.pathname.endsWith("/api/municipality-logo-open")');
+    expect(logo).toContain('parsed.searchParams.get("objectKey")');
+  });
+
   it("uses a premium uncropped frame with same-context session continuity", () => {
     expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3"');
     expect(logo).toContain("data-logo-variant={variant}");
