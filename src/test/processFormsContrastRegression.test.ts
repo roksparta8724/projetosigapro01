@@ -50,17 +50,20 @@ describe("process forms and worksheet contrast", () => {
 });
 
 
-describe("analysis and Alvara premium V11 contract", () => {
+describe("analysis and Alvara premium V14 contract", () => {
   it("locks the final V11 visual contract without touching app chrome", () => {
     const css = read("src/styles/surface-polarity.css");
-    const start = css.indexOf("PROCESS ANALYSIS + ALVARA POLARITY LOCK V11");
-    const block = css.slice(start);
+    const start = css.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
+    const end = css.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
+    const block = css.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
-    expect(block).toContain('[data-urban-analysis-sheet="true"]');
+    expect(end).toBeGreaterThan(start);
     expect(block).toContain('[data-construction-permit-panel="true"]');
     expect(block).toContain('[data-permit-summary-card="true"]');
     expect(block).toContain('[data-analysis-section="true"]');
+    expect(block).toContain('[data-analysis-dark-header="true"]');
+    expect(block).toContain('[data-permit-dark-header="true"]');
     expect(block).not.toContain(".sig-premium-topbar");
     expect(block).not.toContain(".sig-topbar-shell");
     expect(block).not.toContain(".sig-sidebar");
@@ -72,23 +75,20 @@ describe("analysis and Alvara premium V11 contract", () => {
 
     expect(sheet).toContain('data-analysis-section="true"');
     expect(sheet).toContain('data-analysis-row="true"');
-    expect(sheet).toContain('data-analysis-conclusion="true"');
-    expect(sheet).toContain('data-analysis-validation="true"');
-    expect(sheet).toContain('data-analysis-signature-card="technical"');
-    expect(sheet).toContain('data-analysis-signature-card="fiscal"');
+    expect(sheet).toContain('data-analysis-dark-header="true"');
+    expect(sheet).toContain('data-analysis-header-copy="true"');
+    expect(sheet).toContain('data-analysis-signature-action="technical"');
+    expect(sheet).toContain('data-analysis-signature-action="director"');
   });
 
   it("marks Alvara cards explicitly so light/dark contrast cannot drift", () => {
     const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(permit).toContain('data-permit-status-grid="true"');
-    expect(permit).toContain('data-permit-status-card="true"');
-    expect(permit).toContain('data-permit-prerequisite-card="true"');
-    expect(permit).toContain('data-permit-detail-card="true"');
-    expect(permit).toContain('data-permit-signature-card="analyst"');
-    expect(permit).toContain('data-permit-signature-card="director"');
-    expect(permit).toContain('data-permit-dialog-section="true"');
+    expect(permit).toContain('data-construction-permit-panel="true"');
+    expect(permit).toContain('data-permit-dark-header="true"');
+    expect(permit).toContain('data-workspace-surface="adaptive"');
+    expect(permit).toContain('<DialogHeader data-force-card-contrast="dark"');
     expect(detail).toContain('data-permit-summary-card="true"');
   });
 });
