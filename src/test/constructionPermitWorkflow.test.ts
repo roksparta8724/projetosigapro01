@@ -10,6 +10,11 @@ describe("construction permit workflow", () => {
   const pdf = read("src/lib/constructionPermitPdf.ts");
   const api = read("api/e-sign-artifact.ts");
   const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const app = read("src/App.tsx");
+  const verificationPage = read("src/pages/saas/PublicSignatureVerificationPage.tsx");
+  const verificationMigration = read(
+    "neon/migrations/20261017_public_artifact_signature_verification.sql",
+  );
   const migration = read(
     "neon/migrations/20261016_construction_permit_workflow.sql",
   );
@@ -30,12 +35,12 @@ describe("construction permit workflow", () => {
   it("keeps the two signing paths visible while the form scrolls", () => {
     expect(panel).toContain("sticky bottom-0");
     expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF do Alvará");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
   });
 
   it("offers the two director signature paths before PDF completion", () => {
     expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF do Alvará");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
     expect(panel).toContain("requestOfficialPermitDirectorSignature");
     expect(panel).toContain("markOfficialPermitForManualSignature");
   });
@@ -44,6 +49,25 @@ describe("construction permit workflow", () => {
     expect(panel).toContain("directorRequestPending");
     expect(api).toContain("PERMIT_DIRECTOR_REQUEST_REQUIRED");
     expect(api).toContain("get_construction_permit_v1");
+  });
+
+  it("uses password reauthentication and exposes public QR verification after the official signature", () => {
+    expect(panel).toContain("signProcessArtifactWithPassword");
+    expect(panel).toContain('artifactType: "construction_permit"');
+    expect(panel).toContain('artifactKey: "construction-permit"');
+    expect(panel).toContain('type="password"');
+    expect(panel).toContain("QRCodeSVG");
+    expect(panel).toContain("directorVerificationUrl");
+    expect(pdf).toContain("createQrCodeDataUrl");
+    expect(pdf).toContain("buildPublicSignatureVerificationUrl");
+    expect(pdf).toContain("VERIFICAR AUTENTICIDADE");
+    expect(app).toContain('path="/verificar-assinatura"');
+    expect(verificationPage).toContain("verify_process_artifact_signature_public_v1");
+    expect(verificationMigration).toContain("security definer");
+    expect(verificationMigration).toContain("'artifact_hash'");
+    expect(verificationMigration).toContain("'signers'");
+    expect(verificationMigration).not.toContain("'email'");
+    expect(verificationMigration).not.toContain("'ip_address'");
   });
 
   it("keeps the secretary optional and only after the director", () => {
