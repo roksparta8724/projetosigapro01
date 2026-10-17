@@ -13,6 +13,8 @@ export type MercadoPagoConnectionCheck = {
     type: string;
   }>;
   error?: string;
+  errorCode?: string;
+  errorDetails?: string[];
 };
 
 function cleanEnv(value: unknown) {
@@ -154,6 +156,8 @@ export type MercadoPagoTestBoletoResult = {
   digitableLine?: string;
   financialInstitution?: string;
   error?: string;
+  errorCode?: string;
+  errorDetails?: string[];
 };
 
 export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBoletoResult> {
@@ -183,7 +187,7 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
     type: "online",
     external_reference: externalReference,
     processing_mode: "automatic",
-    total_amount: "1.00",
+    total_amount: "50.00",
     description: "SIGAPRO - boleto de teste",
     payer: {
       email: "test@testuser.com",
@@ -205,8 +209,7 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
     transactions: {
       payments: [
         {
-          amount: "1.00",
-          expiration_time: "P3D",
+          amount: "50.00",
           payment_method: {
             id: "boleto",
             type: "ticket",
@@ -235,16 +238,36 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
         : {};
 
     if (!response.ok) {
-      const message = String(
-        source.message ||
-          source.error ||
-          source.cause ||
-          `HTTP ${response.status}`,
-      );
+      const rawErrors = Array.isArray(source.errors)
+        ? source.errors
+        : Array.isArray(source.cause)
+          ? source.cause
+          : [];
+      const errorDetails = rawErrors
+        .map((item) => {
+          if (!item || typeof item !== "object") return String(item || "");
+          const detail = item as Record<string, unknown>;
+          const code = String(detail.code || detail.error || "").trim();
+          const message = String(detail.message || detail.description || detail.detail || "").trim();
+          const path = String(detail.path || detail.property || detail.field || "").trim();
+          return [code, path, message].filter(Boolean).join(" · ");
+        })
+        .filter(Boolean);
+
+      const errorCode = String(source.code || source.error || "").trim();
+      const topMessage = String(source.message || source.detail || "").trim();
+      const message =
+        errorDetails[0] ||
+        topMessage ||
+        errorCode ||
+        `HTTP ${response.status}`;
+
       return {
         ok: false,
         environment,
         externalReference,
+        errorCode: errorCode || undefined,
+        errorDetails,
         error: `Mercado Pago recusou o boleto teste: ${message}`,
       };
     }
@@ -273,7 +296,7 @@ export async function createMercadoPagoTestBoleto(): Promise<MercadoPagoTestBole
       externalReference: String(source.external_reference || externalReference),
       status: String(source.status || payment.status || ""),
       statusDetail: String(source.status_detail || payment.status_detail || ""),
-      amount: String(source.total_amount || payment.amount || "1.00"),
+      amount: String(source.total_amount || payment.amount || "50.00"),
       ticketUrl: String(paymentMethod.ticket_url || ""),
       barcodeContent: String(paymentMethod.barcode_content || ""),
       digitableLine: String(paymentMethod.digitable_line || ""),
