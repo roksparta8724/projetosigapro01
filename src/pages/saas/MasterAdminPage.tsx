@@ -43,7 +43,7 @@ const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): Institut
       email: draft.email.trim().toLowerCase(),
       fullName: draft.fullName.trim(),
       title: draft.title.trim() || roleSuggestedTitles.prefeitura_admin,
-      accessLevel: draft.accessLevel >= 3 ? 3 : 2,
+      accessLevel: (draft.accessLevel >= 3 ? 3 : 2) as 2 | 3,
     }))
     .filter((draft) => draft.email || draft.fullName);
 
@@ -103,7 +103,7 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
 const LEGACY_PENDING_SYNC_STORAGE_KEY = "sigapro:pending-tenant-sync";
 const ensureBackendAvailable = async () => {
   if (!backendClient) throw new Error("Banco oficial indisponível.");
-  const { error } = await withTimeout(
+  const { error } = await withTimeout<any>(
     backendClient.from("municipalities").select("id").limit(1),
     8000,
   );
