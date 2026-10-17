@@ -11,6 +11,8 @@ describe("municipal branding runtime resilience", () => {
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
   const portal = read("src/components/platform/PortalFrame.tsx");
   const editor = read("src/components/platform/ImageFrameEditor.tsx");
+  const tabs = read("src/components/platform/InternalTabs.tsx");
+  const pageLayout = read("src/components/platform/PageLayout.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -121,6 +123,11 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("allowPreview={false}");
     expect(editor).toContain('normalized.startsWith("/")');
     expect(surface).toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
+    expect(settings).toContain("preserveOrder");
+    expect(settings).toContain("preferOperationalDefault={false}");
+    expect(tabs).toContain("preserveOrder = false");
+    expect(tabs).toContain("preferOperationalDefault = true");
+    expect(pageLayout).toContain("preserveOrder = false");
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
