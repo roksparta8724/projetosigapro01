@@ -1,6 +1,7 @@
 import handleDelete from "../server/api/r2-delete";
 import handleListUserFiles from "../server/api/r2-list-user-files";
 import handleMasterLogoSource from "../server/api/r2-master-logo-source";
+import handleProfileAvatarOpen from "../server/api/profile-avatar-open";
 import handleSignGet from "../server/api/r2-sign-get";
 import handleUpload from "../server/api/r2-upload";
 
@@ -24,6 +25,7 @@ export default async function handler(req: Req, res: Res) {
   if (action === "sign-get") return handleSignGet(req as never, res);
   if (action === "list-user-files") return handleListUserFiles(req as never, res);
   if (action === "master-logo-source") return handleMasterLogoSource(req as never, res);
+  if (action === "profile-avatar-open") return handleProfileAvatarOpen(req as never, res);
 
   res.statusCode = 404;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
