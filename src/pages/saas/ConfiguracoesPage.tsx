@@ -2954,6 +2954,8 @@ export function ConfiguracoesPage() {
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
         className="sig-config-tabs"
+        preserveOrder
+        preferOperationalDefault={false}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
