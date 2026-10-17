@@ -427,7 +427,15 @@ set row_security to 'off'
 as $function$
 begin
   if public.current_profile_id() is not null
-     and public.process_is_in_analysis_area(new.process_id)
+     and (
+       public.process_is_in_analysis_area(new.process_id)
+       or exists (
+         select 1
+         from public.processes p
+         where p.id=new.process_id
+           and p.analysis_assigned_to_profile_id is not null
+       )
+     )
      and (
        new.review_status is distinct from old.review_status
        or new.annotations is distinct from old.annotations
