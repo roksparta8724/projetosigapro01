@@ -1,4 +1,4 @@
-import { buildPixPayload } from "@/lib/pix";
+import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
 import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
 
 export function normalizeMunicipalPixKey(
@@ -122,8 +122,8 @@ export function buildGuidePixPayload(input: {
   municipalityName?: string | null;
   municipalityCity?: string | null;
 }) {
-  if (input.guide.pixPayload?.trim()) {
-    return input.guide.pixPayload.trim();
+  if (isValidPixPayload(input.guide.pixPayload)) {
+    return input.guide.pixPayload!.trim();
   }
 
   const settings = input.settings;
