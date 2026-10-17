@@ -208,12 +208,12 @@ function getStyles() {
     html, body {
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: #eef3f8;
     }
 
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      color: #111827;
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      color: #0f172a;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       text-rendering: geometricPrecision;
@@ -226,19 +226,23 @@ function getStyles() {
     }
 
     .dam-toolbar {
+      width: 200mm;
+      margin: 4mm auto 2.5mm;
       display: flex;
       justify-content: flex-end;
-      margin: 0 0 2mm 0;
     }
 
     .dam-print-button {
-      border: 1px solid #000000;
-      background: #ffffff;
-      color: #000000;
+      border: 0;
+      border-radius: 9px;
+      background: #0f3557;
+      color: #ffffff;
       font-size: 11px;
+      font-weight: 700;
       line-height: 1;
-      padding: 6px 10px;
+      padding: 9px 14px;
       cursor: pointer;
+      box-shadow: 0 6px 16px rgba(15, 53, 87, 0.18);
     }
 
     .dam-sheet {
@@ -246,12 +250,15 @@ function getStyles() {
       height: 286.5mm;
       max-height: 286.5mm;
       min-height: 286.5mm;
-      margin: 0 auto;
+      margin: 0 auto 5mm;
       overflow: hidden;
-      border: 1px solid #111827;
+      border: 1px solid #d7e0e8;
+      border-top: 4px solid #0f3557;
+      border-radius: 3mm;
       background: #ffffff;
-      padding: 2.8mm;
+      padding: 3.2mm;
       box-sizing: border-box;
+      box-shadow: 0 14px 34px rgba(15, 53, 87, 0.12);
     }
 
     .dam-stack {
@@ -262,7 +269,9 @@ function getStyles() {
     }
 
     .dam-block {
-      border: 1px solid #000000;
+      border: 1px solid #9fb0c1;
+      border-radius: 1.8mm;
+      overflow: hidden;
     }
 
     .dam-block-top {
@@ -277,9 +286,10 @@ function getStyles() {
 
     .dam-header {
       display: grid;
-      grid-template-columns: 74px 1fr 92px;
-      border-bottom: 1px solid #000000;
+      grid-template-columns: 82px 1fr 118px;
+      border-bottom: 1px solid #b7c5d2;
       align-items: stretch;
+      background: linear-gradient(90deg, #f8fbfd 0%, #ffffff 58%, #f5f9fc 100%);
     }
 
     .dam-logo-box,
@@ -288,17 +298,18 @@ function getStyles() {
     }
 
     .dam-logo-box {
-      height: 56px;
-      border-right: 1px solid #000000;
+      height: 64px;
+      border-right: 1px solid #b7c5d2;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 4px;
+      padding: 5px;
+      background: #ffffff;
     }
 
     .dam-logo {
-      max-width: 54px;
-      max-height: 48px;
+      max-width: 62px;
+      max-height: 54px;
       object-fit: contain;
       display: block;
     }
@@ -315,8 +326,8 @@ function getStyles() {
     }
 
     .dam-header-center {
-      height: 56px;
-      padding: 4px 7px;
+      height: 64px;
+      padding: 5px 9px;
       text-align: left;
       display: flex;
       flex-direction: column;
@@ -326,16 +337,18 @@ function getStyles() {
     }
 
     .dam-municipality-name {
-      font-size: 10px;
-      line-height: 1;
-      font-weight: 700;
+      font-size: 11.2px;
+      line-height: 1.05;
+      font-weight: 800;
+      color: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.02em;
     }
 
     .dam-header-line {
-      font-size: 7px;
-      line-height: 1;
+      font-size: 6.8px;
+      line-height: 1.15;
+      color: #334155;
       text-transform: uppercase;
     }
 
@@ -344,7 +357,7 @@ function getStyles() {
     }
 
     .dam-header-right {
-      border-left: 1px solid #000000;
+      border-left: 1px solid #b7c5d2;
       display: grid;
       grid-template-rows: 16px 1fr;
     }
@@ -390,21 +403,23 @@ function getStyles() {
     }
 
     .dam-title {
-      border-bottom: 1px solid #000000;
-      padding: 3px 0 2px;
+      border-bottom: 1px solid #0a2944;
+      padding: 5px 8px 4px;
       text-align: center;
-      font-size: 10.5px;
+      font-size: 11px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.09em;
     }
 
     .dam-subtitle-band {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-bottom: 1px solid #000000;
-      background: #fafafa;
+      border-bottom: 1px solid #b7c5d2;
+      background: #edf4f8;
     }
 
     .dam-subtitle-main,
@@ -447,11 +462,13 @@ function getStyles() {
     }
 
     .dam-field-label {
-      border-bottom: 1px solid #000000;
+      border-bottom: 1px solid #c8d3dd;
       padding: 2px 3px 1px;
-      font-size: 7px;
+      font-size: 6.5px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #475569;
+      background: #f4f7fa;
       text-transform: uppercase;
     }
 
@@ -547,10 +564,11 @@ function getStyles() {
 
     .dam-table th {
       font-size: 6.5px;
-      font-weight: 700;
+      font-weight: 800;
+      color: #173b59;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      background: #fafafa;
+      background: #eaf1f6;
     }
 
     .align-right {
@@ -584,19 +602,23 @@ function getStyles() {
     }
 
     .dam-total-label {
-      font-size: 7px;
+      font-size: 7.2px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
 
     .dam-total-value {
-      border-left: 1px solid #000000;
+      border-left: 1px solid #0a2944;
       text-align: right;
-      font-size: 9.5px;
+      font-size: 10px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
     }
 
     .dam-responsible-row {
@@ -683,15 +705,16 @@ function getStyles() {
     }
 
     .dam-tear-line {
-      margin: 0.9mm 0;
-      border-top: 1px dashed #000000;
+      margin: 1.2mm 0;
+      border-top: 1px dashed #91a4b7;
     }
 
     .dam-receipt-header {
       display: grid;
-      grid-template-columns: 64px minmax(0, 1fr) 116px;
-      border-bottom: 1px solid #000000;
+      grid-template-columns: 70px minmax(0, 1fr) 132px;
+      border-bottom: 1px solid #b7c5d2;
       align-items: stretch;
+      background: #f7fafc;
     }
 
     .dam-receipt-logo {
@@ -704,8 +727,8 @@ function getStyles() {
     }
 
     .dam-receipt-logo img {
-      max-width: 44px;
-      max-height: 40px;
+      max-width: 52px;
+      max-height: 44px;
       object-fit: contain;
     }
 
@@ -719,9 +742,10 @@ function getStyles() {
     }
 
     .dam-receipt-title {
-      font-size: 8px;
-      line-height: 1;
-      font-weight: 700;
+      font-size: 8.5px;
+      line-height: 1.05;
+      font-weight: 800;
+      color: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -883,24 +907,28 @@ function getStyles() {
     }
 
     .dam-bottom-section {
-      border-top: 1px solid #000000;
-      padding: 3px 4px;
+      border-top: 1px solid #b7c5d2;
+      padding: 4px 5px;
       box-sizing: border-box;
-      min-height: 11mm;
-      background: #fcfcfc;
+      min-height: 12mm;
+      background: #f7fafc;
     }
 
     .dam-digitable-value {
-      margin-top: 1px;
-      font-size: 7.5px;
-      line-height: 1;
-      letter-spacing: 0.02em;
+      margin-top: 3px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 9.4px;
+      line-height: 1.15;
+      font-weight: 800;
+      letter-spacing: 0.035em;
+      color: #0f172a;
     }
 
     .dam-barcode-box {
-      margin-top: 2px;
-      height: 14mm;
-      border: 1px solid #000000;
+      margin-top: 3px;
+      height: 19mm;
+      border: 1px solid #8da1b5;
+      background: #ffffff;
       display: flex;
       align-items: flex-end;
       justify-content: center;
@@ -912,7 +940,7 @@ function getStyles() {
     .dam-barcode-svg {
       display: block;
       width: 100%;
-      height: 42px;
+      height: 54px;
     }
 
     .dam-barcode-fallback {
@@ -975,9 +1003,9 @@ function getStyles() {
     .dam-final-area {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-top: 1px solid #000000;
+      border-top: 1px solid #b7c5d2;
       flex: 1 1 auto;
-      min-height: 42mm;
+      min-height: 28mm;
     }
 
     .dam-final-left,
@@ -998,8 +1026,8 @@ function getStyles() {
 
     .dam-final-box {
       margin-top: 3px;
-      border: 1px solid #000000;
-      min-height: 28mm;
+      border: 1px solid #c0ccd7;
+      min-height: 16mm;
       padding: 3px 4px;
       box-sizing: border-box;
       font-size: 6.5px;
@@ -1008,8 +1036,8 @@ function getStyles() {
 
     .dam-final-right-box {
       margin-top: 3px;
-      border: 1px solid #000000;
-      min-height: 28mm;
+      border: 1px solid #c0ccd7;
+      min-height: 16mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1606,7 +1634,21 @@ export function buildGuiaRecolhimentoOficialHtml(
   </head>
   <body>
     ${markup}
-    ${autoPrint ? "<script>window.addEventListener('load', function () { window.print(); }, { once: true });</script>" : ""}
+    ${autoPrint ? `<script>
+      window.addEventListener('load', function () {
+        var images = Array.prototype.slice.call(document.images || []);
+        var pending = images.map(function (img) {
+          if (img.complete) return Promise.resolve();
+          return new Promise(function (resolve) {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+          });
+        });
+        Promise.all(pending).then(function () {
+          window.setTimeout(function () { window.print(); }, 180);
+        });
+      }, { once: true });
+    </script>` : ""}
   </body>
 </html>`;
 }
