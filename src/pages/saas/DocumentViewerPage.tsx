@@ -85,19 +85,19 @@ export function DocumentViewerPage() {
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
 
   useEffect(() => {
-    const previousTitle = document.title;
+    const previousTitle = window.document.title;
     const fileLabel =
       document?.fileName?.trim() ||
       document?.label?.trim() ||
       "Documento técnico";
     const protocol = process?.protocol?.trim() || "";
 
-    document.title = protocol
+    window.document.title = protocol
       ? `${fileLabel} • ${protocol} • SIGAPRO`
       : `${fileLabel} • SIGAPRO`;
 
     return () => {
-      document.title = previousTitle;
+      window.document.title = previousTitle;
     };
   }, [document?.fileName, document?.label, process?.protocol]);
 
