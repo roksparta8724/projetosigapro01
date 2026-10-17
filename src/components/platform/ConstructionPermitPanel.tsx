@@ -1108,6 +1108,14 @@ export function ConstructionPermitPanel({
                               <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
                                 Leia o QR Code para confirmar a assinatura, o código e o SHA-256 no SIGAPRO.
                               </p>
+                              <a
+                                href={directorVerificationUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                              >
+                                Abrir verificação
+                              </a>
                             </div>
                           </div>
                         ) : null}
