@@ -46,6 +46,7 @@ import {
   type PaymentGuideKind,
   type ProcessRecord,
 } from "@/lib/platform";
+import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -165,6 +166,7 @@ export function FinanceProtocolsPage() {
       : "",
   );
   const [financialBusyKey, setFinancialBusyKey] = useState("");
+  const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
   const [view, setView] = useState<FinanceView>("abertos");
   const [search, setSearch] = useState("");
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
@@ -240,7 +242,7 @@ export function FinanceProtocolsPage() {
     }
   };
 
-  const openGuide = (
+  const openGuide = async (
     processId: string,
     guideKind: PaymentGuideKind,
     autoPrint = true,
@@ -257,6 +259,44 @@ export function FinanceProtocolsPage() {
       municipalityName,
       municipalityCity: tenantSettings?.pixMerchantCity,
     });
+
+    const billingKey = `${processId}:${guideKind}:mercadopago`;
+    let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
+
+    if (
+      match.guide.status === "pendente" &&
+      !banking.barcode &&
+      !banking.digitableLine
+    ) {
+      setGuideBillingBusyKey(billingKey);
+      setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
+      try {
+        providerCharge = await ensureMercadoPagoGuideCharge({
+          guideCode: match.guide.code,
+          amount: match.guide.amount,
+          dueDate: match.guide.dueDate,
+          description: `${guideKindLabel(match.guide.kind)} · ${match.process.protocol}`,
+        });
+        setFinancialStatus(
+          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
+        );
+      } catch (error) {
+        setFinancialStatus(
+          error instanceof Error
+            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança Mercado Pago desta guia.",
+        );
+      } finally {
+        setGuideBillingBusyKey("");
+      }
+    }
+
+    const digitableLine =
+      providerCharge?.digitableLine || banking.digitableLine;
+    const barcode =
+      providerCharge?.barcodeContent || banking.barcode;
+    const providerName =
+      providerCharge?.financialInstitution || banking.bankName || "Mercado Pago";
 
     openGuiaRecolhimentoOficialWindow(
       {
@@ -297,11 +337,11 @@ export function FinanceProtocolsPage() {
           descontos: 0,
           outrosAcrescimos: 0,
           valorCobrado: match.guide.amount,
-          linhaDigitavel: banking.digitableLine,
-          codigoBarras: banking.barcode,
+          linhaDigitavel: digitableLine,
+          codigoBarras: barcode,
           qrCodePixUrl: "",
           pixPayload: banking.pixPayload,
-          bankName: banking.bankName,
+          bankName: providerName,
           bankAgreement: banking.bankAgreement,
           bankInstructions: banking.bankInstructions,
           autenticacaoMecanica: "",
@@ -747,11 +787,12 @@ export function FinanceProtocolsPage() {
                                             size="sm"
                                             className="rounded-full"
                                             onClick={() =>
-                                              openGuide(process.id, guide.kind, false)
+                                              void openGuide(process.id, guide.kind, false)
                                             }
+                                            disabled={guideBillingBusyKey === busyKey + ":mercadopago"}
                                           >
                                             <Eye className="mr-1.5 h-3.5 w-3.5" />
-                                            Preview
+                                            {guideBillingBusyKey === busyKey + ":mercadopago" ? "Gerando..." : "Preview"}
                                           </Button>
                                           <Button
                                             type="button"
@@ -759,11 +800,12 @@ export function FinanceProtocolsPage() {
                                             size="sm"
                                             className="rounded-full"
                                             onClick={() =>
-                                              openGuide(process.id, guide.kind, true)
+                                              void openGuide(process.id, guide.kind, true)
                                             }
+                                            disabled={guideBillingBusyKey === busyKey + ":mercadopago"}
                                           >
                                             <Printer className="mr-1.5 h-3.5 w-3.5" />
-                                            DAM
+                                            {guideBillingBusyKey === busyKey + ":mercadopago" ? "Gerando..." : "DAM"}
                                           </Button>
                                           {guide.status === "pendente" &&
                                           !isProtocolGuide ? (
