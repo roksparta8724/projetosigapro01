@@ -57,6 +57,19 @@ describe("municipal payment collection", () => {
     expect(validateMunicipalPixKey("chave-invalida", "random").valid).toBe(false);
   });
 
+  it("ignores an invalid legacy pix_code and regenerates a valid BR Code", () => {
+    const payload = buildGuidePixPayload({
+      settings,
+      guide: { ...guide, pixPayload: "PIX|LEGADO|INVALIDO" },
+      municipalityName: "Prefeitura Municipal",
+      municipalityCity: "Campo Limpo Paulista",
+    });
+
+    expect(payload).not.toContain("PIX|LEGADO");
+    expect(payload).toMatch(/^000201/);
+    expect(payload).toMatch(/6304[0-9A-F]{4}$/);
+  });
+
   it("never accepts an invented or malformed bank barcode", () => {
     expect(normalizeBankBarcode("123")).toBe("");
     expect(normalizeBankBarcode("1".repeat(44))).toBe("1".repeat(44));
