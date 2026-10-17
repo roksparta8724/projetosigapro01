@@ -439,8 +439,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     desktopThemePresets.find(
       (preset) =>
         preset.primary === municipalityTheme.primary &&
-        preset.accent === municipalityTheme.accent &&
-        (preset.inverseMain ? preset.background === municipalityTheme.background : true),
+        preset.accent === municipalityTheme.accent,
     ) ??
     defaultSigaproThemePreset;
   const stableMunicipalityTheme =
