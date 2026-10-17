@@ -131,10 +131,13 @@ export function InstitutionalLogo({
     : primaryUrl;
 
   const cachedAtMount = readSessionLogo(context);
+  // requestedUrl é a identidade configurada de verdade. Quando ela ainda não
+  // chegou durante a hidratação, preserve o último logo válido do mesmo
+  // contexto em vez de forçar o brasão de fallback por alguns frames.
   const cacheMatchesCurrentPrimary =
     !cachedAtMount ||
-    !primaryUrl ||
-    sameAssetResource(cachedAtMount, primaryUrl);
+    !requestedUrl ||
+    sameAssetResource(cachedAtMount, requestedUrl);
   const cachedAtMountAllowed =
     (isMaster ||
       !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO)) &&
@@ -147,8 +150,8 @@ export function InstitutionalLogo({
 
   const loadedSourceMatchesCurrentPrimary =
     !loadedSource.url ||
-    !primaryUrl ||
-    sameAssetResource(loadedSource.url, primaryUrl);
+    !requestedUrl ||
+    sameAssetResource(loadedSource.url, requestedUrl);
   const loadedSourceAllowed =
     (isMaster ||
       !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO)) &&
@@ -165,8 +168,8 @@ export function InstitutionalLogo({
   const cachedContextUrl = readSessionLogo(context);
   const cachedContextMatchesCurrentPrimary =
     !cachedContextUrl ||
-    !primaryUrl ||
-    sameAssetResource(cachedContextUrl, primaryUrl);
+    !requestedUrl ||
+    sameAssetResource(cachedContextUrl, requestedUrl);
   const cachedAllowed =
     (isMaster ||
       !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO)) &&
@@ -337,14 +340,19 @@ export function InstitutionalLogo({
               onLoad={() => {
                 setLoadedSource({ context, url: displayUrl });
                 const isAuthoritativeCurrentLogo =
-                  !primaryUrl || sameAssetResource(displayUrl, primaryUrl);
+                  isMaster ||
+                  Boolean(
+                    requestedUrl &&
+                    sameAssetResource(displayUrl, requestedUrl),
+                  );
                 if (
                   isAuthoritativeCurrentLogo &&
                   (isMaster ||
                     !sameAssetResource(displayUrl, SIGAPRO_OFFICIAL_LOGO))
                 ) {
-                  // Nunca grave no cache de continuidade um brasão de fallback
-                  // enquanto há um logo oficial diferente configurado.
+                  // Só a imagem configurada entra no cache municipal. O brasão
+                  // de fallback nunca substitui a identidade oficial usada no
+                  // último frame estável.
                   writeSessionLogo(context, displayUrl);
                 }
               }}
