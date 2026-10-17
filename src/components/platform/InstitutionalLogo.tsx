@@ -17,9 +17,9 @@ const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
 const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
-  header: "h-[120px] w-[204px] p-0 lg:h-[128px] lg:w-[220px]",
-  footer: "h-[148px] w-[204px] p-0",
-  preview: "h-[148px] w-full max-w-[220px] p-0",
+  header: "h-[120px] w-[168px] p-0 lg:h-[124px] lg:w-[176px]",
+  footer: "h-[128px] w-[176px] p-0",
+  preview: "h-[128px] w-[176px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
 } as const;
@@ -176,8 +176,12 @@ export function InstitutionalLogo({
   const scale = isMaster
     ? Math.max(0.35, Math.min(5, configuredScale))
     : Math.max(1, Math.min(5, configuredScale));
-  const frameSize = variant === "header" ? 128 : 144;
-  const frameRatio = frameSize / 160;
+  const frameRatio =
+    variant === "header"
+      ? 124 / 132
+      : variant === "footer" || variant === "preview"
+        ? 128 / 132
+        : 1;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
@@ -212,6 +216,10 @@ export function InstitutionalLogo({
         className,
       )}
       style={isMaster ? undefined : {
+        width: variant === "header" ? 176 : variant === "footer" || variant === "preview" ? 176 : undefined,
+        minWidth: variant === "header" ? 176 : variant === "footer" || variant === "preview" ? 176 : undefined,
+        maxWidth: variant === "header" ? 176 : variant === "footer" || variant === "preview" ? 176 : undefined,
+        height: variant === "header" ? 124 : variant === "footer" || variant === "preview" ? 128 : undefined,
         background: "#ffffff",
         backgroundColor: "#ffffff",
         border: "none",
@@ -220,6 +228,7 @@ export function InstitutionalLogo({
         backdropFilter: "none",
         WebkitBackdropFilter: "none",
         mixBlendMode: "normal",
+        flex: variant === "header" || variant === "footer" || variant === "preview" ? "0 0 auto" : undefined,
       }}
     >
       <div
