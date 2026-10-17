@@ -954,18 +954,18 @@ export function UrbanAnalysisChecklistPanel({
             <div
               data-analysis-signature-qr="true"
               data-premium-qr="true"
-              className="sig-premium-qr row-span-3 flex shrink-0 flex-col items-center self-start rounded-[16px] border border-sky-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)]"
+              className="sig-premium-qr sig-sei-like-qr row-span-3 flex w-[136px] shrink-0 flex-col items-center self-start rounded-[14px] border border-slate-200 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
             >
               <QRCodeSVG
                 value={buildPublicSignatureVerificationUrl(signature.verificationCode)}
-                size={92}
-                level="Q"
+                size={112}
+                level="M"
                 includeMargin
                 bgColor="#ffffff"
-                fgColor="#0B4F71"
+                fgColor="#111111"
                 aria-label={`QR Code de verificação da assinatura eletrônica - ${label}`}
               />
-              <span className="mt-1.5 rounded-full bg-sky-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.09em] text-sky-800">
+              <span className="mt-2 text-center text-[8px] font-black uppercase tracking-[0.08em] !text-black">
                 Verificar assinatura
               </span>
             </div>
