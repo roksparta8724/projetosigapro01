@@ -1342,6 +1342,8 @@ export function ProcessDetailPage() {
         bankName: providerName,
         bankAgreement: banking.bankAgreement,
         bankInstructions: banking.bankInstructions,
+        bankReference: providerCharge?.orderId || selectedGuide.bankReference,
+        bankPaymentId: providerCharge?.paymentId,
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
