@@ -1121,7 +1121,7 @@ export function ConfiguracoesPage() {
     setTenantForm((current) => ({ ...current, [field]: value }));
   };
 
-  const setSettingsField = (field: keyof typeof settingsForm, value: string | number) => {
+  const setSettingsField = (field: keyof typeof settingsForm, value: string | number | boolean) => {
     setSettingsForm((current) => ({ ...current, [field]: value }));
   };
 
