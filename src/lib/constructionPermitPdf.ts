@@ -323,9 +323,12 @@ function drawSignature(
       const qrY = y + 2.1;
       pdf.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(3.9);
+      pdf.setFontSize(3.25);
       textColor(pdf, color.green);
-      pdf.text("QR DA ASSINATURA ELETRÔNICA", qrX + qrSize / 2, y + 22.4, {
+      pdf.text("QR DA ASSINATURA", qrX + qrSize / 2, y + 22.15, {
+        align: "center",
+      });
+      pdf.text("ELETRÔNICA", qrX + qrSize / 2, y + 24.15, {
         align: "center",
       });
     }
