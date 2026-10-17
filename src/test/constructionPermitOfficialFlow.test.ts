@@ -36,11 +36,13 @@ describe("official construction permit workflow", () => {
     expect(panel).toContain("municipalityEmail");
   });
 
-  it("keeps the signing actions visible and routes only to an eligible director", () => {
+  it("keeps the signing actions visible and lets the database validate the eligible director", () => {
     expect(panel).toContain("sticky bottom-0");
-    expect(panel).toContain("directors.length === 0");
-    expect(panel).toContain("nenhum perfil ativo está cadastrado como Diretor(a)");
+    expect(panel).toContain('data-request-director-signature="true"');
+    expect(panel).toContain("A Diretoria será validada diretamente no banco oficial ao enviar");
     expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
+    expect(panel).not.toContain("disabled={directors.length === 0");
+    expect(panel).not.toContain("Assinatura eletrônica indisponível: nenhum perfil ativo");
   });
 
   it("keeps electronic Director request available even after a manual PDF was prepared", () => {
