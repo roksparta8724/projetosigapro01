@@ -401,6 +401,10 @@ export function AnalystDeskPage() {
           const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
           const analysisStarted = Boolean(process.analysis?.startedAt);
           const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
+          const canEditAnalysis = canAnalyzeProcessDocument(session, process, effectiveScopeId);
+          const isSupervisorView =
+            session.role === "prefeitura_supervisor" &&
+            canAccessMunicipalArea(session, "analise");
           const isExpanded = expandedProcessId === process.id;
 
           return (
