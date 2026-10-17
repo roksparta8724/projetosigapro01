@@ -27,7 +27,7 @@ function cacheKey(input: MercadoPagoGuideChargeInput) {
   return [
     "sigapro",
     "mercadopago",
-    "guide",
+    "guide-v2",
     input.guideCode,
     Number(input.amount || 0).toFixed(2),
     input.dueDate || "",
