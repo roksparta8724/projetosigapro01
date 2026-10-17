@@ -65,7 +65,7 @@ function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
 }
 
 function applyMunicipalProfileSelection<
-  T extends { role: UserRole; profileLabel?: string; accessLevel: string },
+  T extends { role: UserRole; profileLabel?: string; accessLevel: string; title?: string },
 >(
   value: string,
   current: T,
