@@ -181,6 +181,36 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("Prefeitura")).not.toBeInTheDocument();
   });
 
+  it("keeps the cached official logo instead of flashing the coat of arms during F5 hydration", () => {
+    const brandedWithCrest = {
+      ...branding,
+      fallbackLogoUrl: "/municipality-a-crest.png",
+    };
+
+    const first = render(
+      <InstitutionalLogo branding={brandedWithCrest} fallbackLabel="Prefeitura A" />,
+    );
+    fireEvent.load(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+    first.unmount();
+
+    const hydrated = render(
+      <InstitutionalLogo
+        branding={{ ...brandedWithCrest, logoUrl: "" }}
+        fallbackLabel="Prefeitura A"
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+      .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+
+    hydrated.rerender(
+      <InstitutionalLogo branding={brandedWithCrest} fallbackLabel="Prefeitura A" />,
+    );
+
+    expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+      .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+  });
+
   it("keeps the previous municipal logo if an off-DOM replacement probe fails", () => {
     const probes: Array<{
       onload: null | (() => void);
