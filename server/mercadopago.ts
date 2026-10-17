@@ -266,7 +266,7 @@ export async function createMercadoPagoGuideBoleto(
   const amountText = amount.toFixed(2);
   const externalReference = guideCode;
   const idempotencyKey = stableUuidFromText(
-    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v1`,
+    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v2`,
   );
 
   const payment: Record<string, unknown> = {
