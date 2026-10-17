@@ -103,6 +103,28 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("window.setTimeout(function () { window.print(); }, 180)");
   });
 
+  it("embeds the institutional logo and binds the static print/PDF button", () => {
+    expect(guideAssets).toContain("prepareGuideInstitutionalLogo");
+    expect(guideAssets).toContain('[data-logo-context="municipality"][data-logo-variant="header"] img');
+    expect(finance).toContain("prepareGuideInstitutionalLogo");
+    expect(processDetail).toContain("prepareGuideInstitutionalLogo");
+    expect(guide).toContain('data-dam-print-button="true"');
+    expect(guide).toContain("bindDamPrint");
+    expect(guide).toContain("window.print()");
+    expect(guide).not.toContain("onClick={() => window.print()}");
+  });
+
+  it("never opens a pending DAM without both official banking fields", () => {
+    expect(finance).toContain("(!barcode || !digitableLine)");
+    expect(processDetail).toContain("(!barcode || !digitableLine)");
+    expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
+    expect(processDetail).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
+    expect(mercadoPagoGuide).toContain("validLine");
+    expect(mercadoPagoGuide).toContain("validBarcode");
+    expect(mercadoPagoServer).toContain("validLine");
+    expect(mercadoPagoServer).toContain("validBarcode");
+  });
+
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
     expect(guide).toContain('import { QRCodeSVG } from "qrcode.react"');
     expect(guide).toContain("<QRCodeSVG");
