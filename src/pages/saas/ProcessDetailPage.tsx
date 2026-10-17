@@ -3730,6 +3730,7 @@ export function ProcessDetailPage() {
           <Card
             id="guia-selecionada"
             data-selected-guide-summary="true"
+            data-guide-selected="true"
             data-guide-code={requestedPaymentGuide.code}
             className="sig-process-card min-w-0 rounded-[20px] border-2 border-sky-300 bg-sky-50/60 shadow-[0_16px_38px_rgba(14,116,144,0.12)] dark:border-sky-500/50 dark:bg-sky-950/20"
           >
