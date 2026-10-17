@@ -252,7 +252,9 @@ function createR2DevApiPlugin(): Plugin {
         }
 
         if (req.url.startsWith("/api/mercadopago/health") && req.method === "GET") {
-          const result = await checkMercadoPagoConnection();
+          const requestUrl = new URL(req.url, "http://localhost:8080");
+          const municipalityId = requestUrl.searchParams.get("municipalityId");
+          const result = await checkMercadoPagoConnection(req, municipalityId);
           res.statusCode = result.ok ? 200 : result.configured ? 502 : 503;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
@@ -263,11 +265,12 @@ function createR2DevApiPlugin(): Plugin {
         if (req.url.startsWith("/api/mercadopago/guide-boleto") && req.method === "POST") {
           const body = await readJsonBody(req);
           const result = await createMercadoPagoGuideBoleto({
+            municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
             guideCode: String(body.guideCode || ""),
             amount: Number(body.amount || 0),
             dueDate: body.dueDate ? String(body.dueDate) : undefined,
             description: body.description ? String(body.description) : undefined,
-          });
+          }, req);
           res.statusCode = result.ok ? 201 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
