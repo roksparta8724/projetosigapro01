@@ -1010,7 +1010,8 @@ export function ConstructionPermitPanel({
                   </div>
                   <Button
                     type="button"
-                    className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white"
+                    data-premium-action="strong"
+                    className="sig-premium-primary-action h-11 shrink-0 rounded-xl px-5 font-bold"
                     disabled={!canStartDraft}
                     onClick={preparePermit}
                   >
@@ -1056,8 +1057,8 @@ export function ConstructionPermitPanel({
                   <div
                     className={
                       directorOfficial
-                        ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
-                        : "rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
+                        ? "sig-permit-signature-card rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
+                        : "sig-permit-signature-card rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
                     }
                   >
                     <div className="flex items-center gap-3">
@@ -1084,23 +1085,25 @@ export function ConstructionPermitPanel({
                         {permit.directorSignature?.verificationCode ? (
                           <div
                             data-director-electronic-signature-evidence="true"
-                            className="mt-3 grid gap-3 rounded-2xl border border-emerald-200 bg-white/90 p-3 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/45"
+                            data-premium-signature-evidence="true"
+                            className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/55"
                           >
                             {directorVerificationUrl ? (
                               <div
                                 data-director-signature-qr="true"
-                                className="flex shrink-0 flex-col items-center rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+                                data-premium-qr="true"
+                                className="sig-premium-qr flex shrink-0 flex-col items-center rounded-[16px] border border-sky-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)]"
                               >
                                 <QRCodeSVG
                                   value={directorVerificationUrl}
-                                  size={88}
+                                  size={96}
                                   level="Q"
                                   includeMargin
                                   bgColor="#ffffff"
-                                  fgColor="#0f172a"
+                                  fgColor="#0B4F71"
                                   aria-label="QR Code da assinatura eletrônica da Diretoria"
                                 />
-                                <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-700">
+                                <span className="mt-1.5 rounded-full bg-sky-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.09em] text-sky-800">
                                   Verificar assinatura
                                 </span>
                               </div>
@@ -1140,7 +1143,8 @@ export function ConstructionPermitPanel({
                     userCanSignPermitAsDirector(session) ? (
                       <Button
                         type="button"
-                        className="mt-4 rounded-full bg-violet-700 px-5 text-white hover:bg-violet-800"
+                        data-premium-action="strong"
+                        className="sig-premium-primary-action mt-4 rounded-full px-5 font-bold"
                         disabled={!canSignDirector}
                         onClick={signAsDirector}
                       >
@@ -1175,7 +1179,7 @@ export function ConstructionPermitPanel({
                   </div>
 
                   {secretaryOfficial ? (
-                    <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                    <div className="sig-permit-signature-card rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                           <BadgeCheck className="h-5 w-5" />
@@ -1235,7 +1239,8 @@ export function ConstructionPermitPanel({
                         <Button
                           type="button"
                           data-request-director-signature="true"
-                          className="rounded-full bg-violet-700 px-5 font-bold !text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)] hover:bg-violet-800"
+                          data-premium-action="strong"
+                          className="sig-premium-primary-action rounded-full px-5 font-bold"
                           disabled={Boolean(workflowBusy)}
                           onClick={() => void requestDirectorSignature()}
                         >
@@ -1298,7 +1303,8 @@ export function ConstructionPermitPanel({
                       <Button
                         type="button"
                         onClick={() => openPdf()}
-                        className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                        data-premium-action="strong"
+                        className="sig-premium-primary-action rounded-full px-5 font-bold"
                       >
                         <FileDown className="mr-2 h-4 w-4" />
                         Abrir PDF final
