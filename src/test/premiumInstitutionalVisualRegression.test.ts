@@ -15,6 +15,7 @@ const sidebar = read("src/components/platform/AppSidebar.tsx");
 const permit = read("src/components/platform/ConstructionPermitPanel.tsx");
 const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 const qr = read("src/lib/qrCode.ts");
+const signatureQr = read("src/components/platform/SignatureVerificationQr.tsx");
 const permitPdf = read("src/lib/constructionPermitPdf.ts");
 const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
 const landing = read("src/pages/saas/LandingPage.tsx");
@@ -62,25 +63,28 @@ describe("premium institutional visual contract", () => {
     expect(permit).toContain('data-premium-action="strong"');
     expect(permit).toContain("sig-premium-primary-action");
     expect(permit).toContain('data-premium-signature-evidence="true"');
-    expect(permit).toContain('data-premium-qr="true"');
+    expect(signatureQr).toContain('data-premium-qr="true"');
     expect(css).toContain('[data-premium-action="strong"]');
     expect(css).toContain('[data-premium-signature-evidence="true"]');
     expect(css).toContain('[data-premium-qr="true"]');
   });
 
-  it("uses a high-contrast SEI-like QR on a pure-white scan field", () => {
-    expect(permit).toContain('fgColor="#111111"');
-    expect(permit).toContain('size={112}');
+  it("uses an immutable SEI-style raster QR with a four-module white quiet zone", () => {
+    expect(permit).toContain("SignatureVerificationQr");
     expect(permit).toContain("secretaryVerificationUrl");
-    expect(analysis).toContain('fgColor="#111111"');
-    expect(analysis).toContain('size={112}');
-    expect(analysis).toContain('data-premium-qr="true"');
+    expect(analysis).toContain("SignatureVerificationQr");
+    expect(analysis).toContain('data-analysis-signature-qr="true"');
+    expect(signatureQr).toContain("createQrCodeDataUrl(verificationUrl, 128)");
+    expect(signatureQr).toContain('data-signature-qr-raster="true"');
+    expect(signatureQr).toContain("sig-sei-verification-qr-image");
     expect(qr).toContain('level: "M"');
-    expect(qr).toContain('fgColor: "#111111"');
+    expect(qr).toContain("marginSize: 4");
+    expect(qr).toContain("boostLevel: false");
+    expect(qr).toContain('fgColor: "#000000"');
     expect(qr).toContain('bgColor: "#ffffff"');
     expect(permitPdf).toContain("secretaryVerificationQrDataUrl");
-    expect(permitPdf).toContain("pdf.roundedRect(qrX - 1.15");
-    expect(css).toContain("SIGNATURE QR + TOPBAR INITIALS FINAL V2");
-    expect(css).toContain("color:#000000 !important");
+    expect(css).toContain("SIGNATURE QR RASTER QUALITY LOCK V3");
+    expect(css).toContain("image-rendering:pixelated");
+    expect(css).toContain("mix-blend-mode:normal !important");
   });
 });
