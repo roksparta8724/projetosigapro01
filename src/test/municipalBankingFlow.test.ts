@@ -126,6 +126,15 @@ describe("municipal bank and payment guide flow", () => {
     expect(mercadoPagoServer).toContain("/v1/orders/");
   });
 
+  it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
+    expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
+    expect(processDetail).toContain("if (!banking.barcode || !banking.digitableLine)");
+    expect(finance).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(finance).not.toContain('match.guide.status !== "compensada" &&');
+    expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
+  });
+
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
     expect(guide).toContain('import { QRCodeSVG } from "qrcode.react"');
     expect(guide).toContain("<QRCodeSVG");
