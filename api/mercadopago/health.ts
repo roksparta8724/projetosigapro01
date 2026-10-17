@@ -16,6 +16,8 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  const result = await checkMercadoPagoConnection();
+  const requestUrl = new URL(req.url || "/api/mercadopago/health", "https://sigapro.local");
+  const municipalityId = requestUrl.searchParams.get("municipalityId");
+  const result = await checkMercadoPagoConnection(req, municipalityId);
   json(res, result.ok ? 200 : result.configured ? 502 : 503, result);
 }
