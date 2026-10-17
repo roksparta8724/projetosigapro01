@@ -3159,7 +3159,11 @@ export async function manageRemoteUserAccess(input: {
     profileLabel: input.profileLabel ?? null,
   });
 
-  const { data, error } = await db.rpc("manage_municipal_user_access", {
+  const accessRpc = isNeonBackend
+    ? "manage_municipal_user_access_adminsafe"
+    : "manage_municipal_user_access";
+
+  const { data, error } = await db.rpc(accessRpc, {
     _user_id: input.userId,
     _municipality_id: input.municipalityId,
     _role_code: input.role ?? null,
