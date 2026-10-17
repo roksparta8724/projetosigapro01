@@ -80,10 +80,17 @@ function applyMunicipalProfileSelection<
     };
   }
   const role = value as UserRole;
+  const suggestedTitle = roleSuggestedTitles[role] || "";
   return {
     ...current,
     role,
     profileLabel: "",
+    title:
+      "title" in current &&
+      (!current.title?.trim() ||
+        Object.values(roleSuggestedTitles).includes(current.title as string))
+        ? suggestedTitle
+        : current.title,
   };
 }
 
@@ -106,6 +113,18 @@ function getMunicipalProfileLabel(user: SessionUser) {
   )?.label;
 
   return municipalPresetLabel || roleLabels[user.role];
+}
+
+function sameMunicipalLabel(left?: string | null, right?: string | null) {
+  const normalize = (value?: string | null) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && b && a === b);
 }
 
 function getUserDepartmentLabel(user: SessionUser) {
@@ -844,9 +863,11 @@ export function TenantAdminPage() {
                   >
                     {getMunicipalProfileLabel(user)}
                   </span>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {user.title || "Cargo não informado"}
-                  </span>
+                  {!sameMunicipalLabel(getMunicipalProfileLabel(user), user.title) ? (
+                    <span className="text-sm font-semibold text-slate-700">
+                      {user.title || "Cargo não informado"}
+                    </span>
+                  ) : null}
                 </div>
 
                 <p className="mt-2 sig-fit-copy text-sm text-slate-500" title={user.email}>
