@@ -3151,10 +3151,10 @@ export function ConfiguracoesPage() {
                     <div className="relative">
                       <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
                         <div className="min-w-0">
-                          <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                          <p data-preview-copy="muted" id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
                             Prévia institucional
                           </p>
-                          <p id="cadastro-preview-cabecalho" className="mt-1 text-[15px] font-semibold leading-5 text-white">
+                          <p data-preview-copy="strong" id="cadastro-preview-cabecalho" className="mt-1 text-[15px] font-semibold leading-5 text-white">
                             Cabeçalho da Prefeitura
                           </p>
                         </div>
@@ -3167,7 +3167,7 @@ export function ConfiguracoesPage() {
                         <div
                           data-municipal-logo-live-preview="header"
                           className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
-                          style={{ width: 176, minWidth: 176, maxWidth: 176, height: 124, flex: "0 0 176px" }}
+                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
                         >
                           {previewHeaderDisplayUrl ? (
                             <img
@@ -3176,7 +3176,7 @@ export function ConfiguracoesPage() {
                               alt={tenantForm.name ? `Logo institucional de ${tenantForm.name}` : "Logo institucional"}
                               className="block h-full w-full select-none object-contain object-center"
                               style={{
-                                transform: `translate(${draftHeaderLogoConfig.offsetX}px, ${draftHeaderLogoConfig.offsetY}px) scale(${Math.max(1, draftHeaderLogoConfig.scale)})`,
+                                transform: `translate(${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX}px, ${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetY}px) scale(${Math.max(1, draftHeaderLogoConfig.scale)})`,
                                 transformOrigin: "center center",
                               }}
                               loading="eager"
@@ -3192,11 +3192,11 @@ export function ConfiguracoesPage() {
                         </div>
 
                         <div className="min-w-0 flex-1 py-1 text-white">
-                          <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[19px] font-bold leading-[1.16] tracking-[-0.015em] text-white xl:text-[21px]">
+                          <p data-preview-copy="strong" id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[19px] font-bold leading-[1.16] tracking-[-0.015em] text-white xl:text-[21px]">
                             {tenantForm.name || "Prefeitura"}
                           </p>
                           <p
-                            id="cadastro-preview-secretaria"
+                            data-preview-copy="muted" id="cadastro-preview-secretaria"
                             className="mt-3 max-w-[38ch] text-[13px] font-medium leading-5 text-white/[0.82]"
                           >
                             {settingsForm.secretariaResponsavel || "Secretaria responsável"}
@@ -3217,11 +3217,14 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
                       files={draftHeaderLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftHeaderLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "header");
+                        if (files.length) {
+                          setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                        }
                       }}
                     />
                     <ImageFrameEditor
@@ -3231,14 +3234,14 @@ export function ConfiguracoesPage() {
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
                       label="Ajuste do logo do cabeçalho"
-                      hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
+                      hint="Em 1.00x o brasão aparece inteiro e centralizado. Aumente o zoom somente se quiser aproximar."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
-                      viewportClassName="!h-[124px] !w-[176px]"
+                      viewportClassName="!h-[188px] !w-[188px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
@@ -3287,8 +3290,8 @@ export function ConfiguracoesPage() {
                     <div className="relative">
                       <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/[0.65]">Prévia institucional</p>
-                          <p className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
+                          <p data-preview-copy="muted" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/[0.65]">Prévia institucional</p>
+                          <p data-preview-copy="strong" className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
                         </div>
                         <span className="rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
                           Rodapé
@@ -3298,7 +3301,7 @@ export function ConfiguracoesPage() {
                         <div
                           data-municipal-logo-live-preview="footer"
                           className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
-                          style={{ width: 176, minWidth: 176, maxWidth: 176, height: 128, flex: "0 0 176px" }}
+                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
                         >
                           {previewFooterDisplayUrl ? (
                             <img
@@ -3307,7 +3310,7 @@ export function ConfiguracoesPage() {
                               alt={tenantForm.name ? `Logo de rodapé de ${tenantForm.name}` : "Logo institucional"}
                               className="block h-full w-full select-none object-contain object-center"
                               style={{
-                                transform: `translate(${draftFooterLogoConfig.offsetX}px, ${draftFooterLogoConfig.offsetY}px) scale(${Math.max(1, draftFooterLogoConfig.scale)})`,
+                                transform: `translate(${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX}px, ${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetY}px) scale(${Math.max(1, draftFooterLogoConfig.scale)})`,
                                 transformOrigin: "center center",
                               }}
                               loading="eager"
@@ -3322,20 +3325,20 @@ export function ConfiguracoesPage() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1 text-white">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/60">Secretaria</p>
-                          <p className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-white">
+                          <p data-preview-copy="muted" className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/60">Secretaria</p>
+                          <p data-preview-copy="strong" className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-white">
                             {settingsForm.secretariaResponsavel || "Secretaria responsável"}
                           </p>
                           <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Município</p>
-                              <p className="mt-1 truncate text-[11px] font-medium text-white/90">
+                              <p data-preview-copy="subtle" className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Município</p>
+                              <p data-preview-copy="muted" className="mt-1 truncate text-[11px] font-medium text-white/90">
                                 {tenantForm.city || tenantForm.name || "Prefeitura"}{tenantForm.state ? ` / ${tenantForm.state}` : ""}
                               </p>
                             </div>
                             <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Contato</p>
-                              <p className="mt-1 truncate text-[11px] font-medium text-white/90">
+                              <p data-preview-copy="subtle" className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Contato</p>
+                              <p data-preview-copy="muted" className="mt-1 truncate text-[11px] font-medium text-white/90">
                                 {settingsForm.telefone || settingsForm.email || "Contato institucional"}
                               </p>
                             </div>
@@ -3350,11 +3353,14 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
                       files={draftFooterLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftFooterLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "footer");
+                        if (files.length) {
+                          setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                        }
                       }}
                     />
                     <ImageFrameEditor
@@ -3364,14 +3370,14 @@ export function ConfiguracoesPage() {
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
                       label="Ajuste do logo do rodapé"
-                      hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
+                      hint="Em 1.00x o brasão aparece inteiro e centralizado. O rodapé pode ter um ajuste independente."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
-                      viewportClassName="!h-[128px] !w-[176px]"
+                      viewportClassName="!h-[188px] !w-[188px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
