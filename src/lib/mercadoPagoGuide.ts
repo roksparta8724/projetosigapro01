@@ -80,6 +80,11 @@ export async function ensureMercadoPagoGuideCharge(
   if (!payload.ok) {
     throw new Error(payload.error || "Mercado Pago recusou a cobrança da guia.");
   }
+  if (!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()) {
+    throw new Error(
+      "Mercado Pago criou a cobrança, mas não retornou linha digitável e código de barras completos.",
+    );
+  }
 
   writeCachedCharge(input, payload);
   return payload;
