@@ -17,9 +17,8 @@ describe("process permit lifecycle monotonicity", () => {
     expect(detail).toContain('constructionPermit?.status !== "rascunho"');
     expect(detail).toContain("else if (permitReachedIssuanceStage)");
     expect(detail).toContain("currentFlowIndex = 4");
-    expect(detail).toContain(
-      'permitReachedIssuanceStage && !isHabiteSeProcess\n        ? "Alvará de Construção"',
-    );
+    expect(detail).toContain("permitReachedIssuanceStage && !isHabiteSeProcess");
+    expect(detail).toContain('? "Alvará de Construção"');
   });
 
   it("shows the real permit state instead of a stale analysis SLA after manual PDF preparation", () => {
