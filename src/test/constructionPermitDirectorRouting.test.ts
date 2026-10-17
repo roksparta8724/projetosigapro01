@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getMunicipalDirectorCandidates, type SessionUser } from "@/lib/constructionPermit";
+import { getMunicipalDirectorCandidates, userCanSignPermitAsDirector, type SessionUser } from "@/lib/constructionPermit";
 
 const municipalityId = "municipality-a";
 const director = {
@@ -26,6 +26,7 @@ describe("construction permit Director routing", () => {
 
   it("recognizes the Urbanism supervisor as Director authority", () => {
     expect(getMunicipalDirectorCandidates([director], municipalityId)).toHaveLength(1);
+    expect(userCanSignPermitAsDirector(director)).toBe(true);
   });
 
   it("keeps the analyst request enabled while browser users synchronize", () => {
