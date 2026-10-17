@@ -28,7 +28,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
-import { prepareGuideImageSource } from "@/lib/guideAssets";
+import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -39,6 +39,7 @@ import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignmen
 import { useConstructionPermit } from "@/hooks/useConstructionPermit";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
+  getMunicipalityLogoOpenUrl,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -267,7 +268,13 @@ export function ProcessDetailPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const documentMarkers = useDocumentMarkerAssignments();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const {
+    municipality,
+    branding: municipalityBranding,
+    scopeId,
+    institutionSettingsCompat,
+    name: municipalityName,
+  } = useMunicipality();
   const {
     processes,
     institutions,
@@ -661,7 +668,13 @@ export function ProcessDetailPage() {
   const processInstitutionId = process.municipalityId ?? process.tenantId;
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
+  const stableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
   const guideLogoUrl =
+    stableGuideLogoUrl ||
     guideHeaderBranding.logoUrl ||
     ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
     tenantSettings?.logoUrl ||
@@ -1291,7 +1304,12 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
-    const embeddedGuideLogoUrl = await prepareGuideImageSource(guideLogoUrl);
+    const embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
+      stableGuideLogoUrl,
+      guideLogoUrl,
+      tenantSettings?.logoUrl,
+      tenantSettings?.brasaoUrl,
+    );
 
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
     const issuedByLooksLikeId =
@@ -1304,7 +1322,7 @@ export function ProcessDetailPage() {
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: embeddedGuideLogoUrl || guideLogoUrl,
+        logoUrl: embeddedGuideLogoUrl,
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
