@@ -1994,38 +1994,6 @@ export function buildGuiaRecolhimentoOficialHtml(
 </html>`;
 }
 
-export function showGuiaRecolhimentoError(
-  popup: Window | null,
-  message: string,
-) {
-  if (!popup || popup.closed) return;
-  const safeMessage = String(message || "Não foi possível preparar a guia.")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
-  popup.document.open();
-  popup.document.write(`<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guia indisponível</title>
-  <style>
-    html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:#f7f9fb;color:#0f172a}
-    .shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
-    .card{width:min(620px,92vw);border:1px solid #fecaca;border-top:4px solid #b91c1c;border-radius:18px;background:#fff;padding:28px;box-shadow:0 20px 48px rgba(15,23,42,.1)}
-    .title{font-size:20px;font-weight:800;color:#991b1b}
-    .text{margin-top:10px;font-size:13px;line-height:1.55;color:#475569}
-  </style>
-</head>
-<body><div class="shell"><div class="card"><div class="title">A guia não foi aberta incompleta</div><div class="text">${safeMessage}</div></div></div></body>
-</html>`);
-  popup.document.close();
-  popup.focus();
-}
-
 export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
