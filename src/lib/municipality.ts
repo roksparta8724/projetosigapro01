@@ -134,6 +134,9 @@ function buildFallbackTenantSettings(tenantId: string): TenantSettings {
     bankAgreementCode: "",
     bankWallet: "",
     bankInstructions: "",
+    paymentProvider: "mercado_pago",
+    paymentProviderEnvironment: "test",
+    paymentAuthenticationMode: "automatic",
     taxaProtocolo: 35.24,
     taxaIssPorMetroQuadrado: 0,
     issRateProfiles: defaultIssRateProfiles,
@@ -344,6 +347,21 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.bank_instructions === "string" && general.bank_instructions) ||
       base.bankInstructions ||
       "",
+    paymentProvider:
+      typeof general.payment_provider === "string" &&
+      ["mercado_pago", "bank_direct", "manual"].includes(general.payment_provider)
+        ? (general.payment_provider as TenantSettings["paymentProvider"])
+        : base.paymentProvider ?? "mercado_pago",
+    paymentProviderEnvironment:
+      typeof general.payment_provider_environment === "string" &&
+      ["test", "production"].includes(general.payment_provider_environment)
+        ? (general.payment_provider_environment as TenantSettings["paymentProviderEnvironment"])
+        : base.paymentProviderEnvironment ?? "test",
+    paymentAuthenticationMode:
+      typeof general.payment_authentication_mode === "string" &&
+      ["automatic", "manual"].includes(general.payment_authentication_mode)
+        ? (general.payment_authentication_mode as TenantSettings["paymentAuthenticationMode"])
+        : base.paymentAuthenticationMode ?? "automatic",
     taxaProtocolo:
       typeof general.taxa_protocolo === "number"
         ? general.taxa_protocolo
