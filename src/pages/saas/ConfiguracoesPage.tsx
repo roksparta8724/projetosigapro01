@@ -7,6 +7,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -4452,6 +4453,17 @@ export function ConfiguracoesPage() {
                       Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
                     </div>
                   ) : null}
+
+                  {(selectedTenantId || scopeId || session.tenantId) ? (
+                    <MunicipalPaymentSettings
+                      municipalityId={(selectedTenantId || scopeId || session.tenantId) as string}
+                      municipalityName={activeInstitution?.name || municipality?.name || tenantForm.name || ""}
+                    />
+                  ) : (
+                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                      Selecione uma Prefeitura para configurar as credenciais seguras do provedor de pagamento.
+                    </div>
+                  )}
 
                   <div className="rounded-[22px] border border-slate-200 bg-white p-5">
                     <div>
