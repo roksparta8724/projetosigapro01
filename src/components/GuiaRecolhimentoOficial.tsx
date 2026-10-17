@@ -56,6 +56,8 @@ type GuiaData = {
   bankName?: string;
   bankAgreement?: string;
   bankInstructions?: string;
+  bankReference?: string;
+  bankPaymentId?: string;
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -1510,9 +1512,18 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <ReceiptRow label="Endereço" value={contribuinte.endereco} />
 
                 <div className="dam-note">
-                  {guia.bankName
-                    ? `Banco arrecadador: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
-                    : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
+                  <div>
+                    {guia.bankName
+                      ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
+                      : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
+                  </div>
+                  {guia.bankReference || guia.bankPaymentId ? (
+                    <div style={{ marginTop: 2, fontSize: "5.5px", color: "#475569" }}>
+                      {[guia.bankReference ? `Order: ${guia.bankReference}` : "", guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : ""]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="dam-auth">
