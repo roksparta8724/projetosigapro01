@@ -387,11 +387,26 @@ begin
     raise exception 'O analista não pertence à unidade de Urbanismo/Análise';
   end if;
 
+  -- Ativa uma autorização técnica de curtíssima duração somente dentro
+  -- desta função auditada. Assim o trigger nunca aceita uma troca direta de
+  -- responsável feita por URL, cliente REST ou outro RPC sem motivo.
+  update public.processes
+     set analysis_override_profile_id=_actor,
+         analysis_override_reason='Redistribuição auditada: '||btrim(_reason),
+         analysis_override_started_at=now(),
+         analysis_override_expires_at=now()+interval '2 minutes',
+         updated_at=now()
+   where id=_process_id;
+
   update public.processes
      set analysis_assigned_to_profile_id=_target_profile_id,
          analysis_assigned_to=_target_name,
          analysis_started_at=coalesce(analysis_started_at,now()),
-         analysis_override_profile_id=null,
+         updated_at=now()
+   where id=_process_id;
+
+  update public.processes
+     set analysis_override_profile_id=null,
          analysis_override_reason=null,
          analysis_override_started_at=null,
          analysis_override_expires_at=null,
@@ -515,11 +530,7 @@ begin
        or new.current_queue is distinct from old.current_queue
        or new.analysis_assigned_to_profile_id is distinct from old.analysis_assigned_to_profile_id
      )
-     and not public.can_write_process_analysis(old.id)
-     and not (
-       public.can_supervise_process_analysis(old.id)
-       and new.analysis_assigned_to_profile_id is distinct from old.analysis_assigned_to_profile_id
-     ) then
+     and not public.can_write_process_analysis(old.id) then
     raise exception 'Este processo pertence a outro analista. Para alterar o fluxo, use intervenção ou redistribuição auditada.';
   end if;
   return new;
