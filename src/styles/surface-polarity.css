@@ -2014,3 +2014,82 @@ html body #root .sig-app-frame .sig-main-shell
   border-color:#1e293b !important;
 }
 /* ANALISE / FICHA TECNICA — LEGENDA CRISP V17 END */
+
+
+/* ==========================================================================
+   TOPBAR BRAND PREMIUM V18 — 2026-10-17
+   Keeps the SIGAPRO product mark readable even on the 75% internal workspace.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+  width:62px !important;
+  height:62px !important;
+  flex:0 0 62px !important;
+  overflow:visible !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+  width:60px !important;
+  height:60px !important;
+  padding:3px !important;
+  border-radius:19px !important;
+  background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border:1px solid rgba(255,255,255,.58) !important;
+  box-shadow:
+    0 10px 26px rgba(2,6,23,.20),
+    0 1px 0 rgba(255,255,255,.95) inset !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-image {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  transform:none !important;
+  filter:none !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-title {
+  font-size:15.5px !important;
+  line-height:1 !important;
+  font-weight:800 !important;
+  letter-spacing:.145em !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-shadow:0 1px 2px rgba(2,6,23,.18) !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
+  margin-top:5px !important;
+  font-size:12.5px !important;
+  line-height:1.28 !important;
+  font-weight:500 !important;
+  color:rgba(235,244,252,.88) !important;
+  -webkit-text-fill-color:rgba(235,244,252,.88) !important;
+}
+
+@media (max-width:1023px) {
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+    width:50px !important;
+    height:50px !important;
+    flex-basis:50px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+    width:48px !important;
+    height:48px !important;
+    padding:2px !important;
+    border-radius:16px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-title {
+    font-size:13px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
+    font-size:11px !important;
+  }
+}
+/* TOPBAR BRAND PREMIUM V18 END */
