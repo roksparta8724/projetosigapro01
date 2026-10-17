@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  defaultProtocolDraftForm,
   readProtocolDraft,
   saveProtocolDraft,
   toStoredUploadedFiles,
@@ -35,6 +36,7 @@ describe("protocol draft persistence", () => {
     const payload: ProtocolDraftPayload = {
       draftNumber: "PRE-20261012-2000",
       form: {
+        ...defaultProtocolDraftForm,
         titulo: "Residência",
         tipo: "Licenciamento",
         endereco: "Rua Teste, 10",
