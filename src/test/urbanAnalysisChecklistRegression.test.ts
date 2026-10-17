@@ -35,6 +35,19 @@ describe("urban analysis checklist", () => {
     expect(panel).toContain("Salvar rascunho");
   });
 
+  it("places a public-verification QR inside both electronic signatures and the exported PDF", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+
+    expect(panel).toContain('import { QRCodeSVG } from "qrcode.react"');
+    expect(panel).toContain("buildPublicSignatureVerificationUrl");
+    expect(panel).toContain("createQrCodeDataUrl");
+    expect(panel).toContain('data-analysis-signature-qr="true"');
+    expect(panel).toContain("technicalSignatureQrDataUrl");
+    expect(panel).toContain("directorSignatureQrDataUrl");
+    expect(panel).toContain('doc.text("QR DA ASSINATURA"');
+    expect(panel).toContain('doc.text("ELETRÔNICA"');
+  });
+
   it("supports A, AP, C and N/A with observations and routing", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 
