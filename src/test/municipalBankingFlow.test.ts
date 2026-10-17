@@ -12,6 +12,7 @@ describe("municipal bank and payment guide flow", () => {
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const collection = read("src/lib/paymentCollection.ts");
+  const guideAssets = read("src/lib/guideAssets.ts");
   const mercadoPagoGuide = read("src/lib/mercadoPagoGuide.ts");
   const mercadoPagoServer = read("server/mercadopago.ts");
 
@@ -80,6 +81,26 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain('selectedGuide.status !== "compensada"');
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
     expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
+  });
+
+  it("embeds the municipal crest and blocks an incomplete guide from opening", () => {
+    expect(guideAssets).toContain("prepareGuideImageSource");
+    expect(guideAssets).toContain("readAsDataURL");
+    expect(finance).toContain("embeddedGuideLogoUrl");
+    expect(processDetail).toContain("embeddedGuideLogoUrl");
+    expect(finance).toContain('status !== "compensada"');
+    expect(processDetail).toContain('status !== "compensada"');
+    expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()");
+    expect(finance).toContain("showGuiaRecolhimentoError");
+    expect(processDetail).toContain("showGuiaRecolhimentoError");
+  });
+
+  it("keeps the official guide premium and print-safe", () => {
+    expect(guide).toContain("toAbsoluteGuideAssetUrl");
+    expect(guide).toContain("border-top: 4px solid #0f3557");
+    expect(guide).toContain("background: #0f3557");
+    expect(guide).toContain("height: 19mm");
+    expect(guide).toContain("window.setTimeout(function () { window.print(); }, 180)");
   });
 
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
