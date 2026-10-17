@@ -951,13 +951,17 @@ export function UrbanAnalysisChecklistPanel({
           </div>
 
           {signature.verificationCode ? (
-            <SignatureVerificationQr
-              verificationUrl={buildPublicSignatureVerificationUrl(
-                signature.verificationCode,
-              )}
-              alt={`QR Code de verificação da assinatura eletrônica - ${label}`}
+            <div
+              data-analysis-signature-qr="true"
               className="row-span-3 self-start"
-            />
+            >
+              <SignatureVerificationQr
+                verificationUrl={buildPublicSignatureVerificationUrl(
+                  signature.verificationCode,
+                )}
+                alt={`QR Code de verificação da assinatura eletrônica - ${label}`}
+              />
+            </div>
           ) : null}
 
           <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
