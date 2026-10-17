@@ -40,9 +40,9 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("locks background and zoom before first paint and never clears zoom on teardown", () => {
-    expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v1")');
-    expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme")');
-    expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v1")');
+    expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v2")');
+    expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme.v2")');
+    expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v2")');
     expect(html).toContain('document.documentElement.style.setProperty("--sig-initial-bg", initialBackground)');
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
     expect(html).toContain('document.documentElement.setAttribute(');
@@ -75,7 +75,7 @@ describe("F5, logout and topbar visual continuity", () => {
 
   it("persists the effective municipal theme so refresh cannot flash another palette", () => {
     expect(portal).toContain("readEffectiveThemeCache");
-    expect(portal).toContain('"sigapro.effective-theme.v1"');
+    expect(portal).toContain('"sigapro.effective-theme.v2"');
     expect(portal).toContain("stableMunicipalityTheme");
     expect(portal).toContain("municipalityLoading ? effectiveThemeCache?.background");
   });
