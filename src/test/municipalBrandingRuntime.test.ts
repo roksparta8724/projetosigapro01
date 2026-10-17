@@ -130,6 +130,17 @@ describe("municipal branding runtime resilience", () => {
     expect(pageLayout).toContain("preserveOrder = false");
   });
 
+  it("keeps preview, editor and runtime logo on the same fixed geometry", () => {
+    expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 124');
+    expect(settings).toContain('width: 176, minWidth: 176, maxWidth: 176, height: 128');
+    expect(settings).toContain('viewportClassName="!h-[124px] !w-[176px]"');
+    expect(settings).toContain('viewportClassName="!h-[128px] !w-[176px]"');
+    expect(editor).toContain('data-image-frame-viewport="true"');
+    expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
+    expect(surface).toContain("max-width:1540px !important");
+    expect(logo).toContain('variant === "header" ? 176');
+  });
+
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
     expect(settings).toContain("getObjectKeyFromPublicUrl(url || \"\")");
     expect(settings).toContain("X-Amz-");
