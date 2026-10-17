@@ -17,9 +17,9 @@ const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
 const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
-  header: "h-[120px] w-[204px] p-0 lg:h-[128px] lg:w-[220px]",
-  footer: "h-[148px] w-[204px] p-0",
-  preview: "h-[148px] w-full max-w-[220px] p-0",
+  header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
+  footer: "h-[140px] w-[188px] p-0",
+  preview: "h-[140px] w-full max-w-[204px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
 } as const;
@@ -115,16 +115,13 @@ export function InstitutionalLogo({
     : primaryUrl;
 
   const cachedAtMount = readSessionLogo(context);
-  const cachedMatchesCurrentAsset =
-    cachedAtMount &&
-    !failedSources.includes(cachedAtMount) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(cachedAtMount, candidate),
-    );
+  const cachedAtMountAllowed =
+    isMaster ||
+    !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO);
 
   const [loadedSource, setLoadedSource] = useState(() => ({
     context,
-    url: cachedMatchesCurrentAsset ? cachedAtMount : imageUrl,
+    url: cachedAtMount && cachedAtMountAllowed ? cachedAtMount : imageUrl,
   }));
 
   const loadedSourceAllowed =
@@ -135,10 +132,7 @@ export function InstitutionalLogo({
     loadedSource.context === context &&
     loadedSource.url &&
     loadedSourceAllowed &&
-    !failedSources.includes(loadedSource.url) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(loadedSource.url, candidate),
-    )
+    !failedSources.includes(loadedSource.url)
       ? loadedSource.url
       : "";
 
@@ -149,23 +143,21 @@ export function InstitutionalLogo({
   const safeCachedUrl =
     cachedContextUrl &&
     cachedAllowed &&
-    !failedSources.includes(cachedContextUrl) &&
-    [primaryUrl, secondaryUrl].some(
-      (candidate) => candidate && sameAssetResource(cachedContextUrl, candidate),
-    )
+    !failedSources.includes(cachedContextUrl)
       ? cachedContextUrl
       : "";
 
   // Stale-while-revalidate visual:
-  // 1) mantém a última imagem já válida;
-  // 2) em um F5 reutiliza imediatamente a imagem da sessão;
-  // 3) nunca cobre uma imagem válida com skeleton/opacity-0;
-  // 4) uma URL nova só substitui a anterior depois de carregar.
+  // 1) mantém a última imagem já válida do MESMO contexto municipal;
+  // 2) em F5/hidratação reutiliza imediatamente a imagem validada da sessão;
+  // 3) uma URL nova é pré-carregada de forma invisível e só substitui a atual
+  //    depois de disparar onLoad;
+  // 4) troca de tenant muda o contexto e impede reutilização entre Prefeituras;
+  // 5) uma superfície municipal nunca aceita o logo SIGAPRO como cache/fallback.
   const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
   const pendingUrl =
     imageUrl &&
-    imageUrl !== displayUrl &&
-    !sameAssetResource(imageUrl, displayUrl)
+    imageUrl !== displayUrl
       ? imageUrl
       : "";
 
@@ -180,7 +172,9 @@ export function InstitutionalLogo({
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
+  const showCrop =
+    isMaster &&
+    (variant === "header" || variant === "footer" || variant === "preview");
 
   useEffect(() => {
     // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve
