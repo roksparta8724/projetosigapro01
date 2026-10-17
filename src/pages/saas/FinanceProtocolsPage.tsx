@@ -20,7 +20,11 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import {
+  openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoWindow,
+  showGuiaRecolhimentoError,
+} from "@/components/GuiaRecolhimentoOficial";
 import { PageHero } from "@/components/platform/PageHero";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
@@ -261,6 +265,12 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
+    const guideWindow = reserveGuiaRecolhimentoWindow(`Guia ${match.guide.code}`);
+    if (!guideWindow) {
+      setFinancialStatus("O navegador bloqueou a nova aba da guia. Permita pop-ups para o localhost e tente novamente.");
+      return;
+    }
+
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
       guide: match.guide,
@@ -289,11 +299,12 @@ export function FinanceProtocolsPage() {
           "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
         );
       } catch (error) {
-        setFinancialStatus(
+        const message =
           error instanceof Error
             ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.",
-        );
+            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+        setFinancialStatus(message);
+        showGuiaRecolhimentoError(guideWindow, message);
         return;
       } finally {
         setGuideBillingBusyKey("");
@@ -381,6 +392,7 @@ export function FinanceProtocolsPage() {
         title: `Guia ${match.guide.code}`,
         autoPrint,
       },
+      guideWindow,
     );
   };
 
