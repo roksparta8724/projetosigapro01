@@ -11,7 +11,7 @@ describe("document workspace continuity", () => {
 
     expect(html).toContain('var isFullDocumentRoute =');
     expect(html).toContain('initialBackground = isFullDocumentRoute ? "#dfe5ec"');
-    expect(html).toContain('data-sigapro-document-preboot="true"');
+    expect(html).not.toContain('data-sigapro-document-preboot="true"');
     expect(permission).toContain("<DocumentWorkspaceBoot");
     expect(permission).toContain('mode={documentRoute[1] === "analisar" ? "analysis" : "viewer"}');
   });
