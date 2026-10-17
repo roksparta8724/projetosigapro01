@@ -3665,7 +3665,7 @@ export function ProcessDetailPage() {
                   {visiblePaymentGuides.map((guide) => (
                     <div
                       key={`${guide.kind}-${guide.code}`}
-                      id={guide.code === requestedGuideCode ? "guia-selecionada" : undefined}
+                      id={guide.code === requestedGuideCode ? `guia-lancamento-${guide.code}` : undefined}
                       data-guide-code={guide.code}
                       data-guide-selected={guide.code === requestedGuideCode ? "true" : "false"}
                       className={
@@ -3728,7 +3728,9 @@ export function ProcessDetailPage() {
 
           {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
           <Card
+            id="guia-selecionada"
             data-selected-guide-summary="true"
+            data-guide-code={requestedPaymentGuide.code}
             className="sig-process-card min-w-0 rounded-[20px] border-2 border-sky-300 bg-sky-50/60 shadow-[0_16px_38px_rgba(14,116,144,0.12)] dark:border-sky-500/50 dark:bg-sky-950/20"
           >
             <CardHeader className="border-b border-sky-200/80 dark:border-sky-700/50">
