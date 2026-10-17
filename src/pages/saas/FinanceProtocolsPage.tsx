@@ -20,11 +20,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  openGuiaRecolhimentoOficialWindow,
-  reserveGuiaRecolhimentoWindow,
-  showGuiaRecolhimentoError,
-} from "@/components/GuiaRecolhimentoOficial";
+import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { PageHero } from "@/components/platform/PageHero";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
@@ -37,6 +33,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
@@ -278,12 +275,6 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
-    const guideWindow = reserveGuiaRecolhimentoWindow(`Guia ${match.guide.code}`);
-    if (!guideWindow) {
-      setFinancialStatus("O navegador bloqueou a nova aba da guia. Permita pop-ups para o localhost e tente novamente.");
-      return;
-    }
-
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
       guide: match.guide,
@@ -314,7 +305,6 @@ export function FinanceProtocolsPage() {
             ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
             : "Não foi possível obter a cobrança Mercado Pago desta guia.";
         setFinancialStatus(message);
-        showGuiaRecolhimentoError(guideWindow, message);
         return;
       } finally {
         setGuideBillingBusyKey("");
@@ -329,7 +319,6 @@ export function FinanceProtocolsPage() {
       const message =
         "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
       setFinancialStatus(message);
-      showGuiaRecolhimentoError(guideWindow, message);
       return;
     }
 
@@ -345,7 +334,7 @@ export function FinanceProtocolsPage() {
       tenantSettings?.brasaoUrl,
     );
 
-    openGuiaRecolhimentoOficialWindow(
+    const openedGuide = openGuiaRecolhimentoOficialWindow(
       {
         prefeitura: {
           nome:
@@ -426,8 +415,13 @@ export function FinanceProtocolsPage() {
         title: `Guia ${match.guide.code}`,
         autoPrint,
       },
-      guideWindow,
     );
+
+    if (!openedGuide) {
+      setFinancialStatus(
+        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
+      );
+    }
   };
 
   return (
@@ -675,7 +669,7 @@ export function FinanceProtocolsPage() {
                                 variant="outline"
                                 className="h-9 rounded-full border-slate-300 bg-white font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                               >
-                                <Link to={`/processos/${process.id}?aba=financeiro`}>
+                                <Link to={buildProcessPath(process, "financeiro")}>
                                   Abrir processo
                                 </Link>
                               </Button>
