@@ -44,7 +44,7 @@ import {
   uploadPlatformBrandingAsset,
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
-import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import { getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
@@ -2629,94 +2629,6 @@ export function ConfiguracoesPage() {
     </SectionCard>
   );
 
-  const previewSettingsBase = {
-    tenantId: selectedTenantId || tenant?.id || "",
-    cnpj: settingsForm.cnpj,
-    cep: settingsForm.cep,
-    endereco: settingsForm.endereco,
-    telefone: settingsForm.telefone,
-    email: settingsForm.email,
-    site: settingsForm.site,
-    secretariaResponsavel: settingsForm.secretariaResponsavel,
-    secretariaTelefone: settingsForm.secretariaTelefone,
-    secretariaEmail: settingsForm.secretariaEmail,
-    diretoriaResponsavel: settingsForm.diretoriaResponsavel,
-    diretoriaTelefone: settingsForm.diretoriaTelefone,
-    diretoriaEmail: settingsForm.diretoriaEmail,
-    departmentOwnership: {
-      protocolo: {
-        secretaria: settingsForm.protocoloSecretaria.trim(),
-        diretoria: settingsForm.protocoloDiretoria.trim(),
-      },
-      analise: {
-        secretaria: settingsForm.analiseSecretaria.trim(),
-        diretoria: settingsForm.analiseDiretoria.trim(),
-      },
-      financeiro: {
-        secretaria: settingsForm.financeiroSecretaria.trim(),
-        diretoria: settingsForm.financeiroDiretoria.trim(),
-      },
-      acesso_externo: {
-        secretaria: settingsForm.acessoExternoSecretaria.trim(),
-        diretoria: settingsForm.acessoExternoDiretoria.trim(),
-      },
-    },
-    footerContactSource: settingsForm.footerContactSource,
-    horarioAtendimento: settingsForm.horarioAtendimento,
-    brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
-    bandeiraUrl: bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
-    logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
-    headerLogoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? "",
-    footerLogoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? "",
-    imagemHeroUrl: heroFiles[0]?.previewUrl ?? settings?.imagemHeroUrl ?? "",
-    resumoPlanoDiretor: settingsForm.resumoPlanoDiretor,
-    resumoUsoSolo: settingsForm.resumoUsoSolo,
-    leisComplementares: settingsForm.leisComplementares,
-    linkPortalCliente: settingsForm.linkPortalCliente,
-    protocoloPrefixo: settingsForm.protocoloPrefixo,
-    guiaPrefixo: settingsForm.guiaPrefixo,
-    chavePix: settingsForm.chavePix,
-    beneficiarioArrecadacao: settingsForm.beneficiarioArrecadacao,
-    taxaProtocolo: settingsForm.taxaProtocolo,
-    taxaIssPorMetroQuadrado: settingsForm.taxaIssPorMetroQuadrado,
-    issRateProfiles: settings?.issRateProfiles,
-    taxaAprovacaoFinal: settingsForm.taxaAprovacaoFinal,
-    registroProfissionalObrigatorio: settingsForm.registroProfissionalObrigatorio,
-    contractNumber: settings?.contractNumber ?? "",
-    contractStart: settings?.contractStart ?? "",
-    contractEnd: settings?.contractEnd ?? "",
-    monthlyFee: settings?.monthlyFee ?? 0,
-    setupFee: settings?.setupFee ?? 0,
-    signatureMode: settings?.signatureMode ?? "eletronica",
-    clientDeliveryLink: settings?.clientDeliveryLink ?? "",
-    logoScale: headerBranding.logoScale,
-    logoOffsetX: headerBranding.logoOffsetX,
-    logoOffsetY: headerBranding.logoOffsetY,
-    headerLogoScale: headerBranding.logoScale,
-    headerLogoOffsetX: headerBranding.logoOffsetX,
-    headerLogoOffsetY: headerBranding.logoOffsetY,
-    footerLogoScale: footerBranding.logoScale,
-    footerLogoOffsetX: footerBranding.logoOffsetX,
-    footerLogoOffsetY: footerBranding.logoOffsetY,
-    logoAlt: settings?.logoAlt ?? "",
-    logoUpdatedAt: settings?.logoUpdatedAt ?? "",
-    logoUpdatedBy: settings?.logoUpdatedBy ?? "",
-    logoFrameMode: headerBranding.logoFrameMode,
-    logoFitMode: headerBranding.logoFitMode,
-    headerLogoFrameMode: headerBranding.logoFrameMode,
-    headerLogoFitMode: headerBranding.logoFitMode,
-    footerLogoFrameMode: footerBranding.logoFrameMode,
-    footerLogoFitMode: footerBranding.logoFitMode,
-    planoDiretorArquivoNome: planoDiretorFiles[0]?.fileName ?? settings?.planoDiretorArquivoNome ?? "",
-    planoDiretorArquivoUrl: planoDiretorFiles[0]?.previewUrl ?? settings?.planoDiretorArquivoUrl ?? "",
-    usoSoloArquivoNome: usoSoloFiles[0]?.fileName ?? settings?.usoSoloArquivoNome ?? "",
-    usoSoloArquivoUrl: usoSoloFiles[0]?.previewUrl ?? settings?.usoSoloArquivoUrl ?? "",
-    zoneamentoArquivoNome: zoneamentoFiles[0]?.fileName ?? settings?.zoneamentoArquivoNome ?? "",
-    zoneamentoArquivoUrl: zoneamentoFiles[0]?.previewUrl ?? settings?.zoneamentoArquivoUrl ?? "",
-    leisArquivoNome: leisFiles[0]?.fileName ?? settings?.leisArquivoNome ?? "",
-    leisArquivoUrl: leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
-  };
-
   const previewHeaderLogoUrl =
     logoRemovalRequested === "header"
       ? ""
@@ -2734,42 +2646,6 @@ export function ConfiguracoesPage() {
         settings?.footerLogoUrl ??
         settings?.logoUrl ??
         "";
-
-  const previewHeaderBranding = getInstitutionBranding(
-    updateInstitutionBranding(
-      previewSettingsBase,
-      {
-        logoUrl: previewHeaderLogoUrl,
-        logoScale: draftHeaderLogoConfig.scale,
-        logoOffsetX: draftHeaderLogoConfig.offsetX,
-        logoOffsetY: draftHeaderLogoConfig.offsetY,
-        logoAlt: tenantForm.name ? `Logo institucional de ${tenantForm.name}` : headerBranding.logoAlt,
-        logoFrameMode: "soft-square",
-        logoFitMode: "contain",
-      },
-      "header",
-    ),
-    tenantForm.name || tenant?.name || "Logo institucional",
-    "header",
-  );
-
-  const previewFooterBranding = getInstitutionBranding(
-    updateInstitutionBranding(
-      previewSettingsBase,
-      {
-        logoUrl: previewFooterLogoUrl,
-        logoScale: draftFooterLogoConfig.scale,
-        logoOffsetX: draftFooterLogoConfig.offsetX,
-        logoOffsetY: draftFooterLogoConfig.offsetY,
-        logoAlt: tenantForm.name ? `Logo institucional de ${tenantForm.name}` : footerBranding.logoAlt,
-        logoFrameMode: "soft-square",
-        logoFitMode: "contain",
-      },
-      "footer",
-    ),
-    tenantForm.name || tenant?.name || "Logo institucional",
-    "footer",
-  );
 
   const headerLogoStatusIsSuccess = /sucesso/i.test(headerLogoStatus);
   const footerLogoStatusIsSuccess = /sucesso/i.test(footerLogoStatus);
