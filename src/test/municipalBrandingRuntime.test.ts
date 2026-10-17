@@ -82,14 +82,16 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain('contextScope?: "auto" | "master" | "municipality"');
     expect(logo).toContain('contextScope === "municipality"');
     expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
-    expect(logo).toContain("cachedMatchesCurrentAsset");
+    expect(logo).toContain("cachedAtMountAllowed");
     expect(logo).toContain("loadedSourceAllowed");
+    expect(logo).toContain("loadedSource.context === context");
+    expect(logo).toContain("const pendingUrl =");
     expect(portal).toContain('contextScope={isMasterUser ? "master" : "municipality"}');
     expect(logo).toContain("setFailedSources([])");
     expect(logo).toContain("[context, requestedUrl, secondaryUrl]");
   });
 
-  it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
+  it("uses a premium uncropped frame with same-context session continuity", () => {
     expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3"');
     expect(logo).toContain("data-logo-variant={variant}");
     expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
