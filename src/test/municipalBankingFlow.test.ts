@@ -60,6 +60,28 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).not.toContain("PIX|");
   });
 
+  it("uses the resolved municipal branding and reserves the guide tab before async billing", () => {
+    expect(finance).toContain("useInstitutionBranding");
+    expect(finance).toContain("guideHeaderBranding.logoUrl");
+    expect(finance).toContain("reserveGuiaRecolhimentoWindow");
+    expect(finance).toContain("showGuiaRecolhimentoError");
+    expect(processDetail).toContain("useInstitutionBranding");
+    expect(processDetail).toContain("guideHeaderBranding.logoUrl");
+    expect(processDetail).toContain("reserveGuiaRecolhimentoWindow");
+    expect(processDetail).toContain("showGuiaRecolhimentoError");
+    expect(guide).toContain("municipalLogoFallback");
+    expect(guide).toContain("toAbsoluteGuideAssetUrl");
+    expect(guide).toContain("Promise.all(pending)");
+    expect(guide).not.toContain("URL.createObjectURL");
+  });
+
+  it("does not open a non-compensated guide before Mercado Pago returns bank data", () => {
+    expect(finance).toContain('match.guide.status !== "compensada"');
+    expect(processDetail).toContain('selectedGuide.status !== "compensada"');
+    expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
+    expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
+  });
+
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
     expect(guide).toContain('import { QRCodeSVG } from "qrcode.react"');
     expect(guide).toContain("<QRCodeSVG");
