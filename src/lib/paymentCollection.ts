@@ -1,0 +1,97 @@
+import { buildPixPayload } from "@/lib/pix";
+import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
+
+export function normalizeBankBarcode(value?: string | null) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length === 44 ? digits : "";
+}
+
+export function normalizeDigitableLine(value?: string | null) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length === 47 || digits.length === 48 ? digits : "";
+}
+
+export function collectionModeLabel(mode?: TenantSettings["bankCollectionMode"]) {
+  if (mode === "agreement") return "Convênio bancário";
+  if (mode === "api") return "Integração bancária por API";
+  return "PIX e baixa municipal";
+}
+
+export function isMunicipalPixReady(settings?: TenantSettings | null) {
+  return Boolean(
+    settings?.pixEnabled !== false &&
+      settings?.chavePix?.trim() &&
+      settings?.beneficiarioArrecadacao?.trim(),
+  );
+}
+
+export function isMunicipalBankIdentified(settings?: TenantSettings | null) {
+  return Boolean(settings?.bankCode?.trim() && settings?.bankName?.trim());
+}
+
+export function isBankBarcodeIntegrationReady(settings?: TenantSettings | null) {
+  if (!settings) return false;
+  if (settings.bankCollectionMode === "api") {
+    return isMunicipalBankIdentified(settings);
+  }
+  if (settings.bankCollectionMode === "agreement") {
+    return Boolean(
+      isMunicipalBankIdentified(settings) &&
+        settings.bankAgreementCode?.trim(),
+    );
+  }
+  return false;
+}
+
+function resolvePixTxid(guide: Pick<PaymentGuideEntry, "code">) {
+  const txid = String(guide.code || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(-25);
+  return txid || "***";
+}
+
+export function buildGuidePixPayload(input: {
+  settings?: TenantSettings | null;
+  guide: Pick<PaymentGuideEntry, "code" | "amount" | "pixPayload">;
+  municipalityName?: string | null;
+  municipalityCity?: string | null;
+}) {
+  if (input.guide.pixPayload?.trim()) {
+    return input.guide.pixPayload.trim();
+  }
+
+  const settings = input.settings;
+  if (!isMunicipalPixReady(settings)) return "";
+
+  return buildPixPayload({
+    key: settings?.chavePix,
+    merchantName:
+      settings?.beneficiarioArrecadacao ||
+      input.municipalityName ||
+      "PREFEITURA MUNICIPAL",
+    merchantCity:
+      settings?.pixMerchantCity ||
+      input.municipalityCity ||
+      "MUNICIPIO",
+    amount: Number(input.guide.amount || 0),
+    txid: resolvePixTxid(input.guide),
+  });
+}
+
+export function resolveGuideBankingData(input: {
+  settings?: TenantSettings | null;
+  guide: PaymentGuideEntry;
+  municipalityName?: string | null;
+  municipalityCity?: string | null;
+}) {
+  return {
+    pixPayload: buildGuidePixPayload(input),
+    barcode: normalizeBankBarcode(input.guide.barcode),
+    digitableLine: normalizeDigitableLine(input.guide.digitableLine),
+    bankName: input.settings?.bankName?.trim() || "",
+    bankAgreement: input.settings?.bankAgreementCode?.trim() || "",
+    collectionMode: input.settings?.bankCollectionMode ?? "manual",
+  };
+}
