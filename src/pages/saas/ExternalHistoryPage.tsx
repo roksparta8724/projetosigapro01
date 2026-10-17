@@ -97,7 +97,7 @@ export function ExternalHistoryPage() {
           <MetricCard title="Atividades registradas" value={String(activityCount)} helper="Eventos no histórico" icon={History} tone="blue" />
           <MetricCard title="Últimos 7 dias" value={String(lastWeek)} helper="Atualizações recentes" icon={Calendar} tone="emerald" />
           <MetricCard title="Protocolos ativos" value={String(activeProcesses)} helper="Acompanhamentos" icon={Calendar} tone="amber" />
-          <MetricCard title="Aba atual" value={activeTabLabel} helper="Histórico externo" icon={History} tone="slate" />
+          <MetricCard title="Aba atual" value={activeTabLabel} helper="Histórico externo" icon={History} tone="default" />
         </StatsCards>
 
         <MainGrid>
