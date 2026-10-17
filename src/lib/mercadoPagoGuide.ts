@@ -13,6 +13,7 @@ export type MercadoPagoGuideCharge = {
   barcodeContent?: string;
   digitableLine?: string;
   financialInstitution?: string;
+  authenticatedAt?: string;
   error?: string;
   errorCode?: string;
   errorDetails?: string[];
@@ -69,11 +70,56 @@ function writeCachedCharge(
   }
 }
 
+async function refreshMercadoPagoGuideCharge(
+  input: MercadoPagoGuideChargeInput,
+  cached: MercadoPagoGuideCharge,
+) {
+  if (!cached.orderId) return cached;
+
+  let authorization = "";
+  try {
+    const sessionResult = await backendClient?.auth?.getSession?.();
+    const session = sessionResult?.data?.session ?? null;
+    authorization =
+      session?.access_token ||
+      session?.accessToken ||
+      session?.token ||
+      "";
+  } catch {
+    authorization = "";
+  }
+
+  try {
+    const response = await fetch("/api/mercadopago/guide-status", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
+      },
+      body: JSON.stringify({
+        municipalityId: input.municipalityId,
+        orderId: cached.orderId,
+        guideCode: input.guideCode,
+        amount: input.amount,
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as MercadoPagoGuideCharge | null;
+    if (!response.ok || !payload?.ok) return cached;
+    writeCachedCharge(input, payload);
+    return payload;
+  } catch {
+    return cached;
+  }
+}
+
 export async function ensureMercadoPagoGuideCharge(
   input: MercadoPagoGuideChargeInput,
 ): Promise<MercadoPagoGuideCharge> {
   const cached = readCachedCharge(input);
-  if (cached) return cached;
+  if (cached) {
+    return await refreshMercadoPagoGuideCharge(input, cached);
+  }
 
   let authorization = "";
   try {
