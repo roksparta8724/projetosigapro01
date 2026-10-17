@@ -200,12 +200,13 @@ describe("strict process surface contrast root", () => {
     const end = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14 END", start);
     const contrastRoot = polarity.slice(start, end);
     expect(contrastRoot).toContain("#sig-process-document-command-center");
-    expect(contrastRoot).toContain(".sig-command-metric-blue");
-    expect(contrastRoot).toContain(".sig-command-metric-emerald");
-    expect(contrastRoot).toContain(".sig-command-metric-amber");
+    // V14 usa marcadores semânticos em vez das antigas classes por cor.
+    // Assim o contrato protege qualquer KPI novo sem acoplar o teste à paleta.
+    expect(contrastRoot).toContain("[data-command-metric]");
+    expect(contrastRoot).toContain("[data-analysis-metric]");
     expect(contrastRoot).toContain('[data-layout-mode="default"]');
     expect(contrastRoot).toContain('[data-layout-mode="inverse-main"]');
-    expect(contrastRoot).toContain('[data-municipal-organogram="true"]');
+    expect(contrastRoot).toContain('[data-dispatch-organogram="true"]');
     expect(contrastRoot).not.toContain(".sig-premium-topbar");
     expect(contrastRoot).not.toContain(".sig-topbar-shell");
 
