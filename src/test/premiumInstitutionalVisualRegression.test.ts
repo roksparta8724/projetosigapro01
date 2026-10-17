@@ -17,6 +17,7 @@ const analysis = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx")
 const qr = read("src/lib/qrCode.ts");
 const permitPdf = read("src/lib/constructionPermitPdf.ts");
 const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
+const landing = read("src/pages/saas/LandingPage.tsx");
 
 describe("premium institutional visual contract", () => {
   it("keeps core cards adaptive with readable polarity in both workspace themes", () => {
@@ -45,6 +46,16 @@ describe("premium institutional visual contract", () => {
     expect(sidebar).toContain('data-sidebar-surface={darkSurface ? "dark" : "light"}');
     expect(css).toContain('.sig-sidebar-shell[data-sidebar-surface="dark"]');
     expect(css).toContain("color: #e2edf8 !important");
+  });
+
+  it("keeps the public product mock navigation bright on the blue institutional sidebar", () => {
+    expect(landing).toContain('data-landing-module={module.label}');
+    expect(landing).toContain('!text-[#f7fbff]');
+    expect(landing).toContain('!text-[#d8ecf9]');
+    expect(landing).toContain('bg-white/[0.025]');
+    expect(landing).not.toContain('? "font-medium text-slate-200"');
+    expect(sidebar).toContain('!text-[#f7fbff]');
+    expect(sidebar).toContain('!text-[#e7f3fb]');
   });
 
   it("gives Alvará actions and electronic signatures an explicit premium contrast contract", () => {
