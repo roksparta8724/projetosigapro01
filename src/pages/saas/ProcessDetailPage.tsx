@@ -3653,13 +3653,21 @@ export function ProcessDetailPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide(guide.kind, false)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Visualizar
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, false)}>
+                            {guideBillingBusyKey ? (
+                              <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                            ) : (
+                              <Eye className="mr-2 h-4 w-4" />
+                            )}
+                            {guideBillingBusyKey ? "Preparando guia..." : "Visualizar"}
                           </Button>
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide(guide.kind, true)}>
-                            <Printer className="mr-2 h-4 w-4" />
-                            Imprimir
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, true)}>
+                            {guideBillingBusyKey ? (
+                              <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                            ) : (
+                              <Printer className="mr-2 h-4 w-4" />
+                            )}
+                            {guideBillingBusyKey ? "Preparando guia..." : "Imprimir"}
                           </Button>
                         </div>
                       </div>
@@ -3718,13 +3726,21 @@ export function ProcessDetailPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("protocolo", false)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Visualizar
+                    <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("protocolo", false)}>
+                      {guideBillingBusyKey ? (
+                        <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                      ) : (
+                        <Eye className="mr-2 h-4 w-4" />
+                      )}
+                      {guideBillingBusyKey ? "Preparando guia..." : "Visualizar"}
                     </Button>
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("protocolo", true)}>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Imprimir
+                    <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("protocolo", true)}>
+                      {guideBillingBusyKey ? (
+                        <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                      ) : (
+                        <Printer className="mr-2 h-4 w-4" />
+                      )}
+                      {guideBillingBusyKey ? "Preparando guia..." : "Imprimir"}
                     </Button>
                   </div>
                 </div>
@@ -3817,7 +3833,7 @@ export function ProcessDetailPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", false)}>
+                        <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("iss_obra", false)}>
                           {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                                 ) : (
@@ -3825,7 +3841,7 @@ export function ProcessDetailPage() {
                                 )}
                                 {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                         </Button>
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", true)}>
+                        <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("iss_obra", true)}>
                           {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                                 ) : (
@@ -3995,7 +4011,7 @@ export function ProcessDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {approvalGuide ? (
                           <>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", false)}>
+                            <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("aprovacao_final", false)}>
                               {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                                 ) : (
@@ -4003,7 +4019,7 @@ export function ProcessDetailPage() {
                                 )}
                                 {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                             </Button>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", true)}>
+                            <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("aprovacao_final", true)}>
                               {guideBillingBusyKey ? (
                                   <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
                                 ) : (
