@@ -14,7 +14,7 @@ describe("premium process surface contract", () => {
     expect(detail).toContain('data-surface="fixed-dark"');
     expect(finalStart).toBeGreaterThanOrEqual(0);
     expect(finalBlock).toContain("#sig-process-document-command-center");
-    expect(finalBlock).toContain("color: #ffffff !important");
+    expect(finalBlock).toMatch(/color:\s*#ffffff\s*!important/);
     expect(finalBlock).not.toContain(".sig-premium-topbar");
     expect(finalBlock).not.toContain(".sig-sidebar-shell");
   });
