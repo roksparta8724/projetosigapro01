@@ -8,7 +8,7 @@ const fileDropZone = readFileSync(resolve(process.cwd(), "src/components/platfor
 const documentViewer = readFileSync(resolve(process.cwd(), "src/pages/saas/DocumentViewerPage.tsx"), "utf8");
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const r2Client = readFileSync(resolve(process.cwd(), "src/integrations/r2/client.ts"), "utf8");
-const recoveryApi = readFileSync(resolve(process.cwd(), "api/r2-list-user-files.ts"), "utf8");
+const recoveryApi = readFileSync(resolve(process.cwd(), "server/api/r2-list-user-files.ts"), "utf8");
 const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261011161000_sync_process_documents.sql"),
   "utf8",
