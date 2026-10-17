@@ -269,6 +269,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
   );
+  const [isDesktopTopbarViewport, setIsDesktopTopbarViewport] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : true,
+  );
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerColor, setMarkerColor] = useState("#2563eb");
   const [markerSavePulse, setMarkerSavePulse] = useState(false);
@@ -415,12 +418,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const media = window.matchMedia("(max-width: 767px)");
-    const syncViewport = () => setIsMobileViewport(media.matches);
+    const mobileMedia = window.matchMedia("(max-width: 767px)");
+    const desktopTopbarMedia = window.matchMedia("(min-width: 1024px)");
+    const syncViewport = () => {
+      setIsMobileViewport(mobileMedia.matches);
+      setIsDesktopTopbarViewport(desktopTopbarMedia.matches);
+    };
 
     syncViewport();
-    media.addEventListener("change", syncViewport);
-    return () => media.removeEventListener("change", syncViewport);
+    mobileMedia.addEventListener("change", syncViewport);
+    desktopTopbarMedia.addEventListener("change", syncViewport);
+    return () => {
+      mobileMedia.removeEventListener("change", syncViewport);
+      desktopTopbarMedia.removeEventListener("change", syncViewport);
+    };
   }, []);
 
   const availableThemePresets = isMobileViewport ? mobileThemePresets : desktopThemePresets;
@@ -1303,7 +1314,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
-          <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4">
+          <div
+            className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4"
+            style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
+            data-topbar-brand-viewport="mobile"
+          >
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -1327,7 +1342,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+          <div
+            className="flex shrink-0 items-center gap-2 lg:hidden"
+            style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
+            data-topbar-actions-viewport="mobile"
+          >
               <button
                 type="button"
                 onClick={() => navigate(processShortcutPath)}
@@ -1413,7 +1432,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             </DropdownMenu>
           </div>
 
-          <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
+          <div
+            className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex"
+            style={{ display: isDesktopTopbarViewport ? undefined : "none" }}
+            data-topbar-viewport="desktop"
+          >
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
                 <div className="sig-topbar-brand-logo flex h-[54px] w-[54px] items-center justify-center">
@@ -2266,6 +2289,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           "sig-content-frame flex min-h-screen",
           focusMode && "h-auto min-h-0 overflow-visible",
         )}
+        style={
+          focusMode
+            ? undefined
+            : {
+                minHeight: "117.6470588235vh",
+              }
+        }
+        data-refresh-layout-stable={focusMode ? "false" : "true"}
       >
         {(!focusMode || focusSidebarOpen) ? (
           <AppSidebar
