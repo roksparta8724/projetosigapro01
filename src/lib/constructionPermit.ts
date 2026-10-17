@@ -260,9 +260,15 @@ export function userCanSignPermitAsDirector(user: SessionUser) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR");
 
+  const urbanismAuthority =
+    /urban|obra|planejamento|projeto|habitacao|licenciamento|aprovacao/.test(
+      department,
+    );
+
   return (
-    /\bdiretor(?:a)?\b/.test(position) &&
-    /urban|obra|planejamento|projeto|habitacao/.test(department)
+    urbanismAuthority &&
+    (/\bdiretor(?:a)?\b/.test(position) ||
+      user.role === "prefeitura_supervisor")
   );
 }
 
