@@ -478,7 +478,6 @@ export async function loadRemotePlatformStore() {
     rolesResult.error,
     departmentsResult.error,
     processesResult.error,
-    constructionPermitsResult.error,
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
@@ -502,6 +501,47 @@ export async function loadRemotePlatformStore() {
     throw errors[0];
   }
 
+  // O Data API municipal nao precisa de SELECT direto na tabela interna de
+  // Alvaras. Em ambientes onde essa leitura e bloqueada, usa a RPC oficial
+  // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
+  // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
+  // todo o store oficial nem faz o fluxo visual regredir.
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  if (isNeonBackend && constructionPermitsResult.error) {
+    console.warn(
+      "[SIGAPRO][Alvara] Leitura direta indisponivel; usando RPC oficial escopada.",
+      constructionPermitsResult.error,
+    );
+
+    const visibleProcessIds = (processesResult.data ?? [])
+      .map((process) => String(process.id ?? "").trim())
+      .filter(Boolean);
+
+    for (let index = 0; index < visibleProcessIds.length; index += 8) {
+      const batch = visibleProcessIds.slice(index, index + 8);
+      const permits = await Promise.all(
+        batch.map(async (processId) => {
+          const { data, error } = await db.rpc("get_construction_permit_v1", {
+            _process_id: processId,
+          });
+
+          if (error) {
+            console.warn("[SIGAPRO][Alvara] Falha ao consultar Alvara escopado.", {
+              processId,
+              error,
+            });
+            return null;
+          }
+
+          const payload = (data ?? {}) as { permit?: any | null };
+          return payload.permit ?? null;
+        }),
+      );
+
+      constructionPermitRows.push(...permits.filter(Boolean));
+    }
+  }
+
   const tenantRows = tenantsResult.data ?? [];
   const municipalityRows = municipalityResultData(municipalitiesResult.data);
   const brandingByTenant = new Map((brandingResult.data ?? []).map((item) => [item.tenant_id, item]));
@@ -519,7 +559,7 @@ export async function loadRemotePlatformStore() {
   );
   const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
   const constructionPermitByProcess = new Map(
-    (constructionPermitsResult.data ?? []).map((item) => [String(item.process_id), item]),
+    constructionPermitRows.map((item) => [String(item.process_id), item]),
   );
   const guidesByProcess = new Map<string, Record<string, unknown>[]>();
   const partiesByProcess = new Map<string, Record<string, unknown>[]>();
