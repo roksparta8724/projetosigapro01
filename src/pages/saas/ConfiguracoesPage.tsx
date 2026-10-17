@@ -121,11 +121,23 @@ function sameFileList(a: UploadedFileItem[], b: UploadedFileItem[]) {
 
 function isRenderablePreviewUrl(value?: string | null) {
   if (!value) return false;
+  const normalized = value.trim();
+  if (!normalized || normalized.startsWith("r2:")) return false;
   return (
-    value.startsWith("http") ||
-    value.startsWith("data:") ||
-    value.startsWith("blob:")
+    /^https?:\/\//i.test(normalized) ||
+    normalized.startsWith("//") ||
+    normalized.startsWith("/") ||
+    normalized.startsWith("./") ||
+    normalized.startsWith("../") ||
+    normalized.startsWith("data:") ||
+    normalized.startsWith("blob:")
   );
+}
+
+function firstRenderablePreviewUrl(...values: Array<string | null | undefined>) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find((value) => isRenderablePreviewUrl(value)) || "";
 }
 
 function storedInstitutionalDocument(
@@ -2632,20 +2644,28 @@ export function ConfiguracoesPage() {
   const previewHeaderLogoUrl =
     logoRemovalRequested === "header"
       ? ""
-      : draftHeaderLogoFiles[0]?.previewUrl ??
-        headerBranding.logoUrl ??
-        settings?.headerLogoUrl ??
-        settings?.logoUrl ??
-        "";
+      : firstRenderablePreviewUrl(
+          draftHeaderLogoFiles[0]?.file ? draftHeaderLogoFiles[0]?.previewUrl : "",
+          headerBranding.logoUrl,
+          draftHeaderLogoFiles[0]?.previewUrl,
+          settings?.headerLogoUrl,
+          settings?.logoUrl,
+          brasaoFiles[0]?.previewUrl,
+          settings?.brasaoUrl,
+        );
 
   const previewFooterLogoUrl =
     logoRemovalRequested === "footer"
       ? ""
-      : draftFooterLogoFiles[0]?.previewUrl ??
-        footerBranding.logoUrl ??
-        settings?.footerLogoUrl ??
-        settings?.logoUrl ??
-        "";
+      : firstRenderablePreviewUrl(
+          draftFooterLogoFiles[0]?.file ? draftFooterLogoFiles[0]?.previewUrl : "",
+          footerBranding.logoUrl,
+          draftFooterLogoFiles[0]?.previewUrl,
+          settings?.footerLogoUrl,
+          settings?.logoUrl,
+          brasaoFiles[0]?.previewUrl,
+          settings?.brasaoUrl,
+        );
 
   const headerLogoStatusIsSuccess = /sucesso/i.test(headerLogoStatus);
   const footerLogoStatusIsSuccess = /sucesso/i.test(footerLogoStatus);
@@ -2848,18 +2868,18 @@ export function ConfiguracoesPage() {
 
   return (
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
-      <PageShell>
+      <PageShell className="sig-config-page">
       <PageHeader
         eyebrow="Identidade visual"
         title="Identidade e operação institucional"
         description="Organize identidade visual, contatos oficiais, prefixos e preferências da Prefeitura."
         icon={MonitorCog}
-        className="rounded-[30px] p-5 md:p-6 lg:p-7"
+        className="sig-config-hero rounded-[28px] p-5 md:p-6 lg:p-7"
       />
-      <PageStatsRow>
-        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Base institucional vinculada" icon={Building2} tone="default" valueClassName="max-w-[24ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Exibição principal do cabeçalho" icon={Flag} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
-        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Numeração oficial ativa" icon={ScrollText} tone="default" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+      <PageStatsRow className="sig-config-stats">
+        <StatCard label="Instituição ativa" value={tenantForm.name || "SIGAPRO"} description="Prefeitura vinculada ao ambiente" icon={Building2} tone="blue" valueClassName="max-w-[24ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Secretaria" value={settingsForm.secretariaResponsavel || "Não informada"} description="Responsável pela operação" icon={Flag} tone="emerald" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
+        <StatCard label="Prefixo do protocolo" value={settingsForm.protocoloPrefixo || "SIG"} description="Identificação dos protocolos" icon={ScrollText} tone="amber" valueClassName="max-w-[18ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
         <StatCard label="Canal institucional" value={settingsForm.email || "Não informado"} description="Contato público principal" icon={Bell} tone="default" valueClassName="max-w-[22ch] sig-fit-title text-[17px] font-semibold leading-tight text-slate-900" />
       </PageStatsRow>
       <InternalTabs
@@ -2876,6 +2896,7 @@ export function ConfiguracoesPage() {
         ]}
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
+        className="sig-config-tabs"
       />
       {activeSettingsView === "overview" ? overviewSection : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
@@ -2902,7 +2923,7 @@ export function ConfiguracoesPage() {
       ) : null}
       {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
         {activeSettingsView === "branding" ? <PageMainContent className="w-full">
-        <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
+        <SectionCard title="Identidade visual" description="Configure a marca institucional exatamente como ela será exibida no portal, documentos e áreas oficiais." icon={Building2} className="sig-config-section" contentClassName="space-y-5" headerClassName="gap-2 pb-4">
             {session.tenantId === null ? (
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -3058,16 +3079,19 @@ export function ConfiguracoesPage() {
 
             {(!isMasterRole || availableInstitutions.some((item) => item.id === selectedTenantId)) ? (
             <div className="grid gap-4">
-              <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+              <div data-config-brand-panel="header" className="sig-config-brand-panel rounded-[26px] border border-slate-200 bg-white p-5">
                 <div className="flex items-center gap-2 text-slate-950">
-                  <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do cabeçalho</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700"><ImageIcon className="h-4 w-4" /></div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Logo do cabeçalho</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Marca exibida no topo institucional e nas áreas internas.</p>
+                  </div>
+                  </div>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
-                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
+                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
                   <div
                     data-institutional-header-preview="true"
-                    className="relative self-start overflow-hidden rounded-[30px] border border-white/[0.15] p-4 shadow-[0_24px_52px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
+                    className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_22px_48px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.13),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_48%)]" />
@@ -3086,10 +3110,10 @@ export function ConfiguracoesPage() {
                         </span>
                       </div>
 
-                      <div className="mt-4 flex min-h-[190px] flex-col gap-5 rounded-[24px] border border-white/10 bg-slate-950/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center">
+                      <div className="mt-4 flex min-h-[176px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center">
                         <div
                           data-municipal-logo-live-preview="header"
-                          className="relative mx-auto flex h-[150px] w-full max-w-[244px] shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-3 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          className="relative mx-auto flex h-[142px] w-full max-w-[232px] shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-3 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
                         >
                           {previewHeaderLogoUrl ? (
                             <img
@@ -3112,8 +3136,8 @@ export function ConfiguracoesPage() {
                           )}
                         </div>
 
-                        <div className="min-w-0 flex-1 text-white">
-                          <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[20px] font-semibold leading-[1.15] text-white xl:text-[22px]">
+                        <div className="min-w-0 flex-1 py-1 text-white">
+                          <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[19px] font-bold leading-[1.16] tracking-[-0.015em] text-white xl:text-[21px]">
                             {tenantForm.name || "Prefeitura"}
                           </p>
                           <p
@@ -3134,11 +3158,11 @@ export function ConfiguracoesPage() {
                   </div>
                   <div className="space-y-3">
                     <FileDropZone
-                      title="Logo do cabeçalho"
-                      description="A marca completa será centralizada no card, sem recorte."
+                      title="Arquivo do cabeçalho"
+                      description="PNG, JPG, WEBP ou SVG. O preview ao lado mostra o resultado final."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
                       files={draftHeaderLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftHeaderLogoFiles(files);
@@ -3151,21 +3175,22 @@ export function ConfiguracoesPage() {
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
-                      label="Ajuste do logo do cabeçalho"
-                      hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
+                      label="Enquadramento"
+                      hint="Ajuste zoom e posição. O resultado aparece imediatamente na prévia ao lado."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-center xl:justify-start"
-                      viewportClassName="h-[176px] w-[232px]"
+                      frameClassName="justify-center"
+                      wrapperClassName="sig-config-logo-editor"
+                      viewportClassName="h-[168px] w-[224px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
                         Remover logo
                       </Button>
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
-                        {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
+                        {logoSaving === "header" ? "Aplicando..." : "Aplicar no cabeçalho"}
                       </Button>
                       <Button type="button" variant="outline" className="rounded-2xl" onClick={handleTestMunicipality}>
                         Testar prefeitura
@@ -3191,13 +3216,15 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+              <div data-config-brand-panel="footer" className="sig-config-brand-panel rounded-[26px] border border-slate-200 bg-white p-5">
                 <div className="flex items-center gap-2 text-slate-950">
-                  <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do rodapé</p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-100 bg-violet-50 text-violet-700"><ImageIcon className="h-4 w-4" /></div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Logo do rodapé</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Pode ter enquadramento próprio sem alterar o cabeçalho.</p>
+                  </div>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
-                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
                   <div
                     data-institutional-footer-preview="true"
                     className="relative self-start overflow-hidden rounded-[28px] border border-white/[0.15] p-4 shadow-[0_18px_40px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
@@ -3244,11 +3271,11 @@ export function ConfiguracoesPage() {
                   </div>
                   <div className="space-y-3">
                     <FileDropZone
-                      title="Logo do rodapé"
-                      description="A marca completa será centralizada no card, sem recorte."
+                      title="Arquivo do rodapé"
+                      description="Use a mesma marca ou envie uma versão específica para o rodapé."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
                       files={draftFooterLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftFooterLogoFiles(files);
@@ -3261,14 +3288,15 @@ export function ConfiguracoesPage() {
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
-                      label="Ajuste do logo do rodapé"
-                      hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
+                      label="Enquadramento"
+                      hint="Ajuste zoom e posição de forma independente do cabeçalho."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-center xl:justify-start"
-                      viewportClassName="h-[176px] w-[232px]"
+                      frameClassName="justify-center"
+                      wrapperClassName="sig-config-logo-editor"
+                      viewportClassName="h-[168px] w-[224px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
@@ -3283,7 +3311,7 @@ export function ConfiguracoesPage() {
                         Remover logo
                       </Button>
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
-                        {logoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
+                        {logoSaving === "footer" ? "Aplicando..." : "Aplicar no rodapé"}
                       </Button>
                     </div>
                     {footerLogoStatus ? (
@@ -3316,7 +3344,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                   <FileDropZone
                     title="Brasão oficial"
                     description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
@@ -3369,7 +3397,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                   <FileDropZone
                     title="Plano Diretor"
                     description="PDF oficial do Plano Diretor municipal."
