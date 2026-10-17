@@ -16,7 +16,8 @@ import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow
 import { StatCard } from "@/components/platform/StatCard";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
+import {
+  buildProcessPath, accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -697,7 +698,7 @@ export function TenantAdminPage() {
               type="button"
               variant="outline"
               className="h-9 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              onClick={() => navigate(`/processos/${process.id}`)}
+              onClick={() => navigate(buildProcessPath(process))}
             >
               Abrir processo
             </Button>
