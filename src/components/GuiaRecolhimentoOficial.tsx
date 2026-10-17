@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QRCodeSVG } from "qrcode.react";
 
 type PrefeituraData = {
   nome: string;
@@ -51,6 +52,9 @@ type GuiaData = {
   codigoBarras?: string;
   linhaDigitavel?: string;
   qrCodePixUrl?: string;
+  pixPayload?: string;
+  bankName?: string;
+  bankAgreement?: string;
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -91,21 +95,81 @@ function formatDigitableLine(value?: string) {
   return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
 }
 
-function renderBarcodeVisual(code?: string) {
+const I25_PATTERNS: Record<string, string> = {
+  "0": "nnwwn",
+  "1": "wnnnw",
+  "2": "nwnnw",
+  "3": "wwnnn",
+  "4": "nnwnw",
+  "5": "wnwnn",
+  "6": "nwwnn",
+  "7": "nnnww",
+  "8": "wnnwn",
+  "9": "nwnwn",
+};
+
+function normalizeOfficialBarcode(code?: string) {
   const digits = (code || "").replace(/\D/g, "");
-  if (!digits) return "Código bancário não informado pela Prefeitura.";
-  return digits
-    .slice(0, 44)
-    .split("")
-    .map((digit) => {
-      const value = Number(digit);
-      if (Number.isNaN(value)) return "|";
-      if (value <= 2) return "||";
-      if (value <= 5) return "|||";
-      if (value <= 7) return "||||";
-      return "|||||";
-    })
-    .join(" ");
+  return digits.length === 44 ? digits : "";
+}
+
+function Interleaved2of5Barcode({ value }: { value?: string }) {
+  const digits = normalizeOfficialBarcode(value);
+  if (!digits) {
+    return (
+      <span className="dam-barcode-fallback">
+        Código bancário ainda não fornecido pelo convênio/API da Prefeitura.
+      </span>
+    );
+  }
+
+  const narrow = 1;
+  const wide = 3;
+  const quiet = 10;
+  let x = quiet;
+  const bars: Array<{ x: number; width: number }> = [];
+
+  const addBar = (width: number) => {
+    bars.push({ x, width });
+    x += width;
+  };
+  const addSpace = (width: number) => {
+    x += width;
+  };
+  const unit = (token: string) => (token === "w" ? wide : narrow);
+
+  addBar(narrow);
+  addSpace(narrow);
+  addBar(narrow);
+  addSpace(narrow);
+
+  for (let pairIndex = 0; pairIndex < digits.length; pairIndex += 2) {
+    const barsPattern = I25_PATTERNS[digits[pairIndex]];
+    const spacesPattern = I25_PATTERNS[digits[pairIndex + 1]];
+    for (let index = 0; index < 5; index += 1) {
+      addBar(unit(barsPattern[index]));
+      addSpace(unit(spacesPattern[index]));
+    }
+  }
+
+  addBar(wide);
+  addSpace(narrow);
+  addBar(narrow);
+  const totalWidth = x + quiet;
+
+  return (
+    <svg
+      className="dam-barcode-svg"
+      viewBox={`0 0 ${totalWidth} 50`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Código de barras bancário"
+    >
+      {bars.map((bar, index) => (
+        <rect key={index} x={bar.x} y="2" width={bar.width} height="42" fill="#000000" />
+      ))}
+    </svg>
+  );
 }
 
 function getStyles() {
@@ -767,11 +831,23 @@ function getStyles() {
       box-sizing: border-box;
     }
 
-    .dam-qrcode-box img {
-      width: 18px;
-      height: 18px;
+    .dam-qrcode-box img,
+    .dam-qrcode-box svg {
+      width: 58px;
+      height: 58px;
       object-fit: contain;
       display: block;
+      background: #ffffff;
+    }
+
+    .dam-pix-copy {
+      margin-top: 2px;
+      max-height: 18px;
+      overflow: hidden;
+      font-size: 4.8px;
+      line-height: 1.15;
+      word-break: break-all;
+      color: #111111;
     }
 
     .dam-qrcode-fallback {
@@ -807,13 +883,20 @@ function getStyles() {
       box-sizing: border-box;
     }
 
-    .dam-barcode-text {
+    .dam-barcode-svg {
+      display: block;
       width: 100%;
+      height: 42px;
+    }
+
+    .dam-barcode-fallback {
+      width: 100%;
+      padding: 0 8px;
       text-align: center;
-      font-size: 13px;
-      line-height: 1;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
+      font-size: 6px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      color: #374151;
     }
 
     .dam-footer-area {
@@ -1358,7 +1441,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <ReceiptRow label="Endereço" value={contribuinte.endereco} />
 
                 <div className="dam-note">
-                  Pagável em bancos conveniados. Não receber após o vencimento.
+                  {guia.bankName
+                    ? `Banco arrecadador: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
+                    : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
                 </div>
 
                 <div className="dam-auth">
@@ -1395,9 +1480,17 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.qrCodePixUrl ? (
+                {guia.pixPayload ? (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX opcional</div>
+                    <div className="dam-qrcode-label">PIX — QR Code oficial</div>
+                    <div className="dam-qrcode-box">
+                      <QRCodeSVG value={guia.pixPayload} size={58} level="M" />
+                    </div>
+                    <div className="dam-pix-copy">{guia.pixPayload}</div>
+                  </div>
+                ) : guia.qrCodePixUrl ? (
+                  <div className="dam-qr-wrap">
+                    <div className="dam-qrcode-label">PIX</div>
                     <div className="dam-qrcode-box">
                       <img src={guia.qrCodePixUrl} alt="QR Code PIX" />
                     </div>
@@ -1406,7 +1499,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   <div className="dam-qr-wrap">
                     <div className="dam-qrcode-label">Canal complementar</div>
                     <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">Consulte a Prefeitura para obter o meio de pagamento oficial.</span>
+                      <span className="dam-qrcode-fallback">PIX não configurado para esta Prefeitura.</span>
                     </div>
                   </div>
                 )}
@@ -1423,9 +1516,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Codigo de Barras</div>
               <div className="dam-barcode-box">
-                <div className="dam-barcode-text">
-                  {renderBarcodeVisual(guia.codigoBarras)}
-                </div>
+                <Interleaved2of5Barcode value={guia.codigoBarras} />
               </div>
             </div>
 
@@ -1433,7 +1524,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-footer-left">
                 <div className="dam-bottom-label">Instruções de pagamento</div>
                 <div className="dam-footer-note">
-                  {guia.linhaDigitavel || guia.qrCodePixUrl
+                  {guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
                     ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
                     : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento."}
                 </div>
