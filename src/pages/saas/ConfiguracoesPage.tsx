@@ -3218,6 +3218,7 @@ export function ConfiguracoesPage() {
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
+                      preparePreviewUrl
                       files={draftHeaderLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftHeaderLogoFiles(files);
@@ -3354,6 +3355,7 @@ export function ConfiguracoesPage() {
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
+                      preparePreviewUrl
                       files={draftFooterLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftFooterLogoFiles(files);
