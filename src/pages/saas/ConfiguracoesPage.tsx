@@ -2765,11 +2765,12 @@ export function ConfiguracoesPage() {
           title="Resumo institucional"
           description="Confira a base ativa da Prefeitura e os pontos principais da operação institucional."
           icon={Building2}
+          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-5"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Instituição</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2781,7 +2782,7 @@ export function ConfiguracoesPage() {
               </p>
             </div>
 
-            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Canal oficial</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2793,7 +2794,7 @@ export function ConfiguracoesPage() {
               </p>
             </div>
 
-            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Protocolo</p>
                 <p className="sig-fit-title mt-2 text-base font-semibold leading-6 text-slate-900">
@@ -2803,7 +2804,7 @@ export function ConfiguracoesPage() {
               <p className="text-sm text-slate-500">Prefixos oficiais da operação.</p>
             </div>
 
-            <div className="flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="sig-config-summary-card flex min-h-[124px] flex-col justify-between rounded-[20px] border border-slate-200 bg-white p-5">
               <div>
                 <p className="sig-label">Portal institucional</p>
                 <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-900">
@@ -2821,11 +2822,12 @@ export function ConfiguracoesPage() {
           title="Acessos rápidos"
           description="Entre direto no bloco que precisa de ajuste."
           icon={Link2}
+          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-3"
         >
           <div className="grid gap-3">
-            <button type="button" onClick={() => setActiveSettingsView("branding")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={() => setActiveSettingsView("branding")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Branding e identidade</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Logo, ativos e paleta.</p>
@@ -2833,7 +2835,7 @@ export function ConfiguracoesPage() {
               <Palette className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("institutional")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={() => setActiveSettingsView("institutional")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Dados institucionais</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Prefeitura e base cadastral.</p>
@@ -2841,7 +2843,7 @@ export function ConfiguracoesPage() {
               <ShieldPlus className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("communication")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={() => setActiveSettingsView("communication")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Comunicação oficial</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">E-mail, site e canais.</p>
@@ -2849,7 +2851,7 @@ export function ConfiguracoesPage() {
               <Bell className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
             </button>
 
-            <button type="button" onClick={() => setActiveSettingsView("protocol")} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={() => setActiveSettingsView("protocol")} className="sig-config-quick-link flex w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left transition">
               <div className="min-w-0">
                 <p className="sig-fit-title text-sm font-medium leading-6 text-slate-900">Protocolo e prefixos</p>
                 <p className="sig-fit-copy text-sm leading-6 text-slate-500">Numeração e taxas.</p>
@@ -2863,10 +2865,11 @@ export function ConfiguracoesPage() {
           title="Estado atual"
           description="Leitura rápida da configuração ativa."
           icon={Flag}
+          className="sig-config-section"
           headerClassName="gap-2 pb-3"
           contentClassName="space-y-3"
         >
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
             <p className="sig-label">Status do contrato</p>
             <p className="mt-2 text-sm font-medium text-slate-900">
               {tenantForm.status === "ativo"
@@ -2876,13 +2879,13 @@ export function ConfiguracoesPage() {
                   : "Implantação"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
             <p className="sig-label">Plano comercial</p>
             <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {tenantForm.plan || "Plano institucional"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="sig-config-state-card rounded-[18px] border border-slate-200 bg-white p-4">
             <p className="sig-label">Arrecadação</p>
             <p className="mt-2 sig-fit-title text-sm font-medium text-slate-900">
               {settingsForm.beneficiarioArrecadacao || "Beneficiário não informado"}
