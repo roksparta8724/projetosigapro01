@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import {
   BadgeCheck,
   Building2,
@@ -20,6 +19,7 @@ import {
   Signature,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SignatureVerificationQr } from "@/components/platform/SignatureVerificationQr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -1094,24 +1094,11 @@ export function ConstructionPermitPanel({
                             className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/55"
                           >
                             {directorVerificationUrl ? (
-                              <div
-                                data-director-signature-qr="true"
-                                data-premium-qr="true"
-                                className="sig-premium-qr sig-sei-like-qr flex w-[136px] shrink-0 flex-col items-center rounded-[14px] border border-slate-200 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
-                              >
-                                <QRCodeSVG
-                                  value={directorVerificationUrl}
-                                  size={112}
-                                  level="M"
-                                  includeMargin
-                                  bgColor="#ffffff"
-                                  fgColor="#111111"
-                                  aria-label="QR Code da assinatura eletrônica da Diretoria"
-                                />
-                                <span className="mt-2 text-center text-[8px] font-black uppercase tracking-[0.08em] !text-black">
-                                  Verificar assinatura
-                                </span>
-                              </div>
+                              <SignatureVerificationQr
+                                verificationUrl={directorVerificationUrl}
+                                alt="QR Code da assinatura eletrônica da Diretoria"
+                                className="sig-director-signature-qr"
+                              />
                             ) : null}
                             <div className="min-w-0">
                               <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
@@ -1204,23 +1191,11 @@ export function ConstructionPermitPanel({
                               className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)]"
                             >
                               {secretaryVerificationUrl ? (
-                                <div
-                                  data-premium-qr="true"
-                                  className="sig-premium-qr flex shrink-0 flex-col items-center rounded-[16px] border border-sky-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)]"
-                                >
-                                  <QRCodeSVG
-                                    value={secretaryVerificationUrl}
-                                    size={112}
-                                    level="M"
-                                    includeMargin
-                                    bgColor="#ffffff"
-                                    fgColor="#111111"
-                                    aria-label="QR Code da assinatura eletrônica da Secretaria"
-                                  />
-                                  <span className="mt-2 text-center text-[8px] font-black uppercase tracking-[0.08em] !text-black">
-                                    Verificar assinatura
-                                  </span>
-                                </div>
+                                <SignatureVerificationQr
+                                  verificationUrl={secretaryVerificationUrl}
+                                  alt="QR Code da assinatura eletrônica da Secretaria"
+                                  className="sig-secretary-signature-qr"
+                                />
                               ) : null}
                               <div className="min-w-0">
                                 <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
