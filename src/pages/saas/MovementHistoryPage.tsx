@@ -15,7 +15,8 @@ import { TableCard } from "@/components/platform/TableCard";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { formatOfficialProcessNumber, getVisibleProcessesByScope, isInternalRole, statusLabel } from "@/lib/platform";
+import {
+  buildProcessPath, formatOfficialProcessNumber, getVisibleProcessesByScope, isInternalRole, statusLabel } from "@/lib/platform";
 
 type ControlTab = "visao-geral" | "recebidos" | "gerados" | "despachos" | "historico";
 type DispatchPriority = "baixa" | "media" | "alta" | "critica";
@@ -284,7 +285,7 @@ export function MovementHistoryPage() {
               <div className="sig-dark-panel rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="sig-label">Prazo</p><p className="mt-2 text-sm font-medium text-slate-900">{item.dueDate}</p></div>
               <div className="sig-dark-panel rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="sig-label">Pasta atual</p><p className="mt-2 sig-fit-title break-words text-sm font-medium text-slate-900">{item.currentFolder}</p></div>
               <div className="sig-dark-panel rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="sig-label">Visibilidade</p><p className="mt-2 text-sm font-medium text-slate-900">{item.externalTransitView === "restrito" ? "Fluxo restrito" : "Fluxo completo"}</p></div>
-              {compact ? null : <div className="flex items-end justify-end"><Link to={`/processos/${item.processId}`}><Button type="button" variant="outline" className="rounded-full">Abrir processo</Button></Link></div>}
+              {compact ? null : <div className="flex items-end justify-end"><Link to={buildProcessPath({ id: item.processId, protocol: item.protocol })}><Button type="button" variant="outline" className="rounded-full">Abrir processo</Button></Link></div>}
             </div>
           </div>
         ))}
@@ -307,7 +308,7 @@ export function MovementHistoryPage() {
               <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
               <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{item.actor}</p>
             </div>
-            <Link to={`/processos/${item.processId}`}><Button type="button" variant="outline" className="rounded-full">Abrir processo</Button></Link>
+            <Link to={buildProcessPath({ id: item.processId, protocol: item.protocol })}><Button type="button" variant="outline" className="rounded-full">Abrir processo</Button></Link>
           </div>
         </div>
       ))}
