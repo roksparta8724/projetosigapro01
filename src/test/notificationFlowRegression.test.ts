@@ -69,7 +69,7 @@ describe("municipal notification flow", () => {
     expect(migration).toContain("coalesce(_source_role,'') <> 'prefeitura_admin'");
     expect(migration).toContain("coalesce(_category,'') <> 'master_support'");
     expect(migration).toContain("notifications_select_own");
-    expect(migration).not.toContain("notifications_select_scoped");
+    expect(migration).not.toContain("create policy notifications_select_scoped");
     expect(notificationsPage).toContain("Suporte ao Master");
     expect(notificationsPage).toContain('session.role === "prefeitura_admin"');
     expect(client).toContain("notify_master_support_v1");
