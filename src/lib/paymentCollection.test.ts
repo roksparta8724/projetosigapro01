@@ -4,6 +4,7 @@ import {
   isBankBarcodeIntegrationReady,
   normalizeBankBarcode,
   normalizeDigitableLine,
+  validateMunicipalPixKey,
 } from "@/lib/paymentCollection";
 import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
 
@@ -41,6 +42,19 @@ describe("municipal payment collection", () => {
     expect(payload).toMatch(/^000201/);
     expect(payload).toContain("BR.GOV.BCB.PIX");
     expect(payload).toMatch(/6304[0-9A-F]{4}$/);
+  });
+
+  it("validates the PIX key according to the type selected by the administrator", () => {
+    expect(validateMunicipalPixKey("12.345.678/0001-90", "cnpj")).toMatchObject({
+      valid: true,
+      normalized: "12345678000190",
+    });
+    expect(validateMunicipalPixKey("financeiro@prefeitura.gov.br", "email").valid).toBe(true);
+    expect(validateMunicipalPixKey("(11) 98765-4321", "phone")).toMatchObject({
+      valid: true,
+      normalized: "+5511987654321",
+    });
+    expect(validateMunicipalPixKey("chave-invalida", "random").valid).toBe(false);
   });
 
   it("never accepts an invented or malformed bank barcode", () => {
