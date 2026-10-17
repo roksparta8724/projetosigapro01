@@ -167,7 +167,7 @@ describe("municipal settings persistence", () => {
         resumo_plano_diretor: "Plano diretor vigente",
         resumo_uso_solo: "Regras de ocupacao",
         leis_complementares: "Normas municipais",
-      } } as MunicipalitySettings,
+      } } as unknown as MunicipalitySettings,
       null,
     );
 
