@@ -436,24 +436,46 @@ export function LandingPage() {
                             return (
                               <div
                                 key={module.label}
+                                data-landing-module={module.label}
+                                data-landing-module-active={
+                                  "active" in module && module.active ? "true" : "false"
+                                }
                                 className={cn(
-                                  "flex items-center gap-3 rounded-[14px] px-3 py-3",
+                                  "group flex items-center gap-3 rounded-[15px] border px-3 py-3 transition-colors",
                                   ("active" in module && module.active)
-                                    ? "bg-white text-slate-950 shadow-[0_10px_24px_rgba(2,6,23,0.18)]"
-                                    : "!text-white",
+                                    ? "border-white bg-white shadow-[0_12px_26px_rgba(2,6,23,0.22)]"
+                                    : "border-white/[0.07] bg-white/[0.025] hover:border-white/[0.13] hover:bg-white/[0.055]",
                                 )}
                               >
                                 <span
                                   className={cn(
-                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]",
-                                    ("active" in module && module.active) ? "bg-blue-50 text-blue-800" : "bg-white/10 text-white",
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                                    ("active" in module && module.active)
+                                      ? "border-blue-100 bg-blue-50 !text-blue-800"
+                                      : "border-white/[0.08] bg-white/[0.075] !text-[#eef8ff] group-hover:bg-white/[0.11]",
                                   )}
                                 >
                                   <Icon className="h-4 w-4" />
                                 </span>
                                 <div className="min-w-0">
-                                  <p className="text-[12px] font-semibold">{module.label}</p>
-                                  <p className={cn("mt-0.5 truncate text-[9px]", ("active" in module && module.active) ? "text-slate-600" : "!text-sky-100")}>
+                                  <p
+                                    className={cn(
+                                      "truncate text-[12px] font-bold tracking-[0.005em]",
+                                      ("active" in module && module.active)
+                                        ? "!text-[#17283a]"
+                                        : "!text-[#f7fbff]",
+                                    )}
+                                  >
+                                    {module.label}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "mt-0.5 truncate text-[9px] font-medium leading-4",
+                                      ("active" in module && module.active)
+                                        ? "!text-[#52677c]"
+                                        : "!text-[#d8ecf9]",
+                                    )}
+                                  >
                                     {module.description}
                                   </p>
                                 </div>
