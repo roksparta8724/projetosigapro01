@@ -59,6 +59,10 @@ type GuiaData = {
   bankReference?: string;
   bankPaymentId?: string;
   bankEnvironment?: "test" | "production";
+  bankStatus?: string;
+  bankStatusDetail?: string;
+  bankAuthenticatedAt?: string;
+  paymentProvider?: "mercado_pago" | "bank_direct" | "manual";
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -199,6 +203,81 @@ function Interleaved2of5Barcode({ value }: { value?: string }) {
       ))}
     </svg>
   );
+}
+
+function formatDateTimeBR(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("pt-BR");
+}
+
+function bankAuthenticationLabel(guia: GuiaData) {
+  const status = String(guia.bankStatus || "").toLowerCase();
+  const detail = String(guia.bankStatusDetail || "").toLowerCase();
+  const paid =
+    (status === "processed" && detail === "accredited") ||
+    Boolean(guia.bankAuthenticatedAt);
+
+  if (guia.bankEnvironment === "test") {
+    return {
+      tone: "test",
+      title: "HOMOLOGAÇÃO",
+      lines: [
+        detail === "waiting_payment"
+          ? "Aguardando pagamento no ambiente de teste"
+          : status
+            ? `Status: ${status}${detail ? ` / ${detail}` : ""}`
+            : "Cobrança de teste registrada",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (paid) {
+    return {
+      tone: "paid",
+      title: "PAGAMENTO COMPENSADO",
+      lines: [
+        guia.bankAuthenticatedAt
+          ? `Confirmado em ${formatDateTimeBR(guia.bankAuthenticatedAt)}`
+          : "Confirmação recebida do provedor",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (detail === "waiting_payment" || status === "action_required") {
+    return {
+      tone: "pending",
+      title: "AGUARDANDO COMPENSAÇÃO",
+      lines: [
+        "Cobrança registrada no provedor",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (guia.bankReference || guia.bankPaymentId) {
+    return {
+      tone: "pending",
+      title: "COBRANÇA REGISTRADA",
+      lines: [
+        status ? `Status: ${status}${detail ? ` / ${detail}` : ""}` : "",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  return {
+    tone: "manual",
+    title: "AGUARDANDO AUTENTICAÇÃO",
+    lines: ["A baixa será registrada pelo provedor ou pela Tesouraria."],
+  };
 }
 
 function getStyles() {
@@ -1038,12 +1117,44 @@ function getStyles() {
     .dam-auth-box {
       min-height: 15mm;
       margin-top: 2px;
-      border: 1px solid #000000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border: 1px solid #aebdca;
+      background: #f8fafc;
+      padding: 4px;
+      box-sizing: border-box;
       font-size: 6.5px;
+    }
+
+    .dam-bank-auth-title {
+      font-size: 7px;
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #0f3557;
       text-transform: uppercase;
+    }
+
+    .dam-bank-auth-line {
+      margin-top: 2px;
+      font-size: 5.7px;
+      line-height: 1.25;
+      color: #334155;
+      overflow-wrap: anywhere;
+      text-transform: none;
+    }
+
+    .dam-bank-auth[data-tone="paid"] {
+      border-color: #86c89b;
+      background: #f0fbf3;
+    }
+
+    .dam-bank-auth[data-tone="test"] {
+      border-color: #d4b768;
+      background: #fff9e8;
+    }
+
+    .dam-bank-auth[data-tone="pending"] {
+      border-color: #9db8d1;
+      background: #f3f8fc;
     }
 
     .dam-final-area {
@@ -1227,6 +1338,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   const outrosAcrescimos = Number(guia.outrosAcrescimos || 0);
   const valorCobrado =
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
+  const bankAuth = bankAuthenticationLabel(guia);
 
   const prefeituraEndereco = [
     prefeitura.endereco,
@@ -1682,8 +1794,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
               <div className="dam-footer-right">
                 <div className="dam-bottom-label">Autenticação bancária</div>
-                <div className="dam-auth-box">
-                  {guia.autenticacaoMecanica || "Espaço reservado"}
+                <div className="dam-auth-box dam-bank-auth" data-tone={bankAuth.tone}>
+                  <div className="dam-bank-auth-title">{bankAuth.title}</div>
+                  {bankAuth.lines.map((line) => (
+                    <div key={line} className="dam-bank-auth-line">{line}</div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1700,9 +1815,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
               </div>
               <div className="dam-final-right">
-                <div className="dam-bottom-label">Autenticação mecânica</div>
+                <div className="dam-bottom-label">Autenticação mecânica / Tesouraria</div>
                 <div className="dam-final-right-box">
-                  {guia.autenticacaoMecanica || "Espaço reservado"}
+                  {guia.autenticacaoMecanica || "Uso exclusivo da Tesouraria / agente arrecadador"}
                 </div>
               </div>
             </div>
