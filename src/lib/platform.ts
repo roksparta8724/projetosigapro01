@@ -309,9 +309,10 @@ export function isSigaproMasterAccount(input: {
   email?: string | null;
   role?: string | null;
 } | string | null | undefined) {
-  if (typeof input === "string" || input == null) {
+  if (typeof input === "string") {
     return normalizeScopedEmail(input) === SIGAPRO_MASTER_EMAIL;
   }
+  if (input == null) return false;
 
   return (
     normalizeScopedEmail(input.email) === SIGAPRO_MASTER_EMAIL ||
@@ -1360,7 +1361,7 @@ export const sessionUsers: SessionUser[] = [
     userType: "Usuário externo",
     department: "Consulta",
   },
-].map((user) => normalizeSessionUserScope(user));
+].map((user) => normalizeSessionUserScope(user as SessionUser));
 
 export const userProfiles: UserProfile[] = [
   {
@@ -3005,7 +3006,7 @@ export function statusLabel(status: ProcessStatus) {
     pendencia_documental: "Pendência documental",
     guia_emitida: "Guia emitida",
   };
-  return labels[status] ?? status.replaceAll("_", " ");
+  return labels[status] ?? status.replace(/_/g, " ");
 }
 
 export function generateProtocol(records: ProcessRecord[]) {
