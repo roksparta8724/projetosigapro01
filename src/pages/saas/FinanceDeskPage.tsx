@@ -570,7 +570,7 @@ export function FinanceDeskPage() {
                             </p>
                           </div>
                           <Button asChild variant="outline" className="shrink-0 rounded-full">
-                            <Link to={buildProcessPath(process, "financeiro")}>Abrir processo</Link>
+                            <Link to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}`}>Abrir processo</Link>
                           </Button>
                         </div>
                       ))
