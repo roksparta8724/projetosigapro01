@@ -75,9 +75,10 @@ describe("finance process accounting ledger", () => {
     expect(detail).toContain("const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;");
     expect(detail).toContain("printGuide(displayGuide.kind, false, displayGuide.code)");
     expect(detail).toContain("printGuide(displayGuide.kind, true, displayGuide.code)");
-    expect(detail).toContain('id={guide.code === requestedGuideCode ? "guia-selecionada" : undefined}');
-    expect(detail).toContain('data-guide-selected={guide.code === requestedGuideCode ? "true" : "false"}');
-    expect(detail).toContain('data-guide-code={guide.code}');
+    expect(detail).toContain('id="guia-selecionada"');
+    expect(detail).toContain('data-selected-guide-summary="true"');
+    expect(detail).toContain('data-guide-selected="true"');
+    expect(detail).toContain('data-guide-code={requestedPaymentGuide.code}');
     expect(detail).toContain("prewarmGuideSignature");
     expect(detail).toContain("[activeTab, requestedGuideCode, processId, prewarmGuideSignature]");
     expect(detail).toContain("printGuide(requestedPaymentGuide.kind, false, requestedPaymentGuide.code)");
