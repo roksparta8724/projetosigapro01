@@ -1,7 +1,7 @@
 ﻿/* eslint-disable react-hooks/exhaustive-deps */
 import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRef } from "react";
-import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
+import { ArrowLeft, Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
@@ -169,6 +169,16 @@ function storedInstitutionalDocument(
     },
   ];
 }
+
+type MercadoPagoHealth = {
+  ok: boolean;
+  configured: boolean;
+  environment: "test" | "production";
+  boletoAvailable: boolean;
+  pixAvailable: boolean;
+  availableMethods?: Array<{ id: string; name: string; type: string }>;
+  error?: string;
+};
 
 export function ConfiguracoesPage() {
   const navigate = useNavigate();
@@ -687,6 +697,41 @@ export function ConfiguracoesPage() {
     | "storage"
     | "platform"
   >("overview");
+  const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
+  const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
+
+  const checkMercadoPagoConnection = async () => {
+    setMercadoPagoChecking(true);
+    try {
+      const response = await fetch("/api/mercadopago/health", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as MercadoPagoHealth | null;
+      if (!payload) {
+        throw new Error(`Resposta inválida do endpoint Mercado Pago (HTTP ${response.status}).`);
+      }
+      setMercadoPagoHealth(payload);
+    } catch (error) {
+      setMercadoPagoHealth({
+        ok: false,
+        configured: false,
+        environment: "test",
+        boletoAvailable: false,
+        pixAvailable: false,
+        error: error instanceof Error ? error.message : "Falha ao consultar o Mercado Pago.",
+      });
+    } finally {
+      setMercadoPagoChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSettingsView !== "collection") return;
+    if (mercadoPagoHealth || mercadoPagoChecking) return;
+    void checkMercadoPagoConnection();
+  }, [activeSettingsView, mercadoPagoHealth, mercadoPagoChecking]);
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
   const [draftLogoFiles, setDraftLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
@@ -4141,45 +4186,69 @@ export function ConfiguracoesPage() {
                     </div>
 
                     <div className={`rounded-2xl border p-4 ${
-                      settingsForm.bankCode.trim() && settingsForm.bankName.trim()
+                      mercadoPagoHealth?.ok
                         ? "border-sky-200 bg-sky-50/80"
-                        : "border-slate-200 bg-slate-50/80"
+                        : mercadoPagoHealth?.configured
+                          ? "border-rose-200 bg-rose-50/80"
+                          : "border-slate-200 bg-slate-50/80"
                     }`}>
                       <div className="flex items-center justify-between gap-3">
-                        <p className="sig-label">Banco arrecadador</p>
-                        <Landmark className="h-4 w-4 text-sky-700" />
+                        <p className="sig-label">Provedor de cobrança</p>
+                        {mercadoPagoHealth?.ok ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Landmark className="h-4 w-4 text-sky-700" />
+                        )}
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
-                        {settingsForm.bankName.trim() || "Banco não cadastrado"}
+                        {mercadoPagoChecking
+                          ? "Verificando Mercado Pago..."
+                          : mercadoPagoHealth?.ok
+                            ? "Mercado Pago conectado"
+                            : mercadoPagoHealth?.configured
+                              ? "Mercado Pago com erro"
+                              : "Mercado Pago não conectado"}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
-                        {settingsForm.bankCode.trim()
-                          ? `COMPE ${settingsForm.bankCode.trim()}`
-                          : "Informe banco e código COMPE."}
+                        {mercadoPagoHealth?.ok
+                          ? `Ambiente ${mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"} · credencial validada`
+                          : mercadoPagoHealth?.error || "Clique em testar conexão após configurar o Access Token no servidor."}
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 h-8 rounded-xl bg-white"
+                        disabled={mercadoPagoChecking}
+                        onClick={() => void checkMercadoPagoConnection()}
+                      >
+                        <RefreshCw className={`mr-2 h-3.5 w-3.5 ${mercadoPagoChecking ? "animate-spin" : ""}`} />
+                        {mercadoPagoChecking ? "Testando..." : "Testar conexão"}
+                      </Button>
                     </div>
 
                     <div className={`rounded-2xl border p-4 ${
-                      settingsForm.bankCollectionMode !== "manual" &&
-                      settingsForm.bankCode.trim() &&
-                      settingsForm.bankName.trim() &&
-                      (settingsForm.bankCollectionMode !== "agreement" || settingsForm.bankAgreementCode.trim())
+                      mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
                         ? "border-violet-200 bg-violet-50/80"
                         : "border-amber-200 bg-amber-50/80"
                     }`}>
                       <div className="flex items-center justify-between gap-3">
-                        <p className="sig-label">Código de barras</p>
+                        <p className="sig-label">Boleto / código de barras</p>
                         <ReceiptText className="h-4 w-4 text-violet-700" />
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
-                        {settingsForm.bankCollectionMode === "api"
-                          ? "Integração bancária por API"
-                          : settingsForm.bankCollectionMode === "agreement"
-                            ? "Convênio bancário cadastrado"
-                            : "Aguardando convênio/API"}
+                        {mercadoPagoChecking
+                          ? "Consultando meios de pagamento..."
+                          : mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
+                            ? "Boleto disponível no Mercado Pago"
+                            : mercadoPagoHealth?.ok
+                              ? "Boleto não retornado nesta credencial"
+                              : "Aguardando conexão com o provedor"}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
-                        O código bancário só será impresso quando vier de uma integração oficial do banco.
+                        {mercadoPagoHealth?.ok
+                          ? `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: ${mercadoPagoHealth.boletoAvailable ? "disponível" : "não retornado"}`
+                          : "O código de barras será usado somente quando vier da cobrança oficial do Mercado Pago."}
                       </p>
                     </div>
                   </div>
@@ -4273,9 +4342,16 @@ export function ConfiguracoesPage() {
                     </div>
                   </div>
 
+                  {mercadoPagoHealth?.ok ? (
+                    <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900">
+                      <strong>Mercado Pago conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
+                      Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
+                    </div>
+                  ) : null}
+
                   <div className="rounded-[22px] border border-slate-200 bg-white p-5">
                     <div>
-                      <p className="text-sm font-semibold text-slate-950">Banco arrecadador e convênio</p>
+                      <p className="text-sm font-semibold text-slate-950">Banco arrecadador e convênio <span className="font-normal text-slate-500">(opcional para integração direta)</span></p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
                         Cadastre os dados fornecidos pela Tesouraria ou pelo banco. Credenciais, tokens e certificados de API nunca devem ser gravados nesta tela.
                       </p>
