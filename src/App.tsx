@@ -50,6 +50,7 @@ import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
+import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
 import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
 
 const App = () => {
@@ -111,7 +112,8 @@ const AppRoutes = () => {
     pathname === "/acesso" ||
     pathname === "/criar-conta" ||
     pathname === "/recuperar-senha" ||
-    pathname.startsWith("/cliente/");
+    pathname.startsWith("/cliente/") ||
+    pathname === "/verificar-assinatura";
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
     !bootstrap.loading &&
@@ -132,6 +134,7 @@ const AppRoutes = () => {
         />
         <Route path="/cliente/:tenantSlug" element={<ClientePortalPage />} />
         <Route path="/planos-publicos" element={<PublicPlansPage />} />
+        <Route path="/verificar-assinatura" element={<PublicSignatureVerificationPage />} />
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
