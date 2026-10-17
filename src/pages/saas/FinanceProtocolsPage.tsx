@@ -369,6 +369,8 @@ export function FinanceProtocolsPage() {
           bankName: providerName,
           bankAgreement: banking.bankAgreement,
           bankInstructions: banking.bankInstructions,
+          bankReference: providerCharge?.orderId || match?.guide?.bankReference,
+          bankPaymentId: providerCharge?.paymentId,
           autenticacaoMecanica: "",
         },
         itens: [
