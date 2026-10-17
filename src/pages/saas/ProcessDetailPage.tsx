@@ -10,8 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   type GuiaRecolhimentoOficialProps,
   openGuiaRecolhimentoOficialWindow,
-  reserveGuiaRecolhimentoWindow,
-  showGuiaRecolhimentoError,
 } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
@@ -29,7 +27,10 @@ import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogra
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import {
+  ensureMercadoPagoGuideCharge,
+  type MercadoPagoGuideCharge,
+} from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
@@ -45,6 +46,8 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  buildProcessPath,
+  buildProcessRouteKey,
   calculateApprovalGuideBreakdown,
   calculateIssGuideAmount,
   canAccessMunicipalArea,
@@ -58,8 +61,8 @@ import {
   formatProfessionalProcessType,
   getGuideObservation,
   getGuideReference,
-  getProcessById,
   getProcessPaymentGuides,
+  resolveProcessRoute,
   getExternallyVisibleProcessPaymentGuides,
   isProcessPaymentGuideSharedExternally,
   isOccupancyPermitProcessType,
@@ -85,29 +88,6 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function toProcessRouteKey(protocol: string) {
-  return protocol
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\\/\s]+/g, "-")
-    .replace(/[^A-Za-z0-9._-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function resolveProcessFromRoute(processes: ProcessRecord[], routeValue?: string) {
-  if (!routeValue) return undefined;
-  const decoded = decodeURIComponent(routeValue).trim();
-  const byId = getProcessById(decoded, processes);
-  if (byId) return byId;
-  const normalized = decoded.toLowerCase();
-  return processes.find((item) => {
-    const protocol = String(item.protocol || "");
-    return protocol.toLowerCase() === normalized || toProcessRouteKey(protocol).toLowerCase() === normalized;
-  });
 }
 
 function inferMimeType(fileName: string) {
@@ -466,6 +446,9 @@ export function ProcessDetailPage() {
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
   const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
+  const [preparedGuideCharges, setPreparedGuideCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
+  const [preparedGuideLogoUrl, setPreparedGuideLogoUrl] = useState("");
+  const [guidePreparationError, setGuidePreparationError] = useState("");
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
@@ -525,6 +508,43 @@ export function ProcessDetailPage() {
     if (activeTab === "historico" || activeTab === "resumo") return;
     setActiveTab("historico");
   }, [activeTab, isProtocolTrackingOnly]);
+
+  useEffect(() => {
+    if (!process || !processId) return;
+
+    const canonicalRouteKey = buildProcessRouteKey(process.protocol, process.id);
+    if (!canonicalRouteKey) return;
+
+    let currentRouteKey = processId;
+    try {
+      currentRouteKey = decodeURIComponent(processId);
+    } catch {
+      currentRouteKey = processId;
+    }
+
+    if (
+      currentRouteKey.trim().toLocaleLowerCase("pt-BR") ===
+      canonicalRouteKey.toLocaleLowerCase("pt-BR")
+    ) {
+      return;
+    }
+
+    navigate(
+      {
+        pathname: buildProcessPath(process),
+        search: location.search,
+        hash: location.hash,
+      },
+      { replace: true, preventScrollReset: true },
+    );
+  }, [
+    location.hash,
+    location.search,
+    navigate,
+    process?.id,
+    process?.protocol,
+    processId,
+  ]);
 
   useEffect(() => {
     if (activeTab !== "historico" || location.hash !== "#despacho") return;
@@ -1728,7 +1748,7 @@ export function ProcessDetailPage() {
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
     const workspaceUrl =
-      `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
+      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
