@@ -1270,6 +1270,7 @@ export function ProcessDetailPage() {
       setProcessActionStatus("Gerando cobrança Mercado Pago para esta guia...");
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
+          municipalityId: effectiveScopeId,
           guideCode: selectedGuide.code,
           amount: selectedGuide.amount,
           dueDate: selectedGuide.dueDate,
