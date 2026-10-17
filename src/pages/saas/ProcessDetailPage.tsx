@@ -682,14 +682,26 @@ export function ProcessDetailPage() {
 
   useEffect(() => {
     if (activeTab !== "financeiro" || !requestedGuideCode) return;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById("guia-selecionada")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
+
+    // Em navegação fria, o primeiro frame pode acontecer antes das guias do
+    // processo chegarem do store. Reexecutamos quando a assinatura das guias
+    // muda e usamos dois frames para garantir que o card exato já foi montado.
+    let outerFrame = 0;
+    let innerFrame = 0;
+    outerFrame = window.requestAnimationFrame(() => {
+      innerFrame = window.requestAnimationFrame(() => {
+        document.getElementById("guia-selecionada")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       });
     });
-    return () => window.cancelAnimationFrame(frame);
-  }, [activeTab, requestedGuideCode, processId]);
+
+    return () => {
+      window.cancelAnimationFrame(outerFrame);
+      window.cancelAnimationFrame(innerFrame);
+    };
+  }, [activeTab, requestedGuideCode, processId, prewarmGuideSignature]);
 
   useEffect(() => {
     if (activeTab !== "historico" || location.hash !== "#despacho") return;
