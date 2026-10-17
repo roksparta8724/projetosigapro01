@@ -57,6 +57,7 @@ import {
   isOccupancyPermitProcessType,
   isIssFeeConfigured,
 } from "@/lib/platform";
+import { collectionModeLabel } from "@/lib/paymentCollection";
 import {
   type MunicipalFeeRule,
   type MunicipalFeeTable,
@@ -445,13 +446,22 @@ export function FinanceDeskPage() {
   };
 
   const bankProfile = {
-    bankName: "Banco conveniado municipal",
-    settlementMode: tenantSettings?.chavePix ? "PIX e baixa manual" : "Baixa manual e retorno bancário",
-    agreementCode: tenantSettings?.guiaPrefixo || "DAM",
+    bankName:
+      [tenantSettings?.bankCode, tenantSettings?.bankName]
+        .filter(Boolean)
+        .join(" · ") || "Banco arrecadador não configurado",
+    settlementMode: collectionModeLabel(tenantSettings?.bankCollectionMode),
+    agreementCode:
+      tenantSettings?.bankAgreementCode ||
+      (tenantSettings?.bankCollectionMode === "manual" ? "Não se aplica" : "Não configurado"),
     beneficiary:
       tenantSettings?.beneficiarioArrecadacao ||
       tenantSettings?.secretariaResponsavel ||
       "Prefeitura contratante",
+    account:
+      tenantSettings?.bankAgency || tenantSettings?.bankAccount
+        ? `Ag. ${tenantSettings?.bankAgency || "—"}${tenantSettings?.bankAgencyDigit ? `-${tenantSettings.bankAgencyDigit}` : ""} · Conta ${tenantSettings?.bankAccount || "—"}${tenantSettings?.bankAccountDigit ? `-${tenantSettings.bankAccountDigit}` : ""}`
+        : "Agência e conta não informadas",
   };
 
   const navItems = [
@@ -932,8 +942,9 @@ export function FinanceDeskPage() {
                     <p className="mt-2 text-base font-semibold text-slate-950">{bankProfile.bankName}</p>
                     <div className="mt-3 space-y-2 text-sm text-slate-600">
                       <p>Modo: {bankProfile.settlementMode}</p>
-                      <p>Convênio / prefixo: {bankProfile.agreementCode}</p>
+                      <p>Convênio: {bankProfile.agreementCode}</p>
                       <p>Beneficiário: {bankProfile.beneficiary}</p>
+                      <p>{bankProfile.account}</p>
                     </div>
                   </div>
                   <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
