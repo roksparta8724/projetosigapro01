@@ -17,7 +17,8 @@ import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
 import { TableContainer } from "@/components/platform/TableContainer";
-import { formatOfficialProcessNumber, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import {
+  buildProcessPath, formatOfficialProcessNumber, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -48,7 +49,7 @@ export function NotificationsPage() {
           icon: MessageSquareMore,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Abrir
@@ -71,7 +72,7 @@ export function NotificationsPage() {
           icon: Send,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Ver fluxo
@@ -96,7 +97,7 @@ export function NotificationsPage() {
             icon: AlertCircle,
             action: (
               <Link
-                to={`/processos/${process.id}`}
+                to={buildProcessPath(process)}
                 className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
               >
                 Tratar
@@ -119,7 +120,7 @@ export function NotificationsPage() {
           icon: Wallet,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Abrir
