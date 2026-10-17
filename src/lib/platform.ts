@@ -424,6 +424,9 @@ export interface DepartmentOwnershipEntry {
   diretoria: string;
 }
 
+export type MunicipalPixKeyType = "cpf" | "cnpj" | "email" | "phone" | "random";
+export type MunicipalBankCollectionMode = "manual" | "agreement" | "api";
+
 export interface TenantSettings {
   tenantId: string;
   cnpj: string;
@@ -456,6 +459,20 @@ export interface TenantSettings {
   guiaPrefixo: string;
   chavePix: string;
   beneficiarioArrecadacao: string;
+  pixEnabled?: boolean;
+  pixKeyType?: MunicipalPixKeyType;
+  pixMerchantCity?: string;
+  bankCode?: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAgencyDigit?: string;
+  bankAccount?: string;
+  bankAccountDigit?: string;
+  bankBeneficiaryDocument?: string;
+  bankCollectionMode?: MunicipalBankCollectionMode;
+  bankAgreementCode?: string;
+  bankWallet?: string;
+  bankInstructions?: string;
   taxaProtocolo: number;
   taxaIssPorMetroQuadrado: number;
   issRateProfiles?: MunicipalIssRateProfile[];
@@ -552,6 +569,11 @@ export interface PaymentGuideEntry {
   usage?: string;
   constructionStandard?: string;
   revision?: number;
+  paymentMethod?: string;
+  pixPayload?: string;
+  barcode?: string;
+  digitableLine?: string;
+  bankReference?: string;
 }
 
 export interface ProcessDocument {
