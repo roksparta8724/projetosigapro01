@@ -78,7 +78,8 @@ describe("analysis and Alvara premium V14 contract", () => {
     expect(sheet).toContain('data-analysis-dark-header="true"');
     expect(sheet).toContain('data-analysis-header-copy="true"');
     expect(sheet).toContain('data-analysis-signature-action="technical"');
-    expect(sheet).toContain('data-analysis-signature-action="director"');
+    expect(sheet).toContain("Solicitar assinatura do Diretor");
+    expect(sheet).toContain("Assinar como Diretor");
   });
 
   it("marks Alvara cards explicitly so light/dark contrast cannot drift", () => {
