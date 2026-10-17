@@ -38,7 +38,7 @@ describe("urban analysis checklist", () => {
   it("places a public-verification QR inside both electronic signatures and the exported PDF", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
 
-    expect(panel).toContain('import { QRCodeSVG } from "qrcode.react"');
+    expect(panel).toContain("SignatureVerificationQr");
     expect(panel).toContain("buildPublicSignatureVerificationUrl");
     expect(panel).toContain("createQrCodeDataUrl");
     expect(panel).toContain('data-analysis-signature-qr="true"');
