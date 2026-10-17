@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { backendClient } from "@/integrations/backend/databaseClient";
@@ -60,8 +60,12 @@ function compactHash(value?: string) {
 }
 
 export function PublicSignatureVerificationPage() {
+  const navigate = useNavigate();
+  const params = useParams<{ codigo?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const urlCode = normalizeSignatureVerificationCode(searchParams.get("codigo"));
+  const routeCode = normalizeSignatureVerificationCode(params.codigo);
+  const queryCode = normalizeSignatureVerificationCode(searchParams.get("codigo"));
+  const urlCode = routeCode || queryCode;
   const [inputCode, setInputCode] = useState(urlCode);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(Boolean(urlCode));
@@ -128,10 +132,11 @@ export function PublicSignatureVerificationPage() {
     event.preventDefault();
     const normalized = normalizeSignatureVerificationCode(inputCode);
     if (!normalized) {
-      setSearchParams({});
+      if (routeCode) navigate("/verificar-assinatura");
+      else setSearchParams({});
       return;
     }
-    setSearchParams({ codigo: normalized });
+    navigate(`/v/${encodeURIComponent(normalized)}`);
   };
 
   return (
