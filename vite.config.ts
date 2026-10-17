@@ -4,7 +4,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto } from "./server/mercadopago";
+import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
 import paymentConnectionHandler from "./api/payment-connection";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -272,6 +272,21 @@ function createR2DevApiPlugin(): Plugin {
             description: body.description ? String(body.description) : undefined,
           }, req);
           res.statusCode = result.ok ? 201 : 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        if (req.url.startsWith("/api/mercadopago/guide-status") && req.method === "POST") {
+          const body = await readJsonBody(req);
+          const result = await getMercadoPagoGuideBoletoStatus({
+            municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
+            orderId: String(body.orderId || ""),
+            guideCode: String(body.guideCode || ""),
+            amount: Number(body.amount || 0),
+          }, req);
+          res.statusCode = result.ok ? 200 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
           res.end(JSON.stringify(result));
