@@ -274,17 +274,17 @@ function clearPlatformSessionSnapshot() {
   }
 }
 
-function readStoredSupabaseUser(): StoredSupabaseBootstrapAuthUser | null {
+function readStoredSupabaseUser(): StoredSupabaseUser | null {
   if (isNeonBackend || typeof window === "undefined") return null;
 
   try {
     const raw = window.localStorage.getItem("sigapro-supabase-auth");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
-      user?: StoredSupabaseBootstrapAuthUser | null;
-      currentSession?: { user?: StoredSupabaseBootstrapAuthUser | null } | null;
-      session?: { user?: StoredSupabaseBootstrapAuthUser | null } | null;
-      data?: { session?: { user?: StoredSupabaseBootstrapAuthUser | null } | null } | null;
+      user?: StoredSupabaseUser | null;
+      currentSession?: { user?: StoredSupabaseUser | null } | null;
+      session?: { user?: StoredSupabaseUser | null } | null;
+      data?: { session?: { user?: StoredSupabaseUser | null } | null } | null;
     };
     return parsed?.user ?? parsed?.currentSession?.user ?? parsed?.session?.user ?? parsed?.data?.session?.user ?? null;
   } catch {
