@@ -49,6 +49,7 @@ import {
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
@@ -106,6 +107,13 @@ export function FinanceProtocolsPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
+  const guideLogoUrl =
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    tenantSettings?.logoUrl ||
+    tenantSettings?.brasaoUrl ||
+    "";
 
   // O Financeiro enxerga todos os protocolos ativos do município.
   // A responsabilidade operacional de cada guia continua respeitada:
@@ -315,7 +323,7 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+          logoUrl: guideLogoUrl,
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
