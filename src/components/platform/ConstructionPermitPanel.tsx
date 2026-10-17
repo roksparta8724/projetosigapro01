@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   BadgeCheck,
   Building2,
@@ -59,6 +60,7 @@ import {
   saveOfficialConstructionPermitDraft,
 } from "@/integrations/permits/constructionPermitClient";
 import type { ProcessRecord, SessionUser, UserProfile } from "@/lib/platform";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 
 type ConstructionPermitPanelProps = {
   process: ProcessRecord;
@@ -309,6 +311,11 @@ export function ConstructionPermitPanel({
     permit?.directorSignature?.official &&
     permit?.directorSignature?.verificationCode,
   );
+  const directorVerificationUrl = directorOfficial
+    ? buildPublicSignatureVerificationUrl(
+        permit?.directorSignature?.verificationCode,
+      )
+    : "";
   const secretaryOfficial = Boolean(
     permit?.secretarySignature?.official &&
     permit?.secretarySignature?.verificationCode,
@@ -1082,6 +1089,28 @@ export function ConstructionPermitPanel({
                             Código: {permit.directorSignature.verificationCode}
                           </p>
                         ) : null}
+                        {directorVerificationUrl ? (
+                          <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-white/80 p-3 dark:border-emerald-500/30 dark:bg-slate-950/45">
+                            <div className="shrink-0 rounded-lg bg-white p-1.5 shadow-sm">
+                              <QRCodeSVG
+                                value={directorVerificationUrl}
+                                size={74}
+                                level="M"
+                                bgColor="#ffffff"
+                                fgColor="#0f172a"
+                                aria-label="QR Code para verificar a assinatura eletrônica do Alvará"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
+                                Verificação pública
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                Leia o QR Code para confirmar a assinatura, o código e o SHA-256 no SIGAPRO.
+                              </p>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     {!directorOfficial &&
@@ -1198,7 +1227,7 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Printer className="mr-2 h-4 w-4" />
                           )}
-                          Gerar PDF para assinatura à caneta
+                          Gerar PDF do Alvará para assinatura à caneta
                         </Button>
                       </div>
                     </div>
@@ -1543,7 +1572,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Printer className="mr-2 h-4 w-4" />
                         )}
-                        Gerar PDF para assinatura à caneta
+                        Gerar PDF do Alvará para assinatura à caneta
                       </Button>
                     </div>
                   </div>
