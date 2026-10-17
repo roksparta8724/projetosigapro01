@@ -3149,7 +3149,7 @@ export function ConfiguracoesPage() {
                     <p className="mt-0.5 text-xs text-slate-500">Marca exibida no topo institucional e nas áreas internas.</p>
                   </div>
                 </div>
-                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(420px,0.98fr)_minmax(360px,1.02fr)]">
                   <div
                     data-institutional-header-preview="true"
                     className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_22px_48px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
@@ -3171,10 +3171,11 @@ export function ConfiguracoesPage() {
                         </span>
                       </div>
 
-                      <div className="mt-4 flex min-h-[176px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center">
+                      <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center md:p-5">
                         <div
                           data-municipal-logo-live-preview="header"
-                          className="relative mx-auto flex h-[142px] w-full max-w-[232px] shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/90 bg-white p-3 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          style={{ width: 176, minWidth: 176, maxWidth: 176, height: 124, flex: "0 0 176px" }}
                         >
                           {previewHeaderDisplayUrl ? (
                             <img
@@ -3221,7 +3222,7 @@ export function ConfiguracoesPage() {
                   <div className="space-y-3">
                     <FileDropZone
                       title="Arquivo do cabeçalho"
-                      description="PNG, JPG, WEBP ou SVG. O preview ao lado mostra o resultado final."
+                      description="PNG, JPG, WEBP ou SVG. O quadro ao lado usa a mesma proporção do cabeçalho real."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
@@ -3238,14 +3239,14 @@ export function ConfiguracoesPage() {
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
                       label="Enquadramento"
-                      hint="Ajuste zoom e posição. O resultado aparece imediatamente na prévia ao lado."
+                      hint="Ajuste zoom e posição no mesmo enquadramento usado pelo cabeçalho real."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center"
-                      wrapperClassName="sig-config-logo-editor"
-                      viewportClassName="h-[168px] w-[224px]"
+                      wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
+                      viewportClassName="!h-[124px] !w-[176px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
@@ -3295,10 +3296,11 @@ export function ConfiguracoesPage() {
                           Rodapé
                         </span>
                       </div>
-                      <div className="mt-4 flex min-h-[164px] items-center justify-center rounded-[22px] border border-white/10 bg-slate-950/10 p-5">
+                      <div className="mt-4 flex min-h-[156px] items-center justify-center rounded-[22px] border border-white/10 bg-slate-950/10 p-4 md:p-5">
                         <div
                           data-municipal-logo-live-preview="footer"
-                          className="relative flex h-[132px] w-full max-w-[228px] items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-3 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)]"
+                          className="sig-config-logo-frame sig-config-logo-frame-footer relative flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-2.5 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)]"
+                          style={{ width: 176, minWidth: 176, maxWidth: 176, height: 128, flex: "0 0 176px" }}
                         >
                           {previewFooterDisplayUrl ? (
                             <img
@@ -3327,7 +3329,7 @@ export function ConfiguracoesPage() {
                   <div className="space-y-3">
                     <FileDropZone
                       title="Arquivo do rodapé"
-                      description="Use a mesma marca ou envie uma versão específica para o rodapé."
+                      description="Use a mesma marca ou uma versão própria; o quadro respeita a proporção real do rodapé."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
@@ -3344,14 +3346,14 @@ export function ConfiguracoesPage() {
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
                       label="Enquadramento"
-                      hint="Ajuste zoom e posição de forma independente do cabeçalho."
+                      hint="Ajuste zoom e posição no mesmo enquadramento usado pelo rodapé real."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
                       frameClassName="justify-center"
-                      wrapperClassName="sig-config-logo-editor"
-                      viewportClassName="h-[168px] w-[224px]"
+                      wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
+                      viewportClassName="!h-[128px] !w-[176px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
