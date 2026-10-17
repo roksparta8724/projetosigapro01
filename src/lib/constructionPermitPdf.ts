@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import { createQrCodeDataUrl } from "@/lib/qrCode";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type {
   ConstructionPermitRecord,
   PermitSignature,
@@ -258,8 +260,11 @@ function drawSignature(
   label: string,
   signature?: PermitSignature,
   manual = false,
+  verificationQrDataUrl = "",
 ) {
   const official = Boolean(signature?.official || signature?.verificationCode);
+  const qrReserve = official && verificationQrDataUrl ? 22 : 0;
+  const textWidth = Math.max(34, width - 8 - qrReserve);
   fill(pdf, official ? ([240, 253, 250] as const) : ([250, 252, 254] as const));
   draw(pdf, official ? ([167, 243, 208] as const) : color.line);
   pdf.roundedRect(x, y, width, 26, 2.5, 2.5, "FD");
@@ -281,7 +286,7 @@ function drawSignature(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(6.8);
     pdf.text(
-      (pdf.splitTextToSize(signature.name || "Responsável", width - 8) as string[]).slice(0, 1),
+      (pdf.splitTextToSize(signature.name || "Responsável", textWidth) as string[]).slice(0, 1),
       x + 4,
       y + 12.3,
     );
@@ -293,7 +298,7 @@ function drawSignature(
       .filter(Boolean)
       .join(" • ");
     pdf.text(
-      (pdf.splitTextToSize(role || "Autoridade municipal", width - 8) as string[]).slice(0, 1),
+      (pdf.splitTextToSize(role || "Autoridade municipal", textWidth) as string[]).slice(0, 1),
       x + 4,
       y + 15.7,
     );
@@ -310,6 +315,19 @@ function drawSignature(
       pdf.setFontSize(4.25);
       textColor(pdf, color.muted);
       pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 24.5);
+    }
+
+    if (verificationQrDataUrl) {
+      const qrSize = 17.5;
+      const qrX = x + width - qrSize - 3.5;
+      const qrY = y + 2.5;
+      pdf.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(3.9);
+      textColor(pdf, color.green);
+      pdf.text("VERIFICAR AUTENTICIDADE", qrX + qrSize / 2, y + 22.4, {
+        align: "center",
+      });
     }
   } else if (manual) {
     draw(pdf, [100, 116, 139]);
@@ -1025,6 +1043,13 @@ export async function buildConstructionPermitPdfBlob({
 
   const showManualDirectorLine = manualSignature && !directorOfficial;
   const hasSecretary = secretaryOfficial;
+  const publicVerificationUrl = directorOfficial
+    ? buildPublicSignatureVerificationUrl(permit.directorSignature?.verificationCode)
+    : "";
+  const verificationQrDataUrl = publicVerificationUrl
+    ? createQrCodeDataUrl(publicVerificationUrl)
+    : "";
+
   if (hasSecretary) {
     const half = (contentWidth - gap) / 2;
     drawSignature(
@@ -1035,6 +1060,7 @@ export async function buildConstructionPermitPdfBlob({
       "Diretoria responsável",
       permit.directorSignature,
       showManualDirectorLine,
+      verificationQrDataUrl,
     );
     drawSignature(
       pdf,
