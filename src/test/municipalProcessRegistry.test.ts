@@ -23,7 +23,8 @@ describe("municipal process registry", () => {
 
   it("keeps the process list compact and linked to the existing process detail", () => {
     expect(registry).toContain("CompactProcessRegistry");
-    expect(registry).toContain('to={\`/processos/\${process.id}\`}');
+    expect(registry).toContain("buildProcessPath(process)");
+    expect(registry).not.toContain('/processos/${process.id}');
     expect(registry).toContain("Despachar");
     expect(registry).toContain("Ver histórico");
     expect(registry).toContain("Arquivar da minha lista");
