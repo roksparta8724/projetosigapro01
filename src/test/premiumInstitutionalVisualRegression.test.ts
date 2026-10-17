@@ -57,15 +57,19 @@ describe("premium institutional visual contract", () => {
     expect(css).toContain('[data-premium-qr="true"]');
   });
 
-  it("uses a cleaner institutional navy QR while preserving a pure-white scan field", () => {
-    expect(permit).toContain('fgColor="#0B4F71"');
+  it("uses a high-contrast SEI-like QR on a pure-white scan field", () => {
+    expect(permit).toContain('fgColor="#111111"');
+    expect(permit).toContain('size={112}');
     expect(permit).toContain("secretaryVerificationUrl");
-    expect(analysis).toContain('fgColor="#0B4F71"');
+    expect(analysis).toContain('fgColor="#111111"');
+    expect(analysis).toContain('size={112}');
     expect(analysis).toContain('data-premium-qr="true"');
-    expect(qr).toContain('level: "Q"');
-    expect(qr).toContain('fgColor: "#0B4F71"');
+    expect(qr).toContain('level: "M"');
+    expect(qr).toContain('fgColor: "#111111"');
     expect(qr).toContain('bgColor: "#ffffff"');
     expect(permitPdf).toContain("secretaryVerificationQrDataUrl");
     expect(permitPdf).toContain("pdf.roundedRect(qrX - 1.15");
+    expect(css).toContain("SIGNATURE QR + TOPBAR INITIALS FINAL V2");
+    expect(css).toContain("color:#000000 !important");
   });
 });
