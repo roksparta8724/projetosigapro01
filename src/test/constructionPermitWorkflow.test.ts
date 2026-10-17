@@ -30,12 +30,12 @@ describe("construction permit workflow", () => {
   it("keeps the two signing paths visible while the form scrolls", () => {
     expect(panel).toContain("sticky bottom-0");
     expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("Gerar PDF do Alvará");
   });
 
   it("offers the two director signature paths before PDF completion", () => {
     expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("Gerar PDF do Alvará");
     expect(panel).toContain("requestOfficialPermitDirectorSignature");
     expect(panel).toContain("markOfficialPermitForManualSignature");
   });
@@ -51,6 +51,13 @@ describe("construction permit workflow", () => {
     expect(api).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
     expect(pdf).toContain("const hasSecretary = secretaryOfficial;");
     expect(pdf).not.toContain("secretaryOfficial || showManual");
+  });
+
+  it("opens the native Alvara PDF without a visible preparation screen", () => {
+    expect(pdf).toContain("prepareReservedPdfWindow");
+    expect(pdf).not.toContain("Preparando o PDF oficial do Alvará...");
+    expect(pdf).not.toContain("sigapro-pdf-progress");
+    expect(pdf).toContain("opened.location.replace(url)");
   });
 
   it("generates a premium manual-signature version without printing workflow instructions", () => {
