@@ -470,7 +470,7 @@ export function ExternalProcessControlPage() {
                           triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                         />
                         <Button asChild variant="outline" className="h-10 w-full rounded-xl border-slate-300 bg-white text-[12px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-                          <Link to={`/processos/${process.id}?aba=fluxo`}>
+                          <Link to={buildProcessPath(process, "historico")}>
                             <Workflow className="mr-2 h-4 w-4" />
                             Acompanhar fluxo
                           </Link>
@@ -620,7 +620,7 @@ export function ExternalProcessControlPage() {
                                   </p>
                                 </div>
                                 <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
-                                  <Link to={`/processos/${process.id}?aba=fluxo`} onClick={() => setSummaryOpen(false)}>Ver fluxo</Link>
+                                  <Link to={buildProcessPath(process, "historico")} onClick={() => setSummaryOpen(false)}>Ver fluxo</Link>
                                 </Button>
                               </div>
                             </div>
