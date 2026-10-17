@@ -38,6 +38,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
+  buildProcessPath,
   isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -590,7 +591,7 @@ export function ProtocolDeskPage() {
                     </button>
 
                     <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
-                      <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                      <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                     </Button>
                   </div>
 
@@ -991,7 +992,7 @@ export function ProtocolDeskPage() {
                               </p>
                             </div>
                             <Button asChild variant="outline" className="shrink-0 rounded-full">
-                              <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                              <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                             </Button>
                           </div>
                         );
