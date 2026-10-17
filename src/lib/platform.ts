@@ -426,6 +426,9 @@ export interface DepartmentOwnershipEntry {
 
 export type MunicipalPixKeyType = "cpf" | "cnpj" | "email" | "phone" | "random";
 export type MunicipalBankCollectionMode = "manual" | "agreement" | "api";
+export type MunicipalPaymentProvider = "mercado_pago" | "bank_direct" | "manual";
+export type MunicipalPaymentProviderEnvironment = "test" | "production";
+export type MunicipalPaymentAuthenticationMode = "automatic" | "manual";
 
 export interface TenantSettings {
   tenantId: string;
@@ -473,6 +476,9 @@ export interface TenantSettings {
   bankAgreementCode?: string;
   bankWallet?: string;
   bankInstructions?: string;
+  paymentProvider?: MunicipalPaymentProvider;
+  paymentProviderEnvironment?: MunicipalPaymentProviderEnvironment;
+  paymentAuthenticationMode?: MunicipalPaymentAuthenticationMode;
   taxaProtocolo: number;
   taxaIssPorMetroQuadrado: number;
   issRateProfiles?: MunicipalIssRateProfile[];
@@ -574,6 +580,12 @@ export interface PaymentGuideEntry {
   barcode?: string;
   digitableLine?: string;
   bankReference?: string;
+  bankPaymentId?: string;
+  bankStatus?: string;
+  bankStatusDetail?: string;
+  bankAuthenticatedAt?: string;
+  paymentProvider?: MunicipalPaymentProvider;
+  providerEnvironment?: MunicipalPaymentProviderEnvironment;
 }
 
 export interface ProcessDocument {
