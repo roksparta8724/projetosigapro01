@@ -16,12 +16,20 @@
       "destination": "/api/storage-connection?action=health"
     },
     {
+      "source": "/api/payment-connection",
+      "destination": "/api/mercadopago?action=payment-connection"
+    },
+    {
       "source": "/api/mercadopago/health",
       "destination": "/api/mercadopago?action=health"
     },
     {
       "source": "/api/mercadopago/guide-boleto",
       "destination": "/api/mercadopago?action=guide-boleto"
+    },
+    {
+      "source": "/api/mercadopago/guide-status",
+      "destination": "/api/mercadopago?action=guide-status"
     },
     {
       "source": "/api/(.*)",
