@@ -528,7 +528,13 @@ export function AnalystDeskPage() {
                     {currentAnalyst}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {analysisStarted ? "Análise assumida e registrada" : "Clique em Iniciar análise para assumir"}
+                    {analysisStarted
+                      ? canEditAnalysis
+                        ? "Análise atribuída a você / intervenção ativa"
+                        : "Processo protegido: acompanhamento em leitura"
+                      : isSupervisorView
+                        ? "Aguardando distribuição para um analista"
+                        : "Clique em Iniciar análise para assumir"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -587,9 +593,13 @@ export function AnalystDeskPage() {
                 >
                   {actionBusy === `start-${process.id}`
                     ? "Iniciando..."
-                    : analysisStarted
-                      ? "Continuar análise"
-                      : "Iniciar análise"}
+                    : isSupervisorView
+                      ? "Abrir acompanhamento"
+                      : analysisStarted
+                        ? canEditAnalysis
+                          ? "Continuar análise"
+                          : "Abrir em leitura"
+                        : "Iniciar análise"}
                 </Button>
                 <Button
                   type="button"
