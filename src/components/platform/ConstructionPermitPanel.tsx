@@ -561,13 +561,6 @@ export function ConstructionPermitPanel({
   };
 
   const requestDirectorSignature = async () => {
-    if (directors.length === 0) {
-      setStatus(
-        "Não existe um perfil interno ativo identificado como Diretor(a) da área de Urbanismo/Obras. Cadastre ou ajuste o cargo no organograma antes de solicitar a assinatura eletrônica.",
-      );
-      return;
-    }
-
     if (!permitReadyForSignature) {
       setStatus(
         "Conclua a análise documental e confirme a compensação de todas as guias financeiras exigidas antes de solicitar a assinatura da Diretoria.",
@@ -1224,18 +1217,22 @@ export function ConstructionPermitPanel({
                             Um PDF manual já foi preparado, mas o Analista ainda pode mudar para assinatura eletrônica. Ao solicitar abaixo, o modo manual é cancelado e o Alvará passa para a fila da Diretoria.
                           </p>
                         ) : null}
-                        {directors.length === 0 ? (
-                          <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                            Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura manual continua disponível.
+                        {directors.length > 0 ? (
+                          <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                            Diretoria identificada: {directors.map((director) => director.name).join(", ")}.
                           </p>
-                        ) : null}
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-sky-700 dark:text-sky-300">
+                            A Diretoria será validada diretamente no banco oficial ao enviar. O botão permanece disponível mesmo enquanto a lista de usuários termina de sincronizar.
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
                           data-request-director-signature="true"
                           className="rounded-full bg-violet-700 px-5 font-bold !text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)] hover:bg-violet-800"
-                          disabled={directors.length === 0 || Boolean(workflowBusy)}
+                          disabled={Boolean(workflowBusy)}
                           onClick={() => void requestDirectorSignature()}
                         >
                           {workflowBusy === "request" ? (
@@ -1580,7 +1577,7 @@ export function ConstructionPermitPanel({
                         type="button"
                         variant="outline"
                         className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                        disabled={!permitReadyForSignature || directors.length === 0 || Boolean(workflowBusy)}
+                        disabled={!permitReadyForSignature || Boolean(workflowBusy)}
                         onClick={() => void requestDirectorSignature()}
                       >
                         {workflowBusy === "request" ? (
