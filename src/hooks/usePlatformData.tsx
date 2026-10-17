@@ -1718,6 +1718,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           name: input.fullName,
           title: input.title,
           accessLevel: input.accessLevel,
+          temporaryPassword: input.temporaryPassword,
         });
         const user: SessionUser = {
           id: saved.userId,
