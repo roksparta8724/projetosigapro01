@@ -17,5 +17,5 @@ export function buildPublicSignatureVerificationUrl(
     .trim()
     .replace(/\/+$/, "");
 
-  return `${configuredOrigin}/verificar-assinatura?codigo=${encodeURIComponent(code)}`;
+  return `${configuredOrigin}/v/${encodeURIComponent(code)}`;
 }
