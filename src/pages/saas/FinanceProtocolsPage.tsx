@@ -295,8 +295,11 @@ export function FinanceProtocolsPage() {
       providerCharge?.digitableLine || banking.digitableLine;
     const barcode =
       providerCharge?.barcodeContent || banking.barcode;
+    const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
     const providerName =
-      providerCharge?.financialInstitution || banking.bankName || "Mercado Pago";
+      providerInstitution && providerInstitution.toLowerCase() !== "boleto"
+        ? providerInstitution
+        : banking.bankName || "Mercado Pago";
 
     openGuiaRecolhimentoOficialWindow(
       {
