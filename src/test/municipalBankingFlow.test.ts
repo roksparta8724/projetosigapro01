@@ -19,6 +19,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(settingsPage).toContain('setSettingsField("chavePix"');
     expect(settingsPage).toContain('setSettingsField("bankCode"');
     expect(settingsPage).toContain('setSettingsField("bankAgreementCode"');
+    expect(settingsPage).toContain("validateMunicipalPixKey");
     expect(settingsPage).toContain("Credenciais, tokens e certificados de API nunca devem ser gravados nesta tela");
   });
 
@@ -46,6 +47,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("resolveGuideBankingData");
     expect(finance).not.toContain('padEnd(44, "7")');
     expect(processDetail).not.toContain("000201|");
+    expect(processDetail).not.toContain("function buildProtocolGuideHtml");
     expect(finance).not.toContain("PIX|");
   });
 
