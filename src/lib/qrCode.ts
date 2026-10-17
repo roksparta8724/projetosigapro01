@@ -26,9 +26,9 @@ export function createQrCodeDataUrl(value: string, size = 256) {
         createElement(QRCodeCanvas, {
           value: normalized,
           size,
-          level: "M",
+          level: "Q",
           bgColor: "#ffffff",
-          fgColor: "#0f172a",
+          fgColor: "#0B4F71",
         }),
       );
     });
