@@ -1617,11 +1617,36 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   );
 });
 
+function toAbsoluteGuideAssetUrl(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const base =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "https://sigapromunicipal.com.br";
+    return new URL(raw, base).toString();
+  } catch {
+    return raw;
+  }
+}
+
 export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...props} />);
+  const normalizedProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    prefeitura: {
+      ...props.prefeitura,
+      logoUrl: toAbsoluteGuideAssetUrl(props.prefeitura.logoUrl),
+    },
+    guia: {
+      ...props.guia,
+      qrCodePixUrl: toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
+    },
+  };
+  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...normalizedProps} />);
   const title = options?.title || props.guia.numeroGuia;
   const autoPrint = options?.autoPrint ?? true;
 
