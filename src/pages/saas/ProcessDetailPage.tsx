@@ -1265,10 +1265,7 @@ export function ProcessDetailPage() {
     const billingKey = `${selectedGuide.code}:mercadopago`;
     let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
 
-    if (
-      selectedGuide.status !== "compensada" &&
-      (!banking.barcode || !banking.digitableLine)
-    ) {
+    if (!banking.barcode || !banking.digitableLine) {
       setGuideBillingBusyKey(billingKey);
       setProcessActionStatus("Gerando cobrança Mercado Pago para esta guia...");
       try {
@@ -1298,10 +1295,7 @@ export function ProcessDetailPage() {
       providerCharge?.digitableLine || banking.digitableLine;
     const barcode =
       providerCharge?.barcodeContent || banking.barcode;
-    if (
-      selectedGuide.status !== "compensada" &&
-      (!barcode || !digitableLine)
-    ) {
+    if (!barcode || !digitableLine) {
       const message =
         "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
       setProcessActionStatus(message);
