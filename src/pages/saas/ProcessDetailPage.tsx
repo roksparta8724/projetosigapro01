@@ -23,6 +23,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
@@ -743,7 +744,14 @@ export function ProcessDetailPage() {
     : false;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
+  const pixPayload = protocolGuide
+    ? buildGuidePixPayload({
+        settings: tenantSettings,
+        guide: protocolGuide,
+        municipalityName: municipalityName || tenant?.name,
+        municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
+      })
+    : "";
   const canReviewDocuments =
     !isExternalProcessViewer &&
     canAnalyzeProcessDocument(session, process, effectiveScopeId);
@@ -1276,8 +1284,14 @@ export function ProcessDetailPage() {
               total: selectedGuide.amount,
             },
           ];
-    // Não construir códigos de barras ou linhas digitáveis artificiais.
-    // Uma DAM só pode mostrar código bancário validado pela integração arrecadadora.
+    // PIX pode ser gerado localmente com BR Code válido. Código de barras e
+    // linha digitável só entram quando vierem do convênio/API bancária oficial.
+    const banking = resolveGuideBankingData({
+      settings: tenantSettings,
+      guide: selectedGuide,
+      municipalityName: municipalityName || tenant?.name,
+      municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
+    });
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
@@ -1315,9 +1329,12 @@ export function ProcessDetailPage() {
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
           ? process.property.workType || workTypeInput || undefined
           : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: "",
-        linhaDigitavel: "",
+        codigoBarras: banking.barcode,
+        linhaDigitavel: banking.digitableLine,
         qrCodePixUrl: "",
+        pixPayload: banking.pixPayload,
+        bankName: banking.bankName,
+        bankAgreement: banking.bankAgreement,
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
