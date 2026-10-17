@@ -712,7 +712,37 @@ export function ConfiguracoesPage() {
     | "advanced"
     | "storage"
     | "platform"
-  >("overview");
+  >(() => {
+    if (typeof window === "undefined") return "overview";
+    const requested = new URLSearchParams(window.location.search).get("secao");
+    const allowed = new Set([
+      "overview",
+      "branding",
+      "institutional",
+      "communication",
+      "protocol",
+      "collection",
+      "team",
+      "account",
+      "advanced",
+      "storage",
+      "platform",
+    ]);
+    return allowed.has(String(requested || ""))
+      ? (requested as
+          | "overview"
+          | "branding"
+          | "institutional"
+          | "communication"
+          | "protocol"
+          | "collection"
+          | "team"
+          | "account"
+          | "advanced"
+          | "storage"
+          | "platform")
+      : "overview";
+  });
   const isPlatformSettingsView = String(activeSettingsView) === "platform";
   const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
   const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
