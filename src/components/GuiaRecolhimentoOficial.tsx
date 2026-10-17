@@ -1164,9 +1164,6 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   ref,
 ) {
   const guideMeta = inferGuideKind(guia, itens);
-  const effectiveLogoUrl =
-    String(prefeitura.logoUrl || "").trim() ||
-    municipalLogoFallback(prefeitura.nome);
   const totalPrincipal = sumValues(itens, "principal");
   const totalMulta = sumValues(itens, "multa");
   const totalJuros = sumValues(itens, "juros");
@@ -1189,15 +1186,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     .join(" - ");
 
   const visibleItens = itens.slice(0, 8);
-  const normalizedMunicipalityName = String(prefeitura.nome || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
   const resolvedMunicipalityLogo =
-    prefeitura.logoUrl ||
-    (normalizedMunicipalityName.includes("campo limpo paulista")
-      ? "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png"
-      : "");
+    String(prefeitura.logoUrl || "").trim() ||
+    municipalLogoFallback(prefeitura.nome);
 
   return (
     <div ref={ref} className={`dam-root ${className}`}>
