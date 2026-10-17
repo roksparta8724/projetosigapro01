@@ -58,6 +58,7 @@ type GuiaData = {
   bankInstructions?: string;
   bankReference?: string;
   bankPaymentId?: string;
+  bankEnvironment?: "test" | "production";
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -420,6 +421,30 @@ function getStyles() {
       background: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.09em;
+    }
+
+    .dam-homologation-band {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-bottom: 1px solid #d97706;
+      padding: 4px 8px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 7px;
+      line-height: 1.1;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .dam-homologation-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #ea580c;
+      flex: 0 0 auto;
     }
 
     .dam-subtitle-band {
@@ -1094,6 +1119,14 @@ function getStyles() {
         box-shadow: none !important;
       }
 
+      .dam-homologation-band {
+        background: #fff7ed !important;
+        color: #9a3412 !important;
+        border-color: #d97706 !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+
       .dam-barcode-svg,
       .dam-barcode-svg rect {
         fill: #000000 !important;
@@ -1273,6 +1306,13 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-title">{guideMeta.title}</div>
+
+            {guia.bankEnvironment === "test" ? (
+              <div className="dam-homologation-band">
+                <span className="dam-homologation-dot" />
+                Homologação Mercado Pago — documento de teste — não efetuar pagamento
+              </div>
+            ) : null}
 
             <div className="dam-subtitle-band">
               <div className="dam-subtitle-main">
@@ -1576,7 +1616,16 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.pixPayload ? (
+                {guia.bankEnvironment === "test" ? (
+                  <div className="dam-qr-wrap">
+                    <div className="dam-qrcode-label">PIX</div>
+                    <div className="dam-qrcode-box">
+                      <span className="dam-qrcode-fallback">
+                        PIX real oculto durante a homologação do boleto bancário.
+                      </span>
+                    </div>
+                  </div>
+                ) : guia.pixPayload ? (
                   <div className="dam-qr-wrap">
                     <div className="dam-qrcode-label">PIX — QR Code oficial</div>
                     <div className="dam-qrcode-box">
