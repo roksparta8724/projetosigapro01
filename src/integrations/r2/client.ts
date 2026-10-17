@@ -104,9 +104,14 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
     return raw;
   }
 
-  return buildApiUrl(
-    `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`,
-  );
+  const route = `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`;
+  const isLocalBrowser =
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+
+  // No VS Code/local usamos sempre o middleware Vite atualizado. Em produção,
+  // respeitamos VITE_R2_API_BASE quando existir.
+  return isLocalBrowser ? route : buildApiUrl(route);
 }
 
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
