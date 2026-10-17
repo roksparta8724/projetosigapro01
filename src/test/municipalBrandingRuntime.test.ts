@@ -36,12 +36,12 @@ describe("municipal branding runtime resilience", () => {
 
   it("keeps the municipal logo selected in the working environment ahead of the generic tenant logo", () => {
     const headerBlock = branding.slice(
-      branding.indexOf("const resolvedTenantHeaderLogo ="),
-      branding.indexOf("if (resolvedTenantHeaderLogo)", branding.indexOf("const resolvedTenantHeaderLogo =")),
+      branding.indexOf("const primaryHeaderLogo ="),
+      branding.indexOf("if (primaryHeaderLogo)", branding.indexOf("const primaryHeaderLogo =")),
     );
     const footerBlock = branding.slice(
-      branding.indexOf("const resolvedTenantFooterLogo ="),
-      branding.indexOf("if (resolvedTenantFooterLogo)", branding.indexOf("const resolvedTenantFooterLogo =")),
+      branding.indexOf("const primaryFooterLogo ="),
+      branding.indexOf("if (primaryFooterLogo)", branding.indexOf("const primaryFooterLogo =")),
     );
 
     expect(headerBlock.indexOf("resolvedTenantHeaderLogoUrl")).toBeLessThan(
