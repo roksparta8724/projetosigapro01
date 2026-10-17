@@ -17,9 +17,9 @@ const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
 const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
-  header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[140px] w-[188px] p-0",
-  preview: "h-[140px] w-full max-w-[204px] p-0",
+  header: "h-[120px] w-[204px] p-0 lg:h-[128px] lg:w-[220px]",
+  footer: "h-[148px] w-[204px] p-0",
+  preview: "h-[148px] w-full max-w-[220px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
 } as const;
@@ -169,12 +169,18 @@ export function InstitutionalLogo({
       ? imageUrl
       : "";
 
-  const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(5, branding.logoScale)) : 1;
+  const configuredScale = Number.isFinite(branding.logoScale) ? branding.logoScale : 1;
+  // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
+  // uma margem vazia excessiva. Valores legados menores que 1 sao normalizados
+  // visualmente para 1; o editor continua podendo ampliar e reposicionar.
+  const scale = isMaster
+    ? Math.max(0.35, Math.min(5, configuredScale))
+    : Math.max(1, Math.min(5, configuredScale));
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
+  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
     if (displayUrl) {
