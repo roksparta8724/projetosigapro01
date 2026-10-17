@@ -28,7 +28,7 @@ describe("official construction permit workflow", () => {
   );
 
   it("generates the permit PDF from the official fill modal after choosing a signing path", () => {
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
     expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
     expect(panel).toContain("municipalityLogoUrl");
     expect(panel).toContain("municipalityAddress");
@@ -41,6 +41,14 @@ describe("official construction permit workflow", () => {
     expect(panel).toContain("directors.length === 0");
     expect(panel).toContain("nenhum perfil ativo está cadastrado como Diretor(a)");
     expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
+  });
+
+  it("keeps electronic Director request available even after a manual PDF was prepared", () => {
+    expect(panel).toContain("O Analista solicita a assinatura do Diretor");
+    expect(panel).toContain("Um PDF manual já foi preparado");
+    expect(panel).toContain("data-request-director-signature=\"true\"");
+    expect(panel).toContain("Solicitação enviada com sucesso");
+    expect(panel).not.toContain("!manualSignatureSelected ? (");
   });
 
   it("uses director as the only required municipal signer", () => {
