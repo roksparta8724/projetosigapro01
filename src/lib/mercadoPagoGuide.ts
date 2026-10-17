@@ -27,7 +27,7 @@ function cacheKey(input: MercadoPagoGuideChargeInput) {
   return [
     "sigapro",
     "mercadopago",
-    "guide-v2",
+    "guide-v3",
     input.guideCode,
     Number(input.amount || 0).toFixed(2),
     input.dueDate || "",
@@ -40,7 +40,14 @@ function readCachedCharge(input: MercadoPagoGuideChargeInput) {
     const raw = window.sessionStorage.getItem(cacheKey(input));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MercadoPagoGuideCharge;
-    return parsed?.ok ? parsed : null;
+    const lineDigits = String(parsed?.digitableLine || "").replace(/\D/g, "");
+    const barcodeDigits = String(parsed?.barcodeContent || "").replace(/\D/g, "");
+    const validLine = lineDigits.length === 47 || lineDigits.length === 48;
+    const validBarcode =
+      barcodeDigits.length >= 40 &&
+      barcodeDigits.length <= 48 &&
+      barcodeDigits.length % 2 === 0;
+    return parsed?.ok && validLine && validBarcode ? parsed : null;
   } catch {
     return null;
   }
