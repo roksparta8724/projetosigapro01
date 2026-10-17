@@ -195,16 +195,20 @@ export function InternalSectionNav({
   value,
   onChange,
   className,
+  preserveOrder = false,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  preserveOrder?: boolean;
 }) {
-  const orderedItems = [
-    ...items.filter((item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
-    ...items.filter((item) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
-  ];
+  const orderedItems = preserveOrder
+    ? items
+    : [
+        ...items.filter((item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
+        ...items.filter((item) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
+      ];
 
   return (
     <section
