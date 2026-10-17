@@ -21,6 +21,7 @@ interface FileDropZoneProps {
   accept?: string;
   multiple?: boolean;
   allowPreview?: boolean;
+  preparePreviewUrl?: boolean;
   busy?: boolean;
   disabled?: boolean;
   files: UploadedFileItem[];
@@ -49,6 +50,7 @@ export function FileDropZone({
   accept,
   multiple = true,
   allowPreview = false,
+  preparePreviewUrl = false,
   busy = false,
   disabled = false,
   files,
@@ -70,7 +72,7 @@ export function FileDropZone({
   );
 
   const createLocalPreview = (file: File) => {
-    if (!allowPreview || !canPreview(file.type || "")) return undefined;
+    if ((!allowPreview && !preparePreviewUrl) || !canPreview(file.type || "")) return undefined;
     const url = URL.createObjectURL(file);
     ownedPreviewUrlsRef.current.add(url);
     return url;
