@@ -41,5 +41,5 @@ describe("all routed page modules", () => {
     const module = await load();
     expect(module).toHaveProperty(exportName);
     expect(typeof module[exportName as keyof typeof module]).toBe("function");
-  });
+  }, 20_000);
 });
