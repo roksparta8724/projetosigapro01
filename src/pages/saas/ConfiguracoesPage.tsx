@@ -3135,15 +3135,13 @@ export function ConfiguracoesPage() {
 
             {(!isMasterRole || availableInstitutions.some((item) => item.id === selectedTenantId)) ? (
             <div className="grid gap-4">
-              <div data-config-brand-panel="header" className="sig-config-brand-panel rounded-[26px] border border-slate-200 bg-white p-5">
+              <div data-config-brand-panel="header" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700"><ImageIcon className="h-4 w-4" /></div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-950">Logo do cabeçalho</p>
-                    <p className="mt-0.5 text-xs text-slate-500">Marca exibida no topo institucional e nas áreas internas.</p>
-                  </div>
+                  <ImageIcon className="h-4 w-4" />
+                  <p className="text-sm text-slate-900">Logo do cabeçalho</p>
                 </div>
-                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(420px,0.98fr)_minmax(360px,1.02fr)]">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
+                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     data-institutional-header-preview="true"
                     className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_22px_48px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
@@ -3215,8 +3213,8 @@ export function ConfiguracoesPage() {
                   </div>
                   <div className="space-y-3">
                     <FileDropZone
-                      title="Arquivo do cabeçalho"
-                      description="PNG, JPG, WEBP ou SVG. O quadro ao lado usa a mesma proporção do cabeçalho real."
+                      title="Logo do cabeçalho"
+                      description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
@@ -3232,8 +3230,8 @@ export function ConfiguracoesPage() {
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
-                      label="Enquadramento"
-                      hint="Ajuste zoom e posição no mesmo enquadramento usado pelo cabeçalho real."
+                      label="Ajuste do logo do cabeçalho"
+                      hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
@@ -3247,7 +3245,7 @@ export function ConfiguracoesPage() {
                         Remover logo
                       </Button>
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("header")} disabled={logoSaving === "header"}>
-                        {logoSaving === "header" ? "Aplicando..." : "Aplicar no cabeçalho"}
+                        {logoSaving === "header" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                     </div>
                     {headerLogoStatus ? (
@@ -3265,15 +3263,13 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div data-config-brand-panel="footer" className="sig-config-brand-panel rounded-[26px] border border-slate-200 bg-white p-5">
+              <div data-config-brand-panel="footer" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-100 bg-violet-50 text-violet-700"><ImageIcon className="h-4 w-4" /></div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-950">Logo do rodapé</p>
-                    <p className="mt-0.5 text-xs text-slate-500">Pode ter enquadramento próprio sem alterar o cabeçalho.</p>
-                  </div>
+                  <ImageIcon className="h-4 w-4" />
+                  <p className="text-sm text-slate-900">Logo do rodapé</p>
                 </div>
-                <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(420px,0.98fr)_minmax(360px,1.02fr)]">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
+                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
                     data-institutional-footer-preview="true"
                     className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_20px_44px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
@@ -3342,8 +3338,8 @@ export function ConfiguracoesPage() {
                   </div>
                   <div className="space-y-3">
                     <FileDropZone
-                      title="Arquivo do rodapé"
-                      description="Use a mesma marca ou uma versão própria; o quadro respeita a proporção real do rodapé."
+                      title="Logo do rodapé"
+                      description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
                       allowPreview={false}
@@ -3359,8 +3355,8 @@ export function ConfiguracoesPage() {
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
-                      label="Enquadramento"
-                      hint="Ajuste zoom e posição no mesmo enquadramento usado pelo rodapé real."
+                      label="Ajuste do logo do rodapé"
+                      hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
                       fitMode="contain"
                       minScale={1}
                       maxScale={5}
@@ -3382,7 +3378,7 @@ export function ConfiguracoesPage() {
                         Remover logo
                       </Button>
                       <Button type="button" className="sig-force-dark-action rounded-2xl bg-slate-950 !text-white hover:bg-slate-900" onClick={() => handleConfirmLogo("footer")} disabled={logoSaving === "footer"}>
-                        {logoSaving === "footer" ? "Aplicando..." : "Aplicar no rodapé"}
+                        {logoSaving === "footer" ? "Aplicando..." : "Confirmar logo"}
                       </Button>
                     </div>
                     {footerLogoStatus ? (
