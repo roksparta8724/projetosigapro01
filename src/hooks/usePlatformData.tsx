@@ -818,6 +818,26 @@ function isAuthError(error: unknown) {
   return status === 401 || status === 403;
 }
 
+async function loadRemotePlatformStoreWithRetry(maxAttempts = 3) {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await loadRemotePlatformStoreWithRetry();
+    } catch (error) {
+      lastError = error;
+      if (isAuthError(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 450 * attempt));
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Banco oficial temporariamente indisponível.");
+}
+
 export function PlatformDataProvider({ children }: { children: React.ReactNode }) {
   const {
     authenticatedEmail,
@@ -922,7 +942,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setDataError(null);
       }
       try {
-        let remote = await loadRemotePlatformStore();
+        let remote = await loadRemotePlatformStoreWithRetry();
         let sanitized = buildSanitizedStore(remote, false);
 
         const legacyStore = initialStateRef.current?.legacyStore ?? null;
@@ -1020,7 +1040,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               window.localStorage.removeItem(LEGACY_RECONCILIATION_PENDING_KEY);
               window.localStorage.removeItem(STORAGE_KEY);
               initialStateRef.current.legacyStore = null;
-              remote = await loadRemotePlatformStore();
+              remote = await loadRemotePlatformStoreWithRetry();
               sanitized = buildSanitizedStore(remote, false);
             }
           } else {
@@ -1121,7 +1141,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      const remote = await loadRemotePlatformStore();
+      const remote = await loadRemotePlatformStoreWithRetry();
       let sanitized = buildSanitizedStore(remote, false);
       const cachedVisualProfile = readProfileVisualCache();
       if (cachedVisualProfile) {
