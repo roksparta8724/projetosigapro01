@@ -65,7 +65,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, canAccessMunicipalArea,
+import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
@@ -644,7 +644,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         label: process.protocol || process.title || "Processo sem título",
         description: process.title || "Processo administrativo",
         group: "Processos",
-        onSelect: () => navigate(`/processos/${process.id}`),
+        onSelect: () => navigate(buildProcessPath(process)),
       });
     });
 
@@ -1783,7 +1783,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                           <DropdownMenuItem
                             key={process.id}
                             className="sig-marker-recent group rounded-[18px] border px-3 py-3 text-[13px] text-slate-700"
-                            onClick={() => navigate(`/processos/${process.id}`)}
+                            onClick={() => navigate(buildProcessPath(process))}
                             title={marker.label || process.title}
                           >
                             <span className="sig-marker-item-icon mr-3 inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(marker.color ?? "#2563eb")}>
