@@ -23,7 +23,8 @@
   "git": {
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
-      "fix/analise-premium-cadastro-20261013": false
+      "fix/analise-premium-cadastro-20261013": false,
+      "hotfix/production-login-rpc-no-deploy-20261017": false
     }
   }
 }
