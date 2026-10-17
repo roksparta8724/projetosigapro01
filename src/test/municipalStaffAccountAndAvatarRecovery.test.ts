@@ -44,6 +44,14 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(avatar).not.toContain("sig-user-avatar-icon");
   });
 
+  it("does not duplicate Director between profile and cargo labels", () => {
+    expect(admin).toContain("sameMunicipalLabel");
+    expect(admin).toContain("roleSuggestedTitles[role]");
+    const permit = read("src/lib/constructionPermit.ts");
+    expect(permit).toContain("resolveAuthorityRoleLabel");
+    expect(permit).toContain('resolveAuthorityRoleLabel(user, "Diretor")');
+  });
+
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
     expect(backend).toContain("getLegacyProfileAvatarOpenUrl");
     expect(r2Client).toContain("/api/profile-avatar-open?source=");
