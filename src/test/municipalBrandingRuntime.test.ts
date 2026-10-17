@@ -91,7 +91,9 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("data-logo-variant={variant}");
     expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
     expect(surface).toContain("object-fit:contain !important");
-    expect(surface).toContain("transform:none !important");
+    expect(surface).toContain("transform-origin:center center !important");
+    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
+    expect(settings).toContain("minScale={1}");
   });
 
   it("edits exactly the runtime-resolved municipal logo in the frame editor", () => {
