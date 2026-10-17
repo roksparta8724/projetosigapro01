@@ -89,7 +89,8 @@ describe("official construction permit workflow", () => {
     expect(panel).toContain('data-director-signature-qr="true"');
     expect(panel).toContain("QR Code da assinatura eletrônica da Diretoria");
     expect(panel).toContain("permit.directorSignature.evidenceHash");
-    expect(permitPdf).toContain('pdf.text("QR DA ASSINATURA ELETRÔNICA"');
+    expect(permitPdf).toContain('pdf.text("QR DA ASSINATURA"');
+    expect(permitPdf).toContain('pdf.text("ELETRÔNICA"');
     expect(permitPdf).toContain("verificationQrDataUrl");
     expect(permitPdf).toContain("createQrCodeDataUrl(publicVerificationUrl)");
   });
