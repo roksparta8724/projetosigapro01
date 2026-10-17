@@ -1317,7 +1317,7 @@ export function ProtocolDeskPage() {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <Button asChild variant="outline" className="rounded-full">
-                                <Link to={`/processos/${process.id}?aba=documentos`}>Revisar triagem</Link>
+                                <Link to={buildProcessPath(process, "documentos")}>Revisar triagem</Link>
                               </Button>
                               {process.triage.status === "concluido" ? (
                                 <Button
@@ -1332,7 +1332,7 @@ export function ProtocolDeskPage() {
                                 </Button>
                               ) : (
                                 <Button asChild variant="outline" className="rounded-full">
-                                  <Link to={`/processos/${process.id}?aba=documentos`}>Concluir triagem primeiro</Link>
+                                  <Link to={buildProcessPath(process, "documentos")}>Concluir triagem primeiro</Link>
                                 </Button>
                               )}
                             </div>
