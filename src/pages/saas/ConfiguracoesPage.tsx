@@ -3067,7 +3067,7 @@ export function ConfiguracoesPage() {
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     data-institutional-header-preview="true"
-                    className="relative self-start overflow-hidden rounded-[30px] border border-white/15 p-4 shadow-[0_24px_52px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
+                    className="relative self-start overflow-hidden rounded-[30px] border border-white/[0.15] p-4 shadow-[0_24px_52px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.13),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_48%)]" />
@@ -3118,11 +3118,11 @@ export function ConfiguracoesPage() {
                           </p>
                           <p
                             id="cadastro-preview-secretaria"
-                            className="mt-3 max-w-[38ch] text-[13px] font-medium leading-5 text-white/82"
+                            className="mt-3 max-w-[38ch] text-[13px] font-medium leading-5 text-white/[0.82]"
                           >
                             {settingsForm.secretariaResponsavel || "Secretaria responsável"}
                           </p>
-                          <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/14 bg-white/10 px-4 py-2 text-[12px] font-semibold leading-5 text-white shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
+                          <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.14] bg-white/10 px-4 py-2 text-[12px] font-semibold leading-5 text-white shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
                             <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_0_3px_rgba(110,231,183,0.12)]" />
                             <span id="cadastro-preview-usuario" className="truncate">
                               {session.name} · {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
@@ -3200,17 +3200,17 @@ export function ConfiguracoesPage() {
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
                     data-institutional-footer-preview="true"
-                    className="relative self-start overflow-hidden rounded-[28px] border border-white/15 p-4 shadow-[0_18px_40px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
+                    className="relative self-start overflow-hidden rounded-[28px] border border-white/[0.15] p-4 shadow-[0_18px_40px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${darken(tenantForm.primaryColor, 2)} 0%, ${tenantForm.primaryColor} 48%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}
                   >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.10),transparent_42%)]" />
                     <div className="relative">
                       <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/65">Prévia institucional</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/[0.65]">Prévia institucional</p>
                           <p className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
                         </div>
-                        <span className="rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
+                        <span className="rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
                           Rodapé
                         </span>
                       </div>
@@ -3497,7 +3497,7 @@ export function ConfiguracoesPage() {
                           <p className="mt-3 max-w-[30ch] break-words text-sm font-normal leading-6 md:text-sm" style={{ color: masterAccentColor }}>
                             Plataforma institucional
                           </p>
-                          <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
+                          <div className="mt-4 inline-flex max-w-full rounded-full border border-white/[0.12] bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
                             <span className="sig-dark-preview-copy truncate">Ambiente Master</span>
                           </div>
                         </div>
