@@ -33,7 +33,13 @@ import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
-  buildProcessPath, getChecklistTemplate, isOccupancyPermitProcessType, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
+  buildProcessPath,
+  getChecklistTemplate,
+  isOccupancyPermitProcessType,
+  matchesOperationalScope,
+  processTypeCatalog,
+  workTypeCatalog,
+} from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
