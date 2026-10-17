@@ -43,7 +43,9 @@
   "git": {
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
-      "fix/analise-premium-cadastro-20261013": false
+      "fix/analise-premium-cadastro-20261013": false,
+      "workbench/logo-preview-premium-no-deploy-20261016": false,
+      "hotfix/vercel-hobby-sync-20261017": false
     }
   }
 }
