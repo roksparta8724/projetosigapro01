@@ -46,7 +46,7 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   getMasterInstitutionBranding,
@@ -61,19 +61,31 @@ import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { can, desktopThemePresets, mobileThemePresets, type TenantSettings } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
-  return url
-    ? [
-        {
-          id: `${label}-${encodeURIComponent(url)}`,
-          fileName: label,
-          mimeType: "image/*",
-          sizeLabel: "imagem salva",
-          previewUrl: url,
-          persistentRef: url,
-          storagePath: getObjectKeyFromPublicUrl(url) || "remote",
-        },
-      ]
-    : [];
+  const persistentRef = String(url || "").trim();
+  if (!persistentRef) return [];
+
+  const r2ObjectKey = persistentRef.startsWith("r2:")
+    ? persistentRef.slice(3).trim().replace(/^\/+/, "")
+    : "";
+  const storagePath =
+    r2ObjectKey ||
+    getObjectKeyFromPublicUrl(persistentRef) ||
+    "remote";
+  const previewUrl = r2ObjectKey
+    ? getMunicipalityLogoOpenUrl(r2ObjectKey)
+    : persistentRef;
+
+  return [
+    {
+      id: `${label}-${encodeURIComponent(persistentRef)}`,
+      fileName: label,
+      mimeType: "image/*",
+      sizeLabel: "imagem salva",
+      previewUrl,
+      persistentRef,
+      storagePath,
+    },
+  ];
 }
 
 function resolveBrandingErrorMessage(error: unknown, fallback: string) {
@@ -2477,7 +2489,12 @@ export function ConfiguracoesPage() {
       const nextSettings: TenantSettings = {
         ...baseSettings,
         tenantId: savedTenantId,
-        brasaoUrl: nextBrasaoFiles[0]?.persistentRef ?? nextBrasaoFiles[0]?.previewUrl ?? "",
+        brasaoUrl:
+          nextBrasaoFiles[0]?.persistentRef ??
+          (nextBrasaoFiles[0]?.storagePath && nextBrasaoFiles[0].storagePath !== "remote"
+            ? `r2:${nextBrasaoFiles[0].storagePath}`
+            : nextBrasaoFiles[0]?.previewUrl) ??
+          "",
         bandeiraUrl: nextBandeiraFiles[0]?.persistentRef ?? nextBandeiraFiles[0]?.previewUrl ?? "",
         imagemHeroUrl: nextHeroFiles[0]?.persistentRef ?? nextHeroFiles[0]?.previewUrl ?? "",
         planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
