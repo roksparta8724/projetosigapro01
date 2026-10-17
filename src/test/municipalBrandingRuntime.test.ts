@@ -83,7 +83,8 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("cachedMatchesCurrentAsset");
     expect(logo).toContain("loadedSourceAllowed");
     expect(portal).toContain('contextScope={isMasterUser ? "master" : "municipality"}');
-    expect(settings).toContain('contextScope="municipality"');
+    expect(logo).toContain("setFailedSources([])");
+    expect(logo).toContain("[context, requestedUrl, secondaryUrl]");
   });
 
   it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
@@ -96,11 +97,15 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("minScale={1}");
   });
 
-  it("edits exactly the runtime-resolved municipal logo in the frame editor", () => {
-    expect(settings).toContain("draftHeaderLogoFiles[0]?.previewUrl ??");
-    expect(settings).toContain("headerBranding.logoUrl ??");
-    expect(settings).toContain("draftFooterLogoFiles[0]?.previewUrl ??");
-    expect(settings).toContain("footerBranding.logoUrl ??");
+  it("uses one exact source for the live preview and the frame editor", () => {
+    expect(settings).toContain("const previewHeaderLogoUrl =");
+    expect(settings).toContain("const previewFooterLogoUrl =");
+    expect(settings).toContain('data-municipal-logo-live-preview="header"');
+    expect(settings).toContain('data-municipal-logo-live-preview="footer"');
+    expect(settings).toContain("imageUrl={previewHeaderLogoUrl}");
+    expect(settings).toContain("imageUrl={previewFooterLogoUrl}");
+    expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
+    expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {
