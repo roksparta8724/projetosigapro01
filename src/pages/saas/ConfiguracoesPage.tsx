@@ -2721,7 +2721,14 @@ export function ConfiguracoesPage() {
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? settings?.logoUrl ?? "",
+        logoUrl:
+          logoRemovalRequested === "header"
+            ? ""
+            : draftHeaderLogoFiles[0]?.previewUrl ??
+              headerBranding.logoUrl ??
+              settings?.headerLogoUrl ??
+              settings?.logoUrl ??
+              "",
         logoScale: draftHeaderLogoConfig.scale,
         logoOffsetX: draftHeaderLogoConfig.offsetX,
         logoOffsetY: draftHeaderLogoConfig.offsetY,
@@ -2739,7 +2746,14 @@ export function ConfiguracoesPage() {
     updateInstitutionBranding(
       previewSettingsBase,
       {
-        logoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? settings?.logoUrl ?? "",
+        logoUrl:
+          logoRemovalRequested === "footer"
+            ? ""
+            : draftFooterLogoFiles[0]?.previewUrl ??
+              footerBranding.logoUrl ??
+              settings?.footerLogoUrl ??
+              settings?.logoUrl ??
+              "",
         logoScale: draftFooterLogoConfig.scale,
         logoOffsetX: draftFooterLogoConfig.offsetX,
         logoOffsetY: draftFooterLogoConfig.offsetY,
@@ -3167,24 +3181,25 @@ export function ConfiguracoesPage() {
               <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do cabecalho</p>
+                  <p className="text-sm text-slate-900">Logo do cabeçalho</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     data-institutional-header-preview="true"
-                    className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                    className="relative overflow-hidden rounded-[30px] border border-white/15 p-6 shadow-[0_24px_52px_rgba(15,42,68,0.18)] ring-1 ring-black/5"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
                     <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
                       <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]">Visual institucional</p>
-                      <p id="cadastro-preview-cabecalho" className="mt-2 text-sm leading-6 md:text-[15px]">Cabecalho institucional</p>
+                      <p id="cadastro-preview-cabecalho" className="mt-2 text-sm leading-6 md:text-[15px]">Cabeçalho institucional</p>
                     </div>
                     <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
                       <InstitutionalLogo
                         branding={previewHeaderBranding}
                         fallbackLabel={tenantForm.name || "Prefeitura"}
                         variant="header"
+                        contextScope="municipality"
                         className="mx-auto shrink-0 lg:mx-0"
                       />
                       <div className="min-w-0 flex-1 text-white">
@@ -3236,8 +3251,8 @@ export function ConfiguracoesPage() {
                       minScale={0.35}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-start"
-                      viewportClassName="h-[170px] w-[220px]"
+                      frameClassName="justify-center xl:justify-start"
+                      viewportClassName="h-[176px] w-[232px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
@@ -3273,16 +3288,21 @@ export function ConfiguracoesPage() {
               <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do rodape</p>
+                  <p className="text-sm text-slate-900">Logo do rodapé</p>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento proprio para o rodape sem afetar o cabecalho.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
-                    className="rounded-[28px] p-5 shadow-sm"
+                    className="relative overflow-hidden rounded-[28px] border border-white/15 p-5 shadow-[0_18px_40px_rgba(15,42,68,0.16)] ring-1 ring-black/5"
                     style={{ background: `linear-gradient(135deg, ${darken(tenantForm.primaryColor, 2)} 0%, ${tenantForm.primaryColor} 48%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}
                   >
                     <div className="flex items-center justify-center py-3">
-                      <InstitutionalLogo branding={previewFooterBranding} fallbackLabel={tenantForm.name || "Prefeitura"} variant="footer" />
+                      <InstitutionalLogo
+                        branding={previewFooterBranding}
+                        fallbackLabel={tenantForm.name || "Prefeitura"}
+                        variant="footer"
+                        contextScope="municipality"
+                      />
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -3316,8 +3336,8 @@ export function ConfiguracoesPage() {
                       minScale={0.35}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-start"
-                      viewportClassName="h-[170px] w-[220px]"
+                      frameClassName="justify-center xl:justify-start"
+                      viewportClassName="h-[176px] w-[232px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
