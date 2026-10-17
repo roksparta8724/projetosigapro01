@@ -194,6 +194,8 @@ type MercadoPagoTestBoleto = {
   digitableLine?: string;
   financialInstitution?: string;
   error?: string;
+  errorCode?: string;
+  errorDetails?: string[];
 };
 
 export function ConfiguracoesPage() {
@@ -4304,7 +4306,7 @@ export function ConfiguracoesPage() {
                         <div>
                           <p className="text-sm font-semibold text-slate-950">Teste de boleto Mercado Pago</p>
                           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">
-                            Cria uma cobrança de teste de R$ 1,00 no ambiente sandbox. Não movimenta dinheiro real e serve para validar order, linha digitável e código de barras retornados pelo Mercado Pago.
+                            Cria uma cobrança de teste de R$ 50,00 no ambiente sandbox. Não movimenta dinheiro real e serve para validar order, linha digitável e código de barras retornados pelo Mercado Pago.
                           </p>
                         </div>
                         <Button
@@ -4314,7 +4316,7 @@ export function ConfiguracoesPage() {
                           onClick={() => void createMercadoPagoTestBoleto()}
                         >
                           <ReceiptText className="mr-2 h-4 w-4" />
-                          {mercadoPagoCreatingBoleto ? "Gerando..." : "Gerar boleto teste R$ 1,00"}
+                          {mercadoPagoCreatingBoleto ? "Gerando..." : "Gerar boleto teste R$ 50,00"}
                         </Button>
                       </div>
 
@@ -4368,9 +4370,30 @@ export function ConfiguracoesPage() {
                               ) : null}
                             </>
                           ) : (
-                            <p className="text-sm font-medium text-rose-800">
-                              {mercadoPagoTestBoleto.error || "Não foi possível criar o boleto teste."}
-                            </p>
+                            <div className="space-y-2">
+                              <p className="text-sm font-semibold text-rose-800">
+                                {mercadoPagoTestBoleto.error || "Não foi possível criar o boleto teste."}
+                              </p>
+                              {mercadoPagoTestBoleto.errorCode ? (
+                                <p className="text-xs font-mono text-rose-700">
+                                  Código: {mercadoPagoTestBoleto.errorCode}
+                                </p>
+                              ) : null}
+                              {mercadoPagoTestBoleto.errorDetails?.length ? (
+                                <div className="rounded-xl border border-rose-200 bg-white/80 p-3">
+                                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-rose-700">
+                                    Detalhes retornados pela API
+                                  </p>
+                                  <div className="mt-2 space-y-1.5">
+                                    {mercadoPagoTestBoleto.errorDetails.map((detail, index) => (
+                                      <p key={index} className="break-words font-mono text-[11px] leading-5 text-rose-800">
+                                        {detail}
+                                      </p>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
                           )}
                         </div>
                       ) : null}
