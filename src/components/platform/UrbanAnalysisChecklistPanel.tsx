@@ -917,7 +917,10 @@ export function UrbanAnalysisChecklistPanel({
     if (!official || !signature) return null;
 
     return (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_10px_28px_rgba(5,150,105,0.10)] dark:border-emerald-500/30 dark:bg-slate-950">
+      <div
+        data-premium-signature-evidence="true"
+        className="sig-electronic-signature-evidence mt-4 overflow-hidden rounded-[22px] border border-emerald-200 bg-white shadow-[0_14px_34px_rgba(5,150,105,0.10)] dark:border-emerald-500/30 dark:bg-slate-950"
+      >
         <div className="flex items-center gap-3 border-b border-emerald-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffc_100%)] px-4 py-3 dark:border-emerald-500/20 dark:bg-none dark:bg-emerald-950/25">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_8px_18px_rgba(5,150,105,0.25)]">
             <ShieldCheck className="h-5 w-5" />
@@ -950,7 +953,8 @@ export function UrbanAnalysisChecklistPanel({
           {signature.verificationCode ? (
             <div
               data-analysis-signature-qr="true"
-              className="row-span-3 flex shrink-0 flex-col items-center self-start rounded-xl border border-emerald-200 bg-white p-2 shadow-sm dark:border-emerald-500/30"
+              data-premium-qr="true"
+              className="sig-premium-qr row-span-3 flex shrink-0 flex-col items-center self-start rounded-[16px] border border-sky-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)]"
             >
               <QRCodeSVG
                 value={buildPublicSignatureVerificationUrl(signature.verificationCode)}
