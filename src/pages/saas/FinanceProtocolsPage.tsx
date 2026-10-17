@@ -793,9 +793,9 @@ export function FinanceProtocolsPage() {
                                           </p>
                                           <p
                                             className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-[10px] leading-5 text-slate-600 dark:text-slate-300"
-                                            title={pixPayload}
+                                            title={pixPayload || "PIX não configurado"}
                                           >
-                                            {pixPayload}
+                                            {pixPayload || "PIX não configurado para esta Prefeitura"}
                                           </p>
                                         </div>
                                         <Button
@@ -804,13 +804,14 @@ export function FinanceProtocolsPage() {
                                           size="sm"
                                           className="h-full min-h-10 rounded-xl"
                                           onClick={() => copyPixPayload(pixPayload)}
+                                          disabled={!pixPayload}
                                         >
                                           <Copy className="h-4 w-4" />
                                           <span className="sr-only">Copiar PIX</span>
                                         </Button>
                                       </div>
 
-                                      {copiedPayload === pixPayload ? (
+                                      {pixPayload && copiedPayload === pixPayload ? (
                                         <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                                           Código copiado.
                                         </p>
