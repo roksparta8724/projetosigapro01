@@ -26,6 +26,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
@@ -328,6 +329,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
   const {
     departments: organizationDepartments,
     status: organizationStatus,
@@ -653,6 +655,12 @@ export function ProcessDetailPage() {
   const processInstitutionId = process.municipalityId ?? process.tenantId;
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
+  const guideLogoUrl =
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    tenantSettings?.logoUrl ||
+    tenantSettings?.brasaoUrl ||
+    "";
   const isHabiteSeProcess = isOccupancyPermitProcessType(process.type);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const isExternalProcessViewer = isExternalSession;
@@ -1270,13 +1278,18 @@ export function ProcessDetailPage() {
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
 
+    const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
+    const issuedByLooksLikeId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawIssuedBy);
+    const issuedByDisplay = issuedByLooksLikeId || !rawIssuedBy ? session.name : rawIssuedBy;
+
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+        logoUrl: guideLogoUrl,
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
@@ -1291,7 +1304,7 @@ export function ProcessDetailPage() {
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
-        funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+        funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
@@ -1300,8 +1313,8 @@ export function ProcessDetailPage() {
             : undefined,
         funcionarioEmissor:
           selectedGuide.kind === "iss_obra"
-            ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
-            : selectedGuide.issuedBy,
+            ? constructionGuideIssuer || issuedByDisplay
+            : issuedByDisplay,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
