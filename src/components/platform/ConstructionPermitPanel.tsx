@@ -320,6 +320,11 @@ export function ConstructionPermitPanel({
     permit?.secretarySignature?.official &&
     permit?.secretarySignature?.verificationCode,
   );
+  const secretaryVerificationUrl = secretaryOfficial
+    ? buildPublicSignatureVerificationUrl(
+        permit?.secretarySignature?.verificationCode,
+      )
+    : "";
   const directorRequestPending =
     permit?.status === "aguardando_diretor" &&
     permit?.signatureMode === "electronic";
@@ -1194,9 +1199,53 @@ export function ConstructionPermitPanel({
                             ).toLocaleString("pt-BR")}
                           </p>
                           {permit.secretarySignature?.verificationCode ? (
-                            <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                              Código: {permit.secretarySignature?.verificationCode}
-                            </p>
+                            <div
+                              data-premium-signature-evidence="true"
+                              className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)]"
+                            >
+                              {secretaryVerificationUrl ? (
+                                <div
+                                  data-premium-qr="true"
+                                  className="sig-premium-qr flex shrink-0 flex-col items-center rounded-[16px] border border-sky-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)]"
+                                >
+                                  <QRCodeSVG
+                                    value={secretaryVerificationUrl}
+                                    size={92}
+                                    level="Q"
+                                    includeMargin
+                                    bgColor="#ffffff"
+                                    fgColor="#0B4F71"
+                                    aria-label="QR Code da assinatura eletrônica da Secretaria"
+                                  />
+                                  <span className="mt-1.5 rounded-full bg-sky-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.09em] text-sky-800">
+                                    Verificar assinatura
+                                  </span>
+                                </div>
+                              ) : null}
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
+                                  Assinatura eletrônica verificada
+                                </p>
+                                <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                  Código: {permit.secretarySignature.verificationCode}
+                                </p>
+                                {permit.secretarySignature.evidenceHash ? (
+                                  <p className="mt-1 break-all font-mono text-[9px] leading-4 text-slate-500 dark:text-slate-400">
+                                    SHA-256: {permit.secretarySignature.evidenceHash}
+                                  </p>
+                                ) : null}
+                                {secretaryVerificationUrl ? (
+                                  <a
+                                    href={secretaryVerificationUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                                  >
+                                    Abrir verificação pública
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
                           ) : null}
                         </div>
                       </div>
