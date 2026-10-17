@@ -37,12 +37,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(migration).toContain("Este cadastro e exclusivo para servidores internos");
   });
 
-  it("shows the saved photo with crop and leaves the frame empty when there is no photo", () => {
+  it("shows the saved photo with crop and the user's initials until a photo exists", () => {
     expect(admin).toContain("profile.avatarScale ?? 1");
     expect(admin).toContain("profile.avatarOffsetX ?? 0");
     expect(admin).toContain("profile.avatarOffsetY ?? 0");
     expect(avatar).toContain("sig-user-avatar-fallback");
-    expect(avatar).not.toContain("sig-user-avatar-initials");
+    expect(avatar).toContain("function userInitials");
+    expect(avatar).toContain("{initials}");
     expect(avatar).not.toContain("sig-user-avatar-icon");
   });
 
