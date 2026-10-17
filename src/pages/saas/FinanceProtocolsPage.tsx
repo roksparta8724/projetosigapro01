@@ -387,7 +387,7 @@ export function FinanceProtocolsPage() {
           linhaDigitavel: digitableLine,
           codigoBarras: barcode,
           qrCodePixUrl: "",
-          pixPayload: providerCharge?.environment === "test" ? "" : banking.pixPayload,
+          pixPayload: banking.pixPayload,
           bankName: providerName,
           bankEnvironment: providerCharge?.environment,
           bankAgreement: banking.bankAgreement,
@@ -397,6 +397,7 @@ export function FinanceProtocolsPage() {
           bankStatus: providerCharge?.status || match?.guide?.bankStatus,
           bankStatusDetail: providerCharge?.statusDetail || match?.guide?.bankStatusDetail,
           bankAuthenticatedAt:
+            providerCharge?.authenticatedAt ||
             match?.guide?.bankAuthenticatedAt ||
             (match?.guide?.status === "compensada" ? match?.guide?.paidAt : undefined),
           paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
