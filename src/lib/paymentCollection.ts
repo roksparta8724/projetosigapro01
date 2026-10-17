@@ -160,6 +160,7 @@ export function resolveGuideBankingData(input: {
     digitableLine: normalizeDigitableLine(input.guide.digitableLine),
     bankName: input.settings?.bankName?.trim() || "",
     bankAgreement: input.settings?.bankAgreementCode?.trim() || "",
+    bankInstructions: input.settings?.bankInstructions?.trim() || "",
     collectionMode: input.settings?.bankCollectionMode ?? "manual",
   };
 }
