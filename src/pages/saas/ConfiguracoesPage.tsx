@@ -3086,7 +3086,6 @@ export function ConfiguracoesPage() {
                     <p className="text-sm font-bold text-slate-950">Logo do cabeçalho</p>
                     <p className="mt-0.5 text-xs text-slate-500">Marca exibida no topo institucional e nas áreas internas.</p>
                   </div>
-                  </div>
                 </div>
                 <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
                   <div
@@ -3227,7 +3226,7 @@ export function ConfiguracoesPage() {
                 <div className="mt-5 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
                   <div
                     data-institutional-footer-preview="true"
-                    className="relative self-start overflow-hidden rounded-[28px] border border-white/[0.15] p-4 shadow-[0_18px_40px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
+                    className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_20px_44px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${darken(tenantForm.primaryColor, 2)} 0%, ${tenantForm.primaryColor} 48%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}
                   >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.10),transparent_42%)]" />
