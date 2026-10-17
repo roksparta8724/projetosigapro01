@@ -245,6 +245,7 @@ export function ProcessDetailPage() {
   const { processId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const requestedGuideCode = new URLSearchParams(location.search).get("guia")?.trim() || "";
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const documentMarkers = useDocumentMarkerAssignments();
@@ -850,7 +851,6 @@ export function ProcessDetailPage() {
   const visiblePaymentGuides = isExternalProcessViewer
     ? getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
     : paymentGuides;
-  const requestedGuideCode = new URLSearchParams(location.search).get("guia")?.trim() || "";
   const requestedPaymentGuide = requestedGuideCode
     ? paymentGuides.find((guide) => guide.code === requestedGuideCode) ?? null
     : null;
