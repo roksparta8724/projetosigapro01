@@ -52,6 +52,10 @@
       "destination": "/api/r2?action=master-logo-source"
     },
     {
+      "source": "/api/profile-avatar-open",
+      "destination": "/api/r2?action=profile-avatar-open"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
