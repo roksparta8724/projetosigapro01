@@ -21,8 +21,9 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
   canAccessProcess,
+  buildProcessPath,
   formatOfficialProcessNumber,
-  getProcessById,
+  resolveProcessRoute,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -64,7 +65,7 @@ export function DocumentViewerPage() {
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
   const process = useMemo(
-    () => (processId ? getProcessById(processId, processes) : undefined),
+    () => resolveProcessRoute(processes, processId),
     [processId, processes],
   );
   const effectiveScopeId =
@@ -118,13 +119,13 @@ export function DocumentViewerPage() {
     if (!process || !document || !canAnalyzeDocument) return;
     const query = tool ? `?ferramenta=${tool}` : "";
     navigate(
-      `/processos/${process.id}/documentos/${document.id}/analisar${query}`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}`,
       {
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
           returnTo:
             routeState.returnTo ||
-            `/processos/${process.id}?aba=documentos`,
+            buildProcessPath(process, "documentos"),
         },
       },
     );
@@ -135,14 +136,14 @@ export function DocumentViewerPage() {
   useEffect(() => {
     if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
     navigate(
-      `/processos/${process.id}/documentos/${document.id}/analisar?ferramenta=highlight`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`,
       {
         replace: true,
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
           returnTo:
             routeState.returnTo ||
-            `/processos/${process.id}?aba=documentos`,
+            buildProcessPath(process, "documentos"),
         },
       },
     );
