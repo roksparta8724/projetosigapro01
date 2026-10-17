@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  buildProcessPath,
   defaultApprovalRateProfiles,
   defaultIssRateProfiles,
   formatCurrency,
@@ -569,7 +570,7 @@ export function FinanceDeskPage() {
                             </p>
                           </div>
                           <Button asChild variant="outline" className="shrink-0 rounded-full">
-                            <Link to={`/processos/${process.id}?aba=financeiro`}>Abrir processo</Link>
+                            <Link to={buildProcessPath(process, "financeiro")}>Abrir processo</Link>
                           </Button>
                         </div>
                       ))
@@ -682,7 +683,7 @@ export function FinanceDeskPage() {
 
                             <div className="flex shrink-0 flex-wrap gap-2">
                               <Button asChild variant="outline" className="rounded-full">
-                                <Link to={`/processos/${process.id}`}>Conferir processo</Link>
+                                <Link to={buildProcessPath(process)}>Conferir processo</Link>
                               </Button>
                               <Button
                                 type="button"
@@ -728,7 +729,7 @@ export function FinanceDeskPage() {
                       return (
                         <Link
                           key={`${process.id}-${guide.kind}-${guide.code}`}
-                          to={`/processos/${process.id}?aba=financeiro`}
+                          to={buildProcessPath(process, "financeiro")}
                           className="group grid min-h-[58px] grid-cols-[34px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
                         >
                           <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950">
@@ -854,7 +855,7 @@ export function FinanceDeskPage() {
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
-                                <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
+                                <Link to={buildProcessPath(process)} className="font-medium text-slate-700">
                                   Conferir
                                 </Link>
                               </div>
