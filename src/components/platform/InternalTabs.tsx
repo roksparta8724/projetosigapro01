@@ -9,8 +9,6 @@ export function InternalTabs({
   className,
   urlParam = "secao",
   persistInUrl = true,
-  preserveOrder = false,
-  preferOperationalDefault = true,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -18,8 +16,6 @@ export function InternalTabs({
   className?: string;
   urlParam?: string;
   persistInUrl?: boolean;
-  preserveOrder?: boolean;
-  preferOperationalDefault?: boolean;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,7 +30,7 @@ export function InternalTabs({
       return;
     }
 
-    if (!requested && preferOperationalDefault) {
+    if (!requested) {
       const currentItem = items.find((item) => item.value === value);
       const currentIsSummary =
         currentItem && /^(resumo|vis[aã]o geral)$/i.test(currentItem.label.trim());
@@ -48,7 +44,7 @@ export function InternalTabs({
         }
       }
     }
-  }, [items, location.search, onChange, persistInUrl, preferOperationalDefault, urlParam, value]);
+  }, [items, location.search, onChange, persistInUrl, urlParam, value]);
 
   const handleChange = (next: string) => {
     if (persistInUrl) {
@@ -66,5 +62,5 @@ export function InternalTabs({
     onChange(next);
   };
 
-  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} preserveOrder={preserveOrder} />;
+  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} />;
 }
