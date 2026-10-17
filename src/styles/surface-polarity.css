@@ -2345,4 +2345,57 @@ html body #root [data-layout-mode="inverse-main"] .sig-config-page
 :is(.sig-subtitle,.sig-fit-copy,p:not(.sig-nav-item-label):not(.sig-nav-item-helper)) {
   text-shadow:none;
 }
+
+html body #root .sig-config-page .sig-section-card {
+  border-radius:26px !important;
+  border-color:rgba(190,205,220,.82) !important;
+  box-shadow:
+    0 15px 36px rgba(15,23,42,.055),
+    inset 0 1px 0 rgba(255,255,255,.96) !important;
+}
+
+html body #root .sig-config-page .sig-main-grid {
+  gap:16px !important;
+}
+
+html body #root .sig-config-page .sig-config-support-panel {
+  border-color:rgba(199,210,221,.92) !important;
+  background:linear-gradient(180deg,#ffffff 0%,#f9fbfd 100%) !important;
+  box-shadow:
+    0 13px 30px rgba(15,23,42,.05),
+    inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+
+html body #root .sig-config-page [data-config-legal-panel="true"] {
+  border-color:rgba(186,216,242,.96) !important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(14,165,233,.055),transparent 30%),
+    linear-gradient(180deg,#ffffff 0%,#f5faff 100%) !important;
+}
+
+html body #root .sig-config-page label {
+  font-weight:700 !important;
+  letter-spacing:-.005em;
+  color:#334155;
+}
+
+html body #root .sig-config-page button:not(.sig-nav-item):focus-visible,
+html body #root .sig-config-page input:focus-visible,
+html body #root .sig-config-page textarea:focus-visible {
+  outline:0 !important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.14) !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-section-card,
+html body #root [data-layout-mode="inverse-main"] .sig-config-page .sig-config-support-panel {
+  background:linear-gradient(180deg,#13283d 0%,#0f2133 100%) !important;
+  border-color:#36536d !important;
+  color:#f8fbff !important;
+  box-shadow:0 14px 34px rgba(2,6,23,.18) !important;
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-config-page label {
+  color:#e7f0f8 !important;
+  -webkit-text-fill-color:#e7f0f8 !important;
+}
 /* CONFIGURACOES MUNICIPAIS PREMIUM V19 END */
