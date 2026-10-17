@@ -91,9 +91,29 @@ function sumValues(items: TaxaItem[], field: keyof TaxaItem) {
 }
 
 function formatDigitableLine(value?: string) {
-  const raw = (value || "").replace(/\s+/g, "");
-  if (!raw) return "Sem linha digitável oficial — consulte a Prefeitura.";
-  return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
+  const digits = (value || "").replace(/\D/g, "");
+  if (!digits) return "Sem linha digitável oficial — consulte a Prefeitura.";
+
+  if (digits.length === 47) {
+    return [
+      `${digits.slice(0, 5)}.${digits.slice(5, 10)}`,
+      `${digits.slice(10, 15)}.${digits.slice(15, 21)}`,
+      `${digits.slice(21, 26)}.${digits.slice(26, 32)}`,
+      digits.slice(32, 33),
+      digits.slice(33),
+    ].join(" ");
+  }
+
+  if (digits.length === 48) {
+    return [
+      digits.slice(0, 12),
+      digits.slice(12, 24),
+      digits.slice(24, 36),
+      digits.slice(36, 48),
+    ].join(" ");
+  }
+
+  return "Linha digitável inválida — solicite uma cobrança oficial ao banco.";
 }
 
 const I25_PATTERNS: Record<string, string> = {
