@@ -23,6 +23,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -449,6 +450,7 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
@@ -1154,7 +1156,7 @@ export function ProcessDetailPage() {
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
-  const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
+  const printGuide = async (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
     const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
@@ -1216,14 +1218,54 @@ export function ProcessDetailPage() {
               total: selectedGuide.amount,
             },
           ];
-    // PIX pode ser gerado localmente com BR Code válido. Código de barras e
-    // linha digitável só entram quando vierem do convênio/API bancária oficial.
+    // PIX pode ser gerado localmente com BR Code válido. Para boleto,
+    // o Mercado Pago cria somente a cobrança técnica; a linha digitável e o
+    // código de barras retornados são incorporados à própria DAM do SIGAPRO.
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
       guide: selectedGuide,
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
+
+    const billingKey = `${selectedGuide.code}:mercadopago`;
+    let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
+
+    if (
+      selectedGuide.status === "pendente" &&
+      !banking.barcode &&
+      !banking.digitableLine
+    ) {
+      setGuideBillingBusyKey(billingKey);
+      setProcessActionStatus("Gerando cobrança Mercado Pago para esta guia...");
+      try {
+        providerCharge = await ensureMercadoPagoGuideCharge({
+          guideCode: selectedGuide.code,
+          amount: selectedGuide.amount,
+          dueDate: selectedGuide.dueDate,
+          description: `${selectedGuide.label} · ${process.protocol}`,
+        });
+        setProcessActionStatus(
+          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras incorporados à DAM.",
+        );
+      } catch (error) {
+        setProcessActionStatus(
+          error instanceof Error
+            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança Mercado Pago desta guia.",
+        );
+      } finally {
+        setGuideBillingBusyKey("");
+      }
+    }
+
+    const digitableLine =
+      providerCharge?.digitableLine || banking.digitableLine;
+    const barcode =
+      providerCharge?.barcodeContent || banking.barcode;
+    const providerName =
+      providerCharge?.financialInstitution || banking.bankName || "Mercado Pago";
+
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
@@ -1261,11 +1303,11 @@ export function ProcessDetailPage() {
         padraoConstrutivo: selectedGuide.kind === "iss_obra"
           ? process.property.workType || workTypeInput || undefined
           : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: banking.barcode,
-        linhaDigitavel: banking.digitableLine,
+        codigoBarras: barcode,
+        linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
         pixPayload: banking.pixPayload,
-        bankName: banking.bankName,
+        bankName: providerName,
         bankAgreement: banking.bankAgreement,
         bankInstructions: banking.bankInstructions,
         valorDocumento: selectedGuide.amount,
@@ -2063,7 +2105,7 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
+                  onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   Visualizar guia
@@ -2072,7 +2114,7 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
+                  onClick={() => void printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
                 >
                   <Printer className="mr-2 h-4 w-4" />
                   Imprimir guia
@@ -2931,7 +2973,7 @@ export function ProcessDetailPage() {
                         type="button"
                         variant="outline"
                         className="rounded-full"
-                        onClick={() => printGuide("iss_obra", false)}
+                        onClick={() => void printGuide("iss_obra", false)}
                       >
                         <Eye className="mr-2 h-4 w-4" />
                         Visualizar guia
@@ -3259,7 +3301,7 @@ export function ProcessDetailPage() {
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => printGuide("aprovacao_final", false)}
+                                onClick={() => void printGuide("aprovacao_final", false)}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 Visualizar guia
@@ -3268,7 +3310,7 @@ export function ProcessDetailPage() {
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => printGuide("aprovacao_final", true)}
+                                onClick={() => void printGuide("aprovacao_final", true)}
                               >
                                 <Printer className="mr-2 h-4 w-4" />
                                 Imprimir guia
@@ -3397,11 +3439,11 @@ export function ProcessDetailPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, false)}>
+                          <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide(guide.kind, false)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Visualizar
                           </Button>
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, true)}>
+                          <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide(guide.kind, true)}>
                             <Printer className="mr-2 h-4 w-4" />
                             Imprimir
                           </Button>
@@ -3462,11 +3504,11 @@ export function ProcessDetailPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("protocolo", false)}>
                       <Eye className="mr-2 h-4 w-4" />
                       Visualizar
                     </Button>
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
+                    <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("protocolo", true)}>
                       <Printer className="mr-2 h-4 w-4" />
                       Imprimir
                     </Button>
@@ -3561,11 +3603,11 @@ export function ProcessDetailPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("iss_obra", false)}>
+                        <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", false)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Visualizar guia
                         </Button>
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("iss_obra", true)}>
+                        <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("iss_obra", true)}>
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir guia
                         </Button>
@@ -3731,11 +3773,11 @@ export function ProcessDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {approvalGuide ? (
                           <>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", false)}>
+                            <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", false)}>
                               <Eye className="mr-2 h-4 w-4" />
                               Visualizar guia
                             </Button>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", true)}>
+                            <Button type="button" variant="outline" className="rounded-full" onClick={() => void printGuide("aprovacao_final", true)}>
                               <Printer className="mr-2 h-4 w-4" />
                               Imprimir guia
                             </Button>
