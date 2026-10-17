@@ -398,7 +398,7 @@ describe("process contrast v9", () => {
     expect(analysis).toContain("sig-process-dark-surface-v9");
     expect(permit).toContain("sig-process-dark-surface-v9");
     const start = css.indexOf("PROCESS DETAIL CONTRAST FINAL V9");
-    const end = css.indexOf("PROCESS DETAIL PREMIUM CONTRACT V10", start);
+    const end = css.indexOf("END PROCESS DETAIL CONTRAST FINAL V9", start);
     const v9 = css.slice(start, end > start ? end : css.length);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(v9).toContain(".sig-process-detail-premium .sig-process-dark-surface-v9");
