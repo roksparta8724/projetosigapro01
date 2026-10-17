@@ -431,7 +431,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       "";
     const brandingUrl = isUsableBrandingUrl(rawHeaderUrl) ? rawHeaderUrl : "";
     const institutionalFallback =
-      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
+      (isUsableBrandingUrl(institutionSettings?.brasaoUrl) ? institutionSettings?.brasaoUrl || "" : "") ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantHeaderLogo =
       resolvedTenantHeaderLogoUrl ||
@@ -500,7 +500,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       "";
     const brandingUrl = isUsableBrandingUrl(rawFooterUrl) ? rawFooterUrl : "";
     const institutionalFallback =
-      (isUsableBrandingUrl(base.brasaoUrl) ? base.brasaoUrl : "") ||
+      (isUsableBrandingUrl(institutionSettings?.brasaoUrl) ? institutionSettings?.brasaoUrl || "" : "") ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const resolvedTenantFooterLogo =
       resolvedTenantFooterLogoUrl ||
