@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto } from "./server/mercadopago";
+import paymentConnectionHandler from "./api/payment-connection";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
