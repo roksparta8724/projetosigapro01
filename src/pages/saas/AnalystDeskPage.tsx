@@ -37,6 +37,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   buildProcessPath,
+  canAnalyzeProcessDocument,
+  canAccessMunicipalArea,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getChecklistTemplate,
@@ -342,6 +344,14 @@ export function AnalystDeskPage() {
   };
 
   const handleStartAnalysis = async (process: ProcessRecord) => {
+    if (
+      session.role === "prefeitura_supervisor" &&
+      canAccessMunicipalArea(session, "analise")
+    ) {
+      navigate(buildProcessPath(process, "analise"));
+      return;
+    }
+
     if (process.analysis?.startedAt) {
       navigate(buildProcessPath(process, "analise"));
       return;
