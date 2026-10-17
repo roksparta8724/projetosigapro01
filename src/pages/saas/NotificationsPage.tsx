@@ -1,6 +1,9 @@
 import { AlertCircle, BellRing, CheckCheck, MessageSquareMore, Send, Signature, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ActivityList, type ActivityItem } from "@/components/platform/ActivityList";
 import { EmptyState, EmptyStateAction } from "@/components/platform/EmptyState";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -23,6 +26,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useNotifications } from "@/hooks/useNotifications";
+import { sendMasterSupportNotification } from "@/integrations/notifications/notificationClient";
 
 type NotificationView = "visao-geral" | "notificacoes" | "mensagens" | "tramites" | "pendencias";
 
@@ -39,7 +43,38 @@ export function NotificationsPage() {
     markAllRead,
   } = useNotifications({ includeItems: true, limit: 150, pollMs: 10000 });
   const [view, setView] = useState<NotificationView>("visao-geral");
+  const [masterSupportTitle, setMasterSupportTitle] = useState("");
+  const [masterSupportMessage, setMasterSupportMessage] = useState("");
+  const [masterSupportBusy, setMasterSupportBusy] = useState(false);
+  const [masterSupportStatus, setMasterSupportStatus] = useState("");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+
+  const handleMasterSupport = async () => {
+    const title = masterSupportTitle.trim();
+    const message = masterSupportMessage.trim();
+    if (!title || !message || masterSupportBusy) return;
+
+    setMasterSupportBusy(true);
+    setMasterSupportStatus("");
+    try {
+      const recipients = await sendMasterSupportNotification({ title, message });
+      setMasterSupportTitle("");
+      setMasterSupportMessage("");
+      setMasterSupportStatus(
+        recipients > 0
+          ? `Aviso enviado ao Master com sucesso (${recipients} destinatário(s)).`
+          : "Nenhuma conta Master ativa recebeu o aviso.",
+      );
+    } catch (error) {
+      setMasterSupportStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar o aviso ao Master.",
+      );
+    } finally {
+      setMasterSupportBusy(false);
+    }
+  };
 
   const processes = useMemo(
     () => getVisibleProcessesByScope(session, effectiveScopeId, allProcesses),
@@ -344,6 +379,46 @@ export function NotificationsPage() {
                   { id: "historico", label: "Ver histórico", icon: AlertCircle, href: "/historico" },
                 ]}
               />
+
+              {session.role === "prefeitura_admin" ? (
+                <SectionCard
+                  title="Suporte ao Master"
+                  description="Canal administrativo. O Master não recebe notificações operacionais da Prefeitura; somente avisos enviados aqui."
+                  icon={BellRing}
+                >
+                  <div className="space-y-3">
+                    <Input
+                      value={masterSupportTitle}
+                      onChange={(event) => setMasterSupportTitle(event.target.value)}
+                      placeholder="Assunto do aviso"
+                      className="h-10 rounded-xl"
+                    />
+                    <Textarea
+                      value={masterSupportMessage}
+                      onChange={(event) => setMasterSupportMessage(event.target.value)}
+                      placeholder="Descreva o que precisa da equipe Master"
+                      className="min-h-[96px] rounded-xl"
+                    />
+                    <Button
+                      type="button"
+                      className="w-full rounded-xl"
+                      disabled={
+                        masterSupportBusy ||
+                        !masterSupportTitle.trim() ||
+                        !masterSupportMessage.trim()
+                      }
+                      onClick={() => void handleMasterSupport()}
+                    >
+                      {masterSupportBusy ? "Enviando..." : "Enviar aviso ao Master"}
+                    </Button>
+                    {masterSupportStatus ? (
+                      <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                        {masterSupportStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                </SectionCard>
+              ) : null}
 
               <SectionCard
                 title="Resumo operacional"
