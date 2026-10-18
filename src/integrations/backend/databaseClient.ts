@@ -25,6 +25,7 @@ const NEON_DATA_API_URL = String(
 ).replace(/\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;
+export const neonDataApiUrl = NEON_DATA_API_URL;
 
 export const hasNeonBackendEnv = Boolean(
   NEON_AUTH_URL &&
