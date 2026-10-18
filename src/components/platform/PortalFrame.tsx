@@ -315,6 +315,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const {
     loading,
     dataError,
+    dataReadyForCurrentUser,
     refreshRemoteStore,
     institutions,
     sessionUsers,
@@ -346,6 +347,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       logoUrl: resolvedFooterLogoUrl || footerBranding.logoUrl,
     }),
     [footerBranding, resolvedFooterLogoUrl],
+  );
+
+  const showBlockingOfficialDataError = Boolean(
+    dataError && !loading && !dataReadyForCurrentUser,
   );
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
@@ -2409,7 +2414,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
             </header> : null}
 
-            {dataError && !loading ? (
+            {showBlockingOfficialDataError ? (
               <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
