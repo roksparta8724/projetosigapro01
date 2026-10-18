@@ -967,6 +967,7 @@ export function ProcessDetailPage() {
     : null;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
+  const habiteSeGuide = paymentGuides.find((guide) => guide.kind === "habite_se");
   const permitReachedIssuanceStage =
     Boolean(constructionPermit) &&
     constructionPermit?.status !== "rascunho";
@@ -1110,6 +1111,11 @@ export function ProcessDetailPage() {
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
       /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
+      ["aguardando", "respondido"].includes(dispatch.status),
+  );
+  const habiteSeGuideRequest = process.dispatches.find(
+    (dispatch) =>
+      /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
       ["aguardando", "respondido"].includes(dispatch.status),
   );
   const constructionGuideIssueAudit = process.auditTrail.find(
