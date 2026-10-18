@@ -159,6 +159,7 @@ function writeDraftCollection(
   const key = buildDraftCollectionKey(sessionId, scopeId);
   const normalized = drafts
     .filter(isValidDraft)
+    .map(normalizeDraft)
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 
   try {
