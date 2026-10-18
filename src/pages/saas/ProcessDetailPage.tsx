@@ -1972,9 +1972,11 @@ export function ProcessDetailPage() {
       return;
     }
 
-    const amount = Number(
-      String(habiteSeFeeAmountInput).replace(/./g, "").replace(",", "."),
-    );
+    const rawAmount = String(habiteSeFeeAmountInput).trim();
+    const normalizedAmount = rawAmount.includes(",")
+      ? rawAmount.split(".").join("").replace(",", ".")
+      : rawAmount;
+    const amount = Number(normalizedAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setProcessActionStatus("Informe o valor oficial da taxa de Habite-se antes da emissão.");
       return;
