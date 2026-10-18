@@ -136,6 +136,63 @@ function emptyChecklist(): HabiteSeInspectionChecklist {
   return Object.fromEntries(INSPECTION_ITEMS.map((item) => [item.key, ""]));
 }
 
+type HabiteSeInspectionVisualCache = {
+  processId: string;
+  sessionId: string;
+  inspection: HabiteSeInspectionRecord | null;
+  photos: HabiteSeInspectionPhoto[];
+  checklist: HabiteSeInspectionChecklist;
+  notes: string;
+  photoEvidenceWaived: boolean;
+  photoWaiverReason: string;
+  savedAt: number;
+};
+
+function inspectionVisualCacheKey(processId: string, sessionId: string) {
+  return `sigapro.habite-se.inspection.visual.v1:${sessionId}:${processId}`;
+}
+
+function readInspectionVisualCache(
+  processId: string,
+  sessionId: string,
+): HabiteSeInspectionVisualCache | null {
+  if (typeof window === "undefined" || !processId || !sessionId || sessionId === "unknown") return null;
+  try {
+    const raw = window.localStorage.getItem(inspectionVisualCacheKey(processId, sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<HabiteSeInspectionVisualCache>;
+    if (parsed.processId !== processId || parsed.sessionId !== sessionId) return null;
+    return {
+      processId,
+      sessionId,
+      inspection: parsed.inspection ?? null,
+      photos: Array.isArray(parsed.photos) ? parsed.photos : [],
+      checklist: {
+        ...emptyChecklist(),
+        ...(parsed.checklist ?? {}),
+      },
+      notes: String(parsed.notes || ""),
+      photoEvidenceWaived: parsed.photoEvidenceWaived === true,
+      photoWaiverReason: String(parsed.photoWaiverReason || ""),
+      savedAt: Number(parsed.savedAt || 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeInspectionVisualCache(value: HabiteSeInspectionVisualCache) {
+  if (typeof window === "undefined" || !value.processId || !value.sessionId || value.sessionId === "unknown") return;
+  try {
+    window.localStorage.setItem(
+      inspectionVisualCacheKey(value.processId, value.sessionId),
+      JSON.stringify(value),
+    );
+  } catch {
+    // Cache somente visual: nunca deve bloquear a operação oficial.
+  }
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return "Registrada automaticamente ao iniciar";
   const date = new Date(value);
@@ -185,20 +242,34 @@ export function HabiteSeInspectionPanel({
   dataReady?: boolean;
   onProcessRefresh?: () => Promise<void> | void;
 }) {
-  const [inspection, setInspection] = useState<HabiteSeInspectionRecord | null>(null);
-  const [photos, setPhotos] = useState<HabiteSeInspectionPhoto[]>([]);
+  const initialVisual = useRef(
+    readInspectionVisualCache(process.id, session.id),
+  ).current;
+  const [inspection, setInspection] = useState<HabiteSeInspectionRecord | null>(
+    () => initialVisual?.inspection ?? null,
+  );
+  const [photos, setPhotos] = useState<HabiteSeInspectionPhoto[]>(
+    () => initialVisual?.photos ?? [],
+  );
+  // Permissão nunca é confiada ao cache; apenas os dados visuais são hidratados.
   const [canManage, setCanManage] = useState(false);
-  const [checklist, setChecklist] = useState<HabiteSeInspectionChecklist>(() => emptyChecklist());
-  const [notes, setNotes] = useState("");
-  const [photoEvidenceWaived, setPhotoEvidenceWaived] = useState(false);
-  const [photoWaiverReason, setPhotoWaiverReason] = useState("");
+  const [checklist, setChecklist] = useState<HabiteSeInspectionChecklist>(
+    () => initialVisual?.checklist ?? emptyChecklist(),
+  );
+  const [notes, setNotes] = useState(() => initialVisual?.notes ?? "");
+  const [photoEvidenceWaived, setPhotoEvidenceWaived] = useState(
+    () => initialVisual?.photoEvidenceWaived ?? false,
+  );
+  const [photoWaiverReason, setPhotoWaiverReason] = useState(
+    () => initialVisual?.photoWaiverReason ?? "",
+  );
   const [photoCategory, setPhotoCategory] =
     useState<HabiteSeInspectionPhotoCategory>("fachada");
   const [photoCaption, setPhotoCaption] = useState("");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [loadError, setLoadError] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => Boolean(initialVisual));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedFolder = String(
@@ -238,15 +309,31 @@ export function HabiteSeInspectionPanel({
       setInspection(snapshot.inspection);
       setPhotos(snapshot.photos);
       setCanManage(snapshot.canManage && !externalView);
-      if (snapshot.inspection) {
-        setChecklist({
-          ...emptyChecklist(),
-          ...snapshot.inspection.checklist,
-        });
-        setNotes(snapshot.inspection.notes || "");
-        setPhotoEvidenceWaived(snapshot.inspection.photoEvidenceWaived);
-        setPhotoWaiverReason(snapshot.inspection.photoWaiverReason || "");
-      }
+      const nextChecklist = snapshot.inspection
+        ? {
+            ...emptyChecklist(),
+            ...snapshot.inspection.checklist,
+          }
+        : emptyChecklist();
+      const nextNotes = snapshot.inspection?.notes || "";
+      const nextPhotoEvidenceWaived = snapshot.inspection?.photoEvidenceWaived === true;
+      const nextPhotoWaiverReason = snapshot.inspection?.photoWaiverReason || "";
+
+      setChecklist(nextChecklist);
+      setNotes(nextNotes);
+      setPhotoEvidenceWaived(nextPhotoEvidenceWaived);
+      setPhotoWaiverReason(nextPhotoWaiverReason);
+      writeInspectionVisualCache({
+        processId: process.id,
+        sessionId: session.id,
+        inspection: snapshot.inspection,
+        photos: snapshot.photos,
+        checklist: nextChecklist,
+        notes: nextNotes,
+        photoEvidenceWaived: nextPhotoEvidenceWaived,
+        photoWaiverReason: nextPhotoWaiverReason,
+        savedAt: Date.now(),
+      });
       setLoaded(true);
     } catch (error) {
       setLoadError(
@@ -262,7 +349,10 @@ export function HabiteSeInspectionPanel({
 
   useEffect(() => {
     if (!dataReady) {
-      setLoaded(false);
+      // No F5 do mesmo processo, preserve o snapshot já renderizado.
+      // A Análise/Ficha técnica faz a mesma hidratação síncrona; não limpamos
+      // os dados visuais apenas porque a sessão está sendo revalidada.
+      if (!initialVisual) setLoaded(false);
       setLoadError("");
       return;
     }
@@ -272,6 +362,31 @@ export function HabiteSeInspectionPanel({
     // formulário a cada heartbeat para não apagar o que o fiscal está digitando.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [process.id, dataReady]);
+
+  useEffect(() => {
+    if (!loaded || !process.id || !session.id || session.id === "unknown") return;
+    writeInspectionVisualCache({
+      processId: process.id,
+      sessionId: session.id,
+      inspection,
+      photos,
+      checklist,
+      notes,
+      photoEvidenceWaived,
+      photoWaiverReason,
+      savedAt: Date.now(),
+    });
+  }, [
+    checklist,
+    inspection,
+    loaded,
+    notes,
+    photoEvidenceWaived,
+    photoWaiverReason,
+    photos,
+    process.id,
+    session.id,
+  ]);
 
   const persistDraft = async (options?: { silent?: boolean }) => {
     if (!canManage) return inspection;
