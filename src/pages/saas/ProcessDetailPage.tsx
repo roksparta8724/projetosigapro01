@@ -1024,16 +1024,20 @@ export function ProcessDetailPage() {
         municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
       })
     : "";
-  const canReviewDocuments =
-    !isExternalProcessViewer &&
-    canAnalyzeProcessDocument(session, process, effectiveScopeId);
-  const canEditAnalysisChecklist =
+  const canEditAssignedAnalysis =
     !isExternalProcessViewer &&
     canEditAssignedAnalysisArtifact(session, process, effectiveScopeId);
+  const canReviewDocuments =
+    !isExternalProcessViewer &&
+    (
+      canAnalyzeProcessDocument(session, process, effectiveScopeId) ||
+      (isHabiteSeProcess && canEditAssignedAnalysis)
+    );
+  const canEditAnalysisChecklist = canEditAssignedAnalysis;
   const canUseMunicipalChecklist =
     !isExternalProcessViewer &&
     !isProtocolTrackingOnly &&
-    canAnalysisOperate &&
+    (canAnalysisOperate || canEditAssignedAnalysis) &&
     matchesOperationalScope(effectiveScopeId, process) &&
     ["master_admin", "master_ops", "prefeitura_supervisor", "analista", "fiscal"].includes(session.role);
   const isAnalysisSupervisor =
