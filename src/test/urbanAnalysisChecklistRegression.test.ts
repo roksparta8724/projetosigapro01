@@ -81,6 +81,20 @@ describe("automatic physical withdrawal date", () => {
 });
 
 
+describe("physical withdrawal confirmation", () => {
+  it("shows an explicit confirmation action to every profile authorized to register the handoff", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+
+    expect(panel).toContain('data-analysis-withdrawal-card="true"');
+    expect(panel).toContain('data-analysis-withdrawal-confirm="true"');
+    expect(panel).toContain("canRecordWithdrawal ? (");
+    expect(panel).toContain("Confirmar retirada em mãos");
+    expect(panel).toContain("Confirmar atualização da retirada");
+    expect(panel).not.toContain("{canSignTechnical ? (\n                <Button\n                  type=\"button\"\n                  variant=\"outline\"");
+  });
+});
+
+
 describe("official municipal analysis sheet header", () => {
   it("uses the official municipality header and process identity", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
