@@ -29,6 +29,9 @@ const officializationGuardMigration = read(
 const notificationMigration = read(
   "neon/migrations/20261018_preprotocol_external_payment_notification.sql",
 );
+const actorGuardMigration = read(
+  "neon/migrations/20261018_current_legacy_user_fk_guard.sql",
+);
 const protocolPage = read("src/pages/saas/ProtocolarProjetoPage.tsx");
 const paymentsPage = read("src/pages/saas/ExternalPaymentsPage.tsx");
 const draftsPage = read("src/pages/saas/ExternalDraftsPage.tsx");
@@ -115,6 +118,21 @@ describe("payment-first pre-protocol officialization", () => {
     expect(controlPage).toContain("process.isOfficial !== false");
     expect(historyPage).toContain("process.isOfficial !== false");
     expect(dashboardPage).toContain("process.isOfficial !== false");
+  });
+
+  it("makes each payment/process row clickable without hijacking its action buttons", () => {
+    expect(paymentsPage).toContain('data-clickable-payment-process="true"');
+    expect(paymentsPage).toContain('role="link"');
+    expect(paymentsPage).toContain("cursor-pointer");
+    expect(paymentsPage).toContain("navigate(processTarget)");
+    expect(paymentsPage).toContain("event.stopPropagation()");
+  });
+
+  it("keeps Neon-auth actors compatible with legacy audit foreign keys", () => {
+    expect(actorGuardMigration).toContain("create or replace function public.current_legacy_user_id()");
+    expect(actorGuardMigration).toContain("exists (");
+    expect(actorGuardMigration).toContain("from auth.users u");
+    expect(actorGuardMigration).toContain("else null");
   });
 
   it("recovers and updates the same remote draft while the guide is unpaid", () => {
