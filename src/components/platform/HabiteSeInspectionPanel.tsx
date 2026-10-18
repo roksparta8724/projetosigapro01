@@ -390,12 +390,15 @@ export function HabiteSeInspectionPanel({
         photoEvidenceWaived,
         photoWaiverReason,
       });
+      if (response.inspection) {
+        setInspection(response.inspection);
+      }
+      setCanManage(false);
       setNotice(
         result === "conforme"
           ? "Vistoria concluída como conforme. O processo foi encaminhado automaticamente ao Financeiro."
           : "Vistoria concluída com pendências. A exigência foi registrada para correção.",
       );
-      await loadInspection();
       await onProcessRefresh?.();
       return response;
     } catch (error) {
