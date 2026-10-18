@@ -4,6 +4,7 @@ import { getLegacyProfileAvatarOpenUrl, getSignedUrlForObjectStrict, uploadFile 
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
+  isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
   type CreateProcessInput,
@@ -2050,6 +2051,20 @@ export async function createRemoteExternalProcessV2(
       annotations: document.annotations ?? [],
     })),
   };
+
+  if (isOccupancyPermitProcessType(input.type)) {
+    const { error: preflightError } = await db.rpc(
+      "validate_habite_se_submission_v1",
+      {
+        _tenant_id: scopeId,
+        _payload: payload,
+      },
+    );
+
+    if (preflightError) {
+      throw new Error(formatDatabaseError(preflightError));
+    }
+  }
 
   const { data, error } = await db.rpc("create_external_process_v2", {
     _tenant_id: scopeId,
