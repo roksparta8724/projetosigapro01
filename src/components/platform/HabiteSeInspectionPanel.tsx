@@ -439,8 +439,29 @@ export function HabiteSeInspectionPanel({
         ) : null}
 
         {loadError ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-950/25 dark:text-rose-200">
-            {loadError}
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-950/25">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                Não foi possível sincronizar o termo de vistoria
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
+                {loadError}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 rounded-full border-amber-300 bg-white font-bold text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-200"
+              disabled={!dataReady || busy === "load"}
+              onClick={() => void loadInspection()}
+            >
+              {busy === "load" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Tentar novamente
+            </Button>
           </div>
         ) : null}
 
