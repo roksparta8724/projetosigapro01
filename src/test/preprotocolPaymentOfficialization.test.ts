@@ -35,6 +35,9 @@ const actorGuardMigration = read(
 const sequenceReferenceMigration = read(
   "neon/migrations/20261018_protocol_sequence_after_payment_reference.sql",
 );
+const finalSequenceMigration = read(
+  "neon/migrations/20261018_zz_protocol_sequence_after_payment_final.sql",
+);
 const protocolPage = read("src/pages/saas/ProtocolarProjetoPage.tsx");
 const paymentsPage = read("src/pages/saas/ExternalPaymentsPage.tsx");
 const draftsPage = read("src/pages/saas/ExternalDraftsPage.tsx");
@@ -70,6 +73,24 @@ describe("payment-first pre-protocol officialization", () => {
     expect(sequenceReferenceMigration).toContain("_official_protocol := public.next_tenant_protocol_number");
     expect(sequenceReferenceMigration).toContain("official_guide_reference");
     expect(sequenceReferenceMigration).toContain("Não altera guide_number");
+  });
+
+  it("keeps the final migration authoritative over the obsolete reservation experiment", () => {
+    expect(finalSequenceMigration).toContain(
+      "numeração oficial somente após pagamento",
+    );
+    expect(finalSequenceMigration).toContain(
+      "substitui aquela regra antiga",
+    );
+    expect(finalSequenceMigration).toContain(
+      "O pré-protocolo NÃO toca no contador oficial PM",
+    );
+    expect(finalSequenceMigration).toContain(
+      "_official_protocol := public.next_tenant_protocol_number",
+    );
+    expect(finalSequenceMigration).toContain(
+      "Counter integrity: only real, paid/officialized municipal processes",
+    );
   });
 
   it("serializes official numbering atomically when the initial guide is paid", () => {
