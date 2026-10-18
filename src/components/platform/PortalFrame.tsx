@@ -351,7 +351,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   );
 
   const hasUsableScopedData = Boolean(
-    institutions.length > 0 ||
     processes.length > 0 ||
     sessionUsers.some(
       (user) =>
