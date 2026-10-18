@@ -275,9 +275,9 @@ export function ExternalProcessControlPage() {
             Processos protocolados
           </Button>
           <Button asChild variant="ghost" className="rounded-xl">
-            <Link to="/externo/controle/rascunhos">
+            <Link to="/externo/controle/em-andamento">
               <FilePenLine className="mr-2 h-4 w-4" />
-              Rascunhos
+              Em andamento
               {savedDrafts.length > 0 ? (
                 <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
                   {savedDrafts.length}
