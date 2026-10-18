@@ -338,100 +338,117 @@ export function ExternalPaymentsPage() {
                 <span className="text-right">Ações</span>
               </div>
 
-              {filteredGuides.map(({ process, guide, status }) => (
-                <div key={`${process.id}-${guide.code}`} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
-                  <div className="grid gap-4 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:items-center">
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-slate-950">
-                        {process.isOfficial === false
-                          ? "Rascunho com guia emitida"
-                          : formatOfficialProcessNumber(process.protocol)}
-                      </p>
-                      <p className="mt-1 truncate text-[13px] text-slate-500">
-                        {process.isOfficial === false
-                          ? `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`
-                          : formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                      <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-slate-900">{guide.code}</p>
-                      <p className="mt-1 text-[13px] text-slate-500">{formatCurrency(guide.amount)}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-slate-900">{guide.dueDate}</p>
-                      <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
-                    </div>
-                    <div className="min-w-0">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full px-3 py-1 text-[12px] ${
-                          status === "compensada"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                            : status === "vencida"
-                              ? "border-rose-200 bg-rose-50 text-rose-600"
-                              : "border-amber-200 bg-amber-50 text-amber-600"
-                        }`}
+              {filteredGuides.map(({ process, guide, status }) => {
+                const isHabiteSe = String(process.type || "")
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .toLocaleLowerCase("pt-BR")
+                  .includes("habite");
+                const processTarget =
+                  process.isOfficial === false
+                    ? `${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
+                        process.preProtocol || process.protocol,
+                      )}`
+                    : buildProcessPath(process, "financeiro");
+
+                return (
+                  <div
+                    key={`${process.id}-${guide.code}`}
+                    role="link"
+                    tabIndex={0}
+                    data-clickable-payment-process="true"
+                    aria-label={`Abrir ${process.title}`}
+                    className="sig-dark-panel group cursor-pointer rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm transition duration-200 hover:-translate-y-[1px] hover:border-sky-300 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                    onClick={() => navigate(processTarget)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(processTarget);
+                      }
+                    }}
+                  >
+                    <div className="grid gap-4 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold text-slate-950">
+                          {process.isOfficial === false
+                            ? "Rascunho com guia emitida"
+                            : formatOfficialProcessNumber(process.protocol)}
+                        </p>
+                        <p className="mt-1 truncate text-[13px] text-slate-500">
+                          {process.isOfficial === false
+                            ? `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`
+                            : formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                        <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold text-slate-900">{guide.code}</p>
+                        <p className="mt-1 text-[13px] text-slate-500">{formatCurrency(guide.amount)}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-slate-900">{guide.dueDate}</p>
+                        <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                      </div>
+                      <div className="min-w-0">
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-3 py-1 text-[12px] ${
+                            status === "compensada"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                              : status === "vencida"
+                                ? "border-rose-200 bg-rose-50 text-rose-600"
+                                : "border-amber-200 bg-amber-50 text-amber-600"
+                          }`}
+                        >
+                          {status === "compensada" ? "Compensada" : status === "vencida" ? "Vencida" : "Pendente"}
+                        </Badge>
+                      </div>
+                      <div
+                        className="flex flex-wrap justify-start gap-2 2xl:justify-end"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
                       >
-                        {status === "compensada" ? "Compensada" : status === "vencida" ? "Vencida" : "Pendente"}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap justify-start gap-2 2xl:justify-end">
-                      {process.isOfficial === false ? (
-                        <>
-                          <Button
-                            asChild
-                            variant="outline"
-                            data-preprotocol-edit-action="true"
-                            className="rounded-full text-[12px] font-semibold"
-                          >
-                            <Link
-                              to={`${
-                                String(process.type || "")
-                                  .normalize("NFD")
-                                  .replace(/[\u0300-\u036f]/g, "")
-                                  .toLocaleLowerCase("pt-BR")
-                                  .includes("habite")
-                                  ? "/externo/habite-se"
-                                  : "/externo/protocolar"
-                              }?preprotocolo=${encodeURIComponent(
-                                process.preProtocol || process.protocol,
-                              )}`}
+                        {process.isOfficial === false ? (
+                          <>
+                            <Button
+                              asChild
+                              variant="outline"
+                              data-preprotocol-edit-action="true"
+                              className="rounded-full text-[12px] font-semibold"
                             >
-                              <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
-                              Editar rascunho
-                            </Link>
+                              <Link to={processTarget}>
+                                <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
+                                Editar rascunho
+                              </Link>
+                            </Button>
+                            <Button
+                              type="button"
+                              data-preprotocol-guide-action="true"
+                              className="rounded-full bg-sky-700 px-4 text-[12px] font-bold !text-white shadow-[0_8px_20px_rgba(3,105,161,0.20)] hover:bg-sky-800 [&_*]:!text-white"
+                              disabled={openingGuideKey === `${process.id}:${guide.code}`}
+                              onClick={() => void openExternalGuide(process, guide)}
+                            >
+                              {openingGuideKey === `${process.id}:${guide.code}` ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              Visualizar guia
+                            </Button>
+                          </>
+                        ) : (
+                          <Button asChild variant="outline" className="rounded-full text-[13px]">
+                            <Link to={processTarget}>Ver processo</Link>
                           </Button>
-                          <Button
-                            type="button"
-                            data-preprotocol-guide-action="true"
-                            className="rounded-full bg-sky-700 px-4 text-[12px] font-bold !text-white shadow-[0_8px_20px_rgba(3,105,161,0.20)] hover:bg-sky-800 [&_*]:!text-white"
-                            disabled={
-                              openingGuideKey === `${process.id}:${guide.code}`
-                            }
-                            onClick={() => void openExternalGuide(process, guide)}
-                          >
-                            {openingGuideKey === `${process.id}:${guide.code}` ? (
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Eye className="mr-1.5 h-3.5 w-3.5" />
-                            )}
-                            Visualizar guia
-                          </Button>
-                        </>
-                      ) : (
-                        <Button asChild variant="outline" className="rounded-full text-[13px]">
-                          <Link to={buildProcessPath(process, "financeiro")}>Ver processo</Link>
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-
+                );
+              })}
               {filteredGuides.length === 0 ? (
                 <div className="sig-dark-panel rounded-[12px] border border-dashed border-slate-300 p-8 text-center">
                   <p className="text-[18px] font-semibold text-slate-900">Nenhuma guia encontrada</p>
