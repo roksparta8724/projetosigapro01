@@ -121,6 +121,18 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain("não reutiliza a guia de aprovação/Alvará");
   });
 
+  it("waits for the authenticated Neon session before loading or saving the inspection", () => {
+    expect(processDetail).toContain("dataReadyForCurrentUser");
+    expect(processDetail).toContain("!platformDataLoading");
+    expect(panel).toContain("dataReady={dataReady}");
+    expect(inspectionPanel).toContain("if (!process.id || !dataReady) return");
+    expect(inspectionPanel).toContain("Validando sessão segura da Fiscalização");
+    expect(inspectionClient).toContain("ensureAuthenticatedDatabaseSession");
+    expect(inspectionClient).toContain("for (let attempt = 0; attempt < 8; attempt += 1)");
+    expect(inspectionClient).toContain("databaseErrorMessage");
+    expect(inspectionClient).toContain("callInspectionRpc");
+  });
+
   it("uses an institutional inspection term with photographic evidence before Financeiro", () => {
     expect(panel).toContain("<HabiteSeInspectionPanel");
     expect(inspectionPanel).toContain("Termo de Vistoria / Conferência — Habite-se");
