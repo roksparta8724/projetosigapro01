@@ -63,6 +63,24 @@ describe("urban analysis checklist", () => {
 });
 
 
+describe("automatic physical withdrawal date", () => {
+  it("uses the municipal clock automatically and does not ask the analyst to type a date", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const client = read("src/integrations/esign/artifactClient.ts");
+    const migration = read("neon/migrations/20261018_withdrawal_automatic_date.sql");
+
+    expect(panel).toContain("currentMunicipalDateValue");
+    expect(panel).toContain('timeZone: "America/Sao_Paulo"');
+    expect(panel).toContain("Automática");
+    expect(panel).toContain('aria-readonly="true"');
+    expect(panel).not.toContain('type="date"\n                  value={withdrawalDate}');
+    expect(client).not.toContain("withdrawnAt: string");
+    expect(migration).toContain("new.withdrawn_at := _official_date");
+    expect(migration).toContain("new.withdrawn_at := old.withdrawn_at");
+  });
+});
+
+
 describe("official municipal analysis sheet header", () => {
   it("uses the official municipality header and process identity", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
