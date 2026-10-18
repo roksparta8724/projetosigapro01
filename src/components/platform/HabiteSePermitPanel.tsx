@@ -104,10 +104,16 @@ function buildPermitPayload(
   };
 }
 
+const DEFAULT_HABITE_SE_CONDITIONS =
+  "Sem ressalvas ou condicionantes pendentes registradas no processo para a emissão deste Alvará de Habite-se, sem prejuízo das obrigações e responsabilidades técnicas previstas na legislação aplicável.";
+
+const DEFAULT_HABITE_SE_TECHNICAL_OBSERVATION =
+  "Com base na documentação técnica, no projeto aprovado e nos registros de vistoria constantes do processo, a edificação encontra-se concluída e apta à ocupação para o uso declarado, observadas as condições do licenciamento, as normas técnicas aplicáveis e as responsabilidades dos profissionais legalmente habilitados.";
+
 function initialForm(process: ProcessRecord): HabiteSePermitFormData {
   return {
-    observations: "",
-    conditions: "",
+    observations: DEFAULT_HABITE_SE_TECHNICAL_OBSERVATION,
+    conditions: DEFAULT_HABITE_SE_CONDITIONS,
     modality:
       extractNoteValue(process.notes, "Modalidade") ||
       (process.type.toLocaleLowerCase("pt-BR").includes("parcial")
@@ -174,14 +180,16 @@ function mergeAutomaticPermitForm(
   defaults?: Partial<HabiteSePermitFormData> | null,
   saved?: Partial<HabiteSePermitFormData> | null,
 ): HabiteSePermitFormData {
-  const automatic = {
-    ...initialForm(process),
-    ...(defaults ?? {}),
-  };
-
+  const base = initialForm(process);
   const choose = (savedValue: unknown, automaticValue: unknown) => {
     const normalizedSaved = String(savedValue ?? "").trim();
     return normalizedSaved || String(automaticValue ?? "");
+  };
+  const automatic = {
+    ...base,
+    ...(defaults ?? {}),
+    conditions: choose(defaults?.conditions, base.conditions),
+    observations: choose(defaults?.observations, base.observations),
   };
 
   return {
@@ -229,7 +237,7 @@ export function HabiteSePermitPanel({
     () => initialVisual?.permit ?? null,
   );
   const [form, setForm] = useState<HabiteSePermitFormData>(
-    () => initialVisual?.form ?? initialForm(process),
+    () => mergeAutomaticPermitForm(process, null, initialVisual?.form),
   );
   // Permissão operacional continua sendo revalidada no banco.
   const [canManage, setCanManage] = useState(false);
@@ -674,12 +682,32 @@ export function HabiteSePermitPanel({
                 <Input value={form.sourcePermit} onChange={(event) => setForm((current) => ({ ...current, sourcePermit: event.target.value }))} className="mt-2 bg-white dark:bg-slate-950" />
               </div>
               <div className="lg:col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Condições / ressalvas</label>
-                <Textarea value={form.conditions} onChange={(event) => setForm((current) => ({ ...current, conditions: event.target.value }))} className="mt-2 min-h-24 bg-white dark:bg-slate-950" placeholder="Sem ressalvas, ou informe as condições aplicáveis." />
+                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                  Condições, ressalvas e condicionantes da emissão
+                </label>
+                <Textarea
+                  value={form.conditions}
+                  onChange={(event) => setForm((current) => ({ ...current, conditions: event.target.value }))}
+                  className="mt-2 min-h-28 bg-white leading-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+                  placeholder={DEFAULT_HABITE_SE_CONDITIONS}
+                />
+                <p className="mt-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                  Registre somente condicionantes efetivamente vinculadas ao processo, como exigências do Alvará de origem, AVCB/CLCB, licenças complementares ou ressalvas técnicas aplicáveis. Na inexistência de pendências, mantenha a declaração institucional padrão.
+                </p>
               </div>
               <div className="lg:col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Observações do Analista Técnico</label>
-                <Textarea value={form.observations} onChange={(event) => setForm((current) => ({ ...current, observations: event.target.value }))} className="mt-2 min-h-28 bg-white dark:bg-slate-950" placeholder="Registre somente observações técnicas pertinentes ao Habite-se." />
+                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                  Parecer técnico conclusivo do Analista
+                </label>
+                <Textarea
+                  value={form.observations}
+                  onChange={(event) => setForm((current) => ({ ...current, observations: event.target.value }))}
+                  className="mt-2 min-h-32 bg-white leading-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+                  placeholder={DEFAULT_HABITE_SE_TECHNICAL_OBSERVATION}
+                />
+                <p className="mt-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                  Síntese técnica destinada ao documento final. Ajuste o texto quando houver particularidade constatada na análise, vistoria ou documentação do processo.
+                </p>
               </div>
               </div>
             </div>
