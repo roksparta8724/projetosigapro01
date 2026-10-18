@@ -840,10 +840,13 @@ function getStyles() {
 
     .dam-receipt-header {
       display: grid;
-      grid-template-columns: 70px minmax(0, 1fr) 132px;
-      border-bottom: 1px solid #b7c5d2;
+      /* Malha institucional única: logo, conteúdo e bloco financeiro alinham
+         exatamente com as colunas do corpo da guia. */
+      grid-template-columns: 22mm minmax(0, 1fr) 58mm;
+      min-height: 19mm;
+      border-bottom: 1px solid #000000;
       align-items: stretch;
-      background: #f7fafc;
+      background: #f8fbfd;
     }
 
     .dam-receipt-logo {
@@ -851,75 +854,95 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 4px;
+      padding: 1.5mm;
       box-sizing: border-box;
+      background: #ffffff;
     }
 
     .dam-receipt-logo img {
-      max-width: 52px;
-      max-height: 44px;
+      width: 17mm;
+      height: 14mm;
+      max-width: 17mm;
+      max-height: 14mm;
       object-fit: contain;
+      display: block;
     }
 
     .dam-receipt-center {
       text-align: left;
-      padding: 3px 6px;
+      padding: 2.1mm 2.5mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      min-width: 0;
     }
 
     .dam-receipt-title {
-      font-size: 8.5px;
-      line-height: 1.05;
+      font-size: 8.6px;
+      line-height: 1.06;
       font-weight: 800;
       color: #0f3557;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.035em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dam-receipt-subline {
-      margin-top: 1px;
-      font-size: 6px;
-      line-height: 1;
+      margin-top: 1.2px;
+      font-size: 6.15px;
+      line-height: 1.12;
+      color: #172033;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dam-receipt-right {
       border-left: 1px solid #000000;
       min-width: 0;
       overflow: hidden;
+      background: #ffffff;
     }
 
     .dam-receipt-right .dam-receipt-row {
-      grid-template-columns: 50px minmax(0, 1fr);
+      grid-template-columns: 22mm minmax(0, 1fr);
+      min-height: 9.5mm;
     }
 
     .dam-receipt-right .dam-receipt-row-label {
-      padding: 3px 4px;
-      font-size: 6px;
-      line-height: 1.15;
-      white-space: normal;
-      overflow-wrap: anywhere;
+      padding: 1.7mm 1.4mm;
+      font-size: 5.75px;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+      display: flex;
+      align-items: center;
     }
 
     .dam-receipt-right .dam-receipt-row-value {
-      padding: 3px 4px;
-      font-size: 6.9px;
-      line-height: 1.12;
+      padding: 1.7mm 1.6mm;
+      font-size: 6.5px;
+      line-height: 1;
       font-weight: 800;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal;
+      overflow-wrap: normal;
       display: flex;
       align-items: center;
       justify-content: flex-start;
       min-width: 0;
+      color: #111827;
     }
 
     .dam-receipt-body {
       display: grid;
-      grid-template-columns: 1fr 58mm;
+      grid-template-columns: minmax(0, 1fr) 58mm;
       flex: 0 0 auto;
       min-height: 42mm;
       background: #ffffff;
@@ -927,11 +950,14 @@ function getStyles() {
 
     .dam-receipt-left {
       border-right: 1px solid #000000;
+      min-width: 0;
     }
 
     .dam-receipt-row {
       display: grid;
-      grid-template-columns: 66px minmax(0, 1fr);
+      /* Mesmos 22 mm usados na coluna do logo para manter a grade vertical
+         perfeitamente alinhada da primeira à última linha. */
+      grid-template-columns: 22mm minmax(0, 1fr);
       border-bottom: 1px solid #000000;
       min-width: 0;
     }
@@ -942,21 +968,27 @@ function getStyles() {
 
     .dam-receipt-row-label {
       border-right: 1px solid #000000;
-      padding: 2px 3px;
-      font-size: 7px;
-      line-height: 1;
+      padding: 2px 4px;
+      font-size: 6.4px;
+      line-height: 1.05;
       font-weight: 700;
       text-transform: uppercase;
       box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
     }
 
     .dam-receipt-row-value {
       padding: 2.5px 4px;
-      font-size: 8px;
-      line-height: 1.2;
+      font-size: 7.7px;
+      line-height: 1.16;
       box-sizing: border-box;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: normal;
+      word-break: normal;
     }
 
     .dam-note {
