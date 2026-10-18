@@ -54,6 +54,17 @@ describe("Habite-se independent workflow", () => {
     expect(protocolPage).toContain("área efetivamente concluída");
   });
 
+  it("lets the professional pull an existing SIGAPRO approval and auto-fill the issued permit", () => {
+    expect(protocolPage).toContain('data-habite-se-source-process-picker="true"');
+    expect(protocolPage).toContain("Puxar processo já aprovado no SIGAPRO");
+    expect(protocolPage).toContain("getOfficialConstructionPermit");
+    expect(protocolPage).toContain("linkHabiteSeSourceProcess");
+    expect(protocolPage).toContain("formatOfficialProcessNumber(source.protocol)");
+    expect(protocolPage).toContain("permit.permitNumber");
+    expect(protocolPage).toContain("Este processo ainda não possui Alvará oficial emitido e assinado.");
+    expect(protocolPage).toContain("os dados oficiais do imóvel foram preenchidos automaticamente");
+  });
+
   it("uses a dedicated Habite-se checklist", () => {
     expect(platform).toContain('processType: "Habite-se"');
     expect(platform).toContain("Alvará de construção ou regularização");
