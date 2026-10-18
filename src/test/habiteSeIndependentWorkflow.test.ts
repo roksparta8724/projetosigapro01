@@ -17,6 +17,7 @@ describe("Habite-se independent workflow", () => {
   const panel = read("src/components/platform/OccupancyPermitProcessPanel.tsx");
   const externalDrafts = read("src/pages/saas/ExternalDraftsPage.tsx");
   const financeMigration = read("neon/migrations/20261018_habite_se_finance_after_inspection.sql");
+  const autoAdvanceMigration = read("neon/migrations/20261018_habite_se_auto_advance_to_inspection.sql");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -122,6 +123,19 @@ describe("Habite-se independent workflow", () => {
     expect(financeDesk).toContain("Abrir e emitir Guia de Habite-se");
     expect(financeProtocols).toContain('if (kind === "habite_se") return "Guia de Habite-se"');
     expect(financeProtocols).toContain('if (kind === "habite_se") return "Emissão e baixa: Financeiro"');
+  });
+
+  it("automatically advances a fully completed Habite-se analysis to Fiscalização / Vistoria", () => {
+    expect(autoAdvanceMigration).toContain("try_advance_habite_se_to_inspection_v1");
+    expect(autoAdvanceMigration).toContain("pending_documents");
+    expect(autoAdvanceMigration).toContain("analysis_sheet_pending");
+    expect(autoAdvanceMigration).toContain("Análise documental concluída — Vistoria / conferência");
+    expect(autoAdvanceMigration).toContain("current_department='Fiscalização'");
+    expect(autoAdvanceMigration).toContain("current_queue='Vistoria / conferência'");
+    expect(autoAdvanceMigration).toContain("trg_try_advance_habite_se_from_document_v1");
+    expect(autoAdvanceMigration).toContain("trg_try_advance_habite_se_from_requirement_v1");
+    expect(autoAdvanceMigration).toContain("trg_try_advance_habite_se_from_analysis_sheet_v1");
+    expect(processDetail).toContain('"Vistoria / conferência"');
   });
 
   it("keeps Habite-se finance separated and inserts Financeiro after inspection", () => {
