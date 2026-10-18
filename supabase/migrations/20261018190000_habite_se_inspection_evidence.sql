@@ -508,6 +508,13 @@ begin
 end;
 $function$;
 
+revoke all on function public.can_manage_habite_se_inspection_v1(uuid) from public, anonymous;
+revoke all on function public.get_habite_se_inspection_v1(uuid) from public, anonymous;
+revoke all on function public.upsert_habite_se_inspection_v1(uuid,jsonb,text,boolean,text) from public, anonymous;
+revoke all on function public.add_habite_se_inspection_photo_v1(uuid,uuid,text,text,text,text,bigint,text) from public, anonymous;
+revoke all on function public.remove_habite_se_inspection_photo_v1(uuid,uuid) from public, anonymous;
+revoke all on function public.complete_habite_se_inspection_v1(uuid,text,jsonb,text,boolean,text) from public, anonymous;
+
 grant execute on function public.can_manage_habite_se_inspection_v1(uuid) to authenticated;
 grant execute on function public.get_habite_se_inspection_v1(uuid) to authenticated;
 grant execute on function public.upsert_habite_se_inspection_v1(uuid,jsonb,text,boolean,text) to authenticated;
