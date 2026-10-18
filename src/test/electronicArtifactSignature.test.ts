@@ -193,10 +193,10 @@ describe("official electronic signatures", () => {
   it("keeps pickup inputs readable and prints the latest saved pickup without 'Não registrada'", () => {
     expect(checklist).toContain("!bg-white !text-slate-950");
     expect(checklist).toContain("caret-sky-600");
-    expect(checklist).toContain("[color-scheme:light]");
-    expect(checklist).toContain("focus:!bg-sky-700");
-    expect(checklist).toContain("focus:!text-white");
-    expect(checklist).toContain("focus:[&::-webkit-datetime-edit]:!text-white");
+    expect(checklist).toContain("currentMunicipalDateValue");
+    expect(checklist).toContain('type="text"');
+    expect(checklist).toContain('aria-readonly="true"');
+    expect(checklist).toContain("Automática");
     expect(checklist).toContain("getProcessArtifactWithdrawal");
     expect(checklist).toContain("pdfWithdrawalRecord");
     expect(checklist).toContain("____________________________________________");
@@ -224,11 +224,12 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
   });
 
-  it("forces white characters on the blue native date selection", () => {
-    expect(checklist).toContain("[&::-webkit-datetime-edit-day-field:focus]:!text-white");
-    expect(checklist).toContain("[&::-webkit-datetime-edit-month-field:focus]:!text-white");
-    expect(checklist).toContain("[&::-webkit-datetime-edit-year-field:focus]:!text-white");
-    expect(checklist).toContain("focus:[&::-webkit-datetime-edit-text]:!text-white");
+  it("keeps the withdrawal date automatic and non-editable", () => {
+    expect(checklist).toContain("currentMunicipalDateValue");
+    expect(checklist).toContain("formatMunicipalDate(withdrawalDate)");
+    expect(checklist).toContain('aria-readonly="true"');
+    expect(checklist).toContain('tabIndex={-1}');
+    expect(checklist).toContain("Automática");
   });
 
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
