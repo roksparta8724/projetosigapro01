@@ -492,19 +492,23 @@ export function HabiteSePermitPanel({
               </div>
             </div>
             <Badge
+              data-habite-se-status-badge="true"
+              data-status={permit?.status || "rascunho"}
               className={
                 permit?.status === "emitido"
-                  ? "w-fit rounded-full border border-emerald-200/40 bg-emerald-500/20 px-3 py-1.5 !text-emerald-50"
+                  ? "w-fit rounded-full border border-emerald-200/50 bg-emerald-600 px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(5,150,105,0.24)] [&_*]:!text-white"
                   : permit?.status === "aguardando_diretor"
-                    ? "w-fit rounded-full border border-violet-200/40 bg-violet-500/20 px-3 py-1.5 !text-violet-50"
-                    : "w-fit rounded-full border border-sky-200/35 bg-[#083a59] px-3 py-1.5 !text-white"
+                    ? "w-fit rounded-full border border-violet-200/50 bg-violet-700 px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(109,40,217,0.24)] [&_*]:!text-white"
+                    : "w-fit rounded-full border border-sky-100/70 bg-[#075985] px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(3,37,65,0.32)] [&_*]:!text-white"
               }
             >
-              {permit?.status === "emitido"
-                ? "Emitido e finalizado"
-                : permit?.status === "aguardando_diretor"
-                  ? "Aguardando Diretoria"
-                  : "Em elaboração"}
+              <span className="!text-white">
+                {permit?.status === "emitido"
+                  ? "Emitido e finalizado"
+                  : permit?.status === "aguardando_diretor"
+                    ? "Aguardando Diretoria"
+                    : "Em elaboração"}
+              </span>
             </Badge>
           </div>
         </CardHeader>
