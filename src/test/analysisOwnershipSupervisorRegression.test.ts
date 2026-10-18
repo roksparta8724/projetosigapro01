@@ -58,9 +58,9 @@ const ownedProcess = {
 } as ProcessRecord;
 
 describe("analysis ownership and director supervision", () => {
-  it("lets the assigned analyst edit and keeps a second analyst read-only", () => {
+  it("keeps the technical Analysis workspace shared by analysts from the same municipality", () => {
     expect(canAnalyzeProcessDocument(analystA, ownedProcess, municipalityId)).toBe(true);
-    expect(canAnalyzeProcessDocument(analystB, ownedProcess, municipalityId)).toBe(false);
+    expect(canAnalyzeProcessDocument(analystB, ownedProcess, municipalityId)).toBe(true);
   });
 
   it("scopes the Urbanism director to Analysis instead of giving global municipal access", () => {
@@ -70,8 +70,8 @@ describe("analysis ownership and director supervision", () => {
     expect(canSuperviseProcessAnalysis(urbanismDirector, ownedProcess)).toBe(true);
   });
 
-  it("keeps the director read-only until an audited intervention is active", () => {
-    expect(canAnalyzeProcessDocument(urbanismDirector, ownedProcess, municipalityId)).toBe(false);
+  it("lets the Urbanism director work in the shared technical workspace without a temporary override", () => {
+    expect(canAnalyzeProcessDocument(urbanismDirector, ownedProcess, municipalityId)).toBe(true);
 
     const interventionProcess = {
       ...ownedProcess,
@@ -104,7 +104,7 @@ describe("analysis ownership and director supervision", () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        "neon/migrations/20261017_analysis_ownership_supervisor_intervention.sql",
+        "neon/migrations/20261018_analysis_shared_technical_workspace.sql",
       ),
       "utf8",
     );
@@ -114,9 +114,10 @@ describe("analysis ownership and director supervision", () => {
     expect(checklist).toContain("Modo acompanhamento");
     expect(checklist).toContain("<fieldset disabled={readOnly}");
     expect(migration).toContain("can_write_process_analysis");
-    expect(migration).toContain("begin_analysis_supervisor_intervention");
-    expect(migration).toContain("reassign_process_analysis");
-    expect(migration).toContain("trg_guard_analysis_document_write");
-    expect(migration).toContain("trg_guard_analysis_process_update");
+    expect(migration).toContain("_actor_role not in ('analista','prefeitura_supervisor')");
+    expect(migration).toContain("_actor_area := public.profile_operational_area(_actor)");
+    expect(migration).toContain("return public.process_is_in_analysis_area(_process_id)");
+    expect(migration).toContain("guard_analysis_document_write");
+    expect(migration).toContain("guard_analysis_process_update");
   });
 });
