@@ -67,25 +67,26 @@ describe("external professional dashboard", () => {
     expect(dashboard).toContain("Protocolos vinculados ao seu perfil profissional.");
   });
 
-  it("routes the Dashboard menu of a professional to the dedicated external dashboard", () => {
-    expect(portal).toContain('if (item.to === "/dashboard")');
-    expect(portal).toContain('to: "/externo", label: "Dashboard"');
+  it("keeps the professional Dashboard menu on the executive dashboard", () => {
+    expect(portal).not.toContain('to: "/externo", label: "Dashboard"');
+    expect(portal).toContain("Dashboard do profissional é /dashboard");
     expect(portal).toContain('children: (item.children ?? []).filter((child) => child.to !== "/externo")');
   });
 
-  it("keeps legacy professional role aliases inside the same external workspace", () => {
-    expect(getRoleLandingPath("profissional_externo")).toBe("/externo");
-    expect(getRoleLandingPath("professional_external")).toBe("/externo");
-    expect(getRoleLandingPath("professional")).toBe("/externo");
+  it("keeps legacy professional role aliases on the executive dashboard", () => {
+    expect(getRoleLandingPath("profissional_externo")).toBe("/dashboard");
+    expect(getRoleLandingPath("professional_external")).toBe("/dashboard");
+    expect(getRoleLandingPath("professional")).toBe("/dashboard");
     expect(portal).toContain("isExternalProfessionalRole(session.role)");
   });
 
-  it("redirects stale generic dashboard URLs into the dedicated professional modules", () => {
-    expect(dashboard).toContain("return <Navigate to={externalTarget} replace />");
+  it("renders the professional dashboard and keeps its analytical subpages available", () => {
+    expect(dashboard).not.toContain("return <Navigate to={externalTarget} replace />");
     expect(dashboard).toContain('location.pathname.startsWith("/dashboard/processos")');
     expect(dashboard).toContain('location.pathname.startsWith("/dashboard/financeiro")');
-    expect(dashboard).toContain('"/externo/controle"');
-    expect(dashboard).toContain('"/externo/pagamentos"');
+    expect(dashboard).toContain("Acompanhamento da sua carteira");
+    expect(dashboard).toContain('navigate("/externo/controle")');
+    expect(dashboard).toContain('navigate("/externo/pagamentos")');
   });
 
   it("keeps the dashboard usable while remote data is loading or temporarily unavailable", () => {
