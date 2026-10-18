@@ -92,7 +92,7 @@ begin
 
   return _process_municipality is not null
     and _profile_municipality is not distinct from _process_municipality
-    and _folder ~ '(fiscal|vistoria|inspec|conferencia|financ|decis|emiss)';
+    and _folder ~ '(fiscal|vistoria|inspec|conferencia)';
 end;
 $function$;
 
