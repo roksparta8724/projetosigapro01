@@ -239,7 +239,7 @@ export function MunicipalOrganizationChart({
   }
 
   return (
-    <div data-municipal-organogram="true">
+    <div data-municipal-organogram="true" data-premium-organogram="true">
       <div
         data-organogram-toolbar="true"
         className="mb-4 flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f8fc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-[linear-gradient(180deg,#10263a_0%,#0b1927_100%)]"
