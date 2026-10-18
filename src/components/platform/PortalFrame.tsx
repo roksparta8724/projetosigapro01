@@ -313,6 +313,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     loading: municipalityLoading,
   } = useMunicipality();
   const {
+    source,
     loading,
     dataError,
     dataReadyForCurrentUser,
@@ -349,8 +350,23 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     [footerBranding, resolvedFooterLogoUrl],
   );
 
+  const hasUsableScopedData = Boolean(
+    institutions.length > 0 ||
+    processes.length > 0 ||
+    sessionUsers.some(
+      (user) =>
+        user.id === session.id ||
+        (user.email?.trim().toLowerCase() &&
+          user.email.trim().toLowerCase() === session.email?.trim().toLowerCase()),
+    ),
+  );
   const showBlockingOfficialDataError = Boolean(
-    dataError && !loading && !dataReadyForCurrentUser,
+    dataError &&
+    !loading &&
+    !dataReadyForCurrentUser &&
+    source !== "remote" &&
+    source !== "warm" &&
+    !hasUsableScopedData,
   );
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
