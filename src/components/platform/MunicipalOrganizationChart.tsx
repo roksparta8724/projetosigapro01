@@ -1,6 +1,7 @@
 import { Building2, Network } from "lucide-react";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
+import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 
 const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
 
@@ -144,18 +145,7 @@ function UnitNode({
                 className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
                 title={identity.label}
               >
-                <strong
-                  data-organogram-code-text="true"
-                  style={{
-                    color: "#ffffff",
-                    WebkitTextFillColor: "#ffffff",
-                    opacity: 1,
-                    fontWeight: 900,
-                  }}
-                  className="block !text-white"
-                >
-                  {identity.short}
-                </strong>
+                <OrganogramAcronymGlyph code={identity.short} className="h-4 w-10" />
               </span>
               <span
                 data-organogram-level-label="true"
