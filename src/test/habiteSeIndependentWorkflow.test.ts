@@ -26,6 +26,17 @@ describe("Habite-se independent workflow", () => {
     );
   });
 
+  it("keeps Habite-se drafts isolated from ordinary project drafts", () => {
+    expect(protocolDraft).toContain('ProtocolDraftEntryMode = "projeto" | "habite-se"');
+    expect(protocolDraft).toContain("inferProtocolDraftEntryMode");
+    expect(protocolDraft).toContain('entryMode: inferProtocolDraftEntryMode(payload)');
+    expect(protocolDraft).toContain('const prefix = entryMode === "habite-se" ? "HAB" : "PRE"');
+    expect(protocolPage).toContain("entryMode: draftEntryMode");
+    expect(protocolPage).toContain('const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos"');
+    expect(protocolPage).toContain('requestedMode === "habite-se"');
+    expect(protocolPage).toContain('"/externo/habite-se"');
+  });
+
   it("requires an explicit link to the prior approval and permit", () => {
     expect(protocolDraft).toContain("processoAprovacao");
     expect(protocolDraft).toContain("numeroAlvara");
