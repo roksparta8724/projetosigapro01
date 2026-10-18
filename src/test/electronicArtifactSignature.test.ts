@@ -40,6 +40,13 @@ describe("official electronic signatures", () => {
     ),
     "utf8",
   );
+  const withdrawalEventMigration = readFileSync(
+    resolve(
+      process.cwd(),
+      "neon/migrations/20261018_withdrawal_event_history.sql",
+    ),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -178,7 +185,7 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain("Assinar conferência fiscal");
     expect(checklist).toContain("Entrega física do documento");
     expect(checklist).toContain("Retirado por");
-    expect(checklist).toContain("Data e hora da retirada");
+    expect(checklist).toContain("Data e hora");
     expect(checklist).not.toContain("Retirada em mãos por");
     expect(checklist).toContain("saveProcessArtifactWithdrawal");
     expect(checklist).toContain("withdrawalMatchesCurrentVersion");
@@ -199,7 +206,7 @@ describe("official electronic signatures", () => {
   });
 
   it("keeps pickup inputs readable and prints the latest saved pickup without 'Não registrada'", () => {
-    expect(checklist).toContain("!bg-white !text-slate-950");
+    expect(checklist).toContain("!bg-white !font-semibold !text-slate-950");
     expect(checklist).toContain("caret-sky-600");
     expect(checklist).toContain("currentMunicipalDateValue");
     expect(checklist).toContain('type="text"');
@@ -211,6 +218,19 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("____/____/________");
     expect(checklist).not.toContain('Retirada por: ${withdrawalMatchesCurrentVersion ? withdrawalRecord?.withdrawn_by_name : "Não registrada"}');
     expect(checklist).not.toContain(': "Não registrada"');
+  });
+
+  it("keeps the pickup input empty and shows append-only history above the new-entry form", () => {
+    expect(checklist).toContain('data-analysis-withdrawal-history="true"');
+    expect(checklist).toContain("Histórico de retiradas");
+    expect(checklist).toContain("Registrar nova retirada");
+    expect(checklist).toContain("getProcessArtifactWithdrawalHistory");
+    expect(checklist).toContain('setWithdrawalName("")');
+    expect(client).toContain("get_process_artifact_withdrawal_history_v1");
+    expect(withdrawalEventMigration).toContain("process_artifact_withdrawal_events");
+    expect(withdrawalEventMigration).toContain("withdrawn_at_exact");
+    expect(withdrawalEventMigration).toContain("event_kind");
+    expect(withdrawalEventMigration).toContain("append_process_artifact_withdrawal_event_v1");
   });
 
   it("persists pickup through the protected table instead of the stale RPC schema cache", () => {
