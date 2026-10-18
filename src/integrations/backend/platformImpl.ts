@@ -2638,6 +2638,13 @@ export async function issueRemoteHabiteSePaymentGuide(input: {
   });
 }
 
+
+export async function shareRemoteHabiteSePaymentGuide(processId: string) {
+  return callProcessRpc("share_habite_se_payment_guide_v1", {
+    _process_id: processId,
+  });
+}
+
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
   return callProcessRpc("request_construction_payment_guide_v1", {
     _process_id: processId,
