@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   type AccountStatus,
   buildProcessDocuments,
+  calculateHabiteSeGuideBreakdown,
   checklistTemplates as seedChecklistTemplates,
   cmsSections as seedCmsSections,
   clientPlanAssignments as seedClientPlanAssignments,
@@ -210,7 +211,7 @@ interface PlatformDataState {
   }) => Promise<void>;
   shareIssProjectGuide: (processId: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
-  issueHabiteSePaymentGuide: (input: { processId: string; actor: string; amount: number; dueDate?: string | null }) => Promise<void>;
+  issueHabiteSePaymentGuide: (input: { processId: string; constructionStandard: string; dueDate?: string | null }) => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
   appendProcessDocuments: (
     processId: string,
@@ -2197,7 +2198,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await shareRemoteIssProjectGuide(processId);
         await refreshRemoteStore();
       },
-      issueHabiteSePaymentGuide: async ({ processId, actor, amount, dueDate }) => {
+      issueHabiteSePaymentGuide: async ({ processId, constructionStandard, dueDate }) => {
         if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para emitir a guia do Habite-se.");
         }
@@ -2208,14 +2209,36 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           throw new Error("A Guia de Habite-se só pode ser emitida dentro de um processo de Habite-se.");
         }
 
-        const normalizedAmount = Number(amount);
-        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-          throw new Error("Informe um valor válido para a taxa de Habite-se.");
+        const normalizedStandard = constructionStandard.trim();
+        if (!normalizedStandard) {
+          throw new Error("Selecione o tipo de acabamento antes de emitir a Guia de Habite-se.");
+        }
+
+        const settings = store.tenantSettings.find(
+          (item) => item.tenantId === (process.municipalityId ?? process.tenantId),
+        );
+        const preview = calculateHabiteSeGuideBreakdown(
+          process.property.area,
+          process.property.usage,
+          normalizedStandard,
+          settings,
+        );
+
+        if (preview.areaM2 <= 0) {
+          throw new Error("A área do imóvel não está informada no cadastro do processo.");
+        }
+        if (!process.property.usage?.trim()) {
+          throw new Error("O tipo de uso/construção não está informado no cadastro do processo.");
+        }
+        if (!preview.profile || preview.baseValueM2 <= 0 || preview.totalAmount <= 0) {
+          throw new Error(
+            "Não existe valor oficial do m² configurado para este tipo de construção e acabamento.",
+          );
         }
 
         await issueRemoteHabiteSePaymentGuide({
           processId,
-          amount: normalizedAmount,
+          constructionStandard: normalizedStandard,
           dueDate: dueDate || null,
         });
         await refreshRemoteStore();
