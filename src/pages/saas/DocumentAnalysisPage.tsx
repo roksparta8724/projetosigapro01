@@ -30,6 +30,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
@@ -62,15 +63,17 @@ export function DocumentAnalysisPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { processId, documentId } = useParams();
   const routeState = (location.state ?? {}) as {
     documentAccessUrl?: string;
     returnTo?: string;
   };
-  const prefetchedDocumentAccessUrl =
-    typeof routeState.documentAccessUrl === "string"
-      ? routeState.documentAccessUrl
-      : "";
-  const { processId, documentId } = useParams();
+  const [prefetchedDocumentAccessUrl] = useState(() => {
+    if (typeof routeState.documentAccessUrl === "string" && routeState.documentAccessUrl) {
+      return routeState.documentAccessUrl;
+    }
+    return consumeDocumentWorkspaceAccessUrl(processId, documentId);
+  });
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
@@ -912,24 +915,20 @@ export function DocumentAnalysisPage() {
               ) : null}
 
               {!accessUrl ? (
-                <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#d8dee6] p-6">
-                  {accessError ? (
+                accessError ? (
+                  <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#2f343b] p-6">
                     <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
                       <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
                       <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
                     </div>
-                  ) : (
-                    <div className="h-[82vh] max-h-[980px] min-h-[620px] w-[min(780px,86%)] rounded-[10px] border border-slate-300 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
-                      <div className="mx-auto mt-16 w-[62%] space-y-4">
-                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
-                        <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
-                        <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-slate-100" />
-                        <div className="h-2.5 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                        <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-50" />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div
+                    data-document-loading-surface="silent"
+                    className="min-h-[calc(100vh-164px)] bg-[#2f343b]"
+                    aria-hidden="true"
+                  />
+                )
               ) : isPdf ? (
                 <iframe
                   key={previewUrl}
