@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -39,11 +39,45 @@ export function ExternalPortalPage() {
     getInstitutionSettings,
     loading,
     dataError,
+    dataReadyForCurrentUser,
     refreshRemoteStore,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const visibleRecords = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const portfolioRecoveryAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      loading ||
+      portfolioRecoveryAttemptedRef.current ||
+      session.id === "unknown" ||
+      typeof refreshRemoteStore !== "function"
+    ) {
+      return;
+    }
+
+    const needsRecovery =
+      !dataReadyForCurrentUser ||
+      (dataReadyForCurrentUser && visibleRecords.length === 0);
+
+    if (!needsRecovery) return;
+
+    portfolioRecoveryAttemptedRef.current = true;
+    void refreshRemoteStore().catch((error) => {
+      console.warn(
+        "[SIGAPRO][Dashboard externo] Falha na revalidação automática da carteira.",
+        error,
+      );
+    });
+  }, [
+    dataReadyForCurrentUser,
+    loading,
+    refreshRemoteStore,
+    session.id,
+    visibleRecords.length,
+  ]);
+
   const provisionalProcesses = visibleRecords.filter(
     (process) => process.isOfficial === false,
   );
