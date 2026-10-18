@@ -10482,3 +10482,39 @@ html body #root .sig-main-shell .sig-process-detail-premium
   stroke:#ffffff !important;
 }
 /* ===== END DISPATCH ORGANOGRAM SELECTED CARD V11 ===== */
+
+
+/* ===== ORGANOGRAM BLUE CODE CONTRAST GUARD V1 ===== */
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) :is(span,strong,small,p) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+/* ===== END ORGANOGRAM BLUE CODE CONTRAST GUARD V1 ===== */
