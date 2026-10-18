@@ -848,7 +848,7 @@ export function ProcessDetailPage() {
     setDocumentAccessUrls({});
     setDocumentAccessErrors({});
 
-    if (!process?.id || isExternalProcessViewer) {
+    if (!process?.id || isExternalSession) {
       return () => {
         cancelled = true;
       };
@@ -881,7 +881,7 @@ export function ProcessDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [process?.id, recoverableDocumentsFingerprint, isExternalProcessViewer]);
+  }, [process?.id, recoverableDocumentsFingerprint, isExternalSession]);
 
   if (!process) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
