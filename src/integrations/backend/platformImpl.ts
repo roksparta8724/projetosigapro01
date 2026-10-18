@@ -1991,6 +1991,77 @@ export async function createRemoteOwnerMessage(input: {
   };
 }
 
+
+export interface PendingPreprotocolPayment {
+  processId: string;
+  preProtocolNumber: string;
+  title: string;
+  processType: string;
+  createdAt: string;
+  guideId: string;
+  guideNumber: string;
+  amount: number;
+  dueDate: string;
+  guideStatus: string;
+  submitterName: string;
+}
+
+export async function listRemotePendingPreprotocolPayments(): Promise<
+  PendingPreprotocolPayment[]
+> {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const { data, error } = await db.rpc("list_pending_preprotocol_payments_v1");
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    processId: String(row.process_id ?? ""),
+    preProtocolNumber: String(row.pre_protocol_number ?? ""),
+    title: String(row.title ?? "Pré-protocolo"),
+    processType: String(row.process_type ?? ""),
+    createdAt: String(row.created_at ?? ""),
+    guideId: String(row.guide_id ?? ""),
+    guideNumber: String(row.guide_number ?? ""),
+    amount: Number(row.amount ?? 0),
+    dueDate: row.due_date ? String(row.due_date) : "",
+    guideStatus: String(row.guide_status ?? "pendente"),
+    submitterName: String(row.submitter_name ?? "Profissional externo"),
+  }));
+}
+
+export async function confirmRemotePreprotocolPayment(processId: string) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const normalizedProcessId = normalizeUuid(processId);
+  if (!normalizedProcessId) {
+    throw new Error("Pré-protocolo inválido para confirmação.");
+  }
+
+  const { data, error } = await db.rpc("confirm_preprotocol_payment_v1", {
+    _process_id: normalizedProcessId,
+  });
+
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  return data as {
+    ok?: boolean;
+    already_official?: boolean;
+    process_id: string;
+    protocol_number: string;
+    pre_protocol_number?: string;
+    officialized_at?: string;
+    guide_number?: string;
+  };
+}
+
 export async function createRemoteExternalProcessV2(
   input: CreateProcessInput & {
     guidePrefix?: string;
