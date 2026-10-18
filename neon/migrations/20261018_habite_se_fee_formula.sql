@@ -222,7 +222,7 @@ begin
   _calculation_detail :=
     'Area '||to_char(_area_m2,'FM999999990D00')||' m2 x referencia R$ '||
     to_char(_rate,'FM999999990D00')||'/m2 x '||
-    to_char(_aliquot,'FM999999990D####')||'% = R$ '||
+    to_char(_aliquot,'FM999999990D00')||'% = R$ '||
     to_char(_official_amount,'FM999999990D00')||
     '. Uso: '||coalesce(btrim(_usage),'')||
     '. Acabamento: '||_normalized_standard||'.';
