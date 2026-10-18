@@ -990,17 +990,24 @@ export function ProtocolarProjetoPage({
     }
 
     if (
-      !form.profissional.trim() ||
-      !form.profissionalDocumento.trim() ||
-      !form.email.trim() ||
-      !form.proprietario.trim() ||
-      !form.documento.trim()
+      !remotePreProtocolNumber &&
+      (
+        !form.profissional.trim() ||
+        !form.profissionalDocumento.trim() ||
+        !form.email.trim() ||
+        !form.proprietario.trim() ||
+        !form.documento.trim()
+      )
     ) {
       setStatus("Preencha os dados do profissional responsável e do proprietário antes de continuar.");
       return;
     }
 
-    if (tenantSettings?.registroProfissionalObrigatorio && !form.registro.trim()) {
+    if (
+      !remotePreProtocolNumber &&
+      tenantSettings?.registroProfissionalObrigatorio &&
+      !form.registro.trim()
+    ) {
       setStatus("Informe o registro profissional exigido pela Prefeitura.");
       return;
     }
@@ -1012,7 +1019,7 @@ export function ProtocolarProjetoPage({
       return;
     }
 
-    if (isHabiteSeMode) {
+    if (isHabiteSeMode && !remotePreProtocolNumber) {
       if (
         !form.processoAprovacao.trim() ||
         !form.numeroAlvara.trim() ||
@@ -1026,12 +1033,16 @@ export function ProtocolarProjetoPage({
         );
         return;
       }
-    } else if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula) {
+    } else if (
+      !isHabiteSeMode &&
+      !remotePreProtocolNumber &&
+      (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula)
+    ) {
       setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra e os dados do imóvel.");
       return;
     }
 
-    if (missingRequired.length > 0) {
+    if (!remotePreProtocolNumber && missingRequired.length > 0) {
       setStatus(`Faltam documentos obrigatórios: ${missingRequired.map((item) => item.label).join(", ")}.`);
       return;
     }
@@ -1041,7 +1052,7 @@ export function ProtocolarProjetoPage({
       return selected.length > 0 && selected.some((file) => !file.file && !file.storagePath);
     });
 
-    if (session.role === "profissional_externo") {
+    if (session.role === "profissional_externo" && !remotePreProtocolNumber) {
       try {
         await registerRemoteExternalAccount({
           tenantId: effectiveScopeId,
@@ -1858,27 +1869,33 @@ export function ProtocolarProjetoPage({
                     data-habite-se-document-lock="true"
                     className="max-w-[520px] text-right text-xs font-semibold leading-5 text-amber-700 dark:text-amber-300"
                   >
-                    O protocolo só será liberado quando todos os documentos obrigatórios estiverem anexados. Pendentes: {missingRequired.map((item) => item.label).join(", ")}.
+                    {remotePreProtocolNumber
+                      ? `Você pode salvar o rascunho agora, mas o pagamento não poderá transformar esta abertura em processo enquanto faltarem: ${missingRequired.map((item) => item.label).join(", ")}.`
+                      : `O pré-protocolo só será liberado quando todos os documentos obrigatórios estiverem anexados. Pendentes: ${missingRequired.map((item) => item.label).join(", ")}.`}
                   </p>
                 ) : null}
                 <Button
                   type="submit"
                   className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
                   data-protocol-required-documents-locked={
-                    missingRequired.length > 0 ? "true" : "false"
+                    !remotePreProtocolNumber && missingRequired.length > 0
+                      ? "true"
+                      : "false"
                   }
                   disabled={
                     submitting ||
                     remoteDraftLoading ||
                     hasPendingDocumentUpload ||
-                    missingRequired.length > 0
+                    (!remotePreProtocolNumber && missingRequired.length > 0)
                   }
                   title={
-                    missingRequired.length > 0
+                    !remotePreProtocolNumber && missingRequired.length > 0
                       ? isHabiteSeMode
-                        ? "Anexe todos os documentos obrigatórios antes de protocolar o Habite-se."
-                        : "Anexe todos os documentos obrigatórios antes de gerar o protocolo."
-                      : undefined
+                        ? "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo do Habite-se."
+                        : "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo."
+                      : remotePreProtocolNumber
+                        ? "Salva as alterações sem consumir numeração oficial; o pagamento continuará sujeito às validações obrigatórias."
+                        : undefined
                   }
                 >
                   {remoteDraftLoading
