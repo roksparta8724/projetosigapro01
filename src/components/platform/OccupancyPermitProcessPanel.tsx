@@ -13,7 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { type ProcessRecord, formatOfficialProcessNumber } from "@/lib/platform";
+import { HabiteSeInspectionPanel } from "@/components/platform/HabiteSeInspectionPanel";
+import {
+  type ProcessRecord,
+  type SessionUser,
+  formatOfficialProcessNumber,
+} from "@/lib/platform";
 
 function extractNoteValue(notes: string | undefined, label: string) {
   const prefix = label.toLocaleLowerCase("pt-BR") + ":";
@@ -31,12 +36,16 @@ export function OccupancyPermitProcessPanel({
   canRequestPayment = false,
   paymentRequestBusy = false,
   onRequestPayment,
+  session,
+  onProcessRefresh,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
   canRequestPayment?: boolean;
   paymentRequestBusy?: boolean;
   onRequestPayment?: () => void;
+  session: SessionUser;
+  onProcessRefresh?: () => Promise<void> | void;
 }) {
   const required = process.documents.filter((item) => item.required);
   const uploaded = required.filter((item) => item.uploaded);
@@ -331,6 +340,13 @@ export function OccupancyPermitProcessPanel({
           ) : null}
         </CardContent>
       </Card>
+
+      <HabiteSeInspectionPanel
+        process={process}
+        session={session}
+        externalView={externalView}
+        onProcessRefresh={onProcessRefresh}
+      />
 
       <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <CardContent className="grid gap-4 p-5 md:grid-cols-3">
