@@ -33,11 +33,12 @@ describe("document workspace continuity", () => {
     expect(permission).not.toContain("<DocumentWorkspaceBoot");
   });
 
-  it("keeps the real viewer mounted as the data and signed URL resolve", () => {
+  it("keeps the document route visually silent until the real viewer can render", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
 
     expect(viewer).toContain("platformDataLoading || !dataReadyForCurrentUser");
-    expect(viewer).toContain('<DocumentWorkspaceBoot mode="viewer" />');
+    expect(viewer).toContain("return null");
+    expect(viewer).not.toContain("DocumentWorkspaceBoot");
     expect(viewer).toContain("Visualizador documental");
     expect(viewer).toContain("Analisar / marcar PDF");
     expect(viewer).toContain("canAnalyzeDocument");
@@ -74,7 +75,7 @@ describe("direct PDF workspace opening", () => {
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
-        expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
+    expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(viewer).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(analysis).toContain('data-document-loading-surface="silent"');
     expect(viewer).toContain('data-document-loading-surface="silent"');
@@ -156,7 +157,7 @@ describe("annotation draft and professional handoff", () => {
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("openedTab.opener = null");
-        expect(detail).toContain("openedTab.focus()");
+    expect(detail).toContain("openedTab.focus()");
   });
 });
 
