@@ -66,6 +66,7 @@ import {
   createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
   issueRemoteHabiteSePaymentGuide,
+  shareRemoteHabiteSePaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
@@ -212,6 +213,7 @@ interface PlatformDataState {
   shareIssProjectGuide: (processId: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
   issueHabiteSePaymentGuide: (input: { processId: string; constructionStandard: string; dueDate?: string | null }) => Promise<void>;
+  shareHabiteSePaymentGuide: (processId: string) => Promise<void>;
   markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
   appendProcessDocuments: (
     processId: string,
@@ -2293,6 +2295,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           }
         }
 
+        await refreshRemoteStore();
+      },
+      shareHabiteSePaymentGuide: async (processId) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para enviar a Guia de Habite-se.");
+        }
+
+        await shareRemoteHabiteSePaymentGuide(processId);
         await refreshRemoteStore();
       },
       markGuideAsPaid: async (processId, actor, guideKind = "protocolo") => {
