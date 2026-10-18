@@ -306,8 +306,7 @@ begin
       building_type=coalesce(nullif(_merged_payload->>'buildingType',''),building_type),
       work_type=coalesce(nullif(_merged_payload->>'workType',''),work_type),
       construction_standard=coalesce(nullif(_merged_payload->>'constructionStandard',''),construction_standard),
-      area_m2=coalesce(nullif(_merged_payload->>'area','')::numeric,area_m2),
-      updated_at=clock_timestamp()
+      area_m2=coalesce(nullif(_merged_payload->>'area','')::numeric,area_m2)
   where id=_property_id;
 
   update public.processes
