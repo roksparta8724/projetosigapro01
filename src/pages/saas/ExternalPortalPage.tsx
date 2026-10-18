@@ -43,7 +43,8 @@ export function ExternalPortalPage() {
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const visibleRecords = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const processes = visibleRecords.filter((process) => process.isOfficial !== false);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -95,10 +96,10 @@ export function ExternalPortalPage() {
 
   const paymentGuides = useMemo(
     () =>
-      processes.flatMap((process) =>
+      visibleRecords.flatMap((process) =>
         getExternallyVisibleProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
       ),
-    [processes, tenantSettings],
+    [visibleRecords, tenantSettings],
   );
   const pendingGuides = paymentGuides.filter(
     (item) => item.guide.status !== "compensada",
