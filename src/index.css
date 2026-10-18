@@ -10711,3 +10711,111 @@ html body #root .sig-main-shell .sig-process-detail-premium
 }
 /* ===== END DISPATCH ORGANOGRAM CONTRAST AUTHORITY V12 ===== */
 
+/* ===== DISPATCH ORGANOGRAM PREMIUM CONTRAST V13 — 2026-10-18 =====
+   Scope: ONLY the dispatch organogram. No typography, spacing, hierarchy,
+   global organogram, workflow or data behavior changes. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge {
+  background:linear-gradient(135deg,#075d86 0%,#0a7fa8 100%) !important;
+  border-color:rgba(125,211,252,.72) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 4px 12px rgba(3,73,103,.16) !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-decoration-color:#ffffff !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"] {
+  background:linear-gradient(135deg,#075c86 0%,#087ba6 52%,#0893bc 100%) !important;
+  border-color:#55c7e8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 0 0 1px rgba(125,211,252,.12),
+    0 10px 24px rgba(7,79,111,.22) !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-title {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-path {
+  color:#e6f8ff !important;
+  -webkit-text-fill-color:#e6f8ff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-code-badge {
+  background:linear-gradient(135deg,#063d5b 0%,#07587a 100%) !important;
+  border-color:rgba(224,247,255,.42) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-icon {
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(255,255,255,.34) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-icon :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-label {
+  background:rgba(3,55,79,.32) !important;
+  border-color:rgba(255,255,255,.24) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+/* ===== END DISPATCH ORGANOGRAM PREMIUM CONTRAST V13 ===== */
+
