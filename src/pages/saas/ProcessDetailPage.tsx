@@ -3982,7 +3982,15 @@ export function ProcessDetailPage() {
                               {guide.status === "compensada" ? "Pago / compensado" : "Em aberto"}
                             </Badge>
                           </div>
-                          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">{guide.code}</p>
+                          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {getPaymentGuideDisplayReference(process, guide)}
+                          </p>
+                          {guide.officialProcessReference &&
+                          guide.officialProcessReference !== guide.code ? (
+                            <p className="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                              Guia original paga no pré-protocolo: {guide.code}
+                            </p>
+                          ) : null}
                           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-300">
                             <span><strong>Valor:</strong> {formatCurrency(guide.amount)}</span>
                             <span><strong>Vencimento:</strong> {guide.dueDate || "Não informado"}</span>
