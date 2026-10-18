@@ -2633,7 +2633,7 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
 }
 
 export function hasCompensatedIssReturnedToAnalysis(process: ProcessRecord) {
-  const paidIss = process.payment.guides?.some(
+  const paidIss = process.payment?.guides?.some(
     (guide) => guide.kind === "iss_obra" && guide.status === "compensada",
   );
 
