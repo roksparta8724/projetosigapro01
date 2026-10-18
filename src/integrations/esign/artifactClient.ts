@@ -369,7 +369,7 @@ export async function getProcessArtifactWithdrawal(
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeWithdrawalError(error, "Não foi possível carregar a retirada em mãos."),
+      normalizeWithdrawalError(error, "Não foi possível carregar o registro de entrega física."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_READ_FAILED",
@@ -405,7 +405,7 @@ export async function saveProcessArtifactWithdrawal(input: {
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeWithdrawalError(error, "Não foi possível registrar a retirada em mãos."),
+      normalizeWithdrawalError(error, "Não foi possível registrar a entrega física."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_SAVE_FAILED",
