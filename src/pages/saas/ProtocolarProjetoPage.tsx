@@ -112,6 +112,19 @@ const groupMeta = {
   complementares: { title: "Documentos complementares", icon: ShieldCheck },
 } as const;
 
+const buildingTypeCatalog = [
+  "Casa térrea",
+  "Sobrado",
+  "Edifício residencial",
+  "Edifício comercial",
+  "Edifício misto",
+  "Condomínio residencial",
+  "Galpão",
+  "Industrial",
+  "Institucional",
+  "Outro",
+] as const;
+
 function SoftInfoCard({
   label,
   value,
@@ -447,6 +460,7 @@ export function ProtocolarProjetoPage({
             { label: "Projeto", value: form.titulo || "Não preenchido" },
             { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
             { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
+            { label: "Tipo da edificação", value: form.tipoEdificacao || "Não preenchido" },
             { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
             { label: "Proprietário", value: form.proprietario || "Não preenchido" },
             { label: "Imóvel", value: form.endereco || "Não preenchido" },
@@ -459,6 +473,7 @@ export function ProtocolarProjetoPage({
       form.processoAprovacao,
       form.profissional,
       form.proprietario,
+      form.tipoEdificacao,
       form.tipoObra,
       form.titulo,
       form.tipo,
@@ -922,6 +937,9 @@ export function ProtocolarProjetoPage({
           address: form.endereco,
           ownerName: form.proprietario,
           ownerDocument: form.documento,
+          ownerIdentityDocument: form.proprietarioRg,
+          ownerPhone: form.proprietarioTelefone,
+          ownerEmail: form.proprietarioEmail,
           technicalLead: form.profissional,
           professionalDocument: form.profissionalDocumento,
           professionalRegistration: form.registro,
@@ -949,6 +967,7 @@ export function ProtocolarProjetoPage({
             block: form.quadra,
             area: Number(form.area || 0),
             usage: form.uso,
+            buildingType: form.tipoEdificacao,
             workType: isHabiteSeMode ? "Conclusão da obra" : form.tipoObra,
             constructionStandard: isHabiteSeMode ? "" : form.padraoConstrutivo,
           },
@@ -1152,9 +1171,9 @@ export function ProtocolarProjetoPage({
 
           <SectionCard
             title="Dados do proprietário"
-            description="Informe os dados do proprietário vinculados a este protocolo."
+            description="Cadastro cadastral do titular usado na conferência municipal. CPF/CNPJ identifica fiscalmente; RG/RNE é um documento de identidade separado."
             icon={UserSquare2}
-            contentClassName="grid gap-4 md:grid-cols-2"
+            contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
             <div className="space-y-2">
               <Label>Nome do proprietário *</Label>
@@ -1162,7 +1181,37 @@ export function ProtocolarProjetoPage({
             </div>
             <div className="space-y-2">
               <Label>CPF ou CNPJ do proprietário *</Label>
-              <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
+              <Input
+                value={form.documento}
+                onChange={(event) => setField("documento", event.target.value)}
+                placeholder="CPF para pessoa física ou CNPJ para pessoa jurídica"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>RG / RNE / documento de identidade</Label>
+              <Input
+                value={form.proprietarioRg}
+                onChange={(event) => setField("proprietarioRg", event.target.value)}
+                placeholder="Ex.: RG 12.345.678-9"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone do proprietário</Label>
+              <Input
+                value={form.proprietarioTelefone}
+                onChange={(event) => setField("proprietarioTelefone", event.target.value)}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2 xl:col-span-2">
+              <Label>E-mail do proprietário</Label>
+              <Input
+                type="email"
+                value={form.proprietarioEmail}
+                onChange={(event) => setField("proprietarioEmail", event.target.value)}
+                placeholder="titular@exemplo.com"
+              />
             </div>
           </SectionCard>
 
@@ -1290,7 +1339,24 @@ export function ProtocolarProjetoPage({
                   placeholder="Ex.: Residencial, Comercial, Industrial"
                 />
                 <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Usado no cálculo da guia de ISSQN / Projeto conforme a tabela da Prefeitura.
+                  Define a finalidade de uso e continua sendo a referência do cálculo municipal.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo da edificação</Label>
+                <Input
+                  list="sigapro-building-types"
+                  value={form.tipoEdificacao}
+                  onChange={(event) => setField("tipoEdificacao", event.target.value)}
+                  placeholder="Ex.: Casa térrea, Sobrado, Galpão"
+                />
+                <datalist id="sigapro-building-types">
+                  {buildingTypeCatalog.map((type) => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Classifica a tipologia física da edificação, separada do uso e da natureza da obra.
                 </p>
               </div>
             </div>
