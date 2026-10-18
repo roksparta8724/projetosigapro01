@@ -31,6 +31,15 @@ describe("finance municipal guide ledger", () => {
     expect(finance).toContain("Abrir e emitir Guia de Habite-se");
   });
 
+  it("orders the financial book by the official process sequence instead of guide creation time", () => {
+    expect(finance).toContain("getOfficialProcessSequence");
+    expect(finance).toContain("getPaymentGuideDisplayReference");
+    expect(finance).toContain("bSequence.number - aSequence.number");
+    expect(finance).toContain("Pré-protocolos ainda não pagos aparecem como PRE");
+    expect(finance).toContain("Guia paga no pré-protocolo:");
+    expect(finance).not.toContain("String(index + 1).padStart(2, \"0\")");
+  });
+
   it("keeps the issued-guide section as a municipal historical ledger", () => {
     expect(finance).toContain('title="Guias emitidas"');
     expect(finance).toContain("Todas as guias vinculadas aos processos municipais");
