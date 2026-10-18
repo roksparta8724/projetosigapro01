@@ -1593,11 +1593,34 @@ export function ProtocolarProjetoPage({
               >
                 {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
               </Button>
-              <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting || hasPendingDocumentUpload}>
-                {submitting
-                  ? (isHabiteSeMode ? "Protocolando Habite-se..." : "Protocolando projeto...")
-                  : (isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto")}
-              </Button>
+              <div className="flex flex-col items-end gap-2">
+                {isHabiteSeMode && missingRequired.length > 0 ? (
+                  <p
+                    data-habite-se-document-lock="true"
+                    className="max-w-[520px] text-right text-xs font-semibold leading-5 text-amber-700 dark:text-amber-300"
+                  >
+                    O protocolo só será liberado quando todos os documentos obrigatórios estiverem anexados. Pendentes: {missingRequired.map((item) => item.label).join(", ")}.
+                  </p>
+                ) : null}
+                <Button
+                  type="submit"
+                  className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                  disabled={
+                    submitting ||
+                    hasPendingDocumentUpload ||
+                    (isHabiteSeMode && missingRequired.length > 0)
+                  }
+                  title={
+                    isHabiteSeMode && missingRequired.length > 0
+                      ? "Anexe todos os documentos obrigatórios antes de protocolar o Habite-se."
+                      : undefined
+                  }
+                >
+                  {submitting
+                    ? (isHabiteSeMode ? "Protocolando Habite-se..." : "Protocolando projeto...")
+                    : (isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto")}
+                </Button>
+              </div>
             </div>
           </SectionCard>
         </form>
