@@ -774,6 +774,9 @@ export interface ProcessRecord {
   status: ProcessStatus;
   ownerName: string;
   ownerDocument: string;
+  ownerIdentityDocument?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
   technicalLead: string;
   /** Referências explícitas da parte processual ao perfil cadastral. */
   ownerProfileId?: string;
@@ -796,6 +799,7 @@ export interface ProcessRecord {
     block: string;
     area: number;
     usage: string;
+    buildingType?: string;
     workType?: string;
     constructionStandard?: string;
   };
@@ -874,6 +878,9 @@ export interface CreateProcessInput {
   address: string;
   ownerName: string;
   ownerDocument: string;
+  ownerIdentityDocument?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
   technicalLead: string;
   professionalDocument?: string;
   professionalRegistration?: string;
@@ -890,6 +897,7 @@ export interface CreateProcessInput {
     block: string;
     area: number;
     usage: string;
+    buildingType?: string;
     workType?: string;
     constructionStandard?: string;
   };
