@@ -74,7 +74,7 @@ describe("automatic physical withdrawal date and time", () => {
 
     expect(panel).toContain('timeZone: "America/Sao_Paulo"');
     expect(panel).toContain("formatMunicipalDateTime(withdrawalDateTime)");
-    expect(panel).toContain("Data e hora da retirada");
+    expect(panel).toContain("Data e hora");
     expect(panel).toContain("Automática");
     expect(panel).toContain('aria-readonly="true"');
     expect(panel).not.toContain('type="date"\n                  value={withdrawalDate}');
@@ -88,6 +88,25 @@ describe("automatic physical withdrawal date and time", () => {
 });
 
 
+describe("physical withdrawal history", () => {
+  it("shows prior pickup records above an always-empty new-entry field", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const client = read("src/integrations/esign/artifactClient.ts");
+    const migration = read("neon/migrations/20261018_withdrawal_event_history.sql");
+
+    expect(panel).toContain('data-analysis-withdrawal-history="true"');
+    expect(panel).toContain("Histórico de retiradas");
+    expect(panel).toContain("Registrar nova retirada");
+    expect(panel).toContain('setWithdrawalName("")');
+    expect(panel).toContain("getProcessArtifactWithdrawalHistory");
+    expect(client).toContain("get_process_artifact_withdrawal_history_v1");
+    expect(migration).toContain("process_artifact_withdrawal_events");
+    expect(migration).toContain("append_process_artifact_withdrawal_event_v1");
+    expect(migration).toContain("withdrawn_at_exact");
+  });
+});
+
+
 describe("physical withdrawal confirmation", () => {
   it("shows an explicit confirmation action to every profile authorized to register the handoff", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
@@ -95,7 +114,7 @@ describe("physical withdrawal confirmation", () => {
     expect(panel).toContain('data-analysis-withdrawal-card="true"');
     expect(panel).toContain('data-analysis-withdrawal-confirm="true"');
     expect(panel).toContain("canRecordWithdrawal ? (");
-    expect(panel).toContain("Confirmar registro da retirada");
+    expect(panel).toContain("Registrar retirada física");
     expect(panel).toContain("Confirmar retificação da retirada");
     expect(panel).toContain("Retirado por");
     expect(panel).not.toContain("Retirada em mãos por");
