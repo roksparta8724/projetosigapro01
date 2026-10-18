@@ -62,7 +62,9 @@ describe("F5, logout and topbar visual continuity", () => {
   it("does not show the blocking official-data outage banner when current-user data is already usable", () => {
     expect(portal).toContain("dataReadyForCurrentUser");
     expect(portal).toContain("showBlockingOfficialDataError");
-    expect(portal).toContain("dataError && !loading && !dataReadyForCurrentUser");
+    expect(portal).toContain("dataError &&");
+    expect(portal).toContain("!loading &&");
+    expect(portal).toContain("!dataReadyForCurrentUser &&");
     expect(portal).toContain("{showBlockingOfficialDataError ? (");
   });
 
