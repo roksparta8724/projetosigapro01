@@ -4,6 +4,22 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
+describe("process document tab theme continuity", () => {
+  it("uses the actual SIGAPRO layout mode so inverse themes never expose a white document body", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const css = read("src/index.css");
+
+    expect(detail).toContain('data-process-document-workspace="true"');
+    expect(detail).toContain('data-process-document-content="true"');
+    expect(detail).toContain('data-process-document-alert="pending"');
+    expect(detail).toContain('data-process-document-review-strip="true"');
+    expect(css).toContain("PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1");
+    expect(css).toContain('[data-layout-mode="inverse-main"]');
+    expect(css).toContain('[data-process-document-content="true"]');
+    expect(css).toContain("linear-gradient(180deg,#0a1b2a 0%,#081521 100%)");
+  });
+});
+
 describe("document workspace continuity", () => {
   it("never paints the old light process background before a document tab boots", () => {
     const html = read("index.html");
