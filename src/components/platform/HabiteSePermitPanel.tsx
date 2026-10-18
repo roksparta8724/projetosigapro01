@@ -119,6 +119,56 @@ function initialForm(process: ProcessRecord): HabiteSePermitFormData {
   };
 }
 
+type HabiteSePermitVisualCache = {
+  processId: string;
+  sessionId: string;
+  permit: HabiteSePermitRecord | null;
+  form: HabiteSePermitFormData;
+  signatureState: ArtifactSignatureSnapshot;
+  directorRequestPending: boolean;
+  savedAt: number;
+};
+
+function permitVisualCacheKey(processId: string, sessionId: string) {
+  return `sigapro.habite-se.permit.visual.v1:${sessionId}:${processId}`;
+}
+
+function readPermitVisualCache(
+  processId: string,
+  sessionId: string,
+): HabiteSePermitVisualCache | null {
+  if (typeof window === "undefined" || !processId || !sessionId || sessionId === "unknown") return null;
+  try {
+    const raw = window.localStorage.getItem(permitVisualCacheKey(processId, sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<HabiteSePermitVisualCache>;
+    if (parsed.processId !== processId || parsed.sessionId !== sessionId || !parsed.form) return null;
+    return {
+      processId,
+      sessionId,
+      permit: parsed.permit ?? null,
+      form: parsed.form as HabiteSePermitFormData,
+      signatureState: parsed.signatureState ?? { block: null, signers: [] },
+      directorRequestPending: parsed.directorRequestPending === true,
+      savedAt: Number(parsed.savedAt || 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePermitVisualCache(value: HabiteSePermitVisualCache) {
+  if (typeof window === "undefined" || !value.processId || !value.sessionId || value.sessionId === "unknown") return;
+  try {
+    window.localStorage.setItem(
+      permitVisualCacheKey(value.processId, value.sessionId),
+      JSON.stringify(value),
+    );
+  } catch {
+    // Cache somente visual: o banco continua sendo a fonte oficial.
+  }
+}
+
 function mergeAutomaticPermitForm(
   process: ProcessRecord,
   defaults?: Partial<HabiteSePermitFormData> | null,
@@ -171,14 +221,24 @@ export function HabiteSePermitPanel({
 }) {
   const habiteSeGuide = process.payment.guides?.find((guide) => guide.kind === "habite_se");
   const paymentConfirmed = habiteSeGuide?.status === "compensada";
-  const [permit, setPermit] = useState<HabiteSePermitRecord | null>(null);
-  const [form, setForm] = useState<HabiteSePermitFormData>(() => initialForm(process));
+  const initialVisual = useMemo(
+    () => readPermitVisualCache(process.id, session.id),
+    [process.id, session.id],
+  );
+  const [permit, setPermit] = useState<HabiteSePermitRecord | null>(
+    () => initialVisual?.permit ?? null,
+  );
+  const [form, setForm] = useState<HabiteSePermitFormData>(
+    () => initialVisual?.form ?? initialForm(process),
+  );
+  // Permissão operacional continua sendo revalidada no banco.
   const [canManage, setCanManage] = useState(false);
-  const [signatureState, setSignatureState] = useState<ArtifactSignatureSnapshot>({
-    block: null,
-    signers: [],
-  });
-  const [directorRequestPending, setDirectorRequestPending] = useState(false);
+  const [signatureState, setSignatureState] = useState<ArtifactSignatureSnapshot>(
+    () => initialVisual?.signatureState ?? { block: null, signers: [] },
+  );
+  const [directorRequestPending, setDirectorRequestPending] = useState(
+    () => initialVisual?.directorRequestPending ?? false,
+  );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [passwordDialog, setPasswordDialog] = useState<"analyst" | "director" | null>(null);
@@ -208,7 +268,21 @@ export function HabiteSePermitPanel({
       ARTIFACT_KEY,
       "diretoria",
     );
-    setDirectorRequestPending(request.request?.status === "pending");
+    const nextDirectorRequestPending = request.request?.status === "pending";
+    setDirectorRequestPending(nextDirectorRequestPending);
+    writePermitVisualCache({
+      processId: process.id,
+      sessionId: session.id,
+      permit: snapshot.permit,
+      form: mergeAutomaticPermitForm(
+        process,
+        snapshot.defaults,
+        snapshot.permit?.formData,
+      ),
+      signatureState: signatures,
+      directorRequestPending: nextDirectorRequestPending,
+      savedAt: Date.now(),
+    });
   };
 
   useEffect(() => {
@@ -231,7 +305,21 @@ export function HabiteSePermitPanel({
           ),
         );
         setSignatureState(signatures);
-        setDirectorRequestPending(request.request?.status === "pending");
+        const nextDirectorRequestPending = request.request?.status === "pending";
+        setDirectorRequestPending(nextDirectorRequestPending);
+        writePermitVisualCache({
+          processId: process.id,
+          sessionId: session.id,
+          permit: snapshot.permit,
+          form: mergeAutomaticPermitForm(
+            process,
+            snapshot.defaults,
+            snapshot.permit?.formData,
+          ),
+          signatureState: signatures,
+          directorRequestPending: nextDirectorRequestPending,
+          savedAt: Date.now(),
+        });
       })
       .catch((error) => {
         if (active) setNotice(error instanceof Error ? error.message : "Não foi possível carregar o Alvará de Habite-se.");
@@ -240,6 +328,26 @@ export function HabiteSePermitPanel({
       active = false;
     };
   }, [paymentConfirmed, process.id, process.status]);
+
+  useEffect(() => {
+    if (!process.id || !session.id || session.id === "unknown") return;
+    writePermitVisualCache({
+      processId: process.id,
+      sessionId: session.id,
+      permit,
+      form,
+      signatureState,
+      directorRequestPending,
+      savedAt: Date.now(),
+    });
+  }, [
+    directorRequestPending,
+    form,
+    permit,
+    process.id,
+    session.id,
+    signatureState,
+  ]);
 
   const currentPayload = useMemo(
     () => (permit ? buildPermitPayload(process, { ...permit, formData: form }) : null),
