@@ -25,7 +25,6 @@ import { ConstructionPermitPanel } from "@/components/platform/ConstructionPermi
 import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPermitProcessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
-import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
@@ -4680,9 +4679,18 @@ export function ProcessDetailPage() {
                                                     : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] dark:border-sky-500/30"
                                               }`}
                                             >
-                                              <OrganogramAcronymGlyph
-                                                code={department.code?.trim() || "UNID"}
-                                              />
+                                              <strong
+                                                data-organogram-code-text="true"
+                                                style={{
+                                                  color: "#ffffff",
+                                                  WebkitTextFillColor: "#ffffff",
+                                                  opacity: 1,
+                                                  fontWeight: 800,
+                                                }}
+                                                className="block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
+                                              >
+                                                {department.code?.trim() || "UNID"}
+                                              </strong>
                                             </span>
 
                                             <span className="min-w-0 flex-1">
