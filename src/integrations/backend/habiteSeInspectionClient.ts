@@ -65,6 +65,49 @@ function dbOrThrow() {
   return backendClient;
 }
 
+function databaseErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (!error || typeof error !== "object") return "Erro desconhecido do banco oficial.";
+
+  const record = error as Record<string, unknown>;
+  const parts = [
+    typeof record.message === "string" ? record.message : "",
+    typeof record.details === "string" ? record.details : "",
+    typeof record.hint === "string" ? record.hint : "",
+    typeof record.code === "string" ? record.code : "",
+  ].filter(Boolean);
+
+  return parts.join(" | ") || "Erro desconhecido do banco oficial.";
+}
+
+async function ensureAuthenticatedDatabaseSession() {
+  const db = dbOrThrow();
+  const result = await db.auth?.getSession?.();
+  const session = result?.data?.session ?? null;
+
+  if (!session) {
+    throw new Error(
+      "A sessão do banco ainda está sendo restaurada. Atualize a página após o login terminar.",
+    );
+  }
+
+  return db;
+}
+
+async function callInspectionRpc<T = unknown>(
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  const db = await ensureAuthenticatedDatabaseSession();
+  const { data, error } = await db.rpc(fn, args);
+
+  if (error) {
+    throw new Error(databaseErrorMessage(error));
+  }
+
+  return data as T;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -146,11 +189,9 @@ async function resolvePhotoUrl(objectKey: string) {
 export async function getHabiteSeInspection(
   processId: string,
 ): Promise<HabiteSeInspectionSnapshot> {
-  const db = dbOrThrow();
-  const { data, error } = await db.rpc("get_habite_se_inspection_v1", {
+  const data = await callInspectionRpc("get_habite_se_inspection_v1", {
     _process_id: processId,
   });
-  if (error) throw error;
 
   const payload = asRecord(data);
   const rawPhotos = Array.isArray(payload.photos) ? payload.photos : [];
@@ -179,15 +220,13 @@ export async function saveHabiteSeInspectionDraft(input: {
   photoEvidenceWaived: boolean;
   photoWaiverReason: string;
 }) {
-  const db = dbOrThrow();
-  const { data, error } = await db.rpc("upsert_habite_se_inspection_v1", {
+  const data = await callInspectionRpc("upsert_habite_se_inspection_v1", {
     _process_id: input.processId,
     _checklist: input.checklist,
     _notes: input.notes || null,
     _photo_evidence_waived: input.photoEvidenceWaived,
     _photo_waiver_reason: input.photoWaiverReason || null,
   });
-  if (error) throw error;
 
   const payload = asRecord(data);
   const inspection = mapInspection(payload.inspection);
@@ -224,9 +263,8 @@ export async function uploadHabiteSeInspectionPhoto(input: {
     file: input.file,
   });
 
-  const db = dbOrThrow();
   try {
-    const { data, error } = await db.rpc("add_habite_se_inspection_photo_v1", {
+    const data = await callInspectionRpc("add_habite_se_inspection_photo_v1", {
       _process_id: input.processId,
       _inspection_id: input.inspectionId,
       _category: input.category,
@@ -236,7 +274,6 @@ export async function uploadHabiteSeInspectionPhoto(input: {
       _file_size_bytes: input.file.size,
       _caption: input.caption || null,
     });
-    if (error) throw error;
 
     const payload = asRecord(data);
     const photo = mapPhoto(payload.photo);
@@ -261,12 +298,10 @@ export async function removeHabiteSeInspectionPhoto(input: {
   processId: string;
   photoId: string;
 }) {
-  const db = dbOrThrow();
-  const { data, error } = await db.rpc("remove_habite_se_inspection_photo_v1", {
+  const data = await callInspectionRpc("remove_habite_se_inspection_photo_v1", {
     _process_id: input.processId,
     _photo_id: input.photoId,
   });
-  if (error) throw error;
 
   const payload = asRecord(data);
   const photo = mapPhoto(payload.photo);
@@ -288,8 +323,7 @@ export async function completeHabiteSeInspection(input: {
   photoEvidenceWaived: boolean;
   photoWaiverReason: string;
 }) {
-  const db = dbOrThrow();
-  const { data, error } = await db.rpc("complete_habite_se_inspection_v1", {
+  const data = await callInspectionRpc("complete_habite_se_inspection_v1", {
     _process_id: input.processId,
     _result: input.result,
     _checklist: input.checklist,
@@ -297,6 +331,5 @@ export async function completeHabiteSeInspection(input: {
     _photo_evidence_waived: input.photoEvidenceWaived,
     _photo_waiver_reason: input.photoWaiverReason || null,
   });
-  if (error) throw error;
   return asRecord(data);
 }
