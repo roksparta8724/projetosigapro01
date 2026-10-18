@@ -155,6 +155,19 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionMigration).toContain("Pendências da vistoria do Habite-se");
   });
 
+  it("matches the Analysis/Ficha Técnica selection language in the inspection checklist", () => {
+    expect(inspectionPanel).toContain('data-habite-se-inspection-checklist="true"');
+    expect(inspectionPanel).toContain('data-habite-se-inspection-legend="true"');
+    expect(inspectionPanel).toContain('data-inspection-status={option.value}');
+    expect(inspectionPanel).toContain('data-selected={selected ? "true" : "false"}');
+    expect(inspectionPanel).toContain('aria-pressed={selected}');
+    expect(inspectionPanel).toContain("border-emerald-800 bg-emerald-600 !text-white");
+    expect(inspectionPanel).toContain("border-amber-800 bg-amber-600 !text-white");
+    expect(inspectionPanel).toContain("border-slate-800 bg-slate-700 !text-white");
+    expect(inspectionPanel).toContain('selected ? <CheckCircle2');
+    expect(inspectionPanel).toContain('[item.key]: selected ? "" : option.value');
+  });
+
   it("locks the inspection term after the process leaves Fiscalização", () => {
     expect(inspectionMigration).toContain("'analista'");
     expect(inspectionMigration).toContain("'prefeitura_supervisor'");
