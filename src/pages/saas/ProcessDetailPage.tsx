@@ -4654,7 +4654,7 @@ export function ProcessDetailPage() {
                                           }
                                           disabled={isCurrentUnit}
                                           onClick={() => setDispatchTo(department.id)}
-                                          className={`group relative w-full min-w-0 rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${
+                                          className={`sig-dispatch-destination-card group relative w-full min-w-0 rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${
                                             selected
                                               ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_10px_24px_rgba(7,89,133,0.25)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
                                               : isCurrentUnit
@@ -4671,7 +4671,7 @@ export function ProcessDetailPage() {
                                             <span
                                               data-organogram-code="true"
                                               data-organogram-code-surface="blue"
-                                              className={`sig-organogram-code-badge inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
+                                              className={`sig-dispatch-code-badge sig-organogram-code-badge inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
                                                 selected
                                                   ? "border-white/20 bg-white/15"
                                                   : isCurrentUnit
@@ -4687,7 +4687,7 @@ export function ProcessDetailPage() {
                                                   opacity: 1,
                                                   fontWeight: 800,
                                                 }}
-                                                className="block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
+                                                className="sig-dispatch-code-text block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
                                               >
                                                 {department.code?.trim() || "UNID"}
                                               </strong>
@@ -4696,7 +4696,7 @@ export function ProcessDetailPage() {
                                             <span className="min-w-0 flex-1">
                                               <span
                                                 data-organogram-destination-title="true"
-                                                className={`block truncate text-[12px] font-extrabold ${
+                                                className={`sig-dispatch-title block truncate text-[12px] font-extrabold ${
                                                   selected
                                                     ? "!text-white"
                                                     : "text-slate-950 dark:text-white"
@@ -4706,7 +4706,7 @@ export function ProcessDetailPage() {
                                               </span>
                                               <span
                                                 data-organogram-destination-path="true"
-                                                className={`mt-0.5 block truncate text-[9px] leading-4 ${
+                                                className={`sig-dispatch-path mt-0.5 block truncate text-[9px] leading-4 ${
                                                   selected
                                                     ? "!text-white/90"
                                                     : "text-slate-500 dark:text-slate-400"
@@ -4721,7 +4721,7 @@ export function ProcessDetailPage() {
                                                 Origem atual
                                               </span>
                                             ) : selected ? (
-                                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
+                                              <span className="sig-dispatch-selected-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
                                                 <CheckCircle2 className="h-4 w-4 !text-white" />
                                               </span>
                                             ) : (
@@ -4730,7 +4730,7 @@ export function ProcessDetailPage() {
                                           </div>
 
                                           {selected ? (
-                                            <span className="mt-2 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.12em] !text-white">
+                                            <span className="sig-dispatch-selected-label mt-2 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.12em] !text-white">
                                               Destino selecionado
                                             </span>
                                           ) : null}
