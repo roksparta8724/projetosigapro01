@@ -2409,7 +2409,10 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
-          <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+          <div
+            data-analysis-withdrawal-card="true"
+            className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900"
+          >
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
@@ -2430,7 +2433,7 @@ export function UrbanAnalysisChecklistPanel({
               ) : null}
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
                   Retirada em mãos por
@@ -2464,27 +2467,28 @@ export function UrbanAnalysisChecklistPanel({
                   className="mt-2 h-10 rounded-xl !border-slate-300 !bg-slate-100 !font-semibold !text-slate-800 focus-visible:!ring-0 dark:!border-slate-600 dark:!bg-slate-900 dark:!text-slate-100"
                 />
               </div>
-              {canSignTechnical ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 rounded-xl border-sky-300 bg-white font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200"
-                  disabled={!canRecordWithdrawal || withdrawalBusy || !withdrawalName.trim()}
-                  onClick={() => void saveWithdrawalRecord()}
-                >
-                  {withdrawalBusy ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  {withdrawalBusy
-                    ? "Registrando..."
-                    : withdrawalMatchesCurrentVersion
-                      ? "Atualizar retirada"
-                      : "Registrar retirada"}
-                </Button>
-              ) : null}
             </div>
+
+            {canRecordWithdrawal ? (
+              <Button
+                type="button"
+                data-analysis-withdrawal-confirm="true"
+                className="mt-3 h-11 w-full rounded-xl border border-sky-500 bg-[linear-gradient(135deg,#082f49_0%,#075985_55%,#0f78b8_100%)] font-bold !text-white shadow-[0_9px_22px_rgba(7,89,133,0.22)] hover:brightness-110 [&_*]:!text-white"
+                disabled={withdrawalBusy || !withdrawalName.trim()}
+                onClick={() => void saveWithdrawalRecord()}
+              >
+                {withdrawalBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                {withdrawalBusy
+                  ? "Confirmando retirada..."
+                  : withdrawalMatchesCurrentVersion
+                    ? "Confirmar atualização da retirada"
+                    : "Confirmar retirada em mãos"}
+              </Button>
+            ) : null}
 
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
               O Analista Técnico informa somente o nome de quem recebeu o documento. A data oficial é preenchida automaticamente e permanece separada das assinaturas eletrônicas.
