@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   type GuiaRecolhimentoOficialProps,
   openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoOficialWindow,
 } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
@@ -1612,7 +1613,7 @@ export function ProcessDetailPage() {
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
-  const printGuide = (
+  const printGuide = async (
     guideKind: PaymentGuideKind = "protocolo",
     autoPrint = true,
     guideCode?: string,
@@ -1740,9 +1741,22 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
+
+    // Reserva a nova guia ainda dentro do gesto do clique. Assim podemos aguardar
+    // a conversão do brasão/logo para data URL sem transformar a abertura em popup
+    // assíncrono bloqueado pelo navegador.
+    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
+      `Guia ${selectedGuide.code}`,
+    );
+    if (!reservedGuideWindow) {
+      setProcessActionStatus(
+        "O navegador bloqueou a abertura da guia. Permita pop-ups para o SIGAPRO e tente novamente.",
+      );
+      return;
+    }
+
     const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
-    const embeddedGuideLogoUrl =
-      preparedGuideLogoUrl ||
+    const directGuideLogoFallback =
       renderedGuideLogoUrl ||
       tenantSettings?.headerLogoUrl ||
       tenantSettings?.brasaoUrl ||
@@ -1751,6 +1765,20 @@ export function ProcessDetailPage() {
       stableGuideLogoUrl ||
       tenantSettings?.logoUrl ||
       "";
+
+    let embeddedGuideLogoUrl = preparedGuideLogoUrl || "";
+    if (!embeddedGuideLogoUrl) {
+      embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
+        renderedGuideLogoUrl,
+        stableGuideLogoUrl,
+        guideHeaderBranding.logoUrl,
+        "fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "",
+        tenantSettings?.headerLogoUrl,
+        tenantSettings?.brasaoUrl,
+        tenantSettings?.logoUrl,
+      ).catch(() => "");
+    }
+    embeddedGuideLogoUrl = embeddedGuideLogoUrl || directGuideLogoFallback;
 
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
     const issuedByLooksLikeId =
@@ -1827,14 +1855,23 @@ export function ProcessDetailPage() {
       itens: guideItems,
     };
 
-    const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-      title: `Guia ${selectedGuide.code}`,
-      autoPrint,
-    });
+    const opened = openGuiaRecolhimentoOficialWindow(
+      guideDocument,
+      {
+        title: `Guia ${selectedGuide.code}`,
+        autoPrint,
+      },
+      reservedGuideWindow,
+    );
 
     if (!opened) {
+      try {
+        reservedGuideWindow.close();
+      } catch {
+        // noop
+      }
       setProcessActionStatus(
-        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
+        "Não foi possível concluir a abertura da guia oficial.",
       );
     }
   };
