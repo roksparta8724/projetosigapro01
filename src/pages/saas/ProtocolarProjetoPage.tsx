@@ -617,6 +617,7 @@ export function ProtocolarProjetoPage({
       const persistedFiles = { ...filesRef.current, [label]: persistedSelected };
       const saved = saveProtocolDraft(session.id, effectiveScopeId, {
         draftNumber,
+        entryMode: draftEntryMode,
         form,
         files: toStoredUploadedFiles(persistedFiles),
         updatedAt: new Date().toISOString(),
