@@ -10,6 +10,8 @@ const financeDesk = read("src/pages/saas/FinanceDeskPage.tsx");
 const registry = read("src/pages/saas/MunicipalProcessRegistryPage.tsx");
 const documentAnalysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
 const liveRefresh = read("src/hooks/useLivePlatformRefresh.ts");
+const platformData = read("src/hooks/usePlatformData.tsx");
+const analystDesk = read("src/pages/saas/AnalystDeskPage.tsx");
 const migration = read("neon/migrations/20261018_live_process_party_identity.sql");
 
 describe("live process identity and operational freshness", () => {
@@ -39,6 +41,18 @@ describe("live process identity and operational freshness", () => {
     expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
     expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
     expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
+  });
+
+  it("does not replace unchanged remote-store references during heartbeat refreshes", () => {
+    expect(platformData).toContain("function stabilizePlatformStore");
+    expect(platformData).toContain("function reuseStableArray");
+    expect(platformData).toContain("return unchanged ? current : next");
+    expect(platformData).toContain("setStore((current) => stabilizePlatformStore(current, sanitized))");
+  });
+
+  it("does not repaint the analysis desk just to advance a heartbeat timestamp", () => {
+    expect(analystDesk).toContain("setLiveSyncAt((current) => current || new Date().toISOString())");
+    expect(analystDesk).toContain('setLiveSyncError((current) => (current ? "" : current))');
   });
 
   it("keeps the live process authoritative over the visual continuity cache", () => {
