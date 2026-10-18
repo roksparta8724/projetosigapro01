@@ -26,7 +26,7 @@ describe("document workspace continuity", () => {
     const permission = read("src/components/platform/PermissionRoute.tsx");
 
     expect(html).toContain('var isFullDocumentRoute =');
-    expect(html).toContain('initialBackground = isFullDocumentRoute ? "#dfe5ec"');
+    expect(html).toContain('initialBackground = isFullDocumentRoute ? "#2b3037"');
     expect(html).not.toContain('data-sigapro-document-preboot="true"');
     expect(permission).toContain('data-document-route-preboot="silent"');
     expect(permission).toContain('className="min-h-screen bg-[#2b3037]"');
