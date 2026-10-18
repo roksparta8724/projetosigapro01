@@ -2285,7 +2285,7 @@ async function callProcessRpc<T = Record<string, unknown>>(
 ): Promise<T> {
   if (!db) throw new Error("Banco oficial indisponível.");
   const { data, error } = await db.rpc(fn, args);
-  if (error) throw error;
+  if (error) throw new Error(formatDatabaseError(error));
   return data as T;
 }
 
