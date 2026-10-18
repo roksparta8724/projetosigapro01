@@ -113,6 +113,7 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain('window.open("about:blank", "_blank")');
     expect(checklist).toContain("reservedPdfWindow.location.replace(viewerUrl)");
     expect(checklist).toContain("#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1");
+    expect(checklist).toContain('doc.setDisplayMode("fullwidth", "continuous", "UseNone")');
     expect(checklist).toContain('creator: "SIGAPRO Municipal"');
     expect(checklist).not.toContain("doc.save(fileName)");
   });
