@@ -55,6 +55,13 @@ describe("live process identity and operational freshness", () => {
     expect(analystDesk).toContain('setLiveSyncError((current) => (current ? "" : current))');
   });
 
+  it("does not restart the previous-upload lookup when only the process object reference changes", () => {
+    expect(processDetail).toContain("recoverableDocumentsFingerprint");
+    expect(processDetail).toContain("process.id,");
+    expect(processDetail).toContain("recoverableDocumentsFingerprint,");
+    expect(processDetail).not.toContain("}, [activeTab, canRecoverStoredDocuments, process]);");
+  });
+
   it("keeps the live process authoritative over the visual continuity cache", () => {
     expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
   });
