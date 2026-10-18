@@ -2922,38 +2922,22 @@ export function canEditProcessAnalysis(
     return false;
   }
 
+  const worksInAnalysis =
+    canAccessMunicipalArea(session, "analise") &&
+    isProcessOwnedBySessionDepartment(session, process);
+
+  // A Análise Urbanística é uma mesa técnica compartilhada. A atribuição de
+  // responsável organiza carga/SLA e auditoria, mas nunca bloqueia outro
+  // analista da mesma unidade de revisar projeto, Habite-se, anotar documentos,
+  // aprovar/rejeitar arquivos ou emitir exigências.
+  if (session.role === "analista") {
+    return worksInAnalysis;
+  }
+
   if (session.role === "prefeitura_supervisor") {
-    return (
-      canSuperviseProcessAnalysis(session, process) &&
-      hasActiveAnalysisSupervisorIntervention(session, process)
-    );
+    return canSuperviseProcessAnalysis(session, process) && worksInAnalysis;
   }
 
-  if (session.role !== "analista") return false;
-  if (!canAccessMunicipalArea(session, "analise")) return false;
-
-  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
-  const normalizeAssignee = (value: string | null | undefined) =>
-    String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR")
-      .replace(/\s+/g, " ");
-  const assignedName = normalizeAssignee(process.analysis?.assignedTo);
-  const sessionName = normalizeAssignee(session.name);
-
-  if (assignedProfileId) {
-    return assignedProfileId === session.id;
-  }
-
-  if (assignedName) {
-    return Boolean(sessionName && assignedName === sessionName);
-  }
-
-  // Processo sem responsável ainda não é editável. O analista deve usar
-  // "Iniciar análise", que faz uma tomada atômica no banco e evita dois
-  // analistas assumirem o mesmo processo simultaneamente.
   return false;
 }
 
