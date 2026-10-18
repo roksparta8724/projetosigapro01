@@ -36,7 +36,9 @@ describe("process document persistence regressions", () => {
     expect(fileDropZone).toContain('sm:h-[360px]');
     expect(fileDropZone).toContain('URL.createObjectURL(file)');
     expect(fileDropZone).toContain('transition-colors');
-    expect(fileDropZone).not.toContain('<iframe');
+    expect(fileDropZone).toContain('<iframe');
+    expect(fileDropZone).toContain('className="pointer-events-none h-full w-full border-0 bg-white"');
+    expect(fileDropZone).toContain("buildPdfPreviewUrl(file.previewUrl)");
     expect(fileDropZone).toContain('Abrir PDF em nova guia');
   });
 
