@@ -551,7 +551,7 @@ export function HabiteSePermitPanel({
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Conclusão informada</label>
-                <Input value={form.completionDate} onChange={(event) => setForm((current) => ({ ...current, completionDate: event.target.value }))} className="mt-2 bg-white dark:bg-slate-950" />
+                <Input type="date" value={form.completionDate} onChange={(event) => setForm((current) => ({ ...current, completionDate: event.target.value }))} className="mt-2 bg-white dark:bg-slate-950" />
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Processo de aprovação de origem</label>
