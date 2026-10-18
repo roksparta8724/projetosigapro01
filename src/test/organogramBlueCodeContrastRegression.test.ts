@@ -37,17 +37,23 @@ describe("organogram institutional blue code contrast", () => {
     expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 
-  it("keeps dispatch organogram acronym badges white inside blue destination cards", () => {
+  it("keeps dispatch organogram acronym badges white without changing typography", () => {
     expect(processDetail).toContain('data-organogram-code="true"');
     expect(processDetail).toContain('data-organogram-code-surface="blue"');
-    expect(processDetail).toContain("OrganogramAcronymGlyph");
-    expect(processDetail).toContain(
-      "bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)]",
-    );
+    expect(processDetail).toContain('data-organogram-code-text="true"');
+    expect(processDetail).toContain('className="block whitespace-nowrap text-[10px] font-extrabold');
   });
 
-  it("keeps compact organogram paths on the same white acronym implementation", () => {
-    expect(bar).toContain("OrganogramAcronymGlyph");
+  it("uses the premium institutional blue only on the selected destination surface", () => {
+    expect(css).toContain(
+      "linear-gradient(135deg,#0a2238 0%,#0b3f5f 54%,#0b6385 100%)",
+    );
+    expect(css).toContain("border-color:rgba(79,183,218,.72) !important");
+  });
+
+  it("keeps compact organogram paths on the same crisp white acronym treatment", () => {
     expect(bar).toContain('data-organogram-code="true"');
+    expect(bar).toContain('data-organogram-code-text="true"');
+    expect(bar).toContain('text-[10px] font-extrabold');
   });
 });
