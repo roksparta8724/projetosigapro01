@@ -385,7 +385,7 @@ export function ExternalProcessControlPage() {
                 const guides = getExternallyVisibleProcessPaymentGuides(process, tenantSettings);
                 const displayGuides = ["protocolo", "iss_obra", "aprovacao_final"]
                   .map((kind) => guides.find((guide) => guide.kind === kind))
-                  .filter((guide): guide is NonNullable<typeof guide> => Boolean(guide));
+                  .filter((guide): guide is (typeof guides)[number] => Boolean(guide));
                 const hasPendingGuide = displayGuides.some(
                   (guide) => !isGuideCompensated(guide.status),
                 );
